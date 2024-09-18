@@ -66,7 +66,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         app.accountDataStateMachine,
         app.recoveringKeyboxUiStateMachine,
         app.recoverySyncer,
-        app.appComponent.accountRepository
+        app.appComponent.accountService
       )
   }
 
@@ -79,7 +79,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         app.accountDataStateMachine,
         app.recoveringKeyboxUiStateMachine,
         app.recoverySyncer,
-        app.appComponent.accountRepository
+        app.appComponent.accountService
       )
   }
 

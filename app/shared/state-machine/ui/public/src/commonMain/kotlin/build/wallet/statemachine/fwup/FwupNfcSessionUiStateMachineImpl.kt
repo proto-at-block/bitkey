@@ -158,58 +158,61 @@ class FwupNfcSessionUiStateMachineImpl(
     setState: (FwupNfcSessionUiState) -> Unit,
   ) {
     LaunchedEffect("nfc-transaction") {
-      nfcTransactor.transact(
-        parameters =
-          NfcSession.Parameters(
-            isHardwareFake = props.isHardwareFake,
-            needsAuthentication = true,
-            shouldLock = true,
-            skipFirmwareTelemetry = true,
-            onTagConnected = {
-              eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
-              setState(UpdatingUiState)
-            },
-            onTagDisconnected = {
-              if (state !is SuccessUiState) {
-                setState(InSessionUiState.LostConnectionUiState)
+      nfcTransactor
+        .transact(
+          parameters =
+            NfcSession.Parameters(
+              isHardwareFake = props.isHardwareFake,
+              needsAuthentication = true,
+              shouldLock = true,
+              skipFirmwareTelemetry = true,
+              nfcFlowName = "fwup",
+              onTagConnected = {
+                eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
+                setState(UpdatingUiState)
+              },
+              onTagDisconnected = {
+                if (state !is SuccessUiState) {
+                  setState(InSessionUiState.LostConnectionUiState)
+                }
+              },
+              asyncNfcSigning = false // Unused for FWUP
+            ),
+          transaction = { session, commands ->
+            fwupTransaction(
+              session = session,
+              commands = commands,
+              fwupData = props.firmwareData.fwupData,
+              updateSequenceId = { sequenceId ->
+                log { "Updating sequence ID: $sequenceId" }
+                setSequenceId(sequenceId)
+                val progress =
+                  fwupProgressCalculator.calculateProgress(
+                    sequenceId = sequenceId,
+                    finalSequenceId = props.firmwareData.fwupData.finalSequenceId()
+                  )
+                session.message = "${progress.roundToInt()}%"
+                setProgress(progress)
               }
-            }
-          ),
-        transaction = { session, commands ->
-          fwupTransaction(
-            session = session,
-            commands = commands,
-            fwupData = props.firmwareData.fwupData,
-            updateSequenceId = { sequenceId ->
-              log { "Updating sequence ID: $sequenceId" }
-              setSequenceId(sequenceId)
-              val progress =
-                fwupProgressCalculator.calculateProgress(
-                  sequenceId = sequenceId,
-                  finalSequenceId = props.firmwareData.fwupData.finalSequenceId()
-                )
-              session.message = "${progress.roundToInt()}%"
-              setProgress(progress)
-            }
-          )
-        }
-      ).onFailure { error ->
-        when (error) {
-          is NfcException.IOSOnly.UserCancellation -> {
-            props.onBack()
+            )
           }
-          else -> {
-            val inProgress = fwupInProgress
-            val transactionType = when (inProgress) {
-              true -> FwupTransactionType.ResumeFromSequenceId(getSequenceId())
-              false -> FwupTransactionType.StartFromBeginning
+        ).onFailure { error ->
+          when (error) {
+            is NfcException.IOSOnly.UserCancellation -> {
+              props.onBack()
             }
-            props.onError(error, fwupInProgress, transactionType)
+            else -> {
+              val inProgress = fwupInProgress
+              val transactionType = when (inProgress) {
+                true -> FwupTransactionType.ResumeFromSequenceId(getSequenceId())
+                false -> FwupTransactionType.StartFromBeginning
+              }
+              props.onError(error, fwupInProgress, transactionType)
+            }
           }
+        }.onSuccess {
+          setState(SuccessUiState)
         }
-      }.onSuccess {
-        setState(SuccessUiState)
-      }
     }
   }
 
@@ -315,12 +318,11 @@ class FwupNfcSessionUiStateMachineImpl(
     }
   }
 
-  private suspend fun getSequenceId(): UInt {
-    return fwupDataDao.getSequenceId().getOrElse {
+  private suspend fun getSequenceId(): UInt =
+    fwupDataDao.getSequenceId().getOrElse {
       log { "Failed to get sequence ID, using 0" }
       0u
     }
-  }
 
   private suspend fun setSequenceId(sequenceId: UInt) {
     fwupDataDao.setSequenceId(sequenceId)
@@ -361,5 +363,7 @@ sealed interface FwupTransactionType {
   data object StartFromBeginning : FwupTransactionType
 
   /** Resume FWUP from the given [sequenceId] */
-  data class ResumeFromSequenceId(val sequenceId: UInt) : FwupTransactionType
+  data class ResumeFromSequenceId(
+    val sequenceId: UInt,
+  ) : FwupTransactionType
 }

@@ -1,10 +1,10 @@
 use tracing::instrument;
 use types::{
     account::{identifiers::AccountId, AccountType},
-    privileged_action::definition::ResolvedPrivilegedActionDefinition,
+    privileged_action::definition::{
+        all_privileged_action_definitions, ResolvedPrivilegedActionDefinition,
+    },
 };
-
-use crate::privileged_action_definitions::ALL_PRIVILEGED_ACTIONS;
 
 use super::{error::ServiceError, Service};
 
@@ -27,7 +27,7 @@ impl Service {
             .configured_privileged_action_delay_durations
             .clone();
 
-        Ok(ALL_PRIVILEGED_ACTIONS
+        Ok(all_privileged_action_definitions()
             .iter()
             .filter_map(|definition| {
                 definition.resolve(account_type.clone(), configured_delay_durations.clone())

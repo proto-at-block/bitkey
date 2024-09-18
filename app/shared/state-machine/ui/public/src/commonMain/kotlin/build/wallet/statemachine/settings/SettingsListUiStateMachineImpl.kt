@@ -68,7 +68,8 @@ class SettingsListUiStateMachineImpl(
             rowTypes =
               immutableListOf(
                 CustomElectrumServer::class,
-                DebugMenu::class
+                DebugMenu::class,
+                UtxoConsolidation::class
               )
           ),
           SettingsSection(
@@ -145,6 +146,7 @@ class SettingsListUiStateMachineImpl(
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
         is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
         is Biometric -> Pair(SmallIconLock, "App Security")
+        is UtxoConsolidation -> Pair(SmallIconInformation, "UTXO Consolidation")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(
@@ -224,6 +226,8 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.helpCenter == Available
       is DebugMenu -> true
       is Biometric -> true
+      // TODO(W-9552): disable the row when the feature is not available
+      is UtxoConsolidation -> true
     }
   }
 }

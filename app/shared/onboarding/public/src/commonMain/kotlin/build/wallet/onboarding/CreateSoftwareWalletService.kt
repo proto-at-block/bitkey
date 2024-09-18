@@ -1,6 +1,6 @@
 package build.wallet.onboarding
 
-import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.account.SoftwareAccount
 import com.github.michaelbull.result.Result
 
 /**
@@ -10,7 +10,7 @@ import com.github.michaelbull.result.Result
  */
 interface CreateSoftwareWalletService {
   /**
-   * Creates and activates a new [Account] for a software wallet.
+   * Creates and activates a new [SoftwareAccount] for a software wallet.
    */
-  suspend fun createAccount(): Result<Account, Throwable>
+  suspend fun createAccount(): Result<SoftwareAccount, Throwable>
 }

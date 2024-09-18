@@ -2,12 +2,7 @@ package build.wallet.di
 
 import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
 import build.wallet.bdk.BdkMnemonicGeneratorImpl
-import build.wallet.bdk.bindings.BdkAddressBuilder
-import build.wallet.bdk.bindings.BdkBlockchainFactory
-import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
-import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
-import build.wallet.bdk.bindings.BdkTxBuilderFactory
-import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.bdk.bindings.*
 import build.wallet.crypto.Spake2Impl
 import build.wallet.crypto.WsmVerifierImpl
 import build.wallet.datadog.DatadogRumMonitor
@@ -26,6 +21,7 @@ import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManagerImpl
+import build.wallet.sqldelight.DatabaseIntegrityCheckerImpl
 import build.wallet.time.Delayer
 import kotlin.time.Duration.Companion.seconds
 
@@ -95,6 +91,7 @@ fun makeAppComponent(
     xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
     xNonceGenerator = XNonceGeneratorImpl(),
     spake2 = Spake2Impl(),
-    cryptoBox = CryptoBoxImpl()
+    cryptoBox = CryptoBoxImpl(),
+    databaseIntegrityChecker = DatabaseIntegrityCheckerImpl(fileDirectoryProvider)
   )
 }

@@ -1,3 +1,6 @@
+export RUST_LOG := "info"
+export ROCKET_PROFILE := "test"
+
 alias b := build
 alias t := test
 alias r := run
@@ -30,7 +33,10 @@ wsm-enclave-eif:
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v $PWD/src/wsm/build:/build \
     nitro-cli:latest \
-    sh -c "nitro-cli build-enclave --docker-uri wsm-enclave:latest --output-file /build/wsm-enclave.eif  || \
+    sh -c "nitro-cli build-enclave --docker-uri wsm-enclave:latest \
+           --output-file /build/wsm-enclave.eif \
+           --private-key /usr/local/nitro-enclave-codesigning-key-staging.priv.pem \
+           --signing-certificate /usr/local/nitro-enclave-codesigning-cert-staging.pem || \
            (cat /var/log/nitro_enclaves/*.log && exit 1)"
   @echo Image created at $PWD/src/wsm/build/wsm-enclave.eif
 
@@ -60,6 +66,10 @@ run-migrations:
 test: sidecars
   {{cargo}} nextest run --all-features
 
+# Run all tests
+test-ci: sidecars
+  {{cargo}} nextest run --all-features --profile ci
+
 # Run server tests
 test-server: sidecars
   {{cargo}} test --exclude 'wsm*' --workspace
@@ -68,12 +78,20 @@ test-server: sidecars
 test-wsm: sidecars
   {{cargo}} test --package 'wsm*' --workspace
 
+# Run specific tests
+test-some path: sidecars
+  CARGO_LOG=debug {{cargo}} nextest run --all-features "{{path}}" --no-fail-fast
+
 # Start sidecars and run the server in debug mode
 run: sidecars run-server
 
 # Run the server in debug mode
 run-server *args:
-  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server --features partnerships -- server {{args}}
+  #!/bin/bash
+  if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+  fi
+  ROCKET_CONFIG=src/api/Rocket.toml ROCKET_PROFILE=debug {{cargo}} run --bin server --features partnerships -- server {{args}}
 
 grind-signet-coins:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron coin-grinder
@@ -272,9 +290,6 @@ get-regtest-funds address amount:
   {{ bitcoincli }} -named sendtoaddress address={{ address }} amount={{ amount }} fee_rate=1
   @echo
   @echo sent {{ amount }} BTC to {{ address }}
-
-export RUST_LOG := "info"
-export ROCKET_PROFILE := "test"
 
 _run-wsm-enclave $ROCKET_ADDRESS="localhost" $ROCKET_PORT="7446":
   cd src/wsm && ../../target/debug/wsm-enclave

@@ -1,6 +1,6 @@
 package build.wallet.auth
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.*
 import build.wallet.bitkey.app.AppAuthKey
@@ -18,7 +18,7 @@ import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
 class AppAuthPublicKeyProviderImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val recoveryAppAuthPublicKeyProvider: RecoveryAppAuthPublicKeyProvider,
 ) : AppAuthPublicKeyProvider {
   override suspend fun getAppAuthPublicKeyFromAccountOrRecovery(
@@ -60,7 +60,7 @@ class AppAuthPublicKeyProviderImpl(
     accountId: AccountId,
   ): Result<Account?, AuthError> {
     return coroutineBinding {
-      val accountStatus = accountRepository.accountStatus().first()
+      val accountStatus = accountService.accountStatus().first()
         .mapError { FailedToReadAccountStatus(it) }
         .bind()
 
@@ -124,6 +124,11 @@ private fun Account.appAuthPublicKey(
       when (tokenScope) {
         AuthTokenScope.Global -> Ok(appGlobalAuthKey)
         AuthTokenScope.Recovery -> Ok(recoveryAuthKey)
+      }
+    is SoftwareAccount ->
+      when (tokenScope) {
+        AuthTokenScope.Global -> Ok(keybox.authKey)
+        AuthTokenScope.Recovery -> Ok(appRecoveryAuthKey)
       }
   }
 }

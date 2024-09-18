@@ -4,6 +4,9 @@ import PackageDescription
 
 let package = Package(
     name: "rust",
+    platforms: [
+        .iOS(.v15)
+    ],
     products: [
         .library(name: "core", targets: ["core", "coreFFI"]),
         .library(name: "firmware", targets: ["firmware", "firmwareFFI"]),

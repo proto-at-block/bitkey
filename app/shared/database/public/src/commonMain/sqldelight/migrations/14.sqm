@@ -1,0 +1,40 @@
+-- Creates new software account key tables; these are all new tables, or not used in prod, and
+-- therefore do not require data migrations.
+
+-- Table for Software Account's Keybox data.
+CREATE TABLE softwareKeyboxEntity(
+  id                                    TEXT NOT NULL PRIMARY KEY,
+  accountId                             TEXT AS SoftwareAccountId NOT NULL,
+  appGlobalAuthKey                      TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  appRecoveryAuthKey                    TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL
+);
+
+-- Update activeSoftwareAccountEntity to have a foreign key on its softwareKeyboxId. No need to migrate data since
+-- no data exists in production.
+DROP TABLE activeSoftwareAccountEntity;
+CREATE TABLE activeSoftwareAccountEntity(
+  rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId          TEXT AS SoftwareAccountId NOT NULL,
+  softwareKeyboxId   TEXT NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId),
+  FOREIGN KEY (softwareKeyboxId) REFERENCES softwareKeyboxEntity(id)
+);
+
+-- A view to get the software account and its keybox in a single query.
+CREATE VIEW softwareAccountWithKeyboxView AS
+SELECT
+  activeSoftwareAccountEntity.accountId AS accountId,
+  softwareAccountEntity.bitcoinNetworkType,
+  softwareAccountEntity.f8eEnvironment,
+  softwareAccountEntity.isTestAccount,
+  softwareAccountEntity.isUsingSocRecFakes,
+  softwareKeyboxEntity.id AS keyboxId,
+  softwareKeyboxEntity.appGlobalAuthKey,
+  softwareKeyboxEntity.appRecoveryAuthKey
+FROM activeSoftwareAccountEntity
+INNER JOIN softwareAccountEntity
+ON activeSoftwareAccountEntity.accountId = softwareAccountEntity.accountId
+INNER JOIN softwareKeyboxEntity
+ON softwareKeyboxEntity.id = activeSoftwareAccountEntity.softwareKeyboxId;
+
+PRAGMA foreign_key_check;

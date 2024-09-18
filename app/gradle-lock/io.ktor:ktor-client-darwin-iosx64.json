@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-darwin-iosx64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-darwin-iosx64-2.3.9-metadata.jar": "3f494c912becc1e2dc0abc9eb542011316f5a745a63ba147c653d29969828f32"
+                        "ktor-client-darwin-iosx64-2.3.11-metadata.jar": "5f4a0b990bd80752c5c44f840ec4876c5597dd39db847cbf0b47cb98d3e954d3"
                     }
                 },
                 {

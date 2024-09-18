@@ -2,16 +2,16 @@
     "module-identifier": "de.cketti.unicode:kotlin-codepoints-iosx64",
     "components": [
         {
-            "version": "0.6.1",
+            "version": "0.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-codepoints-iosx64-metadata.jar": "ba2688687f49482618be1df4c5a95b06b4101daa67b617c0041da5f97b54be2c"
+                        "kotlin-codepoints-iosx64-metadata.jar": "856a2a88684c5abada352aef5508358966e8b4322c2dd36a043d05a09cb24a50"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-codepoints.klib": "065eec18434606b053f080b9c4f6621b38358a4508706c242ea9e8b4a9f5fe67"
+                        "kotlin-codepoints.klib": "2f39582c5c593a27ec2e38ce2b4af038a5a0703d1e37f998b772f81b929d081a"
                     }
                 }
             ],

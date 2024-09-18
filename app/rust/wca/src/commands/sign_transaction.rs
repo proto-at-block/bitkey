@@ -12,11 +12,12 @@ use crate::{
 };
 
 use super::generate_keys::derive;
-use super::sign_sighash::derive_and_sign;
+use super::sign_sighash::derive_and_sign_sighash;
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn sign_transaction(
     mut psbt: PartiallySignedTransaction,
+    async_sign: bool,
 ) -> Result<PartiallySignedTransaction, CommandError> {
     let default_path = DerivationPath::default();
     let derived_signables = match yield_from_!(derive(Default::default(), &default_path)) {
@@ -39,7 +40,7 @@ fn sign_transaction(
     for signable in derived_signables {
         let path = &signable.path;
         let descriptor = yield_from_!(derive(Default::default(), path))?;
-        let signature = yield_from_!(derive_and_sign(signable.sighash, path))?;
+        let signature = yield_from_!(derive_and_sign_sighash(signable.sighash, path, async_sign))?;
         let signed_sighash = SignedSighash {
             signature,
             descriptor,
@@ -53,5 +54,6 @@ fn sign_transaction(
 }
 
 command!(SignTransaction = sign_transaction -> PartiallySignedTransaction,
-    psbt: PartiallySignedTransaction
+    psbt: PartiallySignedTransaction,
+    async_sign: bool
 );

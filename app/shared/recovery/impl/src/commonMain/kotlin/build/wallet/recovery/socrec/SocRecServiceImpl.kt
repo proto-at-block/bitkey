@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.auth.AuthTokenScope
@@ -10,13 +10,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.relationships.DelegatedDecryptionKey
-import build.wallet.bitkey.relationships.EndorsedTrustedContact
-import build.wallet.bitkey.relationships.IncomingInvitation
-import build.wallet.bitkey.relationships.OutgoingInvitation
-import build.wallet.bitkey.relationships.ProtectedCustomer
-import build.wallet.bitkey.relationships.ProtectedCustomerAlias
-import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -42,7 +36,7 @@ class SocRecServiceImpl(
   private val socialRecoveryCodeBuilder: SocialRecoveryCodeBuilder,
   private val appSessionManager: AppSessionManager,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
 ) : SocRecService, SocRecSyncRelationshipsWorker {
   override fun justCompletedRecovery(): Flow<Boolean> {
     return postSocRecTaskRepository.taskState
@@ -80,7 +74,7 @@ class SocRecServiceImpl(
 
       // Sync relationships with f8e
       launch {
-        accountRepository.accountStatus()
+        accountService.accountStatus()
           .mapResult { it as? AccountStatus.ActiveAccount }
           .mapNotNull { it.get()?.account }
           .distinctUntilChanged()

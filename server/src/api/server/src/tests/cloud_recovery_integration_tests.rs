@@ -3,9 +3,10 @@ use std::str::FromStr;
 use http::StatusCode;
 use std::default::Default;
 use time::{Duration, OffsetDateTime};
+use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
 
-use account::entities::{Factor, FullAccountAuthKeysPayload, Network, SpendingKeysetRequest};
+use account::entities::{Factor, FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};

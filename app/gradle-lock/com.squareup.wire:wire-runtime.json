@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-runtime",
     "components": [
         {
-            "version": "4.9.8",
+            "version": "4.9.9",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-runtime-metadata-4.9.8.jar": "18178fdc73f1ecef0cd698caac6b73a73fa19def2db47f6e763526a88656088b"
+                        "wire-runtime-metadata-4.9.9.jar": "40d2b86b6b737ec847bacf5728fcbf826adab2569eb471a12629344c0b4ab8b7"
                     }
                 }
             ],

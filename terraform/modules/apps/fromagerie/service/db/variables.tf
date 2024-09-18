@@ -69,3 +69,8 @@ variable "privileged_action_table_name" {
   type        = string
   description = "The name of the privileged action table"
 }
+
+variable "inheritance_table_name" {
+  type        = string
+  description = "The name of the inheritance table"
+}

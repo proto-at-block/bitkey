@@ -237,6 +237,7 @@ pub enum RouteError {
     DatetimeFormatError,
     MutateDatetimeError,
     InvalidNetworkForNewKeyset,
+    InvalidNetworkForNewKeyDefinition,
 }
 
 impl From<RouteError> for ApiError {
@@ -328,6 +329,11 @@ impl From<RouteError> for ApiError {
             }
             RouteError::InvalidNetworkForNewKeyset => {
                 let msg = "Request for different network than existing keyset";
+                event!(Level::ERROR, msg);
+                ApiError::GenericBadRequest(msg.to_string())
+            }
+            RouteError::InvalidNetworkForNewKeyDefinition => {
+                let msg = "Request for different network than existing key definition";
                 event!(Level::ERROR, msg);
                 ApiError::GenericBadRequest(msg.to_string())
             }

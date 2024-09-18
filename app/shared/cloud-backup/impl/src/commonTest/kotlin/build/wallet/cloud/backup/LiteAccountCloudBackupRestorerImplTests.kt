@@ -1,6 +1,6 @@
 package build.wallet.cloud.backup
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
@@ -31,7 +31,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val appPrivateKeyDaoFake = AppPrivateKeyDaoFake()
   val cloudBackupDao = CloudBackupDaoFake()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
 
   val restorer =
     LiteAccountCloudBackupRestorerImpl(
@@ -40,14 +40,14 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       accountAuthenticator = accountAuthenticator,
       authTokenDao = authTokenDao,
       cloudBackupDao = cloudBackupDao,
-      accountRepository = accountRepository
+      accountService = accountService
     )
 
   beforeTest {
     accountAuthenticator.reset()
     authTokenDao.reset()
     appPrivateKeyDaoFake.reset()
-    accountRepository.reset()
+    accountService.reset()
   }
 
   test("success") {
@@ -75,7 +75,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
           AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
         )
       )
-    accountRepository.accountState.value.shouldBeEqual(
+    accountService.accountState.value.shouldBeEqual(
       Ok(
         AccountStatus.OnboardingAccount(
           LiteAccountMock

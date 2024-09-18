@@ -8,3 +8,7 @@ RUN curl -L -o nitro-cli.tar.gz https://github.com/aws/aws-nitro-enclaves-cli/ar
     && mkdir -p /usr/share/nitro_enclaves \
     && cp -r nitro-cli/blobs/`arch` /usr/share/nitro_enclaves/blobs \
     && rm -rf nitro-cli*
+
+# Copy codesigning keys and certificates in
+COPY keys/nitro-enclave-codesigning-cert-staging.pem /usr/local/
+COPY keys/nitro-enclave-codesigning-key-staging.priv.pem /usr/local/

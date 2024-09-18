@@ -94,6 +94,11 @@ internal data class ChartDataState(
     for (index in 1 until normalizedData.lastIndex) {
       val startIndex = index - 1
       if (startIndex == stopAtIndex) {
+        if (stopAtIndex == 0) {
+          // if we stop drawing before creating a line,
+          // add a small line to allow UI anchoring.
+          path.lineTo(1f, calculateY(0))
+        }
         return path
       }
 

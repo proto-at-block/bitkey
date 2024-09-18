@@ -1,11 +1,12 @@
 package build.wallet.statemachine.data.keybox
 
 import androidx.compose.runtime.*
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -27,8 +28,10 @@ import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringD
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.launch
 import kotlin.native.HiddenFromObjC
 import kotlin.time.Duration
@@ -38,7 +41,7 @@ class AccountDataStateMachineImpl(
   private val hasActiveFullAccountDataStateMachine: HasActiveFullAccountDataStateMachine,
   private val hasActiveLiteAccountDataStateMachine: HasActiveLiteAccountDataStateMachine,
   private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val recoverySyncer: RecoverySyncer,
   private val someoneElseIsRecoveringDataStateMachine: SomeoneElseIsRecoveringDataStateMachine,
   private val recoverySyncFrequency: Duration,
@@ -222,8 +225,11 @@ class AccountDataStateMachineImpl(
   @Composable
   private fun rememberActiveAccount(): Result<Account?, Error>? {
     return remember {
-      accountRepository.accountStatus()
+      accountService.accountStatus()
         .mapResult { (it as? AccountStatus.ActiveAccount)?.account }
+        // Software accounts do not rely on the account DSM; filter them out so that this DSM
+        // does not reset app state when a software account is activated.
+        .filterNot { it.get() is SoftwareAccount }
         .distinctUntilChanged()
     }.collectAsState(null).value
   }
@@ -246,7 +252,7 @@ class AccountDataStateMachineImpl(
         existingRecovery = activeRecovery,
         onAccountCreated = { account ->
           scope.launch {
-            accountRepository.setActiveAccount(account)
+            accountService.setActiveAccount(account)
           }
         }
       )

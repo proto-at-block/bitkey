@@ -1,6 +1,6 @@
 package build.wallet.feature
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -69,7 +69,7 @@ class FeatureFlagSyncerTests : FunSpec({
     debugOptionsService.reset()
 
     featureFlagSyncer = FeatureFlagSyncerImpl(
-      accountRepository = AccountRepositoryFake(),
+      accountService = AccountServiceFake(),
       debugOptionsService = debugOptionsService,
       featureFlagsF8eClient = getFeatureFlagsF8eClient,
       clock = clock,

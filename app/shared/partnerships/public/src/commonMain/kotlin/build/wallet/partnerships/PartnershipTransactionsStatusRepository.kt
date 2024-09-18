@@ -35,6 +35,7 @@ interface PartnershipTransactionsStatusRepository {
    * Create a new transaction from a partner for tracking locally.
    */
   suspend fun create(
+    id: PartnershipTransactionId,
     partnerInfo: PartnerInfo,
     type: PartnershipTransactionType,
   ): Result<PartnershipTransaction, Error>

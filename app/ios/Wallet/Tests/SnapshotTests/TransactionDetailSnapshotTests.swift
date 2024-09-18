@@ -11,7 +11,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: .transactionDetailModel(
                 isPending: false,
-                isReceive: false,
+                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: false,
                 content: [
                     FormMainContentModel.DataList(
@@ -71,7 +71,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: .transactionDetailModel(
                 isPending: false,
-                isReceive: true,
+                transactionType: BitcoinTransactionTransactionTypeIncoming(),
                 isFeeBumpEnabled: false,
                 content: [
                     FormMainContentModel.DataList(
@@ -122,7 +122,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
             viewModel: .transactionDetailModel(
                 isPending: true,
                 isDelayed: false,
-                isReceive: false,
+                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: false,
                 content: [
                     FormMainContentModel.DataList(
@@ -181,7 +181,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
             viewModel: .transactionDetailModel(
                 isPending: true,
                 isDelayed: true,
-                isReceive: false,
+                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: true,
                 content: [
                     FormMainContentModel.DataList(
@@ -271,20 +271,20 @@ private extension FormBodyModel {
     static func transactionDetailModel(
         isPending: Bool,
         isDelayed: Bool = false,
-        isReceive: Bool,
+        transactionType: BitcoinTransactionTransactionType,
         isFeeBumpEnabled: Bool,
         content: [FormMainContentModel.DataList]
     ) -> FormBodyModel {
         let recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"
         let txStatusModel: TxStatusModel = if isPending {
             TxStatusModelPending(
-                isIncoming: isReceive,
+                transactionType: transactionType,
                 recipientAddress: recipientAddress,
                 isLate: isDelayed
             )
         } else {
             TxStatusModelConfirmed(
-                isIncoming: isReceive,
+                transactionType: transactionType,
                 recipientAddress: recipientAddress
             )
         }

@@ -1,3 +1,7 @@
+use notification::{
+    payloads::privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
+    service::SendNotificationInput, NotificationPayloadBuilder, NotificationPayloadType,
+};
 use serde_json::Value;
 use tracing::instrument;
 use types::privileged_action::repository::{
@@ -47,7 +51,27 @@ impl Service {
             .persist(&updated_instance)
             .await?;
 
-        // TODO: send notification [W-8970]
+        let account = &self
+            .account_repository
+            .fetch(&updated_instance.account_id)
+            .await?;
+
+        self.notification_service
+            .send_notification(SendNotificationInput {
+                account_id: &updated_instance.account_id,
+                payload_type: NotificationPayloadType::PrivilegedActionCanceledDelayPeriod,
+                payload: &NotificationPayloadBuilder::default()
+                    .privileged_action_canceled_delay_period_payload(Some(
+                        PrivilegedActionCanceledDelayPeriodPayload {
+                            privileged_action_instance_id: updated_instance.id,
+                            account_type: account.into(),
+                            privileged_action_type: updated_instance.privileged_action_type,
+                        },
+                    ))
+                    .build()?,
+                only_touchpoints: None,
+            })
+            .await?;
 
         Ok(())
     }

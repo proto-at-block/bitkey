@@ -27,7 +27,7 @@ mod recordings {
             .perform(wca::commands::GetAuthenticationKey::new())
             .unwrap();
         let signature = rt
-            .perform(wca::commands::SignChallenge::new(challenge.to_vec()))
+            .perform(wca::commands::SignChallenge::new(challenge.to_vec(), false))
             .unwrap();
 
         Secp256k1::new()
@@ -130,7 +130,7 @@ mod recordings {
         let destination_wallet = get_funded_wallet(&destination);
         let unsigned = normal_transaction(&source_wallet, &destination_wallet, 5000);
         let mut signed = rt
-            .perform(wca::commands::SignTransaction::new(unsigned))
+            .perform(wca::commands::SignTransaction::new(unsigned, false))
             .unwrap();
         assert!(is_finalized(&signed));
         let finalized = source_wallet
@@ -178,7 +178,7 @@ mod recordings {
         let destination_wallet = get_funded_wallet(&destination);
         let unsigned = drain_wallet(&source_wallet, &destination_wallet);
         let mut signed = rt
-            .perform(wca::commands::SignTransaction::new(unsigned))
+            .perform(wca::commands::SignTransaction::new(unsigned, false))
             .unwrap();
         assert!(is_finalized(&signed));
         let finalized = source_wallet

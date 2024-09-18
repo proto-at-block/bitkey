@@ -1,0 +1,17 @@
+import build.wallet.bitkey.f8e.SoftwareAccountId;
+import kotlin.String;
+import kotlin.collections.Set;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.crypto.PublicKey;
+
+-- Table for Software Account's Keybox data.
+CREATE TABLE softwareKeyboxEntity(
+  id                                    TEXT NOT NULL PRIMARY KEY,
+  accountId                             TEXT AS SoftwareAccountId NOT NULL,
+  appGlobalAuthKey                      TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  appRecoveryAuthKey                    TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL
+);
+
+clear:
+DELETE FROM softwareKeyboxEntity;

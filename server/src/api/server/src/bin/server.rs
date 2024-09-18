@@ -106,6 +106,7 @@ async fn main() -> Result<(), Error> {
                 address_repo: bootstrap.services.address_repo,
                 sqs: bootstrap.services.sqs,
                 feature_flags_service: bootstrap.services.feature_flags_service,
+                privileged_action_repository: bootstrap.services.privileged_action_repository,
             };
 
             match command {

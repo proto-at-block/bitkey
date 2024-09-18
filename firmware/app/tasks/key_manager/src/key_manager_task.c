@@ -8,6 +8,7 @@
 #include "filesystem.h"
 #include "hash.h"
 #include "ipc.h"
+#include "key_manager_task_impl.h"
 #include "log.h"
 #include "mempool.h"
 #include "onboarding.h"
@@ -27,9 +28,11 @@ static struct {
   rtos_queue_t* queue;
   uint32_t send_timeout_ms;
   mempool_t* mempool;
+  rtos_thread_t* crypto_thread;
 } key_manager_priv = {
   .queue = NULL,
   .send_timeout_ms = 1000,
+  .crypto_thread = NULL,
 };
 
 static key_algorithm_t key_alg_from_curve(fwpb_curve curve) {
@@ -125,53 +128,110 @@ out:
   proto_send_rsp(m_cmd, m_rsp);
 }
 
-static void handle_derive_and_sign(ipc_ref_t* message) {
-  fwpb_wallet_cmd* m_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
-  fwpb_wallet_rsp* m_rsp = proto_get_rsp();
-
-  m_rsp->which_msg = fwpb_wallet_rsp_derive_and_sign_rsp_tag;
-
+static void do_sync_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_rsp) {
   fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
   fwpb_derive_and_sign_rsp* rsp = &m_rsp->msg.derive_and_sign_rsp;
 
-  if (!cmd->has_derivation_path) {
-    rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
-    LOGE("derivation path not provided");
-    goto out;
-  } else if (cmd->derivation_path.child_count > BIP32_MAX_DERIVATION_DEPTH) {
-    rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
-    LOGE("derivation path too long");
-    goto out;
-  }
+  LOGD("Sync derive and sign");
 
   derivation_path_t derivation_path = {
     .indices = cmd->derivation_path.child,
     .num_indices = cmd->derivation_path.child_count,
   };
-  extended_key_t key_priv __attribute__((__cleanup__(bip32_zero_key)));
+  extended_key_t key_priv CLEANUP(bip32_zero_key);
   fingerprint_t key_priv_master_fingerprint;
   fingerprint_t key_priv_childs_parent_fingerprint;
   if (seed_derive_bip32(derivation_path, &key_priv, &key_priv_master_fingerprint,
                         &key_priv_childs_parent_fingerprint) != SEED_RES_OK) {
     rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_DERIVATION_FAILED;
     LOGE("seed_derive failed");
-    goto out;
-  }
-
-  if (cmd->hash.size != SHA256_DIGEST_SIZE) {
-    rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
-    LOGE("invalid hash length");
-    goto out;
+    return;
   }
 
   if (!bip32_sign(&key_priv, cmd->hash.bytes, rsp->signature.bytes)) {
     rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
     LOGE("bip32_ecdsa_sign failed");
-    goto out;
+    return;
   }
 
   rsp->signature.size = ECC_SIG_SIZE;
   rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SUCCESS;
+}
+
+static void do_async_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_rsp) {
+  fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
+  fwpb_derive_and_sign_rsp* rsp = &m_rsp->msg.derive_and_sign_rsp;
+
+  LOGD("Status: %d", crypto_task_get_status());
+
+  switch (crypto_task_get_status()) {
+    case CRYPTO_TASK_IN_PROGRESS:
+      LOGD("in progress");
+      m_rsp->status = fwpb_status_IN_PROGRESS;
+      return;
+    case CRYPTO_TASK_SUCCESS:
+      LOGD("success");
+      if (!crypto_task_get_and_clear_signature(cmd->hash.bytes, cmd->derivation_path.child,
+                                               cmd->derivation_path.child_count,
+                                               rsp->signature.bytes)) {
+        m_rsp->status = fwpb_status_INVALID_ARGUMENT;
+      } else {
+        rsp->signature.size = ECC_SIG_SIZE;
+        m_rsp->status = fwpb_status_SUCCESS;
+      }
+      return;
+    case CRYPTO_TASK_ERROR:
+      LOGD("error");
+      crypto_task_reset_status();
+      m_rsp->status = fwpb_status_ERROR;
+      return;
+    default:
+      break;
+  }
+
+  derivation_path_t derivation_path = {
+    .indices = cmd->derivation_path.child,
+    .num_indices = cmd->derivation_path.child_count,
+  };
+  crypto_task_set_parameters(&derivation_path, cmd->hash.bytes);
+
+  rtos_notification_signal(key_manager_priv.crypto_thread);
+
+  m_rsp->status = fwpb_status_IN_PROGRESS;
+}
+
+static void handle_derive_and_sign(ipc_ref_t* message) {
+  fwpb_wallet_cmd* m_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* m_rsp = proto_get_rsp();
+
+  m_rsp->which_msg = fwpb_wallet_rsp_derive_and_sign_rsp_tag;
+
+  LOGD("Received derive_and_sign command");
+
+  fwpb_derive_key_descriptor_and_sign_cmd* cmd = &m_cmd->msg.derive_key_descriptor_and_sign_cmd;
+
+  if (!cmd->has_derivation_path) {
+    m_rsp->status = fwpb_status_ERROR;
+    LOGE("derivation path not provided");
+    goto out;
+  } else if (cmd->derivation_path.child_count > BIP32_MAX_DERIVATION_DEPTH) {
+    m_rsp->status = fwpb_status_ERROR;
+    LOGE("derivation path too long");
+    goto out;
+  }
+
+  if (cmd->hash.size != SHA256_DIGEST_SIZE) {
+    m_rsp->status = fwpb_status_ERROR;
+    LOGE("invalid hash length");
+    goto out;
+  }
+
+  if (cmd->async_sign) {
+    do_async_derive_and_sign(m_cmd, m_rsp);
+  } else {
+    // This is a blocking call and exists for backwards compatibility.
+    do_sync_derive_and_sign(m_cmd, m_rsp);
+  };
 
 out:
   proto_send_rsp(m_cmd, m_rsp);
@@ -509,6 +569,9 @@ void key_manager_task_create(void) {
   rtos_thread_t* key_manager_thread_handle =
     rtos_thread_create(key_manager_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 8192);
   ASSERT(key_manager_thread_handle);
+
+  key_manager_priv.crypto_thread = crypto_task_create();
+  ASSERT(key_manager_priv.crypto_thread);
 
 #define REGIONS(X)                                                           \
   X(wallet_cmd_pool, extended_keys, WALLET_POOL_R0_SIZE, WALLET_POOL_R0_NUM) \

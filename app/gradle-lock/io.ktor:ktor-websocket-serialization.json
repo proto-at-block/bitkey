@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websocket-serialization",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websocket-serialization-metadata-2.3.9.jar": "242130c209c32282d9f20ec49e57d74818a1a728800ecd902deeddcf051180c5"
+                        "ktor-websocket-serialization-metadata-2.3.11.jar": "242130c209c32282d9f20ec49e57d74818a1a728800ecd902deeddcf051180c5"
                     }
                 }
             ],

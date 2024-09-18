@@ -28,6 +28,7 @@ extern rtos_thread_mpu_t _charger_thread_regions;
 extern rtos_thread_mpu_t _fuel_gauge_thread_regions;
 extern rtos_thread_mpu_t _tamper_thread_regions;
 extern rtos_thread_mpu_t _fs_mount_task_regions;
+extern rtos_thread_mpu_t _crypto_thread_regions;
 #ifndef CONFIG_PROD
 extern rtos_thread_mpu_t _shell_thread_regions;
 #endif

@@ -1,7 +1,7 @@
 package build.wallet.statemachine.notifications
 
-import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.account.AccountConfig
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -21,8 +21,8 @@ interface NotificationTouchpointInputAndVerificationUiStateMachine :
   StateMachine<NotificationTouchpointInputAndVerificationProps, ScreenModel>
 
 data class NotificationTouchpointInputAndVerificationProps(
-  val fullAccountId: FullAccountId,
-  val fullAccountConfig: FullAccountConfig,
+  val accountId: AccountId,
+  val accountConfig: AccountConfig,
   val touchpointType: NotificationTouchpointType,
   val entryPoint: EntryPoint,
   val onClose: () -> Unit,

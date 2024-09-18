@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:aws-json-protocols-jvm",
     "components": [
         {
-            "version": "1.2.11",
+            "version": "1.3.7",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-json-protocols-jvm-1.2.11.jar": "0fa81ac97bd188dd47745297818696c5e02b2223459b48075389371e74bcd0a5"
+                        "aws-json-protocols-jvm-1.3.7.jar": "7c4d038c0e34b33b2a7c719c5080216fed9fecccdae7d16db16d28305c1cca3e"
                     }
                 }
             ],

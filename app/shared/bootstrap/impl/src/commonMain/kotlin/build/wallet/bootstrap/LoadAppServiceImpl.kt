@@ -1,6 +1,6 @@
 package build.wallet.bootstrap
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.bitkey.account.FullAccount
@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.first
 
 class LoadAppServiceImpl(
   private val featureFlagService: FeatureFlagService,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
 ) : LoadAppService {
   override suspend fun loadAppState(): AppState {
@@ -19,7 +19,7 @@ class LoadAppServiceImpl(
     // Feature flags are initialized by an app worker on app launch.
     suspendUntilFeatureFlagsInitialized()
 
-    val accountStatus = accountRepository.accountStatus().first().get()
+    val accountStatus = accountService.accountStatus().first().get()
       ?: return AppState.Undetermined
 
     return when (accountStatus) {

@@ -1,5 +1,7 @@
 package build.wallet.ui.app.transactions
 
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
@@ -24,7 +26,7 @@ class TransactionDetailScreenSnapshots :
               feeBumpEnabled = false,
               txStatusModel = TxStatusModel.Pending(
                 recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-                isIncoming = true,
+                transactionType = Incoming,
                 isLate = false
               ),
               isLoading = false,
@@ -76,7 +78,7 @@ class TransactionDetailScreenSnapshots :
               feeBumpEnabled = true,
               txStatusModel = TxStatusModel.Pending(
                 recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-                isIncoming = false,
+                transactionType = Outgoing,
                 isLate = true
               ),
               isLoading = false,
@@ -150,7 +152,7 @@ class TransactionDetailScreenSnapshots :
               feeBumpEnabled = false,
               txStatusModel = TxStatusModel.Confirmed(
                 recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-                isIncoming = false
+                transactionType = Outgoing
               ),
               isLoading = false,
               onViewTransaction = {},
@@ -203,7 +205,7 @@ class TransactionDetailScreenSnapshots :
               feeBumpEnabled = false,
               txStatusModel = TxStatusModel.Confirmed(
                 recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-                isIncoming = true
+                transactionType = Incoming
               ),
               isLoading = false,
               onViewTransaction = {},

@@ -1,14 +1,8 @@
 package build.wallet.statemachine.data.recovery.losthardware.initiate
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -25,26 +19,10 @@ import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHard
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingHardwareProofOfPossessionKeyData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.AwaitingHardwareProofOfPossessionState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.CancellingConflictingRecoveryWithF8eState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.DisplayingConflictingRecoveryState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.FailedInitiatingServerRecoveryState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.FailedToCancelConflictingRecoveryWithF8EState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.GeneratingNewAppKeys
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.InitiatingServerRecoveryState
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.OnboardingNewHardware
-import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
+import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.*
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState.VerifyingNotificationCommsForCancellationState
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState.VerifyingNotificationCommsForInitiationState
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.Delayer
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
@@ -63,8 +41,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val delayer: Delayer,
-  private val recoveryNotificationVerificationDataStateMachine:
-    RecoveryNotificationVerificationDataStateMachine,
 ) : InitiatingLostHardwareRecoveryDataStateMachine {
   @Composable
   override fun model(
@@ -173,42 +149,34 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
       is VerifyingNotificationCommsState ->
         VerifyingNotificationCommsData(
-          data =
-            recoveryNotificationVerificationDataStateMachine.model(
-              props =
-                RecoveryNotificationVerificationDataProps(
-                  f8eEnvironment = props.account.config.f8eEnvironment,
-                  fullAccountId = props.account.accountId,
-                  onRollback = {
-                    state = GeneratingNewAppKeys
-                  },
-                  onComplete = {
-                    state =
-                      when (s) {
-                        is VerifyingNotificationCommsForCancellationState -> {
-                          CancellingConflictingRecoveryWithF8eState(
-                            sealedCsek = s.sealedCsek,
-                            destinationAppKeyBundle = s.destinationAppKeyBundle,
-                            destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
-                            hwFactorProofOfPossession = s.hwFactorProofOfPossession,
-                            appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
-                          )
-                        }
+          f8eEnvironment = props.account.config.f8eEnvironment,
+          fullAccountId = props.account.accountId,
+          onRollback = {
+            state = GeneratingNewAppKeys
+          },
+          onComplete = {
+            state =
+              when (s) {
+                is VerifyingNotificationCommsForCancellationState -> {
+                  CancellingConflictingRecoveryWithF8eState(
+                    sealedCsek = s.sealedCsek,
+                    destinationAppKeyBundle = s.destinationAppKeyBundle,
+                    destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
+                    hwFactorProofOfPossession = s.hwFactorProofOfPossession,
+                    appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
+                  )
+                }
 
-                        is VerifyingNotificationCommsForInitiationState -> {
-                          InitiatingServerRecoveryState(
-                            sealedCsek = s.sealedCsek,
-                            destinationAppKeyBundle = s.destinationAppKeyBundle,
-                            destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
-                            appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
-                          )
-                        }
-                      }
-                  },
-                  hwFactorProofOfPossession = null,
-                  lostFactor = Hardware
-                )
-            )
+                is VerifyingNotificationCommsForInitiationState -> {
+                  InitiatingServerRecoveryState(
+                    sealedCsek = s.sealedCsek,
+                    destinationAppKeyBundle = s.destinationAppKeyBundle,
+                    destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
+                    appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
+                  )
+                }
+              }
+          }
         )
 
       is DisplayingConflictingRecoveryState ->

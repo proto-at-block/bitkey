@@ -1,12 +1,6 @@
 package build.wallet.statemachine.settings.full.notifications
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action
@@ -15,9 +9,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.notifications.*
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
-import build.wallet.platform.permissions.PermissionStatus.Authorized
-import build.wallet.platform.permissions.PermissionStatus.Denied
-import build.wallet.platform.permissions.PermissionStatus.NotDetermined
+import build.wallet.platform.permissions.PermissionStatus.*
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.settings.TelephonyCountryCodeProvider
 import build.wallet.platform.settings.isCountry
@@ -29,30 +21,11 @@ import build.wallet.statemachine.account.create.full.onboard.notifications.UiErr
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.notifications.NotificationOperationApprovalInstructionsFormScreenModel
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
-import build.wallet.statemachine.notifications.NotificationsPreferencesCachedProvider
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.notifications.*
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.DisablingNotificationChannelProofOfHwPossessionUiState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.EnteringAndVerifyingEmailUiState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.EnteringAndVerifyingPhoneNumberUiState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowLearnRecoveryWebView
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.AlertOverlayState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.BottomSheetOverlayState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.DelayedAlertOverlayState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.LoadingPreferencesOverlayState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.RequestingPushPermissionsOverlayState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.TogglingNotificationChannelUiState
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.VerifyingProofOfHwPossessionUiState
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.*
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.*
 import build.wallet.statemachine.settings.full.notifications.Source.Settings
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
@@ -169,8 +142,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              fullAccountId = props.accountData.account.accountId,
-              fullAccountConfig = props.accountData.account.keybox.config,
+              accountId = props.accountData.account.accountId,
+              accountConfig = props.accountData.account.keybox.config,
               touchpointType = NotificationTouchpointType.PhoneNumber,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
               onSuccess = {
@@ -188,8 +161,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              fullAccountId = props.accountData.account.accountId,
-              fullAccountConfig = props.accountData.account.keybox.config,
+              accountId = props.accountData.account.accountId,
+              accountConfig = props.accountData.account.keybox.config,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
               onClose = {
@@ -256,7 +229,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     LaunchedEffect("update-notifications-preferences", state) {
       notificationsPreferencesCachedProvider.updateNotificationsPreferences(
         f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-        fullAccountId = props.accountData.account.accountId,
+        accountId = props.accountData.account.accountId,
         preferences = updatedPrefs,
         hwFactorProofOfPossession = hwFactorProofOfPossession
       ).onSuccess {

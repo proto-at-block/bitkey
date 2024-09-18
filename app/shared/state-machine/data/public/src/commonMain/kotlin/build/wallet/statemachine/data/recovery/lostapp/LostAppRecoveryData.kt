@@ -4,16 +4,15 @@ import build.wallet.auth.AccountAuthTokens
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.crypto.PublicKey
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 
 /**
  * Describes Lost App DN recovery state.
@@ -146,8 +145,11 @@ sealed interface LostAppRecoveryData {
        * let us know it is necessary via [COMMS_VERIFICATION_REQUIRED] 4xx error code
        */
       data class VerifyingNotificationCommsData(
-        val data: RecoveryNotificationVerificationData,
-        val lostFactor: PhysicalFactor,
+        val fullAccountId: FullAccountId,
+        val f8eEnvironment: F8eEnvironment,
+        val hwFactorProofOfPossession: HwFactorProofOfPossession?,
+        val onRollback: () -> Unit,
+        val onComplete: () -> Unit,
       ) : InitiatingLostAppRecoveryData
 
       data class DisplayingConflictingRecoveryData(

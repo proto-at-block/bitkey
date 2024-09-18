@@ -1,6 +1,6 @@
 package build.wallet.statemachine.notifications
 
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
@@ -9,11 +9,7 @@ import build.wallet.logging.log
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
 import build.wallet.store.KeyValueStoreFactory
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.*
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -30,7 +26,7 @@ class NotificationsPreferencesCachedProviderImpl(
 ) : NotificationsPreferencesCachedProvider {
   override suspend fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Flow<Result<NotificationPreferences, NetworkingError>> =
     flow {
       val prefsCache = keyValueStoreFactory.getOrCreate(NOTIFICATIONS_PREFERENCES_CACHE)
@@ -41,7 +37,7 @@ class NotificationsPreferencesCachedProviderImpl(
 
         notificationTouchpointF8eClient.getNotificationsPreferences(
           f8eEnvironment = f8eEnvironment,
-          fullAccountId = fullAccountId
+          accountId = accountId
         ).onSuccess { serverPrefs ->
           // Emit again, but only if server values differ
           if (serverPrefs != loadedPrefs) {
@@ -61,7 +57,7 @@ class NotificationsPreferencesCachedProviderImpl(
       } else {
         notificationTouchpointF8eClient.getNotificationsPreferences(
           f8eEnvironment = f8eEnvironment,
-          fullAccountId = fullAccountId
+          accountId = accountId
         ).onSuccess { serverPrefs ->
           emit(Ok(serverPrefs))
           cacheNotificationPreferences(
@@ -77,13 +73,13 @@ class NotificationsPreferencesCachedProviderImpl(
 
   override suspend fun updateNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     preferences: NotificationPreferences,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> =
     notificationTouchpointF8eClient.updateNotificationsPreferences(
       f8eEnvironment = f8eEnvironment,
-      fullAccountId = fullAccountId,
+      accountId = accountId,
       preferences = preferences,
       hwFactorProofOfPossession = hwFactorProofOfPossession
     ).onSuccess {

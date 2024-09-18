@@ -1,6 +1,8 @@
 package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingUiProps
@@ -36,6 +38,8 @@ import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSett
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
+import build.wallet.statemachine.utxo.UtxoConsolidationProps
+import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
 
 class SettingsHomeUiStateMachineImpl(
@@ -55,6 +59,8 @@ class SettingsHomeUiStateMachineImpl(
   private val debugMenuStateMachine: DebugMenuStateMachine,
   private val biometricSettingUiStateMachine: BiometricSettingUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
+  private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
+  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -116,7 +122,10 @@ class SettingsHomeUiStateMachineImpl(
                       }.takeIf { appVariant.showDebugMenu },
                       SettingsListUiProps.SettingsListRow.Biometric {
                         state = ShowingBiometricSettingUiState
-                      }
+                      },
+                      SettingsListUiProps.SettingsListRow.UtxoConsolidation {
+                        state = ShowingUtxoConsolidationUiState
+                      }.takeIf { utxoConsolidationFeatureFlag.isEnabled() }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null }
@@ -140,7 +149,7 @@ class SettingsHomeUiStateMachineImpl(
         notificationPreferencesUiStateMachine.model(
           NotificationPreferencesProps(
             f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-            fullAccountId = props.accountData.account.accountId,
+            accountId = props.accountData.account.accountId,
             onBack = { state = ShowingAllSettingsUiState },
             source = Settings,
             onComplete = { state = ShowingAllSettingsUiState }
@@ -239,6 +248,13 @@ class SettingsHomeUiStateMachineImpl(
           onBack = { state = ShowingAllSettingsUiState }
         )
       )
+      is ShowingUtxoConsolidationUiState -> utxoConsolidationUiStateMachine.model(
+        UtxoConsolidationProps(
+          onBack = {
+            state = ShowingAllSettingsUiState
+          }
+        )
+      )
     }
   }
 
@@ -289,5 +305,7 @@ class SettingsHomeUiStateMachineImpl(
     data object ShowingDebugMenuUiState : State()
 
     data object ShowingBiometricSettingUiState : State()
+
+    data object ShowingUtxoConsolidationUiState : State()
   }
 }

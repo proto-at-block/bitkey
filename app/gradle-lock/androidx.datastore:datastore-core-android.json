@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.datastore:datastore-core-android",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "datastore-core-release.aar": "883abc911e4b14119959e44e20a520523f59c303e834d6b325007b3ee5e9cb6c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -11,6 +11,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
@@ -86,7 +87,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   val props =
     TransferConfirmationUiProps(
       transferVariant = Variant.Regular(THIRTY_MINUTES),
-      accountData = keyboxData,
+      account = FullAccountMock,
       recipientAddress = someBitcoinAddress,
       sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
       requiredSigner = SigningFactor.Hardware,
@@ -464,8 +465,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
         transactionDetailsCardUiStateMachine.props
-          .transactionDetail
-          .feeBitcoinAmount
+          .transactionDetails
+          .feeAmount
           .shouldBe(BitcoinMoney.btc(2.0))
 
         with(mainContentList[0].shouldBeTypeOf<DataList>()) {
@@ -485,8 +486,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitScreenWithBody<FormBodyModel> {
         transactionDetailsCardUiStateMachine.props
-          .transactionDetail
-          .feeBitcoinAmount
+          .transactionDetails
+          .feeAmount
           .shouldBe(BitcoinMoney.btc(BigDecimal.TEN))
       }
 
@@ -503,7 +504,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
             oldFee = Fee(BitcoinMoney.sats(256), FeeRate(1f)),
             newFeeRate = FeeRate(2f)
           ),
-        accountData = keyboxData,
+        account = FullAccountMock,
         recipientAddress = someBitcoinAddress,
         sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
         requiredSigner = SigningFactor.Hardware,

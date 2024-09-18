@@ -1,10 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware.initiate
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.HW_RECOVERY
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
@@ -17,29 +13,14 @@ import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiS
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingHardwareProofOfPossessionKeyData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.CancellingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedToCancelConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionModel
 import build.wallet.statemachine.recovery.lostapp.initiate.RecoveryConflictModel
-import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachineImpl.UiState.AskingNewHardwareReadyQuestionState
-import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachineImpl.UiState.PairingNewWalletState
-import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
+import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachineImpl.UiState.*
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.ui.model.StandardClick
@@ -226,10 +207,14 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       is VerifyingNotificationCommsData ->
         recoveryNotificationVerificationUiStateMachine.model(
           props = RecoveryNotificationVerificationUiProps(
-            recoveryNotificationVerificationData = recoveryData.data,
-            lostFactor = Hardware,
+            fullAccountId = recoveryData.fullAccountId,
+            f8eEnvironment = recoveryData.f8eEnvironment,
+            localLostFactor = Hardware,
             segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
-            actionDescription = "Error verifying notification comms for contested recovery"
+            actionDescription = "Error verifying notification comms for contested recovery",
+            hwFactorProofOfPossession = null,
+            onRollback = recoveryData.onRollback,
+            onComplete = recoveryData.onComplete
           )
         )
 

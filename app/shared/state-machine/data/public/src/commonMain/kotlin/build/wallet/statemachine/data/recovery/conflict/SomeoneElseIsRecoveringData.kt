@@ -1,8 +1,9 @@
 package build.wallet.statemachine.data.recovery.conflict
 
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 
 /**
  * Represents states in the flow of screens shown to the user when
@@ -53,6 +54,10 @@ sealed interface SomeoneElseIsRecoveringData {
   ) : SomeoneElseIsRecoveringData
 
   data class VerifyingNotificationCommsData(
-    val data: RecoveryNotificationVerificationData,
+    val f8eEnvironment: F8eEnvironment,
+    val fullAccountId: FullAccountId,
+    val hwFactorProofOfPossession: HwFactorProofOfPossession?,
+    val onRollback: () -> Unit,
+    val onComplete: () -> Unit,
   ) : SomeoneElseIsRecoveringData
 }

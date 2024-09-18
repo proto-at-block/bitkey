@@ -2,17 +2,17 @@
     "module-identifier": "io.ktor:ktor-utils-iosx64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
                         "ktor-utils-cinterop-threadUtils.klib": "9792961e1974da4beda156b1251b03f69ea5a53fefe03bd0e48de1d9f79cdf8d",
-                        "ktor-utils.klib": "79ab1882c3faf0424ffc68bb479a413d8ea4f009d2738bf439457daf5e3bad58"
+                        "ktor-utils.klib": "16a4a3d3b5a8d8fee6bea85c3bbe11622eeeddb53895999c980f3edd56fca05e"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-utils-iosx64-2.3.9-metadata.jar": "3b564035e121297da5c6589d673c4c4a03a22be6334434362c83e6e62efc1b8b"
+                        "ktor-utils-iosx64-2.3.11-metadata.jar": "913dfc1a2e56577a1128bfa9e9e7e5076ac5b7df27d008156e68d71a6c5b0805"
                     }
                 }
             ],

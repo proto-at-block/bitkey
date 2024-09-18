@@ -7,10 +7,13 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::privileged_action::definition::ResolvedPrivilegedActionDefinition;
 use types::privileged_action::router::generic::{
-    PrivilegedActionRequest, PrivilegedActionResponse,
+    AuthorizationStrategyInput, AuthorizationStrategyOutput, ContinuePrivilegedActionRequest,
+    DelayAndNotifyInput, DelayAndNotifyOutput, PendingPrivilegedActionResponse,
+    PrivilegedActionInstanceInput, PrivilegedActionInstanceOutput, PrivilegedActionRequest,
+    PrivilegedActionResponse,
 };
 use types::privileged_action::router::PrivilegedActionInstance;
-use types::privileged_action::shared::PrivilegedActionDelayDuration;
+use types::privileged_action::shared::{PrivilegedActionDelayDuration, PrivilegedActionType};
 use utoipa::{OpenApi, ToSchema};
 
 use errors::ApiError;
@@ -19,9 +22,9 @@ use types::account::identifiers::AccountId;
 use userpool::userpool::UserPoolService;
 
 use crate::metrics::{FACTORY, FACTORY_NAME};
-use crate::privileged_action_definitions::CONFIGURE_PRIVILEGED_ACTION_DELAYS;
 use crate::service::authorize_privileged_action::{
     AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+    PrivilegedActionRequestValidatorBuilder,
 };
 use crate::service::cancel_pending_delay_and_notify_instance::CancelPendingDelayAndNotifyInstanceByTokenInput;
 use crate::service::configure_privileged_action_delay_durations::ConfigurePrivilegedActionDelayDurationsInput;
@@ -90,10 +93,19 @@ impl From<RouteState> for SwaggerEndpoint {
             GetPrivilegedActionDefinitionsResponse,
             ResolvedPrivilegedActionDefinition,
             PrivilegedActionDelayDuration,
-            PrivilegedActionRequest<ConfigurePrivilegedActionDelayDurationsRequest>,
-            PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>,
+            DelayAndNotifyInput,
+            AuthorizationStrategyInput,
+            PrivilegedActionInstanceInput,
+            ContinuePrivilegedActionRequest,
+            PrivilegedActionType,
+            DelayAndNotifyOutput,
+            AuthorizationStrategyOutput,
+            PrivilegedActionInstanceOutput,
+            PendingPrivilegedActionResponse,
             ConfigurePrivilegedActionDelayDurationsRequest,
+            PrivilegedActionRequest<ConfigurePrivilegedActionDelayDurationsRequest>,
             ConfigurePrivilegedActionDelayDurationsResponse,
+            PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>,
             GetPendingDelayAndNotifyInstancesResponse,
             PrivilegedActionInstance,
             CancelPendingDelayAndNotifyInstanceByTokenRequest,
@@ -162,21 +174,35 @@ pub async fn configure_privileged_action_delay_durations(
     >,
 ) -> Result<Json<PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>>, ApiError>
 {
+    let cloned_privileged_action_service = privileged_action_service.clone();
+    let cloned_account_id = account_id.clone();
+
     let authorize_result = privileged_action_service
         .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
-            privileged_action_definition: &CONFIGURE_PRIVILEGED_ACTION_DELAYS,
+            privileged_action_definition: &PrivilegedActionType::ConfigurePrivilegedActionDelays
+                .into(),
             key_proof: &key_proof,
             privileged_action_request: &privileged_action_request,
-            initial_request_validator: |r| {
-                privileged_action_service.configure_privileged_action_delay_durations(
-                    ConfigurePrivilegedActionDelayDurationsInput {
-                        account_id: &account_id,
-                        configured_delay_durations: r.delays,
-                        dry_run: true,
+            request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                .on_initiate_delay_and_notify(Box::new(
+                    |r: ConfigurePrivilegedActionDelayDurationsRequest| {
+                        Box::pin(async move {
+                            cloned_privileged_action_service
+                                .configure_privileged_action_delay_durations(
+                                    ConfigurePrivilegedActionDelayDurationsInput {
+                                        account_id: &cloned_account_id,
+                                        configured_delay_durations: r.delays,
+                                        dry_run: true,
+                                    },
+                                )
+                                .await?;
+
+                            Ok::<(), ApiError>(())
+                        })
                     },
-                )
-            },
+                ))
+                .build()?,
         })
         .await?;
 

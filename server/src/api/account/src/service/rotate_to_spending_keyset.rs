@@ -1,5 +1,5 @@
 use crate::{
-    entities::{Account, FullAccount, SoftwareAccount},
+    entities::{Account, FullAccount},
     error::AccountError,
 };
 
@@ -10,40 +10,20 @@ impl Service {
         &self,
         input: RotateToSpendingKeysetInput<'_>,
     ) -> Result<Account, AccountError> {
-        let account = self
-            .fetch_account(FetchAccountInput {
+        let full_account = self
+            .fetch_full_account(FetchAccountInput {
                 account_id: input.account_id,
             })
             .await?;
 
-        let updated_account: Account = match account {
-            Account::Full(full_account) => {
-                if !full_account.spending_keysets.contains_key(input.keyset_id) {
-                    return Err(AccountError::InvalidSpendingKeysetIdentifierForRotation);
-                }
-                FullAccount {
-                    active_keyset_id: input.keyset_id.to_owned(),
-                    ..full_account
-                }
-                .into()
-            }
-            Account::Software(software_account) => {
-                if !software_account
-                    .spending_keysets
-                    .contains_key(input.keyset_id)
-                {
-                    return Err(AccountError::InvalidSpendingKeysetIdentifierForRotation);
-                }
-                SoftwareAccount {
-                    active_keyset_id: Some(input.keyset_id.to_owned()),
-                    ..software_account
-                }
-                .into()
-            }
-            _ => {
-                return Err(AccountError::InvalidAccountType);
-            }
-        };
+        if !full_account.spending_keysets.contains_key(input.keyset_id) {
+            return Err(AccountError::InvalidSpendingKeysetIdentifierForRotation);
+        }
+        let updated_account = FullAccount {
+            active_keyset_id: input.keyset_id.to_owned(),
+            ..full_account
+        }
+        .into();
 
         self.account_repo.persist(&updated_account).await?;
         Ok(updated_account)

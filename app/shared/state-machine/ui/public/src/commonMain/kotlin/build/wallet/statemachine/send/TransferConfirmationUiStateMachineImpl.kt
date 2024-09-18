@@ -211,7 +211,7 @@ class TransferConfirmationUiStateMachineImpl(
               commands.signTransaction(
                 session = session,
                 psbt = state.appSignedPsbt,
-                spendingKeyset = props.accountData.account.keybox.activeSpendingKeyset
+                spendingKeyset = props.account.keybox.activeSpendingKeyset
               )
             },
             onCancel = {
@@ -226,7 +226,7 @@ class TransferConfirmationUiStateMachineImpl(
                   twoOfThreeSignedPsbt = appAndHwSignedPsbt
                 )
             },
-            isHardwareFake = props.accountData.account.config.isHardwareFake,
+            isHardwareFake = props.account.config.isHardwareFake,
             screenPresentationStyle = Modal,
             eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION
           )
@@ -349,7 +349,7 @@ class TransferConfirmationUiStateMachineImpl(
             }
           val psbtResult =
             createAppSignedPsbt(
-              account = props.accountData.account,
+              account = props.account,
               constructionMethod = constructionMethod
             )
 
@@ -387,9 +387,9 @@ class TransferConfirmationUiStateMachineImpl(
     LaunchedEffect("signing-with-server") {
       mobilePaySigningF8eClient
         .signWithSpecificKeyset(
-          f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-          fullAccountId = props.accountData.account.accountId,
-          keysetId = props.accountData.account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+          f8eEnvironment = props.account.config.f8eEnvironment,
+          fullAccountId = props.account.accountId,
+          keysetId = props.account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
           psbt = state.appSignedPsbt
         )
         .onSuccess { appAndServerSignedPsbt ->
@@ -416,25 +416,23 @@ class TransferConfirmationUiStateMachineImpl(
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val transferBitcoinAmount = BitcoinMoney.sats(state.appSignedPsbt.amountSats.toBigInteger())
     val feeBitcoinAmount = state.appSignedPsbt.fee
-    val transactionDetail =
+    val transactionDetails =
       when (props.transferVariant) {
-        is Variant.Regular ->
-          TransactionDetailType.Regular(
-            transferBitcoinAmount = transferBitcoinAmount,
-            feeBitcoinAmount = feeBitcoinAmount,
-            estimatedTransactionPriority = selectedPriority
-          )
-        is Variant.SpeedUp ->
-          TransactionDetailType.SpeedUp(
-            transferBitcoinAmount = transferBitcoinAmount,
-            feeBitcoinAmount = feeBitcoinAmount,
-            oldFeeBitcoinAmount = props.transferVariant.oldFee.amount
-          )
+        is Variant.Regular -> TransactionDetails.Regular(
+          transferAmount = transferBitcoinAmount,
+          feeAmount = feeBitcoinAmount,
+          estimatedTransactionPriority = selectedPriority
+        )
+        is Variant.SpeedUp -> TransactionDetails.SpeedUp(
+          transferAmount = transferBitcoinAmount,
+          feeAmount = feeBitcoinAmount,
+          oldFeeAmount = props.transferVariant.oldFee.amount
+        )
       }
 
-    val transactionDetails = transactionDetailsCardUiStateMachine.model(
+    val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
-        transactionDetail = transactionDetail,
+        transactionDetails = transactionDetails,
         fiatCurrency = fiatCurrency,
         exchangeRates = props.exchangeRates
       )
@@ -445,7 +443,7 @@ class TransferConfirmationUiStateMachineImpl(
       onCancel = props.onExit,
       variant = props.transferVariant,
       recipientAddress = props.recipientAddress.chunkedAddress(),
-      transactionDetails = transactionDetails,
+      transactionDetails = transactionDetailsCard,
       requiresHardware = props.requiredSigner == Hardware,
       confirmButtonEnabled = true,
       onConfirmClick = onConfirm,
@@ -472,7 +470,6 @@ class TransferConfirmationUiStateMachineImpl(
               onBack = onCloseSheet,
               feeOptionList = feeOptionListUiStateMachine.model(
                 props = FeeOptionListProps(
-                  accountData = props.accountData,
                   transactionBaseAmount =
                     BitcoinMoney.sats(
                       state.appSignedPsbt.amountSats.toBigInteger()

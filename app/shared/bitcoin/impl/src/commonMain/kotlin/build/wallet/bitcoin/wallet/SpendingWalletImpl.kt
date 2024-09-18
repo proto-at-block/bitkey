@@ -290,8 +290,8 @@ class SpendingWalletImpl(
       }
     }
 
-  private fun getUnspentOutputs(): Result<List<BdkUtxo>, Error> {
-    return bdkWallet.listUnspentBlocking().result
+  private suspend fun getUnspentOutputs(): Result<List<BdkUtxo>, Error> {
+    return bdkWallet.listUnspent().result
   }
 
   /*

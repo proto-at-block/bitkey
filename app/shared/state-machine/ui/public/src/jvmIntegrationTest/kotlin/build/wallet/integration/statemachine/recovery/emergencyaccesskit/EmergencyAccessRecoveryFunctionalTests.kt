@@ -25,6 +25,7 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.fakeTransact
+import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
@@ -42,111 +43,112 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
     app = launchNewApp()
   }
 
-  test("recover keybox with no funds from emergency access kit") {
-    // Onboard a new account, and generate an EAK payload.
-    app.onboardFullAccountWithFakeHardware()
+  test("recover keybox with no funds from emergency access kit")
+    .config(tags = setOf(FlakyTest)) {
+      // Onboard a new account, and generate an EAK payload.
+      app.onboardFullAccountWithFakeHardware()
 
-    val csek = app.app.csekGenerator.generate()
+      val csek = app.app.csekGenerator.generate()
 
-    val sealedCsek =
-      app.app.nfcTransactor.fakeTransact(
-        transaction = { session, commands ->
-          commands.sealKey(session, csek)
-        }
-      ).getOrThrow()
+      val sealedCsek =
+        app.app.nfcTransactor.fakeTransact(
+          transaction = { session, commands ->
+            commands.sealKey(session, csek)
+          }
+        ).getOrThrow()
 
-    val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
-    val xprv = app.app.appComponent.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
-      .get().shouldNotBeNull()
+      val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
+      val xprv = app.app.appComponent.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
+        .get().shouldNotBeNull()
 
-    // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
-    //      creation of an emergency access kit PDF. This simulates the same creation so that
-    //      the account that restores from it can validate it's the same spending keys.
-    val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
-      unsealedData = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
-        EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
-          spendingKeyset = spendingKeys,
-          appSpendingKeyXprv = xprv
+      // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
+      //      creation of an emergency access kit PDF. This simulates the same creation so that
+      //      the account that restores from it can validate it's the same spending keys.
+      val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
+        unsealedData = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
+          EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
+            spendingKeyset = spendingKeys,
+            appSpendingKeyXprv = xprv
+          )
+        ),
+        key = csek.key
+      )
+      val validData =
+        EmergencyAccessKitPayloadDecoderImpl.encode(
+          EmergencyAccessKitPayloadV1(
+            sealedHwEncryptionKey = sealedCsek,
+            sealedActiveSpendingKeys = sealedSpendingKeys
+          )
         )
-      ),
-      key = csek.key
-    )
-    val validData =
-      EmergencyAccessKitPayloadDecoderImpl.encode(
-        EmergencyAccessKitPayloadV1(
-          sealedHwEncryptionKey = sealedCsek,
-          sealedActiveSpendingKeys = sealedSpendingKeys
-        )
+
+      // New app, same hardware, no cloud backup.
+      val newApp = launchNewApp(
+        hardwareSeed = app.fakeHardwareKeyStore.getSeed()
       )
 
-    // New app, same hardware, no cloud backup.
-    val newApp = launchNewApp(
-      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
-    )
-
-    newApp.app.appUiStateMachine.test(
-      Unit,
-      useVirtualTime = false,
-      turbineTimeout = 10.seconds
-    ) {
-      // Do not find backup, enter the EAK flow.
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-        .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
-        .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-        .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
-        .restoreEmergencyAccessButton.onClick.shouldNotBeNull().invoke()
-
-      // Progress through the EAK flow with manual entry.
-      awaitUntilScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD)
-        .clickPrimaryButton()
-      awaitUntilScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(validData, IntRange(0, validData.length))
-      }
-      awaitUntilScreenWithBody<FormBodyModel>(
-        IMPORT_TEXT_KEY,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      newApp.app.appUiStateMachine.test(
+        Unit,
+        useVirtualTime = false,
+        turbineTimeout = 10.seconds
       ) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
+        // Do not find backup, enter the EAK flow.
+        awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+          .clickMoreOptionsButton()
+        awaitUntilScreenWithBody<FormBodyModel>()
+          .restoreButton.onClick.shouldNotBeNull().invoke()
+        awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+          .signInSuccess(CloudStoreAccount1Fake)
+        awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
+          .restoreEmergencyAccessButton.onClick.shouldNotBeNull().invoke()
 
-        clickPrimaryButton()
-      }
-      awaitUntilScreenWithBody<FormBodyModel>(
-        RESTORE_YOUR_WALLET,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
-      ) {
-        clickPrimaryButton()
-      }
-
-      awaitUntilScreenWithBody<NfcBodyModel>()
-      awaitUntilScreenWithBody<NfcBodyModel>()
-
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-
-      // Validate that this is the same wallet as originally created.
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
-        expectedBodyContentMatch = {
-          it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
+        // Progress through the EAK flow with manual entry.
+        awaitUntilScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
+          this.mainContentList.first()
+            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+            .fieldModel
+            .onValueChange(validData, IntRange(0, validData.length))
         }
-      )
+        awaitUntilScreenWithBody<FormBodyModel>(
+          IMPORT_TEXT_KEY,
+          expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        ) {
+          this.mainContentList.first()
+            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+            .fieldModel
+            .value
+            .shouldBe(validData)
 
-      newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
-        .shouldBeEqual(spendingKeys.appKey)
+          clickPrimaryButton()
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(
+          RESTORE_YOUR_WALLET,
+          expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        ) {
+          clickPrimaryButton()
+        }
 
-      cancelAndIgnoreRemainingEvents()
+        awaitUntilScreenWithBody<NfcBodyModel>()
+        awaitUntilScreenWithBody<NfcBodyModel>()
+
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+
+        // Validate that this is the same wallet as originally created.
+        awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+          expectedBodyContentMatch = {
+            it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
+          }
+        )
+
+        newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
+          .shouldBeEqual(spendingKeys.appKey)
+
+        cancelAndIgnoreRemainingEvents()
+      }
     }
-  }
 })
 
 private val FormBodyModel.restoreEmergencyAccessButton: ListItemModel

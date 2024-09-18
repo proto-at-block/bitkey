@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:leakcanary-object-watcher-android-core",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "leakcanary-object-watcher-android-core-2.13.aar": "4a1b32588657ba960c09df1bff04c78872bde038565552da8bc148d69ae41cf2"
+                        "leakcanary-object-watcher-android-core-2.14.aar": "4a1b32588657ba960c09df1bff04c78872bde038565552da8bc148d69ae41cf2"
                     }
                 }
             ],

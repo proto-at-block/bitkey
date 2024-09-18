@@ -1,6 +1,6 @@
 package build.wallet.recovery.sweep
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
 class SweepServiceImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val appSessionManager: AppSessionManager,
   private val promptSweepFeatureFlag: PromptSweepFeatureFlag,
   private val sweepGenerator: SweepGenerator,
@@ -70,7 +70,7 @@ class SweepServiceImpl(
    * Returns `true` if customer should perform a sweep transaction.
    */
   private suspend fun isSweepRequired(): Boolean {
-    val accountStatus = accountRepository.accountStatus().first().get()
+    val accountStatus = accountService.accountStatus().first().get()
     val activeFullAccount = (accountStatus as? ActiveAccount)?.account as? FullAccount
 
     return if (activeFullAccount != null) {

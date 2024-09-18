@@ -1,3 +1,4 @@
+pub(crate) mod async_signer;
 pub(crate) mod derived;
 
 use bitcoin::sighash::{LegacySighash, SegwitV0Sighash};

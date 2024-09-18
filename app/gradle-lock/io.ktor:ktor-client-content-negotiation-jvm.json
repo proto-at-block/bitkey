@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-content-negotiation-jvm",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-content-negotiation-jvm-2.3.9.jar": "71d527b56732f3ac7c7ea9f7f9aebae64e111b17394b664ff3aca9d0f6e0f692"
+                        "ktor-client-content-negotiation-jvm-2.3.11.jar": "1f4ae96ae2092b2e4bbcec565ae9c2d1f1188748936f0138c3c4bc13dd6ddd5d"
                     }
                 }
             ],

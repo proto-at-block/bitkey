@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 
 class EndorseTrustedContactsServiceImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val socRecService: SocRecService,
   private val socRecRelationshipsDao: SocRecRelationshipsDao,
   private val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao,
@@ -33,7 +33,7 @@ class EndorseTrustedContactsServiceImpl(
   private val endorseTrustedContactsF8eClientProvider: EndorseTrustedContactsF8eClientProvider,
 ) : EndorseTrustedContactsService, EndorseTrustedContactsWorker {
   override suspend fun executeWork() {
-    accountRepository.accountStatus()
+    accountService.accountStatus()
       .collectLatest { result ->
         result.onSuccess { accountStatus ->
           if (accountStatus is ActiveAccount) {

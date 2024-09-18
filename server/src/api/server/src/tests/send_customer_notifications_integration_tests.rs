@@ -52,6 +52,7 @@ async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVe
         address_repo: bootstrap.services.address_repo.clone(),
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
+        privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
     };
     let worker = TestWorker::new(state.clone()).await;
 

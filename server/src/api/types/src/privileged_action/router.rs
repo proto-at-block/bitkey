@@ -87,8 +87,11 @@ pub mod generic {
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
     #[serde(untagged)]
     pub enum PrivilegedActionRequest<T> {
-        Initiate(T),
+        // Since this is untagged, define Continue variant first, since it's guaranteed to have fields.
+        // If the Initiate type has no fields and is defined first, a Continue request would be deserialized
+        //   as an Initiate request since unknown fields are ignored.
         Continue(ContinuePrivilegedActionRequest),
+        Initiate(T),
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
@@ -143,6 +146,9 @@ pub mod generic {
     #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
     #[serde(untagged)]
     pub enum PrivilegedActionResponse<T> {
+        // Since this is untagged, define Pending variant first, since it's guaranteed to have fields.
+        // If the Completed type has no fields and is defined first, a Pending response would be deserialized
+        //   as an Completed response since unknown fields are ignored.
         Pending(PendingPrivilegedActionResponse),
         Completed(T),
     }

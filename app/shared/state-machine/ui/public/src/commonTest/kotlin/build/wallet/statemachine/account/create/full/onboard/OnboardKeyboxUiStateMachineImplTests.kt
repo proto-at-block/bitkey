@@ -40,7 +40,7 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
       notificationPreferencesSetupUiStateMachine =
         object : NotificationPreferencesSetupUiStateMachine,
           ScreenStateMachineMock<NotificationPreferencesSetupUiProps>(
-            id = "notification-preferences-v2"
+            id = "notification-preferences"
           ) {}
     )
 

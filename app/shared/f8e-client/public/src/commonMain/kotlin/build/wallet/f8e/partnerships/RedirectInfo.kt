@@ -1,4 +1,5 @@
 package build.wallet.f8e.partnerships
+import build.wallet.partnerships.PartnershipTransactionId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -17,6 +18,8 @@ data class RedirectInfo(
   val url: String,
   @SerialName("redirect_type")
   val redirectType: RedirectUrlType,
+  @SerialName("partner_transaction_id")
+  val partnerTransactionId: PartnershipTransactionId,
 )
 
 /**

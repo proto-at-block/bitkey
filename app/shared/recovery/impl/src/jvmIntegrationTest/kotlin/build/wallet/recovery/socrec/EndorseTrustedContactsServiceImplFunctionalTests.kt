@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -38,7 +38,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   lateinit var socRecCrypto: SocRecCryptoFake
   lateinit var socRecRelationshipsDao: SocRecRelationshipsDao
   lateinit var socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao
-  val accountRepository = AccountRepositoryFake().apply {
+  val accountService = AccountServiceFake().apply {
     accountState.value = Ok(ActiveAccount(FullAccountMock))
   }
 
@@ -56,8 +56,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     socRecEnrollmentAuthenticationDao = appTester.app.appComponent.socRecEnrollmentAuthenticationDao
     socRecCrypto = appTester.app.socRecCryptoFake
     postSocRecTaskRepository.reset()
-    accountRepository.reset()
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.reset()
+    accountService.setActiveAccount(FullAccountMock)
 
     socRecService = SocRecServiceImpl(
       socRecF8eClientProvider = { socialRecoveryF8eClient },
@@ -67,7 +67,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       socialRecoveryCodeBuilder = appTester.app.appComponent.socialRecoveryCodeBuilder,
       appSessionManager = appTester.app.appComponent.appSessionManager,
       postSocRecTaskRepository = postSocRecTaskRepository,
-      accountRepository = accountRepository
+      accountService = accountService
     )
 
     endorseTrustedContactsService = EndorseTrustedContactsServiceImpl(
@@ -76,7 +76,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
       socRecCrypto = socRecCrypto,
       endorseTrustedContactsF8eClientProvider = suspend { socialRecoveryF8eClient },
-      accountRepository = accountRepository
+      accountService = accountService
     )
   }
 

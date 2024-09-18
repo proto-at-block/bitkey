@@ -14,6 +14,8 @@ use aes_gcm::aead::{Aead, AeadCore, OsRng, Payload};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use anyhow::bail;
 
+use aws_nitro_enclaves_nsm_api::api::{Request as NsmRequest, Response as NsmResponse};
+use aws_nitro_enclaves_nsm_api::driver::{nsm_exit, nsm_init, nsm_process_request};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -40,6 +42,7 @@ use tokio::sync::RwLock;
 
 use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
+use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
@@ -67,6 +70,7 @@ const INTEGRITY_KEY_ID: &str = "integrity";
 const TEST_INTEGRITY_KEY_B64: &str = include_str!("../../keys/test_integrity_key.b64");
 
 type KeyStore = Arc<RwLock<HashMap<String, KeySpec>>>;
+type GlobalNsmCtx = Arc<NsmCtx>;
 
 fn new_keystore() -> KeyStore {
     Arc::new(RwLock::new(HashMap::new()))
@@ -112,6 +116,51 @@ pub struct ErrorResponse<'a> {
 
 pub trait ToErrorResponse {
     fn to_response(&self) -> ErrorResponse;
+}
+
+pub struct NsmCtx {
+    pub fd: i32,
+    test_mode: bool,
+}
+
+// Locks around this are not needed, as the driver is thread-safe
+// https://codebrowser.dev/linux/linux/drivers/misc/nsm.c.html#333
+impl NsmCtx {
+    pub fn new() -> Result<Self, &'static str> {
+        if !std::path::Path::new("/dev/nsm").exists() {
+            // Use a dummy file descriptor for tests
+            return Ok(NsmCtx {
+                fd: 1337,
+                test_mode: true,
+            });
+        }
+
+        let fd = nsm_init();
+        if fd < 0 {
+            Err("Failed to get file descriptor for NSM library")
+        } else {
+            Ok(NsmCtx {
+                fd,
+                test_mode: false,
+            })
+        }
+    }
+
+    pub fn request(&self, request: NsmRequest) -> NsmResponse {
+        if self.test_mode {
+            NsmResponse::Attestation {
+                document: vec![0, 1, 2, 3],
+            }
+        } else {
+            nsm_process_request(self.fd, request)
+        }
+    }
+}
+
+impl Drop for NsmCtx {
+    fn drop(&mut self) {
+        nsm_exit(self.fd);
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -305,6 +354,31 @@ async fn load_integrity_key(
     Ok(Json(LoadedSecret {
         status: "Ok!".to_string(),
     }))
+}
+
+async fn attestation_doc(
+    State(nsm_ctx): State<GlobalNsmCtx>,
+) -> Result<Json<AttestationDocResponse>, WsmError> {
+    let log_buffer = LogBuffer::new();
+
+    // `None` in the optional arguments for now.
+    let rsp = nsm_ctx.request(NsmRequest::Attestation {
+        user_data: None,
+        nonce: None,
+        public_key: None,
+    });
+
+    match rsp {
+        NsmResponse::Attestation { document } => Ok(Json(AttestationDocResponse { document })),
+        NsmResponse::Error(e) => Err(WsmError::ServerError {
+            message: format!("NSM Error: {:?}", e),
+            log_buffer: log_buffer.clone(),
+        }),
+        _ => Err(WsmError::ServerError {
+            message: "Unexpected response from NSM".to_string(),
+            log_buffer: log_buffer.clone(),
+        }),
+    }
 }
 
 async fn get_integrity_key(
@@ -755,6 +829,7 @@ fn decode_der_secp256k1_private_key(
 pub struct RouteState {
     keystore: KeyStore,
     kms_tool: Arc<KmsTool>,
+    nsm_ctx: Arc<NsmCtx>,
 }
 
 impl From<RouteState> for Router {
@@ -767,6 +842,7 @@ impl From<RouteState> for Router {
             .route("/sign-psbt", post(sign_psbt))
             .route("/create-key", post(create_key))
             .route("/derive-key", post(derive_key))
+            .route("/attestation-doc-from-enclave", get(attestation_doc))
             .with_state(state)
     }
 }
@@ -774,10 +850,12 @@ impl From<RouteState> for Router {
 pub async fn axum() -> (TcpListener, Router) {
     let settings = Settings::new().unwrap();
     let kms_tool = KmsTool::new(settings.run_mode);
+    let nsm_ctx = NsmCtx::new().unwrap();
 
     let router = Router::from(RouteState {
         keystore: new_keystore(),
         kms_tool: Arc::new(kms_tool),
+        nsm_ctx: Arc::new(nsm_ctx),
     });
 
     let addr = SocketAddr::from((settings.address, settings.port));
@@ -815,6 +893,7 @@ mod tests {
     };
     use wsm_common::wsm_log;
 
+    use crate::NsmCtx;
     use crate::{
         decode_der_secp256k1_private_key, kms_tool::KmsTool, new_keystore, settings::RunMode,
         RouteState,
@@ -822,10 +901,12 @@ mod tests {
 
     fn get_client() -> Router {
         let kms_tool = KmsTool::new(RunMode::Test);
+        let nsm_ctx = NsmCtx::new().unwrap();
 
         Router::from(RouteState {
             keystore: new_keystore(),
             kms_tool: Arc::new(kms_tool),
+            nsm_ctx: Arc::new(nsm_ctx),
         })
     }
 

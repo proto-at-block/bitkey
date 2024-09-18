@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-android-extensions-runtime",
+    "components": [
+        {
+            "version": "1.9.22",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-android-extensions-runtime-1.9.22.jar": "f00537c7023e604933f6a9563b1bb3b83e61fbfd2cc3d0e9900d616bab6862a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

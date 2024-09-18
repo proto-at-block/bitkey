@@ -21,7 +21,8 @@ CREATE TABLE activeSoftwareAccountEntity(
   rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
   accountId          TEXT AS SoftwareAccountId NOT NULL,
   softwareKeyboxId   TEXT NOT NULL,
-  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId)
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId),
+  FOREIGN KEY (softwareKeyboxId) REFERENCES softwareKeyboxEntity(id)
 );
 
 -- Table for an onboarding Software Account data, if any.
@@ -36,6 +37,9 @@ CREATE TABLE onboardingSoftwareAccountEntity(
 -- Query to set a Software Account as active to make it ready to use for spending.
 -- Assumes an onboardingSoftwareAccount is already set.
 activateSoftwareAccountAfterOnboarding {
+  INSERT INTO softwareKeyboxEntity(id, accountId, appGlobalAuthKey, appRecoveryAuthKey)
+  VALUES(:softwareKeyboxId, :accountId, :appGlobalAuthKey, :appRecoveryAuthKey);
+
   INSERT INTO activeSoftwareAccountEntity(rowId, accountId, softwareKeyboxId)
   VALUES(0, :accountId, :softwareKeyboxId);
 
@@ -44,9 +48,7 @@ activateSoftwareAccountAfterOnboarding {
 
 -- Query to get the currently active Software Account, if any.
 getActiveSoftwareAccount:
-SELECT * FROM softwareAccountEntity
-INNER JOIN activeSoftwareAccountEntity
-WHERE softwareAccountEntity.accountId = activeSoftwareAccountEntity.accountId;
+SELECT softwareAccountWithKeyboxView.* FROM softwareAccountWithKeyboxView;
 
 -- Query to set an onboarding Software Account.
 setOnboardingSoftwareAccount {
@@ -69,3 +71,20 @@ clear {
   DELETE FROM onboardingSoftwareAccountEntity;
   DELETE FROM softwareAccountEntity;
 }
+
+-- A view to get the software account's keybox
+CREATE VIEW softwareAccountWithKeyboxView AS
+SELECT
+  activeSoftwareAccountEntity.accountId AS accountId,
+  softwareAccountEntity.bitcoinNetworkType,
+  softwareAccountEntity.f8eEnvironment,
+  softwareAccountEntity.isTestAccount,
+  softwareAccountEntity.isUsingSocRecFakes,
+  softwareKeyboxEntity.id AS keyboxId,
+  softwareKeyboxEntity.appGlobalAuthKey,
+  softwareKeyboxEntity.appRecoveryAuthKey
+FROM activeSoftwareAccountEntity
+INNER JOIN softwareAccountEntity
+ON activeSoftwareAccountEntity.accountId = softwareAccountEntity.accountId
+INNER JOIN softwareKeyboxEntity
+ON softwareKeyboxEntity.id = activeSoftwareAccountEntity.softwareKeyboxId;

@@ -5,6 +5,7 @@ import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId.S
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.socRecDataAvailable
@@ -604,6 +605,7 @@ suspend fun shouldSucceedSocialRestore(
         protectedCustomerAlias,
         challengeCode
       )
+      is SoftwareAccount -> fail("unexpected account type")
       is OnboardingSoftwareAccount -> fail("unexpected account type")
     }
     cancelAndIgnoreRemainingEvents()

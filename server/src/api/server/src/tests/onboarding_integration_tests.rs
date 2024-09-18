@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 use std::vec;
 
 use authn_authz::routes::{
@@ -14,16 +15,24 @@ use http_body_util::BodyExt;
 
 use onboarding::account_validation::error::AccountValidationError;
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
-use time::Duration;
+use serde_json::{json, Value};
+use time::{Duration, OffsetDateTime};
 
+use types::account::bitcoin::Network as AccountNetwork;
+use types::account::AccountType;
 use types::consent::Consent;
 
+use types::privileged_action::router::generic::{
+    AuthorizationStrategyInput, AuthorizationStrategyOutput, ContinuePrivilegedActionRequest,
+    DelayAndNotifyInput, PrivilegedActionInstanceInput, PrivilegedActionInstanceOutput,
+    PrivilegedActionRequest, PrivilegedActionResponse,
+};
+use types::privileged_action::shared::PrivilegedActionInstanceId;
 use ulid::Ulid;
 
 use account::entities::{
-    Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, Network as AccountNetwork,
-    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
-    UpgradeLiteAccountAuthKeysPayload,
+    Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
+    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
 };
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::Network;
@@ -32,23 +41,25 @@ use comms_verification::TEST_CODE;
 use external_identifier::ExternalIdentifier;
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
-    AccountVerifyTouchpointRequest, ActivateSpendingDescriptorRequest, CompleteOnboardingRequest,
-    ContinueDistributedKeygenRequest, CreateAccountRequest, UpgradeAccountRequest,
+    AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
+    CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
+    InititateDistributedKeygenRequest, UpgradeAccountRequest,
 };
 use types::account::identifiers::TouchpointId;
 
-use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{
-    create_account, create_descriptor_keys, create_new_authkeys, create_pubkey,
+    create_descriptor_keys, create_full_account, create_new_authkeys, create_pubkey,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::{CognitoAuthentication, Response};
+use crate::{tests, GenServiceOverrides};
 
 use super::lib::{
-    create_keypair, create_lite_account, create_spend_keyset, generate_delay_and_notify_recovery,
+    create_account, create_keypair, create_lite_account, create_spend_keyset,
+    generate_delay_and_notify_recovery, OffsetClock,
 };
-use super::{TestAuthenticationKeys, TestKeypair};
+use super::{gen_services_with_overrides, TestAuthenticationKeys, TestKeypair};
 
 struct OnboardingTestVector {
     include_recovery_auth_pubkey: bool,
@@ -130,10 +141,10 @@ struct AddDeviceTokenTestVector {
 async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_account(
+    let account = create_full_account(
         &mut context,
         &bootstrap.services,
-        account::entities::Network::BitcoinSignet,
+        types::account::bitcoin::Network::BitcoinSignet,
         None,
     )
     .await;
@@ -212,12 +223,19 @@ enum TouchpointLifecycleTestStep {
         expected_status: StatusCode,
         expected_num_touchpoints: usize,
     },
-    ActivateTouchpoint {
+    InitiateActivateTouchpoint {
         use_last_seen_touchpoint_id: bool,
         expected_status: StatusCode,
         expected_num_touchpoints: usize,
+        expected_active_touchpoint: bool,
         app_signed: bool,
         hw_signed: bool,
+    },
+    CompleteActivateTouchpoint {
+        use_last_seen_touchpoint_id: bool,
+        use_last_seen_privileged_action_instance: bool,
+        expected_status: StatusCode,
+        expected_num_touchpoints: usize,
     },
 }
 
@@ -256,27 +274,24 @@ impl TouchpointTestGetters for Touchpoint {
 
 struct TouchpointLifecycleTestVector {
     onboarding_complete: bool,
+    account_type: AccountType,
     steps: Vec<TouchpointLifecycleTestStep>,
 }
 
 async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
-    let (mut context, bootstrap) = gen_services().await;
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
     let client = TestClient::new(bootstrap.router).await;
-    let account = create_account(
-        &mut context,
-        &bootstrap.services,
-        account::entities::Network::BitcoinSignet,
-        None,
-    )
-    .await;
+    let account = create_account(&mut context, &bootstrap.services, vector.account_type).await;
     let keys = context
-        .get_authentication_keys_for_account_id(&account.id)
+        .get_authentication_keys_for_account_id(account.get_id())
         .unwrap();
 
     if vector.onboarding_complete {
         assert_eq!(
             client
-                .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {},)
+                .complete_onboarding(&account.get_id().to_string(), &CompleteOnboardingRequest {},)
                 .await
                 .status_code,
             200,
@@ -285,7 +300,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
         let consents = bootstrap
             .services
             .consent_repository
-            .fetch_for_account_id(&account.id)
+            .fetch_for_account_id(account.get_id())
             .await
             .unwrap();
         assert_eq!(
@@ -298,6 +313,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
     }
 
     let mut last_seen_touchpoint_id = TouchpointId::new(Ulid::default()).unwrap();
+    let mut last_seen_privileged_action_instance: Option<PrivilegedActionInstanceOutput> = None;
 
     for step in vector.steps {
         match step {
@@ -329,20 +345,22 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                     _ => panic!("This is impossible"),
                 };
 
-                let actual_response = client.add_touchpoint(&account.id.to_string(), &req).await;
+                let actual_response = client
+                    .add_touchpoint(&account.get_id().to_string(), &req)
+                    .await;
 
                 assert_eq!(actual_response.status_code, expected_status,);
 
                 let account = bootstrap
                     .services
                     .account_service
-                    .fetch_full_account(FetchAccountInput {
-                        account_id: &account.id,
+                    .fetch_account(FetchAccountInput {
+                        account_id: account.get_id(),
                     })
                     .await
                     .unwrap();
                 assert_eq!(
-                    account.common_fields.touchpoints.len(),
+                    account.get_common_fields().touchpoints.len(),
                     expected_num_touchpoints
                 );
 
@@ -353,7 +371,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                         .services
                         .account_service
                         .fetch_account(FetchAccountInput {
-                            account_id: &account.id,
+                            account_id: account.get_id(),
                         })
                         .await
                         .unwrap();
@@ -395,7 +413,11 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                     },
                 };
                 let actual_response = client
-                    .verify_touchpoint(&account.id.to_string(), &touchpoint_id.to_string(), &req)
+                    .verify_touchpoint(
+                        &account.get_id().to_string(),
+                        &touchpoint_id.to_string(),
+                        &req,
+                    )
                     .await;
 
                 assert_eq!(actual_response.status_code, expected_status,);
@@ -403,13 +425,13 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                 let account = bootstrap
                     .services
                     .account_service
-                    .fetch_full_account(FetchAccountInput {
-                        account_id: &account.id,
+                    .fetch_account(FetchAccountInput {
+                        account_id: account.get_id(),
                     })
                     .await
                     .unwrap();
                 assert_eq!(
-                    account.common_fields.touchpoints.len(),
+                    account.get_common_fields().touchpoints.len(),
                     expected_num_touchpoints
                 );
 
@@ -418,7 +440,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                         .services
                         .account_service
                         .fetch_account(FetchAccountInput {
-                            account_id: &account.id,
+                            account_id: account.get_id(),
                         })
                         .await
                         .unwrap();
@@ -427,10 +449,11 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                     assert!(touchpoint.is_some() && !touchpoint.unwrap().get_active());
                 }
             }
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 use_last_seen_touchpoint_id,
                 expected_status,
                 expected_num_touchpoints,
+                expected_active_touchpoint,
                 app_signed,
                 hw_signed,
             } => {
@@ -440,10 +463,10 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                     TouchpointId::new(Ulid::default()).unwrap()
                 };
 
-                let req = AccountActivateTouchpointRequest {};
+                let req = PrivilegedActionRequest::Initiate(AccountActivateTouchpointRequest {});
                 let actual_response = client
                     .activate_touchpoint(
-                        &account.id.to_string(),
+                        &account.get_id().to_string(),
                         &touchpoint_id.to_string(),
                         &req,
                         app_signed,
@@ -457,13 +480,108 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                 let account = bootstrap
                     .services
                     .account_service
-                    .fetch_full_account(FetchAccountInput {
-                        account_id: &account.id,
+                    .fetch_account(FetchAccountInput {
+                        account_id: account.get_id(),
                     })
                     .await
                     .unwrap();
                 assert_eq!(
-                    account.common_fields.touchpoints.len(),
+                    account.get_common_fields().touchpoints.len(),
+                    expected_num_touchpoints
+                );
+
+                if actual_response.status_code == StatusCode::OK {
+                    if let Some(PrivilegedActionResponse::Pending(pending_response)) =
+                        actual_response.body
+                    {
+                        last_seen_privileged_action_instance =
+                            Some(pending_response.privileged_action_instance);
+                    }
+
+                    let account = bootstrap
+                        .services
+                        .account_service
+                        .fetch_account(FetchAccountInput {
+                            account_id: account.get_id(),
+                        })
+                        .await
+                        .unwrap();
+                    let touchpoint = account.get_touchpoint_by_id(touchpoint_id);
+
+                    assert!(
+                        touchpoint.is_some()
+                            && (touchpoint.unwrap().get_active() || !expected_active_touchpoint)
+                    );
+                }
+            }
+            TouchpointLifecycleTestStep::CompleteActivateTouchpoint {
+                use_last_seen_touchpoint_id,
+                use_last_seen_privileged_action_instance,
+                expected_status,
+                expected_num_touchpoints,
+            } => {
+                let touchpoint_id = if use_last_seen_touchpoint_id {
+                    last_seen_touchpoint_id.clone()
+                } else {
+                    TouchpointId::new(Ulid::default()).unwrap()
+                };
+
+                let (mut privileged_action_instance_id, mut completion_token) = (
+                    PrivilegedActionInstanceId::gen().unwrap(),
+                    "INVALID_COMPLETION_TOKEN".to_owned(),
+                );
+                if use_last_seen_privileged_action_instance {
+                    if let Some(last_seen_privileged_action_instance) =
+                        &last_seen_privileged_action_instance
+                    {
+                        let AuthorizationStrategyOutput::DelayAndNotify(delay_and_notify_output) =
+                            &last_seen_privileged_action_instance.authorization_strategy
+                        else {
+                            panic!("Expected DelayAndNotify authorization strategy");
+                        };
+
+                        clock.add_offset(
+                            delay_and_notify_output.delay_end_time - OffsetDateTime::now_utc(),
+                        );
+
+                        (privileged_action_instance_id, completion_token) = (
+                            last_seen_privileged_action_instance.id.clone(),
+                            delay_and_notify_output.completion_token.clone(),
+                        )
+                    }
+                }
+
+                let req = PrivilegedActionRequest::Continue(ContinuePrivilegedActionRequest {
+                    privileged_action_instance: PrivilegedActionInstanceInput {
+                        id: privileged_action_instance_id,
+                        authorization_strategy: AuthorizationStrategyInput::DelayAndNotify(
+                            DelayAndNotifyInput { completion_token },
+                        ),
+                    },
+                });
+                let actual_response = client
+                    .activate_touchpoint(
+                        &account.get_id().to_string(),
+                        &touchpoint_id.to_string(),
+                        &req,
+                        false,
+                        false,
+                        &keys,
+                    )
+                    .await;
+
+                assert_eq!(actual_response.status_code, expected_status,);
+
+                let account = bootstrap
+                    .services
+                    .account_service
+                    .fetch_account(FetchAccountInput {
+                        account_id: account.get_id(),
+                    })
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    account.get_common_fields().touchpoints.len(),
                     expected_num_touchpoints
                 );
 
@@ -472,7 +590,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                         .services
                         .account_service
                         .fetch_account(FetchAccountInput {
-                            account_id: &account.id,
+                            account_id: account.get_id(),
                         })
                         .await
                         .unwrap();
@@ -489,6 +607,7 @@ tests! {
     runner = touchpoint_lifecycle_test,
     test_touchpoint_lifecycle: TouchpointLifecycleTestVector {
         onboarding_complete: false,
+        account_type: AccountType::Full,
         steps: vec![
             TouchpointLifecycleTestStep::AddPhoneTouchpoint {
                 // Add an invalid phone number fails
@@ -520,11 +639,12 @@ tests! {
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate unverified touchpoint id fails
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::BAD_REQUEST,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: true,
                 hw_signed: true,
             },
@@ -582,19 +702,21 @@ tests! {
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate non-existing touchpoint id fails
                 use_last_seen_touchpoint_id: false,
-                expected_status: StatusCode::NOT_FOUND,
+                expected_status: StatusCode::BAD_REQUEST,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: false,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint succeeds
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: false,
             },
@@ -611,11 +733,12 @@ tests! {
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 2,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint succeeds and replaces previous active touchpoint
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: false,
             },
@@ -638,11 +761,21 @@ tests! {
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 2,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint succeeds
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 2,
+                expected_active_touchpoint: true,
+                app_signed: false,
+                hw_signed: false,
+            },
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+                // Re-activate activated touchpoint fails
+                use_last_seen_touchpoint_id: true,
+                expected_status: StatusCode::BAD_REQUEST,
+                expected_num_touchpoints: 2,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: false,
             },
@@ -650,6 +783,7 @@ tests! {
     },
     test_onboarding_complete: TouchpointLifecycleTestVector {
         onboarding_complete: true,
+        account_type: AccountType::Full,
         steps: vec![
             TouchpointLifecycleTestStep::AddPhoneTouchpoint {
                 phone_number: "+15555555555".to_owned(),
@@ -662,37 +796,97 @@ tests! {
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint without either sig fails
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::FORBIDDEN,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: false,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint without app sig fails
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::FORBIDDEN,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: false,
                 hw_signed: true,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint without hw sig fails
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::FORBIDDEN,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: true,
                 hw_signed: false,
             },
-            TouchpointLifecycleTestStep::ActivateTouchpoint {
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
                 // Activate verified touchpoint with both sigs succeeds
                 use_last_seen_touchpoint_id: true,
                 expected_status: StatusCode::OK,
                 expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
                 app_signed: true,
                 hw_signed: true,
+            },
+        ],
+    },
+    test_software_onboarding_not_complete: TouchpointLifecycleTestVector {
+        onboarding_complete: false,
+        account_type: AccountType::Software,
+        steps: vec![
+            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+                phone_number: "+15555555555".to_owned(),
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+            },
+            TouchpointLifecycleTestStep::VerifyTouchpoint {
+                use_last_seen_touchpoint_id: true,
+                use_real_verification_code: true,
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+            },
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+                use_last_seen_touchpoint_id: true,
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+                expected_active_touchpoint: true,
+                app_signed: false,
+                hw_signed: false,
+            },
+        ],
+    },
+    test_software_onboarding_complete: TouchpointLifecycleTestVector {
+        onboarding_complete: true,
+        account_type: AccountType::Software,
+        steps: vec![
+            TouchpointLifecycleTestStep::AddPhoneTouchpoint {
+                phone_number: "+15555555555".to_owned(),
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+            },
+            TouchpointLifecycleTestStep::VerifyTouchpoint {
+                use_last_seen_touchpoint_id: true,
+                use_real_verification_code: true,
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+            },
+            TouchpointLifecycleTestStep::InitiateActivateTouchpoint {
+                use_last_seen_touchpoint_id: true,
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
+                app_signed: false,
+                expected_active_touchpoint: false,
+                hw_signed: false,
+            },
+            TouchpointLifecycleTestStep::CompleteActivateTouchpoint {
+                use_last_seen_touchpoint_id: true,
+                use_last_seen_privileged_action_instance: true,
+                expected_status: StatusCode::OK,
+                expected_num_touchpoints: 1,
             },
         ],
     },
@@ -975,7 +1169,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
-    let other_account = &create_account(
+    let other_account = &create_full_account(
         &mut context,
         &bootstrap.services,
         AccountNetwork::BitcoinSignet,
@@ -1216,7 +1410,7 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
         .expect("Authentication keys present for Lite Account")
         .recovery;
 
-    let other_account = &create_account(
+    let other_account = &create_full_account(
         &mut context,
         &bootstrap.services,
         AccountNetwork::BitcoinSignet,
@@ -1430,7 +1624,7 @@ async fn test_delete_account() {
     let lite_account_keys = context
         .get_authentication_keys_for_account_id(&lite_account.id)
         .unwrap();
-    let unonboarded_account = &create_account(
+    let unonboarded_account = &create_full_account(
         &mut context,
         &bootstrap.services,
         AccountNetwork::BitcoinSignet,
@@ -1440,7 +1634,7 @@ async fn test_delete_account() {
     let unonboarded_keys = context
         .get_authentication_keys_for_account_id(&unonboarded_account.id)
         .unwrap();
-    let onboarded_account = &create_account(
+    let onboarded_account = &create_full_account(
         &mut context,
         &bootstrap.services,
         AccountNetwork::BitcoinSignet,
@@ -1723,17 +1917,8 @@ tests! {
     },
 }
 
-struct SoftwareOnboardingKeygenActivationTestVector {
-    spending_app_xpub: DescriptorPublicKey,
-    spending_hw_xpub: DescriptorPublicKey,
-    network: Network,
-    expected_derivation_path: &'static str,
-    expected_status: StatusCode,
-}
-
-async fn software_onboarding_keygen_activation_test(
-    vector: SoftwareOnboardingKeygenActivationTestVector,
-) {
+#[tokio::test]
+async fn software_onboarding_keygen_activation_test() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -1747,21 +1932,35 @@ async fn software_onboarding_keygen_activation_test(
     };
     let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_status,
+        actual_response.status_code,
+        StatusCode::OK,
         "{}",
         actual_response.body_string
     );
 
-    if vector.expected_status != StatusCode::OK {
-        return;
-    }
-
     let account_id = actual_response.body.unwrap().account_id;
 
-    let request = SpendingKeysetRequest {
-        network: vector.network,
-        app: vector.spending_app_xpub.clone(),
-        hardware: vector.spending_hw_xpub.clone(),
+    let (app_share_package, sealed_request) = {
+        // Fake app
+        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+        use crypto::frost::dkg::app::initiate_dkg;
+
+        let initiate_result = initiate_dkg().unwrap();
+
+        let request = json!(
+            {
+                "app_share_package": initiate_result,
+            }
+        );
+
+        let request_bytes = serde_json::to_vec(&request).unwrap();
+
+        (initiate_result, b64.encode(request_bytes))
+    };
+
+    let request = InititateDistributedKeygenRequest {
+        network: Network::Signet,
+        sealed_request,
     };
     let actual_response = client
         .initiate_distributed_keygen(&account_id.to_string(), &request)
@@ -1773,11 +1972,51 @@ async fn software_onboarding_keygen_activation_test(
         actual_response.body_string
     );
 
-    let keyset_id = actual_response.body.unwrap().keyset_id;
+    let body = actual_response.body.unwrap();
+    let key_definition_id = body.key_definition_id;
 
-    let request = ContinueDistributedKeygenRequest {};
+    let sealed_request = {
+        // Fake app
+        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+        use crypto::frost::dkg::{app::continue_dkg, SharePackage};
+        use crypto::frost::KeyCommitments;
+
+        let response_bytes = b64.decode(body.sealed_response.as_bytes()).unwrap();
+        let response = serde_json::from_slice::<Value>(&response_bytes).unwrap();
+
+        let server_share_package_value = response.get("server_share_package").unwrap();
+        let server_share_package =
+            serde_json::from_value::<SharePackage>(server_share_package_value.clone()).unwrap();
+
+        let server_key_commitments_value = response.get("server_key_commitments").unwrap();
+        let server_key_commitments =
+            serde_json::from_value::<KeyCommitments>(server_key_commitments_value.clone()).unwrap();
+
+        let continue_result = continue_dkg(
+            &app_share_package,
+            &server_share_package,
+            &server_key_commitments,
+        )
+        .unwrap();
+
+        let request = json!(
+            {
+                "app_key_commitments": continue_result.key_commitments,
+            }
+        );
+
+        let request_bytes = serde_json::to_vec(&request).unwrap();
+
+        b64.encode(request_bytes)
+    };
+
+    let request = ContinueDistributedKeygenRequest { sealed_request };
     let actual_response = client
-        .continue_distributed_keygen(&account_id.to_string(), &keyset_id.to_string(), &request)
+        .continue_distributed_keygen(
+            &account_id.to_string(),
+            &key_definition_id.to_string(),
+            &request,
+        )
         .await;
     assert_eq!(
         actual_response.status_code,
@@ -1785,16 +2024,6 @@ async fn software_onboarding_keygen_activation_test(
         "{}",
         actual_response.body_string
     );
-
-    let spending = actual_response.body.unwrap().spending;
-    assert!(
-        spending
-            .to_string()
-            .contains(vector.expected_derivation_path),
-        "{}",
-        spending.to_string()
-    );
-    assert!(spending.to_string().ends_with("/*"));
 
     // TODO: Figure out what to do with get_account_status: we need to figure out how to deal with null keyset without breaking
     // existing consumers of this endpoint
@@ -1806,9 +2035,9 @@ async fn software_onboarding_keygen_activation_test(
         actual_response.body_string
     );
 
-    let request = ActivateSpendingDescriptorRequest { keyset_id };
+    let request = ActivateSpendingKeyDefinitionRequest { key_definition_id };
     let actual_response = client
-        .activate_spending_descriptor(&account_id.to_string(), &request)
+        .activate_spending_key_definition(&account_id.to_string(), &request)
         .await;
     assert_eq!(
         actual_response.status_code,
@@ -1816,44 +2045,4 @@ async fn software_onboarding_keygen_activation_test(
         "{}",
         actual_response.body_string
     );
-
-    let actual_response = client.get_account_status(&account_id.to_string()).await;
-    assert_eq!(
-        actual_response.status_code,
-        StatusCode::OK,
-        "{}",
-        actual_response.body_string
-    );
-
-    let spending_keyset = actual_response.body.unwrap().spending;
-    assert_eq!(
-        spending_keyset.app_dpub, vector.spending_app_xpub,
-        "{}",
-        spending_keyset.app_dpub
-    );
-    assert_eq!(
-        spending_keyset.hardware_dpub, vector.spending_hw_xpub,
-        "{}",
-        spending_keyset.hardware_dpub
-    );
-    assert!(
-        spending_keyset
-            .server_dpub
-            .to_string()
-            .contains(vector.expected_derivation_path),
-        "{}",
-        spending_keyset.server_dpub.to_string()
-    );
-    assert!(spending_keyset.server_dpub.to_string().ends_with("/*"));
-}
-
-tests! {
-    runner = software_onboarding_keygen_activation_test,
-    test_software_keygen_activation: SoftwareOnboardingKeygenActivationTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Testnet,
-        expected_derivation_path: "/84'/1'/0'",
-        expected_status: StatusCode::OK,
-    },
 }

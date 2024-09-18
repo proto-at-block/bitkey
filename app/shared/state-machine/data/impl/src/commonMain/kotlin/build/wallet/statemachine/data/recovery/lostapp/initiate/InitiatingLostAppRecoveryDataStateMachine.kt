@@ -5,7 +5,6 @@ import build.wallet.auth.AccountAuthTokens
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
@@ -32,8 +31,6 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.CancelRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.InitiateRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl.State.*
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.Delayer
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
@@ -65,8 +62,6 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val lostAppRecoveryInitiator: LostAppRecoveryInitiator,
   private val lostAppRecoveryAuthenticator: LostAppRecoveryAuthenticator,
-  private val recoveryNotificationVerificationDataStateMachine:
-    RecoveryNotificationVerificationDataStateMachine,
   private val uuidGenerator: UuidGenerator,
   private val delayer: Delayer,
 ) : InitiatingLostAppRecoveryDataStateMachine {
@@ -323,44 +318,36 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is VerifyingNotificationCommsState ->
           VerifyingNotificationCommsData(
-            data =
-              recoveryNotificationVerificationDataStateMachine.model(
-                props =
-                  RecoveryNotificationVerificationDataProps(
-                    f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                    fullAccountId = FullAccountId(dataState.authChallenge.accountId),
-                    onRollback = props.onRollback,
-                    onComplete = {
-                      // We try our target action on F8e again, now that the additional verification
-                      // is complete
-                      state =
-                        when (dataState.targetAction) {
-                          InitiateRecovery ->
-                            InitiatingRecoveryWithF8eState(
-                              authChallenge = dataState.authChallenge,
-                              newAppKeys = dataState.newAppKeys,
-                              newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
-                              signedAuthChallenge = dataState.signedAuthChallenge,
-                              hardwareKeys = dataState.hardwareKeys,
-                              hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
-                            )
+            f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+            fullAccountId = FullAccountId(dataState.authChallenge.accountId),
+            onRollback = props.onRollback,
+            onComplete = {
+              // We try our target action on F8e again, now that the additional verification
+              // is complete
+              state =
+                when (dataState.targetAction) {
+                  InitiateRecovery ->
+                    InitiatingRecoveryWithF8eState(
+                      authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
+                      signedAuthChallenge = dataState.signedAuthChallenge,
+                      hardwareKeys = dataState.hardwareKeys,
+                      hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
+                    )
 
-                          CancelRecovery ->
-                            CancellingConflictingRecoveryWithF8eState(
-                              authChallenge = dataState.authChallenge,
-                              newAppKeys = dataState.newAppKeys,
-                              newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
-                              signedAuthChallenge = dataState.signedAuthChallenge,
-                              hardwareKeys = dataState.hardwareKeys,
-                              hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
-                            )
-                        }
-                    },
-                    hwFactorProofOfPossession = dataState.hwFactorProofOfPossession,
-                    lostFactor = App
-                  )
-              ),
-            lostFactor = App
+                  CancelRecovery ->
+                    CancellingConflictingRecoveryWithF8eState(
+                      authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
+                      signedAuthChallenge = dataState.signedAuthChallenge,
+                      hardwareKeys = dataState.hardwareKeys,
+                      hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
+                    )
+                }
+            },
+            hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
           )
 
         is CancellingConflictingRecoveryWithF8eState -> {

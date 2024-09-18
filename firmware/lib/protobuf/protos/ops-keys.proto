@@ -27,6 +27,7 @@ message derive_rsp {
 message derive_key_descriptor_and_sign_cmd {
   derivation_path derivation_path = 1;
   bytes hash = 2 [(nanopb).max_size = 32];
+  bool async_sign = 3;
 }
 
 message derive_and_sign_rsp {

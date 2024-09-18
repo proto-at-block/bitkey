@@ -39,9 +39,9 @@ if [[ -z $IS_CI_RUN ]] ; then
     aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
 
     echo "🏗 building server container"
-    DOCKER_BUILDKIT=1 docker build --pull --platform linux/arm64 -f ./Dockerfile.server -t $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG .
+    docker buildx bake --pull --set *.platform=linux/arm64 --set api.tags=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG --set api.tags=api:latest api
     echo "➡️ pushing container into ECR"
-    docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$(git rev-parse HEAD)
+    docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG
 
     pushd $TERRAFORM_REPO_PATH/aws/bitkey/named-stacks/auth > /dev/null
     just download_artifacts
@@ -112,7 +112,7 @@ if [[ -z "$IS_CI_RUN" ]] ; then
 
     echo "➡️ pushing wsm-api into ECR"
     docker tag wsm-api:latest $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wsm-api:$IMAGE_TAG
-    docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wsm-api:$(git rev-parse HEAD)
+    docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wsm-api:$IMAGE_TAG
   else
     pushd src/wsm
     echo "⬇️ downloading WSM Artifacts"

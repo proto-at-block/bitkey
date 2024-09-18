@@ -2,11 +2,11 @@
     "module-identifier": "net.zetetic:sqlcipher-android",
     "components": [
         {
-            "version": "4.5.6",
+            "version": "4.5.7",
             "variants": [
                 {
                     "artifacts": {
-                        "sqlcipher-android-4.5.6.aar": "94d4d1d48a4a928e77ce6d4dc04808c754fecffd7455431f8a15b87c9d0c9e7b"
+                        "sqlcipher-android-4.5.7.aar": "83e0c4c23473b482be997b8b01217c1270915d3b2d8d58b0c1ec5a42a6bc33c9"
                     }
                 }
             ],

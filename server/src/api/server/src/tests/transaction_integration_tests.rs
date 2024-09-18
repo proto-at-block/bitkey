@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use account::entities::Network;
 use account::service::FetchAccountInput;
 use account::spend_limit::{Money, SpendingLimit};
 use bdk_utils::bdk::bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey};
@@ -26,6 +25,7 @@ use mobile_pay::routes::SignTransactionResponse;
 use mockall::mock;
 use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
+use types::account::bitcoin::Network;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::currencies::CurrencyCode::USD;
 use ulid::Ulid;

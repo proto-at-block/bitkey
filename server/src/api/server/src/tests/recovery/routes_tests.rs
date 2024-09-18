@@ -1,16 +1,17 @@
-use crate::tests::lib::{create_account, create_lite_account};
+use crate::tests::lib::{create_full_account, create_lite_account};
 use crate::tests::recovery::recovery_relationship_integration_tests::AccountType;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::{gen_services, TestContext};
 use crate::Bootstrap;
-use account::entities::{Account, Network};
+use account::entities::Account;
 use axum::body::Body;
 use http::{Method, StatusCode};
 use recovery::routes::{CreateRelationshipRequest, GetRelationshipsRequest};
 use regex::Regex;
 use rstest::rstest;
 use serde_json::json;
+use types::account::bitcoin::Network;
 use types::recovery::trusted_contacts::TrustedContactRole;
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
 use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
@@ -216,7 +217,7 @@ async fn create_customer_account(
 ) -> Account {
     match customer_account_type {
         AccountType::Full { .. } => Account::Full(
-            create_account(context, &bootstrap.services, Network::BitcoinSignet, None).await,
+            create_full_account(context, &bootstrap.services, Network::BitcoinSignet, None).await,
         ),
         AccountType::Lite => {
             Account::Lite(create_lite_account(context, &bootstrap.services, None, true).await)

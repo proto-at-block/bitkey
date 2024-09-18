@@ -368,3 +368,33 @@ module "privileged_action_table" {
 
   deletion_protection_enabled = var.enable_deletion_protection
 }
+
+module "inheritance_table" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table//?ref=9b66b76b2d178ca42425378deac9d9ebf95bf14e" // Tag v3.2.0
+
+  create_table = var.create_dynamodb_tables
+
+  name      = var.inheritance_table_name
+  hash_key  = "partition_key"
+  range_key = "created_at"
+
+  attributes = [
+    { name = "partition_key", type = "S" },
+    { name = "created_at", type = "S" },
+    { name = "recovery_relationship_id", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name            = "by_recovery_relationship_id"
+      hash_key        = "recovery_relationship_id"
+      range_key       = "created_at"
+      projection_type = "ALL"
+    },
+  ]
+
+  point_in_time_recovery_enabled = true
+  server_side_encryption_enabled = true
+
+  deletion_protection_enabled = var.enable_deletion_protection
+}

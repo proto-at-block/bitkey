@@ -24,8 +24,8 @@ use wsm_common::bitcoin::bip32::DerivationPath;
 
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
-    CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse, GetIntegritySigRequest,
-    GetIntegritySigResponse, SignPsbtRequest, SignedPsbt,
+    AttestationDocResponse, CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse,
+    GetIntegritySigRequest, GetIntegritySigResponse, SignPsbtRequest, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
     EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveSignRequest,
@@ -59,6 +59,7 @@ impl From<RouteState> for Router {
             .route("/sign-psbt", post(sign_psbt))
             .route("/integrity-sig", get(integrity_sig))
             .route("/generate-integrity-key", get(generate_integrity_key))
+            .route("/attestation-doc", get(attestation_doc))
             .with_state(state)
     }
 }
@@ -276,6 +277,16 @@ async fn generate_integrity_key(
         wrapped_privkey: BASE64.encode(wrapped_privkey),
         pubkey: BASE64.encode(pubkey),
     }))
+}
+
+async fn attestation_doc(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+) -> Result<Json<AttestationDocResponse>, ApiError> {
+    let result = enclave_client
+        .attestation_doc()
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to retrieve attestation doc: {e}")))?;
+    Ok(Json(result))
 }
 
 async fn integrity_sig(

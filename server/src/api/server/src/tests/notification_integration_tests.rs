@@ -1,18 +1,19 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::tests;
-use account::entities::{Network, TouchpointPlatform};
+use account::entities::TouchpointPlatform;
 use http::StatusCode;
 use notification::clients::iterable::IterableClient;
 use notification::routes::SendTestPushData;
 use notification::service::FetchForAccountInput;
 use onboarding::routes::{AccountAddDeviceTokenRequest, CompleteOnboardingRequest};
+use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
 use types::consent::{Consent, NotificationConsentAction};
 use types::notification::{NotificationCategory, NotificationChannel, NotificationsPreferences};
 
 use crate::tests::gen_services;
-use crate::tests::lib::{create_account, create_default_account_with_predefined_wallet};
+use crate::tests::lib::{create_default_account_with_predefined_wallet, create_full_account};
 use crate::tests::requests::axum::TestClient;
 
 struct SendTestNotificationTestVector {
@@ -137,7 +138,7 @@ async fn test_notifications_preferences() {
         panic!("Expected Test IterableClient");
     };
 
-    let account = create_account(
+    let account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,

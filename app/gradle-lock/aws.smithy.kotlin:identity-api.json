@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:identity-api",
     "components": [
         {
-            "version": "1.2.11",
+            "version": "1.3.7",
             "variants": [
                 {
                     "artifacts": {
-                        "identity-api-metadata-1.2.11.jar": "2e6e070f9c677569a2d2b293896ebefcf4347ac2aee5ac94f944fa2d8a20e603"
+                        "identity-api-metadata-1.3.7.jar": "2e6e070f9c677569a2d2b293896ebefcf4347ac2aee5ac94f944fa2d8a20e603"
                     }
                 }
             ],

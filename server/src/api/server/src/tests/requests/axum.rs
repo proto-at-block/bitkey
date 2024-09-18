@@ -1,4 +1,3 @@
-use account::entities::SpendingKeysetRequest;
 use async_trait::async_trait;
 
 use axum::body::Body;
@@ -47,12 +46,13 @@ use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountActivateTouchpointResponse,
     AccountAddDeviceTokenRequest, AccountAddDeviceTokenResponse, AccountAddTouchpointRequest,
     AccountAddTouchpointResponse, AccountGetTouchpointsResponse, AccountVerifyTouchpointRequest,
-    AccountVerifyTouchpointResponse, ActivateSpendingDescriptorRequest,
-    ActivateSpendingDescriptorResponse, BdkConfigResponse, CompleteOnboardingRequest,
+    AccountVerifyTouchpointResponse, ActivateSpendingKeyDefinitionRequest,
+    ActivateSpendingKeyDefinitionResponse, BdkConfigResponse, CompleteOnboardingRequest,
     CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
-    InititateDistributedKeygenResponse, RotateSpendingKeysetRequest, UpgradeAccountRequest,
+    InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
+    RotateSpendingKeysetRequest, UpgradeAccountRequest,
 };
 use types::account::identifiers::{AccountId, KeysetId};
 
@@ -313,11 +313,11 @@ impl TestClient {
         &self,
         account_id: &str,
         touchpoint_id: &str,
-        request: &AccountActivateTouchpointRequest,
+        request: &PrivilegedActionRequest<AccountActivateTouchpointRequest>,
         app_signed: bool,
         hw_signed: bool,
         keys: &TestAuthenticationKeys,
-    ) -> Response<AccountActivateTouchpointResponse> {
+    ) -> Response<PrivilegedActionResponse<AccountActivateTouchpointResponse>> {
         Request::builder()
             .uri(format!(
                 "/api/accounts/{account_id}/touchpoints/{touchpoint_id}/activate"
@@ -1194,7 +1194,7 @@ impl TestClient {
     pub(crate) async fn initiate_distributed_keygen(
         &self,
         account_id: &str,
-        request: &SpendingKeysetRequest,
+        request: &InititateDistributedKeygenRequest,
     ) -> Response<InititateDistributedKeygenResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/distributed-keygen"))
@@ -1207,12 +1207,12 @@ impl TestClient {
     pub(crate) async fn continue_distributed_keygen(
         &self,
         account_id: &str,
-        keyset_id: &str,
+        key_definition_id: &str,
         request: &ContinueDistributedKeygenRequest,
     ) -> Response<ContinueDistributedKeygenResponse> {
         Request::builder()
             .uri(format!(
-                "/api/accounts/{account_id}/distributed-keygen/{keyset_id}"
+                "/api/accounts/{account_id}/distributed-keygen/{key_definition_id}"
             ))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
@@ -1220,13 +1220,15 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn activate_spending_descriptor(
+    pub(crate) async fn activate_spending_key_definition(
         &self,
         account_id: &str,
-        request: &ActivateSpendingDescriptorRequest,
-    ) -> Response<ActivateSpendingDescriptorResponse> {
+        request: &ActivateSpendingKeyDefinitionRequest,
+    ) -> Response<ActivateSpendingKeyDefinitionResponse> {
         Request::builder()
-            .uri(format!("/api/accounts/{account_id}/spending-descriptor"))
+            .uri(format!(
+                "/api/accounts/{account_id}/spending-key-definition"
+            ))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
             .call(&self.router)

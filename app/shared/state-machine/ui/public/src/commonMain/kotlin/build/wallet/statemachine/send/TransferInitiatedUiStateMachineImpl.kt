@@ -15,20 +15,7 @@ class TransferInitiatedUiStateMachineImpl(
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val transactionDetails = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
-        transactionDetail = when (props.transferInitiatedVariant) {
-          is TransferInitiatedUiProps.Variant.Regular ->
-            TransactionDetailType.Regular(
-              transferBitcoinAmount = props.transferInitiatedVariant.transferBitcoinAmount,
-              feeBitcoinAmount = props.transferInitiatedVariant.feeBitcoinAmount,
-              estimatedTransactionPriority = props.estimatedTransactionPriority
-            )
-          is TransferInitiatedUiProps.Variant.SpeedUp ->
-            TransactionDetailType.SpeedUp(
-              transferBitcoinAmount = props.transferInitiatedVariant.transferBitcoinAmount,
-              feeBitcoinAmount = props.transferInitiatedVariant.newFeeAmount,
-              oldFeeBitcoinAmount = props.transferInitiatedVariant.oldFeeAmount
-            )
-        },
+        transactionDetails = props.transactionDetails,
         fiatCurrency = fiatCurrency,
         exchangeRates = props.exchangeRates
       )

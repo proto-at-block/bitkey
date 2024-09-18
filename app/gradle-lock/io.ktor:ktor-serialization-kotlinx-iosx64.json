@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-serialization-kotlinx-iosx64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-serialization-kotlinx-iosx64-2.3.9-metadata.jar": "0d3f7126fad7dfb9b5af5e490c8e7ca9197561ca60e0c68677cc536a0d0034d3"
+                        "ktor-serialization-kotlinx-iosx64-2.3.11-metadata.jar": "0d306da1dff512341b1ca008834adf7562e59356358ac3a95003ba98421089be"
                     }
                 },
                 {

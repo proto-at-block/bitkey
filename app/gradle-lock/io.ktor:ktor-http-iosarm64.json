@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-http-iosarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-http-iosarm64-2.3.9-metadata.jar": "98b3d1959a41e02c39a6a81a6958262e244cc5cefe5a2c1df6464d4141a4b5c8"
+                        "ktor-http-iosarm64-2.3.11-metadata.jar": "af7e4c66c1aca781c451c3965a0dd5d42606ebe1ee6e2f52889b3f3b3673d58c"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-http.klib": "c486235510fe7a4896c86a3f07e45663f4ae102049ab469b8d63e61e635eab6b"
+                        "ktor-http.klib": "d38ace006fa29c89ecd11467747f33032fa70fa0f3fa5e175a3190ccf6bdf17b"
                     }
                 }
             ],

@@ -25,12 +25,13 @@ actual class SqlDriverFactoryImpl actual constructor(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   private val uuidGenerator: UuidGenerator,
   private val appVariant: AppVariant,
+  private val databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
   override fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {
-    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuidGenerator)
+    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, databaseIntegrityChecker, uuidGenerator)
 
     // Run extra check for Team builds to ensure db is encrypted on device
     if (appVariant == AppVariant.Team) {

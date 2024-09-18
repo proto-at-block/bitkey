@@ -6,6 +6,9 @@ use derive_builder::Builder;
 use errors::ApiError;
 use payloads::{
     comms_verification::CommsVerificationPayload, payment::PendingPaymentPayload,
+    privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
+    privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
+    privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
     push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
@@ -57,7 +60,7 @@ pub enum NotificationError {
     #[error(transparent)]
     AccountError(#[from] AccountError),
     #[error("Invalid payload for notification with type {0}")]
-    PayloadNotFound(NotificationPayloadType),
+    InvalidPayload(NotificationPayloadType),
     #[error("Failed to persist changes {0}")]
     PersistanceError(#[from] DatabaseError),
     #[error("Unable to format OffsetDateTime due to error {0}")]
@@ -80,7 +83,7 @@ impl From<NotificationError> for ApiError {
     fn from(value: NotificationError) -> Self {
         let message = value.to_string();
         match value {
-            NotificationError::PayloadNotFound(_)
+            NotificationError::InvalidPayload(_)
             | NotificationError::PersistanceError(_)
             | NotificationError::FormatOffsetDateTime(_)
             | NotificationError::ParseFormatDescription(_)
@@ -111,6 +114,9 @@ pub enum NotificationPayloadType {
     SocialChallengeResponseReceived,
     PushBlast,
     PendingPaymentNotification,
+    PrivilegedActionCanceledDelayPeriod,
+    PrivilegedActionCompletedDelayPeriod,
+    PrivilegedActionPendingDelayPeriod,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -124,7 +130,10 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::RecoveryRelationshipInvitationAccepted
             | NotificationPayloadType::SocialChallengeResponseReceived
             | NotificationPayloadType::PushBlast
-            | NotificationPayloadType::TestPushNotification => {
+            | NotificationPayloadType::TestPushNotification
+            | NotificationPayloadType::PrivilegedActionCanceledDelayPeriod
+            | NotificationPayloadType::PrivilegedActionCompletedDelayPeriod
+            | NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
                 NotificationCategory::AccountSecurity
             }
             NotificationPayloadType::ConfirmedPaymentNotification
@@ -202,13 +211,43 @@ impl NotificationPayloadType {
                 builder.pending_payment_payload(payload.pending_payment_payload.clone());
                 payload.pending_payment_payload.is_some()
             }
+            NotificationPayloadType::PrivilegedActionCanceledDelayPeriod => {
+                builder.privileged_action_canceled_delay_period_payload(
+                    payload
+                        .privileged_action_canceled_delay_period_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_canceled_delay_period_payload
+                    .is_some()
+            }
+            NotificationPayloadType::PrivilegedActionCompletedDelayPeriod => {
+                builder.privileged_action_completed_delay_period_payload(
+                    payload
+                        .privileged_action_completed_delay_period_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_completed_delay_period_payload
+                    .is_some()
+            }
+            NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
+                builder.privileged_action_pending_delay_period_payload(
+                    payload
+                        .privileged_action_pending_delay_period_payload
+                        .clone(),
+                );
+                payload
+                    .privileged_action_pending_delay_period_payload
+                    .is_some()
+            }
         };
         if valid_payload {
             builder
                 .build()
-                .map_err(|_| NotificationError::PayloadNotFound(self.to_owned()))
+                .map_err(|_| NotificationError::InvalidPayload(self.to_owned()))
         } else {
-            Err(NotificationError::PayloadNotFound(self.to_owned()))
+            Err(NotificationError::InvalidPayload(self.to_owned()))
         }
     }
 }
@@ -265,14 +304,14 @@ impl
                 composite_key,
                 payload
                     .comms_verification_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
             NotificationPayloadType::ConfirmedPaymentNotification => {
                 NotificationMessage::try_from((
                     composite_key,
                     payload
                         .confirmed_payment_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::RecoveryCanceledDelayPeriod => {
@@ -280,7 +319,7 @@ impl
                     composite_key,
                     payload
                         .recovery_canceled_delay_period_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::RecoveryCompletedDelayPeriod => {
@@ -288,27 +327,27 @@ impl
                     composite_key,
                     payload
                         .recovery_completed_delay_period_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::RecoveryPendingDelayPeriod => NotificationMessage::try_from((
                 composite_key,
                 payload
                     .recovery_pending_delay_period_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
             NotificationPayloadType::TestPushNotification => NotificationMessage::try_from((
                 composite_key,
                 payload
                     .test_notification_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
             NotificationPayloadType::RecoveryRelationshipInvitationAccepted => {
                 NotificationMessage::try_from((
                     composite_key,
                     payload
                         .recovery_relationship_invitation_accepted_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::RecoveryRelationshipDeleted => {
@@ -316,7 +355,7 @@ impl
                     composite_key,
                     payload
                         .recovery_relationship_deleted_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::SocialChallengeResponseReceived => {
@@ -324,21 +363,45 @@ impl
                     composite_key,
                     payload
                         .social_challenge_response_received_payload
-                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
             NotificationPayloadType::PushBlast => NotificationMessage::try_from((
                 composite_key,
                 payload
                     .push_blast_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
             NotificationPayloadType::PendingPaymentNotification => NotificationMessage::try_from((
                 composite_key,
                 payload
                     .pending_payment_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
             )),
+            NotificationPayloadType::PrivilegedActionCanceledDelayPeriod => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_canceled_delay_period_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
+            NotificationPayloadType::PrivilegedActionCompletedDelayPeriod => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_completed_delay_period_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
+            NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .privileged_action_pending_delay_period_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
         }
     }
 }
@@ -385,4 +448,13 @@ pub struct NotificationPayload {
     pub social_challenge_response_received_payload: Option<SocialChallengeResponseReceivedPayload>,
     #[serde(default)]
     pub push_blast_payload: Option<PushBlastPayload>,
+    #[serde(default)]
+    pub privileged_action_canceled_delay_period_payload:
+        Option<PrivilegedActionCanceledDelayPeriodPayload>,
+    #[serde(default)]
+    pub privileged_action_completed_delay_period_payload:
+        Option<PrivilegedActionCompletedDelayPeriodPayload>,
+    #[serde(default)]
+    pub privileged_action_pending_delay_period_payload:
+        Option<PrivilegedActionPendingDelayPeriodPayload>,
 }

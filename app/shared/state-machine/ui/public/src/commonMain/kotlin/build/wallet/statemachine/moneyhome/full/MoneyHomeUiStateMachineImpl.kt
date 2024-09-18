@@ -340,7 +340,7 @@ class MoneyHomeUiStateMachineImpl(
   ) = sendUiStateMachine.model(
     props = SendUiProps(
       entryPoint = state.entryPoint,
-      accountData = props.accountData,
+      account = props.accountData.account,
       validInvoiceInClipboard = validPaymentDataInClipboard,
       onExit = onExit,
       // Since hitting "Done" is the same as exiting out of the send flow.

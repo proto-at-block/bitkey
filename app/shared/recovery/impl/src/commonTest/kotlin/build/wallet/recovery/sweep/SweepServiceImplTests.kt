@@ -3,7 +3,7 @@
 package build.wallet.recovery.sweep
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -35,7 +35,7 @@ class SweepServiceImplTests : FunSpec({
   val sweepGenerator = SweepGeneratorMock()
   val featureFlagDao = FeatureFlagDaoMock()
   val flag = PromptSweepFeatureFlag(featureFlagDao = featureFlagDao)
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val appSessionManager = AppSessionManagerFake()
 
   val availableSweep = listOf(
@@ -59,20 +59,20 @@ class SweepServiceImplTests : FunSpec({
 
   fun service() =
     SweepServiceImpl(
-      accountRepository = accountRepository,
+      accountService = accountService,
       appSessionManager = appSessionManager,
       promptSweepFeatureFlag = flag,
       sweepGenerator = sweepGenerator
     )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     appSessionManager.reset()
     sweepGenerator.reset()
   }
 
   test("prepareSweep returns null when there are no funds to sweep") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(emptyList())
 
@@ -80,7 +80,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("prepareSweep returns a sweep when there are funds to sweep") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(listOf(sweep1, sweep2))
 
@@ -89,7 +89,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("prepareSweep returns error if sweep generation fails") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     val error = SweepGeneratorError.FailedToListKeysets
     sweepGenerator.generateSweepResult = Err(error)
@@ -98,7 +98,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("sweep is false by default without sync") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(availableSweep)
 
@@ -110,7 +110,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("sweep is set to true on periodic sync") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
@@ -126,7 +126,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("sweep is set to true on manual sync") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     val service = service()
 
@@ -149,7 +149,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("no sweeps available") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(emptyList())
     val service = service()
@@ -166,7 +166,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("no update if unable to sync") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult =
       Err(SweepGeneratorError.ErrorSyncingSpendingWallet(RuntimeException()))
@@ -183,7 +183,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("no update if flag disabled") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(false)
     sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
@@ -199,7 +199,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("no update if there is no active account") {
-    accountRepository.clear()
+    accountService.clear()
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
@@ -215,7 +215,7 @@ class SweepServiceImplTests : FunSpec({
   }
 
   test("sync is disabled when app is in background") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
     sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()

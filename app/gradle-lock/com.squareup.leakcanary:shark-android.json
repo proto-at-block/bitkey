@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:shark-android",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "shark-android-2.13.jar": "183246a3d9f2807ca79ecb33d88050ca72708463164079549f3004d180932b3d"
+                        "shark-android-2.14.jar": "b79dfb05903e69018d598bb4da4f41e0f7732a585cb66a0a5ffb5b89d2076c72"
                     }
                 }
             ],

@@ -100,7 +100,7 @@ struct FormView_Previews: PreviewProvider {
                                 date: "Apr 6 at 12:20 pm",
                                 amount: "$90.50",
                                 amountEquivalent: "121,075 sats",
-                                incoming: false,
+                                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                 isPending: false,
                                 onClick: {}
                             ),
@@ -118,7 +118,7 @@ struct FormView_Previews: PreviewProvider {
                                 date: "Apr 6 at 12:20 pm",
                                 amount: "$90.50",
                                 amountEquivalent: "121,075 sats",
-                                incoming: false,
+                                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                 isPending: false,
                                 onClick: {}
                             ),

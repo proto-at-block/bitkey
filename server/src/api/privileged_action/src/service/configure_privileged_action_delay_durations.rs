@@ -3,11 +3,10 @@ use tracing::instrument;
 use types::{
     account::{identifiers::AccountId, AccountType},
     privileged_action::{
-        definition::AuthorizationStrategyDefinition, shared::PrivilegedActionDelayDuration,
+        definition::{AuthorizationStrategyDefinition, PrivilegedActionDefinition},
+        shared::PrivilegedActionDelayDuration,
     },
 };
-
-use crate::privileged_action_definitions::ALL_PRIVILEGED_ACTIONS;
 
 use super::{error::ServiceError, Service};
 
@@ -30,56 +29,49 @@ impl Service {
         let mut updated_delay_durations = Vec::new();
 
         for delay_duration in input.configured_delay_durations {
-            if let Some(definition) = ALL_PRIVILEGED_ACTIONS
-                .iter()
-                .find(|d| d.privileged_action_type == delay_duration.privileged_action_type)
-            {
-                match definition.resolve(account_type.clone(), vec![]) {
-                    Some(resolved_definition) => match resolved_definition.authorization_strategy {
-                        AuthorizationStrategyDefinition::DelayAndNotify(
-                            delay_and_notify_definition,
-                        ) => {
-                            if !delay_and_notify_definition.delay_configurable {
-                                return Err(ServiceError::CannotConfigureDelay(
-                                    delay_duration.privileged_action_type,
-                                    account_type,
-                                ));
-                            }
-
-                            updated_delay_durations.push(PrivilegedActionDelayDuration {
-                                privileged_action_type: delay_duration.privileged_action_type,
-                                delay_duration_secs: delay_duration.delay_duration_secs,
-                            });
-                        }
-                        AuthorizationStrategyDefinition::HardwareProofOfPossession(_) => {
+            let definition: PrivilegedActionDefinition =
+                (&delay_duration.privileged_action_type).into();
+            match definition.resolve(account_type.clone(), vec![]) {
+                Some(resolved_definition) => match resolved_definition.authorization_strategy {
+                    AuthorizationStrategyDefinition::DelayAndNotify(
+                        delay_and_notify_definition,
+                    ) => {
+                        if !delay_and_notify_definition.delay_configurable {
                             return Err(ServiceError::CannotConfigureDelay(
                                 delay_duration.privileged_action_type,
                                 account_type,
                             ));
                         }
-                    },
-                    None => {
+
+                        updated_delay_durations.push(PrivilegedActionDelayDuration {
+                            privileged_action_type: delay_duration.privileged_action_type,
+                            delay_duration_secs: delay_duration.delay_duration_secs,
+                        });
+                    }
+                    AuthorizationStrategyDefinition::HardwareProofOfPossession(_) => {
                         return Err(ServiceError::CannotConfigureDelay(
                             delay_duration.privileged_action_type,
                             account_type,
                         ));
                     }
+                },
+                None => {
+                    return Err(ServiceError::CannotConfigureDelay(
+                        delay_duration.privileged_action_type,
+                        account_type,
+                    ));
                 }
-            } else {
-                return Err(ServiceError::UndefinedPrivilegedAction(
-                    delay_duration.privileged_action_type,
-                ));
             }
         }
 
+        let updated_common_fields = CommonAccountFields {
+            configured_privileged_action_delay_durations: updated_delay_durations,
+            ..account.get_common_fields().clone()
+        };
+
+        let updated_account = account.update(updated_common_fields)?;
+
         if !input.dry_run {
-            let updated_common_fields = CommonAccountFields {
-                configured_privileged_action_delay_durations: updated_delay_durations,
-                ..account.get_common_fields().clone()
-            };
-
-            let updated_account = account.update(updated_common_fields)?;
-
             self.account_repository.persist(&updated_account).await?;
         }
 

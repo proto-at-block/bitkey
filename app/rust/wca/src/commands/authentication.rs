@@ -1,8 +1,8 @@
 use miniscript::DescriptorPublicKey;
 
 use crate::{
-    fwpb::get_unlock_method_rsp::UnlockMethod, EllipticCurve, KeyEncoding, PublicKeyHandle,
-    PublicKeyMetadata, SignatureContext,
+    fwpb::get_unlock_method_rsp::UnlockMethod, signing::async_signer::derive_and_sign, yield_from_,
+    EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext,
 };
 use bitcoin::{
     bip32::ChildNumber,
@@ -12,8 +12,7 @@ use bitcoin::{
 use next_gen::generator;
 
 use crate::fwpb::{
-    derive_and_sign_rsp::DeriveAndSignRspStatus, derive_rsp::DeriveRspStatus, wallet_rsp::Msg,
-    Curve, DeriveAndSignRsp, DeriveKeyDescriptorAndSignCmd, DeriveKeyDescriptorCmd,
+    derive_rsp::DeriveRspStatus, wallet_rsp::Msg, Curve, DeriveKeyDescriptorCmd,
     DerivePublicKeyAndSignCmd, DerivePublicKeyAndSignRsp, DerivePublicKeyCmd, DerivePublicKeyRsp,
     DeriveRsp, GetUnlockMethodCmd, GetUnlockMethodRsp, LockDeviceCmd, LockDeviceRsp,
 };
@@ -136,38 +135,15 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-fn sign_challenge(challenge: Vec<u8>) -> Result<Signature, CommandError> {
+fn sign_challenge(challenge: Vec<u8>, async_sign: bool) -> Result<Signature, CommandError> {
     let hash = <sha256::Hash as Hash>::hash(&challenge)
         .to_byte_array()
         .to_vec();
-    let apdu: apdu::Command = DeriveKeyDescriptorAndSignCmd {
-        derivation_path: Some(AUTHENTICATION_DERIVATION_PATH.as_ref().into()),
+    yield_from_!(derive_and_sign(
         hash,
-    }
-    .try_into()?;
-    let data = yield_!(apdu.into());
-    let response = apdu::Response::from(data);
-    let message = wca::decode_and_check(response)?
-        .msg
-        .ok_or(CommandError::MissingMessage)?;
-
-    match message {
-        Msg::DeriveAndSignRsp(DeriveAndSignRsp { status, signature }) => {
-            match DeriveAndSignRspStatus::from_i32(status) {
-                Some(DeriveAndSignRspStatus::Success) => Ok(Signature::from_compact(&signature)?),
-                Some(DeriveAndSignRspStatus::DerivationFailed) => {
-                    Err(CommandError::KeyGenerationFailed)
-                }
-                Some(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
-                Some(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-                Some(DeriveAndSignRspStatus::Unspecified) => {
-                    Err(CommandError::UnspecifiedCommandError)
-                }
-                None => Err(CommandError::InvalidResponse),
-            }
-        }
-        _ => Err(CommandError::MissingMessage),
-    }
+        AUTHENTICATION_DERIVATION_PATH.as_ref().into(),
+        async_sign
+    ))
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -215,6 +191,6 @@ fn get_unlock_method() -> Result<UnlockInfo, CommandError> {
 command!(LockDevice = lock_device -> bool);
 command!(GetAuthenticationKey = get_authentication_key -> PublicKey);
 command!(GetAuthenticationKeyV2 = get_authentication_key_v2 -> PublicKeyHandle);
-command!(SignChallenge = sign_challenge -> Signature, challenge: Vec<u8>);
+command!(SignChallenge = sign_challenge -> Signature, challenge: Vec<u8>, async_sign: bool);
 command!(SignChallengeV2 = sign_challenge_v2 -> SignatureContext, challenge: Vec<u8>);
 command!(GetUnlockMethod = get_unlock_method -> UnlockInfo);

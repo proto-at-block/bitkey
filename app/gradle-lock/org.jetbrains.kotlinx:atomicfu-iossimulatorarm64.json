@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.kotlinx:atomicfu-iossimulatorarm64",
     "components": [
         {
-            "version": "0.23.2",
+            "version": "0.24.0",
             "variants": [
                 {
                     "artifacts": {
-                        "atomicfu-cinterop-interop.klib": "e170ce25b5f1896b5c500d36ceba05e4f135f46a41e94b2f0fbd86fc9af27e83",
-                        "atomicfu.klib": "cb72065f0f3f060727e427f0901594baa929d5154c979bb4a052528cf062b632"
+                        "atomicfu-cinterop-interop.klib": "6ce47fc9d7c76427d72d1955c3d3af7f49b6697f4b225c9cf360608ba0aca44d",
+                        "atomicfu.klib": "1209fd05b3b2dde7a452a2d735735f5534159e6a446b33328ccd494968b31b15"
                     }
                 },
                 {
                     "artifacts": {
-                        "atomicfu-iossimulatorarm64-0.23.2-metadata.jar": "ce645e6ef134accf371fb554c1219ab9bb18e968141dda955ce736f9911930c8"
+                        "atomicfu-iossimulatorarm64-0.24.0-metadata.jar": "a317c4715c6bff39613591ab79ddec202a9e30bb6dbacefab6cb84c2b454e82b"
                     }
                 }
             ],

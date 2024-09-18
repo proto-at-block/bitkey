@@ -47,7 +47,7 @@ class PartnershipTransactionsDaoImpl(
     partnerId: PartnerId,
   ): Result<PartnershipTransaction?, DbTransactionError> {
     return database.awaitTransactionWithResult {
-      queries.getByPartnerId(partnerId)
+      queries.getMostRecentTransactionByPartnerId(partnerId)
         .executeAsOneOrNull()
         ?.toModel()
     }

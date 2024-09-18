@@ -10,11 +10,11 @@ use super::{FetchAccountInput, PutCommsVerificationClaimInput, Service};
 impl Service {
     pub async fn put_comms_verification_claim(
         &self,
-        input: PutCommsVerificationClaimInput,
+        input: PutCommsVerificationClaimInput<'_>,
     ) -> Result<(), AccountError> {
         let account = self
             .fetch_account(FetchAccountInput {
-                account_id: &input.account_id,
+                account_id: input.account_id,
             })
             .await?;
 
@@ -45,6 +45,7 @@ impl Service {
             comms_verification_claims,
             ..common_fields
         })?;
+
         self.account_repo.persist(&updated_account).await?;
 
         Ok(())

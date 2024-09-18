@@ -1,7 +1,7 @@
 package build.wallet.bitcoin.transactions
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.analytics.events.AppSessionState
@@ -44,7 +44,7 @@ class TransactionsServiceImplTests : FunSpec({
   val newAccount = account.copy(keybox = KeyboxMock2)
   val newWallet = SpendingWalletMock(turbines::create, newAccount.keybox.activeSpendingKeyset.localId)
 
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val exchangeRateService = ExchangeRateServiceFake()
   val appSessionManager = AppSessionManagerFake()
@@ -56,7 +56,7 @@ class TransactionsServiceImplTests : FunSpec({
   beforeTest {
     service = TransactionsServiceImpl(
       currencyConverter = currencyConverter,
-      accountRepository = accountRepository,
+      accountService = accountService,
       appSpendingWalletProvider = appSpendingWalletProvider,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       appSessionManager = appSessionManager,
@@ -69,7 +69,7 @@ class TransactionsServiceImplTests : FunSpec({
     exchangeRateService.reset()
     appSpendingWalletProvider.spendingWallet = wallet
 
-    accountRepository.accountState.value = Ok(ActiveAccount(account))
+    accountService.accountState.value = Ok(ActiveAccount(account))
   }
 
   test("transactions data updates appropriately") {
@@ -191,7 +191,7 @@ class TransactionsServiceImplTests : FunSpec({
 
     // Changing the account should retrigger syncs
     appSpendingWalletProvider.spendingWallet = newWallet
-    accountRepository.accountState.value = Ok(ActiveAccount(newAccount))
+    accountService.accountState.value = Ok(ActiveAccount(newAccount))
 
     newWallet.initializeCalls.awaitItem().shouldBe(Unit)
     newWallet.launchPeriodicSyncCalls.awaitItem()
@@ -228,11 +228,11 @@ class TransactionsServiceImplTests : FunSpec({
 
       // Change some account data but keep the spending keys
       val differentAccountSameKeys = newAccount.copy(accountId = FullAccountId("new-account-id"))
-      accountRepository.accountState.value = Ok(ActiveAccount(differentAccountSameKeys))
+      accountService.accountState.value = Ok(ActiveAccount(differentAccountSameKeys))
       expectNoEvents()
 
       appSpendingWalletProvider.spendingWallet = newWallet
-      accountRepository.accountState.value = Ok(ActiveAccount(newAccount))
+      accountService.accountState.value = Ok(ActiveAccount(newAccount))
 
       newWallet.initializeCalls.awaitItem()
       newWallet.launchPeriodicSyncCalls.awaitItem()

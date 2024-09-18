@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:plumber-android-core",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "plumber-android-core-2.13.aar": "c1215802d2bff1d9cdee1706aa089dd2f64c9dc34dbfd4913f55dbcbcd219ee2"
+                        "plumber-android-core-2.14.aar": "eb595ab5d7e4b1e9d9f8a7a654e8aed42e2cdec6a6ec69acfdc6d8f3b08967a6"
                     }
                 }
             ],

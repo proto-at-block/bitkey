@@ -1,4 +1,3 @@
-# Must specify *exact* protoc path, otherwise meson finds hermit-installed protoc first.
 protoc = find_program('nanopb_generator',
   required : true,
 )

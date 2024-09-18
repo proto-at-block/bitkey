@@ -1,7 +1,7 @@
 use crate::{
     tests::{
         gen_services_with_overrides,
-        lib::{create_account, create_default_account_with_predefined_wallet},
+        lib::{create_default_account_with_predefined_wallet, create_full_account},
         requests::{axum::TestClient, worker::TestWorker},
     },
     GenServiceOverrides,
@@ -552,10 +552,10 @@ async fn setup_full_accounts_and_server(
     let account_with_payment_keys = context
         .get_authentication_keys_for_account_id(&account_with_payment.id)
         .expect("Keys for account with payment not found");
-    let account_without_payment = create_account(
+    let account_without_payment = create_full_account(
         &mut context,
         &bootstrap.services,
-        account::entities::Network::BitcoinSignet,
+        types::account::bitcoin::Network::BitcoinSignet,
         None,
     )
     .await;
@@ -576,11 +576,12 @@ async fn setup_full_accounts_and_server(
             .set_mock_server(mock_server.base_url()),
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
+        privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
     };
     state
         .account_service
         .add_push_touchpoint_for_account(AddPushTouchpointToAccountInput {
-            account_id: account_with_payment.id.clone(),
+            account_id: &account_with_payment.id,
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),
@@ -605,7 +606,7 @@ async fn setup_full_accounts_and_server(
     state
         .account_service
         .add_push_touchpoint_for_account(AddPushTouchpointToAccountInput {
-            account_id: account_without_payment.id.clone(),
+            account_id: &account_without_payment.id,
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),

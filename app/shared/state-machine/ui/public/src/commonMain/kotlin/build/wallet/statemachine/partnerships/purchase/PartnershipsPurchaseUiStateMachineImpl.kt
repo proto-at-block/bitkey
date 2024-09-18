@@ -208,12 +208,15 @@ class PartnershipsPurchaseUiStateMachineImpl(
       is RedirectState.Loading -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
           coroutineBinding {
+            val result = fetchRedirectInfo(props, currentState).bind()
+
             val localTransaction = partnershipsRepository.create(
               partnerInfo = currentState.quote.partnerInfo,
-              type = PartnershipTransactionType.PURCHASE
+              type = PartnershipTransactionType.PURCHASE,
+              id = result.redirectInfo.partnerTransactionId
             ).bind()
 
-            localTransaction to fetchRedirectInfo(props, currentState, localTransaction.id).bind()
+            localTransaction to result
           }.onFailure { error ->
             state =
               RedirectState.LoadingFailure(
@@ -252,7 +255,6 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private suspend fun fetchRedirectInfo(
     props: PartnershipsPurchaseUiProps,
     redirectLoadingState: RedirectState.Loading,
-    localTransactionId: PartnershipTransactionId,
   ): Result<GetPurchaseRedirectF8eClient.Success, Throwable> =
     coroutineBinding {
       bitcoinAddressService.generateAddress(props.account)
@@ -264,8 +266,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
             fiatAmount = redirectLoadingState.amount,
             partner = redirectLoadingState.quote.partnerInfo.partnerId.value,
             paymentMethod = redirectLoadingState.paymentMethod,
-            quoteId = redirectLoadingState.quote.quoteId,
-            partnerTransactionId = localTransactionId
+            quoteId = redirectLoadingState.quote.quoteId
           )
         }.bind()
     }

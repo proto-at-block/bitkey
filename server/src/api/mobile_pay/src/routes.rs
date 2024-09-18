@@ -25,7 +25,6 @@ use bdk_utils::{DescriptorKeyset, TransactionBroadcasterTrait};
 use errors::ErrorCode::NoSpendingLimitExists;
 use errors::{ApiError, RouteError};
 use exchange_rate::currency_conversion::sats_for;
-use exchange_rate::flags::FLAG_USE_CASH_EXCHANGE_RATE_PROVIDER;
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
@@ -34,8 +33,7 @@ use screener::service::Service as ScreenerService;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
-use types::exchange_rate::bitstamp::BitstampRateProvider;
-use types::exchange_rate::cash::CashAppRateProvider;
+use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
 use types::exchange_rate::local_rate_provider::LocalRateProvider;
 use wsm_rust_client::{SigningService, WsmClient};
 
@@ -222,13 +220,7 @@ async fn sign_transaction_maybe_broadcast_impl(
             .clone()
             .ok_or(RouteError::MissingMobilePaySettings)?;
 
-        let daily_limit_sats = sats_for_limit(
-            &limit,
-            &config,
-            &exchange_rate_service,
-            &feature_flags_service,
-        )
-        .await?;
+        let daily_limit_sats = sats_for_limit(&limit, &config, &exchange_rate_service).await?;
 
         let mobile_pay_spending_record =
             get_mobile_pay_spending_record(&full_account.id, &daily_spend_record_service).await?;
@@ -663,13 +655,7 @@ async fn get_mobile_pay_for_account(
         _ => SpendingLimit {
             active: limit.active,
             amount: Money {
-                amount: sats_for_limit(
-                    &limit,
-                    &config,
-                    &exchange_rate_service,
-                    &feature_flags_service,
-                )
-                .await?,
+                amount: sats_for_limit(&limit, &config, &exchange_rate_service).await?,
                 currency_code: BTC,
             },
             time_zone_offset: limit.time_zone_offset,
@@ -767,17 +753,14 @@ impl MobilePaySpendingRecord {
 
 enum RateProvider {
     Local(LocalRateProvider),
-    CashApp(CashAppRateProvider),
-    Bitstamp(BitstampRateProvider),
+    Coingecko(CoingeckoRateProvider),
 }
 
-fn select_exchange_rate_provider(config: &Config, use_cash_app_rate: bool) -> RateProvider {
+fn select_exchange_rate_provider(config: &Config) -> RateProvider {
     if config.use_local_currency_exchange {
         RateProvider::Local(LocalRateProvider::new())
-    } else if use_cash_app_rate {
-        RateProvider::CashApp(CashAppRateProvider::new())
     } else {
-        RateProvider::Bitstamp(BitstampRateProvider::new())
+        RateProvider::Coingecko(CoingeckoRateProvider::new())
     }
 }
 
@@ -785,20 +768,12 @@ async fn sats_for_limit(
     limit: &SpendingLimit,
     config: &Config,
     exchange_rate_service: &ExchangeRateService,
-    feature_flags_service: &FeatureFlagsService,
 ) -> Result<u64, ApiError> {
-    let use_cash_app_rate = FLAG_USE_CASH_EXCHANGE_RATE_PROVIDER
-        .resolver(feature_flags_service)
-        .resolve();
-
-    match select_exchange_rate_provider(config, use_cash_app_rate) {
+    match select_exchange_rate_provider(config) {
         RateProvider::Local(provider) => {
             sats_for(exchange_rate_service, provider, &limit.amount).await
         }
-        RateProvider::CashApp(provider) => {
-            sats_for(exchange_rate_service, provider, &limit.amount).await
-        }
-        RateProvider::Bitstamp(provider) => {
+        RateProvider::Coingecko(provider) => {
             sats_for(exchange_rate_service, provider, &limit.amount).await
         }
     }
@@ -835,38 +810,26 @@ async fn get_mobile_pay_spending_record(
 
 #[cfg(test)]
 mod tests {
+    use std::env;
+
     use crate::routes::{select_exchange_rate_provider, Config, RateProvider};
 
     #[test]
     fn test_select_exchange_rate_provider() {
+        env::set_var("COINGECKO_API_KEY", "");
         // Return LocalRateProvider
-        match select_exchange_rate_provider(
-            &Config {
-                use_local_currency_exchange: true,
-            },
-            true,
-        ) {
+        match select_exchange_rate_provider(&Config {
+            use_local_currency_exchange: true,
+        }) {
             RateProvider::Local(_provider) => {}
             _ => assert!(false, "Unexpected exchange rate provider returned"),
         }
-        // Return BitstampRateProvider
-        match select_exchange_rate_provider(
-            &Config {
-                use_local_currency_exchange: false,
-            },
-            false,
-        ) {
-            RateProvider::Bitstamp(_provider) => {}
-            _ => assert!(false, "Unexpected exchange rate provider returned"),
-        }
-        // Return CashAppRateProvider
-        match select_exchange_rate_provider(
-            &Config {
-                use_local_currency_exchange: false,
-            },
-            true,
-        ) {
-            RateProvider::CashApp(_provider) => {}
+
+        // Return CoingeckoRatePRovider
+        match select_exchange_rate_provider(&Config {
+            use_local_currency_exchange: false,
+        }) {
+            RateProvider::Coingecko(_provider) => {}
             _ => assert!(false, "Unexpected exchange rate provider returned"),
         }
     }

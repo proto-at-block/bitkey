@@ -1,0 +1,45 @@
+{
+  "signing": {
+    "default": {
+      "expiry": "87660h"
+    },
+    "profiles": {
+      "root-ca": {
+        "expiry": "87660h",
+        "usages": [
+          "signing",
+          "key encipherment",
+          "cert sign",
+          "crl sign"
+        ],
+        "ca_constraint": {
+            "is_ca": true,
+            "max_path_len": 1,
+            "max_path_len_zero": false
+        }
+      },
+      "intermediate-ca": {
+        "expiry": "70128h",
+        "usages": [
+          "signing",
+          "key encipherment",
+          "cert sign",
+          "crl sign"
+        ],
+        "ca_constraint": {
+            "is_ca": true,
+            "max_path_len": 0,
+            "max_path_len_zero": true
+        }
+      },
+      "leaf": {
+        "usages": [
+          "signing",
+          "digital signature",
+          "key encipherment"
+        ],
+        "expiry": "70128h"
+      }
+    }
+  }
+}

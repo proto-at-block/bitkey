@@ -1,6 +1,9 @@
 package build.wallet.statemachine.settings.full
 
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
@@ -43,7 +46,10 @@ import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSett
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.status.StatusBannerModelMock
+import build.wallet.statemachine.utxo.UtxoConsolidationProps
+import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -60,6 +66,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       homeStatusBannerModel = null,
       onBack = { propsOnBackCalls.add(Unit) }
     )
+
+  val featureFlagDao = FeatureFlagDaoFake()
+  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(featureFlagDao)
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
     SettingsHomeUiStateMachineImpl(
@@ -93,11 +102,15 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<DebugMenuProps>("debug-menu") {},
       biometricSettingUiStateMachine = object : BiometricSettingUiStateMachine,
         ScreenStateMachineMock<BiometricSettingUiProps>("debug-menu") {},
-      firmwareDataService = firmwareDataService
+      firmwareDataService = firmwareDataService,
+      utxoConsolidationUiStateMachine = object : UtxoConsolidationUiStateMachine,
+        ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
+      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
     )
 
   beforeTest {
     firmwareDataService.reset()
+    featureFlagDao.reset()
   }
 
   test("onBack calls props onBack") {
@@ -315,6 +328,18 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<SettingsListUiProps> {
           supportedRows.none { it is DebugMenu }
         }
+      }
+    }
+  }
+
+  test("show UTXO Consolidation row when the feature flag is enabled") {
+    utxoConsolidationFeatureFlag.setFlagValue(true)
+
+    stateMachine().test(props) {
+      awaitScreenWithBodyModelMock<SettingsListUiProps> {
+        supportedRows
+          .any { it is SettingsListUiProps.SettingsListRow.UtxoConsolidation }
+          .shouldBeTrue()
       }
     }
   }

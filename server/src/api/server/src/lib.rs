@@ -98,6 +98,7 @@ pub struct Services {
     pub consent_repository: ConsentRepository,
     pub social_challenge_service: SocialChallengeService,
     pub privileged_action_service: PrivilegedActionService,
+    pub privileged_action_repository: PrivilegedActionRepository,
 }
 
 #[derive(Debug, Error)]
@@ -288,9 +289,10 @@ pub async fn create_bootstrap_with_overrides(
         .create_table_if_necessary()
         .await?;
     let privileged_action_service = PrivilegedActionService::new(
-        privileged_action_repository,
+        privileged_action_repository.clone(),
         account_repository,
         overrides.clock.unwrap_or(Arc::new(DefaultClock)),
+        notification_service.clone(),
     );
 
     let privileged_action = privileged_action::routes::RouteState(
@@ -320,6 +322,7 @@ pub async fn create_bootstrap_with_overrides(
             .twilio
             .to_client(),
         feature_flags.clone(),
+        privileged_action_service.clone(),
     );
     let mobile_pay = mobile_pay::routes::RouteState(
         config::extract(profile)?,
@@ -357,8 +360,11 @@ pub async fn create_bootstrap_with_overrides(
         customer_feedback_config.zendesk.to_client(),
         customer_feedback_config.known_fields.into(),
     );
-    let authentication =
-        authn_authz::routes::RouteState(userpool_service.clone(), account_service.clone());
+    let authentication = authn_authz::routes::RouteState(
+        userpool_service.clone(),
+        account_service.clone(),
+        wsm_service.client.clone(),
+    );
     let analytics = config::extract::<analytics::routes::Config>(profile)?.to_state();
     #[allow(unused_mut)]
     let mut router = Router::new()
@@ -446,6 +452,7 @@ pub async fn create_bootstrap_with_overrides(
             consent_repository,
             social_challenge_service,
             privileged_action_service,
+            privileged_action_repository,
         },
         router,
     })

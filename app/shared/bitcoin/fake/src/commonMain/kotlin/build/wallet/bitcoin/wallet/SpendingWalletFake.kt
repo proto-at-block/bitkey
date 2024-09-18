@@ -10,6 +10,8 @@ import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.compose.collections.emptyImmutableList
@@ -179,7 +181,10 @@ class SpendingWalletFake(
             true -> BitcoinMoney.zero()
             false ->
               confirmedTransactions.sumOf {
-                if (it.incoming) it.total else it.total.negate()
+                when (it.transactionType) {
+                  Incoming -> it.total
+                  Outgoing -> it.total.negate()
+                }
               }
           }
 
@@ -188,7 +193,10 @@ class SpendingWalletFake(
             true -> BitcoinMoney.zero()
             false ->
               pendingTransactions.sumOf {
-                if (it.incoming) it.total else it.total.negate()
+                when (it.transactionType) {
+                  Incoming -> it.total
+                  Outgoing -> it.total.negate()
+                }
               }
           }
 
@@ -251,7 +259,7 @@ class SpendingWalletFake(
         vsize = null,
         subtotal = amount,
         total = amount,
-        incoming = true,
+        transactionType = Incoming,
         inputs = emptyImmutableList(),
         outputs = emptyImmutableList()
       )
@@ -284,7 +292,7 @@ class SpendingWalletFake(
         vsize = null,
         subtotal = amount,
         total = amount + fee,
-        incoming = false,
+        transactionType = Outgoing,
         inputs = emptyImmutableList(),
         outputs = emptyImmutableList()
       )

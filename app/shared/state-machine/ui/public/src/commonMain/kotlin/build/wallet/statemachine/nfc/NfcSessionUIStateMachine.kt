@@ -10,6 +10,8 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
+import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
@@ -92,6 +94,7 @@ class NfcSessionUIStateMachineImpl(
   private val enableNfcNavigator: EnableNfcNavigator,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcTransactor: NfcTransactor,
+  private val asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
 ) : NfcSessionUIStateMachine {
   @Composable
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
@@ -107,39 +110,42 @@ class NfcSessionUIStateMachineImpl(
 
     if (newState is InSession) {
       LaunchedEffect("nfc-transaction") {
-        nfcTransactor.transact(
-          parameters =
-            NfcSession.Parameters(
-              isHardwareFake = props.isHardwareFake,
-              needsAuthentication = props.needsAuthentication,
-              shouldLock = props.shouldLock,
-              skipFirmwareTelemetry = false, // Only true for FWUP.
-              onTagConnected = { props.onConnected().also { newState = Communicating } },
-              onTagDisconnected = {
-                props.onDisconnected().also { if (newState !is Success) newState = Searching }
-              }
-            ),
-          transaction = props.session
-        ).onSuccess {
-          newState = Success
+        nfcTransactor
+          .transact(
+            parameters =
+              NfcSession.Parameters(
+                isHardwareFake = props.isHardwareFake,
+                needsAuthentication = props.needsAuthentication,
+                shouldLock = props.shouldLock,
+                skipFirmwareTelemetry = false, // Only true for FWUP.
+                onTagConnected = { props.onConnected().also { newState = Communicating } },
+                onTagDisconnected = {
+                  props.onDisconnected().also { if (newState !is Success) newState = Searching }
+                },
+                asyncNfcSigning = asyncNfcSigningFeatureFlag.isEnabled(),
+                nfcFlowName = props.eventTrackerContext.name
+              ),
+            transaction = props.session
+          ).onSuccess {
+            newState = Success
 
-          delayer.delay(
-            NfcSuccessScreenDuration(
-              devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
-              isHardwareFake = props.isHardwareFake
+            delayer.delay(
+              NfcSuccessScreenDuration(
+                devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+                isHardwareFake = props.isHardwareFake
+              )
             )
-          )
-          // Must be cast to satisfy compiler type resolution
-          @Suppress("USELESS_CAST")
-          (props.onSuccess as suspend (Any?) -> Unit).invoke(it)
-        }.onFailure { error ->
-          when (error) {
-            is NfcException.IOSOnly.UserCancellation ->
-              props.onCancel()
-            else ->
-              newState = Error(error)
+            // Must be cast to satisfy compiler type resolution
+            @Suppress("USELESS_CAST")
+            (props.onSuccess as suspend (Any?) -> Unit).invoke(it)
+          }.onFailure { error ->
+            when (error) {
+              is NfcException.IOSOnly.UserCancellation ->
+                props.onCancel()
+              else ->
+                newState = Error(error)
+            }
           }
-        }
       }
     }
 
@@ -240,5 +246,7 @@ private sealed class NfcSessionUIState {
     data object NavigateToEnableNFC : AndroidOnly()
   }
 
-  data class Error(val nfcException: NfcException) : NfcSessionUIState()
+  data class Error(
+    val nfcException: NfcException,
+  ) : NfcSessionUIState()
 }

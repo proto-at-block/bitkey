@@ -9,7 +9,6 @@ import build.wallet.money.Money
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import kotlinx.collections.immutable.ImmutableList
 
 /**
@@ -35,7 +34,6 @@ data class ContinueTransferParams(
  */
 data class TransferAmountEntryUiProps(
   val onBack: () -> Unit,
-  val accountData: ActiveFullAccountLoadedData,
   val initialAmount: Money,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val f8eReachability: NetworkReachability,

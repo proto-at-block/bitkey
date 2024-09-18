@@ -2,7 +2,7 @@ package build.wallet.f8e.notifications
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -26,7 +26,7 @@ class NotificationTouchpointF8eClientMock(
   val getTouchpointsCalls = turbine("get touchpoints calls")
 
   data class AddTouchpointParams(
-    val fullAccountId: FullAccountId,
+    val accountId: AccountId,
     val touchpoint: NotificationTouchpoint,
   )
 
@@ -37,10 +37,10 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun addTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpoint: NotificationTouchpoint,
   ): Result<NotificationTouchpoint, F8eError<AddTouchpointClientErrorCode>> {
-    addTouchpointCalls += AddTouchpointParams(fullAccountId, touchpoint)
+    addTouchpointCalls += AddTouchpointParams(accountId, touchpoint)
     return addTouchpointResult
   }
 
@@ -53,7 +53,7 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun verifyTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpointId: String,
     verificationCode: String,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
@@ -74,7 +74,7 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun activateTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpointId: String,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
@@ -90,9 +90,9 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun getTouchpoints(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Result<List<NotificationTouchpoint>, NetworkingError> {
-    getTouchpointsCalls += fullAccountId
+    getTouchpointsCalls += accountId
     return getTouchpointsResult
   }
 
@@ -100,7 +100,7 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Result<NotificationPreferences, NetworkingError> {
     return getNotificationsPreferencesResult
   }
@@ -109,7 +109,7 @@ class NotificationTouchpointF8eClientMock(
 
   override suspend fun updateNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     preferences: NotificationPreferences,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {

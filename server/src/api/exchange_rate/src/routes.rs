@@ -1,4 +1,3 @@
-use crate::flags::FLAG_USE_CASH_EXCHANGE_RATE_PROVIDER;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -11,8 +10,6 @@ use tracing::instrument;
 use types::currencies::{
     Currency, CurrencyCode, CurrencyData, FiatCurrency, FiatDisplayConfiguration,
 };
-use types::exchange_rate::bitstamp::BitstampRateProvider;
-use types::exchange_rate::cash::CashAppRateProvider;
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
 use types::exchange_rate::{ExchangeRate, ExchangeRateChartData};
 use types::serde::{deserialize_iso_4217, deserialize_ts_vec};
@@ -87,7 +84,7 @@ pub struct SupportedFiatCurrenciesResponse {
     pub supported_currencies: Vec<FiatCurrency>,
 }
 
-#[instrument(err, skip(exchange_rate_service, feature_flags_service))]
+#[instrument(err, skip(exchange_rate_service))]
 #[utoipa::path(
     get,
     path = "/api/exchange-rates",
@@ -97,22 +94,10 @@ pub struct SupportedFiatCurrenciesResponse {
 )]
 pub async fn get_supported_price_data(
     State(exchange_rate_service): State<ExchangeRateService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<SupportedPriceDataResponse>, ApiError> {
-    let use_cash_app_rate = FLAG_USE_CASH_EXCHANGE_RATE_PROVIDER
-        .resolver(&feature_flags_service)
-        .resolve();
-
-    let exchange_rates = if use_cash_app_rate {
-        exchange_rate_service
-            .get_latest_rates(CashAppRateProvider::new())
-            .await?
-    } else {
-        exchange_rate_service
-            .get_latest_rates(BitstampRateProvider::new())
-            .await?
-    };
-
+    let exchange_rates = exchange_rate_service
+        .get_latest_rates(CoingeckoRateProvider::new())
+        .await?;
     Ok(Json(SupportedPriceDataResponse { exchange_rates }))
 }
 

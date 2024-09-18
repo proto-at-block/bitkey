@@ -5,14 +5,20 @@ unmaintained = "deny"
 vulnerability = "warn"
 yanked = "deny"
 
-# [W-6647] config uses a version of yaml-rust that is now marked as unmaintained
-ignore = ["RUSTSEC-2024-0320"]
+ignore = [
+    "RUSTSEC-2024-0320", # [W-6647] config uses a version of yaml-rust that is now marked as unmaintained
+    "RUSTSEC-2021-0127", # [W-9317] transitively needed by enclave-tools.
+    "RUSTSEC-2024-0370", # [W-9604] utoipa uses proc-macro-error that which is marked as unmaintained.
+]
 
 
 # Partnerships can use openssl-sys because it's a dev-dependency
 [[bans.deny]]
 name = "openssl-sys"
-wrappers = ["curl", "curl-sys"] # api/partnerships/wallet-partnerships/aws_utils
+wrappers = [
+    "curl", "curl-sys",  # api/partnerships/wallet-partnerships/aws_utils
+    "openssl"  # enclave-tools
+]
 
 [licenses]
 allow = [
@@ -51,10 +57,8 @@ confidence-threshold = 0.8
 
 [[licenses.clarify]]
 name = "ring"
-expression = "MIT AND ISC AND OpenSSL"	# https://github.com/briansmith/ring/blob/main/LICENSE
-license-files = [
-    { path = "LICENSE", hash = 0xbd0eed23 }
-]
+expression = "MIT AND ISC AND OpenSSL"                    # https://github.com/briansmith/ring/blob/main/LICENSE
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
 
 [licenses.private]
 ignore = true
@@ -86,7 +90,7 @@ wrappers = [
     "aws-runtime",
     "launchdarkly-server-sdk",
     "moka",
-    "partnerships-lib", # TODO[W-5649]: Update partnerships-lib to not use uuid
+    "partnerships-lib",        # TODO[W-5649]: Update partnerships-lib to not use uuid
     "state",
     "ulid",
 ]
@@ -96,18 +100,18 @@ wrappers = [
 [[bans.deny]]
 name = "lazy_static"
 wrappers = [
-  "aws-http",
-  "aws-smithy-client",
-  "bindgen",
-  "config",
-  "console",
-  "httpmock",
-  "launchdarkly-server-sdk",
-  "launchdarkly-server-sdk-evaluation",
-  "mockall",
-  "prost-build",
-  "sharded-slab",
-  "tracing-test",
-  "tracing-test-macro",
-  "x509-parser",
+    "aws-http",
+    "aws-smithy-client",
+    "bindgen",
+    "config",
+    "console",
+    "httpmock",
+    "launchdarkly-server-sdk",
+    "launchdarkly-server-sdk-evaluation",
+    "mockall",
+    "prost-build",
+    "sharded-slab",
+    "tracing-test",
+    "tracing-test-macro",
+    "x509-parser",
 ]

@@ -2,11 +2,11 @@
     "module-identifier": "com.airbnb.android:lottie",
     "components": [
         {
-            "version": "6.1.0",
+            "version": "6.4.0",
             "variants": [
                 {
                     "artifacts": {
-                        "lottie-6.1.0.aar": "4469d2142e0a0feba6d194528618824ce6c27d439e19212b7bdea8ecc3058f9f"
+                        "lottie-6.4.0.aar": "d6cf3be2c56fa250c96a86eb0baf8a7dfc3cc92b7e728a74f8851f9ad9fec2ba"
                     }
                 }
             ],

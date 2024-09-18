@@ -124,6 +124,33 @@ impl Display for TouchpointId {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct KeyDefinitionId(urn::Urn);
+
+impl From<urn::Urn> for KeyDefinitionId {
+    fn from(urn: urn::Urn) -> Self {
+        Self(urn)
+    }
+}
+
+impl ExternalIdentifier<Ulid> for KeyDefinitionId {
+    fn namespace() -> &'static str {
+        "key-definition"
+    }
+}
+
+impl KeyDefinitionId {
+    pub fn gen() -> Result<Self, external_identifier::Error> {
+        Self::new(Ulid::new())
+    }
+}
+
+impl Display for KeyDefinitionId {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use external_identifier::ExternalIdentifier;
@@ -178,6 +205,19 @@ mod tests {
         assert_eq!(
             serde_json::to_string(&id).unwrap(),
             "\"urn:wallet-touchpoint:00000000000000000000000000\""
+        );
+    }
+
+    #[test]
+    fn test_key_definition_default() {
+        let id = super::KeyDefinitionId::new(Ulid::default()).unwrap();
+        assert_eq!(
+            id.to_string(),
+            "urn:wallet-key-definition:00000000000000000000000000"
+        );
+        assert_eq!(
+            serde_json::to_string(&id).unwrap(),
+            "\"urn:wallet-key-definition:00000000000000000000000000\""
         );
     }
 }

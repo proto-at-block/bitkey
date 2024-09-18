@@ -22,6 +22,7 @@ actual class SqlDriverFactoryImpl actual constructor(
   encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   uuidGenerator: UuidGenerator,
   appVariant: AppVariant,
+  databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
   override fun createDriver(
     dataBaseName: String,

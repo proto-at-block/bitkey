@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-auth-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-auth-iossimulatorarm64-2.3.9-metadata.jar": "52d9f277af1aec42570068ec7354c5b53ae1124d6a44d2cdc0302fdd9c1ca73a"
+                        "ktor-client-auth-iossimulatorarm64-2.3.11-metadata.jar": "8f76004d17174e800ce75428bbc69db8a585f5d077f0e9a57a0bf309461bf02e"
                     }
                 },
                 {

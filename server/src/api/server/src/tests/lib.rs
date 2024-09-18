@@ -13,16 +13,19 @@ use notification::service::{
 use rand::{thread_rng, Rng};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
+use types::account::bitcoin::Network;
+use types::account::spending::SpendingKeyset;
+use types::account::AccountType;
 use types::notification::{NotificationCategory, NotificationChannel};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::time::Clock;
 use ulid::Ulid;
 
 use account::entities::{
-    Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, Network, SoftwareAccount,
+    Account, Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, SoftwareAccount,
     SoftwareAccountAuthKeys, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
 };
-use account::entities::{FullAccountAuthKeys, LiteAccount, LiteAccountAuthKeys, SpendingKeyset};
+use account::entities::{FullAccountAuthKeys, LiteAccount, LiteAccountAuthKeys};
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput,
     CreateAccountAndKeysetsInput, CreateLiteAccountInput, CreateSoftwareAccountInput,
@@ -305,6 +308,24 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
 pub(crate) async fn create_account(
     context: &mut TestContext,
     services: &Services,
+    account_type: AccountType,
+) -> Account {
+    match account_type {
+        AccountType::Full => Account::Full(
+            create_full_account(context, services, Network::BitcoinSignet, None).await,
+        ),
+        AccountType::Lite => {
+            Account::Lite(create_lite_account(context, services, None, true).await)
+        }
+        AccountType::Software => {
+            Account::Software(create_software_account(context, services, None, true).await)
+        }
+    }
+}
+
+pub(crate) async fn create_full_account(
+    context: &mut TestContext,
+    services: &Services,
     network: Network,
     override_auth_keys: Option<FullAccountAuthKeys>,
 ) -> FullAccount {
@@ -439,7 +460,7 @@ pub(crate) async fn create_phone_touchpoint(
     let touchpoint = services
         .account_service
         .fetch_or_create_phone_touchpoint(FetchOrCreatePhoneTouchpointInput {
-            account_id: account_id.to_owned(),
+            account_id,
             phone_number: format!("+1{}", if activate { "5555555555" } else { "5555555556" }),
             country_code: CountryCode::as_array().first().unwrap().to_owned(),
         })
@@ -451,8 +472,9 @@ pub(crate) async fn create_phone_touchpoint(
             services
                 .account_service
                 .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
-                    account_id: account_id.to_owned(),
+                    account_id,
                     touchpoint_id: id.clone(),
+                    dry_run: false,
                 })
                 .await
                 .unwrap();
@@ -490,7 +512,7 @@ pub(crate) async fn create_push_touchpoint(
     let touchpoint = services
         .account_service
         .add_push_touchpoint_for_account(AddPushTouchpointToAccountInput {
-            account_id: account_id.to_owned(),
+            account_id,
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test-device-token".to_owned(),
@@ -528,7 +550,7 @@ pub(crate) async fn create_email_touchpoint(
     let touchpoint = services
         .account_service
         .fetch_or_create_email_touchpoint(FetchOrCreateEmailTouchpointInput {
-            account_id: account_id.to_owned(),
+            account_id,
             email_address: "bitcoin@example.com".to_string(),
         })
         .await
@@ -539,8 +561,9 @@ pub(crate) async fn create_email_touchpoint(
             services
                 .account_service
                 .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
-                    account_id: account_id.to_owned(),
+                    account_id,
                     touchpoint_id: id.clone(),
+                    dry_run: false,
                 })
                 .await
                 .unwrap();

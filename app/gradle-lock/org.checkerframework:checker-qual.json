@@ -2,11 +2,11 @@
     "module-identifier": "org.checkerframework:checker-qual",
     "components": [
         {
-            "version": "3.33.0",
+            "version": "3.37.0",
             "variants": [
                 {
                     "artifacts": {
-                        "checker-qual-3.33.0.jar": "e316255bbfcd9fe50d165314b85abb2b33cb2a66a93c491db648e498a82c2de1"
+                        "checker-qual-3.37.0.jar": "e4ce1376cc2735e1dde220b62ad0913f51297704daad155a33f386bc5db0d9f7"
                     }
                 }
             ],

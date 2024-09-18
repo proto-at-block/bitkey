@@ -20,11 +20,12 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 actual class SqlDriverFactoryImpl actual constructor(
   private val platformContext: PlatformContext,
   @Suppress("UnusedPrivateProperty")
-  private val fileDirectoryProvider: FileDirectoryProvider,
+  fileDirectoryProvider: FileDirectoryProvider,
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   private val uuidGenerator: UuidGenerator,
   @Suppress("UnusedPrivateProperty")
   private val appVariant: AppVariant,
+  private val databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
   override fun createDriver(
     dataBaseName: String,
@@ -63,7 +64,7 @@ actual class SqlDriverFactoryImpl actual constructor(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SupportOpenHelperFactory {
-    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuidGenerator)
+    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, databaseIntegrityChecker, uuidGenerator)
     System.loadLibrary("sqlcipher")
     val encryptedFactory = SupportOpenHelperFactory(dbKey.toByteArray(Charsets.UTF_8))
 

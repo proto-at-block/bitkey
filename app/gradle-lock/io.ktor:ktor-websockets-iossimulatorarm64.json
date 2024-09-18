@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websockets-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websockets-iossimulatorarm64-2.3.9-metadata.jar": "4bc13d88fa41f1402470decd56e8e1eaa9989533c8d5795c882dbd456f0f00ea"
+                        "ktor-websockets-iossimulatorarm64-2.3.11-metadata.jar": "096fb7b49f5bc7c8cc739307506404e8b22dc0941778eb2b712c9a8590998cbc"
                     }
                 },
                 {

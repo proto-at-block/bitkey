@@ -34,8 +34,8 @@ SELECT * FROM partnershipTransactionEntity;
 getById:
 SELECT * FROM partnershipTransactionEntity WHERE transactionId = ?;
 
-getByPartnerId:
-SELECT * FROM partnershipTransactionEntity WHERE partnerId = ?;
+getMostRecentTransactionByPartnerId:
+SELECT * FROM partnershipTransactionEntity WHERE partnerId = ? ORDER BY created DESC LIMIT 1;
 
 getPreviouslyUsedPartnerIds:
 SELECT DISTINCT partnerId FROM partnershipTransactionEntity WHERE status NOT NULL ORDER BY created DESC;

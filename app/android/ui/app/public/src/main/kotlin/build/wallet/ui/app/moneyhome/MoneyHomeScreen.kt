@@ -15,6 +15,8 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
@@ -318,7 +320,7 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
                           date = "Pending",
                           amount = "+ $11.36",
                           amountEquivalent = "0.000105 BTC",
-                          incoming = true,
+                          transactionType = Incoming,
                           isPending = false,
                           onClick = {}
                         ),
@@ -327,7 +329,7 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
                           date = "Pending",
                           amount = "$21.36",
                           amountEquivalent = "0.000205 BTC",
-                          incoming = false,
+                          transactionType = Outgoing,
                           isPending = false,
                           onClick = {}
                         )
@@ -381,7 +383,11 @@ internal fun MoneyHomeScreenLite() {
           onSettings = {},
           buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
           protectedCustomers = immutableListOf(
-            ProtectedCustomer("", ProtectedCustomerAlias("Alice"), setOf(TrustedContactRole.SocialRecoveryContact))
+            ProtectedCustomer(
+              "",
+              ProtectedCustomerAlias("Alice"),
+              setOf(TrustedContactRole.SocialRecoveryContact)
+            )
           ),
           badgedSettingsIcon = false,
           onProtectedCustomerClick = {},

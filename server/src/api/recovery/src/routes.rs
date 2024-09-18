@@ -739,7 +739,7 @@ pub async fn verify_code(
 
     comms_verification_service
         .verify_for_scope(VerifyForScopeInput {
-            account_id,
+            account_id: &account_id,
             scope,
             code: request.verification_code,
             duration: Duration::minutes(10),

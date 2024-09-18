@@ -190,12 +190,16 @@ class RecoveryInProgressUiStateMachineImpl(
         recoveryNotificationVerificationUiStateMachine.model(
           props =
             RecoveryNotificationVerificationUiProps(
-              recoveryNotificationVerificationData = recoveryInProgressData.data,
-              lostFactor = recoveryInProgressData.lostFactor
+              fullAccountId = recoveryInProgressData.fullAccountId,
+              f8eEnvironment = recoveryInProgressData.f8eEnvironment,
+              localLostFactor = recoveryInProgressData.lostFactor,
+              hwFactorProofOfPossession = null,
+              onComplete = recoveryInProgressData.onComplete,
+              onRollback = recoveryInProgressData.onRollback
             )
         )
 
-      is RecoveryInProgressData.FailedToCancelRecoveryData ->
+      is FailedToCancelRecoveryData ->
         CancelConflictingRecoveryErrorScreenModel(
           id =
             recoveryInProgressData.recoveredFactor.getEventId(

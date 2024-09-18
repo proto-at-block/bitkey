@@ -2,8 +2,8 @@ package build.wallet.di
 
 import build.wallet.account.AccountDao
 import build.wallet.account.AccountDaoImpl
-import build.wallet.account.AccountRepository
-import build.wallet.account.AccountRepositoryImpl
+import build.wallet.account.AccountService
+import build.wallet.account.AccountServiceImpl
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.account.analytics.AppInstallationDaoImpl
 import build.wallet.analytics.events.*
@@ -54,6 +54,7 @@ import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClientImpl
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientImpl
 import build.wallet.f8e.notifications.RegisterWatchAddressF8eClientImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClientImpl
+import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClientImpl
 import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.f8e.socrec.SocRecF8eClientImpl
 import build.wallet.feature.*
@@ -119,6 +120,7 @@ import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoveryDaoImpl
 import build.wallet.recovery.socrec.*
 import build.wallet.serialization.Base32Encoding
+import build.wallet.sqldelight.DatabaseIntegrityChecker
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.SqlDriverFactoryImpl
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -189,13 +191,15 @@ class AppComponentImpl(
     ),
   override val ktorLogLevelPolicy: KtorLogLevelPolicy = KtorLogLevelPolicyImpl(appVariant),
   override val uuidGenerator: UuidGenerator = UuidGeneratorImpl(),
+  override val databaseIntegrityChecker: DatabaseIntegrityChecker,
   private val databaseDriverFactory: SqlDriverFactory =
     SqlDriverFactoryImpl(
       platformContext,
       fileDirectoryProvider,
       secureStoreFactory,
       uuidGenerator,
-      appVariant
+      appVariant,
+      databaseIntegrityChecker
     ),
   override val bitkeyDatabaseProvider: BitkeyDatabaseProvider =
     BitkeyDatabaseProviderImpl(databaseDriverFactory),
@@ -266,10 +270,10 @@ class AppComponentImpl(
       recoveryDao = recoveryDao
     ),
   private val accountDao: AccountDao = AccountDaoImpl(bitkeyDatabaseProvider),
-  override val accountRepository: AccountRepository = AccountRepositoryImpl(accountDao),
+  override val accountService: AccountService = AccountServiceImpl(accountDao),
   private val appAuthPublicKeyProvider: AppAuthPublicKeyProvider =
     AppAuthPublicKeyProviderImpl(
-      accountRepository = accountRepository,
+      accountService = accountService,
       recoveryAppAuthPublicKeyProvider = recoveryAppAuthPublicKeyProvider
     ),
   private val authTokenRefresher: AppAuthTokenRefresher = AppAuthTokenRefresherImpl(
@@ -354,7 +358,12 @@ class AppComponentImpl(
   override val softwareWalletIsEnabledFeatureFlag =
     SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
 
+  override val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(featureFlagDao)
+
   override val firmwareCommsLoggingFeatureFlag = FirmwareCommsLoggingFeatureFlag(
+    featureFlagDao = featureFlagDao
+  )
+  override val asyncNfcSigningFeatureFlag = AsyncNfcSigningFeatureFlag(
     featureFlagDao = featureFlagDao
   )
   override val promptSweepFeatureFlag: PromptSweepFeatureFlag =
@@ -366,7 +375,8 @@ class AppComponentImpl(
   override val coachmarksGlobalFeatureFlag =
     CoachmarksGlobalFeatureFlag(featureFlagDao)
 
-  override val inheritanceFeatureFlag: InheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao)
+  override val inheritanceFeatureFlag: InheritanceFeatureFlag =
+    InheritanceFeatureFlag(featureFlagDao)
 
   override val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag =
     BitcoinPriceChartFeatureFlag(featureFlagDao)
@@ -379,7 +389,9 @@ class AppComponentImpl(
       promptSweepFeatureFlag,
       inheritanceFeatureFlag,
       coachmarksGlobalFeatureFlag,
-      bitcoinPriceChartFeatureFlag
+      bitcoinPriceChartFeatureFlag,
+      utxoConsolidationFeatureFlag,
+      asyncNfcSigningFeatureFlag
     ).toList()
 
   private val allLocalFeatureFlags = setOf(
@@ -425,7 +437,7 @@ class AppComponentImpl(
     DebugOptionsServiceImpl(bitkeyDatabaseProvider, defaultDebugOptionsDecider)
 
   override val appFunctionalityService = AppFunctionalityServiceImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     debugOptionsService = debugOptionsService,
     networkReachabilityEventDao = networkReachabilityEventDao,
     networkReachabilityProvider = networkReachabilityProvider,
@@ -442,7 +454,7 @@ class AppComponentImpl(
     appCoroutineScope = appCoroutineScope,
     appDeviceIdDao = appDeviceIdDao,
     deviceInfoProvider = deviceInfoProvider,
-    accountRepository = accountRepository,
+    accountService = accountService,
     debugOptionsService = debugOptionsService,
     clock = clock,
     countryCodeProvider = localeCountryCodeProvider,
@@ -564,7 +576,7 @@ class AppComponentImpl(
   )
 
   private val featureFlagSyncer = FeatureFlagSyncerImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     debugOptionsService = debugOptionsService,
     featureFlagsF8eClient = featureFlagsF8eClient,
     clock = clock,
@@ -600,10 +612,16 @@ class AppComponentImpl(
     phoneNumberValidator = phoneNumberValidator
   )
 
+  val recoveryNotificationVerificationF8eClient =
+    RecoveryNotificationVerificationF8eClientImpl(
+      f8eHttpClient = f8eHttpClient
+    )
+
   override val notificationTouchpointService = NotificationTouchpointServiceImpl(
     notificationTouchpointF8eClient = notificationTouchpointF8eClient,
     notificationTouchpointDao = notificationTouchpointDao,
-    accountRepository = accountRepository
+    recoveryNotificationVerificationF8eClient = recoveryNotificationVerificationF8eClient,
+    accountService = accountService
   )
 
   private val exchangeRateDao = ExchangeRateDaoImpl(
@@ -611,7 +629,7 @@ class AppComponentImpl(
   )
 
   override val currencyConverter = CurrencyConverterImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     exchangeRateDao = exchangeRateDao,
     exchangeRateF8eClient = exchangeRateF8eClient
   )
@@ -656,7 +674,7 @@ class AppComponentImpl(
   )
 
   override val socRecF8eClientProvider = SocRecF8eClientProviderImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     socRecFake = socRecFake,
     socRecF8eClient = socialRecoveryF8eClientImpl,
     debugOptionsService = debugOptionsService
@@ -675,11 +693,11 @@ class AppComponentImpl(
     socialRecoveryCodeBuilder = socialRecoveryCodeBuilder,
     appSessionManager = appSessionManager,
     postSocRecTaskRepository = postSocRecTaskRepository,
-    accountRepository = accountRepository
+    accountService = accountService
   )
 
   override val endorseTrustedContactsService = EndorseTrustedContactsServiceImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     socRecService = socRecService,
     socRecRelationshipsDao = socRecRelationshipsDao,
     socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
@@ -811,7 +829,7 @@ class AppComponentImpl(
 
   override val transactionsService = TransactionsServiceImpl(
     currencyConverter = currencyConverter,
-    accountRepository = accountRepository,
+    accountService = accountService,
     appSpendingWalletProvider = appSpendingWalletProvider,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     appSessionManager = appSessionManager,
@@ -854,7 +872,7 @@ class AppComponentImpl(
     mobilePayStatusRepository = mobilePayStatusProvider,
     appSessionManager = appSessionManager,
     transactionsService = transactionsService,
-    accountRepository = accountRepository,
+    accountService = accountService,
     currencyConverter = currencyConverter,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )

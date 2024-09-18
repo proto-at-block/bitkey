@@ -98,7 +98,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
       val addedTouchpoint =
         appComponent.notificationTouchpointF8eClient.addTouchpoint(
           f8eEnvironment = initialF8eEnvironment,
-          fullAccountId = account.accountId,
+          accountId = account.accountId,
           touchpoint = NotificationTouchpoint.EmailTouchpoint(
             touchpointId = "",
             value = Email("integration-test@wallet.build") // This is a fake email
@@ -106,13 +106,13 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
         ).mapError { it.error }.getOrThrow()
       appComponent.notificationTouchpointF8eClient.verifyTouchpoint(
         f8eEnvironment = initialF8eEnvironment,
-        fullAccountId = account.accountId,
+        accountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
         verificationCode = "123456" // This code always works for Test Accounts
       ).mapError { it.error }.getOrThrow()
       appComponent.notificationTouchpointF8eClient.activateTouchpoint(
         f8eEnvironment = initialF8eEnvironment,
-        fullAccountId = account.accountId,
+        accountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
         hwFactorProofOfPossession = null
       ).getOrThrow()
@@ -173,7 +173,7 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
         .getOrThrow()
 
     // Set Lite Account as active in the app
-    appComponent.accountRepository.setActiveAccount(account).getOrThrow()
+    appComponent.accountService.setActiveAccount(account).getOrThrow()
 
     // Accept TC invitation from Protected Customer
     val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)

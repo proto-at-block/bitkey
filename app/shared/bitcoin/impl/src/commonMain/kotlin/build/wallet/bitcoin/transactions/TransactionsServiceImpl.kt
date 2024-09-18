@@ -3,7 +3,7 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.LoadableValue.LoadedValue
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.AccountStatus.*
 import build.wallet.analytics.events.AppSessionManager
@@ -35,7 +35,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class TransactionsServiceImpl(
   private val currencyConverter: CurrencyConverter,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val appSessionManager: AppSessionManager,
@@ -58,7 +58,7 @@ class TransactionsServiceImpl(
   override suspend fun executeWork() {
     coroutineScope {
       launch {
-        accountRepository.accountStatus()
+        accountService.accountStatus()
           .mapLatest { it.get().toSpendingKeyset() }
           .distinctUntilChanged() // If the keyset hasn't changed, neither has the wallet.
           .flatMapLatest { keys ->

@@ -17,7 +17,16 @@ class GetTransferRedirectF8eClientMock(
   val getTransferPartnersRedirectCall = turbine("get transfer partners redirect calls")
 
   private val successResponse: Result<Success, NetworkingError> =
-    Ok(Success(RedirectInfo(null, "http://example.com/redirect_url", WIDGET)))
+    Ok(
+      Success(
+        RedirectInfo(
+          appRestrictions = null,
+          url = "http://example.com/redirect_url",
+          redirectType = WIDGET,
+          partnerTransactionId = PartnershipTransactionId("some-partner-transaction-id")
+        )
+      )
+    )
 
   var transferRedirectResult: Result<Success, NetworkingError> = successResponse
 
@@ -26,7 +35,6 @@ class GetTransferRedirectF8eClientMock(
     address: BitcoinAddress,
     f8eEnvironment: F8eEnvironment,
     partner: String,
-    partnerTransactionId: PartnershipTransactionId?,
   ): Result<Success, NetworkingError> {
     getTransferPartnersRedirectCall.add(Unit)
     return transferRedirectResult

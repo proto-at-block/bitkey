@@ -1,8 +1,10 @@
 use std::panic;
 use std::sync::Arc;
 
-use account::entities::{Account, Network};
+use account::entities::Account;
 use http::StatusCode;
+use notification::service::FetchForAccountInput;
+use notification::NotificationPayloadType;
 use privileged_action::routes::{
     CancelPendingDelayAndNotifyInstanceByTokenRequest,
     CancelPendingDelayAndNotifyInstanceByTokenResponse,
@@ -23,15 +25,12 @@ use types::{account::AccountType, privileged_action::shared::PrivilegedActionTyp
 
 use crate::tests;
 use crate::tests::gen_services_with_overrides;
-use crate::tests::lib::OffsetClock;
+use crate::tests::lib::{create_account, create_phone_touchpoint, OffsetClock};
 use crate::tests::requests::axum::TestClient;
 use crate::GenServiceOverrides;
 
 use super::TestContext;
-use super::{
-    lib::{create_account, create_lite_account, create_software_account},
-    requests::CognitoAuthentication,
-};
+use super::{lib::create_software_account, requests::CognitoAuthentication};
 
 async fn get_privileged_action_definitions(
     context: &mut TestContext,
@@ -154,23 +153,13 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
         gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = match vector.account_type {
-        AccountType::Full => Account::Full(
-            create_account(
-                &mut context,
-                &bootstrap.services,
-                Network::BitcoinSignet,
-                None,
-            )
-            .await,
-        ),
-        AccountType::Lite => {
-            Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
-        }
-        AccountType::Software => Account::Software(
-            create_software_account(&mut context, &bootstrap.services, None, true).await,
-        ),
-    };
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        vector.account_type.clone(),
+    )
+    .await;
+    create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
 
     let auth = match vector.account_type {
         AccountType::Full => CognitoAuthentication::Wallet {
@@ -311,6 +300,60 @@ async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
         after_delay_and_notify_definition.delay_duration_secs
     );
     assert_eq!(after_delay_and_notify_definition.delay_duration_secs, 666);
+
+    if vector.expected_privileged_action {
+        // Check whether the notifications were created
+        let mut scheduled_notifications = bootstrap
+            .services
+            .notification_service
+            .fetch_scheduled_for_account(FetchForAccountInput {
+                account_id: account.get_id().clone(),
+            })
+            .await
+            .unwrap();
+        scheduled_notifications.sort_by_key(|n| n.execution_date_time);
+        let scheduled_notifications_types = scheduled_notifications
+            .iter()
+            .map(|n| n.payload_type)
+            .collect::<Vec<NotificationPayloadType>>();
+
+        let mut customer_notifications = bootstrap
+            .services
+            .notification_service
+            .fetch_customer_for_account(FetchForAccountInput {
+                account_id: account.get_id().clone(),
+            })
+            .await
+            .unwrap();
+        customer_notifications.sort_by_key(|n| n.created_at);
+        let customer_notifications_types = customer_notifications
+            .iter()
+            .map(|n| n.payload_type)
+            .collect::<Vec<NotificationPayloadType>>();
+
+        let expected_scheduled_notification_types = vec![
+            // The pending schedule gets split into 1 that gets sent immediately
+            // and a schedule that starts in 2 days
+            NotificationPayloadType::PrivilegedActionPendingDelayPeriod,
+            // Two completed schedules
+            NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+            NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+        ];
+
+        // One of each type for each channel, account only has 1 touchpoint so we expect only 1 per event
+        let expected_customer_notification_types =
+            vec![NotificationPayloadType::PrivilegedActionPendingDelayPeriod];
+
+        assert_eq!(
+            scheduled_notifications_types,
+            expected_scheduled_notification_types
+        );
+
+        assert_eq!(
+            customer_notifications_types,
+            expected_customer_notification_types
+        );
+    }
 }
 
 tests! {
@@ -350,6 +393,7 @@ async fn get_instances_cancel_instance_test() {
     let account = Account::Software(
         create_software_account(&mut context, &bootstrap.services, None, true).await,
     );
+    create_phone_touchpoint(&bootstrap.services, account.get_id(), true).await;
 
     let auth = CognitoAuthentication::Wallet {
         is_app_signed: false,
@@ -501,4 +545,62 @@ async fn get_instances_cancel_instance_test() {
         StatusCode::CONFLICT,
     )
     .await;
+
+    // Check whether the notifications were created
+    let mut scheduled_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_scheduled_for_account(FetchForAccountInput {
+            account_id: account.get_id().clone(),
+        })
+        .await
+        .unwrap();
+    scheduled_notifications.sort_by_key(|n| n.execution_date_time);
+    let scheduled_notifications_types = scheduled_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    let mut customer_notifications = bootstrap
+        .services
+        .notification_service
+        .fetch_customer_for_account(FetchForAccountInput {
+            account_id: account.get_id().clone(),
+        })
+        .await
+        .unwrap();
+    customer_notifications.sort_by_key(|n| n.created_at);
+    let customer_notifications_types = customer_notifications
+        .iter()
+        .map(|n| n.payload_type)
+        .collect::<Vec<NotificationPayloadType>>();
+
+    let expected_scheduled_notification_types = vec![
+        // The pending schedule gets split into 1 that gets sent immediately
+        // and a schedule that starts in 2 days, and we started 2 delays
+        NotificationPayloadType::PrivilegedActionPendingDelayPeriod,
+        NotificationPayloadType::PrivilegedActionPendingDelayPeriod,
+        // Two completed schedules per delay
+        NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+        NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+        NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+        NotificationPayloadType::PrivilegedActionCompletedDelayPeriod,
+    ];
+
+    // One of each type for each channel, account only has 1 touchpoint so we expect only 1 per event
+    let expected_customer_notification_types = vec![
+        NotificationPayloadType::PrivilegedActionPendingDelayPeriod,
+        NotificationPayloadType::PrivilegedActionCanceledDelayPeriod,
+        NotificationPayloadType::PrivilegedActionPendingDelayPeriod,
+    ];
+
+    assert_eq!(
+        scheduled_notifications_types,
+        expected_scheduled_notification_types
+    );
+
+    assert_eq!(
+        customer_notifications_types,
+        expected_customer_notification_types
+    );
 }

@@ -14,7 +14,7 @@ detekt = "1.23.6"
 kotlin = "2.0.0"
 
 # KMP versions
-kmp-aws = "1.2.45"
+kmp-aws = "1.3.20"
 kmp-crashkios = "0.8.6"
 kmp-compose-runtime = "1.6.11"
 kmp-kermit = "2.0.3"
@@ -22,29 +22,29 @@ kmp-kotest = "5.9.0"
 kmp-kotlin-coroutines = { strictly = "1.8.1" }
 kmp-kotlin-serialization = "1.7.0"
 kmp-kotlin-result = "2.0.0"
-kmp-ktor = "2.3.9"
+kmp-ktor = "2.3.11"
 kmp-matthewnelson-encoding = "2.2.1"
-kmp-mosaic = "0.9.0"
+kmp-mosaic = "0.11.0"
 kmp-redacted = "1.9.0"
 kmp-settings = "1.1.1"
 kmp-sqldelight = "2.0.2"
 kmp-sqlighter = "1.3.1"
-kmp-wire = "4.9.8"
+kmp-wire = "4.9.9"
 kmp-compottie="2.0.0-beta02"
 kmp-benchmark = "0.4.10"
 
 # Android versions
 android-activity = "1.8.2"
-android-bugsnag = "6.3.0"
+android-bugsnag = "6.4.0"
 android-bugsnag-plugin = "8.1.0"
 # Before upgrading the following, please make sure this runs successfully on a physical device.
 # Please also the locked (min + max) Android Studio version in `app/.idea/externalDependencies.xml`.
 android-gradle-plugin = "8.3.2"
 android-compose-ui = "1.6.7"
-android-datastore = "1.0.0"
-android-lib-phone-number = "8.13.34"
+android-datastore = "1.1.1"
+android-lib-phone-number = "8.13.36"
 android-lifecycle = "2.8.1"
-android-lottie = "6.1.0"
+android-lottie = "6.4.0"
 android-anvil = "2.4.7-1-8"
 # Don't forget to also update .github/actions/android-sdk/action.yml and app/verifiable-build/android/Dockerfile
 android-build-tools = "34.0.0"
@@ -59,7 +59,7 @@ android-sdk-target = "34"
 android-paparazzi = "1.3.4"
 android-camera = "1.4.0-alpha04"
 android-voyager = "1.1.0-alpha04"
-android-core = "1.12.0"
+android-core = "1.13.1"
 android-sqlite = "2.4.0"
 
 # JVM versions
@@ -78,9 +78,9 @@ kmp-crashkios-bugsnag-android = { module = "co.touchlab.crashkios:bugsnag-androi
 kmp-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "kmp-compose-runtime" }
 kmp-kermit = { module = "co.touchlab:kermit", version.ref = "kmp-kermit" }
 kmp-kotlin-annotations = { module = "org.jetbrains:annotations", version = "24.1.0" }
-kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.23.2" }
+kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.24.0" }
 kmp-kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kmp-kermit" }
-kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.6.1" }
+kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.7.0" }
 kmp-kotlin-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version =  "0.3.7" }
 kmp-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kmp-kotlin-coroutines" }
 kmp-kotlin-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version = "0.5.0" }
@@ -139,7 +139,7 @@ android-accompanist-system-ui-controller = { module = "com.google.accompanist:ac
 android-activity = { module = "androidx.activity:activity", version.ref = "android-activity" }
 android-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "android-activity" }
 android-annotations = { module = "androidx.annotation:annotation", version = "1.8.0" }
-android-annotations-experimental = { module = "androidx.annotation:annotation-experimental", version = "1.4.0" }
+android-annotations-experimental = { module = "androidx.annotation:annotation-experimental", version = "1.4.1" }
 android-appcompat = { module = "androidx.appcompat:appcompat", version = "1.6.1" }
 android-bdk = { module = "org.bitcoindevkit:bdk-android", version.ref = "bdk" }
 android-browser = { module = "androidx.browser:browser", version = "1.8.0" }
@@ -168,23 +168,23 @@ android-datadog-logs = { module = "com.datadoghq:dd-sdk-android-logs", version.r
 android-datadog-rum = { module = "com.datadoghq:dd-sdk-android-rum", version.ref = "datadog" }
 android-datadog-trace = { module = "com.datadoghq:dd-sdk-android-trace", version.ref = "datadog" }
 android-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "android-datastore" }
-android-emoji2 = { module = "androidx.emoji2:emoji2", version = "1.3.0" }
-android-fragment = { module = "androidx.fragment:fragment", version = "1.6.2" }
-android-google-guava = { module = "com.google.guava:guava", version = "32.0.1-jre" }
-android-google-errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version = "2.18.0" }
-android-google-api-client = { module = "com.google.api-client:google-api-client-android", version = "2.4.0" }
-android-google-auth = { module = "com.google.android.gms:play-services-auth", version = "20.6.0" }
+android-emoji2 = { module = "androidx.emoji2:emoji2", version = "1.4.0" }
+android-fragment = { module = "androidx.fragment:fragment", version = "1.7.0" }
+android-google-guava = { module = "com.google.guava:guava", version = "32.1.3-jre" }
+android-google-errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version = "2.27.1" }
+android-google-api-client = { module = "com.google.api-client:google-api-client-android", version = "2.4.1" }
+android-google-auth = { module = "com.google.android.gms:play-services-auth", version = "20.7.0" }
 android-google-play-services-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version = "1.8.0" }
 android-google-gms-play-services-tasks = { module = "com.google.android.gms:play-services-tasks", version = "18.0.2" }
-android-google-gms-play-services-basement = { module = "com.google.android.gms:play-services-basement", version = "18.2.0" }
-android-leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.13" }
+android-google-gms-play-services-basement = { module = "com.google.android.gms:play-services-basement", version = "18.3.0" }
+android-leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.14" }
 android-lifecycle-common = { module = "androidx.lifecycle:lifecycle-common", version.ref = "android-lifecycle" }
 android-lib-phone-number = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "android-lib-phone-number" }
 android-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "android-lifecycle" }
 android-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "android-lifecycle" }
 android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "android-lottie" }
 android-security-cryptography = { module = "androidx.security:security-crypto-ktx", version = "1.1.0-alpha06" }
-android-sqlcipher = { module = "net.zetetic:sqlcipher-android", version = "4.5.6" }
+android-sqlcipher = { module = "net.zetetic:sqlcipher-android", version = "4.5.7" }
 android-sqldelight-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "kmp-sqldelight" }
 android-sqlite = { module = "androidx.sqlite:sqlite", version.ref = "android-sqlite" }
 android-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "android-sqlite" }
@@ -192,7 +192,7 @@ android-camera-camera2 = { module = "androidx.camera:camera-camera2", version.re
 android-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "android-camera"}
 android-camera-view = { module = "androidx.camera:camera-view", version.ref = "android-camera"}
 android-firebase-messaging = { module = "com.google.firebase:firebase-messaging", version = "23.4.1" }
-android-io-coil-base = { module = "io.coil-kt:coil-base", version = "2.5.0" }
+android-io-coil-base = { module = "io.coil-kt:coil-base", version = "2.6.0" }
 android-io-coil-compose = { module = "io.coil-kt:coil-compose", version = "2.5.0" }
 android-io-coil-svg = { module = "io.coil-kt:coil-svg", version = "2.6.0" }
 android-splashscreen = {  module = "androidx.core:core-splashscreen", version = "1.0.1" }
@@ -200,9 +200,9 @@ android-voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", 
 android-voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "android-voyager" }
 android-pbfbox = { module = "com.tom-roush:pdfbox-android", version = "2.0.27.0" }
 android-arch-core-runtime = { module = "androidx.arch.core:core-runtime", version = "2.2.0" }
-android-gson = { module = "com.google.code.gson:gson", version = "2.10" }
+android-gson = { module = "com.google.code.gson:gson", version = "2.10.1" }
 android-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version = "1.3.1" }
-android-layoutlib-api = { module = "com.android.tools.layoutlib:layoutlib-api", version = "31.4.1" }
+android-layoutlib-api = { module = "com.android.tools.layoutlib:layoutlib-api", version = "31.5.2" }
 android-tools-common = { module = "com.android.tools:common", version = "31.4.1" }
 android-tools-annotations = { module = "com.android.tools:annotations", version = "31.4.1" }
 android-biometric = { module = "androidx.biometric:biometric", version = "1.1.0" }
@@ -210,7 +210,7 @@ android-exifinterface = { module = "androidx.exifinterface:exifinterface", versi
 
 # Warning: when updating, make sure that Android Studio Gradle sync still works.
 # Newer versions are likely to break due to compatability requirements, even if project still compiles: https://developer.android.com/studio/write/java8-support#library-desugaring-versions.
-android-tools-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version = "2.0.3" }
+android-tools-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version = "2.0.4" }
 
 # Android testing libraries
 android-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version = "3.5.1" }
@@ -221,21 +221,21 @@ android-test-runner = { module = "androidx.test:runner", version = "1.5.2" }
 android-test-findbugs = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 
 # JVM libraries
-jvm-asm = { module = "org.ow2.asm:asm", version = "9.2" }
+jvm-asm = { module = "org.ow2.asm:asm", version = "9.7" }
 jvm-bdk = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk" }
 jvm-bitcoin-rpc-client = { module = "wf.bitcoin:bitcoin-rpc-client", version = "1.2.4" }
 jvm-di-inject = { module = "javax.inject:javax.inject", version = "1" }
 jvm-google-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20240123-2.0.0" }
 jvm-jna = { module = "net.java.dev.jna:jna", version = "5.14.0" }
-jvm-jna-platform = { module = "net.java.dev.jna:jna-platform", version = "5.9.0" }
+jvm-jna-platform = { module = "net.java.dev.jna:jna-platform", version = "5.14.0" }
 jvm-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kmp-ktor" }
-jvm-slf4j = { module = "org.slf4j:slf4j-api", version = "2.0.6" }
+jvm-slf4j = { module = "org.slf4j:slf4j-api", version = "2.0.13" }
 jvm-sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "kmp-sqldelight" }
 jvm-zxing = { module = "com.google.zxing:core", version = "3.5.2" }
 jvm-apache-httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 jvm-bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "jvm-bytebuddy" }
 jvm-bytebuddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "jvm-bytebuddy" }
-jvm-commons-codec = { module = "commons-codec:commons-codec", version = "1.15" }
+jvm-commons-codec = { module = "commons-codec:commons-codec", version = "1.17.0" }
 
 # JVM testing libraries
 jvm-test-junit = { module = "junit:junit", version = "4.13.2" }
@@ -265,7 +265,7 @@ pluginClasspath-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin",
 pluginClasspath-mosaic = { module = "com.jakewharton.mosaic:mosaic-gradle-plugin", version.ref = "kmp-mosaic" }
 pluginClasspath-redacted = { module = "dev.zacsweers.redacted:redacted-compiler-plugin-gradle", version.ref = "kmp-redacted" }
 pluginClasspath-wire = { module = "com.squareup.wire:com.squareup.wire.gradle.plugin", version.ref = "kmp-wire" }
-pluginClasspath-google-services = { module = "com.google.gms:google-services", version = "4.3.15" }
+pluginClasspath-google-services = { module = "com.google.gms:google-services", version = "4.4.1" }
 pluginClasspath-bugsnag-android = { module = "com.bugsnag:bugsnag-android-gradle-plugin", version.ref = "android-bugsnag-plugin" }
 
 [bundles]
@@ -289,4 +289,4 @@ paparazzi = { id = "app.cash.paparazzi", version.ref = "android-paparazzi" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "kmp-sqldelight" }
 test-logger = { id = "com.adarshr.test-logger", version = "4.0.0" }
 wire = { id = "com.squareup.wire", version.ref = "kmp-wire" }
-google-services = { id = "com.google.gms.google-services", version = "4.3.15" }
+google-services = { id = "com.google.gms.google-services", version = "4.4.1" }

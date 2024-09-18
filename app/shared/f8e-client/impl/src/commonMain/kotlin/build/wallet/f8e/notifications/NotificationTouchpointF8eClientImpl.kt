@@ -1,6 +1,6 @@
 package build.wallet.f8e.notifications
 
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -12,13 +12,7 @@ import build.wallet.f8e.error.toF8eError
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8eEmailTouchpoint
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8ePhoneNumberTouchpoint
-import build.wallet.ktor.result.EmptyRequestBody
-import build.wallet.ktor.result.NetworkingError
-import build.wallet.ktor.result.RedactedRequestBody
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
-import build.wallet.ktor.result.catching
-import build.wallet.ktor.result.setRedactedBody
+import build.wallet.ktor.result.*
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.mapUnit
@@ -43,12 +37,12 @@ class NotificationTouchpointF8eClientImpl(
 ) : NotificationTouchpointF8eClient {
   override suspend fun addTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpoint: NotificationTouchpoint,
   ): Result<NotificationTouchpoint, F8eError<AddTouchpointClientErrorCode>> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
       .bodyResult<AddTouchpointResponse> {
-        post("/api/accounts/${fullAccountId.serverId}/touchpoints") {
+        post("/api/accounts/${accountId.serverId}/touchpoints") {
           withDescription("Add notification touchpoint")
           setRedactedBody(
             when (touchpoint) {
@@ -88,13 +82,13 @@ class NotificationTouchpointF8eClientImpl(
 
   override suspend fun verifyTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpointId: String,
     verificationCode: String,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
       .catching {
-        post("/api/accounts/${fullAccountId.serverId}/touchpoints/$touchpointId/verify") {
+        post("/api/accounts/${accountId.serverId}/touchpoints/$touchpointId/verify") {
           withDescription("Verify notification touchpoint")
           setRedactedBody(VerifyTouchpointRequest(verificationCode = verificationCode))
         }
@@ -105,17 +99,17 @@ class NotificationTouchpointF8eClientImpl(
 
   override suspend fun activateTouchpoint(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     touchpointId: String,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient.authenticated(
       f8eEnvironment = f8eEnvironment,
-      accountId = fullAccountId,
+      accountId = accountId,
       hwFactorProofOfPossession = hwFactorProofOfPossession
     )
       .catching {
-        post("/api/accounts/${fullAccountId.serverId}/touchpoints/$touchpointId/activate") {
+        post("/api/accounts/${accountId.serverId}/touchpoints/$touchpointId/activate") {
           withDescription("Activate notification touchpoint")
           setRedactedBody(EmptyRequestBody)
         }
@@ -125,11 +119,11 @@ class NotificationTouchpointF8eClientImpl(
 
   override suspend fun getTouchpoints(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Result<List<NotificationTouchpoint>, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
       .bodyResult<GetTouchpointsResponse> {
-        get("/api/accounts/${fullAccountId.serverId}/touchpoints") {
+        get("/api/accounts/${accountId.serverId}/touchpoints") {
           withDescription("Get notification touchpoints")
         }
       }
@@ -164,11 +158,11 @@ class NotificationTouchpointF8eClientImpl(
 
   override suspend fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Result<NotificationPreferences, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
       .bodyResult<NotificationsPreferencesRequest> {
-        get("/api/accounts/${fullAccountId.serverId}/notifications-preferences") {
+        get("/api/accounts/${accountId.serverId}/notifications-preferences") {
           withDescription("Get notification preferences")
         }
       }
@@ -186,7 +180,7 @@ class NotificationTouchpointF8eClientImpl(
 
   override suspend fun updateNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     preferences: NotificationPreferences,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
@@ -197,11 +191,11 @@ class NotificationTouchpointF8eClientImpl(
     )
     return f8eHttpClient.authenticated(
       f8eEnvironment = f8eEnvironment,
-      accountId = fullAccountId,
+      accountId = accountId,
       hwFactorProofOfPossession = hwFactorProofOfPossession
     )
       .catching {
-        put("/api/accounts/${fullAccountId.serverId}/notifications-preferences") {
+        put("/api/accounts/${accountId.serverId}/notifications-preferences") {
           withDescription("Set notification preferences")
           setRedactedBody(prefRequest)
         }

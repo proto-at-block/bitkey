@@ -10,6 +10,8 @@ pub enum AccountError {
     InvalidKeysetIdentifierForRotation,
     #[error("Invalid spending keyset id during rotation for account")]
     InvalidSpendingKeysetIdentifierForRotation,
+    #[error("Invalid spending key definition id during rotation for account")]
+    InvalidSpendingKeyDefinitionIdentifierForRotation,
     #[error("Failed to generate keyset identifier")]
     InvalidIdentifier(#[from] external_identifier::Error),
     #[error(transparent)]
@@ -32,6 +34,10 @@ pub enum AccountError {
     UserPoolError(#[from] userpool::userpool::UserPoolError),
     #[error("Unauthorized device token registration")]
     UnauthorizedDeviceTokenRegistration,
+    #[error("Touchpoint already active")]
+    TouchpointAlreadyActive,
+    #[error("Conflicting spending key definition state during rotation for account")]
+    ConflictingSpendingKeyDefinitionStateForRotation,
 }
 
 impl From<AccountError> for ApiError {
@@ -48,7 +54,8 @@ impl From<AccountError> for ApiError {
             | AccountError::Unexpected
             | AccountError::UserPoolError(_) => ApiError::GenericInternalApplicationError(err_msg),
             AccountError::TouchpointNotFound => ApiError::GenericNotFound(err_msg),
-            AccountError::InvalidSpendingKeysetIdentifierForRotation => {
+            AccountError::InvalidSpendingKeysetIdentifierForRotation
+            | AccountError::InvalidSpendingKeyDefinitionIdentifierForRotation => {
                 ApiError::GenericBadRequest(err_msg)
             }
             AccountError::DDBError(err) => match err {
@@ -62,10 +69,18 @@ impl From<AccountError> for ApiError {
                 },
                 _ => ApiError::GenericInternalApplicationError(err_msg),
             },
-            AccountError::NotEligibleForDeletion => Self::GenericConflict(err_msg),
+            AccountError::NotEligibleForDeletion
+            | AccountError::ConflictingSpendingKeyDefinitionStateForRotation => {
+                Self::GenericConflict(err_msg)
+            }
             AccountError::UnauthorizedDeviceTokenRegistration => {
                 ApiError::GenericUnauthorized(err_msg)
             }
+            AccountError::TouchpointAlreadyActive => ApiError::Specific {
+                code: ErrorCode::TouchpointAlreadyActive,
+                detail: Some(err_msg),
+                field: None,
+            },
         }
     }
 }

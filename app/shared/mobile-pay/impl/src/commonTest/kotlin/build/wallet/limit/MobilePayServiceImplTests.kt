@@ -1,7 +1,7 @@
 package build.wallet.limit
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.account.AccountStatus.OnboardingAccount
 import build.wallet.analytics.events.AppSessionManagerFake
@@ -48,7 +48,7 @@ class MobilePayServiceImplTests : FunSpec({
   val transactionsService = TransactionsServiceFake()
   val appSessionManager = AppSessionManagerFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val currencyConverter = CurrencyConverterFake()
 
   val mobilePayBalance = MobilePayBalance(
@@ -74,7 +74,7 @@ class MobilePayServiceImplTests : FunSpec({
     spendingLimitDao.reset()
     appSessionManager.reset()
     transactionsService.reset()
-    accountRepository.reset()
+    accountService.reset()
     currencyConverter.reset()
     fiatCurrencyPreferenceRepository.reset()
 
@@ -85,7 +85,7 @@ class MobilePayServiceImplTests : FunSpec({
       mobilePayStatusRepository = mobilePayStatusProvider,
       appSessionManager = appSessionManager,
       transactionsService = transactionsService,
-      accountRepository = accountRepository,
+      accountService = accountService,
       currencyConverter = currencyConverter,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
@@ -259,16 +259,16 @@ class MobilePayServiceImplTests : FunSpec({
     mobilePayService.mobilePayData.test {
       awaitItem().shouldBeNull()
 
-      accountRepository.accountState.value = Ok(ActiveAccount(LiteAccountMock))
+      accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
       expectNoEvents()
 
-      accountRepository.accountState.value = Ok(OnboardingAccount(FullAccountMock))
+      accountService.accountState.value = Ok(OnboardingAccount(FullAccountMock))
       expectNoEvents()
 
-      accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+      accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
       awaitItem().shouldBe(mobilePayDataEnabled)
 
-      accountRepository.accountState.value = Ok(OnboardingAccount(FullAccountMock))
+      accountService.accountState.value = Ok(OnboardingAccount(FullAccountMock))
       awaitItem().shouldBeNull()
     }
   }
@@ -277,7 +277,7 @@ class MobilePayServiceImplTests : FunSpec({
     backgroundScope.launch {
       mobilePayService.executeWork()
     }
-    accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
@@ -294,7 +294,7 @@ class MobilePayServiceImplTests : FunSpec({
     backgroundScope.launch {
       mobilePayService.executeWork()
     }
-    accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
@@ -312,7 +312,7 @@ class MobilePayServiceImplTests : FunSpec({
     backgroundScope.launch {
       mobilePayService.executeWork()
     }
-    accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
 
     currencyConverter.conversionRate = 3.0 // 1 btc == 3 dollars
     val mobilePayEnabledWithSpentBtc = mobilePayEnabled.copy(

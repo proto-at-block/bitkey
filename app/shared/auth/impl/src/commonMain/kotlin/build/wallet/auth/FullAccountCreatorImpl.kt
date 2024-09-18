@@ -101,7 +101,7 @@ class FullAccountCreatorImpl(
       notificationTouchpointF8eClient
         .getTouchpoints(
           f8eEnvironment = fullAccountConfig.f8eEnvironment,
-          fullAccountId = customerAccountId
+          accountId = customerAccountId
         )
         .get()
         ?.let { touchpoints ->

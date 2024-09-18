@@ -3,12 +3,9 @@ use bitcoin::{bip32::DerivationPath, secp256k1::ecdsa::Signature};
 use miniscript::DescriptorPublicKey;
 use next_gen::generator;
 
+use crate::signing::async_signer::derive_and_sign;
 use crate::signing::Sighash;
-use crate::wca;
-use crate::{
-    errors::CommandError,
-    fwpb::{self, derive_and_sign_rsp::DeriveAndSignRspStatus, DeriveKeyDescriptorAndSignCmd},
-};
+use crate::{errors::CommandError, yield_from_};
 
 pub struct SignedSighash {
     pub signature: Signature,
@@ -16,42 +13,16 @@ pub struct SignedSighash {
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
-pub(crate) fn derive_and_sign(
+pub(crate) fn derive_and_sign_sighash(
     sighash: Sighash,
     derivation_path: &DerivationPath,
+    async_sign: bool,
 ) -> Result<Signature, CommandError> {
-    let sighash_slice = match sighash {
+    let sighash = match sighash {
         Sighash::Legacy(sighash) => sighash.into_32(),
         Sighash::SegwitV0(sighash) => sighash.into_32(),
-    };
-
-    let apdu: apdu::Command = DeriveKeyDescriptorAndSignCmd {
-        derivation_path: Some(derivation_path.into()),
-        hash: sighash_slice.to_vec(),
     }
-    .try_into()?;
-    let data = yield_!(apdu.into());
+    .to_vec();
 
-    let response = apdu::Response::from(data);
-    let message = wca::decode_and_check(response)?
-        .msg
-        .ok_or(CommandError::MissingMessage)?;
-
-    match message {
-        fwpb::wallet_rsp::Msg::DeriveAndSignRsp(fwpb::DeriveAndSignRsp { status, signature }) => {
-            match DeriveAndSignRspStatus::from_i32(status) {
-                Some(DeriveAndSignRspStatus::Success) => Ok(Signature::from_compact(&signature)?),
-                Some(DeriveAndSignRspStatus::DerivationFailed) => {
-                    Err(CommandError::KeyGenerationFailed)
-                }
-                Some(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
-                Some(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-                Some(DeriveAndSignRspStatus::Unspecified) => {
-                    Err(CommandError::UnspecifiedCommandError)
-                }
-                None => Err(CommandError::InvalidResponse),
-            }
-        }
-        _ => Err(CommandError::MissingMessage),
-    }
+    yield_from_!(derive_and_sign(sighash, derivation_path.into(), async_sign))
 }

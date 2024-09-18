@@ -1,16 +1,15 @@
 use crate::entities::{
     CommsVerificationClaim, CommsVerificationScope, FullAccountAuthKeys, LiteAccount,
-    LiteAccountAuthKeys, SoftwareAccountAuthKeys, SpendingKeyset, TouchpointPlatform,
+    LiteAccountAuthKeys, SoftwareAccountAuthKeys, TouchpointPlatform,
 };
 use crate::spend_limit::SpendingLimit;
-use crate::{
-    entities::{Keyset, Network},
-    repository::Repository,
-};
+use crate::{entities::Keyset, repository::Repository};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use isocountry::CountryCode;
 use repository::consent::Repository as ConsentRepository;
-use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use types::account::bitcoin::Network;
+use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
+use types::account::spending::{SpendingDistributedKey, SpendingKeyset};
 use userpool::userpool::UserPoolService;
 
 mod activate_touchpoint_for_account;
@@ -29,6 +28,8 @@ mod fetch_or_create_comms_verification_claim;
 mod fetch_touchpoint;
 mod migrations;
 mod put_comms_verification_claim;
+mod put_inactive_spending_distributed_key;
+mod rotate_to_spending_key_definition;
 mod rotate_to_spending_keyset;
 mod upgrade_lite_account_to_full_account;
 
@@ -112,8 +113,8 @@ pub struct FetchKeysetsInput {
 }
 
 #[derive(Debug, Clone)]
-pub struct AddPushTouchpointToAccountInput {
-    pub account_id: AccountId,
+pub struct AddPushTouchpointToAccountInput<'a> {
+    pub account_id: &'a AccountId,
     pub use_local_sns: bool,
     pub platform: TouchpointPlatform,
     pub device_token: String,
@@ -121,22 +122,23 @@ pub struct AddPushTouchpointToAccountInput {
 }
 
 #[derive(Debug, Clone)]
-pub struct FetchOrCreatePhoneTouchpointInput {
-    pub account_id: AccountId,
+pub struct FetchOrCreatePhoneTouchpointInput<'a> {
+    pub account_id: &'a AccountId,
     pub phone_number: String,
     pub country_code: CountryCode,
 }
 
 #[derive(Debug, Clone)]
-pub struct FetchOrCreateEmailTouchpointInput {
-    pub account_id: AccountId,
+pub struct FetchOrCreateEmailTouchpointInput<'a> {
+    pub account_id: &'a AccountId,
     pub email_address: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct ActivateTouchpointForAccountInput {
-    pub account_id: AccountId,
+pub struct ActivateTouchpointForAccountInput<'a> {
+    pub account_id: &'a AccountId,
     pub touchpoint_id: TouchpointId,
+    pub dry_run: bool,
 }
 
 #[derive(Debug)]
@@ -146,20 +148,20 @@ pub struct FetchAndUpdateSpendingLimitInput<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct FetchOrCreateCommsVerificationClaimInput {
-    pub account_id: AccountId,
+pub struct FetchOrCreateCommsVerificationClaimInput<'a> {
+    pub account_id: &'a AccountId,
     pub scope: CommsVerificationScope,
 }
 
 #[derive(Debug, Clone)]
-pub struct PutCommsVerificationClaimInput {
-    pub account_id: AccountId,
+pub struct PutCommsVerificationClaimInput<'a> {
+    pub account_id: &'a AccountId,
     pub claim: CommsVerificationClaim,
 }
 
 #[derive(Debug, Clone)]
-pub struct FetchTouchpointByIdInput {
-    pub account_id: AccountId,
+pub struct FetchTouchpointByIdInput<'a> {
+    pub account_id: &'a AccountId,
     pub touchpoint_id: TouchpointId,
 }
 
@@ -191,4 +193,17 @@ pub struct UpgradeLiteAccountToFullAccountInput<'a> {
 #[derive(Debug, Clone)]
 pub struct DeleteAccountInput<'a> {
     pub account_id: &'a AccountId,
+}
+
+#[derive(Clone)]
+pub struct PutInactiveSpendingDistributedKeyInput<'a> {
+    pub account_id: &'a AccountId,
+    pub spending_key_definition_id: &'a KeyDefinitionId,
+    pub spending: SpendingDistributedKey,
+}
+
+#[derive(Debug, Clone)]
+pub struct RotateToSpendingKeyDefinitionInput<'a> {
+    pub account_id: &'a AccountId,
+    pub key_definition_id: &'a KeyDefinitionId,
 }

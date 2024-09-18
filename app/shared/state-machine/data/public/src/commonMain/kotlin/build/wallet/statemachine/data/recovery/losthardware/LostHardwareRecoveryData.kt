@@ -1,13 +1,14 @@
 package build.wallet.statemachine.data.recovery.losthardware
 
 import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 
 /**
  * Describes Lost Hw DN recovery state.
@@ -53,7 +54,10 @@ sealed interface LostHardwareRecoveryData {
     ) : InitiatingLostHardwareRecoveryData
 
     data class VerifyingNotificationCommsData(
-      val data: RecoveryNotificationVerificationData,
+      val fullAccountId: FullAccountId,
+      val f8eEnvironment: F8eEnvironment,
+      val onRollback: () -> Unit,
+      val onComplete: () -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 
     data object CancellingConflictingRecoveryData : InitiatingLostHardwareRecoveryData

@@ -3,7 +3,7 @@
 package build.wallet.recovery.socrec
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -71,7 +71,7 @@ class SocRecServiceImplTests : FunSpec({
 
   val appSessionManager = AppSessionManagerFake()
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
 
   fun TestScope.socRecService(): SocRecServiceImpl {
     socRecFake = socRecFake()
@@ -83,13 +83,13 @@ class SocRecServiceImplTests : FunSpec({
       socialRecoveryCodeBuilder = SocialRecoveryCodeBuilderFake(),
       appSessionManager = appSessionManager,
       postSocRecTaskRepository = postSocRecTaskRepository,
-      accountRepository = accountRepository
+      accountService = accountService
     )
   }
 
   afterTest {
-    accountRepository.reset()
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.reset()
+    accountService.setActiveAccount(FullAccountMock)
     appKeyDao.reset()
     appSessionManager.reset()
     dao.clear()

@@ -1,9 +1,10 @@
 package build.wallet.onboarding
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.NoAccount
-import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
+import build.wallet.bitkey.account.SoftwareAccount
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.debug.DebugOptionsService
 import build.wallet.ensure
 import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClient
@@ -19,7 +20,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 
 class CreateSoftwareWalletServiceImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val initiateDistributedKeygenF8eClient: InitiateDistributedKeygenF8eClient,
   private val continueDistributedKeygenF8eClient: ContinueDistributedKeygenF8eClient,
   private val activateSpendingDescriptorF8eClient: ActivateSpendingDescriptorF8eClient,
@@ -29,7 +30,7 @@ class CreateSoftwareWalletServiceImpl(
   private val debugOptionsService: DebugOptionsService,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
 ) : CreateSoftwareWalletService {
-  override suspend fun createAccount(): Result<Account, Throwable> {
+  override suspend fun createAccount(): Result<SoftwareAccount, Throwable> {
     return coroutineBinding {
       val softwareWalletFeatureEnabled = softwareWalletIsEnabledFeatureFlag.isEnabled()
       ensure(softwareWalletFeatureEnabled) {
@@ -37,7 +38,7 @@ class CreateSoftwareWalletServiceImpl(
       }
 
       // TODO(W-8965) make software account onboarding resumable
-      val currentAccountStatus = accountRepository.accountStatus().first().bind()
+      val currentAccountStatus = accountService.accountStatus().first().bind()
       val noActiveOrOnboardingAccount = currentAccountStatus == NoAccount
       ensure(noActiveOrOnboardingAccount) {
         Error("Expected no active or onboarding account, but found: $currentAccountStatus.")
@@ -46,26 +47,33 @@ class CreateSoftwareWalletServiceImpl(
       val config = debugOptionsService.options().first().toSoftwareAccountConfig()
       val newAppKeys = appKeysGenerator.generateKeyBundle(config.bitcoinNetworkType).bind()
 
-      val account = softwareAccountCreator
+      val onboardingAccount = softwareAccountCreator
         .createAccount(
           authKey = newAppKeys.authKey,
           recoveryAuthKey = newAppKeys.recoveryAuthKey,
           config = config
         ).bind()
 
-      accountRepository
-        .saveAccountAndBeginOnboarding(account)
+      accountService
+        .saveAccountAndBeginOnboarding(onboardingAccount)
         .bind()
 
-      createKeybox(account).bind()
+      val keybox = createKeybox(onboardingAccount).bind()
 
-      // TODO(W-8964) Transition from onboardingSoftwareAccount to activatedSoftwareAccount
+      val activeAccount = SoftwareAccount(
+        accountId = onboardingAccount.accountId,
+        config = onboardingAccount.config,
+        keybox = keybox
+      )
+      accountService.setActiveAccount(activeAccount)
 
-      account
+      activeAccount
     }.logFailure { "Error creating software wallet account with fake hw keys." }
   }
 
-  private suspend fun createKeybox(account: OnboardingSoftwareAccount): Result<Unit, Throwable> {
+  private suspend fun createKeybox(
+    account: OnboardingSoftwareAccount,
+  ): Result<SoftwareKeybox, Throwable> {
     return coroutineBinding {
       val hwAuthKey = fakeHardwareKeyStore.getAuthKeypair().publicKey
 
@@ -91,8 +99,11 @@ class CreateSoftwareWalletServiceImpl(
         keysetId = keysetId
       ).bind()
 
-      // TODO(W-8963) Create a keybox/icebox
-      // TODO(W-8963) Save the keybox/icebox to database
+      SoftwareKeybox(
+        id = keysetId.keysetId,
+        authKey = account.appGlobalAuthKey,
+        recoveryAuthKey = account.recoveryAuthKey
+      )
     }.logFailure { "Error creating keybox for software wallet account." }
   }
 }

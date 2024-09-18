@@ -7,6 +7,8 @@ import androidx.compose.runtime.remember
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrNull
@@ -24,9 +26,9 @@ class TransactionItemUiStateMachineImpl(
   @Composable
   override fun model(props: TransactionItemUiProps): ListItemModel {
     val totalToUse =
-      when (props.transaction.incoming) {
-        true -> props.transaction.subtotal
-        else -> props.transaction.total
+      when (props.transaction.transactionType) {
+        Incoming -> props.transaction.subtotal
+        Outgoing -> props.transaction.total
       }
 
     val fiatAmount =
@@ -37,11 +39,14 @@ class TransactionItemUiStateMachineImpl(
         atTime = props.transaction.confirmationTime()
       )
 
-    val fiatAmountFormatted by remember(fiatAmount, props.transaction.incoming) {
+    val fiatAmountFormatted by remember(fiatAmount, props.transaction.transactionType) {
       derivedStateOf {
         fiatAmount?.let {
           val formatted = moneyDisplayFormatter.format(it)
-          if (props.transaction.incoming) "+ $formatted" else formatted
+          when (props.transaction.transactionType) {
+            Incoming -> "+ $formatted"
+            Outgoing -> formatted
+          }
         } ?: "~~"
       }
     }
@@ -52,7 +57,7 @@ class TransactionItemUiStateMachineImpl(
         date = formattedDateTime(),
         amount = fiatAmountFormatted,
         amountEquivalent = moneyDisplayFormatter.format(totalToUse),
-        incoming = incoming,
+        transactionType = transactionType,
         isPending = confirmationStatus == Pending
       ) {
         props.onClick(props.transaction)

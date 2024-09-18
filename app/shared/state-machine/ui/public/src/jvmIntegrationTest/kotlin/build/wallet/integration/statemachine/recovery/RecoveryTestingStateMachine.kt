@@ -3,7 +3,7 @@ package build.wallet.integration.statemachine.recovery
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
@@ -47,12 +47,12 @@ class RecoveryTestingStateMachine(
   val dsm: AccountDataStateMachineImpl,
   val usm: LostAppRecoveryUiStateMachineImpl,
   val recoverySyncer: RecoverySyncer,
-  val accountRepository: AccountRepository,
+  val accountService: AccountService,
 ) : StateMachine<Unit, ScreenModel> {
   @Composable
   override fun model(props: Unit): ScreenModel {
     val accountStatus =
-      remember { accountRepository.accountStatus() }.collectAsState(null)
+      remember { accountService.accountStatus() }.collectAsState(null)
         .value?.getOrThrow()
 
     val activeRecovery =

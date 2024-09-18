@@ -28,7 +28,7 @@ suspend fun AppTester.getActiveLiteAccount(): LiteAccount {
 }
 
 suspend fun AppTester.getActiveAccount(): Account {
-  val accountStatus = app.appComponent.accountRepository.accountStatus().first().getOrThrow()
+  val accountStatus = app.appComponent.accountService.accountStatus().first().getOrThrow()
   return (accountStatus as? AccountStatus.ActiveAccount)?.account ?: error("active account not found")
 }
 

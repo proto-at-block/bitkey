@@ -2,6 +2,8 @@ package build.wallet.bitcoin.wallet
 
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
@@ -9,7 +11,7 @@ import io.kotest.matchers.should
 fun beIncoming() =
   Matcher<BitcoinTransaction> { value ->
     MatcherResult(
-      value.incoming,
+      value.transactionType == Incoming,
       { "expected $value to be incoming" },
       { "expected $value to not be incoming" }
     )
@@ -23,7 +25,7 @@ fun BitcoinTransaction.shouldBeIncoming(): BitcoinTransaction {
 fun beOutgoing() =
   Matcher<BitcoinTransaction> { value ->
     MatcherResult(
-      !value.incoming,
+      value.transactionType == Outgoing,
       { "expected $value to be outgoing" },
       { "expected $value to not be outgoing" }
     )

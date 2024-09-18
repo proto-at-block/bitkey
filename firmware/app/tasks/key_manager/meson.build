@@ -1,5 +1,6 @@
 srcs = [
   'src/key_manager_task.c',
+  'src/crypto_task.c',
 ]
 
 incs = ['inc']

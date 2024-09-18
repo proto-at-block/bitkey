@@ -48,15 +48,15 @@ class FeeBumpConfirmationUiStateMachineImpl(
         val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
         val feeBitcoinAmount = currentState.appSignedPsbt.fee
 
-        val transactionDetail = TransactionDetailType.SpeedUp(
-          transferBitcoinAmount = transferBitcoinAmount,
-          feeBitcoinAmount = feeBitcoinAmount,
-          oldFeeBitcoinAmount = props.speedUpTransactionDetails.oldFee.amount
+        val transactionDetails = TransactionDetails.SpeedUp(
+          transferAmount = transferBitcoinAmount,
+          feeAmount = feeBitcoinAmount,
+          oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount
         )
 
-        val transactionDetails = transactionDetailsCardUiStateMachine.model(
+        val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
           props = TransactionDetailsCardUiProps(
-            transactionDetail = transactionDetail,
+            transactionDetails = transactionDetails,
             fiatCurrency = fiatCurrency,
             exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
           )
@@ -71,7 +71,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
             newFeeRate = currentState.feeRate
           ),
           recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
-          transactionDetails = transactionDetails,
+          transactionDetails = transactionDetailsCard,
           requiresHardware = true, // currently all fee bumps require hardware
           confirmButtonEnabled = true,
           onConfirmClick = {
@@ -157,16 +157,12 @@ class FeeBumpConfirmationUiStateMachineImpl(
           .model(
             props = TransferInitiatedUiProps(
               recipientAddress = props.speedUpTransactionDetails.recipientAddress,
-              transferInitiatedVariant = TransferInitiatedUiProps.Variant.SpeedUp(
-                transferBitcoinAmount = BitcoinMoney
+              transactionDetails = TransactionDetails.SpeedUp(
+                transferAmount = BitcoinMoney
                   .sats(currentState.appAndHwSignedPsbt.amountSats.toBigInteger()),
                 oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount,
-                newFeeAmount = currentState.appAndHwSignedPsbt.fee,
-                totalBitcoinAmount = BitcoinMoney
-                  .sats(currentState.appAndHwSignedPsbt.amountSats.toBigInteger()) +
-                  currentState.appAndHwSignedPsbt.fee
+                feeAmount = currentState.appAndHwSignedPsbt.fee
               ),
-              estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST,
               exchangeRates = null,
               onBack = {
                 props.onExit()

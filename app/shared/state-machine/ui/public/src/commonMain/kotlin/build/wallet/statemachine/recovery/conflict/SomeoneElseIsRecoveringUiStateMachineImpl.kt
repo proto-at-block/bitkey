@@ -10,11 +10,7 @@ import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.AwaitingHardwareProofOfPossessionData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.VerifyingNotificationCommsData
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.conflict.model.CancelingSomeoneElsesRecoveryFailedSheetModel
 import build.wallet.statemachine.recovery.conflict.model.ShowingSomeoneElseIsRecoveringBodyModel
@@ -94,8 +90,12 @@ class SomeoneElseIsRecoveringUiStateMachineImpl(
         recoveryNotificationVerificationUiStateMachine.model(
           props =
             RecoveryNotificationVerificationUiProps(
-              recoveryNotificationVerificationData = props.data.data,
-              lostFactor = App
+              fullAccountId = props.data.fullAccountId,
+              f8eEnvironment = props.data.f8eEnvironment,
+              localLostFactor = null, // there is no local lost factor
+              hwFactorProofOfPossession = props.data.hwFactorProofOfPossession,
+              onRollback = props.data.onRollback,
+              onComplete = props.data.onComplete
             )
         )
     }

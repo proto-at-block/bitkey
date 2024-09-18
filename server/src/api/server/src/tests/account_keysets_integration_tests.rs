@@ -1,8 +1,6 @@
 use std::str::FromStr;
 
-use account::entities::{
-    FullAccountAuthKeys, FullAccountAuthKeysPayload, Network, SpendingKeyset, SpendingKeysetRequest,
-};
+use account::entities::{FullAccountAuthKeys, FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::keys::DescriptorPublicKey;
 use http::StatusCode;
@@ -10,7 +8,9 @@ use http_server::middlewares::wsm;
 use onboarding::routes::{
     AccountKeyset, CreateAccountRequest, CreateKeysetRequest, RotateSpendingKeysetRequest,
 };
+use types::account::bitcoin::Network;
 use types::account::identifiers::KeysetId;
+use types::account::spending::SpendingKeyset;
 use wsm_rust_client::SigningService;
 use wsm_rust_client::{TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN};
 

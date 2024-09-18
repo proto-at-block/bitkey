@@ -18,7 +18,16 @@ class GetPurchaseRedirectF8eClientMock(
   val getPurchasePartnersRedirectCall = turbine("get purchase partners redirect")
 
   private val successResponse: Result<Success, NetworkingError> =
-    Ok(Success(RedirectInfo(null, "http://example.com/redirect_url", WIDGET)))
+    Ok(
+      Success(
+        RedirectInfo(
+          appRestrictions = null,
+          url = "http://example.com/redirect_url",
+          redirectType = WIDGET,
+          partnerTransactionId = PartnershipTransactionId("some-partner-transaction-id")
+        )
+      )
+    )
 
   private var purchaseRedirectResult: Result<Success, NetworkingError> = successResponse
 
@@ -30,7 +39,6 @@ class GetPurchaseRedirectF8eClientMock(
     partner: String,
     paymentMethod: String,
     quoteId: String?,
-    partnerTransactionId: PartnershipTransactionId?,
   ): Result<Success, NetworkingError> {
     getPurchasePartnersRedirectCall.add(Unit)
     return purchaseRedirectResult

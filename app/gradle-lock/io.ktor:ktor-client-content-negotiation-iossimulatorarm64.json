@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-content-negotiation-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-content-negotiation-iossimulatorarm64-2.3.9-metadata.jar": "52d9f277af1aec42570068ec7354c5b53ae1124d6a44d2cdc0302fdd9c1ca73a"
+                        "ktor-client-content-negotiation-iossimulatorarm64-2.3.11-metadata.jar": "d312b916c42f59c88897f0e16326f87bbf4514545c49ed818ec7e5ac1234b6c7"
                     }
                 },
                 {

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-protobuf",
+    "components": [
+        {
+            "version": "1.6.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-protobuf-metadata-1.6.3.jar": "d6556739ebbfa9e4fa2f802c55bcb05bfa53f57276b105194842062e0acd3c4e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

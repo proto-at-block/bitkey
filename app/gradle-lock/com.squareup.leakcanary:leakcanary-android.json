@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:leakcanary-android",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "leakcanary-android-2.13.aar": "4c4dc1dc3b339dc6b5f6a7f73d3021f6c65815a389920315dfdfa1f8ba821548"
+                        "leakcanary-android-2.14.aar": "f24b5072d8319e191481861658a5bc3a4aeacec9be5c0b91d25ae4c437149daf"
                     }
                 }
             ],

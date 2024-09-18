@@ -10,13 +10,18 @@ use super::{ActivateTouchpointForAccountInput, Service};
 impl Service {
     pub async fn activate_touchpoint_for_account(
         &self,
-        input: ActivateTouchpointForAccountInput,
-    ) -> Result<(), AccountError> {
-        let mut account = self.account_repo.fetch(&input.account_id).await?;
+        input: ActivateTouchpointForAccountInput<'_>,
+    ) -> Result<Touchpoint, AccountError> {
+        let mut account = self.account_repo.fetch(input.account_id).await?;
 
         let new_touchpoint = if let Some(existing_touchpoint) =
             account.get_touchpoint_by_id(input.touchpoint_id.to_owned())
         {
+            if existing_touchpoint.is_active() {
+                event!(Level::ERROR, "Touchpoint already active",);
+                return Err(AccountError::TouchpointAlreadyActive);
+            }
+
             match existing_touchpoint {
                 Touchpoint::Email {
                     id, email_address, ..
@@ -66,8 +71,11 @@ impl Service {
                 software_account.common_fields.touchpoints = touchpoints
             }
         };
-        self.account_repo.persist(&account).await?;
 
-        Ok(())
+        if !input.dry_run {
+            self.account_repo.persist(&account).await?;
+        }
+
+        Ok(new_touchpoint)
     }
 }

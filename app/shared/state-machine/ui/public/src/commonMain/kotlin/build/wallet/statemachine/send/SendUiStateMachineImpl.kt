@@ -10,6 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.BitcoinMoney
@@ -66,7 +67,7 @@ class SendUiStateMachineImpl(
                   // For test accounts, we manually choose a fee rate that is twice the previous
                   // one. This is particularly useful for QA when testing.
                   newFeeRate =
-                    if (props.accountData.account.config.isTestAccount) {
+                    if (props.account.config.isTestAccount) {
                       FeeRate(
                         satsPerVByte = entryPoint.speedUpTransactionDetails.oldFee.feeRate.satsPerVByte * 2
                       )
@@ -117,7 +118,7 @@ class SendUiStateMachineImpl(
 
     val f8eReachabilityState by remember {
       networkReachabilityProvider.f8eReachabilityFlow(
-        props.accountData.account.config.f8eEnvironment
+        props.account.config.f8eEnvironment
       )
     }.collectAsState()
 
@@ -127,8 +128,8 @@ class SendUiStateMachineImpl(
           props =
             BitcoinAddressRecipientUiProps(
               address = state.recipientAddress,
-              networkType = props.accountData.account.config.bitcoinNetworkType,
-              spendingKeyset = props.accountData.account.keybox.activeSpendingKeyset,
+              networkType = props.account.config.bitcoinNetworkType,
+              spendingKeyset = props.account.keybox.activeSpendingKeyset,
               validInvoiceInClipboard = props.validInvoiceInClipboard,
               onBack = props.onExit,
               onRecipientEntered = { recipientAddress ->
@@ -171,7 +172,7 @@ class SendUiStateMachineImpl(
         bitcoinQrCodeUiScanStateMachine.model(
           props =
             BitcoinQrCodeScanUiProps(
-              networkType = props.accountData.account.config.bitcoinNetworkType,
+              networkType = props.account.config.bitcoinNetworkType,
               validInvoiceInClipboard = props.validInvoiceInClipboard,
               onEnterAddressClick = {
                 uiState = SelectingRecipientUiState(recipientAddress = null)
@@ -200,7 +201,6 @@ class SendUiStateMachineImpl(
             onBack = {
               uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
             },
-            accountData = props.accountData,
             initialAmount = state.transferMoney,
             exchangeRates = exchangeRates,
             f8eReachability = f8eReachabilityState
@@ -219,7 +219,7 @@ class SendUiStateMachineImpl(
         transferConfirmationUiStateMachine.model(
           props = TransferConfirmationUiProps(
             transferVariant = state.variant,
-            accountData = props.accountData,
+            account = props.account,
             recipientAddress = state.recipientAddress,
             sendAmount = state.sendAmount,
             onExit = props.onExit,
@@ -258,23 +258,19 @@ class SendUiStateMachineImpl(
           props =
             TransferInitiatedUiProps(
               recipientAddress = state.recipientAddress,
-              transferInitiatedVariant =
+              transactionDetails =
                 when (state.confirmationVariant) {
-                  is Variant.Regular ->
-                    TransferInitiatedUiProps.Variant.Regular(
-                      transferBitcoinAmount = state.transferMoney,
-                      feeBitcoinAmount = state.feeBitcoinAmount,
-                      totalBitcoinAmount = state.transferMoney + state.feeBitcoinAmount
-                    )
-                  is Variant.SpeedUp ->
-                    TransferInitiatedUiProps.Variant.SpeedUp(
-                      transferBitcoinAmount = state.transferMoney,
-                      oldFeeAmount = state.confirmationVariant.oldFee.amount,
-                      newFeeAmount = state.feeBitcoinAmount,
-                      totalBitcoinAmount = state.transferMoney + state.feeBitcoinAmount
-                    )
+                  is Variant.Regular -> TransactionDetails.Regular(
+                    transferAmount = state.transferMoney,
+                    feeAmount = state.feeBitcoinAmount,
+                    estimatedTransactionPriority = state.estimatedTransactionPriority
+                  )
+                  is Variant.SpeedUp -> TransactionDetails.SpeedUp(
+                    transferAmount = state.transferMoney,
+                    oldFeeAmount = state.confirmationVariant.oldFee.amount,
+                    feeAmount = state.feeBitcoinAmount
+                  )
                 },
-              estimatedTransactionPriority = state.estimatedTransactionPriority,
               exchangeRates = exchangeRates,
               onBack = {
                 props.onExit()
@@ -289,7 +285,6 @@ class SendUiStateMachineImpl(
         feeSelectionUiStateMachine.model(
           props =
             FeeSelectionUiProps(
-              accountData = props.accountData,
               recipientAddress = state.recipientAddress,
               sendAmount = state.sendAmount,
               exchangeRates = exchangeRates,

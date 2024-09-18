@@ -5,7 +5,9 @@ use utoipa::ToSchema;
 
 use self::identifiers::AccountId;
 
+pub mod bitcoin;
 pub mod identifiers;
+pub mod spending;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]

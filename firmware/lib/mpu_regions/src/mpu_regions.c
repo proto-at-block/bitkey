@@ -30,6 +30,7 @@ rtos_thread_mpu_t _charger_thread_regions;
 rtos_thread_mpu_t _fuel_gauge_thread_regions;
 rtos_thread_mpu_t _tamper_thread_regions;
 rtos_thread_mpu_t _fs_mount_task_regions;
+rtos_thread_mpu_t _crypto_thread_regions;
 #ifndef CONFIG_PROD
 rtos_thread_mpu_t _shell_thread_regions;
 #endif
@@ -144,6 +145,8 @@ void mpu_regions_init(void) {
   memcpy(&_auth_main_thread_regions, &privileged_task_default_regions,
          sizeof(rtos_thread_mpu_t));  // TODO(W-4578)
   memcpy(&_key_manager_thread_regions, &privileged_task_default_regions,
+         sizeof(rtos_thread_mpu_t));  // TODO(W-4579)
+  memcpy(&_crypto_thread_regions, &privileged_task_default_regions,
          sizeof(rtos_thread_mpu_t));  // TODO(W-4579)
   memcpy(&_sysinfo_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
   memcpy(&_charger_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));

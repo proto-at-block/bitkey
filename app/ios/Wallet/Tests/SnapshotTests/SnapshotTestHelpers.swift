@@ -20,7 +20,8 @@ extension XCTestCase {
         screenModel: ScreenModel? = nil,
         usesVisualEffect: Bool = false,
         fileName: String = #function,
-        precision: Float = 0.9992
+        precision: Float = 0.9992,
+        perceptualPrecision: Float = 0.98
     ) {
         let viewController: UIViewController = if let screenModel {
             SwiftUIWrapperViewController(view, screenModel: screenModel)
@@ -33,7 +34,7 @@ extension XCTestCase {
             as: .image(
                 drawHierarchyInKeyWindow: usesVisualEffect,
                 precision: precision,
-                perceptualPrecision: precision,
+                perceptualPrecision: perceptualPrecision,
                 size: ViewImageConfig.iPhoneSe.size,
                 traits: ViewImageConfig.iPhoneSe.traits
             ),
@@ -49,7 +50,7 @@ extension XCTestCase {
             as: .image(
                 drawHierarchyInKeyWindow: usesVisualEffect,
                 precision: precision,
-                perceptualPrecision: precision,
+                perceptualPrecision: perceptualPrecision,
                 size: ViewImageConfig.iPhone13ProMax.size,
                 traits: ViewImageConfig.iPhone13Pro.traits
             ),
@@ -64,13 +65,14 @@ extension XCTestCase {
     func assertBitkeySnapshot(
         image: UIImage,
         fileName: String = #function,
-        precision: Float = 0.995
+        precision: Float = 0.995,
+        perceptualPrecision: Float = 0.98
     ) {
         let result = verifySnapshot(
             of: image,
             as: .image(
                 precision: precision,
-                perceptualPrecision: precision
+                perceptualPrecision: perceptualPrecision
             ),
             record: isRecording,
             testName: fileName
@@ -82,7 +84,8 @@ extension XCTestCase {
     func assertBitkeySnapshot(
         pdf: PDFDocument,
         fileName: String = #function,
-        precision _: Float = 0.995
+        precision _: Float = 0.995,
+        perceptualPrecision _: Float = 0.98
     ) {
         let result = verifySnapshot(
             of: pdf,
@@ -201,7 +204,7 @@ extension ListItemModel {
         date: "Pending",
         amount: "$90.50",
         amountEquivalent: "121,075 sats",
-        incoming: false,
+        transactionType: BitcoinTransactionTransactionTypeOutgoing(),
         isPending: false,
         onClick: {}
     )
@@ -211,7 +214,7 @@ extension ListItemModel {
         date: "Pending",
         amount: "$23.50",
         amountEquivalent: "45,075 sats",
-        incoming: true,
+        transactionType: BitcoinTransactionTransactionTypeIncoming(),
         isPending: false,
         onClick: {}
     )

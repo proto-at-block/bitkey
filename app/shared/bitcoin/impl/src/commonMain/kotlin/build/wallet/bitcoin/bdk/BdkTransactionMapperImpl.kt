@@ -1,19 +1,16 @@
 package build.wallet.bitcoin.bdk
 
-import build.wallet.bdk.bindings.BdkAddressBuilder
-import build.wallet.bdk.bindings.BdkBlockTime
-import build.wallet.bdk.bindings.BdkNetwork
+import build.wallet.bdk.bindings.*
 import build.wallet.bdk.bindings.BdkResult.Err
 import build.wallet.bdk.bindings.BdkResult.Ok
-import build.wallet.bdk.bindings.BdkTransaction
-import build.wallet.bdk.bindings.BdkTransactionDetails
-import build.wallet.bdk.bindings.BdkWallet
-import build.wallet.bdk.bindings.isMine
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.logging.LogLevel.Error
@@ -69,7 +66,10 @@ class BdkTransactionMapperImpl(
         total - (fee ?: BitcoinMoney.zero())
       }
 
-    val incoming = sent.isZero
+    val transactionType = when {
+      sent.isZero -> Incoming
+      else -> Outgoing
+    }
 
     return BitcoinTransaction(
       id = bdkTransaction.txid,
@@ -77,7 +77,7 @@ class BdkTransactionMapperImpl(
         bdkTransaction.transaction?.recipientAddress(
           bdkNetwork,
           bdkWallet,
-          incoming
+          transactionType
         ),
       broadcastTime =
         outgoingTransactionDetailDao.broadcastTimeForTransaction(
@@ -93,7 +93,7 @@ class BdkTransactionMapperImpl(
       fee = fee,
       vsize = vsize,
       weight = transactionWeight,
-      incoming = incoming,
+      transactionType = transactionType,
       inputs = bdkTransaction.transaction?.input()?.toImmutableList() ?: emptyImmutableList(),
       outputs = bdkTransaction.transaction?.output()?.toImmutableList() ?: emptyImmutableList()
     )
@@ -118,14 +118,17 @@ class BdkTransactionMapperImpl(
   private suspend fun BdkTransaction.recipientAddress(
     bdkNetwork: BdkNetwork,
     bdkWallet: BdkWallet,
-    incoming: Boolean,
+    transactionType: TransactionType,
   ): BitcoinAddress? {
     // Find the TxOut that does or does not correspond to the current wallet based on [incoming]
     val addressTxOut =
       output()
         .firstOrNull {
           when (val isMine = bdkWallet.isMine(it.scriptPubkey)) {
-            is Ok -> if (incoming) isMine.value else !isMine.value
+            is Ok -> when (transactionType) {
+              Incoming -> isMine.value
+              Outgoing -> !isMine.value
+            }
             is Err -> {
               // Early return null for [recipientAddress] if we were unable to determine [isMine]
               log(Error, throwable = isMine.error) { "Error calling isMine for wallet script" }

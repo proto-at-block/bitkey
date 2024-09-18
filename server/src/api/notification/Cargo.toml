@@ -47,7 +47,11 @@ instrumentation = { workspace = true }
 migration = { workspace = true }
 queue = { workspace = true }
 repository = { workspace = true, features = ["consent"] }
-types = { workspace = true, features = ["account", "notification"] }
+types = { workspace = true, features = [
+  "account",
+  "notification",
+  "privileged_action",
+] }
 userpool = { workspace = true }
 
 [dev-dependencies]

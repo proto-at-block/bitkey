@@ -33,6 +33,12 @@ interface BitcoinTransactionFeeEstimator {
    */
   sealed class FeeEstimationError : Error() {
     /**
+     * Indicates that there is currently no active account. This is likely due to
+     * a developer error, or a bug.
+     */
+    data object NoActiveAccountError : FeeEstimationError()
+
+    /**
      * There was an error getting the estimated fees
      */
     data class CannotGetFeesError(

@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:leakcanary-object-watcher-android-support-fragments",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "leakcanary-object-watcher-android-support-fragments-2.13.aar": "32ef945b5a63c43772290867191a85030743f9401b83641d7a29a5c81b8fbb88"
+                        "leakcanary-object-watcher-android-support-fragments-2.14.aar": "32ef945b5a63c43772290867191a85030743f9401b83641d7a29a5c81b8fbb88"
                     }
                 }
             ],

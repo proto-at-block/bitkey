@@ -16,14 +16,21 @@ use axum_extra::{
     headers::{authorization::Bearer, Authorization},
     TypedHeader,
 };
-use bdk_utils::error::BdkUtilError;
 use bdk_utils::generate_electrum_rpc_uris;
+use bdk_utils::{bdk::miniscript::ToPublicKey, error::BdkUtilError};
+use crypto::frost::KeyCommitments;
 use isocountry::CountryCode;
 use notification::entities::NotificationTouchpoint;
+use privileged_action::service::authorize_privileged_action::{
+    AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+    PrivilegedActionRequestValidatorBuilder,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
+use types::account::spending::SpendingKeyDefinition;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
@@ -31,8 +38,9 @@ use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
     DeleteAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
-    FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput, RotateToSpendingKeysetInput,
-    Service as AccountService, UpgradeLiteAccountToFullAccountInput,
+    FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput,
+    PutInactiveSpendingDistributedKeyInput, RotateToSpendingKeyDefinitionInput,
+    RotateToSpendingKeysetInput, Service as AccountService, UpgradeLiteAccountToFullAccountInput,
 };
 use account::{
     entities::{
@@ -40,8 +48,7 @@ use account::{
         FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
         LiteAccountAuthKeys, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
         SoftwareAccountAuthKeys, SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest,
-        SpendingKeyset, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
-        UpgradeLiteAccountAuthKeysPayload,
+        SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
     },
     service::CreateSoftwareAccountInput,
 };
@@ -64,8 +71,23 @@ use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
+use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::Repository as RecoveryService;
-use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use types::{
+    account::{
+        identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
+        spending::{SpendingDistributedKey, SpendingKeyset},
+    },
+    privileged_action::{
+        router::generic::{
+            AuthorizationStrategyInput, AuthorizationStrategyOutput,
+            ContinuePrivilegedActionRequest, DelayAndNotifyInput, DelayAndNotifyOutput,
+            PendingPrivilegedActionResponse, PrivilegedActionInstanceInput,
+            PrivilegedActionInstanceOutput, PrivilegedActionRequest, PrivilegedActionResponse,
+        },
+        shared::PrivilegedActionType,
+    },
+};
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
@@ -100,6 +122,7 @@ pub struct RouteState(
     pub IterableClient,
     pub TwilioClient,
     pub FeatureFlagsService,
+    pub PrivilegedActionService,
 );
 
 impl RouteState {
@@ -151,8 +174,8 @@ impl RouteState {
                 put(continue_distributed_keygen),
             )
             .route(
-                "/api/accounts/:account_id/spending-descriptor",
-                put(activate_spending_descriptor),
+                "/api/accounts/:account_id/spending-key-definition",
+                put(activate_spending_key_definition),
             )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
@@ -205,11 +228,23 @@ impl From<RouteState> for SwaggerEndpoint {
         verify_touchpoint_for_account,
         initiate_distributed_keygen,
         continue_distributed_keygen,
-        activate_spending_descriptor,
+        activate_spending_key_definition,
     ),
     components(
         schemas(
+            DelayAndNotifyInput,
+            AuthorizationStrategyInput,
+            PrivilegedActionInstanceInput,
+            ContinuePrivilegedActionRequest,
+            PrivilegedActionType,
+            DelayAndNotifyOutput,
+            AuthorizationStrategyOutput,
+            PrivilegedActionInstanceOutput,
+            PendingPrivilegedActionResponse,
             AccountActivateTouchpointRequest,
+            PrivilegedActionRequest<AccountActivateTouchpointRequest>,
+            AccountActivateTouchpointResponse,
+            PrivilegedActionResponse<AccountActivateTouchpointResponse>,
             AccountActivateTouchpointResponse,
             AccountAddDeviceTokenRequest,
             AccountAddDeviceTokenResponse,
@@ -242,11 +277,12 @@ impl From<RouteState> for SwaggerEndpoint {
             UpgradeAccountRequest,
             UpgradeLiteAccountAuthKeysPayload,
             SoftwareAccountAuthKeysRequest,
+            InititateDistributedKeygenRequest,
             InititateDistributedKeygenResponse,
             ContinueDistributedKeygenRequest,
             ContinueDistributedKeygenResponse,
-            ActivateSpendingDescriptorRequest,
-            ActivateSpendingDescriptorResponse,
+            ActivateSpendingKeyDefinitionRequest,
+            ActivateSpendingKeyDefinitionResponse,
         ),
     ),
     tags(
@@ -286,7 +322,7 @@ async fn add_device_token_to_account(
 ) -> Result<Json<AccountAddDeviceTokenResponse>, ApiError> {
     account_service
         .add_push_touchpoint_for_account(AddPushTouchpointToAccountInput {
-            account_id: account_id.clone(),
+            account_id: &account_id,
             use_local_sns: config.use_local_sns,
             platform: request.platform,
             device_token: request.device_token,
@@ -376,7 +412,7 @@ async fn add_touchpoint_to_account(
 
             let touchpoint = account_service
                 .fetch_or_create_phone_touchpoint(FetchOrCreatePhoneTouchpointInput {
-                    account_id: account_id.clone(),
+                    account_id: &account_id,
                     phone_number: lookup_response.phone_number,
                     country_code,
                 })
@@ -427,7 +463,7 @@ async fn add_touchpoint_to_account(
 
             let touchpoint = account_service
                 .fetch_or_create_email_touchpoint(FetchOrCreateEmailTouchpointInput {
-                    account_id: account_id.clone(),
+                    account_id: &account_id,
                     email_address,
                 })
                 .await?;
@@ -508,7 +544,7 @@ async fn verify_touchpoint_for_account(
 ) -> Result<Json<AccountVerifyTouchpointResponse>, ApiError> {
     let touchpoint = account_service
         .fetch_touchpoint_by_id(FetchTouchpointByIdInput {
-            account_id: account_id.clone(),
+            account_id: &account_id,
             touchpoint_id: touchpoint_id.clone(),
         })
         .await?;
@@ -529,7 +565,7 @@ async fn verify_touchpoint_for_account(
     let scope = CommsVerificationScope::AddTouchpointId(touchpoint_id.clone());
     comms_verification_service
         .verify_for_scope(VerifyForScopeInput {
-            account_id: account_id.clone(),
+            account_id: &account_id,
             scope,
             code: request.verification_code,
             duration: Duration::minutes(10),
@@ -539,15 +575,20 @@ async fn verify_touchpoint_for_account(
     Ok(Json(AccountVerifyTouchpointResponse {}))
 }
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountActivateTouchpointRequest {}
 
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountActivateTouchpointResponse {}
 
 #[instrument(
     fields(account_id),
-    skip(account_service, comms_verification_service, iterable_client)
+    skip(
+        account_service,
+        comms_verification_service,
+        iterable_client,
+        privileged_action_service
+    )
 )]
 #[utoipa::path(
     post,
@@ -556,64 +597,85 @@ pub struct AccountActivateTouchpointResponse {}
         ("account_id" = AccountId, Path, description = "AccountId"),
         ("touchpoint_id" = TouchpointId, description = "TouchpointId"),
     ),
-    request_body = AccountActivateTouchpointRequest,
+    request_body = PrivilegedActionRequest<AccountActivateTouchpointRequest>,
     responses(
-        (status = 200, description = "Touchpoint was activated", body=AccountActivateTouchpointResponse),
+        (status = 200, description = "Touchpoint was activated", body=PrivilegedActionResponse<AccountActivateTouchpointResponse>),
     ),
 )]
 async fn activate_touchpoint_for_account(
     State(account_service): State<AccountService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(iterable_client): State<IterableClient>,
+    State(privileged_action_service): State<PrivilegedActionService>,
     key_proof: KeyClaims,
     Path((account_id, touchpoint_id)): Path<(AccountId, TouchpointId)>,
-    Json(_request): Json<AccountActivateTouchpointRequest>,
-) -> Result<Json<AccountActivateTouchpointResponse>, ApiError> {
-    let account = account_service
-        .fetch_account(FetchAccountInput {
+    Json(privileged_action_request): Json<
+        PrivilegedActionRequest<AccountActivateTouchpointRequest>,
+    >,
+) -> Result<Json<PrivilegedActionResponse<AccountActivateTouchpointResponse>>, ApiError> {
+    let scope = CommsVerificationScope::AddTouchpointId(touchpoint_id.clone());
+
+    let cloned_account_id_1 = account_id.clone();
+    let cloned_account_id_2 = account_id.clone();
+    let cloned_touchpoint_id = touchpoint_id.clone();
+    let cloned_scope_1 = scope.clone();
+    let cloned_scope_2 = scope.clone();
+    let cloned_comms_verification_service_1 = comms_verification_service.clone();
+    let cloned_comms_verification_service_2 = comms_verification_service.clone();
+    let cloned_account_service = account_service.clone();
+
+    let authorize_result = privileged_action_service
+        .authorize_privileged_action(AuthorizePrivilegedActionInput {
             account_id: &account_id,
+            privileged_action_definition: &PrivilegedActionType::ActivateTouchpoint.into(),
+            key_proof: &key_proof,
+            privileged_action_request: &privileged_action_request,
+            request_validator: PrivilegedActionRequestValidatorBuilder::default()
+                .on_initiate_delay_and_notify(Box::new(|_| {
+                    Box::pin(async move {
+                        cloned_comms_verification_service_1
+                            .consume_verification_for_scope(ConsumeVerificationForScopeInput {
+                                account_id: &cloned_account_id_1,
+                                scope: cloned_scope_1,
+                            })
+                            .await?;
+
+                        cloned_account_service
+                            .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
+                                account_id: &cloned_account_id_1,
+                                touchpoint_id: cloned_touchpoint_id,
+                                dry_run: true,
+                            })
+                            .await?;
+
+                        Ok::<(), ApiError>(())
+                    })
+                }))
+                .on_initiate_hardware_proof_of_possession(Box::new(|_| {
+                    Box::pin(async move {
+                        cloned_comms_verification_service_2
+                            .consume_verification_for_scope(ConsumeVerificationForScopeInput {
+                                account_id: &cloned_account_id_2,
+                                scope: cloned_scope_2,
+                            })
+                            .await?;
+
+                        Ok::<(), ApiError>(())
+                    })
+                }))
+                .build()?,
         })
         .await?;
-    if account.get_common_fields().onboarding_complete
-        && !(key_proof.app_signed && key_proof.hw_signed)
-    {
-        let msg = "valid signature over access token required by both app and hw auth keys";
-        error!("{msg}");
-        return Err(ApiError::GenericForbidden(msg.to_string()));
+
+    if let AuthorizePrivilegedActionOutput::Pending(response) = authorize_result {
+        return Ok(Json(response));
     }
 
     let touchpoint = account_service
-        .fetch_touchpoint_by_id(FetchTouchpointByIdInput {
-            account_id: account_id.clone(),
-            touchpoint_id: touchpoint_id.clone(),
-        })
-        .await?;
-
-    if match touchpoint {
-        Touchpoint::Email { active, .. } | Touchpoint::Phone { active, .. } => active,
-        _ => false,
-    } {
-        let msg = "Touchpoint already active";
-        error!("{msg}");
-        return Err(ApiError::Specific {
-            code: ErrorCode::TouchpointAlreadyActive,
-            detail: Some(msg.to_string()),
-            field: None,
-        });
-    }
-
-    let scope = CommsVerificationScope::AddTouchpointId(touchpoint_id.clone());
-    comms_verification_service
-        .consume_verification_for_scope(ConsumeVerificationForScopeInput {
-            account_id: account_id.clone(),
-            scope: scope.clone(),
-        })
-        .await?;
-
-    account_service
         .activate_touchpoint_for_account(ActivateTouchpointForAccountInput {
-            account_id: account_id.clone(),
+            account_id: &account_id,
             touchpoint_id,
+            dry_run: false,
         })
         .await?;
 
@@ -633,7 +695,9 @@ async fn activate_touchpoint_for_account(
         .await?;
     }
 
-    Ok(Json(AccountActivateTouchpointResponse {}))
+    Ok(Json(PrivilegedActionResponse::Completed(
+        AccountActivateTouchpointResponse {},
+    )))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -702,31 +766,17 @@ async fn account_status(
 ) -> Result<Json<GetAccountStatusResponse>, ApiError> {
     //TODO: Update this when we introduce Trusted Contacts
     let account = account_service
-        .fetch_account(FetchAccountInput {
+        .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
-
-    let (active_keyset_id, active_spending_keyset) = match account {
-        Account::Full(full_account) => (
-            Some(full_account.active_keyset_id.clone()),
-            full_account.active_spending_keyset().cloned(),
-        ),
-        Account::Software(software_account) => (
-            software_account.active_keyset_id.clone(),
-            software_account.active_spending_keyset().cloned(),
-        ),
-        _ => (None, None),
-    };
-
-    if let (Some(keyset_id), Some(spending)) = (active_keyset_id, active_spending_keyset) {
-        return Ok(Json(GetAccountStatusResponse {
-            keyset_id,
-            spending,
-        }));
-    }
-
-    Err(RouteError::NoActiveSpendKeyset)?
+    Ok(Json(GetAccountStatusResponse {
+        keyset_id: account.clone().active_keyset_id,
+        spending: account
+            .active_spending_keyset()
+            .ok_or(RouteError::NoActiveSpendKeyset)?
+            .to_owned(),
+    }))
 }
 
 pub const MAINNET_DERIVATION_PATH: &str = "m/84'/0'/0'";
@@ -1433,8 +1483,16 @@ pub async fn rotate_spending_keyset(
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct InititateDistributedKeygenRequest {
+    pub network: bdk_utils::bdk::bitcoin::Network,
+    pub sealed_request: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct InititateDistributedKeygenResponse {
-    pub keyset_id: KeysetId,
+    pub key_definition_id: KeyDefinitionId,
+    pub sealed_response: String,
 }
 
 #[instrument(skip(account_service))]
@@ -1444,7 +1502,7 @@ pub struct InititateDistributedKeygenResponse {
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = SpendingKeysetRequest,
+    request_body = InititateDistributedKeygenRequest,
     responses(
         (status = 200, description = "Initiated distributed keygen", body=InititateDistributedKeygenResponse),
         (status = 404, description = "Account not found")
@@ -1453,8 +1511,8 @@ pub struct InititateDistributedKeygenResponse {
 pub async fn initiate_distributed_keygen(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    State(wsm_client): State<WsmClient>,
-    Json(request): Json<SpendingKeysetRequest>,
+    State(_wsm_client): State<WsmClient>,
+    Json(request): Json<InititateDistributedKeygenRequest>,
 ) -> Result<Json<InititateDistributedKeygenResponse>, ApiError> {
     // TODO: Are there ever sweeps? Or should this only ever be called once in the lifetime of a software account?
     // If there are sweeps, does this need to be time-delayed, or does activation?
@@ -1465,77 +1523,114 @@ pub async fn initiate_distributed_keygen(
         })
         .await?;
 
-    if let Some((keyset_id, _)) = account
-        .spending_keysets
-        .iter()
-        .find(|(_, spending_keyset)| spending_keyset.app_dpub == request.app)
-    {
-        return Ok(Json(InititateDistributedKeygenResponse {
-            keyset_id: keyset_id.to_owned(),
-        }));
-    }
+    // TODO: idempotency?
 
     // Don't allow account to hop networks
     if account
-        .spending_keysets
+        .spending_key_definitions
         .iter()
-        .any(|(_, keyset)| keyset.network != request.network.into())
+        .any(|(_, d)| d.network() != request.network.into())
     {
-        return Err(RouteError::InvalidNetworkForNewKeyset)?;
+        return Err(RouteError::InvalidNetworkForNewKeyDefinition)?;
     }
 
-    let keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
-    let key = wsm_client
-        .create_root_key(&keyset_id.to_string(), request.network)
-        .await
+    let key_definition_id = KeyDefinitionId::gen().map_err(RouteError::InvalidIdentifier)?;
+
+    let (aggregate_public_key, sealed_response) = {
+        // Fake wsm
+        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+        use crypto::frost::dkg::{server::initiate_dkg, SharePackage};
+
+        let request_bytes = b64.decode(request.sealed_request.as_bytes()).map_err(|e| {
+            let msg = "Failed to decode sealed request";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let request = serde_json::from_slice::<Value>(&request_bytes).map_err(|e| {
+            let msg = "Failed to deserialize sealed request";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let app_share_package_value = request.get("app_share_package").ok_or_else(|| {
+            let msg = "Missing app_share_package in sealed request";
+            error!("{msg}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let app_share_package = serde_json::from_value::<SharePackage>(
+            app_share_package_value.clone(),
+        )
         .map_err(|e| {
-            let msg = "Failed to create new key in WSM";
+            let msg = "Failed to deserialize app_share_package";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let initiate_result = initiate_dkg(&app_share_package).map_err(|e| {
+            let msg = "Failed to initiate DKG";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let response = json!(
+            {
+                "server_share_package": initiate_result.share_package,
+                "server_key_commitments": initiate_result.share_details.key_commitments,
+            }
+        );
+
+        let response_bytes = serde_json::to_vec(&response).map_err(|e| {
+            let msg = "Failed to serialize sealed response";
             error!("{msg}: {e}");
             ApiError::GenericInternalApplicationError(msg.to_string())
         })?;
 
-    let spending_server_dpub = DescriptorPublicKey::from_str(&key.xpub).map_err(|e| {
-        let msg = "Failed to parse spending dpub from WSM";
-        error!("{msg}: {e}");
-        ApiError::GenericInternalApplicationError(msg.to_string())
-    })?;
+        (
+            initiate_result
+                .share_details
+                .key_commitments
+                .aggregate_public_key,
+            b64.encode(response_bytes),
+        )
+    };
 
     account_service
-        .create_inactive_spending_keyset(CreateInactiveSpendingKeysetInput {
-            account_id,
-            spending_keyset_id: keyset_id.clone(),
-            spending: SpendingKeyset {
-                network: request.network.into(),
-                app_dpub: request.app,
-                hardware_dpub: request.hardware,
-                server_dpub: spending_server_dpub,
-            },
+        .put_inactive_spending_distributed_key(PutInactiveSpendingDistributedKeyInput {
+            account_id: &account_id,
+            spending_key_definition_id: &key_definition_id,
+            spending: SpendingDistributedKey::new(
+                request.network.into(),
+                aggregate_public_key.to_public_key(),
+                false,
+            ),
         })
         .await?;
 
-    Ok(Json(InititateDistributedKeygenResponse { keyset_id }))
+    Ok(Json(InititateDistributedKeygenResponse {
+        key_definition_id,
+        sealed_response,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ContinueDistributedKeygenRequest {}
+pub struct ContinueDistributedKeygenRequest {
+    pub sealed_request: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ContinueDistributedKeygenResponse {
-    #[serde(with = "bdk_utils::serde::descriptor_key")]
-    pub spending: DescriptorPublicKey,
-    #[serde(default)]
-    pub spending_sig: Option<String>,
-}
+pub struct ContinueDistributedKeygenResponse {}
 
 #[instrument(skip(account_service))]
 #[utoipa::path(
     put,
-    path = "/api/accounts/{account_id}/distributed-keygen/{keyset_id}",
+    path = "/api/accounts/{account_id}/distributed-keygen/{key_definition_id}",
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
-        ("keyset_id" = KeysetId, Path, description = "KeysetId"),
+        ("key_definition_id" = KeyDefinitionId, Path, description = "KeyDefinitionId"),
     ),
     request_body = ContinueDistributedKeygenRequest,
     responses(
@@ -1544,9 +1639,9 @@ pub struct ContinueDistributedKeygenResponse {
     ),
 )]
 pub async fn continue_distributed_keygen(
-    Path((account_id, keyset_id)): Path<(AccountId, KeysetId)>,
+    Path((account_id, key_definition_id)): Path<(AccountId, KeyDefinitionId)>,
     State(account_service): State<AccountService>,
-    State(wsm_client): State<WsmClient>,
+    State(_wsm_client): State<WsmClient>,
     Json(request): Json<ContinueDistributedKeygenRequest>,
 ) -> Result<Json<ContinueDistributedKeygenResponse>, ApiError> {
     let account = account_service
@@ -1555,47 +1650,124 @@ pub async fn continue_distributed_keygen(
         })
         .await?;
 
-    if let Some(keyset) = account.spending_keysets.get(&keyset_id) {
-        let spending_sig = maybe_get_wsm_integrity_sig(&wsm_client, &keyset_id.to_string()).await;
+    let Some(key_definition) = account.spending_key_definitions.get(&key_definition_id) else {
+        return Err(ApiError::GenericNotFound(
+            "Key definition not found".to_string(),
+        ));
+    };
 
-        return Ok(Json(ContinueDistributedKeygenResponse {
-            spending: keyset.server_dpub.clone(),
-            spending_sig,
-        }));
+    let SpendingKeyDefinition::DistributedKey(distributed_key) = key_definition else {
+        return Err(ApiError::GenericBadRequest(
+            "Key definition is not a distributed key".to_string(),
+        ));
+    };
+
+    if distributed_key.dkg_complete {
+        return Err(ApiError::GenericConflict(
+            "Keygen is already complete for key definition".to_string(),
+        ));
     }
 
-    Err(ApiError::GenericNotFound("Keyset not found".to_string()))
+    {
+        // Fake wsm
+        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
+        use crypto::frost::dkg::{
+            app::initiate_dkg as initiate_app_dkg,
+            server::{continue_dkg, initiate_dkg},
+        };
+
+        let request_bytes = b64.decode(request.sealed_request.as_bytes()).map_err(|e| {
+            let msg = "Failed to decode sealed request";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let request = serde_json::from_slice::<Value>(&request_bytes).map_err(|e| {
+            let msg = "Failed to deserialize sealed request";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let app_key_commitments_value = request.get("app_key_commitments").ok_or_else(|| {
+            let msg = "Missing app_key_commitments in sealed request";
+            error!("{msg}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        let app_key_commitments = serde_json::from_value::<KeyCommitments>(
+            app_key_commitments_value.clone(),
+        )
+        .map_err(|e| {
+            let msg = "Failed to deserialize app_key_commitments";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+
+        // The following will come from persistence when implemented in WSM, but regen from scratch
+        // since fakes are hardcoded
+        let app_share_package = initiate_app_dkg().map_err(|e| {
+            let msg = "Failed to initiate app DKG";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+        let initiate_result = initiate_dkg(&app_share_package).map_err(|e| {
+            let msg = "Failed to initiate DKG";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+        continue_dkg(initiate_result.share_details, &app_key_commitments).map_err(|e| {
+            let msg = "Failed to continue DKG";
+            error!("{msg}: {e}");
+            ApiError::GenericBadRequest(msg.to_string())
+        })?;
+    };
+
+    account_service
+        .put_inactive_spending_distributed_key(PutInactiveSpendingDistributedKeyInput {
+            account_id: &account_id,
+            spending_key_definition_id: &key_definition_id,
+            spending: SpendingDistributedKey::new(
+                distributed_key.network,
+                distributed_key.public_key,
+                true,
+            ),
+        })
+        .await?;
+
+    Ok(Json(ContinueDistributedKeygenResponse {}))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ActivateSpendingDescriptorRequest {
-    pub keyset_id: KeysetId,
+pub struct ActivateSpendingKeyDefinitionRequest {
+    pub key_definition_id: KeyDefinitionId,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ActivateSpendingDescriptorResponse {}
+pub struct ActivateSpendingKeyDefinitionResponse {}
 
 #[instrument(skip(account_service))]
 #[utoipa::path(
     put,
-    path = "/api/accounts/{account_id}/spending-descriptor",
+    path = "/api/accounts/{account_id}/spending-key-definition",
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = ActivateSpendingDescriptorRequest,
+    request_body = ActivateSpendingKeyDefinitionRequest,
     responses(
-        (status = 200, description = "Activated spending descriptor", body=ActivateSpendingDescriptorResponse),
+        (status = 200, description = "Activated spending key definition", body=ActivateSpendingKeyDefinitionResponse),
         (status = 404, description = "Account not found")
     ),
 )]
-pub async fn activate_spending_descriptor(
+pub async fn activate_spending_key_definition(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(wsm_client): State<WsmClient>,
-    Json(request): Json<ActivateSpendingDescriptorRequest>,
-) -> Result<Json<ActivateSpendingDescriptorResponse>, ApiError> {
+    Json(request): Json<ActivateSpendingKeyDefinitionRequest>,
+) -> Result<Json<ActivateSpendingKeyDefinitionResponse>, ApiError> {
     // Ensure endpoint only called by software accounts
     account_service
         .fetch_software_account(FetchAccountInput {
@@ -1603,14 +1775,16 @@ pub async fn activate_spending_descriptor(
         })
         .await?;
 
+    // TODO: Delay and notify?
+
     account_service
-        .rotate_to_spending_keyset(RotateToSpendingKeysetInput {
+        .rotate_to_spending_key_definition(RotateToSpendingKeyDefinitionInput {
             account_id: &account_id,
-            keyset_id: &request.keyset_id,
+            key_definition_id: &request.key_definition_id,
         })
         .await?;
 
-    return Ok(Json(ActivateSpendingDescriptorResponse {}));
+    return Ok(Json(ActivateSpendingKeyDefinitionResponse {}));
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]

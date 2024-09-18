@@ -12,6 +12,7 @@ use thiserror::Error;
 use tracing::{event, instrument};
 
 use wsm_common::enclave_log::LogBuffer;
+use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, LoadIntegrityKeyRequest,
 };
@@ -116,6 +117,17 @@ impl EnclaveClient {
         let result = self
             .post_request_with_dek(SecretRequest::new("sign-psbt", req.dek_id.clone(), req))
             .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn attestation_doc(&self) -> anyhow::Result<AttestationDocResponse> {
+        let result = self
+            .client
+            .get(self.endpoint.join("attestation-doc-from-enclave")?)
+            .send()
+            .await?;
+        handle_enclave_logs(&result).await;
         Ok(result.json().await?)
     }
 

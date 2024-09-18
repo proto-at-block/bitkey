@@ -2,10 +2,7 @@ use std::collections::HashMap;
 use std::{env, env::VarError};
 
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
-use bdk_utils::{
-    bdk::{bitcoin::Network as BitcoinNetwork, miniscript::DescriptorPublicKey},
-    DescriptorKeyset,
-};
+use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 
 use isocountry::CountryCode;
 use serde::{Deserialize, Serialize};
@@ -13,8 +10,9 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display as StrumDisplay, EnumString};
 
 use time::{serde::rfc3339, OffsetDateTime};
-use types::account::identifiers::TouchpointId;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
+use types::account::identifiers::{KeyDefinitionId, TouchpointId};
+use types::account::spending::{SpendingKeyDefinition, SpendingKeyset};
 use types::account::{AccountType, PubkeysToAccount};
 use types::notification::{NotificationChannel, NotificationsPreferencesState};
 use types::privileged_action::shared::PrivilegedActionDelayDuration;
@@ -427,10 +425,10 @@ impl From<LiteAccount> for Account {
 pub struct SoftwareAccount {
     #[serde(rename = "partition_key")]
     pub id: AccountId,
-    // Spending Keysets
-    pub active_keyset_id: Option<KeysetId>,
+    // Spending Key Definitions
+    pub active_key_definition_id: Option<KeyDefinitionId>,
     #[serde(default)]
-    pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
+    pub spending_key_definitions: HashMap<KeyDefinitionId, SpendingKeyDefinition>,
     pub application_auth_pubkey: PublicKey,
     #[serde(default)]
     pub auth_keys: HashMap<AuthKeysId, SoftwareAccountAuthKeys>,
@@ -451,9 +449,9 @@ impl SoftwareAccount {
         let recovery_auth_pubkey = Some(auth.recovery_pubkey);
         Self {
             id: account_id,
-            active_keyset_id: None,
+            active_key_definition_id: None,
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
-            spending_keysets: HashMap::new(),
+            spending_key_definitions: HashMap::new(),
             application_auth_pubkey,
             common_fields: CommonAccountFields {
                 active_auth_keys_id,
@@ -472,13 +470,6 @@ impl SoftwareAccount {
 
     pub fn active_auth_keys(&self) -> Option<&SoftwareAccountAuthKeys> {
         self.auth_keys.get(&self.common_fields.active_auth_keys_id)
-    }
-
-    pub fn active_spending_keyset(&self) -> Option<&SpendingKeyset> {
-        match &self.active_keyset_id {
-            Some(keyset_id) => self.spending_keysets.get(keyset_id),
-            None => None,
-        }
     }
 }
 
@@ -641,78 +632,6 @@ impl SoftwareAccountAuthKeys {
             app_pubkey,
             recovery_pubkey,
         }
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Network {
-    #[default]
-    #[serde(rename = "bitcoin-main")]
-    BitcoinMain,
-    #[serde(rename = "bitcoin-test")]
-    BitcoinTest,
-    #[serde(rename = "bitcoin-signet")]
-    BitcoinSignet,
-    #[serde(rename = "bitcoin-regtest")]
-    BitcoinRegtest,
-}
-
-impl From<Network> for BitcoinNetwork {
-    fn from(value: Network) -> Self {
-        match value {
-            Network::BitcoinMain => BitcoinNetwork::Bitcoin,
-            Network::BitcoinTest => BitcoinNetwork::Testnet,
-            Network::BitcoinSignet => BitcoinNetwork::Signet,
-            Network::BitcoinRegtest => BitcoinNetwork::Regtest,
-        }
-    }
-}
-
-impl From<BitcoinNetwork> for Network {
-    fn from(value: BitcoinNetwork) -> Self {
-        match value {
-            BitcoinNetwork::Bitcoin => Network::BitcoinMain,
-            BitcoinNetwork::Testnet => Network::BitcoinTest,
-            BitcoinNetwork::Signet => Network::BitcoinSignet,
-            BitcoinNetwork::Regtest => Network::BitcoinRegtest,
-            _ => unimplemented!(),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SpendingKeyset {
-    pub network: Network,
-
-    // Public Keys
-    #[serde(with = "bdk_utils::serde::descriptor_key")]
-    pub app_dpub: DescriptorPublicKey,
-    #[serde(with = "bdk_utils::serde::descriptor_key")]
-    pub hardware_dpub: DescriptorPublicKey,
-    #[serde(with = "bdk_utils::serde::descriptor_key")]
-    pub server_dpub: DescriptorPublicKey,
-}
-
-impl SpendingKeyset {
-    #[must_use]
-    pub fn new(
-        network: Network,
-        app_xpub: DescriptorPublicKey,
-        hardware_xpub: DescriptorPublicKey,
-        server_xpub: DescriptorPublicKey,
-    ) -> Self {
-        Self {
-            network,
-            app_dpub: app_xpub,
-            hardware_dpub: hardware_xpub,
-            server_dpub: server_xpub,
-        }
-    }
-}
-
-impl From<SpendingKeyset> for DescriptorKeyset {
-    fn from(k: SpendingKeyset) -> Self {
-        DescriptorKeyset::new(k.network.into(), k.app_dpub, k.hardware_dpub, k.server_dpub)
     }
 }
 

@@ -1,17 +1,19 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import kotlinx.collections.immutable.ImmutableList
 
 class BitcoinTransactionBumpabilityCheckerImpl(
-  val sweepChecker: BitcoinTransactionSweepChecker,
+  private val sweepChecker: BitcoinTransactionSweepChecker,
 ) : BitcoinTransactionBumpabilityChecker {
   override fun isBumpable(
     transaction: BitcoinTransaction,
     walletUnspentOutputs: ImmutableList<BdkUtxo>,
   ): Boolean {
     return !sweepChecker.isSweep(transaction, walletUnspentOutputs) &&
-      !transaction.incoming &&
-      transaction.confirmationStatus == BitcoinTransaction.ConfirmationStatus.Pending
+      transaction.transactionType == Outgoing &&
+      transaction.confirmationStatus == Pending
   }
 }

@@ -170,34 +170,6 @@ async fn transfers_unauthorized_error() {
 }
 
 #[tokio::test]
-async fn transfers_redirect_transfer_not_supported() {
-    let app = authed_router(partner_blocklist_overrides("")).await;
-    let request_body = json!({
-        "fiat_amount": 100,
-        "fiat_currency": "USD",
-        "payment_method": "CARD",
-        "address": "x",
-        "partner": "SignetFaucet"
-    });
-
-    let (status, body) = call_api(
-        app,
-        true,
-        http::Method::POST,
-        "/api/partnerships/transfers/redirects",
-        Some(&request_body.to_string()),
-    )
-    .await;
-
-    let expected_body = json!({
-        "error": "Internal Server Error",
-        "message": "Issue with configuration for partner Signet Faucet: Transfer not supported"
-    });
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(body, expected_body);
-}
-
-#[tokio::test]
 async fn transfers_redirect_unauthorized_error() {
     let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
@@ -328,15 +300,18 @@ async fn purchases_redirect() {
     )
     .await;
 
-    let expected_body = json!({
-        "redirect_info": {
-            "app_restrictions": null,
-            "redirect_type": "WIDGET",
-            "url": "https://signet.bc-2.jp/",
-        }
-    });
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, expected_body);
+
+    let redirect_info = body.get("redirect_info").unwrap();
+    assert_eq!(redirect_info.get("app_restrictions"), Some(&Value::Null));
+    assert_eq!(
+        redirect_info.get("redirect_type"),
+        Some(&Value::String("WIDGET".to_string()))
+    );
+    assert_eq!(
+        redirect_info.get("url"),
+        Some(&Value::String("https://signet.bc-2.jp/".to_string()))
+    );
 }
 
 #[tokio::test]

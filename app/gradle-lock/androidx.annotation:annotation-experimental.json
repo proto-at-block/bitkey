@@ -2,11 +2,11 @@
     "module-identifier": "androidx.annotation:annotation-experimental",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.4.1",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-experimental-1.4.0.aar": "c6eb7e676011ec65b32428373d450debdfc45179c4f8b3a752174fb87c17b08a"
+                        "annotation-experimental-1.4.1.aar": "6bd4c7c7476f8260cd3bdbb81183583e93fc9f790c27dea7dc314181cbf87aa0"
                     }
                 }
             ],

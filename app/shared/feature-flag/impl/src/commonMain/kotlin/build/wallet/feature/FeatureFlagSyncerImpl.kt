@@ -1,6 +1,6 @@
 package build.wallet.feature
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
@@ -27,7 +27,7 @@ import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
 
 class FeatureFlagSyncerImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,
   private val featureFlagsF8eClient: FeatureFlagsF8eClient,
   private val clock: Clock,
@@ -70,7 +70,7 @@ class FeatureFlagSyncerImpl(
         return
       }
 
-      val account = accountRepository.accountStatus().first().get()?.let {
+      val account = accountService.accountStatus().first().get()?.let {
         when (it) {
           is AccountStatus.ActiveAccount -> it.account
           is AccountStatus.LiteAccountUpgradingToFullAccount -> it.account

@@ -29,7 +29,7 @@ interface GetFingerprintEnrollmentStatus {
 };
 
 interface SignTransaction {
-  constructor(PartiallySignedTransaction serialized_psbt);
+  constructor(PartiallySignedTransaction serialized_psbt, boolean async_sign);
   [Throws=CommandError]
   PartiallySignedTransactionState next(sequence<u8> response);
 };
@@ -138,7 +138,7 @@ interface GetAuthenticationKeyV2 {
 };
 
 interface SignChallenge {
-  constructor(sequence<u8> challenge);
+  constructor(sequence<u8> challenge, boolean async_sign);
   [Throws=CommandError]
   SignatureState next(sequence<u8> response);
 };
@@ -387,6 +387,8 @@ enum CommandError {
   "AttestationError",
   "FileNotFound",
   "InvalidState",
+  "InProgress",
+  "Timeout",
 };
 
 enum FirmwareSlot {
@@ -406,6 +408,7 @@ enum FirmwareFeatureFlag {
   "Unlock",
   "MultipleFingerprints",
   "ImprovedFingerprintEnrollment",
+  "AsyncSigning",
 };
 
 enum SecureBootConfig {

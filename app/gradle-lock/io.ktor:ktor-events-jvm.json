@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-events-jvm",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-events-jvm-2.3.9.jar": "406c39f54de51d943ef0b4dc2ed8564e1d9d02fa015de2fa05623800c2f61c83"
+                        "ktor-events-jvm-2.3.11.jar": "f760e693bb696aaf6cac58445c5236858d10cd7c15084ac20c7a7505ae7491a7"
                     }
                 }
             ],

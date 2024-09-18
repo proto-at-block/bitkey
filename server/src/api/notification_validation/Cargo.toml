@@ -6,6 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 async-trait = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 
@@ -13,3 +14,5 @@ time = { workspace = true }
 errors = { workspace = true }
 notification = { workspace = true }
 recovery = { workspace = true }
+repository = { workspace = true, features = ["privileged_action"] }
+types = { workspace = true, features = ["privileged_action"] }

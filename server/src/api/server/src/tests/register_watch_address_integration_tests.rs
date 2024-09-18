@@ -1,5 +1,4 @@
 use crate::GenServiceOverrides;
-use account::entities::Network::BitcoinSignet;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
@@ -11,10 +10,11 @@ use notification::address_repo::ddb::service::Service as AddressRepoDDB;
 use notification::address_repo::memory::Service as AddressRepoMemory;
 use notification::address_repo::{AddressAndKeysetId, AddressWatchlistTrait};
 use rstest::{fixture, rstest};
+use types::account::bitcoin::Network::BitcoinSignet;
 use types::account::identifiers::{AccountId, KeysetId};
 
 use crate::tests::gen_services_with_overrides;
-use crate::tests::lib::create_account;
+use crate::tests::lib::create_full_account;
 use crate::tests::requests::axum::TestClient;
 
 fn memory_repo() -> impl AddressWatchlistTrait + Clone {
@@ -42,8 +42,10 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
         let overrides = GenServiceOverrides::new().address_repo(Box::new(address_repo.clone()));
         let (mut ctx, bootstrap) = gen_services_with_overrides(overrides).await;
         let client = TestClient::new(bootstrap.router).await;
-        let account_1 = create_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
-        let account_2 = create_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
+        let account_1 =
+            create_full_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
+        let account_2 =
+            create_full_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
 
         Self {
             address_repo,

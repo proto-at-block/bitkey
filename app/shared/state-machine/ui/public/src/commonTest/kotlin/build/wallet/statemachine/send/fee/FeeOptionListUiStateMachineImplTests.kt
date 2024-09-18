@@ -11,7 +11,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
@@ -29,7 +28,6 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
   )
 
   val props = FeeOptionListProps(
-    accountData = ActiveKeyboxLoadedDataMock,
     transactionBaseAmount = BitcoinMoney.btc(1.0),
     fees = persistentMapOf(
       FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),

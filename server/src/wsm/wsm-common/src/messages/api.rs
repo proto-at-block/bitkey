@@ -58,3 +58,11 @@ pub struct GetIntegritySigRequest {
 pub struct GetIntegritySigResponse {
     pub signature: String,
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AttestationDocRequest {}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct AttestationDocResponse {
+    pub document: Vec<u8>,
+}

@@ -106,7 +106,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
     }
 
     fn sign_message(&self, message: &[u8]) -> Result<Signature, TransactorError> {
-        let command = SignChallenge::new(message.to_vec());
+        let command = SignChallenge::new(message.to_vec(), false);
         self.perform(command)
     }
 
@@ -114,7 +114,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
         &self,
         psbt: PartiallySignedTransaction,
     ) -> Result<PartiallySignedTransaction, TransactorError> {
-        self.perform(SignTransaction::new(psbt))
+        self.perform(SignTransaction::new(psbt, false))
     }
 
     fn device_info(&self) -> Result<DeviceInfo, TransactorError> {

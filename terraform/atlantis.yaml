@@ -770,6 +770,7 @@ projects:
       when_modified:
         - '*.tf*'
         - ./trusted-certs/development/*.crt
+        - '*.tfvars'
     execution_order_group: 1
   - name: firmware-signer-staging
     dir: aws/firmware-signer
@@ -779,6 +780,7 @@ projects:
       when_modified:
         - '*.tf*'
         - ./trusted-certs/staging/*.crt
+        - '*.tfvars'
     execution_order_group: 2
   - name: firmware-signer-production
     dir: aws/firmware-signer
@@ -788,5 +790,6 @@ projects:
       when_modified:
         - '*.tf*'
         - ./trusted-certs/production/*.crt
+        - '*.tfvars'
     execution_order_group: 3
 version: 3

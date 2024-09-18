@@ -51,10 +51,10 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Create Transaction") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { "test-uuid" },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
+    val partnerTransactionId = PartnershipTransactionId("test-uuid")
 
     val result = repository.create(
       partnerInfo = PartnerInfo(
@@ -62,6 +62,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
         name = "test-partner-name",
         logoUrl = "test-partner-logo-url"
       ),
+      id = partnerTransactionId,
       type = PartnershipTransactionType.PURCHASE
     )
 
@@ -70,7 +71,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       .shouldBeInstanceOf<PartnershipTransaction>()
       .should { result ->
         savedTransaction.shouldBeSameInstanceAs(result)
-        result.id.value.shouldBe("test-uuid")
+        result.id.shouldBe(partnerTransactionId)
         result.type.shouldBe(PartnershipTransactionType.PURCHASE)
         result.status.shouldBeNull()
         result.partnerInfo.partnerId.value.shouldBe("test-partner")
@@ -89,7 +90,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Sync Transaction") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -127,7 +127,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Sync Transaction -- DAO Save Failure") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -160,7 +159,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Sync Most Recent Transaction -- DAO delete Failure") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -189,7 +187,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Sync Most Recent Transaction -- Not Found") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -220,7 +217,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Sync Most Recent Transaction -- Server Error") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -243,7 +239,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Update Recent Transaction Status") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -270,7 +265,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Update Recent Transaction Status -- Stale Transaction") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -293,7 +287,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Update Recent Transaction Status -- No Transaction found") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -311,7 +304,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Update Recent Transaction Status -- Error") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -329,7 +321,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Get previously used partner IDs") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
@@ -349,7 +340,6 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   test("Get previously used partner IDs - DAO Failure") {
     val repository = PartnershipTransactionsRepositoryImpl(
       dao = daoMock,
-      uuidGenerator = { TODO() },
       clock = clock,
       getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )

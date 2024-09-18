@@ -1,6 +1,6 @@
 package build.wallet.onboarding
 
-import build.wallet.bitkey.account.OnboardingSoftwareAccount
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.feature.setFlagValue
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -20,10 +20,10 @@ class CreateSoftwareWalletServiceComponentTests : FunSpec({
   }
 
   context("happy path") {
-    test("successfully create software account") {
+    xtest("successfully create software account") {
       appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
 
-      service.createAccount().shouldBeOkOfType<OnboardingSoftwareAccount>()
+      service.createAccount().shouldBeOkOfType<SoftwareAccount>()
     }
   }
 

@@ -2,19 +2,6 @@
     "module-identifier": "com.google.code.gson:gson",
     "components": [
         {
-            "version": "2.10",
-            "variants": [
-                {
-                    "artifacts": {
-                        "gson-2.10.jar": "0cdd163ce3598a20fc04eee71b140b24f6f2a3b35f0a499dbbdd9852e83fbfaf"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "2.10.1",
             "variants": [
                 {
@@ -24,6 +11,7 @@
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "gradle-plugins[bitkey]"
             ]
         }

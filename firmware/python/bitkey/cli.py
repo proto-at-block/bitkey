@@ -379,10 +379,11 @@ def derive(ctx, network, path):
 @cli.command()
 @click.option('--digest', type=Sha256Hash, required=True)
 @click.option('--path', type=DerivationPath, required=True)
+@click.option('--async-sign/--no-async-sign', type=bool, required=False, default=False)
 @click.pass_context
-def derive_and_sign(ctx, digest, path):
+def derive_and_sign(ctx, digest, path, async_sign):
     wallet = ctx.obj
-    print_proto(wallet.derive_and_sign(digest.bytes, path.path))
+    print_proto(wallet.derive_and_sign(digest.bytes, path.path, async_sign))
 
 
 @cli.command

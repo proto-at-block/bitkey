@@ -163,7 +163,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 services
                     .comms_verification
                     .consume_verification_for_scope(ConsumeVerificationForScopeInput {
-                        account_id: account_id.clone(),
+                        account_id: &account_id,
                         scope: scope.clone(),
                     })
                     .await?;
@@ -352,7 +352,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 services
                     .comms_verification
                     .consume_verification_for_scope(ConsumeVerificationForScopeInput {
-                        account_id: account_id.clone(),
+                        account_id: &account_id,
                         scope: scope.clone(),
                     })
                     .await?;

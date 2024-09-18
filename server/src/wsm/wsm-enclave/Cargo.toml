@@ -10,6 +10,7 @@ name = "wsm-enclave"
 [dependencies]
 aes-gcm = "0.10.3"
 anyhow = { workspace = true }
+aws-nitro-enclaves-nsm-api = "0.4.0"
 axum = { workspace = true, features = ["json", "macros"] }
 axum-macros = { workspace = true }
 base64 = { workspace = true }

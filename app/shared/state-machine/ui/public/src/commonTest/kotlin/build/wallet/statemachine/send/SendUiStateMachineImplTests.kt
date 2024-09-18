@@ -7,17 +7,12 @@ import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
-import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.factor.SigningFactor
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -31,7 +26,6 @@ import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.SendEntryPoint.SendButton
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
@@ -94,7 +88,7 @@ class SendUiStateMachineImplTests : FunSpec({
   val props =
     SendUiProps(
       entryPoint = SendButton,
-      accountData = ActiveKeyboxLoadedDataMock,
+      account = FullAccountMock,
       validInvoiceInClipboard = null,
       onExit = {},
       onDone = {}
@@ -157,15 +151,13 @@ class SendUiStateMachineImplTests : FunSpec({
 
         // Step 5: User is shown the "Transfer Initiated" screen
         awaitScreenWithBodyModelMock<TransferInitiatedUiProps> {
-          val intendedFee = feeMap[FASTEST]
           val transferAmount = BitcoinMoney.sats(amountToSend.toBigInteger())
 
           with(
-            transferInitiatedVariant.shouldBeTypeOf<TransferInitiatedUiProps.Variant.Regular>()
+            transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
           ) {
-            feeBitcoinAmount.shouldBe(feeMap[FASTEST]!!.amount)
-            transferBitcoinAmount.shouldBe(transferAmount)
-            totalBitcoinAmount.shouldBe(intendedFee!!.amount + transferAmount)
+            feeAmount.shouldBe(feeMap[FASTEST]!!.amount)
+            this.transferAmount.shouldBe(transferAmount)
           }
         }
       }
@@ -280,15 +272,13 @@ class SendUiStateMachineImplTests : FunSpec({
 
         // Step 5: User is shown the "Transfer Initiated" screen
         awaitScreenWithBodyModelMock<TransferInitiatedUiProps> {
-          val intendedFee = feeMap[FASTEST]
           val transferAmount = BitcoinMoney.sats(60_000UL.toBigInteger())
 
           with(
-            transferInitiatedVariant.shouldBeTypeOf<TransferInitiatedUiProps.Variant.Regular>()
+            transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
           ) {
-            feeBitcoinAmount.shouldBe(feeMap[FASTEST]!!.amount)
-            transferBitcoinAmount.shouldBe(transferAmount)
-            totalBitcoinAmount.shouldBe(intendedFee!!.amount + transferAmount)
+            feeAmount.shouldBe(feeMap[FASTEST]!!.amount)
+            this.transferAmount.shouldBe(transferAmount)
           }
         }
       }
@@ -408,7 +398,7 @@ class SendUiStateMachineImplTests : FunSpec({
             newFeeRate = FeeRate(satsPerVByte = 2f),
             fees = persistentMapOf()
           ),
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         validInvoiceInClipboard = null,
         onExit = {},
         onDone = {}
@@ -435,11 +425,10 @@ class SendUiStateMachineImplTests : FunSpec({
           val transferAmount = BitcoinMoney.sats(amountToSend.toBigInteger())
 
           with(
-            transferInitiatedVariant.shouldBeTypeOf<TransferInitiatedUiProps.Variant.SpeedUp>()
+            transactionDetails.shouldBeTypeOf<TransactionDetails.SpeedUp>()
           ) {
-            transferBitcoinAmount.shouldBe(transferAmount)
-            newFeeAmount.shouldBe(intendedFee!!.amount)
-            totalBitcoinAmount.shouldBe(intendedFee.amount + transferAmount)
+            this.transferAmount.shouldBe(transferAmount)
+            feeAmount.shouldBe(intendedFee!!.amount)
           }
         }
       }

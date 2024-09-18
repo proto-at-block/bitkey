@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-swift-generator",
     "components": [
         {
-            "version": "4.9.8",
+            "version": "4.9.9",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-swift-generator-4.9.8.jar": "31ccdfdfde90f7059f5ea529bc57055872b1c1869f6ddbf07faf371909d3419e"
+                        "wire-swift-generator-4.9.9.jar": "19b9c80554ae7a676063ab6eeb85e265cd1ec137bb2f9709865e7bcd8a9472a9"
                     }
                 }
             ],

@@ -35,6 +35,7 @@ class PartnershipTransactionStatusRepositoryMock(
   }
 
   override suspend fun create(
+    id: PartnershipTransactionId,
     partnerInfo: PartnerInfo,
     type: PartnershipTransactionType,
   ): Result<PartnershipTransaction, Error> {

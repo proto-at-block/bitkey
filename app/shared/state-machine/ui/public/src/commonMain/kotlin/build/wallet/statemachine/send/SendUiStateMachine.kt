@@ -5,25 +5,24 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import kotlinx.collections.immutable.ImmutableMap
 
 interface SendUiStateMachine : StateMachine<SendUiProps, ScreenModel>
 
 /**
  * @property entryPoint - where the send flow is being launched from (pay or send button).
- * @property keybox - keybox to use for signing transfer transaction.
  * @property onExit - handler for exiting this state machine.
  * @property validInvoiceInClipboard payment information in clipboard (if any)
  * @property onDone handler for what the "Done" button does in the transfer confirmation screen.
  */
 data class SendUiProps(
   val entryPoint: SendEntryPoint,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
   val validInvoiceInClipboard: ParsedPaymentData?,
   val onExit: () -> Unit,
   val onDone: () -> Unit,

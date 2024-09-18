@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-http-iosx64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-http-iosx64-2.3.9-metadata.jar": "40e606bc5d4876cdbd229ebd0ffcbb4001eb898c609d1a214a07e3ce017bb925"
+                        "ktor-http-iosx64-2.3.11-metadata.jar": "8758ae6cf0d66d3aae422001bd383f172386ee266fe89334c1bb6e93f9029887"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-http.klib": "7354091525fbab4e73beb4b5b935f9a63d7e1e4e4ae1c04020bbb00d93852c82"
+                        "ktor-http.klib": "687a82ab98f7134864b1f98a62cf3ff1ed6c7ec8d47ced3e1fbb196313b766e4"
                     }
                 }
             ],

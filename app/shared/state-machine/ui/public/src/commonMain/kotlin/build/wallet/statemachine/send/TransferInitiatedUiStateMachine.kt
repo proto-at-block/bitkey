@@ -1,8 +1,7 @@
 package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.money.BitcoinMoney
+import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
@@ -20,36 +19,7 @@ interface TransferInitiatedUiStateMachine : StateMachine<TransferInitiatedUiProp
 data class TransferInitiatedUiProps(
   val onBack: () -> Unit,
   val recipientAddress: BitcoinAddress,
-  val transferInitiatedVariant: Variant,
-  val estimatedTransactionPriority: EstimatedTransactionPriority,
+  val transactionDetails: TransactionDetails,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val onDone: () -> Unit,
-) {
-  /**
-   * Represents the different types of transaction information we would show, depending on if we
-   * just made a regular transaction broadcast, or a fee bump.
-   */
-  sealed interface Variant {
-    val transferBitcoinAmount: BitcoinMoney
-
-    /**
-     * Regular transaction broadcast, shows transfer amount, fee, and total.
-     */
-    data class Regular(
-      override val transferBitcoinAmount: BitcoinMoney,
-      val feeBitcoinAmount: BitcoinMoney,
-      val totalBitcoinAmount: BitcoinMoney,
-    ) : Variant
-
-    /**
-     * Replace-by-fee (RBF) transaction broadcast, shows transfer amount, old fees, new fees, and
-     * total.
-     */
-    data class SpeedUp(
-      override val transferBitcoinAmount: BitcoinMoney,
-      val oldFeeAmount: BitcoinMoney,
-      val newFeeAmount: BitcoinMoney,
-      val totalBitcoinAmount: BitcoinMoney,
-    ) : Variant
-  }
-}
+)

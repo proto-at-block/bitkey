@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.4.1",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "layoutlib-api-31.4.1.jar": "3c9064c3c3ab0e73f3a5953d1c11c57dbf57a3297957c1d7d460c92e14cf34b2"
+                        "layoutlib-api-31.5.2.jar": "9271bf0b3fbde65e75a3e9c587701b8865d2f009ea159f2801ba98dbbc8ac360"
                     }
                 }
             ],

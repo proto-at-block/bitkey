@@ -1,6 +1,6 @@
 package build.wallet.auth
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -10,7 +10,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class OnboardingFullAccountDeleterImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val keyboxDao: KeyboxDao,
   private val deleteOnboardingFullAccountF8eClient: DeleteOnboardingFullAccountF8eClient,
 ) : OnboardingFullAccountDeleter {
@@ -25,7 +25,7 @@ class OnboardingFullAccountDeleterImpl(
         fullAccountId,
         hardwareProofOfPossession
       ).bind()
-      accountRepository.clear().bind()
+      accountService.clear().bind()
       keyboxDao.clear().bind()
     }
 }

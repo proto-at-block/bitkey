@@ -1,10 +1,12 @@
 package build.wallet.statemachine.send.fee
 
 import androidx.compose.runtime.*
+import build.wallet.account.AccountService
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bitcoin.fees.BitcoinTransactionBaseCalculator
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError
+import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.NoActiveAccountError
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
@@ -14,6 +16,9 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MIN
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.logging.LogLevel.Error
+import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.send.fee.FeeOptionsUiState.*
@@ -35,6 +40,7 @@ class FeeSelectionUiStateMachineImpl(
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionBaseCalculator: BitcoinTransactionBaseCalculator,
   private val transactionsService: TransactionsService,
+  private val accountService: AccountService,
 ) : FeeSelectionUiStateMachine {
   @Composable
   override fun model(props: FeeSelectionUiProps): BodyModel {
@@ -121,7 +127,6 @@ class FeeSelectionUiStateMachineImpl(
   ): BodyModel {
     val options = feeOptionListUiStateMachine.model(
       props = FeeOptionListProps(
-        accountData = props.accountData,
         transactionBaseAmount = state.transactionBaseAmount,
         fees = state.fees,
         defaultPriority = state.defaultPriority,
@@ -187,9 +192,18 @@ class FeeSelectionUiStateMachineImpl(
         .first()
         .balance
 
+      val account = accountService.activeAccount().first()
+      if (account !is FullAccount) {
+        log(level = Error) {
+          "No active full account found, when fetching fee options. Found account: $account."
+        }
+        onFeesLoadFailed(NoActiveAccountError)
+        return@LaunchedEffect
+      }
+
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
-        account = props.accountData.account,
+        account = account,
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount
       )

@@ -2,11 +2,11 @@
     "module-identifier": "aws.sdk.kotlin:aws-http-jvm",
     "components": [
         {
-            "version": "1.2.45",
+            "version": "1.3.20",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-http-jvm-1.2.45.jar": "4ad03d892aaaac394f04f5f96485fbe2585e107fac506de7d538202976dcd10b"
+                        "aws-http-jvm-1.3.20.jar": "388c36606d8a0a356e082ca2d4f9933eb6c305c7bed79640991a331dcea13796"
                     }
                 }
             ],

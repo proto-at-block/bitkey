@@ -15,6 +15,9 @@ use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::bitstamp::{BitstampRate, BitstampRateProvider};
 use types::exchange_rate::cash::{CashAppQuote, CashAppRateProvider};
+use types::exchange_rate::coingecko::{
+    CoingeckoCurrencyQuote, CoingeckoQuote, RateProvider as CoingeckoRateProvider,
+};
 use types::exchange_rate::local_rate_provider::{LocalRateProvider, LocalRateType};
 use types::exchange_rate::PriceAt;
 
@@ -152,6 +155,36 @@ impl SpotExchangeRateProvider for CashAppRateProvider {
                 ))?;
 
         Ok(latest_quote.base_value_cents as f64 / 100.0)
+    }
+}
+
+#[async_trait]
+impl SpotExchangeRateProvider for CoingeckoRateProvider {
+    type ResponseType = CoingeckoCurrencyQuote;
+
+    async fn request(
+        &self,
+        currency: &CurrencyCode,
+    ) -> Result<Self::ResponseType, ExchangeRateError> {
+        self.rate_request(currency)
+            .send()
+            .await
+            .map_err(ProviderUnreachable)?
+            .json::<CoingeckoQuote>()
+            .await
+            .map_err(|_| ProviderResponseError::Deserialization(Self::rate_provider_type()).into())
+            .and_then(|r| {
+                let quote = r
+                    .bitcoin
+                    .get(&currency.to_string().to_lowercase())
+                    .ok_or_else(|| ProviderResponseError::MissingData(Self::rate_provider_type()))?
+                    .to_owned();
+                Ok(CoingeckoCurrencyQuote { quote })
+            })
+    }
+
+    async fn parse_response(&self, response: Self::ResponseType) -> Result<f64, ExchangeRateError> {
+        Ok(response.quote)
     }
 }
 

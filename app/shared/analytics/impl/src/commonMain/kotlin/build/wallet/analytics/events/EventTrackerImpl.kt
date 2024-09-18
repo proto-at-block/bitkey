@@ -1,6 +1,6 @@
 package build.wallet.analytics.events
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDao
@@ -37,7 +37,7 @@ class EventTrackerImpl(
   private val clock: Clock,
   private val appDeviceIdDao: AppDeviceIdDao,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,
   private val countryCodeProvider: LocaleCountryCodeProvider,
   private val eventProcessor: Processor<QueueAnalyticsEvent>,
@@ -202,7 +202,7 @@ class EventTrackerImpl(
   }
 
   private suspend fun getCurrentAccount(): Account? {
-    return accountRepository.accountStatus().first().get()?.let {
+    return accountService.accountStatus().first().get()?.let {
       when (it) {
         is AccountStatus.ActiveAccount -> it.account
         is AccountStatus.LiteAccountUpgradingToFullAccount -> it.account

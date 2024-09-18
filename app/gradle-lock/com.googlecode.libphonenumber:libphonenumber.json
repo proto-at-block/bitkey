@@ -2,11 +2,11 @@
     "module-identifier": "com.googlecode.libphonenumber:libphonenumber",
     "components": [
         {
-            "version": "8.13.34",
+            "version": "8.13.36",
             "variants": [
                 {
                     "artifacts": {
-                        "libphonenumber-8.13.34.jar": "748d9fdcc8b068e95f3286405fb7aa31f19702f5ff249147b792d442c9c777d1"
+                        "libphonenumber-8.13.36.jar": "7cef4e70a2d10f6efb086572341e814f295feab3f1e89fb960476adfa02ebf08"
                     }
                 }
             ],

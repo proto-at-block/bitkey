@@ -7,6 +7,7 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.*
@@ -30,12 +31,14 @@ class AccountDaoImpl(
   override fun activeAccount(): Flow<Result<Account?, DbError>> {
     return combine(
       activeFullAccount(),
-      activeLiteAccount()
-    ) { activeFullAccountResult, activeLiteAccountResult ->
+      activeLiteAccount(),
+      activeSoftwareAccount()
+    ) { activeFullAccountResult, activeLiteAccountResult, activeSoftwareAccountResult ->
       coroutineBinding {
         val activeFullAccount = activeFullAccountResult.bind()
         val activeLiteAccount = activeLiteAccountResult.bind()
-        activeFullAccount ?: activeLiteAccount
+        val activeSoftwareAccount = activeSoftwareAccountResult.bind()
+        activeFullAccount ?: activeSoftwareAccount ?: activeLiteAccount
       }
     }
   }
@@ -64,8 +67,16 @@ class AccountDaoImpl(
           liteAccountQueries.setActiveLiteAccountId(accountId = account.accountId)
           liteAccountQueries.clearOnboardingLiteAccount()
         }
+        is SoftwareAccount -> {
+          softwareAccountQueries.activateSoftwareAccountAfterOnboarding(
+            softwareKeyboxId = account.keybox.id,
+            accountId = account.accountId,
+            appGlobalAuthKey = account.keybox.authKey,
+            appRecoveryAuthKey = account.keybox.recoveryAuthKey
+          )
+        }
         // TODO (W-8720): An OnboardingSoftwareAccount should never be set as active.
-        // This is a downside to our current separation of Onboarding and (soon)
+        // This is a downside to our current separation of Onboarding and
         // ActiveSoftwareAccount. We'll need to reconsider our interfaces for these two account states.
         is OnboardingSoftwareAccount -> error("Can't set an onboarding account as active")
       }
@@ -93,6 +104,7 @@ class AccountDaoImpl(
             isUsingSocRecFakes = account.config.isUsingSocRecFakes
           )
         }
+        is SoftwareAccount -> error("cannot set active software account for onboarding")
       }
     }.logFailure { "Failed to save account" }
   }
@@ -102,6 +114,8 @@ class AccountDaoImpl(
       liteAccountQueries.clear()
       fullAccountQueries.clear()
       softwareAccountQueries.clear()
+      // TODO (W-9113): Clean up inconsistency between AccountDao & KeyboxDao
+      softwareKeyboxQueries.clear()
     }.logFailure { "Error clearing account database state." }
   }
 
@@ -117,6 +131,13 @@ class AccountDaoImpl(
       .getActiveFullAccount()
       .asFlowOfOneOrNull()
       .mapResult { it?.toFullAccount(database) }
+  }
+
+  private fun activeSoftwareAccount(): Flow<Result<SoftwareAccount?, DbError>> {
+    return database.softwareAccountQueries
+      .getActiveSoftwareAccount()
+      .asFlowOfOneOrNull()
+      .mapResult { it?.toSoftwareAccount() }
   }
 
   private fun onboardingLiteAccount(): Flow<Result<LiteAccount?, DbError>> {
@@ -152,6 +173,22 @@ private fun GetOnboardingSoftwareAccount.toOnboardingSoftwareAccount() =
     ),
     appGlobalAuthKey = appGlobalAuthKey,
     recoveryAuthKey = appRecoveryAuthKey
+  )
+
+private fun SoftwareAccountWithKeyboxView.toSoftwareAccount() =
+  SoftwareAccount(
+    accountId = accountId,
+    config = SoftwareAccountConfig(
+      bitcoinNetworkType = bitcoinNetworkType,
+      f8eEnvironment = f8eEnvironment,
+      isTestAccount = isTestAccount,
+      isUsingSocRecFakes = isUsingSocRecFakes
+    ),
+    keybox = SoftwareKeybox(
+      id = keyboxId,
+      authKey = appGlobalAuthKey,
+      recoveryAuthKey = appRecoveryAuthKey
+    )
   )
 
 private fun GetActiveLiteAccount.toLiteAccount() =

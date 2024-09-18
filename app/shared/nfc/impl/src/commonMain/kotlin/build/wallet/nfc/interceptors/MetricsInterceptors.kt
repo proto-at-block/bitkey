@@ -38,7 +38,7 @@ fun collectMetrics(
   eventTracker: EventTracker,
 ) = NfcTransactionInterceptor { next ->
   { session, commands ->
-    datadogTracer.span(spanName = SPAN_NAME, resourceName = "transaction") {
+    datadogTracer.span(spanName = SPAN_NAME, resourceName = "nfcTransaction-${session.parameters.nfcFlowName}") {
       next(
         session,
         MetricsNfcCommandsImpl(

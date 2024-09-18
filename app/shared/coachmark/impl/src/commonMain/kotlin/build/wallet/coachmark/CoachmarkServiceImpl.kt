@@ -1,6 +1,6 @@
 package build.wallet.coachmark
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.bitkey.account.FullAccount
@@ -15,7 +15,7 @@ import kotlin.time.Duration.Companion.days
 
 class CoachmarkServiceImpl(
   private val coachmarkDao: CoachmarkDao,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val coachmarkVisibilityDecider: CoachmarkVisibilityDecider,
   private val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
   private val eventTracker: EventTracker,
@@ -30,7 +30,7 @@ class CoachmarkServiceImpl(
         return@coroutineBinding emptyList<CoachmarkIdentifier>()
       }
 
-      val accountStatus = accountRepository
+      val accountStatus = accountService
         .accountStatus()
         .first()
         .bind()

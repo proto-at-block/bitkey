@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-http-jvm",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-http-jvm-2.3.9.jar": "76a61def27a9851d7c62dd7821e29ff9afa2a63d483415bd164323de7ee349e1"
+                        "ktor-http-jvm-2.3.11.jar": "050333e1b8b3ff3070be3216e1f3ee78fa9d650ac8d211041d05bf48259b4df6"
                     }
                 }
             ],

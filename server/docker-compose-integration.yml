@@ -27,6 +27,26 @@ services:
     environment:
       REGTEST_ELECTRUM_SERVER_URI: tcp://toxiproxy:8102
       REGTEST_ELECTRUM_SERVER_EXTERNAL_URI: tcp://localhost:8101
+      PARTNER_SECRET_OVERRIDE_TESTNETFAUCET: |
+        {
+          "partner": "TestnetFaucet",
+          "partner_id": "bitkey",
+          "network": "testnet",
+          "base_url": "https://bitcoinfaucet.uo1.net/send.php",
+          "transfer_url": "https://bitcoinfaucet.uo1.net/send.php",
+          "transfer_redirect_type": "WIDGET",
+          "display_name": "Testnet Faucet"
+        }
+      PARTNER_SECRET_OVERRIDE_SIGNETFAUCET: |
+        {
+          "partner": "SignetFaucet",
+          "partner_id": "bitkey",
+          "network": "signet",
+          "base_url": "https://signetfaucet.com/",
+          "purchase_url": "https://signetfaucet.com/",
+          "purchase_redirect_type": "WIDGET",
+          "display_name": "Signet Faucet"
+        }
     # We put wallet-api on the esplora container's network so that
     # wallet-api can talk to esplora on localhost.
     # If we don't this, we have to configure fromagerie with a container-internal

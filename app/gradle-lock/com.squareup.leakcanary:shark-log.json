@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:shark-log",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "shark-log-2.13.jar": "3d369005c94a0d21228ebabfe619144353eac68351793baa2f64d06f1fbb5938"
+                        "shark-log-2.14.jar": "ba1011ae450664f7e8e37c5b6e5e01660b11456ddca8960b5cbe6df0e3f99926"
                     }
                 }
             ],

@@ -14,9 +14,9 @@ use super::{
 impl Service {
     pub async fn fetch_touchpoint_by_id(
         &self,
-        input: FetchTouchpointByIdInput,
+        input: FetchTouchpointByIdInput<'_>,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.account_repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(input.account_id).await?;
 
         if let Some(touchpoint) = account.get_touchpoint_by_id(input.touchpoint_id) {
             Ok(touchpoint.to_owned())
@@ -28,9 +28,9 @@ impl Service {
 
     pub async fn fetch_or_create_email_touchpoint(
         &self,
-        input: FetchOrCreateEmailTouchpointInput,
+        input: FetchOrCreateEmailTouchpointInput<'_>,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.account_repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(input.account_id).await?;
 
         if let Some(existing_touchpoint) =
             account.get_touchpoint_by_email_address(input.email_address.to_owned())
@@ -61,9 +61,9 @@ impl Service {
 
     pub async fn fetch_or_create_phone_touchpoint(
         &self,
-        input: FetchOrCreatePhoneTouchpointInput,
+        input: FetchOrCreatePhoneTouchpointInput<'_>,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.account_repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(input.account_id).await?;
 
         if let Some(existing_touchpoint) =
             account.get_touchpoint_by_phone_number(input.phone_number.to_owned())

@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-schema-jvm",
     "components": [
         {
-            "version": "4.9.8",
+            "version": "4.9.9",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-schema-jvm-4.9.8.jar": "b32b1cf98efba39eab92c01dbb31ad39b7e6356110e278253ad0e433f5c67245"
+                        "wire-schema-jvm-4.9.9.jar": "b32b1cf98efba39eab92c01dbb31ad39b7e6356110e278253ad0e433f5c67245"
                     }
                 }
             ],

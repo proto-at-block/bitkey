@@ -80,7 +80,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello")
+      accountId = FullAccountId("Hello")
     ).single().shouldBe(err)
   }
 
@@ -89,7 +89,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello")
+      accountId = FullAccountId("Hello")
     ).single().shouldBe(Ok(makePrefs()))
   }
 
@@ -99,7 +99,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello")
+      accountId = FullAccountId("Hello")
     ).single().shouldBe(Ok(makePrefs()))
   }
 
@@ -111,7 +111,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
     val resultFlow =
       notificationsPreferencesCachedProvider.getNotificationsPreferences(
         f8eEnvironment = F8eEnvironment.Development,
-        fullAccountId = FullAccountId("Hello")
+        accountId = FullAccountId("Hello")
       )
 
     resultFlow.first().shouldBe(Ok(makePrefs()))
@@ -126,7 +126,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello")
+      accountId = FullAccountId("Hello")
     ).single().shouldBe(Ok(prefs))
   }
 
@@ -137,7 +137,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello"),
+      accountId = FullAccountId("Hello"),
       preferences = makePrefs(setOf(NotificationChannel.Email)),
       null
     ).shouldBe(err)
@@ -151,7 +151,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello"),
+      accountId = FullAccountId("Hello"),
       preferences = makePrefs(setOf(NotificationChannel.Email)),
       null
     ).shouldBe(Ok(Unit))
@@ -165,7 +165,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello"),
+      accountId = FullAccountId("Hello"),
       preferences = makePrefs(setOf(NotificationChannel.Email)),
       null
     ).shouldBe(err)
@@ -178,7 +178,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
-      fullAccountId = FullAccountId("Hello"),
+      accountId = FullAccountId("Hello"),
       preferences = makePrefs(setOf(NotificationChannel.Email)),
       null
     ).shouldBe(Ok(Unit))

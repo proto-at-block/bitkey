@@ -6,6 +6,9 @@ import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.time.someInstant
@@ -28,7 +31,7 @@ val BitcoinTransactionFake =
     fee = null,
     weight = defaultTransactionWeight,
     vsize = defaultTransactionWeight / 4UL,
-    incoming = true,
+    transactionType = Incoming,
     inputs = emptyImmutableList(),
     outputs = emptyImmutableList()
   )
@@ -36,7 +39,7 @@ val BitcoinTransactionFake =
 fun BitcoinTransactionMock(
   total: BitcoinMoney,
   fee: BitcoinMoney? = null,
-  incoming: Boolean = false,
+  transactionType: TransactionType = Outgoing,
   confirmationTime: Instant?,
   inputs: ImmutableList<BdkTxIn> = emptyImmutableList(),
   outputs: ImmutableList<BdkTxOut> = emptyImmutableList(),
@@ -59,7 +62,7 @@ fun BitcoinTransactionMock(
     fee = fee,
     weight = defaultTransactionWeight,
     vsize = defaultTransactionWeight / 4UL,
-    incoming = incoming,
+    transactionType = transactionType,
     inputs = inputs,
     outputs = outputs
   )

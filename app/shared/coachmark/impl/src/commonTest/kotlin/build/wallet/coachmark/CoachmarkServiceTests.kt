@@ -1,6 +1,6 @@
 package build.wallet.coachmark
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -23,15 +23,15 @@ class CoachmarkServiceTests :
 
     lateinit var service: CoachmarkService
     val featureFlagDao = FeatureFlagDaoMock()
-    val accountRepository = AccountRepositoryFake()
+    val accountService = AccountServiceFake()
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val eventTracker = EventTrackerMock(turbines::create)
 
     beforeTest {
-      accountRepository.setActiveAccount(FullAccountMock)
+      accountService.setActiveAccount(FullAccountMock)
       service = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
-        accountRepository,
+        accountService,
         CoachmarkVisibilityDecider(
           ClockFake()
         ),
@@ -127,7 +127,7 @@ class CoachmarkServiceTests :
     }
 
     test("no coachmarks to display for lite accounts") {
-      accountRepository.setActiveAccount(LiteAccountMock)
+      accountService.setActiveAccount(LiteAccountMock)
       service
         .coachmarksToDisplay(
           setOf(
@@ -145,7 +145,7 @@ class CoachmarkServiceTests :
       coachmarkDao.insertCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark, Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
         coachmarkDao,
-        accountRepository,
+        accountService,
         CoachmarkVisibilityDecider(
           ClockFake()
         ),
@@ -165,7 +165,7 @@ class CoachmarkServiceTests :
       coachmarkDao.setViewed(CoachmarkIdentifier.HiddenBalanceCoachmark)
       service = CoachmarkServiceImpl(
         coachmarkDao,
-        accountRepository,
+        accountService,
         CoachmarkVisibilityDecider(
           ClockFake()
         ),

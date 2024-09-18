@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-serialization-kotlinx-json-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-serialization-kotlinx-json-iossimulatorarm64-2.3.9-metadata.jar": "532a261cece72b163069590a11059c91fa9d2db00c9c82aa0989d72ea29fe1c9"
+                        "ktor-serialization-kotlinx-json-iossimulatorarm64-2.3.11-metadata.jar": "7421c8315985e8f8096e04b35f335368ee0e374c0d2dc547e1b92bb477e1152d"
                     }
                 },
                 {

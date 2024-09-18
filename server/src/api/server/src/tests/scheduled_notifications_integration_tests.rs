@@ -160,6 +160,7 @@ async fn test_scheduled_handler() {
         address_repo: bootstrap.services.address_repo.clone(),
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
+        privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
     };
     let worker = TestWorker::new(state.clone()).await;
 
@@ -175,7 +176,7 @@ async fn test_scheduled_handler() {
         .services
         .account_service
         .add_push_touchpoint_for_account(AddPushTouchpointToAccountInput {
-            account_id: account_id.clone(),
+            account_id: &account_id,
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),

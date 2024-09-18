@@ -1,6 +1,7 @@
 package build.wallet.statemachine.transactions
 
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -69,13 +70,13 @@ fun TransactionDetailModel(
 )
 
 sealed interface TxStatusModel {
-  val isIncoming: Boolean
+  val transactionType: TransactionType
   val recipientAddress: String
 
   fun toFormHeaderModel(): FormHeaderModel
 
   data class Pending(
-    override val isIncoming: Boolean,
+    override val transactionType: TransactionType,
     override val recipientAddress: String,
     val isLate: Boolean,
   ) : TxStatusModel {
@@ -106,18 +107,18 @@ sealed interface TxStatusModel {
   }
 
   data class Confirmed(
-    override val isIncoming: Boolean,
+    override val transactionType: TransactionType,
     override val recipientAddress: String,
   ) : TxStatusModel {
     override fun toFormHeaderModel(): FormHeaderModel =
       FormHeaderModel(
-        icon = when {
-          isIncoming -> Bitcoin
-          else -> LargeIconCheckFilled
+        icon = when (transactionType) {
+          TransactionType.Incoming -> Bitcoin
+          TransactionType.Outgoing -> LargeIconCheckFilled
         },
-        headline = when {
-          isIncoming -> "Transaction received"
-          else -> "Transaction sent"
+        headline = when (transactionType) {
+          TransactionType.Incoming -> "Transaction received"
+          TransactionType.Outgoing -> "Transaction sent"
         },
         subline = recipientAddress,
         sublineTreatment = MONO,

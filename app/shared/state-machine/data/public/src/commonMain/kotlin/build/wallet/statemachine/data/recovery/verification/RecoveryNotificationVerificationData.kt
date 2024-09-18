@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.recovery.verification
 
-import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
 import build.wallet.ktor.result.NetworkingError
@@ -64,7 +63,6 @@ sealed interface RecoveryNotificationVerificationData {
       onError: (isConnectivityError: Boolean) -> Unit,
     ) -> Unit,
     val onCodeEntered: (verificationCode: String) -> Unit,
-    val lostFactor: PhysicalFactor,
   ) : RecoveryNotificationVerificationData
 
   /**

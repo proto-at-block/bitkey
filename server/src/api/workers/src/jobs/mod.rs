@@ -10,6 +10,7 @@ use notification::service::Service as NotificationService;
 use notification_validation::NotificationValidationState;
 use queue::sqs::SqsQueue;
 use recovery::repository::Repository as RecoveryRepository;
+use repository::privileged_action::Repository as PrivilegedActionRepository;
 use serde::Deserialize;
 
 use crate::{ses::SESMode, sns::SNSMode};
@@ -43,10 +44,11 @@ pub struct WorkerState {
     pub address_repo: Box<dyn AddressWatchlistTrait>,
     pub sqs: SqsQueue,
     pub feature_flags_service: FeatureFlagsService,
+    pub privileged_action_repository: PrivilegedActionRepository,
 }
 
 impl From<WorkerState> for NotificationValidationState {
     fn from(value: WorkerState) -> Self {
-        NotificationValidationState::new(value.recovery_service)
+        NotificationValidationState::new(value.recovery_service, value.privileged_action_repository)
     }
 }

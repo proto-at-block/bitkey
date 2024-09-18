@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-okhttp-jvm",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-okhttp-jvm-2.3.9.jar": "343d1659ba22220d951247bff5c9a43a238f9e2ecf4af2c723b7270aa301c302"
+                        "ktor-client-okhttp-jvm-2.3.11.jar": "ac48c067d4a8212204fc45479bae51623d01a008179bd5f8a84729b54701770e"
                     }
                 }
             ],

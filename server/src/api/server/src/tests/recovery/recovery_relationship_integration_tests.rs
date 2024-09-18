@@ -1,11 +1,10 @@
 use crate::tests;
 use crate::tests::lib::update_recovery_relationship_invitation_expiration;
-use crate::tests::lib::{create_account, create_lite_account};
+use crate::tests::lib::{create_full_account, create_lite_account};
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::{gen_services, TestContext};
 use account::entities::Account;
-use account::entities::Network;
 use http::StatusCode;
 use recovery::routes::OutboundInvitation;
 use recovery::routes::UpdateRecoveryRelationshipResponse;
@@ -15,6 +14,7 @@ use recovery::routes::{
     EndorseRecoveryRelationshipsResponse,
 };
 use time::OffsetDateTime;
+use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationshipEndorsement, RecoveryRelationshipId,
@@ -320,7 +320,7 @@ async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTes
 
     let customer_account = match vector.customer_account_type {
         AccountType::Full { .. } => Account::Full(
-            create_account(
+            create_full_account(
                 &mut context,
                 &bootstrap.services,
                 Network::BitcoinSignet,
@@ -374,7 +374,7 @@ async fn test_reissue_recovery_relationship_invitation() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -399,7 +399,7 @@ async fn test_reissue_recovery_relationship_invitation() {
     .await
     .unwrap();
 
-    let other_account = create_account(
+    let other_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -603,7 +603,7 @@ async fn accept_recovery_relationship_invitation_test(
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -614,7 +614,7 @@ async fn accept_recovery_relationship_invitation_test(
     let tc_account = if !vector.customer_is_tc {
         match vector.tc_account_type {
             AccountType::Full => Account::Full(
-                create_account(
+                create_full_account(
                     &mut context,
                     &bootstrap.services,
                     Network::BitcoinSignet,
@@ -726,7 +726,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -864,7 +864,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -876,7 +876,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .expect("Invalid keys for account");
     let tc_account = match vector.tc_account_type {
         AccountType::Full { .. } => Account::Full(
-            create_account(
+            create_full_account(
                 &mut context,
                 &bootstrap.services,
                 Network::BitcoinSignet,
@@ -891,7 +891,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
     let tc_account_keys = context
         .get_authentication_keys_for_account_id(tc_account.get_id())
         .expect("Invalid keys for account");
-    let unrelated_account = create_account(
+    let unrelated_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1093,7 +1093,7 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1178,7 +1178,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1252,7 +1252,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1340,7 +1340,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1411,7 +1411,7 @@ async fn test_get_recovery_relationship_invitation_for_code() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1482,7 +1482,7 @@ async fn test_relationships_count_caps() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1511,7 +1511,7 @@ async fn test_relationships_count_caps() {
 
     let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
     for i in 0..=10 {
-        let customer_account = create_account(
+        let customer_account = create_full_account(
             &mut context,
             &bootstrap.services,
             Network::BitcoinSignet,

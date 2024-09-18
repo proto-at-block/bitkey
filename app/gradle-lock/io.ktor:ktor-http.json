@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-http",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-http-metadata-2.3.9.jar": "f4f0033a14fac21241a8bbbe1c5cf1933bd103edc8e9e277ee3ee0c1cbd34642"
+                        "ktor-http-metadata-2.3.11.jar": "f4f0033a14fac21241a8bbbe1c5cf1933bd103edc8e9e277ee3ee0c1cbd34642"
                     }
                 }
             ],

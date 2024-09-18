@@ -6,7 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.logging.logFailure
@@ -22,7 +22,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
 
 class InfoOptionsUiStateMachineImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val appInstallationDao: AppInstallationDao,
   private val appVariant: AppVariant,
   private val appVersion: String,
@@ -35,7 +35,7 @@ class InfoOptionsUiStateMachineImpl(
 
     if (state.accountId == null) {
       LaunchedEffect("load-account-id") {
-        accountRepository.accountStatus().first()
+        accountService.accountStatus().first()
           .onSuccess { status ->
             val account =
               when (status) {

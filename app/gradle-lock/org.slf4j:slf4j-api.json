@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.0.6",
+            "version": "2.0.13",
             "variants": [
                 {
                     "artifacts": {
-                        "slf4j-api-2.0.6.jar": "2f2a92d410b268139d7d63b75ed25e21995cfe4100c19bf23577cfdbc8077bda"
+                        "slf4j-api-2.0.13.jar": "e7c2a48e8515ba1f49fa637d57b4e2f590b3f5bd97407ac699c3aa5efb1204a9"
                     }
                 }
             ],

@@ -124,7 +124,6 @@ import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAp
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachineImpl
 import build.wallet.statemachine.demo.DemoModeCodeEntryUiStateMachineImpl
 import build.wallet.statemachine.demo.DemoModeConfigUiStateMachineImpl
 import build.wallet.statemachine.dev.*
@@ -235,6 +234,7 @@ import build.wallet.statemachine.transactions.FeeBumpConfirmationUiStateMachineI
 import build.wallet.statemachine.transactions.TransactionItemUiStateMachineImpl
 import build.wallet.statemachine.transactions.TransactionListUiStateMachineImpl
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachineImpl
+import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl
 import build.wallet.support.SupportTicketFormValidatorImpl
 import build.wallet.support.SupportTicketRepositoryImpl
 import build.wallet.time.*
@@ -463,7 +463,8 @@ class ActivityComponentImpl(
       nfcReaderCapabilityProvider = nfcReaderCapabilityProvider,
       enableNfcNavigator = enableNfcNavigator,
       deviceInfoProvider = appComponent.deviceInfoProvider,
-      nfcTransactor = nfcTransactor
+      nfcTransactor = nfcTransactor,
+      asyncNfcSigningFeatureFlag = appComponent.asyncNfcSigningFeatureFlag
     )
 
   val completeDelayNotifyF8eClient = CompleteDelayNotifyF8eClientImpl(appComponent.f8eHttpClient)
@@ -715,7 +716,8 @@ class ActivityComponentImpl(
 
   val recoveryNotificationVerificationUiStateMachine =
     RecoveryNotificationVerificationUiStateMachineImpl(
-      verificationCodeInputStateMachine = verificationCodeInputStateMachine
+      verificationCodeInputStateMachine = verificationCodeInputStateMachine,
+      notificationTouchpointService = appComponent.notificationTouchpointService
     )
 
   val initiatingLostAppRecoveryUiStateMachineImpl =
@@ -777,7 +779,7 @@ class ActivityComponentImpl(
     )
 
   val sweepService = SweepServiceImpl(
-    accountRepository = appComponent.accountRepository,
+    accountService = appComponent.accountService,
     appSessionManager = appComponent.appSessionManager,
     promptSweepFeatureFlag = appComponent.promptSweepFeatureFlag,
     sweepGenerator = sweepGenerator
@@ -981,7 +983,7 @@ class ActivityComponentImpl(
       notificationTouchpointService = appComponent.notificationTouchpointService
     )
 
-  val notificationPreferencesSetupUiStateMachineV2 =
+  val notificationPreferencesSetupUiStateMachine =
     NotificationPreferencesSetupUiStateMachineImpl(
       eventTracker = appComponent.eventTracker,
       notificationPermissionRequester = notificationPermissionRequester,
@@ -1060,7 +1062,7 @@ class ActivityComponentImpl(
   val onboardKeyboxUiStateMachine =
     OnboardKeyboxUiStateMachineImpl(
       fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
-      notificationPreferencesSetupUiStateMachine = notificationPreferencesSetupUiStateMachineV2
+      notificationPreferencesSetupUiStateMachine = notificationPreferencesSetupUiStateMachine
     )
 
   val deleteOnboardingFullAccountF8eClient =
@@ -1068,7 +1070,7 @@ class ActivityComponentImpl(
 
   val onboardingFullAccountDeleter =
     OnboardingFullAccountDeleterImpl(
-      accountRepository = appComponent.accountRepository,
+      accountService = appComponent.accountService,
       keyboxDao = appComponent.keyboxDao,
       deleteOnboardingFullAccountF8eClient = deleteOnboardingFullAccountF8eClient
     )
@@ -1090,7 +1092,7 @@ class ActivityComponentImpl(
       accountAuthenticator = appComponent.accountAuthenticator,
       authTokenDao = appComponent.authTokenDao,
       cloudBackupDao = cloudBackupDao,
-      accountRepository = appComponent.accountRepository
+      accountService = appComponent.accountService
     )
 
   val liteAccountBackupToFullAccountUpgrader =
@@ -1145,7 +1147,7 @@ class ActivityComponentImpl(
 
   val coachmarkService = CoachmarkServiceImpl(
     coachmarkDao = CoachmarkDaoImpl(appComponent.bitkeyDatabaseProvider),
-    accountRepository = appComponent.accountRepository,
+    accountService = appComponent.accountService,
     coachmarkVisibilityDecider = CoachmarkVisibilityDecider(
       clock = Clock.System
     ),
@@ -1157,7 +1159,7 @@ class ActivityComponentImpl(
   val infoOptionsStateMachine =
     InfoOptionsUiStateMachineImpl(
       appVariant = appComponent.appVariant,
-      accountRepository = appComponent.accountRepository,
+      accountService = appComponent.accountService,
       clipboard = clipboard,
       appInstallationDao = appComponent.appInstallationDao,
       appVersion = appComponent.appVersion,
@@ -1289,7 +1291,8 @@ class ActivityComponentImpl(
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionBaseCalculator = BitcoinTransactionBaseCalculatorImpl(),
-      transactionsService = appComponent.transactionsService
+      transactionsService = appComponent.transactionsService,
+      accountService = appComponent.accountService
     )
 
   val sendStateMachine = SendUiStateMachineImpl(
@@ -1347,7 +1350,7 @@ class ActivityComponentImpl(
     AppDataDeleterImpl(
       appVariant = appComponent.appVariant,
       appPrivateKeyDao = appComponent.appPrivateKeyDao,
-      accountRepository = appComponent.accountRepository,
+      accountService = appComponent.accountService,
       authTokenDao = appComponent.authTokenDao,
       gettingStartedTaskDao = gettingStartedTaskDao,
       keyboxDao = appComponent.keyboxDao,
@@ -1455,7 +1458,6 @@ class ActivityComponentImpl(
 
   val partnershipTransactionsStatusRepository = PartnershipTransactionsRepositoryImpl(
     dao = partnershipsTransactionsDao,
-    uuidGenerator = appComponent.uuidGenerator,
     clock = appComponent.clock,
     getPartnershipTransactionF8eClient = getPartnershipTransactionF8eClient
   )
@@ -1841,6 +1843,8 @@ class ActivityComponentImpl(
     coachmarkService = coachmarkService
   )
 
+  private val utxoConsolidationUiStateMachine = UtxoConsolidationUiStateMachineImpl()
+
   val settingsStateMachine =
     SettingsHomeUiStateMachineImpl(
       appVariant = appComponent.appVariant,
@@ -1858,7 +1862,9 @@ class ActivityComponentImpl(
       rotateAuthKeyUIStateMachine = rotateAuthUIStateMachine,
       debugMenuStateMachine = debugMenuStateMachine,
       biometricSettingUiStateMachine = biometricSettingUiStateMachine,
-      firmwareDataService = appComponent.firmwareDataService
+      firmwareDataService = appComponent.firmwareDataService,
+      utxoConsolidationUiStateMachine = utxoConsolidationUiStateMachine,
+      utxoConsolidationFeatureFlag = appComponent.utxoConsolidationFeatureFlag
     )
 
   val homeUiBottomSheetStateMachine =
@@ -1945,11 +1951,12 @@ class ActivityComponentImpl(
     appKeysGenerator = appKeysGenerator,
     debugOptionsService = appComponent.debugOptionsService,
     softwareWalletIsEnabledFeatureFlag = appComponent.softwareWalletIsEnabledFeatureFlag,
-    accountRepository = appComponent.accountRepository
+    accountService = appComponent.accountService
   )
 
   val createSoftwareWalletUiStateMachine = CreateSoftwareWalletUiStateMachineImpl(
-    createSoftwareWalletService = createSoftwareWalletService
+    createSoftwareWalletService = createSoftwareWalletService,
+    notificationPreferencesSetupUiStateMachine = notificationPreferencesSetupUiStateMachine
   )
 
   val chooseAccountAccessUiStateMachine =
@@ -1963,17 +1970,6 @@ class ActivityComponentImpl(
       createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
     )
 
-  val recoveryNotificationVerificationF8eClient =
-    RecoveryNotificationVerificationF8eClientImpl(
-      f8eHttpClient = appComponent.f8eHttpClient
-    )
-
-  val recoveryNotificationVerificationDataStateMachine =
-    RecoveryNotificationVerificationDataStateMachineImpl(
-      notificationTouchpointF8eClient = appComponent.notificationTouchpointF8eClient,
-      recoveryNotificationVerificationF8eClient = recoveryNotificationVerificationF8eClient
-    )
-
   val initiatingLostAppRecoveryStateMachine =
     InitiatingLostAppRecoveryDataStateMachineImpl(
       appKeysGenerator = appKeysGenerator,
@@ -1981,7 +1977,6 @@ class ActivityComponentImpl(
       listKeysetsF8eClient = listKeysetsF8eClient,
       lostAppRecoveryInitiator = delayNotifyLostAppRecoveryInitiator,
       lostAppRecoveryAuthenticator = delayNotifyLostAppRecoveryAuthenticator,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
       delayer = appComponent.delayer,
       uuidGenerator = appComponent.uuidGenerator
@@ -2023,7 +2018,6 @@ class ActivityComponentImpl(
     f8eSpendingKeyRotator = f8eSpendingKeyRotator,
     uuidGenerator = appComponent.uuidGenerator,
     recoverySyncer = recoverySyncer,
-    recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
     accountAuthenticator = appComponent.accountAuthenticator,
     recoveryDao = appComponent.recoveryDao,
     delayer = appComponent.delayer,
@@ -2089,7 +2083,6 @@ class ActivityComponentImpl(
       appKeysGenerator = appKeysGenerator,
       delayer = appComponent.delayer,
       lostHardwareRecoveryStarter = delayNotifyHardwareRecoveryStarter,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient
     )
 
@@ -2163,7 +2156,6 @@ class ActivityComponentImpl(
   val someoneElseIsRecoveringDataStateMachine =
     SomeoneElseIsRecoveringDataStateMachineImpl(
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       recoverySyncer = recoverySyncer
     )
 
@@ -2177,7 +2169,7 @@ class ActivityComponentImpl(
     hasActiveFullAccountDataStateMachine = hasActiveFullAccountDataStateMachine,
     hasActiveLiteAccountDataStateMachine = hasActiveLiteAccountDataStateMachine,
     noActiveAccountDataStateMachine = noActiveAccountDataStateMachine,
-    accountRepository = appComponent.accountRepository,
+    accountService = appComponent.accountService,
     recoverySyncer = recoverySyncer,
     someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
     recoverySyncFrequency = appComponent.recoverySyncFrequency,
@@ -2187,7 +2179,7 @@ class ActivityComponentImpl(
   val liteAccountCreator =
     LiteAccountCreatorImpl(
       accountAuthenticator = appComponent.accountAuthenticator,
-      accountRepository = appComponent.accountRepository,
+      accountService = appComponent.accountService,
       appKeysGenerator = appComponent.appKeysGenerator,
       authTokenDao = appComponent.authTokenDao,
       createLiteAccountF8eClient = createAccountF8eClient
@@ -2284,7 +2276,7 @@ class ActivityComponentImpl(
 
   private val loadAppService = LoadAppServiceImpl(
     featureFlagService = appComponent.featureFlagService,
-    accountRepository = appComponent.accountRepository,
+    accountService = appComponent.accountService,
     fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService
   )
 

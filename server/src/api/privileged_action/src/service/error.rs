@@ -14,6 +14,10 @@ pub enum ServiceError {
     TryFromInt(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     ExternalIdentifier(#[from] external_identifier::Error),
+    #[error(transparent)]
+    NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
+    #[error(transparent)]
+    Notification(#[from] notification::NotificationError),
 
     #[error("Account does not own privileged action instance record")]
     RecordAccountIdForbidden,
@@ -24,8 +28,6 @@ pub enum ServiceError {
 
     #[error("Cannot configure delay for privileged action type {0} and account type {1}")]
     CannotConfigureDelay(PrivilegedActionType, AccountType),
-    #[error("Undefined privileged action for type {0}")]
-    UndefinedPrivilegedAction(PrivilegedActionType),
 
     #[error(
         "No authorization strategy defined for privileged action type {0} and account type {1}"
@@ -57,10 +59,10 @@ impl From<ServiceError> for ApiError {
             ServiceError::Api(e) => e,
             ServiceError::Account(e) => e.into(),
             ServiceError::Database(e) => e.into(),
+            ServiceError::Notification(e) => e.into(),
             ServiceError::RecordAccountIdForbidden
-            | ServiceError::NoAuthorizationStrategyDefinedForbidden(_, _) => {
-                ApiError::GenericForbidden(msg)
-            }
+            | ServiceError::NoAuthorizationStrategyDefinedForbidden(_, _)
+            | ServiceError::FailedHardwareProofOfPossessionCheck => ApiError::GenericForbidden(msg),
             ServiceError::RecordAuthorizationStrategyTypeConflict
             | ServiceError::RecordDelayAndNotifyStatusConflict
             | ServiceError::DelayAndNotifyEndTimeInFuture
@@ -74,13 +76,10 @@ impl From<ServiceError> for ApiError {
             | ServiceError::CannotContinueDefinedAuthorizationStrategyType => {
                 ApiError::GenericBadRequest(msg)
             }
-            ServiceError::FailedHardwareProofOfPossessionCheck => {
-                ApiError::GenericUnauthorized(msg)
-            }
             ServiceError::RecordAuthorizationStrategyTypeUnexpected
             | ServiceError::TryFromInt(_)
             | ServiceError::ExternalIdentifier(_)
-            | ServiceError::UndefinedPrivilegedAction(_) => {
+            | ServiceError::NotificationPayloadBuilder(_) => {
                 ApiError::GenericInternalApplicationError(msg)
             }
         }

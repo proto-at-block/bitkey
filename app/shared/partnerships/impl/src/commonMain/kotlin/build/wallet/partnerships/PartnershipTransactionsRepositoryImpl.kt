@@ -8,7 +8,6 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.getErrorOr
@@ -25,7 +24,6 @@ import kotlin.time.Duration
 class PartnershipTransactionsRepositoryImpl(
   private val dao: PartnershipTransactionsDao,
   private val getPartnershipTransactionF8eClient: GetPartnershipTransactionF8eClient,
-  private val uuidGenerator: UuidGenerator,
   private val clock: Clock,
 ) : PartnershipTransactionsStatusRepository {
   override val transactions: Flow<List<PartnershipTransaction>> = dao.getTransactions().map {
@@ -49,10 +47,10 @@ class PartnershipTransactionsRepositoryImpl(
   }
 
   override suspend fun create(
+    id: PartnershipTransactionId,
     partnerInfo: PartnerInfo,
     type: PartnershipTransactionType,
   ): Result<PartnershipTransaction, Error> {
-    val id = uuidGenerator.random().let(::PartnershipTransactionId)
     val timestamp = clock.now()
     val transaction = PartnershipTransaction(
       id = id,

@@ -11,9 +11,7 @@ import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
-import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.ActivateTouchpointParams
-import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.AddTouchpointParams
-import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.VerifyTouchpointParams
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.*
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
@@ -27,21 +25,10 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.input.EmailInputUiProps
-import build.wallet.statemachine.core.input.EmailInputUiStateMachine
-import build.wallet.statemachine.core.input.PhoneNumberInputUiProps
-import build.wallet.statemachine.core.input.PhoneNumberInputUiStateMachine
-import build.wallet.statemachine.core.input.SheetModelMock
-import build.wallet.statemachine.core.input.VerificationCodeInputProps
+import build.wallet.statemachine.core.input.*
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
-import build.wallet.statemachine.core.test
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -95,8 +82,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   val props =
     NotificationTouchpointInputAndVerificationProps(
-      fullAccountId = FullAccountIdMock,
-      fullAccountConfig = FullAccountConfigMock,
+      accountId = FullAccountIdMock,
+      accountConfig = FullAccountConfigMock,
       touchpointType = PhoneNumber,
       entryPoint =
         Onboarding(

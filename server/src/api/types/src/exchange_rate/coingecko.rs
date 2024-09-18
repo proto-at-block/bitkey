@@ -3,8 +3,10 @@ use crate::exchange_rate::PriceAt;
 use reqwest::{Client, RequestBuilder};
 use serde::de::{SeqAccess, Visitor};
 use serde::{de, Deserialize, Deserializer};
+use std::collections::HashMap;
 use std::ops::Sub;
 use std::{env, fmt};
+
 use time::{Duration, OffsetDateTime};
 
 /// Deserializes Coingecko responses from CoingeckoRateProvider.
@@ -26,6 +28,15 @@ impl From<CoingeckoPriceAt> for PriceAt {
             price: price_at.price,
         }
     }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CoingeckoQuote {
+    pub bitcoin: HashMap<String, f64>,
+}
+
+pub struct CoingeckoCurrencyQuote {
+    pub quote: f64,
 }
 
 struct PriceAtVisitor;
@@ -134,6 +145,18 @@ impl RateProvider {
                 ("x_cg_pro_api_key", self.api_key.clone()),
             ])
     }
+
+    pub fn rate_request(&self, currency: &CurrencyCode) -> RequestBuilder {
+        let path = "/api/v3/simple/price";
+
+        Client::new()
+            .get(format!("{}{}", &self.root_url, path))
+            .query(&[
+                ("ids", HISTORICAL_RATE_REQUEST_COIN.to_string()),
+                ("vs_currencies", currency.to_string().to_lowercase()),
+                ("x_cg_pro_api_key", self.api_key.clone()),
+            ])
+    }
 }
 
 #[cfg(test)]
@@ -184,6 +207,25 @@ mod tests {
         // assert
         assert!(query.contains(&("vs_currency".to_string(), "EUR".to_string())));
         assert!(query.contains(&("days".to_string(), days.to_string())));
+        assert!(query.contains(&("x_cg_pro_api_key".to_string(), provider.api_key.clone())));
+    }
+
+    #[test]
+    fn test_spot_request_query_parameters() {
+        // arrange
+        let provider = RateProvider {
+            root_url: "https://coingecko.example.com".to_string(),
+            api_key: "abc123".to_string(),
+        };
+        let currency = CurrencyCode::EUR;
+
+        // act
+        let request = provider.rate_request(&currency).build().unwrap();
+        let query: Vec<(String, String)> = request.url().query_pairs().into_owned().collect();
+
+        // assert
+        assert!(query.contains(&("ids".to_string(), "bitcoin".to_string())));
+        assert!(query.contains(&("vs_currencies".to_string(), "eur".to_string())));
         assert!(query.contains(&("x_cg_pro_api_key".to_string(), provider.api_key.clone())));
     }
 }

@@ -39,7 +39,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   val onCompleteCalls = turbines.create<Unit>("onComplete")
 
   val props = NotificationPreferencesProps(
-    fullAccountId = FullAccountIdMock,
+    accountId = FullAccountIdMock,
     f8eEnvironment = F8eEnvironment.Production,
     source = NotificationPreferencesProps.Source.Onboarding,
     onBack = {},

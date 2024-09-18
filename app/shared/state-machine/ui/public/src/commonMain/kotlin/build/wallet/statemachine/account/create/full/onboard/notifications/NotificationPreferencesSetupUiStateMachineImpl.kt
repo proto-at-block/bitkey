@@ -182,8 +182,8 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              fullAccountId = props.fullAccountId,
-              fullAccountConfig = props.fullAccountConfig,
+              accountId = props.accountId,
+              accountConfig = props.accountConfig,
               touchpointType = NotificationTouchpointType.PhoneNumber,
               entryPoint = Recovery { state = ConfigureRecoveryOptionsUiState() },
               onClose = { state = ConfigureRecoveryOptionsUiState() }
@@ -195,8 +195,8 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              fullAccountId = props.fullAccountId,
-              fullAccountConfig = props.fullAccountConfig,
+              accountId = props.accountId,
+              accountConfig = props.accountConfig,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = Recovery(),
               onClose = { state = ConfigureRecoveryOptionsUiState() }
@@ -207,8 +207,8 @@ class NotificationPreferencesSetupUiStateMachineImpl(
       TransactionsAndProductUpdatesState -> {
         notificationPreferencesUiStateMachine.model(
           NotificationPreferencesProps(
-            f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-            fullAccountId = props.fullAccountId,
+            f8eEnvironment = props.accountConfig.f8eEnvironment,
+            accountId = props.accountId,
             onboardingRecoveryChannelsEnabled = setOfNotNull(
               NotificationChannel.Push.takeIf { pushItemModel.state == Completed },
               NotificationChannel.Sms.takeIf { smsState == Completed },

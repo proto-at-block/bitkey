@@ -1,9 +1,8 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
+import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.exchange.CurrencyConverter
@@ -20,7 +19,7 @@ class TransactionDetailsCardUiStateMachineImpl(
       props.exchangeRates?.let {
         convertedOrZeroWithRates(
           converter = currencyConverter,
-          fromAmount = props.transactionDetail.transferBitcoinAmount,
+          fromAmount = props.transactionDetails.transferAmount,
           toCurrency = props.fiatCurrency,
           rates = it
         )
@@ -30,21 +29,21 @@ class TransactionDetailsCardUiStateMachineImpl(
       props.exchangeRates?.let {
         convertedOrZeroWithRates(
           converter = currencyConverter,
-          fromAmount = props.transactionDetail.feeBitcoinAmount,
+          fromAmount = props.transactionDetails.feeAmount,
           toCurrency = props.fiatCurrency,
           rates = it
         )
       } as FiatMoney?
 
     val totalBitcoinAmount =
-      props.transactionDetail.transferBitcoinAmount + props.transactionDetail.feeBitcoinAmount
+      props.transactionDetails.transferAmount + props.transactionDetails.feeAmount
 
     val formattedTransferAmountText =
-      formattedAmountText(props.transactionDetail.transferBitcoinAmount, transferFiatAmount)
+      formattedAmountText(props.transactionDetails.transferAmount, transferFiatAmount)
 
     val transactionDetailModelType =
-      when (props.transactionDetail) {
-        is TransactionDetailType.Regular -> {
+      when (props.transactionDetails) {
+        is TransactionDetails.Regular -> {
           val totalFiatAmount: FiatMoney? =
             props.exchangeRates?.let {
               convertedOrZeroWithRates(
@@ -63,24 +62,24 @@ class TransactionDetailsCardUiStateMachineImpl(
               totalFiatAmount
             ),
             feeAmountText = formattedAmountText(
-              props.transactionDetail.feeBitcoinAmount,
+              props.transactionDetails.feeAmount,
               feeFiatAmount
             )
           )
         }
-        is TransactionDetailType.SpeedUp -> {
+        is TransactionDetails.SpeedUp -> {
           val oldFeeFiatAmount: FiatMoney? =
             props.exchangeRates?.let {
               convertedOrZeroWithRates(
                 converter = currencyConverter,
-                fromAmount = props.transactionDetail.oldFeeBitcoinAmount,
+                fromAmount = props.transactionDetails.oldFeeAmount,
                 toCurrency = props.fiatCurrency,
                 rates = it
               )
             } as FiatMoney?
 
           val feeDifferenceBitcoinAmount =
-            props.transactionDetail.feeBitcoinAmount - props.transactionDetail.oldFeeBitcoinAmount
+            props.transactionDetails.feeAmount - props.transactionDetails.oldFeeAmount
           val feeDifferenceFiatAmount: FiatMoney? =
             props.exchangeRates?.let {
               convertedOrZeroWithRates(
@@ -113,7 +112,7 @@ class TransactionDetailsCardUiStateMachineImpl(
             ),
             oldFeeAmountText =
               formattedAmountText(
-                props.transactionDetail.oldFeeBitcoinAmount,
+                props.transactionDetails.oldFeeAmount,
                 oldFeeFiatAmount
               ),
             feeDifferenceText = "+${
@@ -128,14 +127,14 @@ class TransactionDetailsCardUiStateMachineImpl(
 
     return TransactionDetailsModel(
       transactionSpeedText =
-        when (props.transactionDetail) {
-          is TransactionDetailType.Regular ->
-            when (props.transactionDetail.estimatedTransactionPriority) {
+        when (props.transactionDetails) {
+          is TransactionDetails.Regular ->
+            when (props.transactionDetails.estimatedTransactionPriority) {
               FASTEST -> "~10 minutes"
               THIRTY_MINUTES -> "~30 minutes"
               SIXTY_MINUTES -> "~60 minutes"
             }
-          is TransactionDetailType.SpeedUp -> "~10 minutes"
+          is TransactionDetails.SpeedUp -> "~10 minutes"
         },
       transactionDetailModelType = transactionDetailModelType
     )

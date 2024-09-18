@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
-use account::entities::{Factor, FullAccountAuthKeys, FullAccountAuthKeysPayload, Network};
+use account::entities::{Factor, FullAccountAuthKeys, FullAccountAuthKeysPayload};
 use account::service::FetchAccountInput;
 use http_body_util::BodyExt;
+use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
 
 use axum::response::IntoResponse;
@@ -23,7 +24,7 @@ use time::{Duration, OffsetDateTime};
 
 use crate::tests;
 use crate::tests::lib::{
-    create_account, create_auth_keyset_model, create_default_account_with_predefined_wallet,
+    create_auth_keyset_model, create_default_account_with_predefined_wallet, create_full_account,
     create_keypair, create_new_authkeys, create_phone_touchpoint, create_plain_keys, create_pubkey,
     create_push_touchpoint, gen_signature, generate_delay_and_notify_recovery,
 };
@@ -60,7 +61,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
         keys.recovery_pubkey = None;
     }
 
-    let account = create_account(&mut context, &bootstrap.services, network, Some(keys)).await;
+    let account = create_full_account(&mut context, &bootstrap.services, network, Some(keys)).await;
     let account_keys = context
         .get_authentication_keys_for_account_id(&account.id)
         .expect("Invalid keys for account");
@@ -1058,7 +1059,7 @@ async fn get_status_with_delay_notify_test(vector: GetStatusWithDelayNotifyTestV
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = create_account(
+    let account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1175,7 +1176,7 @@ async fn test_create_lost_hw_delay_notify_with_existing_hardware_auth_key() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = create_account(
+    let account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1232,7 +1233,7 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
     } else {
         Network::BitcoinMain
     };
-    let account = create_account(&mut context, &bootstrap.services, network, None).await;
+    let account = create_full_account(&mut context, &bootstrap.services, network, None).await;
     let account_id = account.id;
     let keys = context
         .get_authentication_keys_for_account_id(&account_id)
@@ -1302,7 +1303,7 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
     );
 
     // TODO: Remove these tests once we don't allow the changing of the delay period in CreateDelayNotify
-    let account = create_account(&mut context, &bootstrap.services, network, None).await;
+    let account = create_full_account(&mut context, &bootstrap.services, network, None).await;
     let account_id = account.id;
     let keys = context
         .get_authentication_keys_for_account_id(&account_id)
@@ -1402,7 +1403,7 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
     let client = TestClient::new(bootstrap.router).await;
 
     let other_account_keys = create_new_authkeys(&mut context);
-    let other_account = create_account(
+    let other_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -1434,7 +1435,7 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
         .await
         .unwrap();
 
-    let account = create_account(
+    let account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,

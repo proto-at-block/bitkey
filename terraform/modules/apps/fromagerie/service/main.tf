@@ -32,6 +32,7 @@ locals {
     consent_table_name               = "${module.this.id_dot}.consent"
     recovery_table_name              = "${module.this.id_dot}.account_recovery"
     privileged_action_table_name     = "${module.this.id_dot}.privileged_action"
+    inheritance_table_name           = "${module.this.id_dot}.inheritance"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -89,6 +90,7 @@ locals {
     SOCIAL_RECOVERY_TABLE       = local.tables.social_recovery_table_name
     CONSENT_TABLE               = local.tables.consent_table_name
     PRIVILEGED_ACTION_TABLE     = local.tables.privileged_action_table_name
+    INHERITANCE_TABLE           = local.tables.inheritance_table_name
   }
 
   ###############################################
@@ -166,6 +168,7 @@ module "dynamodb_tables" {
   social_recovery_table_name       = local.tables.social_recovery_table_name
   consent_table_name               = local.tables.consent_table_name
   privileged_action_table_name     = local.tables.privileged_action_table_name
+  inheritance_table_name           = local.tables.inheritance_table_name
 }
 
 module "ecs_api" {

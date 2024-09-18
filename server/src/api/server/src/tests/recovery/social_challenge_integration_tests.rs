@@ -4,11 +4,11 @@ use super::recovery_relationship_integration_tests::{
 };
 use crate::tests;
 use crate::tests::gen_services;
-use crate::tests::lib::{create_account, create_lite_account};
+use crate::tests::lib::{create_full_account, create_lite_account};
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use account::{
-    entities::{Account, Network},
+    entities::Account,
     spend_limit::{Money, SpendingLimit},
 };
 use http::StatusCode;
@@ -27,6 +27,7 @@ use recovery::{
     },
 };
 use time::UtcOffset;
+use types::account::bitcoin::Network;
 use types::{
     account::identifiers::AccountId,
     currencies::CurrencyCode,
@@ -195,7 +196,7 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
 
     let customer_account = match vector.customer_account_type {
         AccountType::Full { .. } => {
-            let account = create_account(
+            let account = create_full_account(
                 &mut context,
                 &bootstrap.services,
                 Network::BitcoinSignet,
@@ -254,7 +255,7 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
         )
         .await;
 
-        let other_account = create_account(
+        let other_account = create_full_account(
             &mut context,
             &bootstrap.services,
             Network::BitcoinSignet,
@@ -313,7 +314,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
@@ -469,7 +470,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(
+    let customer_account = create_full_account(
         &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,

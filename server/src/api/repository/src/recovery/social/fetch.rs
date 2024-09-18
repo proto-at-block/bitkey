@@ -447,8 +447,7 @@ impl Repository {
             let items = item_output.items().to_owned();
 
             for item in items {
-                if let Err(_) = try_from_item::<_, SocialRecoveryRow>(item.clone(), database_object)
-                {
+                if try_from_item::<_, SocialRecoveryRow>(item.clone(), database_object).is_err() {
                     invalid_items.push(item);
                 }
             }

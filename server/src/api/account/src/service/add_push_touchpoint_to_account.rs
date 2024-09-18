@@ -12,9 +12,9 @@ use super::{AddPushTouchpointToAccountInput, Service};
 impl Service {
     pub async fn add_push_touchpoint_for_account(
         &self,
-        input: AddPushTouchpointToAccountInput,
+        input: AddPushTouchpointToAccountInput<'_>,
     ) -> Result<Touchpoint, AccountError> {
-        let mut account = self.account_repo.fetch(&input.account_id).await?;
+        let mut account = self.account_repo.fetch(input.account_id).await?;
 
         let device_token = input.device_token.clone();
         if let Some(touchpoint) = account.get_common_fields().touchpoints.iter().find(|t| {

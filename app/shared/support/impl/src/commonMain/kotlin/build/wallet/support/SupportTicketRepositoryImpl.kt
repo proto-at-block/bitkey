@@ -13,11 +13,10 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapBoth
+import com.github.michaelbull.result.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 import okio.Buffer
 
 class SupportTicketRepositoryImpl(
@@ -34,75 +33,77 @@ class SupportTicketRepositoryImpl(
     form: SupportTicketForm,
     data: SupportTicketData,
   ): Result<Unit, Error> {
-    val logAttachments = logAttachmentsIfEnabled(data)
+    return withContext(Dispatchers.IO) {
+      val logAttachments = logAttachmentsIfEnabled(data)
 
-    val attachmentUploadResults =
-      uploadAttachments(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        attachments = data.attachments + logAttachments
-      )
+      val attachmentUploadResults =
+        uploadAttachments(
+          f8eEnvironment = f8eEnvironment,
+          accountId = accountId,
+          attachments = data.attachments + logAttachments
+        )
 
-    val subject =
-      form[SupportTicketField.KnownFieldType.Subject]?.let {
-        data[it] ?: "[ERROR] Empty subject - validation failed."
-      } ?: "[ERROR] Subject field not found!"
-    val description =
-      form[SupportTicketField.KnownFieldType.Description]?.let {
-        data[it] ?: "[ERROR] Empty description - validation failed."
-      } ?: "[ERROR] Description field not found!"
+      val subject =
+        form[SupportTicketField.KnownFieldType.Subject]?.let {
+          data[it] ?: "[ERROR] Empty subject - validation failed."
+        } ?: "[ERROR] Subject field not found!"
+      val description =
+        form[SupportTicketField.KnownFieldType.Description]?.let {
+          data[it] ?: "[ERROR] Empty description - validation failed."
+        } ?: "[ERROR] Description field not found!"
 
-    // For privacy, we want to only include fields that were visible when the user submitted the form
-    val visibleFieldsData =
-      data.asRawValueMap()
-        .filterKeys { form.conditions.evaluate(it, data) is ConditionEvaluationResult.Visible }
+      // For privacy, we want to only include fields that were visible when the user submitted the form
+      val visibleFieldsData =
+        data.asRawValueMap()
+          .filterKeys { form.conditions.evaluate(it, data) is ConditionEvaluationResult.Visible }
 
-    val ticket =
-      CreateTicketDTO(
-        email = data.email.value,
-        formId = form.id,
-        subject = subject,
-        description = description,
-        customFieldValues =
-          visibleFieldsData
-            .mapKeys { (field, _) -> field.id }
-            .mapValues { (_, rawValue) ->
-              when (rawValue) {
-                is SupportTicketField.RawValue.Bool -> TicketFormFieldDTO.Value.Bool(rawValue.value)
-                is SupportTicketField.RawValue.Text -> TicketFormFieldDTO.Value.Text(rawValue.value)
-                is SupportTicketField.RawValue.MultiChoice ->
-                  TicketFormFieldDTO.Value.MultiChoice(
-                    rawValue.values
+      val ticket =
+        CreateTicketDTO(
+          email = data.email.value,
+          formId = form.id,
+          subject = subject,
+          description = description,
+          customFieldValues =
+            visibleFieldsData
+              .mapKeys { (field, _) -> field.id }
+              .mapValues { (_, rawValue) ->
+                when (rawValue) {
+                  is SupportTicketField.RawValue.Bool -> TicketFormFieldDTO.Value.Bool(rawValue.value)
+                  is SupportTicketField.RawValue.Text -> TicketFormFieldDTO.Value.Text(rawValue.value)
+                  is SupportTicketField.RawValue.MultiChoice ->
+                    TicketFormFieldDTO.Value.MultiChoice(
+                      rawValue.values
+                    )
+                }
+              },
+          attachments =
+            attachmentUploadResults.map { (attachment, result) ->
+              result.mapBoth(
+                success = { CreateTicketDTO.AttachmentUploadResultDTO.Success(it) },
+                failure = {
+                  CreateTicketDTO.AttachmentUploadResultDTO.Failure(
+                    filename = attachment.name,
+                    mimeType = attachment.mimeType.name,
+                    error = it.toString()
                   )
-              }
+                }
+              )
             },
-        attachments =
-          attachmentUploadResults.map { (attachment, result) ->
-            result.mapBoth(
-              success = { CreateTicketDTO.AttachmentUploadResultDTO.Success(it) },
-              failure = {
-                CreateTicketDTO.AttachmentUploadResultDTO.Failure(
-                  filename = attachment.name,
-                  mimeType = attachment.mimeType.name,
-                  error = it.toString()
-                )
-              }
-            )
-          },
-        debugData =
-          if (data.sendDebugData) {
-            getDebugData()
-          } else {
-            null
-          }
-      )
+          debugData =
+            if (data.sendDebugData) {
+              getDebugData()
+            } else {
+              null
+            }
+        )
 
-    return supportTicketF8eClient
-      .createTicket(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        ticket = ticket
-      )
+      supportTicketF8eClient
+        .createTicket(
+          f8eEnvironment = f8eEnvironment,
+          accountId = accountId,
+          ticket = ticket
+        )
+    }
   }
 
   override suspend fun loadFormStructure(

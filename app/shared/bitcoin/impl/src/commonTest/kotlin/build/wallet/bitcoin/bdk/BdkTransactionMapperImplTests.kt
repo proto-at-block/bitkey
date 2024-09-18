@@ -1,20 +1,12 @@
 package build.wallet.bitcoin.bdk
 
-import build.wallet.bdk.bindings.BdkAddressBuilderMock
-import build.wallet.bdk.bindings.BdkAddressMock
-import build.wallet.bdk.bindings.BdkBlockTime
-import build.wallet.bdk.bindings.BdkNetwork
-import build.wallet.bdk.bindings.BdkOutPoint
-import build.wallet.bdk.bindings.BdkScriptMock
-import build.wallet.bdk.bindings.BdkTransaction
-import build.wallet.bdk.bindings.BdkTransactionDetails
-import build.wallet.bdk.bindings.BdkTransactionMock
-import build.wallet.bdk.bindings.BdkTxIn
-import build.wallet.bdk.bindings.BdkTxOutMock
+import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoMock
+import build.wallet.bitcoin.wallet.shouldBeIncoming
+import build.wallet.bitcoin.wallet.shouldBeOutgoing
 import build.wallet.bitcoin.wallet.shouldBePending
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -22,8 +14,6 @@ import build.wallet.time.someInstant
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -96,7 +86,7 @@ class BdkTransactionMapperImplTests : FunSpec({
           received = 100,
           sent = 0
         )
-    ).incoming.shouldBeTrue()
+    ).shouldBeIncoming()
   }
 
   test("Transaction is not incoming when sent is not zero") {
@@ -106,7 +96,7 @@ class BdkTransactionMapperImplTests : FunSpec({
           received = 100,
           sent = 1000
         )
-    ).incoming.shouldBeFalse()
+    ).shouldBeOutgoing()
   }
 
   test("Transaction math when sent is zero") {
@@ -249,7 +239,7 @@ class BdkTransactionMapperImplTests : FunSpec({
     val tx = mapper.createTransaction(bdkTransaction)
     bdkWallet.isMineCalls.awaitItem()
 
-    tx.incoming.shouldBeTrue()
+    tx.shouldBeIncoming()
     tx.total.shouldBe(BitcoinMoney.sats(netReceiveValue + fees))
     tx.subtotal.shouldBe(BitcoinMoney.sats(netReceiveValue))
   }
@@ -274,7 +264,7 @@ class BdkTransactionMapperImplTests : FunSpec({
     val tx = mapper.createTransaction(bdkTransaction)
     bdkWallet.isMineCalls.awaitItem()
 
-    tx.incoming.shouldBeFalse()
+    tx.shouldBeOutgoing()
     tx.total.shouldBe(BitcoinMoney.sats(amountToSend))
     tx.subtotal.shouldBe(BitcoinMoney.sats(amountToSend - fee))
   }

@@ -33,7 +33,12 @@ feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 notification = { workspace = true }
+privileged_action = { workspace = true }
 recovery = { workspace = true }
-types = { workspace = true, features = ["account"] }
+types = { workspace = true, features = ["account", "privileged_action"] }
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
+
+# temporary dependencies (for fake wsm)
+base64 = { workspace = true }
+crypto = { workspace = true, features = ["serde"] }

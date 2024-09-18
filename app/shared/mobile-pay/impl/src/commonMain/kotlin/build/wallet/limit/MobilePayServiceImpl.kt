@@ -2,7 +2,7 @@
 
 package build.wallet.limit
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.EventTracker
@@ -37,7 +37,7 @@ class MobilePayServiceImpl(
   private val mobilePayStatusRepository: MobilePayStatusRepository,
   private val appSessionManager: AppSessionManager,
   private val transactionsService: TransactionsService,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MobilePayService, MobilePayBalanceSyncWorker {
@@ -58,7 +58,7 @@ class MobilePayServiceImpl(
       launch {
         // Keep our in-memory cache of mobile pay data up to date by subscribing to
         // the mobile pay status repository
-        accountRepository.accountStatus()
+        accountService.accountStatus()
           .flatMapLatest { accountStatusResult ->
             val accountStatus = accountStatusResult.get()
             if (accountStatus is AccountStatus.ActiveAccount && accountStatus.account is FullAccount) {

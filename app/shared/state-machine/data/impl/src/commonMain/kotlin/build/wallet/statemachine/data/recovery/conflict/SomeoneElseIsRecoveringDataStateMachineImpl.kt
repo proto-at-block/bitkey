@@ -1,11 +1,6 @@
 package build.wallet.statemachine.data.recovery.conflict
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -14,25 +9,13 @@ import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.recovery.RecoverySyncer
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.AwaitingHardwareProofOfPossessionData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.VerifyingNotificationCommsData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.AwaitingHardwareProofOfPossessionState
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.CancelingSomeoneElsesRecoveryDataState
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.CancelingSomeoneElsesRecoveryFailedDataState
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.ShowingSomeoneElseIsRecoveringDataState
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.VerifyingNotificationCommsState
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.*
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class SomeoneElseIsRecoveringDataStateMachineImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
-  private val recoveryNotificationVerificationDataStateMachine:
-    RecoveryNotificationVerificationDataStateMachine,
   private val recoverySyncer: RecoverySyncer,
 ) : SomeoneElseIsRecoveringDataStateMachine {
   @Composable
@@ -120,26 +103,19 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
 
       is VerifyingNotificationCommsState -> {
         VerifyingNotificationCommsData(
-          data =
-            recoveryNotificationVerificationDataStateMachine.model(
-              props =
-                RecoveryNotificationVerificationDataProps(
-                  f8eEnvironment = props.f8eEnvironment,
-                  fullAccountId = props.fullAccountId,
-                  onRollback = {
-                    state = ShowingSomeoneElseIsRecoveringDataState
-                  },
-                  onComplete = {
-                    // Once we've verified we can try to re-initiate with F8e
-                    state =
-                      CancelingSomeoneElsesRecoveryDataState(
-                        hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
-                      )
-                  },
-                  hwFactorProofOfPossession = dataState.hwFactorProofOfPossession,
-                  lostFactor = Hardware
-                )
-            )
+          f8eEnvironment = props.f8eEnvironment,
+          fullAccountId = props.fullAccountId,
+          onRollback = {
+            state = ShowingSomeoneElseIsRecoveringDataState
+          },
+          onComplete = {
+            // Once we've verified we can try to re-initiate with F8e
+            state =
+              CancelingSomeoneElsesRecoveryDataState(
+                hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
+              )
+          },
+          hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
         )
       }
     }

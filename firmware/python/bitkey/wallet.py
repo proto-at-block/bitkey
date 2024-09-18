@@ -343,10 +343,11 @@ class Wallet:
         cmd.derive_key_descriptor_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
-    def derive_and_sign(self, digest: bytes, path: list):
+    def derive_and_sign(self, digest: bytes, path: list, async_sign: bool):
         cmd = self._build_cmd()
         msg = ops_keys.derive_key_descriptor_and_sign_cmd()
         msg.hash = digest
+        msg.async_sign = async_sign
         p = ops_keybundle.derivation_path()
         p.child.extend(path)
         msg.derivation_path.CopyFrom(p)

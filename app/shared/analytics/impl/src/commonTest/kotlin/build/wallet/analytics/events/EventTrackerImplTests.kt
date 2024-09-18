@@ -1,6 +1,6 @@
 package build.wallet.analytics.events
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
@@ -42,7 +42,7 @@ class EventTrackerImplTests : FunSpec({
   val platformInfoProvider = PlatformInfoProviderMock()
   val appDeviceIdDao = AppDeviceIdDaoMock()
   val deviceInfoProvider = DeviceInfoProviderMock()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val eventStore = EventStoreMock()
   val debugOptionsService = DebugOptionsServiceFake()
   val analyticsTrackingPreference = AnalyticsTrackingPreferenceFake()
@@ -53,7 +53,7 @@ class EventTrackerImplTests : FunSpec({
     appCoroutineScope = appScope,
     appDeviceIdDao = appDeviceIdDao,
     deviceInfoProvider = deviceInfoProvider,
-    accountRepository = accountRepository,
+    accountService = accountService,
     debugOptionsService = debugOptionsService,
     clock = clock,
     countryCodeProvider = countryCodeProvider,
@@ -70,7 +70,7 @@ class EventTrackerImplTests : FunSpec({
   )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     analyticsTrackingPreference.clear()
     debugOptionsService.reset()
     eventProcessor.processBatchReturnValues = listOf(Ok(Unit))
@@ -81,7 +81,7 @@ class EventTrackerImplTests : FunSpec({
     val accounts = listOf(FullAccountMock, LiteAccountMock)
     accounts.forEach { account ->
       test("has active account - ${account::class.simpleName}") {
-        accountRepository.setActiveAccount(account)
+        accountService.setActiveAccount(account)
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
@@ -106,7 +106,7 @@ class EventTrackerImplTests : FunSpec({
     }
 
     test("no active account") {
-      accountRepository.clear()
+      accountService.clear()
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
@@ -127,7 +127,7 @@ class EventTrackerImplTests : FunSpec({
 
     accounts.forEach { account ->
       test("onboarding account - ${account::class.simpleName}") {
-        accountRepository.saveAccountAndBeginOnboarding(account)
+        accountService.saveAccountAndBeginOnboarding(account)
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
@@ -153,11 +153,11 @@ class EventTrackerImplTests : FunSpec({
 
     test("lite account upgrading to full account") {
       val account = FullAccountMock
-      accountRepository.accountState.value = Ok(
+      accountService.accountState.value = Ok(
         AccountStatus.LiteAccountUpgradingToFullAccount(account)
       )
 
-      accountRepository.saveAccountAndBeginOnboarding(account)
+      accountService.saveAccountAndBeginOnboarding(account)
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =

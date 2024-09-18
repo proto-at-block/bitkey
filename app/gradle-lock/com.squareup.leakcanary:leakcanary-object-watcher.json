@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:leakcanary-object-watcher",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "leakcanary-object-watcher-2.13.jar": "fe2f449af37cfa4f1019842153e3e30085217ddbb9f45c66ad50943c2edfe487"
+                        "leakcanary-object-watcher-2.14.jar": "575a046bcc362916fa6f106373f393bacf5578f13640419a464b4c81d89e646e"
                     }
                 }
             ],

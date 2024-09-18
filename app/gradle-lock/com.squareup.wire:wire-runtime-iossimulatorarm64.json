@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.wire:wire-runtime-iossimulatorarm64",
     "components": [
         {
-            "version": "4.9.8",
+            "version": "4.9.9",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-runtime-iossimulatorarm64-4.9.8-metadata.jar": "e7bffc03ecc6c799e9109ddbd7388067466a914152dd4f6bb349d559394b9ef8"
+                        "wire-runtime-iossimulatorarm64-4.9.9-metadata.jar": "155075a5bc7a62d117ff6c90cc0dfd33a3272990a0befcc98f41cfc04e3d4834"
                     }
                 },
                 {
                     "artifacts": {
-                        "wire-runtime.klib": "bb29339790a1efc4399317879c6c38f33924f3f1713589b40a8f7b9253b2e6af"
+                        "wire-runtime.klib": "ee8f564889bd0fab9afe2046e2efbe64f4ba361b86771d2f0baae1d5fa5ba43f"
                     }
                 }
             ],

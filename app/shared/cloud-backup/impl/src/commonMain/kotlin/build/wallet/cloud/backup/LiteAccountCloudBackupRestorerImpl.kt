@@ -1,6 +1,6 @@
 package build.wallet.cloud.backup
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
@@ -22,7 +22,7 @@ class LiteAccountCloudBackupRestorerImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,
   private val cloudBackupDao: CloudBackupDao,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
 ) : LiteAccountCloudBackupRestorer {
   override suspend fun restoreFromBackup(liteAccountCloudBackup: CloudBackupV2) =
     coroutineBinding {
@@ -78,7 +78,7 @@ class LiteAccountCloudBackupRestorerImpl(
           recoveryAuthKey = liteAccountCloudBackup.appRecoveryAuthKeypair.publicKey
         )
 
-      accountRepository.saveAccountAndBeginOnboarding(
+      accountService.saveAccountAndBeginOnboarding(
         account = account
       )
         .mapError(::AccountBackupRestorationError)

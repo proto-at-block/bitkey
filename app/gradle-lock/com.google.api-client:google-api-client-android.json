@@ -2,11 +2,11 @@
     "module-identifier": "com.google.api-client:google-api-client-android",
     "components": [
         {
-            "version": "2.4.0",
+            "version": "2.4.1",
             "variants": [
                 {
                     "artifacts": {
-                        "google-api-client-android-2.4.0.jar": "9d0d21b2d8f64c04c40dffedcff53bfe3695900d0c408b8b51b6aaf4aa7bd9df"
+                        "google-api-client-android-2.4.1.jar": "6329e23898cc0de78022ccf5b6583f739786a82ea1c776804adb3aa4de0be91f"
                     }
                 }
             ],

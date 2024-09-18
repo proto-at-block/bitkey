@@ -8,6 +8,7 @@ enum class FirmwareFeatureFlag {
   UNLOCK,
   MULTIPLE_FINGERPRINTS,
   IMPROVED_FINGERPRINT_ENROLLMENT,
+  ASYNC_SIGNING,
 }
 
 /** Maps to [FirmwareFeatureFlagCfg] in core */

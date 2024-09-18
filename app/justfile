@@ -104,7 +104,7 @@ ios-snapshots-record:
   set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
 
 # Verify UI snapshots for iOS
 ios-snapshots-verify:
@@ -112,7 +112,7 @@ ios-snapshots-verify:
   set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2' -retry-tests-on-failure -test-iterations 3
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5' -retry-tests-on-failure -test-iterations 3
 
 [private]
 ios-snapshot-prework:
@@ -121,11 +121,11 @@ ios-snapshot-prework:
   # Check for the specific iOS simulator runtime
   runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-17-2' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 17.2 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS 17.5 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 17.2 --/{flag=1;next}/--/{flag=0}flag')
+  devices=$(xcrun simctl list devices | awk '/-- iOS 17.5 --/{flag=1;next}/--/{flag=0}flag')
   device=$(echo "$devices" | grep -E 'iPhone 15 Pro Max \(.*\)' && echo true || echo false)
   if [ "$device" == "false" ]; then
     echo "You must install the iPhone 15 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"

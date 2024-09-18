@@ -1,7 +1,8 @@
 package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
+import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
@@ -41,25 +42,23 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
     TransferInitiatedUiProps(
       onBack = {},
       recipientAddress = BitcoinAddress("abc"),
-      transferInitiatedVariant =
-        TransferInitiatedUiProps.Variant.Regular(
-          transferBitcoinAmount = BitcoinMoney.sats(3861),
-          feeBitcoinAmount = BitcoinMoney.sats(380),
-          totalBitcoinAmount = BitcoinMoney.sats(4241)
+      transactionDetails =
+        TransactionDetails.Regular(
+          transferAmount = BitcoinMoney.sats(3861),
+          feeAmount = BitcoinMoney.sats(380),
+          estimatedTransactionPriority = SIXTY_MINUTES
         ),
-      estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST,
       exchangeRates = null,
       onDone = {}
     )
 
   val speedUpProps =
     regularProps.copy(
-      transferInitiatedVariant =
-        TransferInitiatedUiProps.Variant.SpeedUp(
-          transferBitcoinAmount = BitcoinMoney.sats(3861),
+      transactionDetails =
+        TransactionDetails.SpeedUp(
+          transferAmount = BitcoinMoney.sats(3861),
           oldFeeAmount = BitcoinMoney.sats(190),
-          newFeeAmount = BitcoinMoney.sats(380),
-          totalBitcoinAmount = BitcoinMoney.sats(4241)
+          feeAmount = BitcoinMoney.sats(380)
         )
     )
 

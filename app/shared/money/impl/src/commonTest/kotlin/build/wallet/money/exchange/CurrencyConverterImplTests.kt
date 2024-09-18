@@ -1,7 +1,7 @@
 package build.wallet.money.exchange
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.ktor.result.HttpError.NetworkError
@@ -21,16 +21,16 @@ import kotlinx.datetime.Instant
 
 class CurrencyConverterImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoFake()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val exchangeRateF8eClient = ExchangeRateF8eClientMock()
   val converter = CurrencyConverterImpl(
-    accountRepository = accountRepository,
+    accountService = accountService,
     exchangeRateDao = exchangeRateDao,
     exchangeRateF8eClient = exchangeRateF8eClient
   )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     exchangeRateDao.reset()
     exchangeRateF8eClient.reset()
   }
@@ -123,7 +123,7 @@ class CurrencyConverterImplTests : FunSpec({
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
     exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
     exchangeRateDao.historicalExchangeRates.value = mapOf(differentTime to listOf(USDtoBTC(0.2)))
-    accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
+    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
 
     exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value = Ok(USDtoBTC(0.5))
 

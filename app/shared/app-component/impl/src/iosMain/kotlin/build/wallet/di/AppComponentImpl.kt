@@ -22,6 +22,7 @@ import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManager
+import build.wallet.sqldelight.DatabaseIntegrityCheckerImpl
 import build.wallet.time.Delayer
 import co.touchlab.kermit.LogWriter
 import platform.Foundation.NSBundle
@@ -70,6 +71,7 @@ fun makeAppComponent(
   val platformContext = PlatformContext()
   val fileDirectoryProvider = FileDirectoryProviderImpl(platformContext)
   val fileManager = fileManagerProvider(fileDirectoryProvider)
+  val databaseIntegrityChecker = DatabaseIntegrityCheckerImpl(fileDirectoryProvider)
 
   val logStore = when (appVariant) {
     AppVariant.Development -> LogStoreInMemoryImpl()
@@ -114,6 +116,7 @@ fun makeAppComponent(
     symmetricKeyGenerator = symmetricKeyGenerator,
     xChaCha20Poly1305 = xChaCha20Poly1305,
     xNonceGenerator = xNonceGenerator,
-    firmwareCommsLogBuffer = firmwareCommsLogBuffer
+    firmwareCommsLogBuffer = firmwareCommsLogBuffer,
+    databaseIntegrityChecker = databaseIntegrityChecker
   )
 }

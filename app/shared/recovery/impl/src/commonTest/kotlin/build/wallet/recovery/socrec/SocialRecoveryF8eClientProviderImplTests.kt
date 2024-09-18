@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.debug.DebugOptionsServiceFake
@@ -13,7 +13,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.TestScope
 
 class SocialRecoveryF8eClientProviderImplTests : FunSpec({
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val debugOptionsService = DebugOptionsServiceFake()
 
   val get = SocRecF8eClientImpl(
@@ -24,14 +24,14 @@ class SocialRecoveryF8eClientProviderImplTests : FunSpec({
     backgroundScope = TestScope()
   )
   val provider = SocRecF8eClientProviderImpl(
-    accountRepository,
+    accountService,
     debugOptionsService,
     socRecFake,
     get
   )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     debugOptionsService.reset()
   }
 
@@ -46,22 +46,22 @@ class SocialRecoveryF8eClientProviderImplTests : FunSpec({
   }
 
   test("use the real service when isUsingSocRecFakes is false with active account") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
     provider.get().shouldBeInstanceOf<SocRecF8eClientImpl>()
   }
 
   test("use fakes when isUsingSocRecFakes is true with active account") {
-    accountRepository.setActiveAccount(LiteAccountMock)
+    accountService.setActiveAccount(LiteAccountMock)
     provider.get().shouldBeInstanceOf<SocRecF8eClientFake>()
   }
 
   test("use the real service when isUsingSocRecFakes is false with onboarding account") {
-    accountRepository.saveAccountAndBeginOnboarding(FullAccountMock)
+    accountService.saveAccountAndBeginOnboarding(FullAccountMock)
     provider.get().shouldBeInstanceOf<SocRecF8eClientImpl>()
   }
 
   test("use fakes when isUsingSocRecFakes is true with onboarding account") {
-    accountRepository.saveAccountAndBeginOnboarding(LiteAccountMock)
+    accountService.saveAccountAndBeginOnboarding(LiteAccountMock)
     provider.get().shouldBeInstanceOf<SocRecF8eClientFake>()
   }
 

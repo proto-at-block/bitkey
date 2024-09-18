@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.transactions.TransactionItemModel
@@ -50,7 +52,7 @@ internal fun TransactionListPreview() {
                     date = "Pending",
                     amount = "$21.36",
                     amountEquivalent = "0.000305 BTC",
-                    incoming = false,
+                    transactionType = Outgoing,
                     isPending = false,
                     onClick = {}
                   ),
@@ -59,7 +61,7 @@ internal fun TransactionListPreview() {
                     date = "3 hours ago",
                     amount = " + $20.00",
                     amountEquivalent = "0.00017 BTC",
-                    incoming = true,
+                    transactionType = Incoming,
                     isPending = false,
                     onClick = {}
                   )
@@ -74,7 +76,7 @@ internal fun TransactionListPreview() {
                     date = "July 21 at 1:25pm",
                     amount = "$250.00",
                     amountEquivalent = "0.00011 BTC",
-                    incoming = false,
+                    transactionType = Outgoing,
                     isPending = false,
                     onClick = {}
                   ),
@@ -83,7 +85,7 @@ internal fun TransactionListPreview() {
                     date = "July 4",
                     amount = "$102.14",
                     amountEquivalent = "0.000305 BTC",
-                    incoming = false,
+                    transactionType = Outgoing,
                     isPending = false,
                     onClick = {}
                   )

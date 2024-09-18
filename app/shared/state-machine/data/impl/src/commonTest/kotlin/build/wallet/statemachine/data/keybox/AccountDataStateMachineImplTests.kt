@@ -1,10 +1,11 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.recovery.Recovery
@@ -25,7 +26,7 @@ import kotlin.time.Duration.Companion.minutes
 
 class AccountDataStateMachineImplTests : FunSpec({
 
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val recoverySyncerMock =
     RecoverySyncerMock(
       recovery = Loading,
@@ -60,7 +61,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       hasActiveFullAccountDataStateMachine = hasActiveFullAccountDataStateMachine,
       hasActiveLiteAccountDataStateMachine = hasActiveLiteAccountDataStateMachine,
       noActiveAccountDataStateMachine = noActiveKeyboxDataStateMachine,
-      accountRepository = accountRepository,
+      accountService = accountService,
       recoverySyncer = recoverySyncerMock,
       someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
       recoverySyncFrequency = 1.minutes,
@@ -68,7 +69,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     hasActiveFullAccountDataStateMachine.reset()
     hasActiveLiteAccountDataStateMachine.reset()
     noActiveKeyboxDataStateMachine.reset()
@@ -76,7 +77,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("no active keybox") {
-    accountRepository.accountState.value = Ok(NoAccount)
+    accountService.accountState.value = Ok(NoAccount)
 
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
@@ -85,8 +86,16 @@ class AccountDataStateMachineImplTests : FunSpec({
     }
   }
 
+  test("ignores software account") {
+    accountService.setActiveAccount(SoftwareAccountMock)
+
+    stateMachine.test(Unit) {
+      awaitItem().shouldBe(CheckingActiveAccountData)
+    }
+  }
+
   test("has active full account") {
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
@@ -96,7 +105,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("has active lite account") {
-    accountRepository.setActiveAccount(LiteAccountMock)
+    accountService.setActiveAccount(LiteAccountMock)
 
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
@@ -109,7 +118,7 @@ class AccountDataStateMachineImplTests : FunSpec({
 
   test("NoLongerRecoveringData") {
     recoverySyncerMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
@@ -119,7 +128,7 @@ class AccountDataStateMachineImplTests : FunSpec({
 
   test("SomeoneElseIsRecoveringData") {
     recoverySyncerMock.recoveryStatus.value = Ok(Recovery.SomeoneElseIsRecovering(App))
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)

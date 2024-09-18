@@ -22,7 +22,6 @@ import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuth
 import build.wallet.recovery.LostAppRecoveryAuthenticatorMock
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError.F8eInitiateDelayNotifyError
 import build.wallet.recovery.LostAppRecoveryInitiatorMock
-import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
@@ -42,9 +41,6 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -62,11 +58,6 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   val lostAppRecoveryInitiator = LostAppRecoveryInitiatorMock(turbines::create)
   val lostAppRecoveryAuthenticator = LostAppRecoveryAuthenticatorMock(turbines::create)
   val cancelDelayNotifyF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
-  val recoveryNotificationVerificationDataStateMachine =
-    object : RecoveryNotificationVerificationDataStateMachine,
-      StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
-        initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-      ) {}
   val uuid = UuidGeneratorFake()
 
   val stateMachine =
@@ -76,7 +67,6 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       listKeysetsF8eClient = ListKeysetsF8eClientMock(),
       lostAppRecoveryInitiator = lostAppRecoveryInitiator,
       lostAppRecoveryAuthenticator = lostAppRecoveryAuthenticator,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyF8eClient,
       delayer = ControlledDelayer(),
       uuidGenerator = uuid
@@ -219,10 +209,11 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       lostAppRecoveryAuthenticator.authenticateCalls.awaitItem()
       lostAppRecoveryInitiator.initiateCalls.awaitItem()
 
-      awaitItem().shouldBeTypeOf<VerifyingNotificationCommsData>()
-
-      lostAppRecoveryInitiator.recoveryResult = Ok(Unit)
-      recoveryNotificationVerificationDataStateMachine.props.onComplete()
+      with(awaitItem()) {
+        shouldBeTypeOf<VerifyingNotificationCommsData>()
+        lostAppRecoveryInitiator.recoveryResult = Ok(Unit)
+        onComplete()
+      }
 
       awaitItem().shouldBeTypeOf<InitiatingLostAppRecoveryWithF8eData>()
       lostAppRecoveryInitiator.initiateCalls.awaitItem()

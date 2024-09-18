@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-utils",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-utils-metadata-2.3.9.jar": "b8af079c61b7a1eb3aaf93e2a6c7a1aa1663172208a665093cd26906e049e864"
+                        "ktor-utils-metadata-2.3.11.jar": "4897948f800bf3960718fb9a5aff5012b721b7b8966638595826c6b2da7c4e25"
                     }
                 }
             ],

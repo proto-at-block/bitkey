@@ -8,10 +8,10 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
 import com.github.michaelbull.result.getOrElse
@@ -80,8 +80,11 @@ sealed interface RecoveryInProgressData {
    * verification was requested by the server for cancellation.
    */
   data class VerifyingNotificationCommsForCancellationData(
-    val data: RecoveryNotificationVerificationData,
     val lostFactor: PhysicalFactor,
+    val f8eEnvironment: F8eEnvironment,
+    val fullAccountId: FullAccountId,
+    val onRollback: () -> Unit,
+    val onComplete: () -> Unit,
   ) : RecoveryInProgressData
 
   /**

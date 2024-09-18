@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-parcelize-runtime",
+    "components": [
+        {
+            "version": "1.9.22",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-parcelize-runtime-1.9.22.jar": "f0077f35ec828e148ac92d0c6aa141a732b5eb7a4a391679aeefa59fa9a1a5cc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

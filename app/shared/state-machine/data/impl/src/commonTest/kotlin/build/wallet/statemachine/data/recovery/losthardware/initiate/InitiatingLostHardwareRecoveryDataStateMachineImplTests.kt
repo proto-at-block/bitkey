@@ -12,16 +12,12 @@ import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
-import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -37,11 +33,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       turbine = turbines::create
     )
 
-  val recoveryNotificationVerificationDataStateMachine =
-    object : RecoveryNotificationVerificationDataStateMachine, StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
-      initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-    ) {}
-
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
 
   val sealedCsekMock = "sealedCsek".encodeUtf8()
@@ -51,7 +42,6 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       appKeysGenerator = appKeysGenerator,
       delayer = ControlledDelayer(),
       lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient
     )
 
@@ -121,10 +111,11 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
       lostHardwareRecoveryStarter.initiateCalls.awaitItem()
 
-      awaitItem().shouldBeTypeOf<VerifyingNotificationCommsData>()
-
-      lostHardwareRecoveryStarter.initiateResult = Ok(Unit)
-      recoveryNotificationVerificationDataStateMachine.props.onComplete()
+      with(awaitItem()) {
+        shouldBeTypeOf<VerifyingNotificationCommsData>()
+        lostHardwareRecoveryStarter.initiateResult = Ok(Unit)
+        onComplete()
+      }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 

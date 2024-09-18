@@ -21,7 +21,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
@@ -84,7 +83,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   val props =
     TransferAmountEntryUiProps(
       onBack = {},
-      accountData = ActiveKeyboxLoadedDataMock,
       initialAmount = FiatMoney.usd(1.0),
       onContinueClick = { onContinueClickCalls += it },
       exchangeRates = emptyImmutableList(),

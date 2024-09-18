@@ -127,6 +127,11 @@ fun PriceChart(
       targetValue = backgroundPathColorTarget,
       animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
     )
+    val activePathMeasurer = remember { PathMeasure() }
+    val sparklinePathMeasurer = remember { PathMeasure() }
+    // the point where the active line becomes inactive, used to anchor selection ui
+    var lineSplitOffset by remember { mutableStateOf(Offset.Unspecified) }
+    var lineEndOffset by remember { mutableStateOf<Offset?>(null) }
     // background line path for inactive line and color animation after deselection
     var backgroundPath by remember {
       val path = chartDataState.createLinePath(
@@ -144,6 +149,12 @@ fun PriceChart(
           canvasWidth = adjustedCanvasWidth,
           canvasHeight = constraints.maxHeight.toFloat()
         )
+        if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
+          lineEndOffset = sparklinePathMeasurer.run {
+            setPath(path, false)
+            getPosition(length)
+          }
+        }
       }
       backgroundPath = WrappedPath(path)
     }
@@ -167,38 +178,12 @@ fun PriceChart(
           canvasWidth = adjustedCanvasWidth,
           canvasHeight = constraints.maxHeight.toFloat()
         )
+        lineSplitOffset = activePathMeasurer.run {
+          setPath(path, false)
+          getPosition(length)
+        }
       }
       foregroundPath = WrappedPath(path)
-    }
-    // The offset for drawing line select effects
-    val pathMeasurer = remember { PathMeasure() }
-    val lineSplitOffset by remember {
-      derivedStateOf {
-        pathMeasurer.run {
-          // The foreground line will be empty when selecting the first
-          // point, so use the background line start in this case
-          if (selectedPoint == chartDataState.data.first()) {
-            setPath(backgroundPath.path, false)
-            getPosition(0f)
-          } else {
-            setPath(foregroundPath.path, false)
-            getPosition(length)
-          }
-        }
-      }
-    }
-
-    val lineEndOffset by remember {
-      derivedStateOf {
-        if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
-          pathMeasurer.run {
-            setPath(backgroundPath.path, false)
-            getPosition(length)
-          }
-        } else {
-          null
-        }
-      }
     }
 
     val thumbScale by animateFloatAsState(

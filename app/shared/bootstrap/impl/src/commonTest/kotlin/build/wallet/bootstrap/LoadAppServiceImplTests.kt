@@ -1,6 +1,6 @@
 package build.wallet.bootstrap
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
@@ -22,16 +22,16 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class LoadAppServiceImplTests : FunSpec({
   val featureFlagService = FeatureFlagServiceFake()
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
   val service = LoadAppServiceImpl(
     featureFlagService,
-    accountRepository,
+    accountService,
     fullAccountAuthKeyRotationService
   )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     featureFlagService.reset()
     featureFlagService.flagsInitialized.value = true
     fullAccountAuthKeyRotationService.reset()
@@ -40,7 +40,7 @@ class LoadAppServiceImplTests : FunSpec({
   test("app state is not returned until feature flags are initialized") {
     featureFlagService.flagsInitialized.value = false
 
-    accountRepository.accountState.value = Ok(AccountStatus.NoAccount)
+    accountService.accountState.value = Ok(AccountStatus.NoAccount)
 
     val job = async {
       service.loadAppState()
@@ -58,7 +58,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has no active or onboarding account") {
     test("undetermined app state") {
-      accountRepository.accountState.value = Ok(AccountStatus.NoAccount)
+      accountService.accountState.value = Ok(AccountStatus.NoAccount)
 
       service.loadAppState().shouldBe(AppState.Undetermined)
     }
@@ -66,7 +66,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has active lite account") {
     test("undetermined app state") {
-      accountRepository.accountState.value = Ok(ActiveAccount(LiteAccountMock))
+      accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
 
       service.loadAppState().shouldBe(AppState.Undetermined)
     }
@@ -74,7 +74,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has onboarding full account") {
     test("undetermined app state") {
-      accountRepository.accountState.value = Ok(
+      accountService.accountState.value = Ok(
         AccountStatus.OnboardingAccount(FullAccountMock)
       )
 
@@ -84,7 +84,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has onboarding lite account") {
     test("undetermined app state") {
-      accountRepository.accountState.value = Ok(
+      accountService.accountState.value = Ok(
         AccountStatus.OnboardingAccount(LiteAccountMock)
       )
 
@@ -94,7 +94,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has onboarding software account") {
     test("undermined app state") {
-      accountRepository.accountState.value = Ok(
+      accountService.accountState.value = Ok(
         AccountStatus.OnboardingAccount(OnboardingSoftwareAccountMock)
       )
 
@@ -104,7 +104,7 @@ class LoadAppServiceImplTests : FunSpec({
 
   context("has active full account") {
     test("no pending auth key rotation attempt") {
-      accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+      accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
 
       service.loadAppState().shouldBe(
         AppState.HasActiveFullAccount(
@@ -115,7 +115,7 @@ class LoadAppServiceImplTests : FunSpec({
     }
 
     test("has pending auth key rotation attempt") {
-      accountRepository.accountState.value = Ok(ActiveAccount(FullAccountMock))
+      accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
 
       val authKeyRotationAttempt =
         PendingAuthKeyRotationAttempt.IncompleteAttempt(AppAuthPublicKeysMock)

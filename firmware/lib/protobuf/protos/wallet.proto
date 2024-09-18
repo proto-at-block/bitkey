@@ -389,6 +389,7 @@ enum feature_flag {
   FEATURE_FLAG_UNLOCK = 3;
   FEATURE_FLAG_MULTIPLE_FINGERPRINTS = 4;
   FEATURE_FLAG_IMPROVED_FINGERPRINT_ENROLLMENT = 5;  // This does not control the feature, but flags support to the app.
+  FEATURE_FLAG_ASYNC_SIGNING = 67;  // This does not control the feature, but flags support to the app.
   // Add new feature flags here; do not remove any!
 }
 
@@ -677,6 +678,8 @@ enum status {
   FEATURE_NOT_SUPPORTED = 13;
   FILE_NOT_FOUND = 14;
   INVALID_STATE = 15;
+  IN_PROGRESS = 16;
+  INVALID_ARGUMENT = 17;
 }
 
 message wallet_cmd {

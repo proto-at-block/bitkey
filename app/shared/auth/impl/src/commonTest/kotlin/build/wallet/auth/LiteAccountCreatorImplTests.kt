@@ -1,6 +1,6 @@
 package build.wallet.auth
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationAuthError
 import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationF8eError
@@ -24,7 +24,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class LiteAccountCreatorImplTests : FunSpec({
 
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val appKeysGenerator = AppKeysGeneratorMock()
   val createLiteAccountF8eClient = CreateLiteAccountF8eClientMock(turbines::create)
@@ -32,7 +32,7 @@ class LiteAccountCreatorImplTests : FunSpec({
   val creator =
     LiteAccountCreatorImpl(
       accountAuthenticator = accountAuthorizer,
-      accountRepository = accountRepository,
+      accountService = accountService,
       authTokenDao = authTokenDao,
       appKeysGenerator = appKeysGenerator,
       createLiteAccountF8eClient = createLiteAccountF8eClient
@@ -40,13 +40,13 @@ class LiteAccountCreatorImplTests : FunSpec({
 
   beforeTest {
     accountAuthorizer.reset()
-    accountRepository.reset()
+    accountService.reset()
     appKeysGenerator.reset()
     createLiteAccountF8eClient.reset()
   }
 
   test("Happy path") {
-    accountRepository.accountState.value.get().shouldBe(AccountStatus.NoAccount)
+    accountService.accountState.value.get().shouldBe(AccountStatus.NoAccount)
     val accountId = createLiteAccountF8eClient.createResult.unwrap()
     val recoveryKey = appKeysGenerator.recoveryAuthKeyResult.unwrap()
     val tokens = accountAuthorizer.authResults.first().unwrap().authTokens
@@ -67,7 +67,7 @@ class LiteAccountCreatorImplTests : FunSpec({
       .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
       .tokens.shouldBe(tokens)
 
-    accountRepository.accountState.value.get().shouldBe(AccountStatus.OnboardingAccount(account))
+    accountService.accountState.value.get().shouldBe(AccountStatus.OnboardingAccount(account))
   }
 
   test("AppKeysGenerator failure binds") {

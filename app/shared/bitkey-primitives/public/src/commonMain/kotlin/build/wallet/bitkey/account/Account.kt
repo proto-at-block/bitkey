@@ -21,4 +21,5 @@ val Account.appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>
     is FullAccount -> keybox.activeAppKeyBundle.recoveryAuthKey
     is LiteAccount -> recoveryAuthKey
     is OnboardingSoftwareAccount -> recoveryAuthKey
+    is SoftwareAccount -> keybox.recoveryAuthKey
   }

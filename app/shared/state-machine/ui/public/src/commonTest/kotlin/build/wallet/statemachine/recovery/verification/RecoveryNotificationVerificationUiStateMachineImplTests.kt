@@ -1,31 +1,25 @@
 package build.wallet.statemachine.recovery.verification
 
+import app.cash.turbine.ReceiveTurbine
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.email.EmailFake
+import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.ktor.result.HttpError
 import build.wallet.notifications.NotificationTouchpoint
+import build.wallet.notifications.NotificationTouchpointServiceFake
 import build.wallet.phonenumber.PhoneNumberMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.ChoosingNotificationTouchpointData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.EnteringVerificationCodeData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.LoadingNotificationTouchpointFailureData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingNotificationTouchpointToServerData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingNotificationTouchpointToServerFailureData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingVerificationCodeToServerData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingVerificationCodeToServerFailureData
-import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.statemachine.ui.clickSecondaryButton
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -33,206 +27,338 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
+  val notificationTouchpointService = NotificationTouchpointServiceFake()
+
   val stateMachine =
     RecoveryNotificationVerificationUiStateMachineImpl(
       verificationCodeInputStateMachine =
-        object : VerificationCodeInputStateMachine, ScreenStateMachineMock<VerificationCodeInputProps>(
-          "verification-code-input"
-        ) {}
+        object : VerificationCodeInputStateMachine,
+          ScreenStateMachineMock<VerificationCodeInputProps>(
+            "verification-code-input"
+          ) {},
+      notificationTouchpointService = notificationTouchpointService
     )
 
-  val loadingNotificationTouchpointDataProps = LoadingNotificationTouchpointData.toProps()
+  val propsOnCompleteCalls = turbines.create<Unit>("props onComplete calls")
+  val propsOnRollbackCalls = turbines.create<Unit>("props onRollback calls")
 
-  val loadingNotificationTouchpointFailureDataPropsRetryCalls =
-    turbines.create<Unit>(
-      "LoadingNotificationTouchpointFailureData retry calls"
-    )
-  val loadingNotificationTouchpointFailureDataPropsRollbackCalls =
-    turbines.create<Unit>(
-      "LoadingNotificationTouchpointFailureData rollback calls"
-    )
-  val loadingNotificationTouchpointFailureDataProps =
-    LoadingNotificationTouchpointFailureData(
-      error = HttpError.NetworkError(Throwable()),
-      retry = { loadingNotificationTouchpointFailureDataPropsRetryCalls.add(Unit) },
-      rollback = { loadingNotificationTouchpointFailureDataPropsRollbackCalls.add(Unit) }
-    ).toProps()
+  val props = RecoveryNotificationVerificationUiProps(
+    fullAccountId = FullAccountIdMock,
+    f8eEnvironment = F8eEnvironment.Staging,
+    localLostFactor = PhysicalFactor.Hardware,
+    hwFactorProofOfPossession = HwFactorProofOfPossession(""),
+    onRollback = { propsOnRollbackCalls.add(Unit) },
+    onComplete = { propsOnCompleteCalls.add(Unit) }
+  )
 
-  val choosingNotificationTouchpointDataPropsRollbackCalls =
-    turbines.create<Unit>(
-      "ChoosingNotificationTouchpointData rollback calls"
-    )
-  val choosingNotificationTouchpointDataPropsSmsClickCalls =
-    turbines.create<Unit>(
-      "ChoosingNotificationTouchpointData onSmsClick calls"
-    )
-  val choosingNotificationTouchpointDataPropsEmailClickCalls =
-    turbines.create<Unit>(
-      "ChoosingNotificationTouchpointData onEmailClick calls"
-    )
-  val choosingNotificationTouchpointDataProps =
-    ChoosingNotificationTouchpointData(
-      rollback = { choosingNotificationTouchpointDataPropsRollbackCalls.add(Unit) },
-      onSmsClick = { choosingNotificationTouchpointDataPropsSmsClickCalls.add(Unit) },
-      onEmailClick = { choosingNotificationTouchpointDataPropsEmailClickCalls.add(Unit) }
-    ).toProps()
+  beforeTest {
+    notificationTouchpointService.reset()
+  }
 
-  val sendingNotificationTouchpointToServerDataProps =
-    SendingNotificationTouchpointToServerData
-      .toProps()
+  test("happy path - sms") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-  val sendingNotificationTouchpointToServerFailureDataPropsRetryCalls =
-    turbines.create<Unit>(
-      "SendingNotificationTouchpointToServerFailureData retry calls"
-    )
-  val sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls =
-    turbines.create<Unit>(
-      "SendingNotificationTouchpointToServerFailureData rollback calls"
-    )
-  val sendingNotificationTouchpointToServerFailureDataProps =
-    SendingNotificationTouchpointToServerFailureData(
-      error = HttpError.NetworkError(Throwable()),
-      retry = { sendingNotificationTouchpointToServerFailureDataPropsRetryCalls.add(Unit) },
-      rollback = { sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls.add(Unit) }
-    ).toProps()
-
-  val enteringVerificationCodeDataPropsRollbackCalls =
-    turbines.create<Unit>(
-      "EnteringVerificationCodeData rollback calls"
-    )
-  val enteringVerificationCodeDataPropsCodeEnteredCalls =
-    turbines.create<String>(
-      "EnteringVerificationCodeData onCodeEntered calls"
-    )
-  val enteringVerificationCodeDataProps =
-    EnteringVerificationCodeData(
-      rollback = { enteringVerificationCodeDataPropsRollbackCalls.add(Unit) },
-      touchpoint = NotificationTouchpoint.PhoneNumberTouchpoint("", PhoneNumberMock),
-      onResendCode = { _, _ -> },
-      onCodeEntered = { enteringVerificationCodeDataPropsCodeEnteredCalls.add(it) },
-      lostFactor = PhysicalFactor.Hardware
-    ).toProps()
-
-  val sendingVerificationCodeToServerDataProps = SendingVerificationCodeToServerData.toProps()
-
-  val sendingVerificationCodeToServerFailureDataPropsRetryCalls =
-    turbines.create<Unit>(
-      "SendingVerificationCodeToServerFailureData retry calls"
-    )
-  val sendingVerificationCodeToServerFailureDataPropsRollbackCalls =
-    turbines.create<Unit>(
-      "SendingVerificationCodeToServerFailureData rollback calls"
-    )
-  val sendingVerificationCodeToServerFailureDataProps =
-    SendingVerificationCodeToServerFailureData(
-      error = F8eError.ConnectivityError(HttpError.NetworkError(Throwable())),
-      retry = { sendingVerificationCodeToServerFailureDataPropsRetryCalls.add(Unit) },
-      rollback = { sendingVerificationCodeToServerFailureDataPropsRollbackCalls.add(Unit) }
-    ).toProps()
-
-  test("LoadingNotificationTouchpointData model") {
-    stateMachine.test(loadingNotificationTouchpointDataProps) {
+    stateMachine.test(props) {
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-    }
-  }
 
-  test("LoadingNotificationTouchpointFailureData model") {
-    stateMachine.test(loadingNotificationTouchpointFailureDataProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        onBack.shouldNotBeNull().invoke()
-        loadingNotificationTouchpointFailureDataPropsRollbackCalls.awaitItem()
+      awaitAndSelectTouchpoint("SMS")
 
-        clickPrimaryButton()
-        loadingNotificationTouchpointFailureDataPropsRetryCalls.awaitItem()
-
-        clickSecondaryButton()
-        loadingNotificationTouchpointFailureDataPropsRollbackCalls.awaitItem()
-      }
-    }
-  }
-
-  test("ChoosingNotificationTouchpointData model") {
-    stateMachine.test(choosingNotificationTouchpointDataProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        onBack.shouldNotBeNull().invoke()
-        choosingNotificationTouchpointDataPropsRollbackCalls.awaitItem()
-
-        val listModel =
-          mainContentList.first()
-            .shouldBeInstanceOf<FormMainContentModel.ListGroup>().listGroupModel
-
-        listModel.items[0].onClick.shouldNotBeNull().invoke() // Sms
-        choosingNotificationTouchpointDataPropsSmsClickCalls.awaitItem()
-
-        listModel.items[1].onClick.shouldNotBeNull().invoke() // Email
-        choosingNotificationTouchpointDataPropsEmailClickCalls.awaitItem()
-      }
-    }
-  }
-
-  test("SendingNotificationTouchpointToServerData model") {
-    stateMachine.test(sendingNotificationTouchpointToServerDataProps) {
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-    }
-  }
 
-  test("SendingNotificationTouchpointToServerFailureData model") {
-    stateMachine.test(sendingNotificationTouchpointToServerFailureDataProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        onBack.shouldNotBeNull().invoke()
-        sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls.awaitItem()
-
-        clickPrimaryButton()
-        sendingNotificationTouchpointToServerFailureDataPropsRetryCalls.awaitItem()
-
-        clickSecondaryButton()
-        sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls.awaitItem()
-      }
-    }
-  }
-
-  test("EnteringVerificationCodeData model") {
-    stateMachine.test(enteringVerificationCodeDataProps) {
       awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
-        onBack.shouldNotBeNull().invoke()
-        enteringVerificationCodeDataPropsRollbackCalls.awaitItem()
-
-        onCodeEntered.invoke("code")
-        enteringVerificationCodeDataPropsCodeEnteredCalls.awaitItem().shouldBe("code")
+        onCodeEntered("123")
       }
-    }
-  }
 
-  test("SendingVerificationCodeToServerData model") {
-    stateMachine.test(sendingVerificationCodeToServerDataProps) {
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      propsOnCompleteCalls.awaitItem()
     }
   }
 
-  test("SendingVerificationCodeToServerFailureData model") {
-    stateMachine.test(sendingVerificationCodeToServerFailureDataProps) {
+  test("happy path - email") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitAndSelectTouchpoint("Email")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+        onCodeEntered("123")
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      propsOnCompleteCalls.awaitItem()
+    }
+  }
+
+  test("loading notifications failure") {
+    notificationTouchpointService.syncNotificationTouchpointsResult =
+      Err(HttpError.NetworkError(Throwable()))
+
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t load verification for recovery")
+        primaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Retry")
+          onClick()
+        }
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t load verification for recovery")
+        secondaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Back")
+          onClick() // Rollback
+        }
+      }
+
+      propsOnRollbackCalls.awaitItem()
+    }
+  }
+
+  test("ChoosingNotificationTouchpointUiState onBack") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
       awaitScreenWithBody<FormBodyModel> {
         onBack.shouldNotBeNull().invoke()
-        sendingVerificationCodeToServerFailureDataPropsRollbackCalls.awaitItem()
-
-        clickPrimaryButton()
-        sendingVerificationCodeToServerFailureDataPropsRetryCalls.awaitItem()
-
-        clickSecondaryButton()
-        sendingVerificationCodeToServerFailureDataPropsRollbackCalls.awaitItem()
       }
+
+      propsOnRollbackCalls.awaitItem()
+    }
+  }
+
+  test("send code error - rollback and retry") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+    notificationTouchpointService.sendVerificationCodeToTouchpointResult =
+      Err(HttpError.NetworkError(Throwable()))
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitAndSelectTouchpoint("SMS")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldNotBeNull()
+          .shouldBe("We couldn’t send a verification code")
+        secondaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Back")
+          onClick()
+        }
+      }
+
+      awaitAndSelectTouchpoint("SMS")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        notificationTouchpointService.sendVerificationCodeToTouchpointResult = Ok(Unit)
+
+        header.shouldNotBeNull().headline.shouldNotBeNull()
+          .shouldBe("We couldn’t send a verification code")
+        primaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Retry")
+          onClick()
+        }
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+        onBack.invoke()
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
+      }
+    }
+  }
+
+  test("verify code error - rollback connectivity error") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+    notificationTouchpointService.verifyCodeResult =
+      Err(F8eError.ConnectivityError(HttpError.NetworkError(Throwable())))
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitAndSelectTouchpoint("SMS")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+        onCodeEntered("123")
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldNotBeNull()
+          .shouldBe("We couldn’t verify the entered code")
+
+        // Click rollback
+        secondaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Back")
+          onClick()
+        }
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      }
+    }
+  }
+
+  test("verify code error - rollback non-connectivity error") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+    notificationTouchpointService.verifyCodeResult =
+      Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitAndSelectTouchpoint("SMS")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+        onCodeEntered("123")
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldNotBeNull()
+          .shouldBe("We couldn’t verify the entered code")
+
+        // Click rollback
+        secondaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Back")
+          onClick()
+        }
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
+      }
+    }
+  }
+
+  test("verify code error - retry") {
+    val sms = NotificationTouchpoint.PhoneNumberTouchpoint(touchpointId = "sms", PhoneNumberMock)
+    val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
+    notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
+    notificationTouchpointService.verifyCodeResult =
+      Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitAndSelectTouchpoint("SMS")
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+        onCodeEntered("123")
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        notificationTouchpointService.verifyCodeResult = Ok(Unit)
+
+        header.shouldNotBeNull().headline.shouldNotBeNull()
+          .shouldBe("We couldn’t verify the entered code")
+
+        primaryButton.shouldNotBeNull().apply {
+          text.shouldBe("Retry")
+          onClick()
+        }
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      propsOnCompleteCalls.awaitItem()
     }
   }
 })
 
-private fun RecoveryNotificationVerificationData.toProps() =
-  RecoveryNotificationVerificationUiProps(
-    recoveryNotificationVerificationData = this,
-    lostFactor = PhysicalFactor.Hardware
-  )
+private suspend fun ReceiveTurbine<ScreenModel>.awaitAndSelectTouchpoint(touchpointName: String) =
+  apply {
+    awaitScreenWithBody<FormBodyModel> {
+      header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
+
+      val listModel =
+        mainContentList.first()
+          .shouldBeInstanceOf<FormMainContentModel.ListGroup>().listGroupModel
+
+      listModel.items.find {
+        it.title == touchpointName
+      }.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+    }
+  }

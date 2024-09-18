@@ -2,19 +2,6 @@
     "module-identifier": "com.google.guava:guava",
     "components": [
         {
-            "version": "32.0.1-jre",
-            "variants": [
-                {
-                    "artifacts": {
-                        "guava-32.0.1-jre.jar": "bd7fa227591fb8509677d0d1122cf95158f3b8a9f45653f58281d879f6dc48c5"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "32.1.3-android",
             "variants": [
                 {
@@ -25,6 +12,24 @@
             ],
             "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "32.1.3-jre",
+            "variants": [
+                {
+                    "artifacts": {
+                        "guava-32.1.3-android.jar": "20e6ac8902ddf49e7806cc70f3054c8d91accb5eefdc10f3207e80e0a336b263"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "guava-32.1.3-jre.jar": "6d4e2b5a118aab62e6e5e29d185a0224eed82c85c40ac3d33cf04a270c3b3744"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

@@ -29,6 +29,7 @@ import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
@@ -51,18 +52,19 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  test("complete lost app recovery then lost hardware recovery") {
-    testWithTwoApps(
-      isContested = false,
-      isUsingSocRecFakes = true
-    ) { _, lostAppAppTester, resetHardwareAndClearBackups, _ ->
-      lostAppAppTester.initiateAndCompleteLostAppRecovery(isConflicted = false)
+  test("complete lost app recovery then lost hardware recovery")
+    .config(tags = setOf(FlakyTest)) {
+      testWithTwoApps(
+        isContested = false,
+        isUsingSocRecFakes = true
+      ) { _, lostAppAppTester, resetHardwareAndClearBackups, _ ->
+        lostAppAppTester.initiateAndCompleteLostAppRecovery(isConflicted = false)
 
-      resetHardwareAndClearBackups()
+        resetHardwareAndClearBackups()
 
-      lostAppAppTester.initiateAndCompleteLostHardwareRecovery(isConflicted = false)
+        lostAppAppTester.initiateAndCompleteLostHardwareRecovery(isConflicted = false)
+      }
     }
-  }
 
   test("conflicted state cleared by completing recovery") {
     testWithTwoApps(

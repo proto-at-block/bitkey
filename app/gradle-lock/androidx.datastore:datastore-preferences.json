@@ -2,11 +2,11 @@
     "module-identifier": "androidx.datastore:datastore-preferences",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.1.1",
             "variants": [
                 {
                     "artifacts": {
-                        "datastore-preferences-1.0.0.aar": "6f9ac72082badb776447cdd579c16c25c18127185c6ba9f2cfab9246473e2db1"
+                        "datastore-preferences-metadata-1.1.1.jar": "7daf288a2f1efe727eac9fb75d9c8a773512c654740eb8381d443439c3d0c3a1"
                     }
                 }
             ],

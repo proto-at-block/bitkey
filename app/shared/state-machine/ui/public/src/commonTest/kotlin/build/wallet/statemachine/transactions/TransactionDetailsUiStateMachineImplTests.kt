@@ -11,6 +11,8 @@ import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerFake
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -606,7 +608,7 @@ private val TEST_RECEIVE_TXN =
     fee = null,
     weight = 253UL,
     vsize = 63UL,
-    incoming = true,
+    transactionType = Incoming,
     inputs = immutableListOf(),
     outputs = immutableListOf()
   )
@@ -625,7 +627,7 @@ private val TEST_SEND_TXN =
     fee = BitcoinMoney.sats(1_000_000),
     weight = 253UL,
     vsize = 63UL,
-    incoming = false,
+    transactionType = Outgoing,
     inputs = immutableListOf(),
     outputs = immutableListOf()
   )

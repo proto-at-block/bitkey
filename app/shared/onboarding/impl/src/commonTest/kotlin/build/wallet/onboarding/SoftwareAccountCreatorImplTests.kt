@@ -7,8 +7,8 @@ import build.wallet.auth.AuthTokenScope.Global
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
-import build.wallet.bitkey.keybox.OnboardingSoftwareAccountConfigMock
 import build.wallet.bitkey.keybox.OnboardingSoftwareAccountMock
+import build.wallet.bitkey.keybox.SoftwareAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.onboarding.CreateSoftwareAccountF8eClientMock
@@ -71,12 +71,12 @@ class SoftwareAccountCreatorImplTests : FunSpec({
       .createAccount(
         authKey = AppGlobalAuthPublicKeyMock,
         recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-        config = OnboardingSoftwareAccountConfigMock
+        config = SoftwareAccountConfigMock
       )
       .shouldBeOk(
         OnboardingSoftwareAccount(
           accountId = accountId,
-          config = OnboardingSoftwareAccountConfigMock,
+          config = SoftwareAccountConfigMock,
           appGlobalAuthKey = AppGlobalAuthPublicKeyMock,
           recoveryAuthKey = AppRecoveryAuthPublicKeyMock
         )
@@ -103,7 +103,7 @@ class SoftwareAccountCreatorImplTests : FunSpec({
     creator.createAccount(
       authKey = AppGlobalAuthPublicKeyMock,
       recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-      config = OnboardingSoftwareAccountConfigMock
+      config = SoftwareAccountConfigMock
     )
       .shouldBeErrOfType<SoftwareAccountCreationF8eError>()
 
@@ -115,7 +115,7 @@ class SoftwareAccountCreatorImplTests : FunSpec({
     creator.createAccount(
       authKey = AppGlobalAuthPublicKeyMock,
       recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-      config = OnboardingSoftwareAccountConfigMock
+      config = SoftwareAccountConfigMock
     )
       .shouldBeErrOfType<SoftwareAccountCreationAuthError>()
 
@@ -130,7 +130,7 @@ class SoftwareAccountCreatorImplTests : FunSpec({
     creator.createAccount(
       authKey = AppGlobalAuthPublicKeyMock,
       recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-      config = OnboardingSoftwareAccountConfigMock
+      config = SoftwareAccountConfigMock
     )
       .shouldBeErrOfType<SoftwareAccountCreationAuthError>()
 
@@ -157,7 +157,7 @@ class SoftwareAccountCreatorImplTests : FunSpec({
     creator.createAccount(
       authKey = AppGlobalAuthPublicKeyMock,
       recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-      config = OnboardingSoftwareAccountConfigMock
+      config = SoftwareAccountConfigMock
     )
       .shouldBeErrOfType<FailedToSaveAuthTokens>()
 

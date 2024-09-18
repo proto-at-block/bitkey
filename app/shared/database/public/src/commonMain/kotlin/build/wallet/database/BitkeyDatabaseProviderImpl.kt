@@ -291,6 +291,11 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       coachmarkEntityAdapter = CoachmarkEntity.Adapter(
         idAdapter = EnumColumnAdapter(),
         expirationAdapter = InstantColumnAdapter
+      ),
+      softwareKeyboxEntityAdapter = SoftwareKeyboxEntity.Adapter(
+        accountIdAdapter = SoftwareAccountIdColumnAdapter,
+        appGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+        appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter()
       )
     )
   }

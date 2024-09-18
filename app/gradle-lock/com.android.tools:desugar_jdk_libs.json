@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:desugar_jdk_libs",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "desugar_jdk_libs-2.0.3.jar": "7f4e68385dfe88eba4344ff71912912bdc731806b9b2ce4a12bef9aa6a7d4565"
+                        "desugar_jdk_libs-2.0.4.jar": "3bf4004c745f4c3740eea4c5729766b27746236f095c0fc52870e861183cbb9c"
                     }
                 }
             ],

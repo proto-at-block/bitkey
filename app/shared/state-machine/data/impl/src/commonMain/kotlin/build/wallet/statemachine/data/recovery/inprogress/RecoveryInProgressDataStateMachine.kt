@@ -2,12 +2,7 @@
 
 package build.wallet.statemachine.data.recovery.inprogress
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthProtocolError
 import build.wallet.auth.AuthTokenScope
@@ -38,61 +33,19 @@ import build.wallet.logging.logFailure
 import build.wallet.nfc.transaction.SignChallengeAndCsek
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.random.UuidGenerator
-import build.wallet.recovery.ChallengeToCompleteRecovery
-import build.wallet.recovery.LocalRecoveryAttemptProgress
+import build.wallet.recovery.*
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.BackedUpToCloud
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.CreatedSpendingKeys
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.MaybeNoLongerRecovering
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.RotatedAuthKeys
-import build.wallet.recovery.RecoveryAuthCompleter
-import build.wallet.recovery.RecoveryCanceler
-import build.wallet.recovery.RecoveryDao
-import build.wallet.recovery.RecoverySyncer
-import build.wallet.recovery.SignedChallengeToCompleteRecovery
+import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
 import build.wallet.recovery.socrec.EndorseTrustedContactsService
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.FailedToCreateSpendingKeysData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedRegeneratingTcCertificatesData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.FailedToCancelRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.VerifyingNotificationCommsForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.AwaitingCancellationProofOfPossessionState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.AwaitingChallengeAndCsekSignedWithHardwareState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.AwaitingHardwareProofOfPossessionState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.CancellingState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.CheckCompletionAttemptForSuccessOrCancellation
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.CreatingSpendingKeysWithF8eState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.ExitedPerformingSweepState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedPerformingCloudBackupState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToCancelRecoveryState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToCreateSpendingKeysState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToRotateAuthState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.PerformingCloudBackupState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.PerformingSweepState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.ReadyToCompleteRecoveryState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.RegeneratingTcCertificatesState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.RotatingAuthKeysWithF8eState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.VerifyingNotificationCommsForCancellationState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.WaitingForDelayPeriodState
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.*
 import build.wallet.time.Delayer
 import build.wallet.time.nonNegativeDurationBetween
 import build.wallet.time.withMinimumDelay
@@ -148,8 +101,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
   private val uuidGenerator: UuidGenerator,
   private val recoverySyncer: RecoverySyncer,
-  private val recoveryNotificationVerificationDataStateMachine:
-    RecoveryNotificationVerificationDataStateMachine,
   private val accountAuthenticator: AccountAuthenticator,
   private val recoveryDao: RecoveryDao,
   private val delayer: Delayer,
@@ -245,30 +196,22 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is VerifyingNotificationCommsForCancellationState -> {
         VerifyingNotificationCommsForCancellationData(
-          data =
-            recoveryNotificationVerificationDataStateMachine.model(
-              props =
-                RecoveryNotificationVerificationDataProps(
-                  f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                  fullAccountId = props.recovery.fullAccountId,
-                  onRollback = {
-                    // Take them back to the beginning
-                    state = calculateInitialState(props.fullAccountConfig, props.recovery)
-                  },
-                  onComplete = {
-                    state =
-                      getHwProofOfPossessionOrCancelDirectly(
-                        props,
-                        rollbackFromAwaitingProofOfPossession = {
-                          state = calculateInitialState(props.fullAccountConfig, props.recovery)
-                        }
-                      )
-                  },
-                  hwFactorProofOfPossession = null,
-                  lostFactor = props.recovery.factorToRecover
-                )
-            ),
-          lostFactor = props.recovery.factorToRecover
+          lostFactor = props.recovery.factorToRecover,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          fullAccountId = props.recovery.fullAccountId,
+          onRollback = {
+            // Take them back to the beginning
+            state = calculateInitialState(props.fullAccountConfig, props.recovery)
+          },
+          onComplete = {
+            state =
+              getHwProofOfPossessionOrCancelDirectly(
+                props,
+                rollbackFromAwaitingProofOfPossession = {
+                  state = calculateInitialState(props.fullAccountConfig, props.recovery)
+                }
+              )
+          }
         )
       }
 

@@ -73,7 +73,7 @@ val LiteAccountMock =
     recoveryAuthKey = AppRecoveryAuthPublicKeyMock
   )
 
-val OnboardingSoftwareAccountConfigMock = SoftwareAccountConfig(
+val SoftwareAccountConfigMock = SoftwareAccountConfig(
   bitcoinNetworkType = SIGNET,
   f8eEnvironment = Development,
   isTestAccount = true,
@@ -83,7 +83,20 @@ val OnboardingSoftwareAccountConfigMock = SoftwareAccountConfig(
 val OnboardingSoftwareAccountMock =
   OnboardingSoftwareAccount(
     accountId = SoftwareAccountId("account-id"),
-    config = OnboardingSoftwareAccountConfigMock,
+    config = SoftwareAccountConfigMock,
     appGlobalAuthKey = AppGlobalAuthPublicKeyMock,
     recoveryAuthKey = AppRecoveryAuthPublicKeyMock
+  )
+
+val SoftwareKeyboxMock = SoftwareKeybox(
+  id = "software-keybox-fake-id",
+  authKey = AppGlobalAuthPublicKeyMock,
+  recoveryAuthKey = AppRecoveryAuthPublicKeyMock
+)
+
+val SoftwareAccountMock =
+  SoftwareAccount(
+    accountId = SoftwareAccountId("account-id"),
+    config = SoftwareAccountConfigMock,
+    keybox = SoftwareKeyboxMock
   )

@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:shark-hprof",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "shark-hprof-2.13.jar": "991898a2755fec817d832051ba974af1aa2c79b264407425ed075673f60733ba"
+                        "shark-hprof-2.14.jar": "8f19f11585b0fb34fb8cac021504208ed1c73dfe8cb1f69b2bdb0437bb1191fa"
                     }
                 }
             ],

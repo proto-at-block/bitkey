@@ -1,5 +1,8 @@
 package build.wallet.statemachine.transactions
 
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.statemachine.core.Icon.SmallIconArrowDown
 import build.wallet.statemachine.core.Icon.SmallIconArrowUp
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
@@ -17,7 +20,7 @@ fun TransactionItemModel(
   date: String,
   amount: String,
   amountEquivalent: String,
-  incoming: Boolean,
+  transactionType: TransactionType,
   isPending: Boolean,
   onClick: () -> Unit,
 ) = ListItemModel(
@@ -32,7 +35,7 @@ fun TransactionItemModel(
           iconImage =
             if (isPending) {
               IconImage.Loader
-            } else if (incoming) {
+            } else if (transactionType == Incoming) {
               IconImage.LocalImage(SmallIconArrowDown)
             } else {
               IconImage.LocalImage(SmallIconArrowUp)
@@ -42,9 +45,9 @@ fun TransactionItemModel(
         )
     ),
   sideTextTint =
-    when {
-      incoming -> GREEN
-      else -> PRIMARY
+    when (transactionType) {
+      Incoming -> GREEN
+      Outgoing -> PRIMARY
     },
   onClick = onClick
 )

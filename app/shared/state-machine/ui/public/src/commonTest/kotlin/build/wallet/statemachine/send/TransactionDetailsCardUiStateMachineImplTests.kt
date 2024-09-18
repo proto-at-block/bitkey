@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.USD
@@ -21,10 +22,10 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
   context("Show regular transaction detail card") {
     val props =
       TransactionDetailsCardUiProps(
-        transactionDetail =
-          TransactionDetailType.Regular(
-            transferBitcoinAmount = BitcoinMoney.btc(1.0),
-            feeBitcoinAmount = BitcoinMoney.btc(0.3),
+        transactionDetails =
+          TransactionDetails.Regular(
+            transferAmount = BitcoinMoney.btc(1.0),
+            feeAmount = BitcoinMoney.btc(0.3),
             estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST
           ),
         fiatCurrency = USD,
@@ -33,31 +34,31 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
 
     test("Generates correct detail model type") {
       stateMachine.test(props) {
-        val transactionDetail =
+        val transactionDetails =
           awaitItem().transactionDetailModelType.shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
-        transactionDetail.transferAmountText.shouldBe("$3.00")
-        transactionDetail.feeAmountText.shouldBe("$0.90")
+        transactionDetails.transferAmountText.shouldBe("$3.00")
+        transactionDetails.feeAmountText.shouldBe("$0.90")
       }
     }
 
     test("Shows correct arrival estimate") {
-      val transactionDetail = props.transactionDetail.shouldBeTypeOf<TransactionDetailType.Regular>()
+      val transactionDetails = props.transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
       stateMachine.test(props) {
         awaitItem().transactionSpeedText.shouldBe("~10 minutes")
       }
       val thirtyMinutesTransactionDetail =
-        transactionDetail.copy(
+        transactionDetails.copy(
           estimatedTransactionPriority = EstimatedTransactionPriority.THIRTY_MINUTES
         )
-      stateMachine.test(props.copy(transactionDetail = thirtyMinutesTransactionDetail)) {
+      stateMachine.test(props.copy(transactionDetails = thirtyMinutesTransactionDetail)) {
         awaitItem().transactionSpeedText.shouldBe("~30 minutes")
       }
       val sixtyMinutesTransactionDetail =
-        transactionDetail.copy(
+        transactionDetails.copy(
           estimatedTransactionPriority = EstimatedTransactionPriority.SIXTY_MINUTES
         )
-      stateMachine.test(props.copy(transactionDetail = sixtyMinutesTransactionDetail)) {
+      stateMachine.test(props.copy(transactionDetails = sixtyMinutesTransactionDetail)) {
         awaitItem().transactionSpeedText.shouldBe("~60 minutes")
       }
     }
@@ -66,11 +67,11 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
   context("Show speed up transaction detail card") {
     val props =
       TransactionDetailsCardUiProps(
-        transactionDetail =
-          TransactionDetailType.SpeedUp(
-            transferBitcoinAmount = BitcoinMoney.btc(5.0),
-            feeBitcoinAmount = BitcoinMoney.btc(0.6),
-            oldFeeBitcoinAmount = BitcoinMoney.btc(0.3)
+        transactionDetails =
+          TransactionDetails.SpeedUp(
+            transferAmount = BitcoinMoney.btc(5.0),
+            feeAmount = BitcoinMoney.btc(0.6),
+            oldFeeAmount = BitcoinMoney.btc(0.3)
           ),
         fiatCurrency = USD,
         exchangeRates = immutableListOf()
@@ -78,12 +79,12 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
 
     test("Generates correct detail model type with correct transfer amounts") {
       stateMachine.test(props) {
-        val transactionDetail =
+        val transactionDetails =
           awaitItem().transactionDetailModelType.shouldBeTypeOf<TransactionDetailModelType.SpeedUp>()
 
-        transactionDetail.transferAmountText.shouldBe("$15.00")
-        transactionDetail.oldFeeAmountText.shouldBe("$0.90")
-        transactionDetail.feeDifferenceText.shouldBe("+$0.90")
+        transactionDetails.transferAmountText.shouldBe("$15.00")
+        transactionDetails.oldFeeAmountText.shouldBe("$0.90")
+        transactionDetails.feeDifferenceText.shouldBe("+$0.90")
       }
     }
 

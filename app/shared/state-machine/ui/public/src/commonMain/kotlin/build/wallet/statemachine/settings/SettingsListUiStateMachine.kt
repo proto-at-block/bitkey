@@ -55,5 +55,7 @@ data class SettingsListUiProps(
     data class DebugMenu(override val onClick: () -> Unit) : SettingsListRow
 
     data class Biometric(override val onClick: () -> Unit) : SettingsListRow
+
+    data class UtxoConsolidation(override val onClick: () -> Unit) : SettingsListRow
   }
 }

@@ -1,11 +1,6 @@
 package build.wallet.statemachine.notifications
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -71,7 +66,7 @@ class NotificationPreferencesUiStateMachineImpl(
       if (shouldLoadSavedPreferences) {
         notificationsPreferencesCachedProvider.getNotificationsPreferences(
           props.f8eEnvironment,
-          props.fullAccountId
+          props.accountId
         )
           // Generally speaking, there will be only one result, coming from the cache.
           // However, if the server state differs from the cache, we'll emit a second
@@ -274,7 +269,7 @@ class NotificationPreferencesUiStateMachineImpl(
   ) {
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       props.f8eEnvironment,
-      props.fullAccountId,
+      props.accountId,
       notificationPreferences,
       null
     ).onSuccess {

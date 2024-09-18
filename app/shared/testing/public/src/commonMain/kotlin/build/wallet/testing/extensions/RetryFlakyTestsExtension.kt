@@ -1,6 +1,7 @@
 package build.wallet.testing.extensions
 
 import build.wallet.logging.log
+import build.wallet.testing.getEnvBoolean
 import build.wallet.testing.tags.TestTag.FlakyTest
 import io.kotest.assertions.retry
 import io.kotest.core.extensions.TestCaseExtension
@@ -15,12 +16,13 @@ class RetryFlakyTestsExtension(
   private val attempts: Int,
   private val timeout: Duration,
   private val delay: Duration,
+  private val isRetryEnabled: Boolean = getEnvBoolean("RETRY_TESTS") ?: true,
 ) : TestCaseExtension {
   override suspend fun intercept(
     testCase: TestCase,
     execute: suspend (TestCase) -> TestResult,
   ): TestResult {
-    return if (testCase.config.tags.contains(FlakyTest)) {
+    return if (isRetryEnabled && testCase.config.tags.contains(FlakyTest)) {
       log { "Running flaky test '${testCase.name.testName}' with retry logic" }
       retry(attempts, timeout, delay) {
         val result = execute(testCase)

@@ -12,6 +12,8 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
@@ -64,9 +66,9 @@ class TransactionDetailsUiStateMachineImpl(
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransactionDetailsUiProps): ScreenModel {
     val totalAmount =
-      when {
-        props.transaction.incoming -> props.transaction.subtotal
-        else -> props.transaction.total
+      when (props.transaction.transactionType) {
+        Incoming -> props.transaction.subtotal
+        Outgoing -> props.transaction.total
       }
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
@@ -270,7 +272,7 @@ class TransactionDetailsUiStateMachineImpl(
       feeBumpEnabled = feeBumpEnabled,
       txStatusModel = when (props.transaction.confirmationStatus) {
         is Pending -> TxStatusModel.Pending(
-          isIncoming = props.transaction.incoming,
+          transactionType = props.transaction.transactionType,
           recipientAddress = props.transaction.chunkedRecipientAddress(),
           // Some transactions may not have an estimate confirmation time, if they don't, we don't
           // attempt to show "Transaction delayed", just "Transaction pending".
@@ -279,7 +281,7 @@ class TransactionDetailsUiStateMachineImpl(
           } ?: false
         )
         is Confirmed -> TxStatusModel.Confirmed(
-          isIncoming = props.transaction.incoming,
+          transactionType = props.transaction.transactionType,
           recipientAddress = props.transaction.chunkedRecipientAddress()
         )
       },
@@ -314,8 +316,8 @@ class TransactionDetailsUiStateMachineImpl(
           ),
           DataList(
             items =
-              when {
-                props.transaction.incoming ->
+              when (props.transaction.transactionType) {
+                Incoming ->
                   immutableListOf(
                     Data(
                       title = "Amount received",
@@ -325,7 +327,7 @@ class TransactionDetailsUiStateMachineImpl(
                     )
                   )
 
-                else ->
+                Outgoing ->
                   immutableListOf(
                     Data(
                       title =
@@ -441,9 +443,11 @@ class TransactionDetailsUiStateMachineImpl(
               ),
             sideTextTreatment = Data.SideTextTreatment.STRIKETHROUGH,
             sideTextType = Data.SideTextType.REGULAR,
-            secondarySideText = "${durationFormatter.formatWithAlphabet(
-              currentTime - confirmationTime
-            )} late",
+            secondarySideText = "${
+              durationFormatter.formatWithAlphabet(
+                currentTime - confirmationTime
+              )
+            } late",
             secondarySideTextType = Data.SideTextType.BOLD,
             secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
             explainer =

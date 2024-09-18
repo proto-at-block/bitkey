@@ -84,6 +84,11 @@ pub enum CommandError {
     FileNotFound,
     #[error("invalid state")]
     InvalidState,
+    #[error("in progress")]
+    InProgress,
+    #[error("timeout")]
+    Timeout,
+
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

@@ -11,16 +11,11 @@ import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
-import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -28,15 +23,10 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
-  val recoveryNotificationVerificationDataStateMachine =
-    object : RecoveryNotificationVerificationDataStateMachine, StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
-      LoadingNotificationTouchpointData
-    ) {}
   val recoverySyncer = RecoverySyncerMock(NoActiveRecovery, turbines::create)
   val stateMachine =
     SomeoneElseIsRecoveringDataStateMachineImpl(
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       recoverySyncer = recoverySyncer
     )
 

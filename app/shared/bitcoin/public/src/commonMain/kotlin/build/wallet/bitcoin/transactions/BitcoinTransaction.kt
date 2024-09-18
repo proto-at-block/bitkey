@@ -56,9 +56,9 @@ data class BitcoinTransaction(
   val total: BitcoinMoney,
   /**
    * Whether the transaction was incoming (a receive transaction)
-   * or not (a send transaction)
+   * or outgoing (a send transaction)
    */
-  val incoming: Boolean,
+  val transactionType: TransactionType,
   /**
    * The estimatedConfirmationTime represents the anticipated time for transaction confirmation,
    * dependent on the selected user's fee rate.
@@ -139,6 +139,16 @@ data class BitcoinTransaction(
     data object Pending : ConfirmationStatus
 
     data class Confirmed(val blockTime: BlockTime) : ConfirmationStatus
+  }
+
+  /**
+   * Indicates the type of transaction, e.g. incoming (a receive transaction)
+   * or outgoing (a send transaction).
+   */
+  sealed interface TransactionType {
+    data object Incoming : TransactionType
+
+    data object Outgoing : TransactionType
   }
 }
 

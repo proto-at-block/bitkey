@@ -33,9 +33,7 @@ import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.recovery.socrec.EndorseTrustedContactsServiceMock
-import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.SocRecServiceMock
-import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
@@ -53,9 +51,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.FailedToCancelRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.VerifyingNotificationCommsForCancellationData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.ClockFake
 import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
@@ -78,14 +73,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val recoverySyncer = RecoverySyncerMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
-  val recoveryNotificationVerificationDataStateMachine =
-    object : RecoveryNotificationVerificationDataStateMachine,
-      StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
-        initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-      ) {}
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val socRecService = SocRecServiceMock(turbines::create)
-  val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
 
   val stateMachine =
@@ -98,7 +87,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       f8eSpendingKeyRotator = f8eSpendingKeyRotator,
       uuidGenerator = uuid,
       recoverySyncer = recoverySyncer,
-      recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       accountAuthenticator = accountAuthorizer,
       recoveryDao = recoveryDao,
       delayer = ControlledDelayer(),
@@ -307,9 +295,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CancellingData>()
 
-      awaitItem().shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-      lostAppRecoveryCanceler.result = Ok(Unit)
-      recoveryNotificationVerificationDataStateMachine.props.onComplete()
+      with(awaitItem()) {
+        shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
+        lostAppRecoveryCanceler.result = Ok(Unit)
+        onComplete()
+      }
 
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
@@ -342,9 +332,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CancellingData>()
 
-      awaitItem().shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-      lostAppRecoveryCanceler.result = Ok(Unit)
-      recoveryNotificationVerificationDataStateMachine.props.onComplete()
+      with(awaitItem()) {
+        shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
+        lostAppRecoveryCanceler.result = Ok(Unit)
+        onComplete()
+      }
 
       lostAppRecoveryCanceler.cancelCalls.awaitItem()
 

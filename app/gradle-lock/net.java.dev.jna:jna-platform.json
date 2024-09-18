@@ -2,6 +2,19 @@
     "module-identifier": "net.java.dev.jna:jna-platform",
     "components": [
         {
+            "version": "5.14.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jna-platform-5.14.0.jar": "ae4caceb3840730c2537f9b7fb55a01baba580286b4122951488bcee558c2449"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
             "version": "5.6.0",
             "variants": [
                 {
@@ -12,19 +25,6 @@
             ],
             "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
-            ]
-        },
-        {
-            "version": "5.9.0",
-            "variants": [
-                {
-                    "artifacts": {
-                        "jna-platform-5.9.0.jar": "1903bc6d87f3ab92023957b91f45a9c8eb3515bad030356ce977201e5141b724"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
             ]
         }
     ]

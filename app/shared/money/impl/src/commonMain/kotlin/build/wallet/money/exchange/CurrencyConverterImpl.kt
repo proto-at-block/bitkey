@@ -1,6 +1,6 @@
 package build.wallet.money.exchange
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.Money
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
 class CurrencyConverterImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val exchangeRateDao: ExchangeRateDao,
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
 ) : CurrencyConverter {
@@ -47,7 +47,7 @@ class CurrencyConverterImpl(
         // show the current rate
         emit(convert(fromAmount, toCurrency).first())
         val account =
-          when (val accountStatus = accountRepository.accountStatus().first().get()) {
+          when (val accountStatus = accountService.accountStatus().first().get()) {
             null -> null
             else -> AccountStatus.accountFromAccountStatus(accountStatus)
           }

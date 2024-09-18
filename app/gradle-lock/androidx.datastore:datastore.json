@@ -2,11 +2,11 @@
     "module-identifier": "androidx.datastore:datastore",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.1.1",
             "variants": [
                 {
                     "artifacts": {
-                        "datastore-1.0.0.aar": "28fea28d365b4aef4d5e8732fe51f233e580d2042cd4a70a6b293a518daec703"
+                        "datastore-metadata-1.1.1.jar": "4ab4086b6359ea81eb359451f0f005c78bc508d75c070555154cdf6313b0e1cb"
                     }
                 }
             ],

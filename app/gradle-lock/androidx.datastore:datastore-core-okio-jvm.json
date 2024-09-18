@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.datastore:datastore-core-okio-jvm",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "datastore-core-okio-jvm-1.1.1.jar": "5071d03c7be9555fd81e5bd522b490a06a89694e4b937f307da72bc74e33c34a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -129,4 +129,7 @@ enum class NotificationsEventTrackerScreenId : EventTrackerScreenId {
 
   /** Loading screen shown when we are completing saving notifications during onboarding */
   SAVE_NOTIFICATIONS_LOADING,
+
+  /** Screen for customer to enter comms verification code when trying to cancel a recovery conflict. */
+  CANCELLING_SOMEONE_ELSE_IS_RECOVERING_COMMS_VERIFICATION_ENTRY,
 }

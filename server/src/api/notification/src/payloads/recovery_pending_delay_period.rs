@@ -10,6 +10,8 @@ use crate::{
     sms::SmsPayload, NotificationError, NotificationMessage,
 };
 
+use super::format_duration;
+
 const LOST_FACTOR_FIELD: &str = "lostFactor";
 const DURATION_FIELD: &str = "duration";
 const END_DATE_FIELD: &str = "endDate";
@@ -35,30 +37,7 @@ impl TryFrom<(NotificationCompositeKey, RecoveryPendingDelayPeriodPayload)>
         let (account_id, _) = composite_key.clone();
         let duration = payload.delay_end_time - OffsetDateTime::now_utc();
 
-        let formatted_duration = if duration.whole_hours() > 18 {
-            // Call anything above 18 hours 1 day
-            let whole_days = duration.whole_days().max(1);
-            format!(
-                "{} day{}",
-                whole_days,
-                if whole_days != 1 { "s" } else { "" }
-            )
-        } else if duration.whole_minutes() > 45 {
-            // Call anything above 45 minutes 1 hour
-            let whole_hours = duration.whole_hours().max(1);
-            format!(
-                "{} hour{}",
-                whole_hours,
-                if whole_hours != 1 { "s" } else { "" }
-            )
-        } else {
-            let whole_minutes = duration.whole_minutes();
-            format!(
-                "{} minute{}",
-                whole_minutes,
-                if whole_minutes != 1 { "s" } else { "" }
-            )
-        };
+        let formatted_duration = format_duration(duration);
 
         let message = match payload.lost_factor {
             Factor::App => format!("Your Bitkey wallet will be ready on your new phone in {}. If you didn't request this, please cancel immediately in your Bitkey app.", formatted_duration),

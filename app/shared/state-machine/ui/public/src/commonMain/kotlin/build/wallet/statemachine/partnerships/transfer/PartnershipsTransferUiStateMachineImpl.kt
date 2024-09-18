@@ -20,12 +20,9 @@ import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
-import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.*
 import build.wallet.partnerships.PartnerRedirectionMethod.Deeplink
 import build.wallet.partnerships.PartnerRedirectionMethod.Web
-import build.wallet.partnerships.PartnershipTransaction
-import build.wallet.partnerships.PartnershipTransactionType
-import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -141,26 +138,22 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.LoadingPartnerRedirect -> {
         LaunchedEffect("load-transfer-partner-redirect-info") {
           coroutineBinding {
-            val localTransaction = partnershipsRepository.create(
-              partnerInfo = currentState.partnerInfo,
-              type = PartnershipTransactionType.TRANSFER
-            ).bind()
             val address = bitcoinAddressService.generateAddress(props.account).bind()
             val result = getTransferRedirectF8eClient
               .getTransferRedirect(
                 fullAccountId = props.keybox.fullAccountId,
                 f8eEnvironment = props.keybox.config.f8eEnvironment,
                 partner = currentState.partnerInfo.partnerId.value,
-                address = address,
-                partnerTransactionId = localTransaction.id
+                address = address
               ).bind()
 
-            state =
-              State.PartnerRedirectInformationLoaded(
-                partnerInfo = currentState.partnerInfo,
-                redirectInfo = result.redirectInfo,
-                localTransaction = localTransaction
-              )
+            val localTransaction = partnershipsRepository.create(
+              id = result.redirectInfo.partnerTransactionId,
+              partnerInfo = currentState.partnerInfo,
+              type = PartnershipTransactionType.TRANSFER
+            ).bind()
+
+            localTransaction to result
           }.onFailure { error ->
             state =
               State.LoadingPartnerRedirectFailure(
@@ -168,6 +161,13 @@ class PartnershipsTransferUiStateMachineImpl(
                 partnerInfo = currentState.partnerInfo,
                 transferPartners = currentState.transferPartners,
                 rollback = { state = State.LoadingPartnershipsTransfer }
+              )
+          }.onSuccess { (localTransaction, result) ->
+            state =
+              State.PartnerRedirectInformationLoaded(
+                partnerInfo = currentState.partnerInfo,
+                redirectInfo = result.redirectInfo,
+                localTransaction = localTransaction
               )
           }
         }

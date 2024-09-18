@@ -2,11 +2,11 @@
     "module-identifier": "aws.sdk.kotlin:aws-endpoint-jvm",
     "components": [
         {
-            "version": "1.2.45",
+            "version": "1.3.20",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-endpoint-jvm-1.2.45.jar": "0c3c588605d4f2a4265a598e9bfb8b059cf3f277cd645555e09fe55d231a1814"
+                        "aws-endpoint-jvm-1.3.20.jar": "cbfc3c6bf5ded554db4554f6d4cd8c62a5d1b68cfc1104185cf5a180cc8d9579"
                     }
                 }
             ],

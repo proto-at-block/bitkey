@@ -8,6 +8,7 @@ from nanopb.generator.proto import build_nanopb_proto, load_nanopb_pb2
 def build(setup_kwargs):
     click.echo(click.style(f'Generating protos', fg='cyan'))
     PROTOBUF_DIR = Path(__file__).parent.absolute()
+
     generate(
         proto_dir=PROTOBUF_DIR.joinpath('protos'),
         out_dir=PROTOBUF_DIR.joinpath('bitkey_proto')

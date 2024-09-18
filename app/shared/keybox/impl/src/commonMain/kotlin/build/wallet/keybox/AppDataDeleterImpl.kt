@@ -1,6 +1,6 @@
 package build.wallet.keybox
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
 import build.wallet.auth.AuthTokenDao
 import build.wallet.availability.F8eAuthSignatureStatusProvider
@@ -36,7 +36,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 class AppDataDeleterImpl(
   private val appVariant: AppVariant,
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val authTokenDao: AuthTokenDao,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val keyboxDao: KeyboxDao,
@@ -99,7 +99,7 @@ class AppDataDeleterImpl(
       hideBalancePreference.clear()
 
       // Make sure we clear Account data last because this will transition the UI
-      accountRepository.clear().bind()
+      accountService.clear().bind()
       keyboxDao.clear().bind()
 
       log { "Successfully unpaired active keybox" }

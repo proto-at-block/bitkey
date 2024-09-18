@@ -1,22 +1,28 @@
 use bitcoin::secp256k1::PublicKey;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod dkg;
 pub(crate) mod fakes;
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Share(pub [u8; 32]);
 
 /// Output of the DKG and Refresh protocol, containing the secret share and VSS commitments.
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ShareDetails {
     secret_share: Share,
     pub key_commitments: KeyCommitments,
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct KeyCommitments {
     vss_commitments: Vec<PublicKey>,
-    aggregate_public_key: PublicKey,
+    pub aggregate_public_key: PublicKey,
 }
 
 impl PartialEq for KeyCommitments {
@@ -43,6 +49,7 @@ pub struct ShareAggParams {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ParticipantIndex(pub u8);
 
 pub const APP_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(1);

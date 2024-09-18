@@ -7,7 +7,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
@@ -17,7 +16,6 @@ interface FeeSelectionUiStateMachine : StateMachine<FeeSelectionUiProps, BodyMod
  * @property fiatCurrency: The fiat currency to convert BTC amounts to and from.
  */
 data class FeeSelectionUiProps(
-  val accountData: ActiveFullAccountLoadedData,
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
   val exchangeRates: ImmutableList<ExchangeRate>?,

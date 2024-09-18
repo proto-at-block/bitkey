@@ -175,6 +175,7 @@ pub fn decode_and_check(
     match crate::fwpb::Status::from_i32(message.status) {
         Some(crate::fwpb::Status::Unspecified) => Ok(message), // TODO(W-1211): This should be an error once all devices have firmware that supports this status code.
         Some(crate::fwpb::Status::Success) => Ok(message),
+        Some(crate::fwpb::Status::InProgress) => Ok(message),
         Some(crate::fwpb::Status::Error) => Err(crate::errors::CommandError::GeneralCommandError),
         Some(crate::fwpb::Status::Unauthenticated) => {
             Err(crate::errors::CommandError::Unauthenticated)
@@ -205,6 +206,7 @@ pub fn decode_and_check(
         }
         Some(crate::fwpb::Status::FileNotFound) => Err(crate::errors::CommandError::FileNotFound),
         Some(crate::fwpb::Status::InvalidState) => Err(crate::errors::CommandError::InvalidState),
+        Some(crate::fwpb::Status::InvalidArgument) => Err(crate::errors::CommandError::InvalidArguments),
         None => Ok(message), // TODO(W-1211): Same as above comment.
     }
 }

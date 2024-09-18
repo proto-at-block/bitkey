@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-core-jvm",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-core-jvm-2.3.9.jar": "78c8c59d19e5bf1dbb48e238b2fb2c98eb67d8c4b287ded76bc7f0989161a47c"
+                        "ktor-client-core-jvm-2.3.11.jar": "541a870860e61abbfdd28952cb270d2011ff66757df385fcac65eb3d1dc122a2"
                     }
                 }
             ],

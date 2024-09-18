@@ -7,12 +7,15 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.v1.Action.ACTION_APP_HW_RECOVERY_STARTED
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.nfc.transaction.PairingTransactionResponse
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
@@ -25,11 +28,8 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
-import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -133,7 +133,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     awaitingProps.copy(
       initiatingLostHardwareRecoveryData =
         VerifyingNotificationCommsData(
-          data = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
+          fullAccountId = FullAccountIdMock,
+          f8eEnvironment = F8eEnvironment.Production,
+          onRollback = {},
+          onComplete = {}
         )
     )
 
@@ -370,9 +373,14 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   test("initiating lost hardware recovery ui -- verifying comms") {
     stateMachine.test(props = verifyingNotificationCommsProps) {
       awaitScreenWithBodyModelMock<RecoveryNotificationVerificationUiProps> {
-        recoveryNotificationVerificationData.shouldBe(
-          RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-        )
+        fullAccountId.shouldBe(FullAccountIdMock)
+        f8eEnvironment.shouldBe(F8eEnvironment.Production)
+        localLostFactor.shouldBe(Hardware)
+        segment.shouldBe(RecoverySegment.DelayAndNotify.LostHardware.Initiation)
+        actionDescription.shouldBe("Error verifying notification comms for contested recovery")
+        hwFactorProofOfPossession.shouldBeNull()
+        onRollback.shouldNotBeNull()
+        onComplete.shouldNotBeNull()
       }
     }
   }

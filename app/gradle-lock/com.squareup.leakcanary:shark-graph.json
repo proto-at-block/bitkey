@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:shark-graph",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "shark-graph-2.13.jar": "5425468c8aca7d210933cd5b29bdb6547c904f353fef81aa27d264053bc1f941"
+                        "shark-graph-2.14.jar": "7596fc9caea47e95f6001f57098b66c64beaa968c1354ab6c0aa98dee901681b"
                     }
                 }
             ],

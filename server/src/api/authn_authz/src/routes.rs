@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::Router;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
@@ -10,15 +10,17 @@ use userpool::userpool::{AuthTokens, UserPoolError, UserPoolService};
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use errors::ApiError;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
+use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::metrics::{FACTORY, FACTORY_NAME};
 
 #[derive(Clone, axum_macros::FromRef)]
-pub struct RouteState(pub UserPoolService, pub AccountService);
+pub struct RouteState(pub UserPoolService, pub AccountService, pub WsmClient);
 
 impl RouteState {
     pub fn unauthed_router(&self) -> Router {
@@ -27,6 +29,10 @@ impl RouteState {
             .route("/api/hw-auth", post(authenticate_with_hardware))
             .route("/api/authenticate", post(authenticate))
             .route("/api/authenticate/tokens", post(get_tokens))
+            .route(
+                "/api/attestation/wsm",
+                get(acquire_wsm_attestation_document),
+            )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
@@ -48,6 +54,7 @@ impl From<RouteState> for SwaggerEndpoint {
         authenticate_with_hardware,
         authenticate_with_recovery,
         get_tokens,
+        acquire_wsm_attestation_document,
     ),
     components(
         schemas(
@@ -62,6 +69,7 @@ impl From<RouteState> for SwaggerEndpoint {
             CognitoUsername,
             GetTokensRequest,
             GetTokensResponse,
+            GetAttestationDocumentResponse,
         ),
     ),
     tags(
@@ -284,6 +292,11 @@ pub struct GetTokensResponse {
     pub refresh_token: String,
 }
 
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct GetAttestationDocumentResponse {
+    pub document_b64: String,
+}
+
 #[instrument(fields(account_id), skip(user_pool_service))]
 #[utoipa::path(
     post,
@@ -349,5 +362,28 @@ pub async fn get_tokens(
     Ok(Json(GetTokensResponse {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
+    }))
+}
+
+#[instrument(skip(wsm_client))]
+#[utoipa::path(
+    get,
+    path = "/api/attestation/wsm",
+    responses(
+        (status = 200, description = "Attestation document", body=GetAttestationDocumentResponse),
+        (status = 500, description = "Failed to acquire attestation document"),
+    ),
+)]
+pub async fn acquire_wsm_attestation_document(
+    State(wsm_client): State<WsmClient>,
+) -> Result<Json<GetAttestationDocumentResponse>, ApiError> {
+    let rsp = wsm_client.get_attestation_document().await.map_err(|e| {
+        let msg = "Failed to acquire attestation document";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+
+    Ok(Json(GetAttestationDocumentResponse {
+        document_b64: BASE64.encode(rsp.document),
     }))
 }

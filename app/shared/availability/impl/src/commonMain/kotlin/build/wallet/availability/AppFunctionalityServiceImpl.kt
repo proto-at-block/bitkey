@@ -1,6 +1,6 @@
 package build.wallet.availability
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.availability.AppFunctionalityStatus.FullFunctionality
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
@@ -18,7 +18,7 @@ import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.*
 
 class AppFunctionalityServiceImpl(
-  private val accountRepository: AccountRepository,
+  private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,
   private val networkReachabilityEventDao: NetworkReachabilityEventDao,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
@@ -51,7 +51,7 @@ class AppFunctionalityServiceImpl(
   }
 
   private fun account(): Flow<Account?> {
-    return accountRepository.accountStatus()
+    return accountService.accountStatus()
       .mapResult { status ->
         when (status) {
           is AccountStatus.ActiveAccount -> status.account

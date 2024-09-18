@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-core-iosarm64",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-core-iosarm64-2.3.9-metadata.jar": "fca88b392a98d1b49518b0f523a5bf8b5ae346aaa537bad38702ba7e81da1e27"
+                        "ktor-client-core-iosarm64-2.3.11-metadata.jar": "cd88c20a36a471d43ccef1e230b767c260221037e72175cd04c061a0151fe460"
                     }
                 },
                 {

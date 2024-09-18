@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:http",
     "components": [
         {
-            "version": "1.2.11",
+            "version": "1.3.7",
             "variants": [
                 {
                     "artifacts": {
-                        "http-metadata-1.2.11.jar": "12cb6f96fbd4cb61db0dccbb7ce7dcd14225673d506ad4fddc044199f27d6313"
+                        "http-metadata-1.3.7.jar": "12cb6f96fbd4cb61db0dccbb7ce7dcd14225673d506ad4fddc044199f27d6313"
                     }
                 }
             ],

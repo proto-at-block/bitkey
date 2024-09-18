@@ -13,4 +13,9 @@ enum class AccountType {
    * Corresponds to [LiteAccount].
    */
   Lite,
+
+  /**
+   * Corresponds to [SoftwareAccount].
+   */
+  Software,
 }

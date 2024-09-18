@@ -3,7 +3,7 @@
 package build.wallet.availability
 
 import app.cash.turbine.test
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.availability.AppFunctionalityStatus.FullFunctionality
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.AuthSignatureStatus.Unauthenticated
@@ -28,7 +28,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
 
   coroutineTestScope = true
 
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val debugOptionsService = DebugOptionsServiceFake()
   val clock = ClockFake()
   val networkReachabilityProvider = NetworkReachabilityProviderFake()
@@ -37,8 +37,8 @@ class AppFunctionalityServiceImplTests : FunSpec({
   lateinit var service: AppFunctionalityServiceImpl
 
   beforeTest {
-    accountRepository.reset()
-    accountRepository.setActiveAccount(FullAccountMock)
+    accountService.reset()
+    accountService.setActiveAccount(FullAccountMock)
     debugOptionsService.reset()
     clock.reset()
     networkReachabilityProvider.reset()
@@ -50,7 +50,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
     )
 
     service = AppFunctionalityServiceImpl(
-      accountRepository = accountRepository,
+      accountService = accountService,
       debugOptionsService = debugOptionsService,
       networkReachabilityEventDao = networkReachabilityEventDao,
       networkReachabilityProvider = networkReachabilityProvider,
@@ -175,7 +175,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
 
   test("emergency access variant has limited emergecy access mode") {
     service = AppFunctionalityServiceImpl(
-      accountRepository = accountRepository,
+      accountService = accountService,
       debugOptionsService = debugOptionsService,
       networkReachabilityEventDao = networkReachabilityEventDao,
       networkReachabilityProvider = networkReachabilityProvider,

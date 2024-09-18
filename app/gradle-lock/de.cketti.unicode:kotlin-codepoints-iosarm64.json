@@ -2,16 +2,16 @@
     "module-identifier": "de.cketti.unicode:kotlin-codepoints-iosarm64",
     "components": [
         {
-            "version": "0.6.1",
+            "version": "0.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-codepoints-iosarm64-metadata.jar": "ba2688687f49482618be1df4c5a95b06b4101daa67b617c0041da5f97b54be2c"
+                        "kotlin-codepoints-iosarm64-metadata.jar": "856a2a88684c5abada352aef5508358966e8b4322c2dd36a043d05a09cb24a50"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-codepoints.klib": "9f87038fba1762a56a1d85d18582e1492fee2c054613d29df61fbc36bc96df2c"
+                        "kotlin-codepoints.klib": "1fbe55de6d4f0a1f439b70d046e6c0dfec15bcc00f4084bfb9691fd431694bf1"
                     }
                 }
             ],

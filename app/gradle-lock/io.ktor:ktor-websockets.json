@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websockets",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websockets-metadata-2.3.9.jar": "5dd2942e9f80855caa1855e24a14f70f1a8759c837b454e995176a3cc9774158"
+                        "ktor-websockets-metadata-2.3.11.jar": "5dd2942e9f80855caa1855e24a14f70f1a8759c837b454e995176a3cc9774158"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-mock",
     "components": [
         {
-            "version": "2.3.9",
+            "version": "2.3.11",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-mock-metadata-2.3.9.jar": "e8bf26618d2eecd15cc87cea149e077b5ba8fc4adf0548aa75b5498db3690b89"
+                        "ktor-client-mock-metadata-2.3.11.jar": "e8bf26618d2eecd15cc87cea149e077b5ba8fc4adf0548aa75b5498db3690b89"
                     }
                 }
             ],

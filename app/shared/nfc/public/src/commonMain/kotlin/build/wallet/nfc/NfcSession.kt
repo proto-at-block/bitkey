@@ -22,12 +22,15 @@ interface NfcSession : AutoCloseable {
    * @param needsAuthentication: Whether or not the transaction requires the hardware to be unlocked
    * @param shouldLock: Whether or not the hardware should be locked when the transaction completes
    * @param skipFirmwareTelemetry: Whether or not to skip shipping up firmware telemetry
+   * @param asyncNfcSigning: Whether or not to use async NFC signing
    */
   class Parameters(
     val isHardwareFake: Boolean,
     val needsAuthentication: Boolean,
     val shouldLock: Boolean,
     val skipFirmwareTelemetry: Boolean,
+    val asyncNfcSigning: Boolean,
+    val nfcFlowName: String,
     onTagConnected: () -> Unit,
     onTagDisconnected: () -> Unit,
   ) {

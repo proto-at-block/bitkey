@@ -1,0 +1,19 @@
+[package]
+edition = { workspace = true }
+name = "enclave-tools"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+hex = "0.4"
+thiserror = { workspace = true }
+x509-parser = { version = "0.15.1", features = ["verify"] }
+# Specific version required by `aws-nitro-enclaves-image-format`
+aws-nitro-enclaves-cose = "0.5.2"
+aws-nitro-enclaves-image-format = "0.2.0"
+base64 = "0.22.1"
+ciborium = "0.2.2"
+openssl = "0.10.64"
+serde = "1.0.208"
+serde_bytes = "0.11.15"
+sha2 = { version = "0.9.9" }

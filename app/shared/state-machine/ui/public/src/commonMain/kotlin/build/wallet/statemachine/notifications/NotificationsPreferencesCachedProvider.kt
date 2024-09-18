@@ -1,6 +1,6 @@
 package build.wallet.statemachine.notifications
 
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
@@ -30,7 +30,7 @@ interface NotificationsPreferencesCachedProvider {
    */
   suspend fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
   ): Flow<Result<NotificationPreferences, NetworkingError>>
 
   /**
@@ -39,7 +39,7 @@ interface NotificationsPreferencesCachedProvider {
    */
   suspend fun updateNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     preferences: NotificationPreferences,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError>

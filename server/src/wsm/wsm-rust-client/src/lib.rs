@@ -14,7 +14,7 @@ use tracing::instrument;
 use url::Url;
 use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
-    CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
+    AttestationDocResponse, CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
 };
 
 pub use wsm_common::messages::{
@@ -80,6 +80,7 @@ pub trait SigningService {
         &self,
         root_key_id: &str,
     ) -> Result<GetIntegritySigResponse, Error>;
+    async fn get_attestation_document(&self) -> Result<AttestationDocResponse, Error>;
 }
 
 #[derive(Clone)]
@@ -198,6 +199,17 @@ impl SigningService for WsmClient {
             .json(&GetIntegritySigRequest {
                 root_key_id: root_key_id.to_string(),
             })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn get_attestation_document(&self) -> Result<AttestationDocResponse, Error> {
+        let res = self
+            .client
+            .get(self.endpoint.join("attestation-doc")?)
             .send()
             .await?;
 

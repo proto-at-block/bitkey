@@ -46,8 +46,8 @@ pub struct Service {
     pub notification_service: NotificationService,
 }
 
-pub struct ConsumeVerificationForScopeInput {
-    pub account_id: AccountId,
+pub struct ConsumeVerificationForScopeInput<'a> {
+    pub account_id: &'a AccountId,
     pub scope: CommsVerificationScope,
 }
 
@@ -58,8 +58,8 @@ pub struct InitiateVerificationForScopeInput<'a> {
     pub only_touchpoints: Option<HashSet<NotificationTouchpoint>>,
 }
 
-pub struct VerifyForScopeInput {
-    pub account_id: AccountId,
+pub struct VerifyForScopeInput<'a> {
+    pub account_id: &'a AccountId,
     pub scope: CommsVerificationScope,
     pub code: String,
     pub duration: Duration,
@@ -78,12 +78,12 @@ impl Service {
 
     pub async fn consume_verification_for_scope(
         &self,
-        input: ConsumeVerificationForScopeInput,
+        input: ConsumeVerificationForScopeInput<'_>,
     ) -> Result<(), CommsVerificationError> {
         let claim = self
             .account_service
             .fetch_or_create_comms_verification_claim(FetchOrCreateCommsVerificationClaimInput {
-                account_id: input.account_id.to_owned(),
+                account_id: input.account_id,
                 scope: input.scope.to_owned(),
             })
             .await?;
@@ -110,7 +110,7 @@ impl Service {
         let claim = self
             .account_service
             .fetch_or_create_comms_verification_claim(FetchOrCreateCommsVerificationClaimInput {
-                account_id: input.account_id.to_owned(),
+                account_id: input.account_id,
                 scope: input.scope.to_owned(),
             })
             .await?;
@@ -141,7 +141,7 @@ impl Service {
 
         self.account_service
             .put_comms_verification_claim(PutCommsVerificationClaimInput {
-                account_id: input.account_id.to_owned(),
+                account_id: input.account_id,
                 claim: CommsVerificationClaim::new(
                     input.scope,
                     Some(CommsVerificationStatus::Pending {
@@ -158,12 +158,12 @@ impl Service {
 
     pub async fn verify_for_scope(
         &self,
-        input: VerifyForScopeInput,
+        input: VerifyForScopeInput<'_>,
     ) -> Result<(), CommsVerificationError> {
         let claim = self
             .account_service
             .fetch_or_create_comms_verification_claim(FetchOrCreateCommsVerificationClaimInput {
-                account_id: input.account_id.to_owned(),
+                account_id: input.account_id,
                 scope: input.scope.to_owned(),
             })
             .await?;

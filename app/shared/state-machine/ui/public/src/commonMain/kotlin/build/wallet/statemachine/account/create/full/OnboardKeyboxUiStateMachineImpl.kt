@@ -85,8 +85,8 @@ class OnboardKeyboxUiStateMachineImpl(
     return notificationPreferencesSetupUiStateMachine.model(
       props =
         NotificationPreferencesSetupUiProps(
-          fullAccountId = data.keybox.fullAccountId,
-          fullAccountConfig = data.keybox.config,
+          accountId = data.keybox.fullAccountId,
+          accountConfig = data.keybox.config,
           source = Onboarding,
           onComplete = data.onComplete
         )

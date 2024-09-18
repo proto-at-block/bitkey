@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.leakcanary:shark",
     "components": [
         {
-            "version": "2.13",
+            "version": "2.14",
             "variants": [
                 {
                     "artifacts": {
-                        "shark-2.13.jar": "b1570b8ddcb1960b4b77220efff3b323963323dd196bfe6eee5f00b013be7066"
+                        "shark-2.14.jar": "ffadb874b3a4d4d0033afd302e37b26ade2b63d6e23f9bcd568f727304845f01"
                     }
                 }
             ],

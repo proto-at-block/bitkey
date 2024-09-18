@@ -1,5 +1,5 @@
 use account::entities::{
-    Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, Network,
+    Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
     SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
 };
 use account::service::Service as AccountService;
@@ -7,6 +7,7 @@ use async_trait::async_trait;
 
 use recovery::repository::Repository as RecoveryService;
 use tracing::instrument;
+use types::account::bitcoin::Network;
 
 use crate::routes::Config;
 

@@ -6,12 +6,12 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
@@ -28,7 +28,7 @@ interface TransferConfirmationUiStateMachine :
  */
 data class TransferConfirmationUiProps(
   val transferVariant: Variant,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
   val requiredSigner: SigningFactor,

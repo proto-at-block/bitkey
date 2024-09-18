@@ -1,6 +1,6 @@
 package build.wallet.di
 
-import build.wallet.account.AccountRepository
+import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.*
 import build.wallet.auth.AccountAuthenticator
@@ -93,6 +93,7 @@ import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.*
+import build.wallet.sqldelight.DatabaseIntegrityChecker
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.time.Delayer
@@ -103,7 +104,7 @@ import kotlin.time.Duration
 
 interface AppComponent {
   val accountAuthenticator: AccountAuthenticator
-  val accountRepository: AccountRepository
+  val accountService: AccountService
   val allFeatureFlags: List<FeatureFlag<*>>
   val allRemoteFeatureFlags: List<FeatureFlag<*>>
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
@@ -229,6 +230,7 @@ interface AppComponent {
   val socRecStartedChallengeDao: SocRecStartedChallengeDao
   val socialChallengeVerifier: SocialChallengeVerifier
   val firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag
+  val asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
   val inheritanceFeatureFlag: InheritanceFeatureFlag
@@ -239,4 +241,6 @@ interface AppComponent {
   val xChaCha20Poly1305: XChaCha20Poly1305
   val xNonceGenerator: XNonceGenerator
   val mobilePayService: MobilePayService
+  val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag
+  val databaseIntegrityChecker: DatabaseIntegrityChecker
 }

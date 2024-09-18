@@ -1,12 +1,9 @@
 package build.wallet.statemachine.notifications
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
@@ -23,36 +20,15 @@ import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.input.*
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
-import build.wallet.statemachine.core.input.EmailInputUiProps
-import build.wallet.statemachine.core.input.EmailInputUiStateMachine
-import build.wallet.statemachine.core.input.PhoneNumberInputUiProps
-import build.wallet.statemachine.core.input.PhoneNumberInputUiStateMachine
-import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Recovery
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.*
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.*
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.EnteringTouchpointUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.EnteringVerificationCodeUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.SendingActivationToServerFailureUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.SendingActivationToServerSuccessUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.SendingActivationToServerUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.SendingVerificationCodeToServerFailureUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.SendingVerificationCodeToServerUiState
-import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.VerifyingProofOfHwPossessionUiState
 import build.wallet.statemachine.notifications.NotificationTouchpointSubmissionRequest.SendingTouchpointToServer
 import build.wallet.time.Delayer
 import com.github.michaelbull.result.onFailure
@@ -88,8 +64,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             LaunchedEffect("send-touchpoint") {
               notificationTouchpointF8eClient
                 .addTouchpoint(
-                  f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                  fullAccountId = props.fullAccountId,
+                  f8eEnvironment = props.accountConfig.f8eEnvironment,
+                  accountId = props.accountId,
                   touchpoint = submission.touchpoint
                 )
                 .onSuccess { touchpointWithId ->
@@ -202,8 +178,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
           LaunchedEffect("send-touchpoint") {
             notificationTouchpointF8eClient
               .addTouchpoint(
-                f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                fullAccountId = props.fullAccountId,
+                f8eEnvironment = props.accountConfig.f8eEnvironment,
+                accountId = props.accountId,
                 touchpoint = state.touchpointToVerify
               )
               .onSuccess { callbacks.onSuccess() }
@@ -245,8 +221,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         LaunchedEffect("send-verification-code", key2 = state) {
           notificationTouchpointF8eClient
             .verifyTouchpoint(
-              f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-              fullAccountId = props.fullAccountId,
+              f8eEnvironment = props.accountConfig.f8eEnvironment,
+              accountId = props.accountId,
               touchpointId = state.touchpointToVerify.touchpointId,
               verificationCode = state.verificationCode
             )
@@ -363,6 +339,13 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         )
 
       is VerifyingProofOfHwPossessionUiState -> {
+        require(props.accountId is FullAccountId) {
+          "Proof of Hw Possession should only be required for Full Accounts"
+        }
+        require(props.accountConfig is FullAccountConfig) {
+          "Proof of Hw Possession should only be required for Full Accounts"
+        }
+
         val goToActivationInstructions = {
           uiState = ActivationApprovalInstructionsUiState(
             touchpointToActivate = state.touchpointToActivate,
@@ -378,8 +361,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                   hwFactorProofOfPossession = hwFactorProofOfPossession
                 )
               },
-              fullAccountId = props.fullAccountId,
-              fullAccountConfig = props.fullAccountConfig,
+              fullAccountId = props.accountId,
+              fullAccountConfig = props.accountConfig,
               onBack = goToActivationInstructions,
               screenPresentationStyle = ScreenPresentationStyle.Modal,
               onTokenRefresh = {
@@ -422,8 +405,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         LaunchedEffect("send-activation", key2 = state) {
           notificationTouchpointF8eClient
             .activateTouchpoint(
-              f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-              fullAccountId = props.fullAccountId,
+              f8eEnvironment = props.accountConfig.f8eEnvironment,
+              accountId = props.accountId,
               touchpointId = state.touchpointToActivate.touchpointId,
               hwFactorProofOfPossession = state.hwFactorProofOfPossession
             )

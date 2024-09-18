@@ -22,8 +22,10 @@ class NfcSessionFake(
         needsAuthentication = true,
         shouldLock = true,
         skipFirmwareTelemetry = false,
+        nfcFlowName = "fake-flow-name",
         onTagConnected = {},
-        onTagDisconnected = {}
+        onTagDisconnected = {},
+        asyncNfcSigning = false
       )
 
     override fun get(parameters: NfcSession.Parameters): NfcSession = NfcSessionFake(parameters)

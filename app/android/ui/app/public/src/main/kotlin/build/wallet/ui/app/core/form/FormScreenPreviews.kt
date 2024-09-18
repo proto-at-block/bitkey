@@ -2,6 +2,8 @@ package build.wallet.ui.app.core.form
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.currency.EUR
 import build.wallet.money.currency.GBP
@@ -266,7 +268,7 @@ fun AllTransactionsPreview() {
                   date = "Apr 6 at 12:20 pm",
                   amount = "+ $11.36",
                   amountEquivalent = "0.000105 BTC",
-                  incoming = true,
+                  transactionType = Incoming,
                   isPending = true,
                   onClick = {}
                 ),
@@ -275,7 +277,7 @@ fun AllTransactionsPreview() {
                   date = "Apr 6 at 12:20 pm",
                   amount = "$21.36",
                   amountEquivalent = "0.000205 BTC",
-                  incoming = false,
+                  transactionType = Outgoing,
                   isPending = true,
                   onClick = {}
                 )
@@ -291,7 +293,7 @@ fun AllTransactionsPreview() {
                   date = "Pending",
                   amount = "+ $11.36",
                   amountEquivalent = "0.000105 BTC",
-                  incoming = true,
+                  transactionType = Incoming,
                   isPending = false,
                   onClick = {}
                 ),
@@ -300,7 +302,7 @@ fun AllTransactionsPreview() {
                   date = "Pending",
                   amount = "$21.36",
                   amountEquivalent = "0.000205 BTC",
-                  incoming = false,
+                  transactionType = Outgoing,
                   isPending = false,
                   onClick = {}
                 )

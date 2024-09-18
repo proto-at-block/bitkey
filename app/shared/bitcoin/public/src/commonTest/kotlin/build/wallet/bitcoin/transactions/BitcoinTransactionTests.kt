@@ -5,6 +5,8 @@ import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
@@ -54,7 +56,7 @@ private fun makeTransaction(
   subtotal: BitcoinMoney = BitcoinMoney.sats(1_000),
   total: BitcoinMoney = BitcoinMoney.sats(1_000),
   fee: BitcoinMoney? = null,
-  incoming: Boolean = false,
+  transactionType: TransactionType = Outgoing,
   inputs: ImmutableList<BdkTxIn> = emptyImmutableList(),
   outputs: ImmutableList<BdkTxOut> = emptyImmutableList(),
 ): BitcoinTransaction =
@@ -72,7 +74,7 @@ private fun makeTransaction(
     fee = fee,
     weight = 1300UL,
     vsize = 325UL,
-    incoming = incoming,
+    transactionType = transactionType,
     inputs = inputs,
     outputs = outputs
   )

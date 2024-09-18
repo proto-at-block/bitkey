@@ -1,6 +1,6 @@
 package build.wallet.keybox
 
-import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.auth.AuthKeyRotationAttemptDaoMock
 import build.wallet.auth.AuthTokenDaoMock
@@ -60,7 +60,7 @@ class AppDataDeleterImplTests : FunSpec({
     OnboardingKeyboxStepStateDaoMock(turbines::create)
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
 
-  val accountRepository = AccountRepositoryFake()
+  val accountService = AccountServiceFake()
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val mobilePayService = MobilePayServiceMock(turbines::create)
@@ -87,7 +87,7 @@ class AppDataDeleterImplTests : FunSpec({
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
       appVariant = appVariant,
-      accountRepository = accountRepository,
+      accountService = accountService,
       authTokenDao = authTokenDao,
       gettingStartedTaskDao = gettingStartedTaskDao,
       keyboxDao = keyboxDao,
@@ -119,7 +119,7 @@ class AppDataDeleterImplTests : FunSpec({
     )
 
   beforeTest {
-    accountRepository.reset()
+    accountService.reset()
     onboardingKeyboxSealedCsekDao.reset()
     gettingStartedTaskDao.reset()
     transactionPriorityPreference.reset()
@@ -135,7 +135,7 @@ class AppDataDeleterImplTests : FunSpec({
 
   listOf(AppVariant.Development, AppVariant.Team).forEach { variant ->
     test("delete app data for $variant") {
-      accountRepository.setActiveAccount(FullAccountMock)
+      accountService.setActiveAccount(FullAccountMock)
       appPrivateKeyDao.storeAppKeyPair(AppGlobalAuthKeypairMock)
       appPrivateKeyDao.storeAppSpendingKeyPair(AppSpendingKeypair)
       onboardingAppKeyKeystoreFake
@@ -157,7 +157,7 @@ class AppDataDeleterImplTests : FunSpec({
 
       appDataDeleter(variant).deleteAll()
 
-      accountRepository.accountState.value.shouldBeOk(NoAccount)
+      accountService.accountState.value.shouldBeOk(NoAccount)
       appPrivateKeyDao.asymmetricKeys.shouldBeEmpty()
       authTokenDao.clearCalls.awaitItem()
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
