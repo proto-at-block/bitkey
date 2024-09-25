@@ -9,6 +9,7 @@ import build.wallet.bitcoin.bdk.BdkTransactionMapper
 import build.wallet.bitcoin.bdk.BdkWalletProvider
 import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
+import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -23,6 +24,7 @@ class WatchingWalletProviderImpl(
   private val bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
   private val appSessionManager: AppSessionManager,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
+  private val feeBumpAllowShrinkingChecker: FeeBumpAllowShrinkingChecker,
 ) : WatchingWalletProvider {
   override suspend fun getWallet(
     walletDescriptor: WatchingWalletDescriptor,
@@ -46,7 +48,8 @@ class WatchingWalletProviderImpl(
         bdkAddressBuilder = bdkAddressBuilder,
         bdkBumpFeeTxBuilderFactory = bdkBumpFeeTxBuilderFactory,
         appSessionManager = appSessionManager,
-        bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
+        bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
+        feeBumpAllowShrinkingChecker = feeBumpAllowShrinkingChecker
       )
     }.logFailure { "Error creating spending wallet." }
 }

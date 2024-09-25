@@ -2,7 +2,6 @@ package build.wallet.time
 
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -73,5 +72,39 @@ class InstantsTests : FunSpec({
       clock = ClockFake(now = instant),
       timeZoneProvider = TimeZoneProviderMock()
     ).shouldBeFalse()
+  }
+
+  context("truncateToMilliseconds") {
+    val instantWithMilliseconds = "2023-01-10T08:22:25.736Z".toInstant()
+
+    test("truncates instant with microseconds to milliseconds") {
+      val instantWithMicroseconds = "2023-01-10T08:22:25.736822Z".toInstant()
+      instantWithMicroseconds.truncateToMilliseconds().shouldBe(instantWithMilliseconds)
+    }
+
+    test("truncates instant with nanoseconds to milliseconds") {
+      val instantWithNanoseconds = "2023-01-10T08:22:25.736999Z".toInstant()
+      instantWithNanoseconds.truncateToMilliseconds().shouldBe(instantWithMilliseconds)
+    }
+
+    test("does not modify an already truncated instant") {
+      val alreadyTruncatedInstant = "2023-01-10T08:22:25.736Z".toInstant()
+      alreadyTruncatedInstant.truncateToMilliseconds().shouldBe(instantWithMilliseconds)
+    }
+
+    test("truncates instant to nearest lower millisecond") {
+      val instantWithUpperMicroseconds = "2023-01-10T08:22:25.736499Z".toInstant()
+      instantWithUpperMicroseconds.truncateToMilliseconds().shouldBe(instantWithMilliseconds)
+    }
+
+    test("does not modify instant without fractional milliseconds") {
+      val instantWithoutFractionalMilliseconds = "2023-01-10T08:22:25Z".toInstant()
+      instantWithoutFractionalMilliseconds.truncateToMilliseconds().shouldBe(instantWithoutFractionalMilliseconds)
+    }
+
+    test("handles full second rounding") {
+      val instantWithFullSecond = "2023-01-10T08:22:26.000Z".toInstant()
+      instantWithFullSecond.truncateToMilliseconds().shouldBe(instantWithFullSecond)
+    }
   }
 })

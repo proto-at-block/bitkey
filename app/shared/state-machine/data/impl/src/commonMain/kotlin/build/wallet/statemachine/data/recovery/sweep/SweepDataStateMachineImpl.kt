@@ -3,15 +3,15 @@
 package build.wallet.statemachine.data.recovery.sweep
 
 import androidx.compose.runtime.*
-import build.wallet.bitcoin.blockchain.BitcoinBlockchain
-import build.wallet.bitcoin.transactions.*
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.logging.logFailure
 import build.wallet.mapUnit
-import build.wallet.money.exchange.ExchangeRate
-import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepService
@@ -19,18 +19,15 @@ import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.*
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.collections.immutable.toImmutableList
 import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
 @HiddenFromObjC
 class SweepDataStateMachineImpl(
-  private val bitcoinBlockchain: BitcoinBlockchain,
   private val sweepService: SweepService,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
-  private val exchangeRateService: ExchangeRateService,
-  private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
+  private val transactionsService: TransactionsService,
 ) : SweepDataStateMachine {
   private sealed interface State {
     data object GeneratingPsbtsState : State
@@ -142,8 +139,7 @@ class SweepDataStateMachineImpl(
       /** Asynchronously signing transactions using app + server, and then broadcasting */
       is SignAndBroadcastState -> {
         LaunchedEffect("sign-and-broadcast") {
-          val exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
-          signAndBroadcastPsbts(props, state, exchangeRates)
+          signAndBroadcastPsbts(props, state)
             .onSuccess { sweepState = SweepSuccessState }
             .onFailure { sweepState = SweepFailedState(it) }
         }
@@ -187,35 +183,25 @@ class SweepDataStateMachineImpl(
   private suspend fun signAndBroadcastPsbts(
     props: SweepDataProps,
     state: SignAndBroadcastState,
-    exchangeRates: List<ExchangeRate>,
   ): Result<Unit, Throwable> =
     Ok(state.allPsbts)
-      .mapAll { signAndBroadcastPsbt(props, it, exchangeRates) }
+      .mapAll { signAndBroadcastPsbt(props, it) }
       .mapUnit()
 
   private suspend fun signAndBroadcastPsbt(
     props: SweepDataProps,
     sweepPsbt: SweepPsbt,
-    exchangeRates: List<ExchangeRate>,
   ): Result<Unit, Throwable> =
     coroutineBinding {
       val appSignPsbt = appSignPsbt(sweepPsbt).bind()
       val signedPsbt = serverSignPsbt(props, appSignPsbt).bind()
-      bitcoinBlockchain.broadcast(signedPsbt)
-        .onSuccess {
-          // When we successfully broadcast the transaction, store the transaction details and
-          // exchange rate.
-          outgoingTransactionDetailRepository.persistDetails(
-            OutgoingTransactionDetail(
-              broadcastDetail = it,
-              exchangeRates = exchangeRates,
-              estimatedConfirmationTime =
-                it.broadcastTime.plus(
-                  EstimatedTransactionPriority.sweepPriority().toDuration()
-                )
-            )
-          )
-        }.bind()
+      transactionsService
+        .broadcast(
+          psbt = signedPsbt,
+          estimatedTransactionPriority = sweepPriority()
+        )
+        .logFailure { "Error broadcasting sweep transaction." }
+        .bind()
     }
 
   private suspend fun appSignPsbt(sweep: SweepPsbt): Result<SweepPsbt, Throwable> =

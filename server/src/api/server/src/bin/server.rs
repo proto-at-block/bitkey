@@ -2,9 +2,9 @@ use clap::{Parser, Subcommand};
 use tracing::instrument;
 
 use database::ddb;
-use database::ddb::DDBService;
+use database::ddb::Repository;
 use http_server::config;
-use migration::repository::Repository as MigrationRepository;
+use migration::repository::MigrationRepository;
 use migration::MigrationError;
 use types::notification::NotificationChannel;
 
@@ -103,7 +103,7 @@ async fn main() -> Result<(), Error> {
                 recovery_service: bootstrap.services.recovery_service,
                 chain_indexer_service: bootstrap.services.chain_indexer_service,
                 mempool_indexer_service: bootstrap.services.mempool_indexer_service,
-                address_repo: bootstrap.services.address_repo,
+                address_service: bootstrap.services.address_service,
                 sqs: bootstrap.services.sqs,
                 feature_flags_service: bootstrap.services.feature_flags_service,
                 privileged_action_repository: bootstrap.services.privileged_action_repository,

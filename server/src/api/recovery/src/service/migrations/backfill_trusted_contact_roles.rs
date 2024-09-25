@@ -1,12 +1,12 @@
 use crate::service::social::relationship::Service;
 use async_trait::async_trait;
 use migration::{Migration, MigrationError};
-use repository::recovery::social::Repository;
+use repository::recovery::social::SocialRecoveryRepository;
 use tracing::info;
 use types::recovery::trusted_contacts::TrustedContactRole;
 
 pub(crate) struct BackfillTrustedContactRoles {
-    pub repository: Repository,
+    pub repository: SocialRecoveryRepository,
 }
 
 impl BackfillTrustedContactRoles {

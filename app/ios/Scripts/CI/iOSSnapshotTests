@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Activate Hermit"
+source bin/activate-hermit
+
+script_full_path=$(dirname "$0")
+
+echo "🐙 Getting GitHub token"
+GH_TOKEN=$("$script_full_path/GetGHToken")
+export GH_TOKEN
+
+echo "install xctesthtmlreport"
+brew install xctesthtmlreport
+echo "install imagemagick"
+brew install imagemagick
+
+git config user.name "iOSSnapshotTests"
+git config user.email "mobile-ci@squareup.com"
+
+# Append '-updated-ios-snapshots' to the current branch name
+new_branch=$GIT_BRANCH-updated-ios-snapshots
+# Create the new branch locally from head
+echo "🌲 Creating new branch: $new_branch"
+git checkout -b "$new_branch" "HEAD"
+
+echo "📄 Generating report with xctesthtmlreport"
+# Use xhtmlreport to generate a new .html report from the .xcresult file (this makes it easy to extract the images)
+result_bundle=$WORKSPACE/ios-builder/scratch/ResultBundles_ios-snapshots_test-without-building.xcresult
+xchtmlreport $result_bundle
+# Extract the .png files in the .xcresult. These are updated snapshots
+echo "📸 Extracing new snapshots"
+if ! find $result_bundle -type f -name '*.png' |
+    while IFS= read -r file; do
+        # Extract the new filename by removing the last two underscore parts and adding .png
+        new_name="$(basename "${file%_*_*}.png")"
+        # Copy new snapshots to the correct directory, ignoring the difference, failure, and reference images
+        if [[ "$new_name" != *difference.png && "$new_name" != *failure.png && "$new_name" != *reference.png ]]; then
+            # Copy the file to the current directory with the new name if it doesn't match the exclusion patterns
+            cp "$file" "app/ios/Wallet/Tests/SnapshotTests/__Snapshots__/SnapshotTestHelpers/$new_name"
+        fi
+    done
+then
+    echo "🟢 No snapshot changes."
+    exit 0  # Exit successfully if no files are found
+fi
+
+# Handle modified images
+find $result_bundle -type f -name '*.png' > temp_image_list.txt
+ruby $script_full_path/compareImages.rb 'app/ios/Wallet/Tests/SnapshotTests/__Snapshots__/SnapshotTestHelpers/' 'temp_image_list.txt'
+
+echo "🤖 Committing the new and updated snapshots"
+# Commit the updated screenshots and push them to the new branch
+git add *.png
+git commit -m "Update iOS snapshots for #$PULL_REQUEST_ID"
+git push -u origin "$new_branch"
+
+# Open a pull request
+echo "📬 Opening a pull request"
+pr_link=$(gh pr create --base $GIT_BRANCH --head $new_branch --title "[iOS] Update the snapshots for #$PULL_REQUEST_ID" --body "This PR updates the iOS snapshots for the PR. \
+Please review the changes and merge if these changes are intentional. If they are not, please close this PR. Pushing additional changes will regenerate snapshots.")
+# comment with the url
+gh pr comment $PULL_REQUEST_ID -b "🚨 Snapshot tests failed! See $pr_link"

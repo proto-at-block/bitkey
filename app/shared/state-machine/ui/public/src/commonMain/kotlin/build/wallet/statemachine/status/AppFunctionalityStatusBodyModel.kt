@@ -15,6 +15,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -33,6 +34,7 @@ fun AppFunctionalityStatusBodyModel(
   status: AppFunctionalityStatus.LimitedFunctionality,
   cause: ConnectivityCause,
   dateFormatter: (Instant) -> String,
+  isRevampOn: Boolean,
   onClose: () -> Unit,
 ): FormBodyModel {
   return FormBodyModel(
@@ -63,7 +65,8 @@ fun AppFunctionalityStatusBodyModel(
               style = ListGroupStyle.CARD_GROUP,
               items =
                 status.featureStates.listItemModels(
-                  dateFormatter = dateFormatter
+                  dateFormatter = dateFormatter,
+                  isRevampOn = isRevampOn
                 )
             )
         )
@@ -74,6 +77,7 @@ fun AppFunctionalityStatusBodyModel(
 
 fun FunctionalityFeatureStates.listItemModels(
   dateFormatter: (Instant) -> String,
+  isRevampOn: Boolean,
 ): ImmutableList<ListItemModel> {
   // first step: Create our list of ListItemModels and group them by their availability
   // this creates a map of "Available", "Unavailable", and "OutOfDate" to a list of ListItemModels
@@ -82,7 +86,7 @@ fun FunctionalityFeatureStates.listItemModels(
       receive.listItemModel("Receive", dateFormatter),
       fiatExchangeRates.listItemModel("Currency Rates", dateFormatter),
       send.listItemModel("Send", dateFormatter),
-      mobilePay.listItemModel("Mobile Pay", dateFormatter),
+      mobilePay.listItemModel(SpendingLimitsCopy.get(isRevampOn).title, dateFormatter),
       customElectrumServer.listItemModel("Custom Electrum Server", dateFormatter),
       securityAndRecovery.listItemModel("Recover Lost Keys", dateFormatter)
     ).groupBy {

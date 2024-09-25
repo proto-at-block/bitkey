@@ -213,8 +213,11 @@ public final class NfcCommandsImpl: NfcCommands {
         session: NfcSession,
         challenge: OkioByteString
     ) async throws -> String {
-        return try await SignChallenge(challenge: challenge.toByteArray().asUInt8Array(), asyncSign: session.parameters.asyncNfcSigning)
-            .transceive(session: session)
+        return try await SignChallenge(
+            challenge: challenge.toByteArray().asUInt8Array(),
+            asyncSign: session.parameters.asyncNfcSigning
+        )
+        .transceive(session: session)
     }
 
     public func signTransaction(
@@ -224,7 +227,10 @@ public final class NfcCommandsImpl: NfcCommands {
     ) async throws -> Psbt {
         return try await .init(
             id: psbt.id,
-            base64: SignTransaction(serializedPsbt: psbt.base64, asyncSign: session.parameters.asyncNfcSigning).transceive(session: session),
+            base64: SignTransaction(
+                serializedPsbt: psbt.base64,
+                asyncSign: session.parameters.asyncNfcSigning
+            ).transceive(session: session),
             fee: psbt.fee,
             baseSize: psbt.baseSize,
             numOfInputs: psbt.numOfInputs,

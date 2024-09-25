@@ -54,17 +54,25 @@ impl ExperimentationClaims {
             .get(header_name)
             .and_then(|value| value.to_str().ok().map(String::from))
     }
-}
 
-impl TryFrom<ExperimentationClaims> for ContextKey {
-    type Error = ExperimentationError;
+    /// The context to use for authenticated users.
+    pub fn account_context_key(&self) -> Result<ContextKey, ExperimentationError> {
+        let attributes = self.to_attributes();
+        if let Some(account_id) = &self.account_id {
+            Ok(ContextKey::Account(account_id.clone(), attributes))
+        } else {
+            Err(ExperimentationError::ContextGeneration)
+        }
+    }
 
-    fn try_from(v: ExperimentationClaims) -> Result<Self, Self::Error> {
-        let attributes = v.to_attributes();
-        if let Some(account_id) = v.account_id {
-            Ok(ContextKey::Account(account_id, attributes))
-        } else if let Some(app_installation_id) = v.app_installation_id {
-            Ok(ContextKey::AppInstallation(app_installation_id, attributes))
+    /// The context to use for unauthenticated users.
+    pub fn app_installation_context_key(&self) -> Result<ContextKey, ExperimentationError> {
+        let attributes = self.to_attributes();
+        if let Some(app_installation_id) = &self.app_installation_id {
+            Ok(ContextKey::AppInstallation(
+                app_installation_id.clone(),
+                attributes,
+            ))
         } else {
             Err(ExperimentationError::ContextGeneration)
         }

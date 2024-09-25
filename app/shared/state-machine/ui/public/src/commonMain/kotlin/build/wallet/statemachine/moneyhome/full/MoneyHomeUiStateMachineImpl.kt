@@ -62,6 +62,8 @@ import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachine
 import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
+import build.wallet.statemachine.utxo.UtxoConsolidationProps
+import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +92,7 @@ class MoneyHomeUiStateMachineImpl(
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
   private val socRecService: SocRecService,
   private val transactionsService: TransactionsService,
+  private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -128,7 +131,7 @@ class MoneyHomeUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
 
     return when (val state = uiState) {
-      is MoneyHomeUiState.FixingCloudBackupState ->
+      is FixingCloudBackupState ->
         repairCloudBackupStateMachine.model(
           RepairMobileKeyBackupProps(
             account = props.accountData.account,
@@ -186,6 +189,9 @@ class MoneyHomeUiStateMachineImpl(
             },
           onExit = {
             uiState = ViewingBalanceUiState()
+          },
+          onGoToUtxoConsolidation = {
+            uiState = ConsolidatingUtxosUiState
           }
         )
 
@@ -265,7 +271,7 @@ class MoneyHomeUiStateMachineImpl(
           }
         ).asModalScreen()
 
-      is MoneyHomeUiState.InviteTrustedContactFlow ->
+      is InviteTrustedContactFlow ->
         inviteTrustedContactFlowUiStateMachine.model(
           props =
             InviteTrustedContactFlowUiProps(
@@ -274,7 +280,7 @@ class MoneyHomeUiStateMachineImpl(
             )
         )
 
-      is MoneyHomeUiState.SelectCustomPartnerPurchaseAmountState ->
+      is SelectCustomPartnerPurchaseAmountState ->
         customAmountEntryUiStateMachine.model(
           props =
             CustomAmountEntryUiProps(
@@ -306,7 +312,7 @@ class MoneyHomeUiStateMachineImpl(
           entryPoint = FingerprintManagementEntryPoint.MONEY_HOME
         )
       )
-      is MoneyHomeUiState.ShowingPriceChartUiState -> {
+      is ShowingPriceChartUiState -> {
         bitcoinPriceChartUiStateMachine.model(
           BitcoinPriceChartUiProps(
             initialType = state.type,
@@ -316,6 +322,12 @@ class MoneyHomeUiStateMachineImpl(
           )
         )
       }
+      ConsolidatingUtxosUiState -> utxoConsolidationUiStateMachine.model(
+        props = UtxoConsolidationProps(
+          onConsolidationSuccess = { uiState = ViewingBalanceUiState() },
+          onBack = { uiState = ViewingBalanceUiState() }
+        )
+      )
     }
   }
 
@@ -337,6 +349,7 @@ class MoneyHomeUiStateMachineImpl(
     state: SendFlowUiState,
     validPaymentDataInClipboard: ParsedPaymentData?,
     onExit: () -> Unit,
+    onGoToUtxoConsolidation: () -> Unit,
   ) = sendUiStateMachine.model(
     props = SendUiProps(
       entryPoint = state.entryPoint,
@@ -344,7 +357,8 @@ class MoneyHomeUiStateMachineImpl(
       validInvoiceInClipboard = validPaymentDataInClipboard,
       onExit = onExit,
       // Since hitting "Done" is the same as exiting out of the send flow.
-      onDone = onExit
+      onDone = onExit,
+      onGoToUtxoConsolidation = onGoToUtxoConsolidation
     )
   )
 
@@ -577,4 +591,6 @@ sealed interface MoneyHomeUiState {
   data class ShowingPriceChartUiState(
     val type: ChartType = ChartType.BTC_PRICE,
   ) : MoneyHomeUiState
+
+  data object ConsolidatingUtxosUiState : MoneyHomeUiState
 }

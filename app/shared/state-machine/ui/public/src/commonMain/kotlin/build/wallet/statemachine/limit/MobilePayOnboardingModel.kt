@@ -17,6 +17,9 @@ fun MobilePayOnboardingScreenModel(
   onContinue: () -> Unit,
   onSetUpLater: () -> Unit,
   onClosed: () -> Unit,
+  headerHeadline: String,
+  headerSubline: String,
+  primaryButtonString: String,
 ) = FormBodyModel(
   id = MobilePayEventTrackerScreenId.ENABLE_MOBILE_PAY_INSTRUCTIONS,
   onBack = onClosed,
@@ -33,14 +36,13 @@ fun MobilePayOnboardingScreenModel(
         ),
         iconTopSpacing = 0
       ),
-      headline = "Mobile pay",
+      headline = headerHeadline,
       alignment = FormHeaderModel.Alignment.LEADING,
-      subline =
-        "Leave your device at home, and make small spends with just the key on your phone."
+      subline = headerSubline
     ),
   primaryButton =
     ButtonModel(
-      text = "Enable Mobile Pay",
+      text = primaryButtonString,
       size = Footer,
       onClick = SheetClosingClick(onContinue)
     ),

@@ -88,7 +88,6 @@ pub enum CommandError {
     InProgress,
     #[error("timeout")]
     Timeout,
-
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

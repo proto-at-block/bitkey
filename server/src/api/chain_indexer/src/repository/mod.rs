@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -20,12 +20,12 @@ pub(crate) const NETWORK_HEIGHT_PARTITION_KEY: &str = "network";
 pub(crate) const NETWORK_HEIGHT_SORT_KEY: &str = "height";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct ChainIndexerRepository {
     pub connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for ChainIndexerRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

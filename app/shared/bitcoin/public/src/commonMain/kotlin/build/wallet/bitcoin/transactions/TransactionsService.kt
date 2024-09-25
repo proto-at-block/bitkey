@@ -28,4 +28,9 @@ interface TransactionsService {
    * - exchange rates change
    */
   fun transactionsData(): StateFlow<TransactionsData>
+
+  suspend fun broadcast(
+    psbt: Psbt,
+    estimatedTransactionPriority: EstimatedTransactionPriority,
+  ): Result<BroadcastDetail, Error>
 }

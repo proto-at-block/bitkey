@@ -7,7 +7,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.limit.SpendingLimit
-import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import kotlinx.collections.immutable.ImmutableMap
@@ -26,6 +25,7 @@ data class SendUiProps(
   val validInvoiceInClipboard: ParsedPaymentData?,
   val onExit: () -> Unit,
   val onDone: () -> Unit,
+  val onGoToUtxoConsolidation: () -> Unit,
 )
 
 /**
@@ -41,14 +41,12 @@ sealed interface SendEntryPoint {
    * Customer enters send flow when attempting to speed up a transaction.
    *
    * @property speedUpTransactionDetails Details about the transaction to speed up.
-   * @property fiatMoney The fiat value of the transaction to speed up.
    * @property spendingLimit The user's current spending limit, if it exists.
    * @property newFeeRate The new, desired fee rate to bump the transaction to.
    * @property fees Map representing the full list of estimated fees.
    */
   data class SpeedUp(
     val speedUpTransactionDetails: SpeedUpTransactionDetails,
-    val fiatMoney: FiatMoney,
     val spendingLimit: SpendingLimit?,
     val newFeeRate: FeeRate,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,

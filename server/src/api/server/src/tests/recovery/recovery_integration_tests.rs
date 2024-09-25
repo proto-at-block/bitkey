@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use account::entities::{Factor, FullAccountAuthKeys, FullAccountAuthKeysPayload};
+use account::entities::{Factor, FullAccountAuthKeysPayload};
 use account::service::FetchAccountInput;
 use http_body_util::BodyExt;
 use types::account::bitcoin::Network;
@@ -21,6 +21,7 @@ use recovery::routes::{
 };
 
 use time::{Duration, OffsetDateTime};
+use types::account::keys::FullAccountAuthKeys;
 
 use crate::tests;
 use crate::tests::lib::{

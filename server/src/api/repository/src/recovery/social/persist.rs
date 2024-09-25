@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_to_attribute_val, try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
 use types::recovery::social::{challenge::SocialChallenge, relationship::RecoveryRelationship};
 
-use super::{Repository, SocialRecoveryRow};
+use super::{SocialRecoveryRepository, SocialRecoveryRow};
 
-impl Repository {
+impl SocialRecoveryRepository {
     async fn persist(
         &self,
         item: HashMap<String, AttributeValue>,

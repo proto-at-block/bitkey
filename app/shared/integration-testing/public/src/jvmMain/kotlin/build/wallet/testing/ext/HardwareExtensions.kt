@@ -4,6 +4,7 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.FakeHwAuthKeypair
+import build.wallet.nfc.TransactionFn
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
@@ -44,3 +45,6 @@ suspend fun AppTester.signChallengeWithHardware(challenge: ByteString): String {
 suspend fun AppTester.signChallengeWithHardware(challenge: String): String {
   return signChallengeWithHardware(challenge.encodeUtf8())
 }
+
+suspend fun <T> AppTester.hardwareTransaction(transaction: TransactionFn<T>): T =
+  app.nfcTransactor.fakeTransact(transaction).getOrThrow()

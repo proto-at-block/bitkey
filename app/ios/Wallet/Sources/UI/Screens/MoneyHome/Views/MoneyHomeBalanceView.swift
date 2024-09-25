@@ -23,7 +23,9 @@ public struct MoneyHomeBalanceView: View {
                     model: .standard(
                         model.primaryAmount,
                         font: .display2,
-                        textAlignment: nil
+                        textAlignment: nil,
+                        scalingFactor: UIFontTheme.display3.font.pointSize / UIFontTheme.display2
+                            .font.pointSize
                     )
                 )
                 .numericTextAnimation(numericText: model.primaryAmount)

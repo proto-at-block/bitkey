@@ -29,10 +29,12 @@ class BdkWalletMock(
     return Ok(Unit)
   }
 
+  var listTransactionsResult: BdkResult<List<BdkTransactionDetails>> = Ok(listOf())
+
   override fun listTransactionsBlocking(
     includeRaw: Boolean,
   ): BdkResult<List<BdkTransactionDetails>> {
-    return Ok(listOf())
+    return listTransactionsResult
   }
 
   override fun getBalanceBlocking(): BdkResult<BdkBalance> {
@@ -74,5 +76,8 @@ class BdkWalletMock(
 
   fun reset() {
     isMineResultMap = emptyMap()
+    listTransactionsResult = Ok(listOf())
+    listUnspentBlockingResult = null
+    getAddressBlockingResult = null
   }
 }

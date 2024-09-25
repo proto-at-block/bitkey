@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha384};
 use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 use std::io::{self};
 use std::result::Result;
 use thiserror::Error;
@@ -68,7 +69,7 @@ impl EnclaveCodesigningKeyType {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct AttestationDocument {
+pub struct AttestationDocument {
     module_id: String,
     timestamp: u64,
     digest: String,
@@ -81,6 +82,52 @@ struct AttestationDocument {
     user_data: Option<ByteBuf>,
     #[serde(skip_serializing_if = "Option::is_none")]
     nonce: Option<ByteBuf>,
+}
+
+fn to_hex_string(bytes: &ByteBuf) -> String {
+    bytes
+        .as_ref()
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<String>>()
+        .join("")
+}
+
+impl fmt::Display for AttestationDocument {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Attestation Document:")?;
+        writeln!(f, "  Module ID: {}", self.module_id)?;
+        writeln!(f, "  Timestamp: {}", self.timestamp)?;
+        writeln!(f, "  Digest: {}", self.digest)?;
+
+        let sorted_pcrs = self.pcrs.iter().collect::<BTreeMap<_, _>>();
+
+        writeln!(f, "  PCRs:")?;
+        for (key, value) in &sorted_pcrs {
+            writeln!(f, "    {}: {}", key, to_hex_string(value))?;
+        }
+
+        writeln!(f, "  Certificate: {}", to_hex_string(&self.certificate))?;
+
+        writeln!(f, "  CA Bundle:")?;
+        for cert in &self.cabundle {
+            writeln!(f, "    {}", to_hex_string(cert))?;
+        }
+
+        if let Some(public_key) = &self.public_key {
+            writeln!(f, "  Public Key: {}", to_hex_string(public_key))?;
+        }
+
+        if let Some(user_data) = &self.user_data {
+            writeln!(f, "  User Data: {}", to_hex_string(user_data))?;
+        }
+
+        if let Some(nonce) = &self.nonce {
+            writeln!(f, "  Nonce: {}", to_hex_string(nonce))?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -399,7 +446,7 @@ impl NitroEnclaveVerifier {
     }
 }
 
-fn calculate_pcrs(eif: &mut EifReader) -> Result<BTreeMap<String, String>, EnclaveToolsError> {
+pub fn calculate_pcrs(eif: &mut EifReader) -> Result<BTreeMap<String, String>, EnclaveToolsError> {
     let pcrs = get_pcrs(
         &mut eif.image_hasher,
         &mut eif.bootstrap_hasher,
@@ -482,7 +529,7 @@ fn verify_enclave_signature(
         .map_err(|_| EnclaveToolsError::SignatureVerificationError)
 }
 
-fn parse_and_verify_signed_attestation_document(
+pub fn parse_and_verify_signed_attestation_document(
     signed_document: Vec<u8>,
     challenge: Option<Vec<u8>>,
 ) -> Result<AttestationDocument, EnclaveToolsError> {

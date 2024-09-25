@@ -1,14 +1,14 @@
 use database::{
     aws_sdk_dynamodb::types::{PutRequest, WriteRequest},
-    ddb::{try_to_item, DDBService, DatabaseError, PersistBatchTrait},
+    ddb::{try_to_item, DatabaseError, PersistBatchTrait, Repository},
 };
 use tracing::instrument;
 
 use crate::entities::TransactionRecord;
 
-use super::Repository;
+use super::MempoolIndexerRepository;
 
-impl Repository {
+impl MempoolIndexerRepository {
     #[instrument(skip(self))]
     pub(crate) async fn update_expiry(
         &self,

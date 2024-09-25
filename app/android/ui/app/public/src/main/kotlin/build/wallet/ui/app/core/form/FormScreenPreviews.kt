@@ -9,6 +9,7 @@ import build.wallet.money.currency.EUR
 import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -329,7 +330,7 @@ fun CalloutPreview() {
           FormMainContentModel.Callout(
             item = CalloutModel(
               title = "At least one fingerprint is required",
-              subtitle = "Add another fingerprint to delete",
+              subtitle = StringModel("Add another fingerprint to delete"),
               leadingIcon = Icon.SmallIconInformationFilled,
               treatment = CalloutModel.Treatment.Information
             )

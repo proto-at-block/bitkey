@@ -8,6 +8,8 @@ use axum::{
     routing::{get, post, put},
     Json, Router,
 };
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::flag::ContextKey;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 use tracing::{error, event, instrument, Level};
@@ -142,7 +144,8 @@ pub struct SignTransactionResponse {
         exchange_rate_service,
         feature_flags_service,
         screener_service,
-        transaction_broadcaster
+        transaction_broadcaster,
+        context_key
     ),
     fields(keyset_id, active_keyset_id)
 )]
@@ -158,6 +161,7 @@ async fn sign_transaction_maybe_broadcast_impl(
     signed_psbt_cache_service: SignedPsbtCacheService,
     feature_flags_service: FeatureFlagsService,
     screener_service: Arc<ScreenerService>,
+    context_key: Option<ContextKey>,
 ) -> Result<SignTransactionResponse, ApiError> {
     // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
     let is_mobile_pay_enabled = FLAG_MOBILE_PAY_ENABLED
@@ -192,7 +196,7 @@ async fn sign_transaction_maybe_broadcast_impl(
         });
     }
 
-    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service)?;
+    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
 
     let requested_descriptor: DescriptorKeyset = full_account
         .spending_keysets
@@ -391,6 +395,7 @@ async fn sign_transaction_with_keyset(
     State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(screener_service): State<Arc<ScreenerService>>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<SignTransactionData>,
 ) -> Result<Json<SignTransactionResponse>, ApiError> {
     let full_account = account_service
@@ -398,6 +403,7 @@ async fn sign_transaction_with_keyset(
             account_id: &account_id,
         })
         .await?;
+    let context_key = experimentation_claims.account_context_key().ok();
 
     let response = sign_transaction_maybe_broadcast_impl(
         &full_account,
@@ -411,6 +417,7 @@ async fn sign_transaction_with_keyset(
         signed_psbt_cache_service,
         feature_flags_service,
         screener_service,
+        context_key,
     )
     .await?;
 
@@ -429,7 +436,8 @@ async fn sign_transaction_with_keyset(
         signed_psbt_cache_service,
         request,
         screener_service,
-        feature_flags_service
+        feature_flags_service,
+        experimentation_claims
     )
 )]
 #[utoipa::path(
@@ -457,6 +465,7 @@ async fn sign_transaction_with_active_keyset(
     State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     State(screener_service): State<Arc<ScreenerService>>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<SignTransactionData>,
 ) -> Result<Json<SignTransactionResponse>, ApiError> {
     let full_account = account_service
@@ -464,6 +473,7 @@ async fn sign_transaction_with_active_keyset(
             account_id: &account_id,
         })
         .await?;
+    let context_key = experimentation_claims.account_context_key().ok();
 
     let response = sign_transaction_maybe_broadcast_impl(
         &full_account,
@@ -477,6 +487,7 @@ async fn sign_transaction_with_active_keyset(
         signed_psbt_cache_service,
         feature_flags_service,
         screener_service,
+        context_key,
     )
     .await?;
     Ok(Json(response))

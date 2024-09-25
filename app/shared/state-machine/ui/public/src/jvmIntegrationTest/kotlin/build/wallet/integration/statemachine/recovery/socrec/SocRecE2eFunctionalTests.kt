@@ -50,7 +50,8 @@ private const val PROTECTED_CUSTOMER_ALIAS = "alice"
 class SocRecE2eFunctionalTests : FunSpec({
   test("full e2e test") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     val cloudStore = customerApp.app.cloudKeyValueStore
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
@@ -66,7 +67,8 @@ class SocRecE2eFunctionalTests : FunSpec({
     val inviteCode = customerApp.getSharedInviteCode()
 
     // TC: Onboard as Lite Account and accept invite
-    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore)
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     lateinit var relationshipId: String
     tcApp.app.appUiStateMachine.test(
       props = Unit,
@@ -95,13 +97,15 @@ class SocRecE2eFunctionalTests : FunSpec({
    * for more compact tests with less noise.
    */
   test("AppTester shortcuts for socrec") {
-    var customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    var customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
 
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -110,8 +114,10 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
+    // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
-      cloudKeyValueStore = customerApp.app.cloudKeyValueStore
+      cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
+      executeWorkers = false
     )
     customerApp.app.appUiStateMachine.test(
       props = Unit,
@@ -126,7 +132,8 @@ class SocRecE2eFunctionalTests : FunSpec({
   // If this test flakes, it likely points to a real issue. See comments in test.
   test("attacker can't fake an endorsement") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     val cloudStore = customerApp.app.cloudKeyValueStore
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
@@ -142,7 +149,8 @@ class SocRecE2eFunctionalTests : FunSpec({
     val inviteCode = customerApp.getSharedInviteCode()
 
     // TC: Onboard as Lite Account and accept invite
-    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore)
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
@@ -232,12 +240,14 @@ class SocRecE2eFunctionalTests : FunSpec({
         maxFailure = 1
       )
     ) { _ ->
-      var customerApp = launchNewApp()
+      // TODO(W-9704): execute workers by default
+      var customerApp = launchNewApp(executeWorkers = false)
       customerApp.onboardFullAccountWithFakeHardware(
         cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
       )
       val invite = customerApp.createTcInvite("bob")
-      val tcApp = launchNewApp()
+      // TODO(W-9704): execute workers by default
+      val tcApp = launchNewApp(executeWorkers = false)
       tcApp.onboardLiteAccountFromInvitation(
         invite.inviteCode,
         PROTECTED_CUSTOMER_ALIAS,
@@ -245,9 +255,11 @@ class SocRecE2eFunctionalTests : FunSpec({
       )
       customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
+      // TODO(W-9704): execute workers by default
       customerApp = launchNewApp(
         cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
-        hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
+        hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed(),
+        executeWorkers = false
       )
       customerApp.app.appUiStateMachine.test(
         props = Unit,
@@ -281,9 +293,11 @@ class SocRecE2eFunctionalTests : FunSpec({
 
       // PC: Start up a fresh app with clean data and start Social Challenge
       // persist cloud account stores
+      // TODO(W-9704): execute workers by default
       val recoveringApp = launchNewApp(
         cloudStoreAccountRepository = customerApp.app.cloudStoreAccountRepository,
-        cloudKeyValueStore = customerApp.app.cloudKeyValueStore
+        cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
+        executeWorkers = false
       )
       recoveringApp.app.appUiStateMachine.test(
         props = Unit,
@@ -301,13 +315,15 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   // TODO: This test can hang but it's still very useful
   xtest("socrec restore succeeds after cloud recovery and rotating auth keys") {
-    var customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    var customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
     val invite = customerApp.createTcInvite("bob")
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       inviteCode = invite.inviteCode,
       protectedCustomerName = PROTECTED_CUSTOMER_ALIAS,
@@ -315,9 +331,11 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
+    // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
-      hardwareSeed = hardwareSeed
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
     )
     customerApp.app.appUiStateMachine.test(
       props = Unit,
@@ -343,12 +361,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Trusted Contact") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -373,10 +393,12 @@ class SocRecE2eFunctionalTests : FunSpec({
     // PC: Start up a fresh app with clean data, persist cloud backup and hardware
     //     Perform Lost App Cloud Recovery
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
+    // TODO(W-9704): execute workers by default
     val recoveringApp = launchNewApp(
       cloudStoreAccountRepository = customerApp.app.cloudStoreAccountRepository,
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
-      hardwareSeed = hardwareSeed
+      hardwareSeed = hardwareSeed,
+      executeWorkers = false
     )
     recoveringApp.app.appUiStateMachine.test(
       props = Unit,
@@ -401,12 +423,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   test("social recovery should succeed after PC does lost app D&N") {
     // Onboard the protected customer
-    var customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    var customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -419,7 +443,8 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.deleteBackupsFromFakeCloud()
     customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
-    customerApp = launchNewApp(hardwareSeed = hardwareSeed)
+    // TODO(W-9704): execute workers by default
+    customerApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
     customerApp.app.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
@@ -437,12 +462,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   test("social recovery should not be possible after TC does lost app D&N") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     val cloudStore = customerApp.app.cloudKeyValueStore
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
-    var tcApp = launchNewApp(cloudKeyValueStore = cloudStore)
+    // TODO(W-9704): execute workers by default
+    var tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake(identifier = "cloud-store-protected-customer2-fake")
     )
@@ -483,7 +510,8 @@ class SocRecE2eFunctionalTests : FunSpec({
     tcApp.deleteBackupsFromFakeCloud()
     tcApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
-    tcApp = launchNewApp(hardwareSeed = hardwareSeed)
+    // TODO(W-9704): execute workers by default
+    tcApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
     tcApp.app.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
@@ -500,12 +528,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   test("social recovery should succeed after PC does lost hardware D&N") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -532,12 +562,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
   test("lost hardware D&N should succeed after social recovery") {
     // Onboard the protected customer
-    val customerApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val tcApp = launchNewApp()
+    // TODO(W-9704): execute workers by default
+    val tcApp = launchNewApp(executeWorkers = false)
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
       PROTECTED_CUSTOMER_ALIAS,
@@ -577,8 +609,10 @@ suspend fun shouldSucceedSocialRestore(
 ): AppTester {
   // PC: Start up a fresh app with clean data and start Social Challenge
   // persist cloud account stores
+  // TODO(W-9704): execute workers by default
   val recoveringApp = launchNewApp(
-    cloudKeyValueStore = customerApp.app.cloudKeyValueStore
+    cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
+    executeWorkers = false
   )
   lateinit var challengeCode: String
   recoveringApp.app.appUiStateMachine.test(

@@ -12,6 +12,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(projects.shared.accountPublic)
         api(projects.shared.analyticsPublic)
         api(projects.shared.ktorClientPublic)
         api(projects.shared.availabilityPublic)

@@ -12,6 +12,8 @@ import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -41,6 +43,7 @@ class GettingStartedCardUiStateMachineImpl(
   private val transactionsService: TransactionsService,
   private val mobilePayService: MobilePayService,
   private val socRecService: SocRecService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : GettingStartedCardUiStateMachine {
   @Composable
   override fun model(props: GettingStartedCardUiProps): CardModel? {
@@ -157,7 +160,8 @@ class GettingStartedCardUiStateMachineImpl(
             GettingStartedTaskRowModel(
               task = it,
               isEnabled = it.isEnabled(appFunctionalityStatus),
-              onClick = { it.onClick(props, appFunctionalityStatus) }
+              onClick = { it.onClick(props, appFunctionalityStatus) },
+              isRevampEnabled = mobilePayRevampFeatureFlag.isEnabled()
             )
           }.toImmutableList()
       )

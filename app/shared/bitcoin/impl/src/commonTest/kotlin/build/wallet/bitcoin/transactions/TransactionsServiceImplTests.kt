@@ -6,6 +6,8 @@ import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.analytics.events.AppSessionState
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
+import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -23,6 +25,9 @@ import build.wallet.money.exchange.EURtoBTC
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.exchange.USDtoBTC
 import build.wallet.money.matchers.shouldBeZero
+import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
+import build.wallet.time.someInstant
 import com.github.michaelbull.result.Ok
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
@@ -33,6 +38,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.minutes
 
 class TransactionsServiceImplTests : FunSpec({
 
@@ -42,11 +48,15 @@ class TransactionsServiceImplTests : FunSpec({
   val wallet = SpendingWalletMock(turbines::create, account.keybox.activeSpendingKeyset.localId)
 
   val newAccount = account.copy(keybox = KeyboxMock2)
-  val newWallet = SpendingWalletMock(turbines::create, newAccount.keybox.activeSpendingKeyset.localId)
+  val newWallet =
+    SpendingWalletMock(turbines::create, newAccount.keybox.activeSpendingKeyset.localId)
 
   val accountService = AccountServiceFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val exchangeRateService = ExchangeRateServiceFake()
+  val outgoingTransactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
+  val clock = ClockFake()
+  val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create, clock)
   val appSessionManager = AppSessionManagerFake()
   val currencyConverter = CurrencyConverterFake()
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(wallet)
@@ -60,13 +70,18 @@ class TransactionsServiceImplTests : FunSpec({
       appSpendingWalletProvider = appSpendingWalletProvider,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       appSessionManager = appSessionManager,
-      exchangeRateService = exchangeRateService
+      exchangeRateService = exchangeRateService,
+      outgoingTransactionDetailDao = outgoingTransactionDetailDao,
+      bitcoinBlockchain = bitcoinBlockchain
     )
+    clock.reset()
     wallet.reset()
+    outgoingTransactionDetailDao.reset()
     fiatCurrencyPreferenceRepository.reset()
     appSessionManager.reset()
     currencyConverter.reset()
     exchangeRateService.reset()
+    bitcoinBlockchain.reset()
     appSpendingWalletProvider.spendingWallet = wallet
 
     accountService.accountState.value = Ok(ActiveAccount(account))
@@ -238,5 +253,20 @@ class TransactionsServiceImplTests : FunSpec({
       newWallet.launchPeriodicSyncCalls.awaitItem()
       awaitItem().shouldBe(newWallet)
     }
+  }
+
+  test("broadcast transaction") {
+    backgroundScope.launch {
+      service.executeWork()
+    }
+
+    service.broadcast(PsbtMock, estimatedTransactionPriority = FASTEST).shouldBeOk()
+
+    bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(PsbtMock)
+    outgoingTransactionDetailDao.insertCalls.awaitItem()
+    outgoingTransactionDetailDao.broadcastTimeForTransaction("abcdef")
+      .shouldBe(someInstant)
+    outgoingTransactionDetailDao.confirmationTimeForTransaction("abcdef")
+      .shouldBe(someInstant + 10.minutes)
   }
 })

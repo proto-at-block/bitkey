@@ -2,20 +2,13 @@ package build.wallet.ui.components.label
 
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.theme.WalletTheme
@@ -59,43 +52,21 @@ fun Label(
   alignment: TextAlign = TextAlign.Start,
 ) {
   Label(
+    model = model,
     modifier = modifier,
-    text = buildAnnotatedString {
-      when (model) {
-        is LabelModel.StringModel ->
-          append(model.string)
-        is LabelModel.StringWithStyledSubstringModel -> {
-          append(model.string)
-          model.styledSubstrings.forEach { styledSubstring ->
-            addStyle(
-              style =
-                when (val substringStyle = styledSubstring.style) {
-                  is LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle ->
-                    SpanStyle(
-                      color = substringStyle.color.toWalletTheme()
-                    )
-                  is LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle ->
-                    SpanStyle(
-                      fontWeight = FontWeight.W600
-                    )
-                },
-              start = styledSubstring.range.first,
-              end = styledSubstring.range.last + 1
-            )
-          }
-        }
-        is LabelModel.LinkSubstringModel -> {
-          append(model.string)
-          model.linkedSubstrings.forEach { linkedSubstring ->
-            addStyle(
-              style = SpanStyle(color = WalletTheme.colors.bitkeyPrimary),
-              start = linkedSubstring.range.first,
-              end = linkedSubstring.range.last + 1
-            )
-          }
-        }
-      }
-    },
+    style = WalletTheme.labelStyle(type, treatment, alignment)
+  )
+}
+
+@Composable
+fun Label(
+  model: LabelModel,
+  modifier: Modifier = Modifier,
+  style: TextStyle,
+) {
+  Label(
+    modifier = modifier,
+    text = model.buildAnnotatedString(),
     onClick = (model as? LabelModel.LinkSubstringModel)?.let { linkedLabelModel ->
       { clickPosition ->
         linkedLabelModel.linkedSubstrings.find { ls ->
@@ -105,9 +76,7 @@ fun Label(
         }
       }
     },
-    type = type,
-    treatment = treatment,
-    alignment = alignment
+    style = style
   )
 }
 

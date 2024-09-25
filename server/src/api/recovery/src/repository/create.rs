@@ -1,14 +1,14 @@
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_item, DatabaseError, Repository},
 };
 use tracing::{event, Level};
 
 use crate::entities::WalletRecovery;
 
-use super::Repository;
+use super::RecoveryRepository;
 
-impl Repository {
+impl RecoveryRepository {
     pub async fn create(&self, recovery: &WalletRecovery) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();

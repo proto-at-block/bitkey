@@ -16,6 +16,8 @@ import build.wallet.statemachine.dev.debug.NetworkingDebugConfigProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsStateMachine
 import build.wallet.statemachine.dev.logs.LogsUiStateMachine
+import build.wallet.statemachine.dev.wallet.BitcoinWalletDebugProps
+import build.wallet.statemachine.dev.wallet.BitcoinWalletDebugUiStateMachine
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -23,6 +25,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 
 class DebugMenuStateMachineImpl(
   private val analyticsUiStateMachine: AnalyticsUiStateMachine,
+  private val bitcoinWalletDebugUiStateMachine: BitcoinWalletDebugUiStateMachine,
   private val debugMenuListStateMachine: DebugMenuListStateMachine,
   private val f8eCustomUrlStateMachine: F8eCustomUrlStateMachine,
   private val featureFlagsStateMachine: FeatureFlagsStateMachine,
@@ -66,6 +69,13 @@ class DebugMenuStateMachineImpl(
         logsUiStateMachine.model(
           LogsUiStateMachine.Props(onBack = { uiState = DebugMenuState.ShowingDebugMenu })
         ).asModalScreen()
+
+      is DebugMenuState.ShowingBitcoinWalletDebugMenu ->
+        bitcoinWalletDebugUiStateMachine.model(
+          BitcoinWalletDebugProps(
+            onBack = { uiState = DebugMenuState.ShowingDebugMenu }
+          )
+        ).asModalFullScreen()
 
       is DebugMenuState.ShowingAnalytics ->
         analyticsUiStateMachine.model(
@@ -133,6 +143,8 @@ sealed interface DebugMenuState {
   ) : DebugMenuState
 
   data object ShowingLogs : DebugMenuState
+
+  data object ShowingBitcoinWalletDebugMenu : DebugMenuState
 
   data object ShowingNetworkingDebugOptions : DebugMenuState
 

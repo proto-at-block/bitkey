@@ -1,5 +1,6 @@
-use futures::future::try_join_all;
 use std::collections::HashMap;
+
+use futures::future::try_join_all;
 use tracing::{event, instrument, Level};
 
 use crate::address_repo::ddb::entities::WatchedAddress;
@@ -11,14 +12,14 @@ use database::{
         error::ProvideErrorMetadata,
         types::{PutRequest, WriteRequest},
     },
-    ddb::{try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_item, DatabaseError, Repository},
 };
 
-use super::Repository;
+use super::AddressRepository;
 
 const DDB_CHUNK_SIZE_MAX: usize = 25;
 
-impl Repository {
+impl AddressRepository {
     #[instrument(skip(self))]
     pub(crate) async fn persist_batch(
         &self,

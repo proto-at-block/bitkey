@@ -2,6 +2,7 @@ package build.wallet.f8e.money
 
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedResponseBody
@@ -21,9 +22,10 @@ class FiatCurrencyDefinitionF8eClientImpl(
   override suspend fun getCurrencyDefinitions(
     f8eEnvironment: F8eEnvironment,
   ): Result<List<FiatCurrency>, NetworkingError> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<CurrenciesResponse> {
         get("/api/exchange-rates/currencies") {
+          withEnvironment(f8eEnvironment)
           withDescription("Get fiat currencies")
         }
       }

@@ -4,6 +4,8 @@ import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -26,6 +28,7 @@ import kotlin.time.Duration
 class SpendingWalletMock(
   val turbine: (String) -> Turbine<Any>,
   override val identifier: String = "mock-wallet",
+  override val networkType: BitcoinNetworkType = SIGNET,
 ) : SpendingWallet {
   val initializeCalls = turbine("$identifier: initializeBalanceAndTransactions calls")
   val launchPeriodicSyncCalls = turbine("$identifier: launchPeriodicSync calls")

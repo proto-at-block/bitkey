@@ -1,8 +1,8 @@
 use crate::{
-    entities::{Account, CommonAccountFields, FullAccount, FullAccountAuthKeys},
+    entities::{Account, CommonAccountFields, FullAccount},
     error::AccountError,
 };
-use types::account::identifiers::AuthKeysId;
+use types::account::{identifiers::AuthKeysId, keys::FullAccountAuthKeys};
 
 use super::{CreateAndRotateAuthKeysInput, Service};
 

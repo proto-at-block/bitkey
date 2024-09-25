@@ -1,20 +1,13 @@
 package build.wallet.statemachine.settings.full.device.resetdevice.confirmation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.log
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.SheetSize
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -30,11 +23,7 @@ import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButto
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.get
@@ -232,7 +221,7 @@ class ResettingDeviceConfirmationUiStateMachineImpl(
           FormMainContentModel.Callout(
             item = CalloutModel(
               title = "Resetting cannot be undone",
-              subtitle = "This will reset the device to it's blank, factory state",
+              subtitle = StringModel("This will reset the device to its blank, factory state"),
               treatment = CalloutModel.Treatment.Danger
             )
           )

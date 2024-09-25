@@ -2,7 +2,7 @@ use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use database::aws_sdk_dynamodb::types::AttributeValue;
 use database::ddb::{
-    try_from_item, try_to_attribute_val, DDBService, DatabaseError, FetchBatchTrait, ReadRequest,
+    try_from_item, try_to_attribute_val, DatabaseError, FetchBatchTrait, ReadRequest, Repository,
 };
 
 use tracing::{event, instrument, Level};
@@ -15,9 +15,11 @@ use crate::repository::{
 };
 use crate::{entities::Account, repository::PARTITION_KEY};
 
-use super::{Repository, RECOVERY_AUTHKEY_IDX_PARTITION_KEY, RECOVERY_AUTHKEY_TO_ACCOUNT_IDX};
+use super::{
+    AccountRepository, RECOVERY_AUTHKEY_IDX_PARTITION_KEY, RECOVERY_AUTHKEY_TO_ACCOUNT_IDX,
+};
 
-impl Repository {
+impl AccountRepository {
     #[instrument(skip(self))]
     pub async fn fetch(&self, id: &AccountId) -> Result<Account, DatabaseError> {
         let table_name = self.get_table_name().await?;

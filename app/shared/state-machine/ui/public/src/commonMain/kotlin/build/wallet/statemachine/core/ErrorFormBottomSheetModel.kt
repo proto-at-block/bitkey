@@ -1,6 +1,7 @@
 package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 
 @Deprecated("Specify [errorData] argument")
@@ -52,7 +53,7 @@ private fun ErrorFormBottomSheetModelWithOptionalErrorData(
   body =
     ErrorFormBodyModelWithOptionalErrorData(
       title = title,
-      subline = subline,
+      subline = subline?.let { StringModel(it) },
       primaryButton = primaryButton,
       secondaryButton = secondaryButton,
       eventTrackerScreenId = eventTrackerScreenId,

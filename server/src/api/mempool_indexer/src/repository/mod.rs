@@ -9,7 +9,7 @@ use database::{
             ScalarAttributeType, TimeToLiveSpecification,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -28,12 +28,12 @@ pub(crate) const NETWORK_EXPIRING_IDX_PARTITION_KEY: &str = "network";
 pub(crate) const NETWORK_EXPIRING_IDX_SORT_KEY: &str = "expiring_at";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct MempoolIndexerRepository {
     pub connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for MempoolIndexerRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

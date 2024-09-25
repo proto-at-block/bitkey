@@ -8,15 +8,15 @@ use database::ddb::DatabaseError;
 use errors::ApiError;
 
 use crate::signed_psbt_cache::entities::CachedPsbt;
-use crate::signed_psbt_cache::repository::Repository;
+use crate::signed_psbt_cache::repository::SignedPsbtCacheRepository;
 
 #[derive(Clone)]
 pub struct Service {
-    repo: Repository,
+    repo: SignedPsbtCacheRepository,
 }
 
 impl Service {
-    pub fn new(repo: Repository) -> Self {
+    pub fn new(repo: SignedPsbtCacheRepository) -> Self {
         Self { repo }
     }
 

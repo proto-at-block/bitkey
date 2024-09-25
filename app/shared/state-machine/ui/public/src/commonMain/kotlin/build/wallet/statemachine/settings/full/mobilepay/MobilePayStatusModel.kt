@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -25,32 +26,34 @@ data class MobilePayStatusModel(
     switchIsChecked: Boolean,
     onSwitchCheckedChange: (Boolean) -> Unit,
     dailyLimitRow: ActionRow?,
+    spendingLimitCopy: SpendingLimitsCopy,
     disableAlertModel: ButtonAlertModel?,
     spendingLimitCardModel: SpendingLimitCardModel?,
   ) : this(
     onBack = onBack,
-    switchCardModel =
-      SwitchCardModel(
-        title = "Mobile Pay",
-        subline = "Leave your device at home, and make small spends with just the key on your phone.",
-        switchModel =
-          SwitchModel(
-            checked = switchIsChecked,
-            onCheckedChange = onSwitchCheckedChange
-          ),
-        actionRows = immutableListOfNotNull(dailyLimitRow)
-      ),
+    switchCardModel = SwitchCardModel(
+      title = spendingLimitCopy.title,
+      subline = spendingLimitCopy.subline,
+      switchModel =
+        SwitchModel(
+          checked = switchIsChecked,
+          onCheckedChange = onSwitchCheckedChange
+        ),
+      actionRows = immutableListOfNotNull(dailyLimitRow)
+    ),
     disableAlertModel = disableAlertModel,
     spendingLimitCardModel = spendingLimitCardModel
   )
 }
 
 fun disableMobilePayAlertModel(
+  title: String,
+  subline: String,
   onConfirm: () -> Unit,
   onCancel: () -> Unit,
 ) = DisableAlertModel(
-  title = "Disable mobile pay?",
-  subline = "Turning it back on will require your Bitkey device",
+  title = title,
+  subline = subline,
   onConfirm = onConfirm,
   onCancel = onCancel
 )

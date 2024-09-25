@@ -145,21 +145,12 @@ struct ListItemContentView: View {
 
                         case let model as LabelModelStringWithStyledSubstringModel:
                             ModeledText(
-                                model: .standard(
-                                    .string(from: model, font: .body2Regular),
-                                    font: .body2Regular
-                                )
+                                model: .fromModel(model: model, font: .body2Regular)
                             )
 
                         case let model as LabelModelLinkSubstringModel:
                             ModeledText(
-                                model: .linkedText(
-                                    textContent: .linkedText(
-                                        string: model.markdownString(),
-                                        links: model.linkedSubstrings
-                                    ),
-                                    font: FontTheme.body2Regular
-                                )
+                                model: .fromModel(model: model, font: .body2Regular)
                             )
 
                         default:

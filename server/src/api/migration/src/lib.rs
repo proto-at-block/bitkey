@@ -6,7 +6,7 @@ use thiserror::Error;
 use tracing::event;
 
 use crate::entities::MigrationRecord;
-use crate::repository::Repository;
+use crate::repository::MigrationRepository;
 use database::ddb::DatabaseError;
 
 #[derive(Debug, Error)]
@@ -60,11 +60,11 @@ pub trait MigratableService {
 
 pub struct Runner {
     services: Vec<Box<dyn MigratableService>>,
-    repo: Repository,
+    repo: MigrationRepository,
 }
 
 impl Runner {
-    pub fn new(repo: Repository, services: Vec<Box<dyn MigratableService>>) -> Self {
+    pub fn new(repo: MigrationRepository, services: Vec<Box<dyn MigratableService>>) -> Self {
         Self { services, repo }
     }
 

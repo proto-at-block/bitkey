@@ -1,6 +1,6 @@
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, DatabaseError, Repository},
 };
 use time::format_description::well_known::Rfc3339;
 use tracing::{event, Level};
@@ -10,9 +10,9 @@ use crate::{
     repository::{PARTITION_KEY, SORT_KEY},
 };
 
-use super::Repository;
+use super::RecoveryRepository;
 
-impl Repository {
+impl RecoveryRepository {
     pub async fn update_recovery_requirements(
         &self,
         composite_key: WalletRecoveryCompositeKey,

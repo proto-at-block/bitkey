@@ -1,10 +1,8 @@
 package build.wallet.statemachine.transactions
 
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
-import build.wallet.statemachine.core.Icon.SmallIconArrowDown
-import build.wallet.statemachine.core.Icon.SmallIconArrowUp
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
@@ -32,14 +30,15 @@ fun TransactionItemModel(
     IconAccessory(
       model =
         IconModel(
-          iconImage =
-            if (isPending) {
-              IconImage.Loader
-            } else if (transactionType == Incoming) {
-              IconImage.LocalImage(SmallIconArrowDown)
-            } else {
-              IconImage.LocalImage(SmallIconArrowUp)
-            },
+          iconImage = if (isPending) {
+            IconImage.Loader
+          } else {
+            when (transactionType) {
+              Incoming -> IconImage.LocalImage(SmallIconArrowDown)
+              Outgoing -> IconImage.LocalImage(SmallIconArrowUp)
+              UtxoConsolidation -> IconImage.LocalImage(SmallIconConsolidation)
+            }
+          },
           iconSize = Small,
           iconBackgroundType = Circle(circleSize = Large)
         )
@@ -47,7 +46,7 @@ fun TransactionItemModel(
   sideTextTint =
     when (transactionType) {
       Incoming -> GREEN
-      Outgoing -> PRIMARY
+      Outgoing, UtxoConsolidation -> PRIMARY
     },
   onClick = onClick
 )

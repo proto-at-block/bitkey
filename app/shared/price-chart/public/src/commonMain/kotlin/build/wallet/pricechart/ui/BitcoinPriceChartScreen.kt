@@ -309,9 +309,15 @@ private fun ChartTypeSelector(
         .fillMaxWidth()
         // draw active background pill shape
         .drawWithCache {
-          val size = Size(size.width / 2, size.height)
-          val offset = Offset(animatedOffsetX, 0f)
-          val cornerRadius = CornerRadius(50.dp.toPx(), 50f.dp.toPx())
+          val padding = 8.dp.toPx()
+          val size = Size(
+            (size.width / 2) - padding,
+            size.height - padding
+          )
+          val offsetPadding = padding / 2
+          val offset = Offset(animatedOffsetX + offsetPadding, offsetPadding)
+          val radiusPx = 50.dp.toPx()
+          val cornerRadius = CornerRadius(radiusPx, radiusPx)
           onDrawBehind {
             drawRoundRect(
               color = animatedColor,

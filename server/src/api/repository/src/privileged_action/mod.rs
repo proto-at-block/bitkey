@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -24,12 +24,12 @@ const CANCELLATION_TOKEN_IDX: &str = "by_cancellation_token";
 const CANCELLATION_TOKEN_IDX_PARTITION_KEY: &str = "cancellation_token";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct PrivilegedActionRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for PrivilegedActionRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

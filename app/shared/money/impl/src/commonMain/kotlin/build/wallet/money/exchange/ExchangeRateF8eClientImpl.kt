@@ -3,6 +3,7 @@ package build.wallet.money.exchange
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -27,9 +28,11 @@ class ExchangeRateF8eClientImpl(
   override suspend fun getExchangeRates(
     f8eEnvironment: F8eEnvironment,
   ): Result<List<ExchangeRate>, NetworkingError> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<ResponseBody> {
-        get("/api/exchange-rates")
+        get("/api/exchange-rates") {
+          withEnvironment(f8eEnvironment)
+        }
       }.map { response ->
         response.exchangeRates.map { body ->
           body.exchangeRate()

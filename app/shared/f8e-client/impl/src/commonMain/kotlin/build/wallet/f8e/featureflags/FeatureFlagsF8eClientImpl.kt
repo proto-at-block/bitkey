@@ -13,6 +13,7 @@ import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.catchingResult
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -49,7 +50,7 @@ class FeatureFlagsF8eClientImpl(
   ): Result<List<FeatureFlagsF8eClient.F8eFeatureFlag>, NetworkingError> {
     val httpClient = when (accountId) {
       null ->
-        f8eHttpClient.unauthenticated(f8eEnvironment)
+        f8eHttpClient.unauthenticated()
       is FullAccountId ->
         f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
       is LiteAccountId ->
@@ -74,6 +75,7 @@ class FeatureFlagsF8eClientImpl(
 
     return httpClient.bodyResult<FeatureFlagsResponse> {
       post(url) {
+        withEnvironment(f8eEnvironment)
         setRedactedBody(
           RequestBody(
             flagKeys = flagKeys,

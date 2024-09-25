@@ -1,6 +1,6 @@
 use account::service::Service as AccountService;
 use notification::service::Service as NotificationService;
-use repository::recovery::social::Repository;
+use repository::recovery::social::SocialRecoveryRepository;
 
 use super::relationship::Service as RecoveryRelationshipService;
 
@@ -12,7 +12,7 @@ pub mod respond_to_social_challenge;
 
 #[derive(Clone)]
 pub struct Service {
-    pub repository: Repository,
+    pub repository: SocialRecoveryRepository,
     pub recovery_relationship_service: RecoveryRelationshipService,
     pub notification_service: NotificationService,
     pub account_service: AccountService,
@@ -21,7 +21,7 @@ pub struct Service {
 impl Service {
     #[must_use]
     pub fn new(
-        repository: Repository,
+        repository: SocialRecoveryRepository,
         recovery_relationship_service: RecoveryRelationshipService,
         notification_service: NotificationService,
         account_service: AccountService,

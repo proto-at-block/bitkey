@@ -3,7 +3,7 @@
 name: bitkey-firmware
 core_reviewers: [bitkey-firmware-eng]
 message: "Someone working on Bitkey Firmware must approve this pull request."
-slack: "#proto-w1-firmware"
+slack: "#bitkey-firmware"
 minimum_core_approvals: 1
 autounapprove: true
 ---
@@ -18,7 +18,7 @@ autounapprove: true
 name: bitkey-cryptosec
 core_reviewers: [bitkey-cryptosec-eng]
 message: "Someone working on Crypto/Security must approve this pull request."
-slack: "#proto-w1-software"
+slack: "#bitkey-software"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 autounapprove: true
@@ -33,7 +33,7 @@ autounapprove: true
 ---
 name: bitkey-software
 core_reviewers: [bitkey-software]
-slack: "#proto-w1-software"
+slack: "#bitkey-software"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 ---
@@ -46,7 +46,7 @@ exclude_author_from_core_reviewers: true
 ---
 name: bitkey-software-require-review
 core_reviewers: [bitkey-software]
-slack: "#proto-w1-software"
+slack: "#bitkey-software"
 minimum_core_approvals: 1
 autounapprove: true
 exclude_author_from_core_reviewers: true

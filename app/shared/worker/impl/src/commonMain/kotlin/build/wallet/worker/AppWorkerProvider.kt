@@ -6,7 +6,7 @@ import build.wallet.availability.AppFunctionalitySyncWorker
 import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
 import build.wallet.bitcoin.transactions.TransactionSyncWorker
 import build.wallet.configuration.MobilePayFiatConfigSyncWorker
-import build.wallet.f8e.debug.NetworkingDebugConfigRepository
+import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.feature.FeatureFlagSyncWorker
 import build.wallet.fwup.FirmwareDataSyncWorker
 import build.wallet.limit.MobilePayBalanceSyncWorker
@@ -35,7 +35,7 @@ class AppWorkerProviderImpl(
   private val periodicFirmwareCoredumpProcessor: PeriodicProcessor,
   private val periodicFirmwareTelemetryProcessor: PeriodicProcessor,
   private val periodicRegisterWatchAddressProcessor: PeriodicProcessor,
-  private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
+  private val networkingDebugService: NetworkingDebugService,
   private val mobilePayFiatConfigSyncWorker: MobilePayFiatConfigSyncWorker,
   private val featureFlagSyncWorker: FeatureFlagSyncWorker,
   private val firmwareDataSyncWorker: FirmwareDataSyncWorker,
@@ -52,7 +52,7 @@ class AppWorkerProviderImpl(
     return setOf(
       AppWorker { eventTracker.track(action = ACTION_APP_OPEN_INITIALIZE) },
       exchangeRateSyncWorker,
-      AppWorker(networkingDebugConfigRepository::launchSync),
+      AppWorker(networkingDebugService::launchSync),
       AppWorker(periodicEventProcessor::start),
       AppWorker(periodicFirmwareCoredumpProcessor::start),
       AppWorker(periodicFirmwareTelemetryProcessor::start),

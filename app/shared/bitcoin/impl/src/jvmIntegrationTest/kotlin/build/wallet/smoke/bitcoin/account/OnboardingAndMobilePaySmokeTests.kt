@@ -66,7 +66,7 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
         appSignedPsbt
       ).getOrThrow()
 
-      bitcoinBlockchain.broadcast(serverSignedPsbt).fold(
+      appComponent.bitcoinBlockchain.broadcast(serverSignedPsbt).fold(
         success = { /* broadcast succeeded */ },
         failure = { error ->
           if (error.isExpectedRaceError()) {

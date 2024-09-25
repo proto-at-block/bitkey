@@ -123,6 +123,8 @@ impl Service {
             .delete_recovery_relationship(&relationship)
             .await?;
 
+        // TODO: Do we need to do any socrec challenge or inheritance claim cleanup here? [W-9715]
+
         if send_notification {
             self.notification_service
                 .send_notification(SendNotificationInput {

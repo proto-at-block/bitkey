@@ -6,7 +6,7 @@ use database::{
     aws_sdk_dynamodb::types::{
         AttributeDefinition, BillingMode, KeySchemaElement, KeyType, ScalarAttributeType,
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -25,12 +25,12 @@ pub(crate) const HW_IDX_PARTITION_KEY: &str = "hardware_auth_pubkey";
 pub(crate) const RECOVERY_AUTHKEY_IDX_PARTITION_KEY: &str = "recovery_auth_pubkey";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct AccountRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for AccountRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

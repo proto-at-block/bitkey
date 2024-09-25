@@ -5,7 +5,7 @@ import androidx.compose.runtime.collectAsState
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.f8e.debug.NetworkingDebugConfigRepository
+import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
@@ -19,11 +19,11 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.coroutines.launch
 
 class NetworkingDebugConfigPickerUiStateMachineImpl(
-  private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
+  private val networkingDebugService: NetworkingDebugService,
 ) : NetworkingDebugConfigPickerUiStateMachine {
   @Composable
   override fun model(props: NetworkingDebugConfigProps): BodyModel {
-    val networkingDebugConfig = networkingDebugConfigRepository.config.collectAsState()
+    val networkingDebugConfig = networkingDebugService.config.collectAsState()
     val scope = rememberStableCoroutineScope()
 
     return FormBodyModel(
@@ -50,7 +50,7 @@ class NetworkingDebugConfigPickerUiStateMachineImpl(
                             checked = networkingDebugConfig.value.failF8eRequests,
                             onCheckedChange = { failF8eRequests ->
                               scope.launch {
-                                networkingDebugConfigRepository.setFailF8eRequests(failF8eRequests)
+                                networkingDebugService.setFailF8eRequests(failF8eRequests)
                               }
                             }
                           )

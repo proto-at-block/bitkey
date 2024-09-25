@@ -3,6 +3,7 @@ package build.wallet.f8e.mobilepay
 import build.wallet.configuration.MobilePayFiatConfig
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedResponseBody
@@ -41,9 +42,10 @@ class MobilePayFiatConfigF8eClientImpl(
   private suspend fun realGetFiatMobilePayConfigurations(
     f8eEnvironment: F8eEnvironment,
   ): Result<Map<FiatCurrency, MobilePayFiatConfig>, NetworkingError> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<FiatConfigurationsResponse> {
         get("/api/mobile-pay/fiat-configurations") {
+          withEnvironment(f8eEnvironment)
           withDescription("Get fiat currencies")
         }
       }

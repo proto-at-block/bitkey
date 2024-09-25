@@ -1,14 +1,17 @@
 package build.wallet.statemachine.send
 
+import app.cash.turbine.test
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.address.someBitcoinAddress
-import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
-import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -19,14 +22,12 @@ import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
@@ -37,6 +38,8 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.collections.shouldContainOnly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -63,7 +66,6 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       id = "app-and-server-signed-psbt"
     )
 
-  val keyboxData = ActiveKeyboxLoadedDataMock
   val transactionDetailsCardUiStateMachine =
     object : TransactionDetailsCardUiStateMachine,
       StateMachineMock<TransactionDetailsCardUiProps, TransactionDetailsModel>(
@@ -104,30 +106,23 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       onExit = { onExitCalls.add(Unit) }
     )
 
-  val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create)
   val serverSigner = MobilePaySigningF8eClientMock(turbines::create)
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val spendingWallet = SpendingWalletMock(turbines::create)
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
-  val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
-  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val transactionsService = TransactionsServiceFake()
   val stateMachine =
     TransferConfirmationUiStateMachineImpl(
       mobilePaySigningF8eClient = serverSigner,
-      bitcoinBlockchain = bitcoinBlockchain,
       transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       transactionPriorityPreference = transactionPriorityPreference,
-      feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
       appSpendingWalletProvider = appSpendingWalletProvider,
-      outgoingTransactionDetailRepository = transactionRepository,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
       transactionsService = transactionsService
     )
 
   beforeTest {
-    bitcoinBlockchain.reset()
     serverSigner.reset()
     spendingWallet.reset()
     transactionPriorityPreference.reset()
@@ -245,13 +240,12 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndHwSignedPsbt)
 
-      // We persist this transaction into the database
-      transactionRepository.setTransactionCalls.awaitItem()
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainOnly(appAndHwSignedPsbt)
+      }
     }
 
-    spendingWallet.syncCalls.awaitItem()
     transactionPriorityPreference.preference.shouldBe(transactionPriority)
     onTransferInitiatedCalls.awaitItem()
   }
@@ -259,7 +253,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("[app & hw] successfully signing, but failing to broadcast presents error") {
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    bitcoinBlockchain.broadcastResult = Err(BdkError.Generic(Exception(""), null))
+    transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
 
     stateMachine.test(
       props.copy(
@@ -288,7 +282,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndHwSignedPsbt)
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainExactly(appAndHwSignedPsbt)
+      }
 
       // ReceivedBdkError
       awaitScreenWithBody<FormBodyModel> {
@@ -329,13 +325,11 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
-      bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndServerSignedPsbt)
-
-      // We persist this transaction into the database
-      transactionRepository.setTransactionCalls.awaitItem()
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainExactly(appAndServerSignedPsbt)
+      }
     }
 
-    spendingWallet.syncCalls.awaitItem()
     transactionPriorityPreference.preference.shouldBe(preferenceToSet)
     onTransferInitiatedCalls.awaitItem()
   }
@@ -372,7 +366,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
     serverSigner.signWithSpecificKeysetResult = Ok(appAndServerSignedPsbt)
-    bitcoinBlockchain.broadcastResult = Err(BdkError.Generic(Exception(""), null))
+    transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
 
     stateMachine.test(
       props.copy(
@@ -396,7 +390,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
-      bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndServerSignedPsbt)
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainExactly(appAndServerSignedPsbt)
+      }
     }
 
     spendingWallet.syncCalls.awaitItem()

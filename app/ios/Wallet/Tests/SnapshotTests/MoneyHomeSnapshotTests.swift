@@ -172,6 +172,33 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         ))
         assertBitkeySnapshots(view: view)
     }
+
+    func test_money_home_with_large_balance() {
+        let view = MoneyHomeView(viewModel: MoneyHomeBodyModel(
+            hideBalance: false,
+            onSettings: {},
+            balanceModel: MoneyAmountModel(
+                primaryAmount: "$88,888,888.88",
+                secondaryAmount: "153,984,147,317 sats"
+            ),
+            buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                sendButton: .init(enabled: true, onClick: {}),
+                receiveButton: .init(enabled: true, onClick: {}),
+                addButton: .init(enabled: false, onClick: {})
+            ),
+            cardsModel: .init(cards: []),
+            transactionsModel: ListModel.transactionsSnapshotTest,
+            seeAllButtonModel: .snapshotTest(text: "See All", treatment: .secondary),
+            coachmark: nil,
+            refresh: TestSuspendFunction(),
+            onRefresh: {},
+            onHideBalance: {},
+            isRefreshing: false,
+            badgedSettingsIcon: true,
+            onOpenPriceDetails: {}
+        ))
+        assertBitkeySnapshots(view: view)
+    }
 }
 
 // MARK: -
@@ -241,18 +268,26 @@ private extension CardModel {
             .init(
                 task: .init(id: .enablespendinglimit, state: .incomplete),
                 isEnabled: false,
-                onClick: {}
+                onClick: {},
+                isRevampEnabled: false
             ),
             .init(
                 task: .init(id: .invitetrustedcontact, state: .incomplete),
                 isEnabled: true,
-                onClick: {}
+                onClick: {},
+                isRevampEnabled: false
             ),
-            .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {}),
+            .init(
+                task: .init(id: .addbitcoin, state: .incomplete),
+                isEnabled: true,
+                onClick: {},
+                isRevampEnabled: false
+            ),
             .init(
                 task: .init(id: .addadditionalfingerprint, state: .incomplete),
                 isEnabled: true,
-                onClick: {}
+                onClick: {},
+                isRevampEnabled: false
             ),
         ]
     )

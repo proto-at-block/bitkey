@@ -75,7 +75,9 @@ kotlin {
     val jvmIntegrationTest by getting {
       dependencies {
         implementation(libs.kmp.aws.secretsmanager)
+        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.integrationTestingPublic)
+        implementation(projects.shared.moneyTesting)
       }
     }
   }

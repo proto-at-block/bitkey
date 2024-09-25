@@ -80,7 +80,11 @@ VPATH = .:$(MEMFAULT_SRC_DIR)/core/src:$(MEMFAULT_SRC_DIR)/util/src
 SRCS = teltra.c teltra_memfault_port.c $(MEMFAULT_SRCS)
 OBJS=$(addprefix $(BUILD_DIR)/,$(notdir $(SRCS:.c=.o)))
 
-all: clean ensure_build_dir libteltra.a
+all: log_disk_usage clean ensure_build_dir libteltra.a
+
+log_disk_usage:
+	@echo "Disk usage before build:"
+	@df -h .
 
 $(BUILD_DIR)/%.o: %.c
 	$(CC) -c $(CFLAGS) $(INCLUDES) -o $@ $<

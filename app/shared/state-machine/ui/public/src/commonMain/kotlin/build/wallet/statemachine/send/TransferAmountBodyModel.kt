@@ -4,7 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.Color.ON60
+import build.wallet.statemachine.core.LabelModel.Color.ON60
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -40,6 +40,7 @@ data class TransferAmountBodyModel(
     bannerModel: TransferScreenBannerModel?,
     continueButtonEnabled: Boolean,
     amountDisabled: Boolean,
+    f8eUnavailableWarningString: String,
     onSendMaxClick: () -> Unit,
     onContinueClick: () -> Unit,
     onSwapCurrencyClick: () -> Unit,
@@ -99,7 +100,7 @@ data class TransferAmountBodyModel(
           CardModel(
             title =
               LabelModel.StringWithStyledSubstringModel.from(
-                string = "Mobile Pay Unavailable",
+                string = f8eUnavailableWarningString,
                 substringToColor = emptyMap()
               ),
             subtitle = null,

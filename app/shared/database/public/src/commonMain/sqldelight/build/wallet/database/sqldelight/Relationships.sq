@@ -50,7 +50,7 @@ INSERT OR REPLACE INTO trustedContactInvitationEntity(relationshipId, trustedCon
 VALUES(?, ?, ?, ?, ?, ?);
 
 getSocRecTrustedContactInvitations:
-SELECT * FROM trustedContactInvitationEntity
+SELECT * FROM trustedContactInvitationEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
@@ -59,7 +59,7 @@ INSERT OR REPLACE INTO trustedContactEntity(relationshipId, trustedContactAlias,
 VALUES(:relationshipId, :trustedContactAlias, :authenticationState, :certificate, :roles);
 
 getSocRecTrustedContacts:
-SELECT * FROM trustedContactEntity
+SELECT * FROM trustedContactEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
@@ -68,7 +68,7 @@ INSERT OR REPLACE INTO protectedCustomerEntity(relationshipId, alias, roles)
 VALUES(?, ?, ?);
 
 getSocRecProtectedCustomers:
-SELECT * FROM protectedCustomerEntity
+SELECT * FROM protectedCustomerEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
@@ -85,7 +85,7 @@ INSERT OR REPLACE INTO unendorsedTrustedContactEntity(
 VALUES(?, ?, ?, ?, ?, ?, ?);
 
 getSocRecUnendorsedTrustedContacts:
-SELECT * FROM unendorsedTrustedContactEntity
+SELECT * FROM unendorsedTrustedContactEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 

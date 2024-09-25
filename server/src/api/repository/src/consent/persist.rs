@@ -1,14 +1,14 @@
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_attribute_val, try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
 use types::consent::{Consent, ConsentCommonFields};
 
-use super::Repository;
+use super::ConsentRepository;
 
-impl Repository {
+impl ConsentRepository {
     #[instrument(skip(self, consent))]
     pub async fn persist(&self, consent: &Consent) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;

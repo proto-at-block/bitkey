@@ -53,17 +53,20 @@ public extension UIImage {
   static let smallIconClock = UIImage(named: "SmallIconClock", in: .main, compatibleWith: nil)!
   static let smallIconCloud = UIImage(named: "SmallIconCloud", in: .main, compatibleWith: nil)!
   static let smallIconCloudError = UIImage(named: "SmallIconCloudError", in: .main, compatibleWith: nil)!
+  static let smallIconConsolidation = UIImage(named: "SmallIconConsolidation", in: .main, compatibleWith: nil)!
   static let smallIconCopy = UIImage(named: "SmallIconCopy", in: .main, compatibleWith: nil)!
   static let smallIconCurrency = UIImage(named: "SmallIconCurrency", in: .main, compatibleWith: nil)!
   static let smallIconDigitOne = UIImage(named: "SmallIconDigitOne", in: .main, compatibleWith: nil)!
   static let smallIconDigitThree = UIImage(named: "SmallIconDigitThree", in: .main, compatibleWith: nil)!
   static let smallIconDigitTwo = UIImage(named: "SmallIconDigitTwo", in: .main, compatibleWith: nil)!
+  static let smallIconDocument = UIImage(named: "SmallIconDocument", in: .main, compatibleWith: nil)!
   static let smallIconElectrum = UIImage(named: "SmallIconElectrum", in: .main, compatibleWith: nil)!
   static let smallIconEmail = UIImage(named: "SmallIconEmail", in: .main, compatibleWith: nil)!
   static let smallIconExternal = UIImage(named: "SmallIconExternal", in: .main, compatibleWith: nil)!
   static let smallIconFingerprint = UIImage(named: "SmallIconFingerprint", in: .main, compatibleWith: nil)!
   static let smallIconInformation = UIImage(named: "SmallIconInformation", in: .main, compatibleWith: nil)!
   static let smallIconInformationFilled = UIImage(named: "SmallIconInformationFilled", in: .main, compatibleWith: nil)!
+  static let smallIconInheritance = UIImage(named: "SmallIconInheritance", in: .main, compatibleWith: nil)!
   static let smallIconKey = UIImage(named: "SmallIconKey", in: .main, compatibleWith: nil)!
   static let smallIconKeyboard = UIImage(named: "SmallIconKeyboard", in: .main, compatibleWith: nil)!
   static let smallIconLightning = UIImage(named: "SmallIconLightning", in: .main, compatibleWith: nil)!
@@ -167,17 +170,20 @@ public extension Icon {
         case .smalliconclock: return .smallIconClock
         case .smalliconcloud: return .smallIconCloud
         case .smalliconclouderror: return .smallIconCloudError
+        case .smalliconconsolidation: return .smallIconConsolidation
         case .smalliconcopy: return .smallIconCopy
         case .smalliconcurrency: return .smallIconCurrency
         case .smallicondigitone: return .smallIconDigitOne
         case .smallicondigitthree: return .smallIconDigitThree
         case .smallicondigittwo: return .smallIconDigitTwo
+        case .smallicondocument: return .smallIconDocument
         case .smalliconelectrum: return .smallIconElectrum
         case .smalliconemail: return .smallIconEmail
         case .smalliconexternal: return .smallIconExternal
         case .smalliconfingerprint: return .smallIconFingerprint
         case .smalliconinformation: return .smallIconInformation
         case .smalliconinformationfilled: return .smallIconInformationFilled
+        case .smalliconinheritance: return .smallIconInheritance
         case .smalliconkey: return .smallIconKey
         case .smalliconkeyboard: return .smallIconKeyboard
         case .smalliconlightning: return .smallIconLightning

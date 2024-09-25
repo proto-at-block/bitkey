@@ -5,10 +5,12 @@ use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
 use bdk_utils::bdk::bitcoin::{Address, Network, PublicKey};
-use database::ddb;
+use database::ddb::{self, Repository};
 use http_server::config;
 use rstest::{fixture, rstest};
 use types::account::identifiers::{AccountId, KeysetId};
+
+use super::ddb::repository::AddressRepository;
 
 fn memory_repo() -> impl AddressWatchlistTrait {
     AddressRepoMemory::default()
@@ -19,7 +21,8 @@ async fn ddb_repo() -> impl AddressWatchlistTrait {
         .unwrap()
         .to_connection()
         .await;
-    AddressRepoDDB::create(conn).await.unwrap()
+    let repo = AddressRepository::new(conn);
+    AddressRepoDDB::create(repo).await.unwrap()
 }
 
 fn random_address(network: Network) -> AddressAndKeysetId {

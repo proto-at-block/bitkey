@@ -1,6 +1,7 @@
 package build.wallet.availability
 
 import build.wallet.f8e.F8eEnvironment
+import io.ktor.client.*
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -24,6 +25,13 @@ interface NetworkReachabilityProvider {
   /**
    * Updates the [NetworkReachability] for the given [NetworkConnection]
    */
+  suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient,
+    reachability: NetworkReachability,
+    connection: NetworkConnection,
+  )
+
+  @Deprecated("To be removed in favor of the variant which takes an HttpClient.")
   suspend fun updateNetworkReachabilityForConnection(
     reachability: NetworkReachability,
     connection: NetworkConnection,

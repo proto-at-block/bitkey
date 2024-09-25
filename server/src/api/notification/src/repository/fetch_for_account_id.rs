@@ -1,18 +1,18 @@
-use database::{
-    aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
-};
 use tracing::{event, instrument, Level};
-use types::account::identifiers::AccountId;
 
 use crate::{
     entities::{CustomerNotification, NotificationType, ScheduledNotification},
     NotificationPayloadType,
 };
+use database::{
+    aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
+    ddb::{try_from_items, try_to_attribute_val, DatabaseError, Repository},
+};
+use types::account::identifiers::AccountId;
 
-use super::Repository;
+use super::NotificationRepository;
 
-impl Repository {
+impl NotificationRepository {
     /// Returns all scheduled notification corresponding to the account id
     /// ** This should only be used in tests **
     ///

@@ -2,6 +2,7 @@ package build.wallet.statemachine.settings.full.device.fingerprints
 
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -61,7 +62,7 @@ fun EditingFingerprintBodyModel(
       FormMainContentModel.Callout(
         item = CalloutModel(
           title = "At least one fingerprint is required",
-          subtitle = "Add another fingerprint to delete",
+          subtitle = StringModel("Add another fingerprint to delete"),
           leadingIcon = Icon.SmallIconInformationFilled,
           treatment = CalloutModel.Treatment.Information
         )

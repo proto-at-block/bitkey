@@ -1,8 +1,18 @@
-use http::StatusCode;
+use http::{HeaderMap, HeaderValue, StatusCode};
 use onboarding::routes::{BdkConfigResponse, ElectrumServer, ElectrumServers};
+use once_cell::sync::Lazy;
 use rstest::{fixture, rstest};
 
 use crate::tests::{gen_services, requests::axum::TestClient};
+
+static DEFAULT_BDK_CONFIGURATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Bitkey-App-Installation-ID",
+        HeaderValue::from_static("test-app-installation-id"),
+    );
+    headers
+});
 
 struct TestContext {
     client: TestClient,
@@ -105,21 +115,30 @@ async fn test(
     #[future] test_context: TestContext,
 ) {
     let test_ctx = test_context.await;
-    let response = test_ctx.client.get_bdk_configuration().await;
+    let response = test_ctx
+        .client
+        .get_bdk_configuration(DEFAULT_BDK_CONFIGURATION_HEADERS.clone())
+        .await;
     let body = response.body.expect("Response body is missing");
 
     assert_eq!(StatusCode::OK, response.status_code);
     assert_eq!(expected_bdk_config, body);
 
     std::env::set_var("REGTEST_ELECTRUM_SERVER_URI", "tcp://localhost:50001");
-    let response = test_ctx.client.get_bdk_configuration().await;
+    let response = test_ctx
+        .client
+        .get_bdk_configuration(DEFAULT_BDK_CONFIGURATION_HEADERS.clone())
+        .await;
     let body = response.body.expect("Response body is missing");
 
     assert_eq!(StatusCode::OK, response.status_code);
     assert_eq!(expected_bdk_config_with_regtest, body);
 
     std::env::set_var("REGTEST_ELECTRUM_SERVER_URI", "localhost:50001");
-    let response = test_ctx.client.get_bdk_configuration().await;
+    let response = test_ctx
+        .client
+        .get_bdk_configuration(DEFAULT_BDK_CONFIGURATION_HEADERS.clone())
+        .await;
 
     assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, response.status_code);
 
@@ -127,7 +146,10 @@ async fn test(
         "REGTEST_ELECTRUM_SERVER_EXTERNAL_URI",
         "tcp://otherhost:50009",
     );
-    let response = test_ctx.client.get_bdk_configuration().await;
+    let response = test_ctx
+        .client
+        .get_bdk_configuration(DEFAULT_BDK_CONFIGURATION_HEADERS.clone())
+        .await;
     let body = response.body.expect("Response body is missing");
 
     assert_eq!(StatusCode::OK, response.status_code);

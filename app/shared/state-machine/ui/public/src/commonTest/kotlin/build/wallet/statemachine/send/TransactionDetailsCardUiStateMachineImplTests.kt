@@ -4,7 +4,7 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.core.test
@@ -16,6 +16,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
   val stateMachine =
     TransactionDetailsCardUiStateMachineImpl(
       currencyConverter = CurrencyConverterFake(),
+      fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake(),
       moneyDisplayFormatter = MoneyDisplayFormatterFake
     )
 
@@ -28,7 +29,6 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
             feeAmount = BitcoinMoney.btc(0.3),
             estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST
           ),
-        fiatCurrency = USD,
         exchangeRates = immutableListOf()
       )
 
@@ -73,7 +73,6 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
             feeAmount = BitcoinMoney.btc(0.6),
             oldFeeAmount = BitcoinMoney.btc(0.3)
           ),
-        fiatCurrency = USD,
         exchangeRates = immutableListOf()
       )
 

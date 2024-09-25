@@ -1,23 +1,22 @@
 use crate::address_repo::ddb::entities::WatchedAddress;
-use crate::address_repo::ddb::repository::Repository;
+use crate::address_repo::ddb::repository::AddressRepository;
 use crate::address_repo::errors::Error;
 use crate::address_repo::{AccountIdAndKeysetId, AddressAndKeysetId, AddressWatchlistTrait};
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::Address;
-use database::ddb::{Connection, DDBService};
+use database::ddb::Repository;
 use std::collections::HashMap;
 use time::OffsetDateTime;
 use types::account::identifiers::AccountId;
 
 #[derive(Debug, Clone)]
 pub struct Service {
-    repo: Repository,
+    repo: AddressRepository,
 }
 
 impl Service {
-    pub async fn create(connection: Connection) -> Result<Self, Error> {
-        let repo = Repository::new(connection);
+    pub async fn create(repo: AddressRepository) -> Result<Self, Error> {
         repo.create_table_if_necessary().await.map_err(|error| {
             Error::InternalError(format!("Error creating database table: {:?}", error))
         })?;

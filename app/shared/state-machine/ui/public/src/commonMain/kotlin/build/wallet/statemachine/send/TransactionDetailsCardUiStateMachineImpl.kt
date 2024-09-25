@@ -1,10 +1,13 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
@@ -12,15 +15,17 @@ import build.wallet.statemachine.data.money.convertedOrZeroWithRates
 class TransactionDetailsCardUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : TransactionDetailsCardUiStateMachine {
   @Composable
   override fun model(props: TransactionDetailsCardUiProps): TransactionDetailsModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val transferFiatAmount: FiatMoney? =
       props.exchangeRates?.let {
         convertedOrZeroWithRates(
           converter = currencyConverter,
           fromAmount = props.transactionDetails.transferAmount,
-          toCurrency = props.fiatCurrency,
+          toCurrency = fiatCurrency,
           rates = it
         )
       } as FiatMoney?
@@ -30,7 +35,7 @@ class TransactionDetailsCardUiStateMachineImpl(
         convertedOrZeroWithRates(
           converter = currencyConverter,
           fromAmount = props.transactionDetails.feeAmount,
-          toCurrency = props.fiatCurrency,
+          toCurrency = fiatCurrency,
           rates = it
         )
       } as FiatMoney?
@@ -49,7 +54,7 @@ class TransactionDetailsCardUiStateMachineImpl(
               convertedOrZeroWithRates(
                 converter = currencyConverter,
                 fromAmount = totalBitcoinAmount,
-                toCurrency = props.fiatCurrency,
+                toCurrency = fiatCurrency,
                 rates = it
               )
             } as FiatMoney?
@@ -73,7 +78,7 @@ class TransactionDetailsCardUiStateMachineImpl(
               convertedOrZeroWithRates(
                 converter = currencyConverter,
                 fromAmount = props.transactionDetails.oldFeeAmount,
-                toCurrency = props.fiatCurrency,
+                toCurrency = fiatCurrency,
                 rates = it
               )
             } as FiatMoney?
@@ -85,7 +90,7 @@ class TransactionDetailsCardUiStateMachineImpl(
               convertedOrZeroWithRates(
                 converter = currencyConverter,
                 fromAmount = feeDifferenceBitcoinAmount,
-                toCurrency = props.fiatCurrency,
+                toCurrency = fiatCurrency,
                 rates = it
               )
             } as FiatMoney?

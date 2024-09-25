@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use time::OffsetDateTime;
 use tracing::{event, Level};
@@ -32,13 +32,13 @@ pub(crate) const RECOVERY_AUTHKEY_TO_RECOVERY_IDX: &str = "recovery_pubkey_to_re
 pub(crate) const RECOVERY_AUTHKEY_IDX_PARTITION_KEY: &str = "destination_recovery_auth_pubkey";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct RecoveryRepository {
     connection: Connection,
     pub override_cur_time: Option<OffsetDateTime>,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for RecoveryRepository {
     fn new(_: Connection) -> Self {
         unreachable!();
     }
@@ -165,7 +165,7 @@ impl DDBService for Repository {
     }
 }
 
-impl Repository {
+impl RecoveryRepository {
     pub fn new_with_override(connection: Connection, override_cur_time: bool) -> Self {
         Self {
             connection,

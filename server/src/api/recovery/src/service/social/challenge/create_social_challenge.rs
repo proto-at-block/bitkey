@@ -30,7 +30,7 @@ impl Service {
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
                 account_id: &input.customer_account.id,
-                trusted_contact_role: SocialRecoveryContact,
+                trusted_contact_role: Some(SocialRecoveryContact),
             })
             .await?;
 

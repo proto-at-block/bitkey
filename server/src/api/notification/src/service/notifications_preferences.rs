@@ -1,6 +1,6 @@
 use account::entities::{Account, CommonAccountFields, Touchpoint};
 use errors::ApiError;
-use repository::consent::Repository as ConsentRepository;
+use repository::consent::ConsentRepository;
 use time::{Duration, OffsetDateTime};
 use tracing::instrument;
 use types::{

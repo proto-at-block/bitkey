@@ -7,6 +7,7 @@ use self::identifiers::AccountId;
 
 pub mod bitcoin;
 pub mod identifiers;
+pub mod keys;
 pub mod spending;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]

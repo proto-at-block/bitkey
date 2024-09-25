@@ -154,7 +154,7 @@ LOCAL_FS_COMPUTED_HASH=$(cat local-hashes.txt | shasum -a 256 | cut -d ' ' -f 1)
 if [[ ! "$CI_FS_COMPUTED_HASH" = "$LOCAL_FS_COMPUTED_HASH" ]]; then
   diff --unified=0 ci-hashes.txt local-hashes.txt || true
   echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  echo "⛔ COMPUTED HASHES FOR THE CI-BUILT AND LOCALLY-BUILT CONTAINERS' ROOF FILESYSTEMS DO NOT MATCH"
+  echo "⛔ COMPUTED HASHES FOR THE CI-BUILT AND LOCALLY-BUILT CONTAINERS' ROOT FILESYSTEMS DO NOT MATCH"
   echo "⛔ SOMETHING IS WRONG."
   echo ""
   echo "ℹ️ Try clearing the Docker cache with"

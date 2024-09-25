@@ -13,5 +13,6 @@ class BitcoinExplorerMock : BitcoinExplorer {
     txId: String,
     network: BitcoinNetworkType,
     explorerType: BitcoinExplorerType,
+    vout: Int?,
   ): String = transactionUrl
 }

@@ -13,4 +13,5 @@ interface AccountConfigUiStateMachine : StateMachine<AccountConfigProps, ListGro
 
 data class AccountConfigProps(
   val accountData: AccountData,
+  val onBitcoinWalletClick: () -> Unit,
 )

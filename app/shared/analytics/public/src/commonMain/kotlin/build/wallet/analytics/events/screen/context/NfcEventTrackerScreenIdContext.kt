@@ -68,4 +68,7 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to wipe a device */
   WIPE_DEVICE,
+
+  /** NFC flow to sign a transaction during the utxo consolidation flow */
+  UTXO_CONSOLIDATION_SIGN_TRANSACTION,
 }

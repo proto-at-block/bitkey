@@ -1,8 +1,6 @@
 package build.wallet.availability
 
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.OutOfDate
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState.*
 import kotlinx.datetime.Instant
 
 /**
@@ -27,7 +25,10 @@ sealed interface LimitedFunctionalityCause {
             fiatExchangeRates = OutOfDate(lastUpdated = lastReachableTime),
             notifications = Unavailable,
             helpCenter = Unavailable,
-            cloudBackupHealth = Unavailable
+            cloudBackupHealth = Unavailable,
+            inheritance = Unavailable,
+            utxoConsolidation = Available,
+            exportTools = Unavailable
           )
 
         is InternetUnreachable ->
@@ -41,7 +42,10 @@ sealed interface LimitedFunctionalityCause {
             fiatExchangeRates = OutOfDate(lastUpdated = lastReachableTime),
             notifications = Unavailable,
             helpCenter = Unavailable,
-            cloudBackupHealth = Unavailable
+            cloudBackupHealth = Unavailable,
+            inheritance = Unavailable,
+            utxoConsolidation = Unavailable,
+            exportTools = Unavailable
           )
 
         EmergencyAccessMode ->
@@ -55,7 +59,10 @@ sealed interface LimitedFunctionalityCause {
             fiatExchangeRates = Unavailable,
             notifications = Unavailable,
             helpCenter = Unavailable,
-            cloudBackupHealth = Unavailable
+            cloudBackupHealth = Unavailable,
+            inheritance = Unavailable,
+            utxoConsolidation = Unavailable,
+            exportTools = Unavailable
           )
 
         InactiveApp ->
@@ -69,7 +76,10 @@ sealed interface LimitedFunctionalityCause {
             fiatExchangeRates = Unavailable,
             notifications = Unavailable,
             helpCenter = Unavailable,
-            cloudBackupHealth = Unavailable
+            cloudBackupHealth = Unavailable,
+            inheritance = Unavailable,
+            utxoConsolidation = Unavailable,
+            exportTools = Unavailable
           )
       }
 }

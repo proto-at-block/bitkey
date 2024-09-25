@@ -48,4 +48,10 @@ class HeroAmountSnapshots : FunSpec({
       HeroAmountHideAmount()
     }
   }
+
+  test("hero amount with large amount") {
+    paparazzi.snapshot {
+      HeroAmountLargeAmount()
+    }
+  }
 })

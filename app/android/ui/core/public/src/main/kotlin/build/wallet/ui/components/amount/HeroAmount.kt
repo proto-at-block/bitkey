@@ -223,3 +223,15 @@ internal fun HeroAmountHideAmount() {
     )
   }
 }
+
+@Preview
+@Composable
+internal fun HeroAmountLargeAmount() {
+  PreviewWalletTheme {
+    HeroAmount(
+      primaryAmount = AnnotatedString("$88,888,888.88"),
+      secondaryAmountWithCurrency = "153,984,147,317 sats",
+      onSwapClick = {}
+    )
+  }
+}

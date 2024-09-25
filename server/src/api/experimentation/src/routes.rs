@@ -2,7 +2,6 @@ use axum::extract::Path;
 use axum::routing::post;
 use axum::Router;
 use axum::{extract::State, Json};
-use feature_flags::flag::ContextKey;
 use serde::{Deserialize, Serialize};
 
 use tracing::instrument;
@@ -100,8 +99,8 @@ async fn get_account_feature_flags(
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetAccountFeatureFlagsRequest>,
 ) -> Result<Json<GetFeatureFlagsResponse>, ApiError> {
-    let context_key = ContextKey::try_from(experimentation_claims)?;
-    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, context_key)
+    let context_key = experimentation_claims.account_context_key()?;
+    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, &context_key)
         .map_err(ExperimentationError::from)?;
     Ok(Json(GetFeatureFlagsResponse { flags }))
 }
@@ -126,8 +125,8 @@ async fn get_app_installation_feature_flags(
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetAppInstallationFeatureFlagsRequest>,
 ) -> Result<Json<GetFeatureFlagsResponse>, ApiError> {
-    let context_key = ContextKey::try_from(experimentation_claims)?;
-    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, context_key)
+    let context_key = experimentation_claims.app_installation_context_key()?;
+    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, &context_key)
         .map_err(ExperimentationError::from)?;
     Ok(Json(GetFeatureFlagsResponse { flags }))
 }

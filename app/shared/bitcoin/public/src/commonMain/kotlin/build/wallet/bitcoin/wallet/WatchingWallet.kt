@@ -3,6 +3,7 @@ package build.wallet.bitcoin.wallet
 import build.wallet.LoadableValue
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
@@ -30,6 +31,11 @@ interface WatchingWallet {
    * any sensitive information. Used for purposes of managing the wallet -
    */
   val identifier: String
+
+  /**
+   * Network type of this wallet (bitcoin, signet, etc).
+   */
+  val networkType: BitcoinNetworkType
 
   /**
    * Initializes the balance and transactions, updating them from [InitialLoading] to [LoadedValue].

@@ -11,6 +11,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.AuthF8eClient.InitiateHardwareAuthenticationSuccess
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -42,9 +43,10 @@ class AuthF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     authPublicKey: HwAuthPublicKey,
   ): Result<InitiateHardwareAuthenticationSuccess, NetworkingError> =
-    f8eHttpClient.unauthenticated(f8eEnvironment)
+    f8eHttpClient.unauthenticated()
       .bodyResult<InitiateHardwareAuthenticationSuccess> {
         post("/api/hw-auth") {
+          withEnvironment(f8eEnvironment)
           setRedactedBody(HardwareAuthenticationRequest(authPublicKey))
         }
       }
@@ -52,9 +54,10 @@ class AuthF8eClientImpl(
   private suspend fun authenticate(
     f8eEnvironment: F8eEnvironment,
     req: AuthenticationRequest,
-  ) = f8eHttpClient.unauthenticated(f8eEnvironment)
+  ) = f8eHttpClient.unauthenticated()
     .bodyResult<InitiateAuthenticationSuccess> {
       post("/api/authenticate") {
+        withEnvironment(f8eEnvironment)
         setRedactedBody(req)
       }
     }
@@ -94,9 +97,10 @@ class AuthF8eClientImpl(
       GetTokensRequest(
         challenge = ChallengeResponseParameters(username, challengeResponse, session)
       )
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<AuthTokensSuccess> {
         post("/api/authenticate/tokens") {
+          withEnvironment(f8eEnvironment)
           setRedactedBody(tokenRequest)
         }
       }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }
@@ -107,9 +111,10 @@ class AuthF8eClientImpl(
     refreshToken: RefreshToken,
   ): Result<AccountAuthTokens, NetworkingError> {
     val tokenRequest = GetTokensRequest(refreshToken = refreshToken.raw)
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<AuthTokensSuccess> {
         post("/api/authenticate/tokens") {
+          withEnvironment(f8eEnvironment)
           setRedactedBody(tokenRequest)
         }
       }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }

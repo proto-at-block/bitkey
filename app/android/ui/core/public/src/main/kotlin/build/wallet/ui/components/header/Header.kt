@@ -7,18 +7,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
-import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
@@ -28,11 +22,10 @@ import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.*
-import build.wallet.ui.components.label.toWalletTheme
+import build.wallet.ui.components.label.buildAnnotatedString
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
 
@@ -48,38 +41,7 @@ fun Header(
     modifier = modifier,
     iconModel = model.iconModel,
     headline = model.headline,
-    subline =
-      model.sublineModel?.let {
-        buildAnnotatedString {
-          append(it.string)
-          when (it) {
-            is LabelModel.StringWithStyledSubstringModel ->
-              it.styledSubstrings.forEach { styledSubstring ->
-                addStyle(
-                  style =
-                    when (val substringStyle = styledSubstring.style) {
-                      is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
-                      is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-                    },
-                  start = styledSubstring.range.first, end = styledSubstring.range.last + 1
-                )
-              }
-            is LabelModel.LinkSubstringModel ->
-              it.linkedSubstrings.forEach { linkedSubstring ->
-                addStyle(
-                  style = SpanStyle(
-                    color = WalletTheme.colors.bitkeyPrimary,
-                    textDecoration = TextDecoration.Underline,
-                    fontWeight = FontWeight.W600
-                  ),
-                  start = linkedSubstring.range.first,
-                  end = linkedSubstring.range.last + 1
-                )
-              }
-            is LabelModel.StringModel -> Unit
-          }
-        }
-      },
+    subline = model.sublineModel?.buildAnnotatedString(),
     sublineOnClick = { index ->
       model.sublineModel?.let {
         when (it) {

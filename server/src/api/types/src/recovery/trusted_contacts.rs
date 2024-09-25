@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use strum_macros::Display;
 use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -28,10 +29,12 @@ impl TrustedContactInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Display, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TrustedContactRole {
+    #[serde(alias = "Beneficiary")]
     Beneficiary,
+    #[serde(alias = "SocialRecoveryContact")]
     SocialRecoveryContact,
 }
 

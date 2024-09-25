@@ -19,8 +19,8 @@ use notification::{
     },
     NotificationPayload, NotificationPayloadType,
 };
-use recovery::{entities::RecoveryStatus, repository::Repository as RecoveryRepository};
-use repository::privileged_action::Repository as PrivilegedActionRepository;
+use recovery::{entities::RecoveryStatus, repository::RecoveryRepository};
+use repository::privileged_action::PrivilegedActionRepository;
 use serde_json::Value;
 use time::OffsetDateTime;
 use types::privileged_action::repository::{AuthorizationStrategyRecord, DelayAndNotifyStatus};

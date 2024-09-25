@@ -1,13 +1,13 @@
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use database::ddb::{try_to_attribute_val, DDBService, DatabaseError};
+use database::ddb::{try_to_attribute_val, DatabaseError, Repository};
 use time::format_description::well_known::Rfc3339;
 use tracing::{event, instrument, Level};
 
 use crate::entities::Account;
 
-use super::{Repository, PARTITION_KEY};
+use super::{AccountRepository, PARTITION_KEY};
 
-impl Repository {
+impl AccountRepository {
     #[instrument(skip(self))]
     pub(crate) async fn delete(&self, account: &Account) -> Result<(), DatabaseError> {
         let database_object = self.get_database_object();

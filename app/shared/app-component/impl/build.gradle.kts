@@ -57,6 +57,7 @@ kotlin {
         api(projects.shared.workerImpl)
         api(projects.shared.inAppSecurityImpl)
         api(projects.shared.priceChartImpl)
+        api(projects.shared.inheritanceImpl)
       }
     }
 

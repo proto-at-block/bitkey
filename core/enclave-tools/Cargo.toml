@@ -5,6 +5,7 @@ publish = { workspace = true }
 version = { workspace = true }
 
 [dependencies]
+clap = { version = "4.5.4", features = ["derive"] }
 hex = "0.4"
 thiserror = { workspace = true }
 x509-parser = { version = "0.15.1", features = ["verify"] }
@@ -17,3 +18,7 @@ openssl = "0.10.64"
 serde = "1.0.208"
 serde_bytes = "0.11.15"
 sha2 = { version = "0.9.9" }
+
+[[bin]]
+name = "enclave-tools"
+path = "src/main.rs"

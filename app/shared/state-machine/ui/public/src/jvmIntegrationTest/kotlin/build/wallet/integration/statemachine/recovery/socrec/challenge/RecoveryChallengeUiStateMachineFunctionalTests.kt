@@ -28,6 +28,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.list.ListItemAccessory
@@ -47,7 +48,7 @@ import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
 class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
-  val appTester = launchNewApp(isUsingSocRecFakes = true)
+  lateinit var appTester: AppTester
   val onExitCalls = turbines.create<Unit>("exit-recovery-flow")
   val onRecoveryCalls = turbines.create<FullAccountKeys>("recovery-key-recovered")
   val relationshipIdToPkekMap: MutableMap<String, XCiphertext> = mutableMapOf()
@@ -81,6 +82,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   lateinit var socRecF8eClientFake: SocRecF8eClientFake
 
   beforeAny {
+    appTester = launchNewApp(isUsingSocRecFakes = true)
     socRecF8eClientFake =
       (appTester.app.appComponent.socRecF8eClientProvider.get() as SocRecF8eClientFake)
         .apply {

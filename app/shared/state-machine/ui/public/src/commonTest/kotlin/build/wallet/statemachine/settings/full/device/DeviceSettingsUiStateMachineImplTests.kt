@@ -34,6 +34,7 @@ import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFinge
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
+import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
@@ -55,6 +56,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val appFunctionalityService = AppFunctionalityServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
+  val clock = ClockFake()
   val stateMachine =
     DeviceSettingsUiStateMachineImpl(
       lostHardwareRecoveryUiStateMachine =
@@ -84,7 +86,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
           "resetting device"
         ) {},
       coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
-      firmwareDataService = firmwareDataService
+      firmwareDataService = firmwareDataService,
+      clock = clock
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -101,6 +104,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
     appFunctionalityService.reset()
     firmwareDeviceInfoDao.reset()
     firmwareDataService.reset()
+    clock.reset()
   }
 
   test("metadata is appropriately formatted with update") {

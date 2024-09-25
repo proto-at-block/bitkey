@@ -1,14 +1,14 @@
 use bdk_utils::bdk::bitcoin::{BlockHash, Network};
-use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
+use database::ddb::{try_from_item, try_to_attribute_val, DatabaseError, Repository};
 use tracing::{event, instrument, Level};
 
-use super::Repository;
+use super::ChainIndexerRepository;
 use crate::{
     entities::Block,
     repository::{NETWORK_HEIGHT_INDEX, NETWORK_HEIGHT_PARTITION_KEY, PARTITION_KEY},
 };
 
-impl Repository {
+impl ChainIndexerRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch(&self, hash: BlockHash) -> Result<Option<Block>, DatabaseError> {
         let table_name = self.get_table_name().await?;

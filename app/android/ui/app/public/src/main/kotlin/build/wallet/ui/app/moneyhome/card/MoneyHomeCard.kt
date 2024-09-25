@@ -192,13 +192,30 @@ internal fun PreviewMoneyHomeGettingStarted() {
         animations = null,
         taskModels =
           immutableListOf(
-            GettingStartedTaskRowModel(GettingStartedTask(AddBitcoin, Incomplete), true) {},
             GettingStartedTaskRowModel(
-              GettingStartedTask(EnableSpendingLimit, Incomplete),
-              false
-            ) {},
-            GettingStartedTaskRowModel(GettingStartedTask(InviteTrustedContact, Complete), true) {},
-            GettingStartedTaskRowModel(GettingStartedTask(AddAdditionalFingerprint, Incomplete), true) {}
+              task = GettingStartedTask(AddBitcoin, Incomplete),
+              isEnabled = true,
+              onClick = {},
+              isRevampEnabled = false
+            ),
+            GettingStartedTaskRowModel(
+              task = GettingStartedTask(EnableSpendingLimit, Incomplete),
+              isEnabled = false,
+              onClick = {},
+              isRevampEnabled = false
+            ),
+            GettingStartedTaskRowModel(
+              task = GettingStartedTask(InviteTrustedContact, Complete),
+              isEnabled = true,
+              onClick = {},
+              isRevampEnabled = false
+            ),
+            GettingStartedTaskRowModel(
+              task = GettingStartedTask(AddAdditionalFingerprint, Incomplete),
+              isEnabled = true,
+              onClick = {},
+              isRevampEnabled = false
+            )
           )
       )
   )

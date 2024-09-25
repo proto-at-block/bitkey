@@ -24,6 +24,16 @@ class BdkTxBuilderImpl: BdkTxBuilder {
         )
     }
 
+    func addUtxos(utxos: [BdkOutPoint]) -> BdkTxBuilder {
+        return BdkTxBuilderImpl(
+            txBuilder: txBuilder.addUtxos(
+                outpoints: utxos.map { outPoint in
+                    return OutPoint(txid: outPoint.txid, vout: outPoint.vout)
+                }
+            )
+        )
+    }
+
     func drainTo(address: BdkAddress) -> BdkTxBuilder {
         let realBdkScript = address.scriptPubkey() as! BdkScriptImpl
         return BdkTxBuilderImpl(

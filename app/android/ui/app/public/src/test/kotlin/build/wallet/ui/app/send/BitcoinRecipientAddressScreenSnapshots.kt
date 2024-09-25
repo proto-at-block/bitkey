@@ -27,6 +27,12 @@ class BitcoinRecipientAddressScreenSnapshots : FunSpec({
       BitcoinRecipientAddressWithEntryScreenPreview()
     }
   }
+
+  test("bitcoin recipient address screen - with self send warning") {
+    paparazzi.snapshot {
+      BitcoinRecipientAddressWithSelfSendWarningPreview()
+    }
+  }
 })
 
 @Composable
@@ -41,7 +47,9 @@ internal fun BitcoinRecipientAddressWithoutEntryScreenPreview() {
         onContinueClick = null,
         onBack = {},
         onScanQrCodeClick = {},
-        onPasteButtonClick = {}
+        onPasteButtonClick = {},
+        showSelfSendWarningWithRedirect = false,
+        onGoToUtxoConsolidation = {}
       )
     )
   }
@@ -59,7 +67,9 @@ internal fun BitcoinRecipientAddressWithoutEntryScreenWithPasteButtonPreview() {
         onContinueClick = null,
         onBack = {},
         onScanQrCodeClick = {},
-        onPasteButtonClick = {}
+        onPasteButtonClick = {},
+        showSelfSendWarningWithRedirect = false,
+        onGoToUtxoConsolidation = {}
       )
     )
   }
@@ -77,7 +87,29 @@ internal fun BitcoinRecipientAddressWithEntryScreenPreview() {
         onContinueClick = {},
         onBack = {},
         onScanQrCodeClick = {},
-        onPasteButtonClick = {}
+        onPasteButtonClick = {},
+        showSelfSendWarningWithRedirect = false,
+        onGoToUtxoConsolidation = {}
+      )
+    )
+  }
+}
+
+@Composable
+internal fun BitcoinRecipientAddressWithSelfSendWarningPreview() {
+  PreviewWalletTheme {
+    FormScreen(
+      BitcoinRecipientAddressScreenModel(
+        enteredText = "0x1234",
+        warningText = null,
+        showPasteButton = false,
+        onEnteredTextChanged = {},
+        onContinueClick = {},
+        onBack = {},
+        onScanQrCodeClick = {},
+        onPasteButtonClick = {},
+        showSelfSendWarningWithRedirect = true,
+        onGoToUtxoConsolidation = {}
       )
     )
   }

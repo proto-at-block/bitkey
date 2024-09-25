@@ -708,6 +708,7 @@ dependencies = [
  "aws-nitro-enclaves-image-format",
  "base64",
  "ciborium",
+ "clap 4.5.16",
  "hex",
  "openssl",
  "serde",

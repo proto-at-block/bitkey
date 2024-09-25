@@ -23,6 +23,7 @@ bdk_utils = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 exchange_rate = { workspace = true }
+experimentation = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }

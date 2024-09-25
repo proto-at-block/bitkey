@@ -23,6 +23,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.keypad.KeypadModel
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.send.TransferAmountBodyModel
@@ -169,6 +170,7 @@ internal fun TransferAmountScreenNoEntryPreview() {
           ),
         continueButtonEnabled = true,
         amountDisabled = false,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = false).transferScreenUnavailableWarning,
         onContinueClick = {},
         onSwapCurrencyClick = {},
         onSendMaxClick = {},
@@ -200,6 +202,7 @@ internal fun TransferAmountScreenWithEntryPreview() {
           ),
         continueButtonEnabled = true,
         amountDisabled = false,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = false).transferScreenUnavailableWarning,
         onContinueClick = {},
         onSwapCurrencyClick = {},
         onSendMaxClick = {},
@@ -231,6 +234,7 @@ internal fun TransferAmountScreenWithBannerPreview() {
           ),
         continueButtonEnabled = true,
         amountDisabled = false,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = false).transferScreenUnavailableWarning,
         onContinueClick = {},
         onSwapCurrencyClick = {},
         onSendMaxClick = {},
@@ -262,6 +266,7 @@ internal fun TransferAmountScreenWithSmartBarPreview() {
           ),
         continueButtonEnabled = true,
         amountDisabled = false,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = false).transferScreenUnavailableWarning,
         onContinueClick = {},
         onSwapCurrencyClick = {},
         onSendMaxClick = {},
@@ -293,6 +298,7 @@ internal fun TransferAmountScreenWithEqualOrMoreBannerPreview() {
           ),
         continueButtonEnabled = false,
         amountDisabled = true,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = false).transferScreenUnavailableWarning,
         onContinueClick = {},
         onSwapCurrencyClick = {},
         onSendMaxClick = {},

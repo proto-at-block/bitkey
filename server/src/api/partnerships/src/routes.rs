@@ -10,7 +10,6 @@ use utoipa::{OpenApi, ToSchema};
 
 use account::service::Service as AccountService;
 use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
-use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use partnerships_lib::models::partners::Partner;
@@ -152,7 +151,7 @@ async fn list_transfer_partners(
     Ok(Json(ListTransferPartnersResponse {
         partners: partnerships.transfer_partners(
             request.country,
-            ContextKey::try_from(experimentation_claims)?,
+            &experimentation_claims.account_context_key()?,
         ),
     }))
 }
@@ -233,7 +232,7 @@ async fn list_purchase_quotes(
             request.fiat_amount,
             request.fiat_currency,
             request.payment_method,
-            ContextKey::try_from(experimentation_claims)?,
+            &experimentation_claims.account_context_key()?,
         )
         .await;
     Ok(Json(ListPurchaseQuotesResponse { quotes }))
@@ -320,7 +319,7 @@ async fn get_purchase_options(
         .purchase_options(
             request.country.clone(),
             request.fiat_currency.clone(),
-            ContextKey::try_from(experimentation_claims)?,
+            &experimentation_claims.account_context_key()?,
         )
         .await;
     Ok(Json(PurchaseOptionsResponse { purchase_options }))

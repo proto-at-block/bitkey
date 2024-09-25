@@ -31,8 +31,10 @@ class FiatCurrenciesServiceImpl(
       // Sync fiat currencies from the server using active f8e environment
       launch {
         debugOptionsService.options()
+          .map { it.f8eEnvironment }
+          .distinctUntilChanged()
           .collectLatest {
-            updateFromServer(it.f8eEnvironment)
+            updateFromServer(it)
           }
       }
     }

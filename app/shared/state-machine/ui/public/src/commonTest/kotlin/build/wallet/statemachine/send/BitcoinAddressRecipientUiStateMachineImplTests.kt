@@ -5,23 +5,24 @@ import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.signetAddressP2SH
 import build.wallet.bitcoin.address.someBitcoinAddress
-import build.wallet.bitcoin.invoice.BIP21PaymentData
-import build.wallet.bitcoin.invoice.BitcoinInvoice
+import build.wallet.bitcoin.invoice.*
 import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
 import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
-import build.wallet.bitcoin.invoice.PaymentDataParserMock
-import build.wallet.bitcoin.invoice.validBitcoinInvoice
-import build.wallet.bitcoin.invoice.validLightningInvoice
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.keybox.wallet.KeysetWalletProviderMock
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
 import build.wallet.statemachine.core.input.onValueChange
 import build.wallet.statemachine.core.test
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -51,15 +52,19 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       validBOLT11Invoices = mutableSetOf()
     )
 
+  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(FeatureFlagDaoFake())
+
   val stateMachine =
     BitcoinAddressRecipientUiStateMachineImpl(
       paymentDataParser = paymentParser,
-      keysetWalletProvider = KeysetWalletProviderMock()
+      keysetWalletProvider = KeysetWalletProviderMock(),
+      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onRecipientEnteredCalls = turbines.create<BitcoinAddress>("on recipient entered")
   val onScanQrCodeClickCalls = turbines.create<Unit>("on scan qrcode calls")
+  val onGoToUtxoConsolidationCalls = turbines.create<Unit>("on go to utxo consolidation calls")
 
   val props =
     BitcoinAddressRecipientUiProps(
@@ -76,8 +81,15 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       onScanQrCodeClick = {
         onScanQrCodeClickCalls += Unit
       },
-      networkType = BITCOIN
+      networkType = BITCOIN,
+      onGoToUtxoConsolidation = {
+        onGoToUtxoConsolidationCalls += Unit
+      }
     )
+
+  beforeTest {
+    utxoConsolidationFeatureFlag.reset()
+  }
 
   test("initial state without default address") {
     stateMachine.test(props) {
@@ -315,6 +327,33 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("cannot continue when self address is entered - utxo consolidation enabled") {
+    utxoConsolidationFeatureFlag.setFlagValue(true)
+
+    stateMachine.test(props) {
+      awaitBody<FormBodyModel> {
+        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
+          fieldModel.onValueChange(selfAddress.address)
+        }
+      }
+
+      awaitBody<FormBodyModel>() // intermittent model
+
+      awaitBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+
+        with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.Callout>()) {
+          item.title.shouldBe("This is your Bitkey wallet address")
+          item.treatment.shouldBe(CalloutModel.Treatment.Information)
+
+          // Click on the utxo consolidation sublink
+          item.subtitle.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
+          onGoToUtxoConsolidationCalls.awaitItem()
+        }
+      }
+    }
+  }
+
   test("paste button fills text field") {
     stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
       awaitBody<FormBodyModel> {
@@ -355,7 +394,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     val invalidAddressInClipboardStateMachine =
       BitcoinAddressRecipientUiStateMachineImpl(
         paymentDataParser = paymentParser,
-        keysetWalletProvider = KeysetWalletProviderMock()
+        keysetWalletProvider = KeysetWalletProviderMock(),
+        utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
       )
     invalidAddressInClipboardStateMachine.test(props) {
       awaitBody<FormBodyModel> {

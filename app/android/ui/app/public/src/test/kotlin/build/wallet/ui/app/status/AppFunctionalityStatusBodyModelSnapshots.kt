@@ -24,6 +24,7 @@ class AppFunctionalityStatusBodyModelSnapshots : FunSpec({
               ),
             cause = F8eUnreachable(Instant.DISTANT_PAST),
             dateFormatter = { "9:14pm" },
+            isRevampOn = false,
             onClose = {}
           )
       )
@@ -49,6 +50,51 @@ class AppFunctionalityStatusBodyModelSnapshots : FunSpec({
                 Instant.DISTANT_PAST
               ),
             dateFormatter = { "9:14pm" },
+            isRevampOn = false,
+            onClose = {}
+          )
+      )
+    }
+  }
+
+  test("app_status_f8eUnreachable_revamped") {
+    paparazzi.snapshot {
+      FormScreen(
+        model =
+          AppFunctionalityStatusBodyModel(
+            status =
+              AppFunctionalityStatus.LimitedFunctionality(
+                cause = F8eUnreachable(Instant.DISTANT_PAST)
+              ),
+            cause = F8eUnreachable(Instant.DISTANT_PAST),
+            dateFormatter = { "9:14pm" },
+            isRevampOn = true,
+            onClose = {}
+          )
+      )
+    }
+  }
+
+  test("app_status_internetUnreachable_revamped") {
+    paparazzi.snapshot {
+      FormScreen(
+        model =
+          AppFunctionalityStatusBodyModel(
+            status =
+              AppFunctionalityStatus.LimitedFunctionality(
+                cause =
+                  InternetUnreachable(
+                    Instant.DISTANT_PAST,
+                    Instant.DISTANT_PAST
+                  )
+              ),
+            cause =
+              InternetUnreachable(
+                Instant.DISTANT_PAST,
+                Instant.DISTANT_PAST
+              ),
+            dateFormatter = { "9:14pm" },
+            isRevampOn = true,
             onClose = {}
           )
       )

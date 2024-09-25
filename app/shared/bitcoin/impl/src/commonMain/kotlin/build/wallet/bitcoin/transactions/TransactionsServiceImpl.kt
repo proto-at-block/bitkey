@@ -10,6 +10,7 @@ import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
 import build.wallet.asLoadableValue
 import build.wallet.bitcoin.balance.BitcoinBalance
+import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsServiceImpl.Balances.LoadedBalance
@@ -17,6 +18,7 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.logging.logFailure
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -24,6 +26,7 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRateService
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,7 +42,9 @@ class TransactionsServiceImpl(
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val appSessionManager: AppSessionManager,
-  exchangeRateService: ExchangeRateService,
+  private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
+  private val bitcoinBlockchain: BitcoinBlockchain,
+  private val exchangeRateService: ExchangeRateService,
 ) : TransactionsService, TransactionSyncWorker {
   private val spendingWallet = MutableStateFlow<SpendingWallet?>(null)
   private val transactionsData = MutableStateFlow<TransactionsData>(LoadingTransactionsData)
@@ -161,6 +166,33 @@ class TransactionsServiceImpl(
         toCurrency = fiatCurrency,
         atTime = null
       ).firstOrNull() as? FiatMoney
+
+  override suspend fun broadcast(
+    psbt: Psbt,
+    estimatedTransactionPriority: EstimatedTransactionPriority,
+  ): Result<BroadcastDetail, Error> =
+    coroutineBinding {
+      val broadcastDetail = bitcoinBlockchain.broadcast(psbt = psbt).bind()
+
+      // When we successfully broadcast the transaction, store the transaction details and
+      // exchange rate.
+      val exchangeRates = exchangeRateService.exchangeRates.value
+      val estimatedConfirmationTime =
+        broadcastDetail.broadcastTime + estimatedTransactionPriority.toDuration()
+      outgoingTransactionDetailDao
+        .insert(
+          broadcastTime = broadcastDetail.broadcastTime,
+          transactionId = broadcastDetail.transactionId,
+          estimatedConfirmationTime = estimatedConfirmationTime,
+          exchangeRates = exchangeRates
+        )
+        .logFailure { "Error persisting outgoing transaction and its exchange rates." }
+        .bind()
+
+      syncTransactions().bind()
+
+      broadcastDetail
+    }.logFailure { "Error broadcasting transaction" }
 
   /**
    * A simple private wrapper around bitcoin and fiat balances.

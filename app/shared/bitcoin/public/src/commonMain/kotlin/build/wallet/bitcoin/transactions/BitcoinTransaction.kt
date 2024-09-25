@@ -149,6 +149,13 @@ data class BitcoinTransaction(
     data object Incoming : TransactionType
 
     data object Outgoing : TransactionType
+
+    /**
+     * The transaction is a UTXO Consolidation, meaning the user combined multiple UTXOs
+     * into a single UTXO. Today, we only allow consolidation all non-pending UTXOs; the user
+     * cannot select individual UTXOs to consolidate.
+     */
+    data object UtxoConsolidation : TransactionType
   }
 }
 

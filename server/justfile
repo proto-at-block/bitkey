@@ -52,11 +52,11 @@ stop-sidecars:
 
 # Build all (inc. api, wsm, ...)
 build:
-  {{cargo}} build
+  {{cargo}} build --features partnerships
 
 # Build all binaries
 build-bins:
-  {{cargo}} build --bins
+  {{cargo}} build --bins --features partnerships
 
 # Run DDB migrations locally
 run-migrations:
@@ -64,11 +64,11 @@ run-migrations:
 
 # Run all tests
 test: sidecars
-  {{cargo}} nextest run --all-features
+  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features
 
 # Run all tests
 test-ci: sidecars
-  {{cargo}} nextest run --all-features --profile ci
+  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features --profile ci
 
 # Run server tests
 test-server: sidecars
@@ -122,7 +122,7 @@ clippy-ci:
 # Format and lint
 fmt:
   {{cargo}} fmt --all
-  just clippy --fix --allow-dirty --allow-staged
+  just clippy --fix --allow-dirty --allow-staged --all-features
 
 # Run the CI format commands
 fmt-ci:

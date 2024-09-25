@@ -13,9 +13,12 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.EnabledIf
+import kotlinx.coroutines.runBlocking
 
 class RegtestTreasuryWalletTests : FunSpec({
-  val enableOnlyForRegtest: EnabledIf = { launchNewApp().initialBitcoinNetworkType == REGTEST }
+  val enableOnlyForRegtest: EnabledIf = {
+    runBlocking { launchNewApp() }.initialBitcoinNetworkType == REGTEST
+  }
 
   test("we can fund a regtest treasury").config(enabledIf = enableOnlyForRegtest) {
     val network = REGTEST

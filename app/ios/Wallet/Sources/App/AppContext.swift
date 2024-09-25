@@ -15,7 +15,7 @@ class AppContext {
 
     let notificationManager: NotificationManager
 
-    let appComponent: AppComponent
+    let appComponent: AppComponentImpl
     let activityComponent: ActivityComponent
 
     let bdkAddressBuilder: BdkAddressBuilder

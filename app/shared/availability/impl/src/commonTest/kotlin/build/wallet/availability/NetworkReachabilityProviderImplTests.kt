@@ -14,7 +14,7 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.combine
 
 class NetworkReachabilityProviderImplTests : FunSpec({
-  val f8eNetworkReachabilityF8eClient = F8ENetworkReachabilityClientMock(turbines::create)
+  val f8eNetworkReachabilityF8eClient = F8eNetworkReachabilityServiceMock(turbines::create)
   val internetNetworkReachabilityService = InternetNetworkReachabilityServiceMock(turbines::create)
   val networkReachabilityEventDao = NetworkReachabilityEventDaoMock(turbines::create)
   lateinit var provider: NetworkReachabilityProviderImpl
@@ -25,7 +25,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
 
     provider =
       NetworkReachabilityProviderImpl(
-        f8eNetworkReachabilityClient = f8eNetworkReachabilityF8eClient,
+        f8eNetworkReachabilityService = f8eNetworkReachabilityF8eClient,
         internetNetworkReachabilityService = internetNetworkReachabilityService,
         networkReachabilityEventDao = networkReachabilityEventDao
       )

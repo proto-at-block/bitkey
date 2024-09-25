@@ -1,7 +1,6 @@
 package build.wallet.ui.app.transactions
 
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
@@ -236,6 +235,57 @@ class TransactionDetailScreenSnapshots :
                         sideText = "41,110 sats",
                         sideTextType = Data.SideTextType.BODY2BOLD,
                         secondarySideText = "($100)"
+                      )
+                  )
+                )
+            )
+        )
+      }
+    }
+
+    test("utxo consolidation transaction detail") {
+      paparazzi.snapshot {
+        FormScreen(
+          model =
+            TransactionDetailModel(
+              feeBumpEnabled = false,
+              txStatusModel = TxStatusModel.Confirmed(
+                recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                transactionType = UtxoConsolidation
+              ),
+              isLoading = false,
+              onViewTransaction = {},
+              onClose = {},
+              onSpeedUpTransaction = {},
+              content =
+                immutableListOf(
+                  DataList(
+                    items =
+                      immutableListOf(
+                        Data(
+                          title = "Confirmed at",
+                          sideText = "03-17-1963"
+                        )
+                      )
+                  ),
+                  DataList(
+                    items =
+                      immutableListOf(
+                        Data(
+                          title = "UTXOs consolidated",
+                          sideText = "2"
+                        ),
+                        Data(
+                          title = "Consolidation cost",
+                          sideText = "2000 sats"
+                        )
+                      ),
+                    total =
+                      Data(
+                        title = "Total",
+                        sideText = "35,584 sats",
+                        sideTextType = Data.SideTextType.BODY2BOLD,
+                        secondarySideText = "$10.00 at time sent"
                       )
                   )
                 )

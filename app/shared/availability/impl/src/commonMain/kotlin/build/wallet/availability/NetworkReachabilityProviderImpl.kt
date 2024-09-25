@@ -6,11 +6,12 @@ import build.wallet.availability.NetworkReachability.UNREACHABLE
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import io.ktor.client.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class NetworkReachabilityProviderImpl(
-  private val f8eNetworkReachabilityClient: F8eNetworkReachabilityClient,
+  private val f8eNetworkReachabilityService: F8eNetworkReachabilityService,
   private val internetNetworkReachabilityService: InternetNetworkReachabilityService,
   private val networkReachabilityEventDao: NetworkReachabilityEventDao,
 ) : NetworkReachabilityProvider {
@@ -35,6 +36,15 @@ class NetworkReachabilityProviderImpl(
     return f8eStatusMutableFlow(environment)
   }
 
+  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient,
+    reachability: NetworkReachability,
+    connection: NetworkConnection,
+  ) {
+    error("Not implemented")
+  }
+
+  @Suppress("OVERRIDE_DEPRECATION")
   override suspend fun updateNetworkReachabilityForConnection(
     reachability: NetworkReachability,
     connection: NetworkConnection,
@@ -68,7 +78,7 @@ class NetworkReachabilityProviderImpl(
       // connection check (not endpoint specific) and update the flow based on that.
       f8eEnvironment?.let { environment ->
         if (f8eStatusMutableFlow(environment).value == UNREACHABLE) {
-          f8eNetworkReachabilityClient.checkConnection(environment)
+          f8eNetworkReachabilityService.checkConnection(environment)
             .onSuccess { f8eStatusMutableFlow(environment).emit(REACHABLE) }
         }
       }
@@ -85,7 +95,7 @@ class NetworkReachabilityProviderImpl(
       // First perform a general F8e connection check (not endpoint specific) to double-check that
       // there’s not an isolated incident with the specific endpoint that experienced a failure,
       // and update the reachability based on that check
-      f8eNetworkReachabilityClient.checkConnection(connection.environment)
+      f8eNetworkReachabilityService.checkConnection(connection.environment)
         .onSuccess { f8eStatusMutableFlow(connection.environment).emit(REACHABLE) }
         .onFailure { f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE) }
     }

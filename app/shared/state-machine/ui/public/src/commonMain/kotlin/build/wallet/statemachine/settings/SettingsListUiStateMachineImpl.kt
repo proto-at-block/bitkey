@@ -10,8 +10,11 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
@@ -27,6 +30,7 @@ class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val coachmarkService: CoachmarkService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
@@ -55,6 +59,7 @@ class SettingsListUiStateMachineImpl(
             rowTypes =
               immutableListOf(
                 Biometric::class,
+                InheritanceManagement::class,
                 RotateAuthKey::class,
                 CloudBackupHealth::class,
                 TrustedContacts::class,
@@ -69,7 +74,8 @@ class SettingsListUiStateMachineImpl(
               immutableListOf(
                 CustomElectrumServer::class,
                 DebugMenu::class,
-                UtxoConsolidation::class
+                UtxoConsolidation::class,
+                ExportTools::class
               )
           ),
           SettingsSection(
@@ -133,7 +139,7 @@ class SettingsListUiStateMachineImpl(
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
-        is MobilePay -> Pair(SmallIconMobileLimit, "Mobile Pay")
+        is MobilePay -> SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()).settingsPair
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is CurrencyPreference -> Pair(SmallIconCurrency, "Currency Display")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
@@ -146,7 +152,9 @@ class SettingsListUiStateMachineImpl(
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
         is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
         is Biometric -> Pair(SmallIconLock, "App Security")
-        is UtxoConsolidation -> Pair(SmallIconInformation, "UTXO Consolidation")
+        is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
+        is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
+        is ExportTools -> Pair(SmallIconDocument, "Export")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(
@@ -226,8 +234,9 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.helpCenter == Available
       is DebugMenu -> true
       is Biometric -> true
-      // TODO(W-9552): disable the row when the feature is not available
-      is UtxoConsolidation -> true
+      is ExportTools -> appFunctionalityStatus.featureStates.exportTools == Available
+      is UtxoConsolidation -> appFunctionalityStatus.featureStates.utxoConsolidation == Available
+      is InheritanceManagement -> appFunctionalityStatus.featureStates.helpCenter == Available
     }
   }
 }

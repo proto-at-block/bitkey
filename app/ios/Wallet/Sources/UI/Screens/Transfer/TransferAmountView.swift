@@ -27,7 +27,7 @@ public struct TransferAmountView: View {
 
             Spacer()
 
-            AmountView(
+            AmountEntryView(
                 viewModel: viewModel.amountModel,
                 onSwapCurrencyClick: viewModel.onSwapCurrencyClick,
                 disabled: viewModel.amountDisabled
@@ -54,61 +54,6 @@ public struct TransferAmountView: View {
         }.animation(springAnimation, value: viewModel.cardModel)
     }
 
-}
-
-// MARK: -
-
-private struct AmountView: View {
-    let viewModel: MoneyAmountEntryModel
-    let onSwapCurrencyClick: () -> Void
-    let disabled: Bool
-
-    var body: some View {
-        VStack(spacing: 8) {
-            // Primary amount
-            Text(primaryAmountAttributedString)
-                .font(FontTheme.display1.font)
-                .fixedSize(horizontal: false, vertical: true)
-                .lineLimit(1)
-                .allowsTightening(true)
-                .minimumScaleFactor(0.5)
-                .padding(.horizontal, 20)
-                .if(disabled) { view in
-                    view.foregroundColor(.foreground30)
-                }
-
-            if let secondaryAmount = viewModel.secondaryAmount {
-                // Secondary amount
-                Button(action: onSwapCurrencyClick) {
-                    HStack {
-                        ModeledText(
-                            model: .standard(
-                                secondaryAmount,
-                                font: .body1Medium,
-                                textAlignment: nil,
-                                textColor: disabled ? .foreground30 : .foreground60
-                            )
-                        )
-                        Image(uiImage: .smallIconSwap)
-                            .foregroundColor(disabled ? .foreground30 : .foreground60)
-                    }
-                }
-            }
-        }
-    }
-
-    private var primaryAmountAttributedString: AttributedString {
-        var attributedString = AttributedString(viewModel.primaryAmount)
-        guard let primaryAmountGhostedSubstringRange = viewModel.primaryAmountGhostedSubstringRange
-        else {
-            return attributedString
-        }
-        let substringStart = attributedString.index(to: primaryAmountGhostedSubstringRange.start)
-        let substringEnd = attributedString
-            .index(to: primaryAmountGhostedSubstringRange.endInclusive)
-        attributedString[substringStart ... substringEnd].foregroundColor = .foreground30
-        return attributedString
-    }
 }
 
 // MARK: -

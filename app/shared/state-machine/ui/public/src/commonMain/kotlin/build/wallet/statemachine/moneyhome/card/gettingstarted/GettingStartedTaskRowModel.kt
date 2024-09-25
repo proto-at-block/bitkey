@@ -10,9 +10,9 @@ import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconFingerprint
-import build.wallet.statemachine.core.Icon.SmallIconPhone
 import build.wallet.statemachine.core.Icon.SmallIconPlusStroked
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -24,13 +24,14 @@ data class GettingStartedTaskRowModel(
   val task: GettingStartedTask,
   val isEnabled: Boolean,
   val onClick: () -> Unit,
+  val isRevampEnabled: Boolean,
 ) {
   val listItemModel: ListItemModel
     get() {
       val (title: String, icon: Icon) =
         when (task.id) {
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
-          EnableSpendingLimit -> Pair("Turn on Mobile Pay", SmallIconPhone)
+          EnableSpendingLimit -> SpendingLimitsCopy.get(isRevampEnabled).gettingStartedCardPair
           InviteTrustedContact -> Pair("Invite a Trusted Contact", SmallIconShieldPerson)
           AddAdditionalFingerprint -> Pair("Add additional fingerprint", SmallIconFingerprint)
         }

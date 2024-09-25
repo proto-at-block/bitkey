@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use account::repository::Repository as AccountRepository;
+use account::repository::AccountRepository;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64, Engine as _};
 use notification::service::Service as NotificationService;
-use repository::privileged_action::Repository as PrivilegedActionRepository;
+use repository::privileged_action::PrivilegedActionRepository;
 use types::time::Clock;
 
 pub mod authorize_privileged_action;

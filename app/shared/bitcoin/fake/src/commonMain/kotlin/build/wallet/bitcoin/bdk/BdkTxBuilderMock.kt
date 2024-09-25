@@ -1,15 +1,6 @@
 package build.wallet.bitcoin.bdk
 
-import build.wallet.bdk.bindings.BdkAddress
-import build.wallet.bdk.bindings.BdkPartiallySignedTransactionMock
-import build.wallet.bdk.bindings.BdkResult
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTransactionMock
-import build.wallet.bdk.bindings.BdkTxBuilder
-import build.wallet.bdk.bindings.BdkTxBuilderResult
-import build.wallet.bdk.bindings.BdkTxBuilderResultMock
-import build.wallet.bdk.bindings.BdkTxOut
-import build.wallet.bdk.bindings.BdkWallet
+import build.wallet.bdk.bindings.*
 import com.ionspin.kotlin.bignum.integer.BigInteger
 
 class BdkTxBuilderMock(
@@ -32,6 +23,12 @@ class BdkTxBuilderMock(
   }
 
   override fun feeAbsolute(fee: Long): BdkTxBuilder {
+    return BdkTxBuilderMock(
+      finishOutputs = finishOutputs
+    )
+  }
+
+  override fun addUtxos(utxos: List<BdkOutPoint>): BdkTxBuilder {
     return BdkTxBuilderMock(
       finishOutputs = finishOutputs
     )

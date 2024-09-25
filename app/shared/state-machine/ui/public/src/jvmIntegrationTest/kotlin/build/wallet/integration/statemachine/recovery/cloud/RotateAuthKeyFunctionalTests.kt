@@ -19,12 +19,10 @@ import build.wallet.statemachine.ui.formScreen
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.launch
 
 class RotateAuthKeyFunctionalTests : FunSpec({
   test("Proposed rotation flag is persisted") {
@@ -108,9 +106,6 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     coroutineTestScope = true
   ) {
     val app = launchNewApp()
-    backgroundScope.launch {
-      app.app.appComponent.appWorkerExecutor.executeAll()
-    }
     val account = app.onboardFullAccountWithFakeHardware()
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be

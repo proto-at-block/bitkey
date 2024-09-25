@@ -10,6 +10,9 @@ import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
@@ -30,12 +33,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityService = AppFunctionalityServiceFake()
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
+  val mobilePayFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
   val stateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityService = appFunctionalityService,
       cloudBackupHealthRepository = cloudBackupHealthRepository,
-      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
+      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
+      mobilePayRevampFeatureFlag = mobilePayFeatureFlag
     )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -70,7 +75,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           TrustedContacts { propsOnClickCalls[TrustedContacts::class]?.add(Unit) },
           CloudBackupHealth { propsOnClickCalls[CloudBackupHealth::class]?.add(Unit) },
           RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) },
-          Biometric { propsOnClickCalls[Biometric::class]?.add(Unit) }
+          Biometric { propsOnClickCalls[Biometric::class]?.add(Unit) },
+          UtxoConsolidation { propsOnClickCalls[UtxoConsolidation::class]?.add(Unit) }
         ),
       onShowAlert = {},
       onDismissAlert = {}
@@ -79,6 +85,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   afterEach {
     appFunctionalityService.reset()
     cloudBackupHealthRepository.reset()
+    mobilePayFeatureFlag.reset()
   }
 
   test("onBack calls props onBack") {
@@ -96,9 +103,22 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
           .shouldBe(
             listOf(
-              "General" to listOf("Mobile Pay", "Bitkey Device", "Currency Display", "Notifications"),
-              "Security & Recovery" to listOf("App Security", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
-              "Advanced" to listOf("Custom Electrum Server"),
+              "General" to listOf(
+                "Mobile Pay",
+                "Bitkey Device",
+                "Currency Display",
+                "Notifications"
+              ),
+              "Security & Recovery" to listOf(
+                "App Security",
+                "Mobile Devices",
+                "Cloud Backup",
+                "Trusted Contacts"
+              ),
+              "Advanced" to listOf(
+                "Custom Electrum Server",
+                "UTXO Consolidation"
+              ),
               "Support" to listOf("Contact Us", "Help Center")
             )
           )
@@ -184,6 +204,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
+
     stateMachine.test(props) {
       awaitItem()
       appFunctionalityService.status.emit(
@@ -228,9 +249,92 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Help Center",
           "Mobile Devices",
           "Cloud Backup",
-          "Contact Us"
+          "Contact Us",
+          "UTXO Consolidation"
         )
       )
+    }
+  }
+
+  // When removing feature flags, replace the test with the same name above with the ones in
+  // this context block.
+  context("Mobile pay revamp flag is on") {
+    beforeTest {
+      mobilePayFeatureFlag.setFlagValue(true)
+    }
+
+    test("list default") {
+      stateMachine.test(props) {
+        awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+          sectionModels
+            .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
+            .shouldBe(
+              listOf(
+                "General" to listOf("Transfer settings", "Bitkey Device", "Currency Display", "Notifications"),
+                "Security & Recovery" to listOf("App Security", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
+                "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
+                "Support" to listOf("Contact Us", "Help Center")
+              )
+            )
+        }
+      }
+    }
+
+    test("Transfer settings updates state") {
+      stateMachine
+        .testRowOnClickCallsProps<MobilePay>("Transfer settings", props, propsOnClickCalls)
+    }
+
+    test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
+      stateMachine.test(props) {
+        awaitItem()
+        appFunctionalityService.status.emit(
+          AppFunctionalityStatus.LimitedFunctionality(
+            cause = F8eUnreachable(Instant.DISTANT_PAST)
+          )
+        )
+        expectDisabledRows(
+          setOf(
+            "Transfer settings",
+            "Currency Display",
+            "Notifications",
+            "Trusted Contacts",
+            "Help Center",
+            "Mobile Devices",
+            "Cloud Backup",
+            "Contact Us"
+          )
+        )
+      }
+    }
+
+    test("Disabled rows in LimitedFunctionality.InternetUnreachable") {
+      stateMachine.test(props) {
+        awaitItem()
+        appFunctionalityService.status.emit(
+          AppFunctionalityStatus.LimitedFunctionality(
+            cause =
+              InternetUnreachable(
+                Instant.DISTANT_PAST,
+                Instant.DISTANT_PAST
+              )
+          )
+        )
+        expectDisabledRows(
+          setOf(
+            "Transfer settings",
+            "Currency Display",
+            "Notifications",
+            "Trusted Contacts",
+            "Custom Electrum Server",
+            "Help Center",
+            "Mobile Devices",
+            "Cloud Backup",
+            "Contact Us",
+            "UTXO Consolidation"
+          )
+        )
+      }
     }
   }
 })

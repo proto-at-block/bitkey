@@ -2,8 +2,7 @@ package build.wallet.bitcoin.wallet
 
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
 import io.kotest.matchers.should
@@ -33,6 +32,20 @@ fun beOutgoing() =
 
 fun BitcoinTransaction.shouldBeOutgoing(): BitcoinTransaction {
   this should beOutgoing()
+  return this
+}
+
+private fun beUtxoConsolidation() =
+  Matcher<BitcoinTransaction> { value ->
+    MatcherResult(
+      value.transactionType == UtxoConsolidation,
+      { "expected $value to be UtxoConsolidation" },
+      { "expected $value to not be UtxoConsolidation" }
+    )
+  }
+
+fun BitcoinTransaction.shouldBeUtxoConsolidation(): BitcoinTransaction {
+  this should beUtxoConsolidation()
   return this
 }
 

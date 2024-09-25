@@ -33,7 +33,7 @@ where
     pub fn resolver_with_context_key(
         &self,
         service: &Service,
-        context_key: ContextKey,
+        context_key: &ContextKey,
     ) -> Result<Resolver<T>, Error> {
         Ok(Resolver {
             flag: self.clone(),
@@ -252,15 +252,16 @@ impl FeatureFlag {
     }
 }
 
+#[derive(Clone)]
 pub enum ContextKey {
     Account(String, HashMap<&'static str, String>),
     AppInstallation(String, HashMap<&'static str, String>),
 }
 
-impl TryFrom<ContextKey> for Context {
+impl TryFrom<&ContextKey> for Context {
     type Error = Error;
 
-    fn try_from(key: ContextKey) -> Result<Self, Self::Error> {
+    fn try_from(key: &ContextKey) -> Result<Self, Self::Error> {
         let (mut builder, anonymous, attrs) = match key {
             ContextKey::Account(account_id, attrs) => {
                 (ContextBuilder::new(account_id), false, attrs)
@@ -271,9 +272,9 @@ impl TryFrom<ContextKey> for Context {
         };
         builder.anonymous(anonymous);
         attrs
-            .into_iter()
+            .iter()
             .map(
-                |(k, v)| match builder.try_set_value(k, AttributeValue::String(v)) {
+                |(k, v)| match builder.try_set_value(k, AttributeValue::String(v.clone())) {
                     true => Ok(()),
                     false => Err(Error::Context(format!("Invalid Attribute {k}"))),
                 },
@@ -286,7 +287,7 @@ impl TryFrom<ContextKey> for Context {
 pub fn evaluate_flag_value<T: FlagValueConvertible>(
     service: &Service,
     flag_key: String,
-    context_key: ContextKey,
+    context_key: &ContextKey,
 ) -> Result<T, Error> {
     let context = context_key.try_into()?;
     match resolve_flag_value(service, &flag_key, &context) {
@@ -299,7 +300,7 @@ pub fn evaluate_flag_value<T: FlagValueConvertible>(
 pub fn evaluate_flags(
     service: &Service,
     flag_keys: Vec<String>,
-    context_key: ContextKey,
+    context_key: &ContextKey,
 ) -> Result<Vec<FeatureFlag>, Error> {
     let context = context_key.try_into()?;
     flag_keys

@@ -2,6 +2,8 @@ package build.wallet.statemachine.settings.full
 
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.ExportToolsFeatureFlag
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
@@ -21,6 +23,10 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
+import build.wallet.statemachine.export.ExportToolsUiProps
+import build.wallet.statemachine.export.ExportToolsUiStateMachine
+import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
+import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
@@ -69,6 +75,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(featureFlagDao)
+  val inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao)
+  val exportToolsFeatureFlag = ExportToolsFeatureFlag(featureFlagDao)
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
     SettingsHomeUiStateMachineImpl(
@@ -105,12 +113,19 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       firmwareDataService = firmwareDataService,
       utxoConsolidationUiStateMachine = object : UtxoConsolidationUiStateMachine,
         ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
-      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
+      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag,
+      inheritanceManagementUiStateMachine = object : InheritanceManagementUiStateMachine,
+        ScreenStateMachineMock<InheritanceManagementUiProps>("inheritance-management") {},
+      inheritanceFeatureFlag = inheritanceFeatureFlag,
+      exportToolsUiStateMachine = object : ExportToolsUiStateMachine,
+        ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {},
+      exportToolsFeatureFlag = exportToolsFeatureFlag
     )
 
   beforeTest {
     firmwareDataService.reset()
     featureFlagDao.reset()
+    inheritanceFeatureFlag.reset()
   }
 
   test("onBack calls props onBack") {
@@ -141,6 +156,33 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
               SettingsListUiProps.SettingsListRow.Biometric::class
+            )
+          )
+      }
+    }
+  }
+
+  test("settings list with inheritance enabled") {
+    inheritanceFeatureFlag.setFlagValue(true)
+    stateMachine().test(props) {
+      awaitScreenWithBodyModelMock<SettingsListUiProps> {
+        supportedRows
+          .map { it::class }.toSet()
+          .shouldBe(
+            setOf(
+              SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
+              SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
+              SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
+              SettingsListUiProps.SettingsListRow.HelpCenter::class,
+              SettingsListUiProps.SettingsListRow.MobilePay::class,
+              SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
+              SettingsListUiProps.SettingsListRow.RecoveryChannels::class,
+              SettingsListUiProps.SettingsListRow.ContactUs::class,
+              SettingsListUiProps.SettingsListRow.TrustedContacts::class,
+              SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
+              SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
+              SettingsListUiProps.SettingsListRow.Biometric::class,
+              SettingsListUiProps.SettingsListRow.InheritanceManagement::class
             )
           )
       }
@@ -339,6 +381,18 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
         supportedRows
           .any { it is SettingsListUiProps.SettingsListRow.UtxoConsolidation }
+          .shouldBeTrue()
+      }
+    }
+  }
+
+  test("show Export Tools row when the feature flag is enabled") {
+    exportToolsFeatureFlag.setFlagValue(true)
+
+    stateMachine().test(props) {
+      awaitScreenWithBodyModelMock<SettingsListUiProps> {
+        supportedRows
+          .any { it is SettingsListUiProps.SettingsListRow.ExportTools }
           .shouldBeTrue()
       }
     }

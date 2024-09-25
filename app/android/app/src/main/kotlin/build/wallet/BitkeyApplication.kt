@@ -12,7 +12,7 @@ import build.wallet.bdk.BdkWalletFactoryImpl
 import build.wallet.bugsnag.Bugsnag
 import build.wallet.datadog.AndroidDatadogInitializer
 import build.wallet.debug.StrictModeEnablerImpl
-import build.wallet.di.AppComponent
+import build.wallet.di.AppComponentImpl
 import build.wallet.di.makeAppComponent
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.SignatureVerifierImpl
@@ -29,7 +29,7 @@ import build.wallet.platform.config.DeviceOs
 @Suppress("unused")
 class BitkeyApplication : Application() {
   var isFreshLaunch = true
-  lateinit var appComponent: AppComponent
+  lateinit var appComponent: AppComponentImpl
 
   override fun onCreate() {
     super.onCreate()

@@ -1,6 +1,6 @@
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use async_trait::async_trait;
-use recovery::repository::Repository as RecoveryService;
+use recovery::repository::RecoveryRepository;
 
 use crate::routes::Config;
 
@@ -17,7 +17,7 @@ impl Rule for UniqueRecoveryAuthPubkeyForAccountRule {
         request: &AccountValidationRequest,
         _: &Config,
         account_service: &AccountService,
-        _: &RecoveryService,
+        _: &RecoveryRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating full or lite accounts
         let recovery_auth_pubkey = match request {

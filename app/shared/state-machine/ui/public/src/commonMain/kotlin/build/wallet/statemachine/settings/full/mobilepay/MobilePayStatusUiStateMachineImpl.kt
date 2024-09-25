@@ -3,6 +3,8 @@ package build.wallet.statemachine.settings.full.mobilepay
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.limit.MobilePayData.MobilePayDisabledData
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
@@ -11,6 +13,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 import kotlinx.coroutines.launch
 
@@ -19,26 +22,33 @@ class MobilePayStatusUiStateMachineImpl(
   private val spendingLimitCardUiStateMachine: SpendingLimitCardUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val mobilePayService: MobilePayService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : MobilePayStatusUiStateMachine {
   @Composable
   override fun model(props: MobilePayUiProps): BodyModel {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+    val spendingLimitsCopy = SpendingLimitsCopy.get(mobilePayRevampFeatureFlag.isEnabled())
 
     val mobilePayData = remember { mobilePayService.mobilePayData }
       .collectAsState()
       .value
 
     return when (mobilePayData) {
-      null -> LoadingMobilePayModel()
-      is MobilePayEnabledData -> MobilePayEnabledModel(props, mobilePayData)
+      null -> LoadingMobilePayModel(message = spendingLimitsCopy.loadingStatus)
+      is MobilePayEnabledData -> MobilePayEnabledModel(
+        props,
+        mobilePayData,
+        spendingLimitsCopy.disableAlert.title,
+        spendingLimitsCopy.disableAlert.subline
+      )
       is MobilePayDisabledData -> MobilePayDisabledModel(props, fiatCurrency, mobilePayData)
     }
   }
 
   @Composable
-  private fun LoadingMobilePayModel() =
+  private fun LoadingMobilePayModel(message: String) =
     LoadingBodyModel(
-      message = "Loading Mobile Pay...",
+      message = message,
       id = MobilePayEventTrackerScreenId.MOBILE_PAY_LOADING
     )
 
@@ -46,6 +56,8 @@ class MobilePayStatusUiStateMachineImpl(
   private fun MobilePayEnabledModel(
     props: MobilePayUiProps,
     mobilePayData: MobilePayEnabledData,
+    disableTitle: String,
+    disableSubline: String,
   ): MobilePayStatusModel {
     var confirmingCancellation by remember { mutableStateOf(false) }
     val scope = rememberStableCoroutineScope()
@@ -70,6 +82,8 @@ class MobilePayStatusUiStateMachineImpl(
         when {
           confirmingCancellation -> {
             disableMobilePayAlertModel(
+              title = disableTitle,
+              subline = disableSubline,
               onConfirm = {
                 scope.launch {
                   mobilePayService.disable(props.accountData.account)
@@ -84,7 +98,8 @@ class MobilePayStatusUiStateMachineImpl(
 
           else -> null
         },
-      spendingLimitCardModel = SpendingLimitCardModel(mobilePayData)
+      spendingLimitCardModel = SpendingLimitCardModel(mobilePayData),
+      spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
     )
   }
 
@@ -119,6 +134,7 @@ class MobilePayStatusUiStateMachineImpl(
     },
     dailyLimitRow = null,
     disableAlertModel = null,
-    spendingLimitCardModel = null
+    spendingLimitCardModel = null,
+    spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
   )
 }

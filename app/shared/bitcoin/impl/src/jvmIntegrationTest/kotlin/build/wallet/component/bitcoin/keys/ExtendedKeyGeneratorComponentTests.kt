@@ -14,10 +14,10 @@ import io.kotest.property.checkAll
 import io.kotest.property.exhaustive.enum
 
 class ExtendedKeyGeneratorComponentTests : FunSpec({
-  val app = launchNewApp().app
-  val extendedKeyGenerator: ExtendedKeyGenerator = app.extendedKeyGenerator
-
   context("generate new extended key") {
+    val app = launchNewApp().app
+    val extendedKeyGenerator: ExtendedKeyGenerator = app.extendedKeyGenerator
+
     checkAll(Exhaustive.enum<BitcoinNetworkType>()) { network ->
       val keypair =
         extendedKeyGenerator

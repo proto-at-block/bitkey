@@ -1,6 +1,6 @@
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, operation::get_item::GetItemOutput},
-    ddb::{try_from_item, try_from_items, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_item, try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
 use std::collections::HashMap;
 use types::{
@@ -16,7 +16,7 @@ use tracing::{event, instrument, Level};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 
 use super::{
-    Repository, SocialRecoveryRow, CODE_IDX, CODE_IDX_PARTITION_KEY, CUSTOMER_IDX,
+    SocialRecoveryRepository, SocialRecoveryRow, CODE_IDX, CODE_IDX_PARTITION_KEY, CUSTOMER_IDX,
     CUSTOMER_IDX_PARTITION_KEY, PARTITION_KEY, TRUSTED_CONTACT_IDX,
     TRUSTED_CONTACT_IDX_PARTITION_KEY, TRUSTED_CONTACT_IDX_SORT_KEY,
 };
@@ -28,7 +28,7 @@ pub struct RecoveryRelationshipsForAccount {
     pub customers: Vec<RecoveryRelationship>,
 }
 
-impl Repository {
+impl SocialRecoveryRepository {
     async fn fetch(&self, partition_key: impl Serialize) -> Result<GetItemOutput, DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();

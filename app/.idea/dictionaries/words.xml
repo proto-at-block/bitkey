@@ -1,4 +1,3 @@
-<!-- Project-specific dictoinary to exclude certain words from IDE spellchecking. -->
 <component name="ProjectDictionaryState">
     <dictionary name="words">
         <words>
@@ -12,11 +11,13 @@
             <w>keyset</w>
             <w>keysets</w>
             <w>kotest</w>
+            <w>mempool</w>
             <w>oncall</w>
             <w>pake</w>
             <w>psbt</w>
             <w>psbts</w>
             <w>pubkey</w>
+            <w>sats</w>
             <w>segwit</w>
             <w>socrec</w>
             <w>subline</w>
@@ -25,6 +26,9 @@
             <w>transceive</w>
             <w>unendorsed</w>
             <w>utxo</w>
+            <w>utxos</w>
+            <w>vin</w>
+            <w>vout</w>
             <w>xpub</w>
             <w>xpubs</w>
         </words>

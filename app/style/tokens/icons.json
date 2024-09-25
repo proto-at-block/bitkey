@@ -55,17 +55,20 @@
           "smallIconClock",
           "smallIconCloud",
           "smallIconCloudError",
+          "smallIconConsolidation",
           "smallIconCopy",
           "smallIconCurrency",
           "smallIconDigitOne",
           "smallIconDigitThree",
           "smallIconDigitTwo",
+          "smallIconDocument",
           "smallIconElectrum",
           "smallIconEmail",
           "smallIconExternal",
           "smallIconFingerprint",
           "smallIconInformation",
           "smallIconInformationFilled",
+          "smallIconInheritance",
           "smallIconKey",
           "smallIconKeyboard",
           "smallIconLightning",
@@ -113,7 +116,7 @@
           "subtractRight",
 
           "calloutArrow",
-          
+
           "tabIconHome",
           "tabIconProfile"
       ]

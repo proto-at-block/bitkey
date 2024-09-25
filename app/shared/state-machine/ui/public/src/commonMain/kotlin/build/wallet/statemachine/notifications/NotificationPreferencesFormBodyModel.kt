@@ -154,7 +154,8 @@ fun NotificationPreferencesFormBodyModel(
                             )
                           ),
                           string = "I agree to Bitkey’s Terms of Service and Privacy Notice",
-                          underline = false
+                          underline = false,
+                          bold = false
                         ),
                         treatment = ListItemTreatment.PRIMARY,
                         trailingAccessory = IconAccessory(

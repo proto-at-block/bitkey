@@ -567,7 +567,7 @@ async fn setup_full_accounts_and_server(
         notification_service: bootstrap.services.notification_service.clone(),
         account_service: bootstrap.services.account_service.clone(),
         recovery_service: bootstrap.services.recovery_service.clone(),
-        address_repo: bootstrap.services.address_repo.clone(),
+        address_service: bootstrap.services.address_service.clone(),
         chain_indexer_service: bootstrap.services.chain_indexer_service.clone(),
         mempool_indexer_service: bootstrap
             .services
@@ -637,7 +637,7 @@ async fn setup_full_accounts_and_server(
 
     bootstrap
         .services
-        .address_repo
+        .address_service
         .clone()
         .insert(&fake_registrations, &account_with_payment.id)
         .await

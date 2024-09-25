@@ -3,9 +3,10 @@ use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
 use bdk_utils::bdk::bitcoin::{Address, Network, PublicKey};
-use database::ddb;
+use database::ddb::{Config as DDBConfig, Repository};
 use http::StatusCode;
 use http_server::config;
+use notification::address_repo::ddb::repository::AddressRepository;
 use notification::address_repo::ddb::service::Service as AddressRepoDDB;
 use notification::address_repo::memory::Service as AddressRepoMemory;
 use notification::address_repo::{AddressAndKeysetId, AddressWatchlistTrait};
@@ -22,11 +23,12 @@ fn memory_repo() -> impl AddressWatchlistTrait + Clone {
 }
 
 async fn ddb_repo() -> impl AddressWatchlistTrait + Clone {
-    let conn = config::extract::<ddb::Config>(Some("test"))
+    let conn = config::extract::<DDBConfig>(Some("test"))
         .unwrap()
         .to_connection()
         .await;
-    AddressRepoDDB::create(conn).await.unwrap()
+    let repo = AddressRepository::new(conn);
+    AddressRepoDDB::create(repo).await.unwrap()
 }
 
 struct TestContext<A: AddressWatchlistTrait + Clone + 'static> {

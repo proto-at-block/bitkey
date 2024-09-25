@@ -1,3 +1,7 @@
 packages:
   - url: "https://github.com/airbnb/lottie-spm"
     reason: "This is an SPM repo, main repo is lottie-ios. Also belongs to a reputable company hence why it's less risky."
+  - url: "https://github.com/bitcoindevkit/bdk-swift"
+    reason: "Required for core functionality of the project."
+  - url: "https://github.com/rickclephas/kmp-nativecoroutines"
+    reason: "Required for KMP"

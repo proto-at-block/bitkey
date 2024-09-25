@@ -1,21 +1,16 @@
 package build.wallet.statemachine.send
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitcoin.invoice.ParsedPaymentData
-import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
-import build.wallet.bitcoin.invoice.ParsedPaymentData.Lightning
-import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
+import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
-import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError.InvalidNetwork
+import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError
 import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.send.BitcoinAddressRecipientUiStateMachineImpl.AddressError.SelfSend
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
@@ -24,6 +19,7 @@ import com.github.michaelbull.result.onSuccess
 class BitcoinAddressRecipientUiStateMachineImpl(
   private val keysetWalletProvider: KeysetWalletProvider,
   private val paymentDataParser: PaymentDataParser,
+  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BitcoinAddressRecipientUiStateMachine {
   @Composable
   override fun model(props: BitcoinAddressRecipientUiProps): BodyModel {
@@ -62,29 +58,26 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       }
     }
 
-    var bitcoinAddressWarningText: String? by remember { mutableStateOf(null) }
+    var addressError: AddressError? by remember { mutableStateOf(null) }
     LaunchedEffect("update-address-warning-text", paymentDataParserResult) {
       paymentDataParserResult
         ?.onSuccess { bitcoinAddress ->
-          bitcoinAddressWarningText =
-            when {
-              bitcoinAddress == null -> null
-              bitcoinAddress.address.isBlank() -> null
-              wallet?.isMine(bitcoinAddress)
-                ?.get() == true -> "You can’t send to your own address"
-
-              else -> null
-            }
+          addressError = when {
+            bitcoinAddress == null -> null
+            bitcoinAddress.address.isBlank() -> null
+            wallet?.isMine(bitcoinAddress)?.get() == true -> SelfSend
+            else -> null
+          }
         }
         ?.onFailure {
-          bitcoinAddressWarningText =
+          addressError =
             when (it) {
-              is InvalidNetwork -> "Invalid bitcoin address"
+              is PaymentDataParserError.InvalidNetwork -> AddressError.InvalidNetwork
               else -> null
             }
         }
         ?: run {
-          bitcoinAddressWarningText = null
+          addressError = null
         }
     }
 
@@ -92,6 +85,12 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       derivedStateOf {
         props.validInvoiceInClipboard.takeIf { it !is Lightning } != null && state.enteredText == ""
       }
+    }
+
+    val bitcoinAddressWarningText = when {
+      addressError == AddressError.InvalidNetwork -> "Invalid bitcoin address"
+      addressError == SelfSend && !utxoConsolidationFeatureFlag.isEnabled() -> "You can’t send to your own address"
+      else -> null
     }
 
     return BitcoinRecipientAddressScreenModel(
@@ -104,7 +103,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       onBack = props.onBack,
       onContinueClick =
         paymentDataParserResult?.get()
-          .takeIf { it != null && bitcoinAddressWarningText == null }
+          .takeIf { it != null && addressError == null }
           ?.let {
             { props.onRecipientEntered(it) }
           },
@@ -120,8 +119,19 @@ class BitcoinAddressRecipientUiStateMachineImpl(
             else -> {}
           }
         }
-      }
+      },
+      showSelfSendWarningWithRedirect = addressError == SelfSend && utxoConsolidationFeatureFlag.isEnabled(),
+      onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
     )
+  }
+
+  /**
+   * Represents errors when parsing a bitcoin address.
+   */
+  private sealed interface AddressError {
+    data object InvalidNetwork : AddressError
+
+    data object SelfSend : AddressError
   }
 
   private data class State(

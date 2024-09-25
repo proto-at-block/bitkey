@@ -25,7 +25,8 @@ class SocRecServiceFunctionalTests : FunSpec({
 
   test("customer creates TC invite, TC onboards and accepts invite") {
     // Customer onboards and creates Trusted Contact invitation
-    val customerApp = launchNewApp(isUsingSocRecFakes = false)
+    // TODO(W-9704): execute workers by default
+    val customerApp = launchNewApp(isUsingSocRecFakes = false, executeWorkers = false)
     customerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, tcInvitation) = customerApp.createTcInvite(tcName = tcName)
 

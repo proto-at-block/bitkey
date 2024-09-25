@@ -1,7 +1,7 @@
 use crate::service::social::relationship::Service;
 use async_trait::async_trait;
 use migration::{Migration, MigrationError};
-use repository::recovery::social::Repository;
+use repository::recovery::social::SocialRecoveryRepository;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracing::info;
@@ -10,7 +10,7 @@ const GUARD_DATE: &str = "2024-03-11T00:00:00Z";
 const IS_TEST_RUN: bool = false;
 
 pub(crate) struct CleanupOldInvalidData {
-    pub repository: Repository,
+    pub repository: SocialRecoveryRepository,
 }
 
 impl CleanupOldInvalidData {

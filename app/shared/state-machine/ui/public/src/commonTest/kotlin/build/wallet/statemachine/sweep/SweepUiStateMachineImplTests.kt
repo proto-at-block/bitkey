@@ -16,16 +16,14 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
@@ -38,6 +36,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -72,11 +71,13 @@ class SweepUiStateMachineImplTests : FunSpec({
     object : SweepDataStateMachine, StateMachineMock<SweepDataProps, SweepData>(
       GeneratingPsbtsData
     ) {}
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val sweepStateMachine = SweepUiStateMachineImpl(
     nfcSessionUIStateMachine,
     moneyAmountUiStateMachine,
     fiatCurrencyPreferenceRepository,
-    sweepDataStateMachine
+    sweepDataStateMachine,
+    inAppBrowserNavigator
   )
   val props = SweepUiProps(
     onExit = onExitCallback,
@@ -400,6 +401,51 @@ class SweepUiStateMachineImplTests : FunSpec({
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+    }
+  }
+
+  test("Learn more button opens in-app browser") {
+    sweepStateMachine.test(
+      props.copy(
+        recoveredFactor = null
+      )
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
+          startSweep = { startSweepCalls += Unit }
+        )
+      )
+      awaitScreenWithBody<FormBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
+        toolbar
+          .shouldNotBeNull()
+          .trailingAccessory
+          .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
+          .model
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP
+        primaryButton!!.onClick()
+      }
+
+      awaitScreenWithBody<InAppBrowserModel> {
+        open()
+      }
+
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://support.bitkey.world/hc/en-us/articles/28019865146516-How-do-I-access-funds-sent-to-a-previously-created-Bitkey-address")
+      inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
+
+      awaitScreenWithBody<FormBodyModel>()
     }
   }
 })

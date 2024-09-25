@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_item, try_to_attribute_val, DatabaseError, Repository},
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
@@ -15,11 +15,11 @@ use crate::{
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 
 use super::{
-    Repository, APP_IDX_PARTITION_KEY, APP_TO_RECOVERY_IDX, HW_IDX_PARTITION_KEY,
+    RecoveryRepository, APP_IDX_PARTITION_KEY, APP_TO_RECOVERY_IDX, HW_IDX_PARTITION_KEY,
     HW_TO_RECOVERY_IDX, RECOVERY_AUTHKEY_IDX_PARTITION_KEY, RECOVERY_AUTHKEY_TO_RECOVERY_IDX,
 };
 
-impl Repository {
+impl RecoveryRepository {
     #[instrument(skip(self))]
     async fn fetch_optional(
         &self,

@@ -1,13 +1,13 @@
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_item, DatabaseError, Repository},
 };
 use tracing::{event, instrument, Level};
 
-use super::Repository;
+use super::ChainIndexerRepository;
 use crate::entities::Block;
 
-impl Repository {
+impl ChainIndexerRepository {
     #[instrument(skip(self))]
     pub async fn persist(&self, block: &Block) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;

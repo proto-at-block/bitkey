@@ -15,6 +15,8 @@ sealed interface LabelModel {
   data class LinkSubstringModel internal constructor(
     override val string: String,
     val underline: Boolean,
+    val bold: Boolean,
+    val color: Color,
     val linkedSubstrings: List<LinkSubstring>,
   ) : LabelModel {
     data class LinkSubstring(
@@ -56,6 +58,8 @@ sealed interface LabelModel {
         string: String,
         substringToOnClick: Map<String, () -> Unit>,
         underline: Boolean,
+        bold: Boolean,
+        color: Color = Color.PRIMARY,
       ): LinkSubstringModel {
         return LinkSubstringModel(
           string = string,
@@ -67,7 +71,9 @@ sealed interface LabelModel {
                 onClick = entry.value
               )
             },
-          underline = underline
+          underline = underline,
+          bold = bold,
+          color = color
         )
       }
     }
@@ -83,12 +89,6 @@ sealed interface LabelModel {
     override val string: String,
     val styledSubstrings: List<StyledSubstring>,
   ) : LabelModel {
-    enum class Color {
-      GREEN,
-      BLUE,
-      ON60,
-    }
-
     sealed interface SubstringStyle {
       data object BoldStyle : SubstringStyle
 
@@ -135,5 +135,22 @@ sealed interface LabelModel {
         )
       }
     }
+  }
+
+  /**
+   * The color to be used for a styled substring.
+   */
+  enum class Color {
+    GREEN,
+    BLUE,
+    ON60,
+    PRIMARY,
+
+    /**
+     * When selected, the color of the styled substring prefers that of the remaining text. This can be
+     * useful if you want to have a substring link that matches its color with the rest of the string
+     * instead of using a different color.
+     */
+    UNSPECIFIED,
   }
 }

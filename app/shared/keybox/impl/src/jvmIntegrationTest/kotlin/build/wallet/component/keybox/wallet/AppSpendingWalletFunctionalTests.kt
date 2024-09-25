@@ -8,6 +8,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
+import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
@@ -29,8 +30,11 @@ import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({
-  val appTester = launchNewApp()
-  val bitcoinBlockchain = appTester.app.bitcoinBlockchain
+  lateinit var appTester: AppTester
+
+  beforeTest {
+    appTester = launchNewApp()
+  }
 
   test("wallet for active spending keyset")
     .config(tags = setOf(FlakyTest)) {
@@ -114,6 +118,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
             ).getOrThrow()
           appAndHwSignedPsbt.amountSats.shouldBe(5_000UL)
 
+          val bitcoinBlockchain = appTester.app.appComponent.bitcoinBlockchain
           bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
 
           eventually(

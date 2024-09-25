@@ -1,6 +1,6 @@
 use account::service::Service as AccountService;
 use async_trait::async_trait;
-use recovery::repository::Repository as RecoveryService;
+use recovery::repository::RecoveryRepository;
 use types::account::bitcoin::Network;
 
 use crate::routes::Config;
@@ -16,7 +16,7 @@ impl Rule for TestAccountsWithMainnetKeysetsRule {
         request: &AccountValidationRequest,
         config: &Config,
         _: &AccountService,
-        _: &RecoveryService,
+        _: &RecoveryRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating or upgrading to full accounts
         let (is_test_account, spending_network) = match request {

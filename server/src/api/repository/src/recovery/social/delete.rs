@@ -4,7 +4,7 @@ use database::{
         error::ProvideErrorMetadata,
         types::{DeleteRequest, WriteRequest},
     },
-    ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -15,10 +15,11 @@ use types::{
 };
 
 use super::{
-    Repository, SocialRecoveryRow, CUSTOMER_IDX, CUSTOMER_IDX_PARTITION_KEY, PARTITION_KEY,
+    SocialRecoveryRepository, SocialRecoveryRow, CUSTOMER_IDX, CUSTOMER_IDX_PARTITION_KEY,
+    PARTITION_KEY,
 };
 
-impl Repository {
+impl SocialRecoveryRepository {
     #[instrument(skip(self, relationship))]
     pub async fn delete_recovery_relationship(
         &self,

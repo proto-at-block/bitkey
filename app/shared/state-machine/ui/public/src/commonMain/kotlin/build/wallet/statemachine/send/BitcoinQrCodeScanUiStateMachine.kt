@@ -27,4 +27,5 @@ data class BitcoinQrCodeScanUiProps(
   val onClose: () -> Unit,
   val onRecipientScanned: (address: BitcoinAddress) -> Unit,
   val onInvoiceScanned: (address: BitcoinInvoice) -> Unit,
+  val onGoToUtxoConsolidation: () -> Unit,
 )

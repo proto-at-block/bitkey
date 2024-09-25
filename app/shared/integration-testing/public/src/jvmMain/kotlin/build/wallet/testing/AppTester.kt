@@ -1,16 +1,7 @@
 package build.wallet.testing
 
 import androidx.compose.runtime.Composable
-import build.wallet.bdk.BdkAddressBuilderImpl
-import build.wallet.bdk.BdkBlockchainFactoryImpl
-import build.wallet.bdk.BdkBumpFeeTxBuilderFactoryImpl
-import build.wallet.bdk.BdkDescriptorFactoryImpl
-import build.wallet.bdk.BdkDescriptorSecretKeyFactoryImpl
-import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
-import build.wallet.bdk.BdkMnemonicGeneratorImpl
-import build.wallet.bdk.BdkPartiallySignedTransactionBuilderImpl
-import build.wallet.bdk.BdkTxBuilderFactoryImpl
-import build.wallet.bdk.BdkWalletFactoryImpl
+import build.wallet.bdk.*
 import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
@@ -20,13 +11,7 @@ import build.wallet.bitcoin.blockchain.RegtestControl
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
-import build.wallet.cloud.store.CloudFileStoreFake
-import build.wallet.cloud.store.CloudKeyValueStore
-import build.wallet.cloud.store.CloudKeyValueStoreImpl
-import build.wallet.cloud.store.CloudStoreAccountRepository
-import build.wallet.cloud.store.CloudStoreAccountRepositoryImpl
-import build.wallet.cloud.store.CloudStoreServiceProviderFake
-import build.wallet.cloud.store.WritableCloudStoreAccountRepository
+import build.wallet.cloud.store.*
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponentImpl
@@ -39,11 +24,7 @@ import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.firmware.TeltraMock
 import build.wallet.logging.log
 import build.wallet.money.exchange.ExchangeRateF8eClientMock
-import build.wallet.nfc.FakeHardwareKeyStore
-import build.wallet.nfc.FakeHardwareKeyStoreImpl
-import build.wallet.nfc.FakeHardwareSpendingWalletProvider
-import build.wallet.nfc.NfcCommandsFake
-import build.wallet.nfc.NfcSessionFake
+import build.wallet.nfc.*
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.platform.PlatformContext
@@ -63,10 +44,11 @@ import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.time.ControlledDelayer
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.UUID
+import java.util.*
 import kotlin.time.Duration.Companion.ZERO
 
 const val BITCOIN_NETWORK_ENV_VAR_NAME = "BITCOIN_NETWORK"
@@ -91,6 +73,7 @@ class AppTester(
   suspend fun relaunchApp(
     bdkBlockchainFactory: BdkBlockchainFactory? = null,
     f8eEnvironment: F8eEnvironment? = null,
+    executeWorkers: Boolean = true,
   ): AppTester =
     launchApp(
       existingAppDir = app.appComponent.fileDirectoryProvider.appDir(),
@@ -99,14 +82,15 @@ class AppTester(
       cloudStoreAccountRepository = app.cloudStoreAccountRepository,
       cloudKeyValueStore = app.cloudKeyValueStore,
       isUsingSocRecFakes = isUsingSocRecFakes,
-      hardwareSeed = fakeHardwareKeyStore.getSeed()
+      hardwareSeed = fakeHardwareKeyStore.getSeed(),
+      executeWorkers = executeWorkers
     )
 
   companion object {
     /**
      * Creates a brand new [AppTester].
      */
-    fun launchNewApp(
+    suspend fun launchNewApp(
       bdkBlockchainFactory: BdkBlockchainFactory? = null,
       f8eEnvironment: F8eEnvironment? = null,
       bitcoinNetworkType: BitcoinNetworkType? = null,
@@ -114,6 +98,7 @@ class AppTester(
       cloudKeyValueStore: CloudKeyValueStore? = null,
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
+      executeWorkers: Boolean = true,
     ): AppTester =
       launchApp(
         existingAppDir = null,
@@ -123,16 +108,18 @@ class AppTester(
         cloudStoreAccountRepository,
         cloudKeyValueStore,
         hardwareSeed,
-        isUsingSocRecFakes
+        isUsingSocRecFakes,
+        executeWorkers
       )
 
     /**
      * Creates an [AppTester] instance
      * @param existingAppDir Specify where application data (databases) should be saved.
      * If there is existing data in the directory, it will be used by the new app.
+     * @param executeWorkers if true, all [AppWorker]s will be executed.
      */
     @Suppress("NAME_SHADOWING")
-    private fun launchApp(
+    private suspend fun launchApp(
       existingAppDir: String? = null,
       bdkBlockchainFactory: BdkBlockchainFactory? = null,
       f8eEnvironment: F8eEnvironment? = null,
@@ -141,6 +128,7 @@ class AppTester(
       cloudKeyValueStore: CloudKeyValueStore? = null,
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean,
+      executeWorkers: Boolean = true,
     ): AppTester {
       /**
        * Get the `F8eEnvironment` from the environment variables, falling back to local.
@@ -185,25 +173,28 @@ class AppTester(
           fakeHardwareKeyStore = fakeHardwareKeyStore
         )
 
-      val treasury =
-        runBlocking {
-          TreasuryWalletFactory(
-            activityComponent.bitcoinBlockchain,
-            blockchainControl,
-            activityComponent.appComponent.spendingWalletProvider,
-            BdkDescriptorSecretKeyFactoryImpl(),
-            BdkDescriptorFactoryImpl()
-          ).create(bitcoinNetworkType)
-        }
+      val treasury = TreasuryWalletFactory(
+        appComponent.bitcoinBlockchain,
+        blockchainControl,
+        activityComponent.appComponent.spendingWalletProvider,
+        BdkDescriptorSecretKeyFactoryImpl(),
+        BdkDescriptorFactoryImpl()
+      ).create(bitcoinNetworkType)
 
-      runBlocking {
-        appComponent.debugOptionsService.apply {
-          setBitcoinNetworkType(bitcoinNetworkType)
-          setIsHardwareFake(true)
-          setF8eEnvironment(f8eEnvironment)
-          setIsTestAccount(true)
-          setUsingSocRecFakes(isUsingSocRecFakes)
-          setDelayNotifyDuration(ZERO)
+      appComponent.debugOptionsService.apply {
+        setBitcoinNetworkType(bitcoinNetworkType)
+        setIsHardwareFake(true)
+        setF8eEnvironment(f8eEnvironment)
+        setIsTestAccount(true)
+        setUsingSocRecFakes(isUsingSocRecFakes)
+        setDelayNotifyDuration(ZERO)
+      }
+
+      if (executeWorkers) {
+        coroutineScope {
+          launch {
+            appComponent.appWorkerExecutor.executeAll()
+          }
         }
       }
 
@@ -308,26 +299,24 @@ private fun createActivityComponent(
 }
 
 private fun createBlockchainControl(networkType: BitcoinNetworkType): BlockchainControl =
-  runBlocking {
-    when (networkType) {
-      REGTEST -> {
-        val electrumUrl = System.getenv("ELECTRUM_HTTP_URL") ?: "http://localhost:8100"
-        val bitcoindDomain = System.getenv("BITCOIND_DOMAIN") ?: "localhost:18443"
-        val bitcoindUser = System.getenv("BITCOIND_USER") ?: "test"
-        val bitcoindPassword = System.getenv("BITCOIND_PASSWORD") ?: "test"
-        RegtestControl.create(
-          bitcoindDomain = bitcoindDomain,
-          bitcoindUser = bitcoindUser,
-          bitcoindPassword = bitcoindPassword,
-          electrumHttpApiUrl = electrumUrl
-        )
-      }
-
-      else -> NoopBlockchainControl()
+  when (networkType) {
+    REGTEST -> {
+      val electrumUrl = System.getenv("ELECTRUM_HTTP_URL") ?: "http://localhost:8100"
+      val bitcoindDomain = System.getenv("BITCOIND_DOMAIN") ?: "localhost:18443"
+      val bitcoindUser = System.getenv("BITCOIND_USER") ?: "test"
+      val bitcoindPassword = System.getenv("BITCOIND_PASSWORD") ?: "test"
+      RegtestControl.create(
+        bitcoindDomain = bitcoindDomain,
+        bitcoindUser = bitcoindUser,
+        bitcoindPassword = bitcoindPassword,
+        electrumHttpApiUrl = electrumUrl
+      )
     }
+
+    else -> NoopBlockchainControl()
   }
 
-private fun createFakeHardwareKeyStore(
+private suspend fun createFakeHardwareKeyStore(
   secureStoreFactory: EncryptedKeyValueStoreFactory,
   hardwareSeed: FakeHardwareKeyStore.Seed?,
 ): FakeHardwareKeyStoreImpl {
@@ -342,9 +331,7 @@ private fun createFakeHardwareKeyStore(
       encryptedKeyValueStoreFactory = secureStoreFactory
     )
   if (hardwareSeed != null) {
-    runBlocking {
-      fakeHardwareKeyStore.setSeed(hardwareSeed)
-    }
+    fakeHardwareKeyStore.setSeed(hardwareSeed)
   }
   return fakeHardwareKeyStore
 }

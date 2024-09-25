@@ -2,11 +2,7 @@ package build.wallet.f8e.client
 
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
-import build.wallet.auth.AccessToken
-import build.wallet.auth.AccountAuthTokens
-import build.wallet.auth.AppAuthKeyMessageSignerMock
-import build.wallet.auth.AuthTokensRepositoryMock
-import build.wallet.auth.RefreshToken
+import build.wallet.auth.*
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachability
 import build.wallet.availability.NetworkReachabilityProviderMock
@@ -21,7 +17,8 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_APP_HEADER
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_HW_HEADER
-import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryFake
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.debug.NetworkingDebugServiceFake
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.HttpError
@@ -34,21 +31,23 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getErrorOr
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestCaseOrder.Sequential
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldEndWith
+import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.client.engine.mock.MockEngine
-import io.ktor.client.engine.mock.respond
-import io.ktor.client.engine.mock.respondError
-import io.ktor.client.engine.mock.respondOk
-import io.ktor.client.request.get
-import io.ktor.client.request.put
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
-import io.ktor.utils.io.ByteReadChannel
+import io.ktor.client.call.*
+import io.ktor.client.engine.mock.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.utils.io.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 private data class StubDatadogSpan(
   override var resourceName: String?,
@@ -104,6 +103,7 @@ class F8eHttpClientImplTests : FunSpec({
     }
 
   val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
+  val networkingDebugService = NetworkingDebugServiceFake()
   val f8eHttpClientProvider =
     F8eHttpClientProvider(
       appId = AppId("world.bitkey.test"),
@@ -111,11 +111,23 @@ class F8eHttpClientImplTests : FunSpec({
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
-      networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake(),
+      networkingDebugService = networkingDebugService,
       appInstallationDao = AppInstallationDaoMock(),
       countryCodeGuesser = CountryCodeGuesserMock()
     )
 
+  val unauthenticatedMockEngine = InlineMockEngine()
+
+  val unauthenticatedF8eHttpClientFactory = UnauthenticatedF8eHttpClientFactory(
+    appVariant = Development,
+    platformInfoProvider = PlatformInfoProviderMock(),
+    datadogTracer = datadogTracer,
+    appInstallationDao = AppInstallationDaoMock(),
+    countryCodeGuesser = CountryCodeGuesserMock(),
+    networkReachabilityProvider = networkReachabilityProvider,
+    networkingDebugService = networkingDebugService,
+    engine = unauthenticatedMockEngine.engine
+  )
   val client =
     F8eHttpClientImpl(
       authTokensRepository = AuthTokensRepositoryMock(),
@@ -125,19 +137,18 @@ class F8eHttpClientImplTests : FunSpec({
           keyboxDao = fakeKeyboxDao,
           appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner
         ),
-      unauthenticatedF8eHttpClient =
-        UnauthenticatedOnlyF8eHttpClientImpl(
-          f8eHttpClientProvider = f8eHttpClientProvider,
-          networkReachabilityProvider = networkReachabilityProvider
-        ),
+      unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
+        appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
+      ),
       f8eHttpClientProvider = f8eHttpClientProvider,
       networkReachabilityProvider = networkReachabilityProvider,
       wsmVerifier = WsmVerifierMock()
     )
 
   test("datadog tracer plugin is installed and headers are sent") {
-    val engine =
-      MockEngine {
+    launch {
+      unauthenticatedMockEngine.handle {
         it.headers["a"] shouldBe "1"
         it.headers["b"] shouldBe "2"
 
@@ -147,13 +158,13 @@ class F8eHttpClientImplTests : FunSpec({
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
       }
+    }
 
-    client.unauthenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = engine
-    )
+    client.unauthenticated()
       .bodyResult<EmptyResponseBody> {
-        get("/soda/can")
+        get("/soda/can") {
+          withEnvironment(F8eEnvironment.Development)
+        }
       }
 
     networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
@@ -369,15 +380,13 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("F8e calls disabled when environment is set to ForceOffline - Unauthenticated") {
-    val engine = MockEngine { respondOk() }
-
-    client.unauthenticated(
-      f8eEnvironment = F8eEnvironment.ForceOffline,
-      engine = engine
-    ).bodyResult<EmptyResponseBody> {
-      get("/soda/can")
+    client.unauthenticated().bodyResult<EmptyResponseBody> {
+      get("/soda/can") {
+        withEnvironment(F8eEnvironment.ForceOffline)
+      }
     }.should {
-      it.getErrorOr(null)
+      it.isErr.shouldBeTrue()
+      it.error
         .shouldNotBeNull()
         .shouldBeTypeOf<HttpError.UnhandledException>()
         .cause.shouldBeTypeOf<OfflineOperationException>()
@@ -414,30 +423,31 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("targeting plugin is installed and headers are sent") {
-    val engine = MockEngine { request ->
-      request.headers["Bitkey-App-Installation-ID"].shouldBe("local-id")
-      request.headers["Bitkey-App-Version"].shouldBe("2023.1.3")
-      request.headers["Bitkey-Device-Region"].shouldBe("US")
-      request.headers["Bitkey-OS-Type"].shouldBe("OS_TYPE_ANDROID")
-      request.headers["Bitkey-OS-Version"].shouldBe("version_num_1")
-
-      respond(
-        content = ByteReadChannel("{}"),
-        status = HttpStatusCode.OK,
-        headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
-      )
+    launch {
+      unauthenticatedMockEngine.handle { _ ->
+        respond(
+          content = ByteReadChannel("{}"),
+          status = HttpStatusCode.OK,
+          headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
+        )
+      }
     }
 
-    val response = client.unauthenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = engine
-    )
-      .bodyResult<EmptyResponseBody> {
-        get("/soda/can")
+    val response = client.unauthenticated()
+      .get("/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
       }
+
+    val request = response.request
+    request.headers["Bitkey-App-Installation-ID"].shouldNotBeNull().shouldBeEqual("local-id")
+    request.headers["Bitkey-App-Version"].shouldNotBeNull().shouldBeEqual("2023.1.3")
+    request.headers["Bitkey-Device-Region"].shouldNotBeNull().shouldBeEqual("US")
+    request.headers["Bitkey-OS-Type"].shouldNotBeNull().shouldBeEqual("OS_TYPE_ANDROID")
+    request.headers["Bitkey-OS-Version"].shouldNotBeNull().shouldBeEqual("version_num_1")
 
     networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
-    response.shouldBe(Ok(EmptyResponseBody))
+    response.status.isSuccess().shouldBeTrue()
+    response.body<EmptyResponseBody>().shouldBe(EmptyResponseBody)
   }
 })

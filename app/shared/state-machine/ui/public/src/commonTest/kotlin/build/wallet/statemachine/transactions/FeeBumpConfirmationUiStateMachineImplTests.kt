@@ -1,15 +1,17 @@
 package build.wallet.statemachine.transactions
 
+import app.cash.turbine.test
 import build.wallet.bitcoin.address.BitcoinAddress
-import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
-import build.wallet.bitcoin.transactions.*
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -23,19 +25,15 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create)
-  val outgoingTransactionDetailRepository =
-    OutgoingTransactionDetailRepositoryMock(turbines::create)
   val transactionsService = TransactionsServiceFake()
 
   val stateMachine = FeeBumpConfirmationUiStateMachineImpl(
-    fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
     transactionDetailsCardUiStateMachine = object : TransactionDetailsCardUiStateMachine,
       StateMachineMock<TransactionDetailsCardUiProps, TransactionDetailsModel>(
         initialModel =
@@ -53,8 +51,6 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
     exchangeRateService = ExchangeRateServiceFake(),
     nfcSessionUIStateMachine = object : NfcSessionUIStateMachine,
       ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc") {},
-    bitcoinBlockchain = bitcoinBlockchain,
-    outgoingTransactionDetailRepository = outgoingTransactionDetailRepository,
     transferInitiatedUiStateMachine = object : TransferInitiatedUiStateMachine,
       BodyStateMachineMock<TransferInitiatedUiProps>(
         "transfer-initiated"
@@ -94,11 +90,9 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitScreenWithBody<LoadingSuccessBodyModel>()
 
-      bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(PsbtMock)
-
-      spendingWallet.syncCalls.awaitItem()
-
-      outgoingTransactionDetailRepository.setTransactionCalls.awaitItem().shouldBe(Unit)
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainExactly(PsbtMock)
+      }
 
       awaitScreenWithBodyModelMock<TransferInitiatedUiProps>("transfer-initiated") {
         onDone()

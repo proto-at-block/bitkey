@@ -13,9 +13,9 @@ import io.kotest.property.checkAll
 import io.kotest.property.exhaustive.enum
 
 class AppKeysGeneratorComponentTests : FunSpec({
-  val app = launchNewApp().app
 
   test("KeyBundle uses random localId") {
+    val app = launchNewApp().app
     val appKeyBundle1 =
       app.appKeysGenerator
         .generateKeyBundle(network = BITCOIN)
@@ -33,6 +33,7 @@ class AppKeysGeneratorComponentTests : FunSpec({
 
   test("generate new app KeyBundle") {
     checkAll(Exhaustive.enum<BitcoinNetworkType>()) { network ->
+      val app = launchNewApp().app
       val appKeyBundle =
         app.appKeysGenerator
           .generateKeyBundle(network)

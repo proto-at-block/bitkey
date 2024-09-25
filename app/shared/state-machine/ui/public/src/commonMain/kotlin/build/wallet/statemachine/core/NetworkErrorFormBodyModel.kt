@@ -1,6 +1,7 @@
 package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.RenderContext
 
@@ -48,11 +49,12 @@ private fun NetworkErrorFormBodyModelWithOptionalErrorData(
   renderContext: RenderContext = RenderContext.Screen,
 ) = ErrorFormBodyModelWithOptionalErrorData(
   title = title,
-  subline =
+  subline = StringModel(
     when {
       isConnectivityError -> "Make sure you are connected to the internet and try again."
       else -> "We are looking into this. Please try again later."
-    },
+    }
+  ),
   primaryButton =
     ButtonDataModel(
       text = "Back",
@@ -123,11 +125,12 @@ fun NetworkErrorFormBodyModelWithOptionalErrorData(
   return ErrorFormBodyModelWithOptionalErrorData(
     onBack = onBack,
     title = title,
-    subline =
+    subline = StringModel(
       when {
         isConnectivityError -> "Make sure you are connected to the internet and try again."
         else -> "We are looking into this. Please try again later."
-      },
+      }
+    ),
     // Show "Retry" as the primary button if an [onRetry] was provided. Otherwise, use the
     // back button as the primary button.
     primaryButton =

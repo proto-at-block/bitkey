@@ -10,6 +10,12 @@ class ToxiProxyService(
   val host: String = "localhost",
   val port: Int = 8474,
 ) {
+  init {
+    // TODO(W-6831):  allow using ToxiProxyService in tests. It is currently not suitable for use
+    // because we run tests in parallel and ToxiProxyService changes global state.
+    error("ToxiProxyService is currently not supported for use in tests.")
+  }
+
   private val client by lazy { ToxiproxyClient(host, port) }
 
   val fromagerie: Proxy

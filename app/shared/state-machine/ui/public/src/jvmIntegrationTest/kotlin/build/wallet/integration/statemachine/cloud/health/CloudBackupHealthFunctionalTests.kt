@@ -1,9 +1,6 @@
 package build.wallet.integration.statemachine.cloud.health
 
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CREATING_CLOUD_BACKUP
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.PREPARING_CLOUD_BACKUP
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.UPLOADING_CLOUD_BACKUP
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETECTED
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
@@ -13,16 +10,13 @@ import build.wallet.cloud.store.CloudFileStoreResult
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.matchers.shouldHaveTitle
+import build.wallet.statemachine.ui.matchers.shouldHaveCard
+import build.wallet.statemachine.ui.robots.clickSettings
 import build.wallet.statemachine.ui.robots.clickTrailingButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -30,17 +24,14 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.NamedTag
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.spec.style.scopes.RootTestWithConfigBuilder
 import io.kotest.core.test.TestCase
 import io.kotest.core.test.TestScope
-import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 private const val CLOUD_ACCESS_FAILURE = "cloud-access-failure"
 
@@ -60,12 +51,9 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health dashboard is visible with warning icon")
     .withTags(CLOUD_ACCESS_FAILURE) {
-      appTester.app.appUiStateMachine.test(
-        props = Unit,
-        useVirtualTime = false
-      ) {
+      appTester.app.appUiStateMachine.test(props = Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
-          shouldClickSettings()
+          clickSettings()
         }
         awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
           cloudBackupHealthRow.shouldNotBeNull()
@@ -80,20 +68,14 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     }
 
   test("Cloud backup health dashboard is visible") {
-    appTester.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
+    appTester.app.appUiStateMachine.test(props = Unit) {
       shouldNavigateToCloudBackupHealthDashboard()
       cancelAndIgnoreRemainingEvents()
     }
   }
 
   test("Cloud backup health dashboard with healthy cloud backup") {
-    appTester.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
+    appTester.app.appUiStateMachine.test(props = Unit) {
       shouldNavigateToCloudBackupHealthDashboard {
         mobileKeyBackupStatusCard.backupStatus.title.shouldBe("Fake Cloud Store backup")
         mobileKeyBackupStatusCard.backupStatusActionButton.shouldBeNull()
@@ -104,10 +86,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health dashboard with cloud access failure")
     .withTags(CLOUD_ACCESS_FAILURE) {
-      appTester.app.appUiStateMachine.test(
-        props = Unit,
-        useVirtualTime = false
-      ) {
+      appTester.app.appUiStateMachine.test(props = Unit) {
         shouldNavigateToCloudBackupHealthDashboard {
           mobileKeyBackupStatusCard.backupStatus.title
             .shouldBe("Problem with Fake Cloud Store\naccount access")
@@ -121,10 +100,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     }
 
   test("Cloud backup health dashboard repair mobile key backup") {
-    appTester.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
+    appTester.app.appUiStateMachine.test(props = Unit) {
       appTester.app.cloudBackupRepository.clear(CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
         mobileKeyBackupStatusCard.backupStatus.title
@@ -149,10 +125,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   }
 
   test("Cloud backup health automatically repairs eak backup") {
-    appTester.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
+    appTester.app.appUiStateMachine.test(props = Unit) {
       val cloudFileStoreFake = appTester.app.cloudFileStore as CloudFileStoreFake
       cloudFileStoreFake.clear()
       shouldNavigateToCloudBackupHealthDashboard {
@@ -170,19 +143,17 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health card appears on money home screen")
     .withTags(CLOUD_ACCESS_FAILURE) {
-      appTester.app.appUiStateMachine.test(
-        props = Unit,
-        useVirtualTime = false
-      ) {
+      appTester.app.appUiStateMachine.test(props = Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(
           id = MONEY_HOME,
-          expectedBodyContentMatch = {
-            it.cardsModel.cards.isNotEmpty()
+          expectedBodyContentMatch = { body ->
+            body.cardsModel.cards.any {
+              it.title?.string?.contains("Problem with Fake Cloud Store") == true
+            }
           }
         ) {
-          cardsModel.cards
-            .first()
-            .shouldHaveTitle("Problem with Fake Cloud Store\naccount access")
+          cardsModel
+            .shouldHaveCard("Problem with Fake Cloud Store\naccount access")
             .clickTrailingButton()
           awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING)
           awaitUntilScreenWithBody<CloudSignInModelFake>()
@@ -193,24 +164,20 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health card does not appear on money home screen") {
     appTester.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
-        cardsModel.cards.shouldBeEmpty()
-      }
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        MONEY_HOME,
+        expectedBodyContentMatch = { body ->
+          body.cardsModel.cards.none {
+            it.title?.string?.contains("Problem with Fake Cloud Store") == true
+          }
+        }
+      )
       cancelAndIgnoreRemainingEvents()
     }
   }
 })
-
-private fun MoneyHomeBodyModel.shouldClickSettings() {
-  trailingToolbarAccessoryModel
-    .shouldNotBeNull()
-    .shouldBeTypeOf<IconAccessory>()
-    .model
-    .onClick()
-}
 
 private val SettingsBodyModel.cloudBackupHealthRow
   get() =
@@ -231,7 +198,7 @@ private suspend inline fun StateMachineTester<Unit, ScreenModel>.shouldNavigateT
   block: CloudBackupHealthDashboardBodyModel.() -> Unit = {},
 ): CloudBackupHealthDashboardBodyModel {
   awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
-    shouldClickSettings()
+    clickSettings()
   }
   awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
     cloudBackupHealthRow.shouldNotBeNull().onClick()

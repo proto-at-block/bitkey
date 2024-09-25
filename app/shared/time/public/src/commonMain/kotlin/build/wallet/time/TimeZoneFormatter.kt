@@ -31,7 +31,7 @@ fun TimeZoneFormatter.timeZoneShortNameWithHoursOffset(
 
 fun TimeZone.hoursFromUtc(clock: Clock): Int = offsetAt(clock.now()).duration().inWholeHours.toInt()
 
-fun TimeZone.timeFromUtcInHms(clock: Clock = Clock.System): String {
+fun TimeZone.timeFromUtcInHms(clock: Clock): String {
   val offsetInSeconds = offsetAt(clock.now()).duration().inWholeSeconds
   val isNegative = offsetInSeconds < 0
   val totalSeconds = abs(offsetInSeconds)

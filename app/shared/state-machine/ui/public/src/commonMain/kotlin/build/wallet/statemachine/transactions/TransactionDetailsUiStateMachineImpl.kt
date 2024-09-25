@@ -12,17 +12,19 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
+import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.money.orZero
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -67,20 +69,20 @@ class TransactionDetailsUiStateMachineImpl(
   override fun model(props: TransactionDetailsUiProps): ScreenModel {
     val totalAmount =
       when (props.transaction.transactionType) {
-        Incoming -> props.transaction.subtotal
+        Incoming, UtxoConsolidation -> props.transaction.subtotal
         Outgoing -> props.transaction.total
       }
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    val fiatAmount =
+    val totalFiatAmount =
       convertedOrZero(
         converter = currencyConverter,
         fromAmount = totalAmount,
         toCurrency = fiatCurrency,
         atTime = props.transaction.broadcastTime ?: props.transaction.confirmationTime()
       )
-    val fiatString = moneyDisplayFormatter.format(fiatAmount)
+    val totalFiatString = moneyDisplayFormatter.format(totalFiatAmount)
 
     val transactionsData = remember { transactionsService.transactionsData() }
       .collectAsState().value
@@ -92,7 +94,7 @@ class TransactionDetailsUiStateMachineImpl(
 
     val feeBumpEnabled by remember {
       mutableStateOf(
-        feeBumpEnabled.flagValue().value.value &&
+        feeBumpEnabled.isEnabled() &&
           bitcoinTransactionBumpabilityChecker.isBumpable(
             transaction = props.transaction,
             walletUnspentOutputs = unspentOutputs
@@ -118,7 +120,8 @@ class TransactionDetailsUiStateMachineImpl(
         TransactionDetailModel(
           props = props,
           totalAmount = totalAmount,
-          fiatString = fiatString,
+          fiatCurrency = fiatCurrency,
+          totalFiatString = totalFiatString,
           feeBumpEnabled = feeBumpEnabled,
           isLoading = state.isLoading,
           isShowingEducationSheet = state.isShowingEducationSheet,
@@ -205,11 +208,13 @@ class TransactionDetailsUiStateMachineImpl(
     }
   }
 
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   private fun TransactionDetailModel(
     props: TransactionDetailsUiProps,
     totalAmount: BitcoinMoney,
-    fiatString: String,
+    fiatCurrency: FiatCurrency,
+    totalFiatString: String,
     feeBumpEnabled: Boolean,
     isLoading: Boolean,
     isShowingEducationSheet: Boolean,
@@ -326,6 +331,34 @@ class TransactionDetailsUiStateMachineImpl(
                           .format(props.transaction.subtotal)
                     )
                   )
+                UtxoConsolidation -> {
+                  val consolidationCost = props.transaction.fee.orZero()
+                  val consolidationCostBitcoinString = moneyDisplayFormatter.format(consolidationCost)
+                  val consolidationTime =
+                    props.transaction.confirmationTime() ?: props.transaction.broadcastTime
+                  val consolidationCostFiat = convertedOrZero(
+                    converter = currencyConverter,
+                    fromAmount = consolidationCost,
+                    toCurrency = fiatCurrency,
+                    atTime = consolidationTime
+                  )
+                  val consolidationCostFiatString = moneyDisplayFormatter.format(consolidationCostFiat)
+                  immutableListOf(
+                    Data(
+                      title = "UTXOs consolidated",
+                      sideText = "${props.transaction.inputs.size}"
+                    ),
+                    Data(
+                      title = "Consolidation cost",
+                      sideText = consolidationCostBitcoinString,
+                      secondarySideText = when {
+                        props.transaction.confirmationTime() != null -> "$consolidationCostFiatString at time confirmed"
+                        props.transaction.broadcastTime != null -> "$consolidationCostFiatString at time sent"
+                        else -> "~$consolidationCostFiatString"
+                      }
+                    )
+                  )
+                }
 
                 Outgoing ->
                   immutableListOf(
@@ -348,23 +381,27 @@ class TransactionDetailsUiStateMachineImpl(
                     )
                   )
               },
-            total =
-              Data(
-                title = "Total",
-                sideText = moneyDisplayFormatter.format(totalAmount),
-                sideTextType = Data.SideTextType.BODY2BOLD,
-                secondarySideText =
-                  when {
-                    props.transaction.broadcastTime != null ->
-                      "$fiatString at time sent"
-
-                    props.transaction.confirmationTime() != null ->
-                      "$fiatString at time confirmed"
-
-                    else ->
-                      "~$fiatString"
+            total = run {
+              val shouldDisplayTotal = props.transaction.transactionType != UtxoConsolidation
+              if (shouldDisplayTotal) {
+                Data(
+                  title = "Total",
+                  sideText = moneyDisplayFormatter.format(totalAmount),
+                  sideTextType = Data.SideTextType.BODY2BOLD,
+                  secondarySideText = run {
+                    when {
+                      props.transaction.broadcastTime != null ->
+                        "$totalFiatString at time sent"
+                      props.transaction.confirmationTime() != null ->
+                        "$totalFiatString at time confirmed"
+                      else -> "~$totalFiatString"
+                    }
                   }
-              )
+                )
+              } else {
+                null
+              }
+            }
           )
         )
     ).asModalScreen()

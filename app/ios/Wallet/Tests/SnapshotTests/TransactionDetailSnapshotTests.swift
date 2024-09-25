@@ -117,6 +117,64 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
+    func test_transaction_detail_utxoConsolidation() {
+        let view = FormView(
+            viewModel: .transactionDetailModel(
+                isPending: false,
+                transactionType: BitcoinTransactionTransactionTypeUtxoConsolidation(),
+                isFeeBumpEnabled: false,
+                content: [
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [.init(
+                            withTitle: "Confirmed at",
+                            titleIcon: nil,
+                            onTitle: {},
+                            sideText: "03-17-1963",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        )],
+                        total: nil,
+                        buttons: []
+                    ),
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [
+                            .init(
+                                withTitle: "UTXOs consolidated",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "2",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                            .init(
+                                withTitle: "Consolidation cost",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "2000 sats",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                        ],
+                        total: .init(
+                            withTitle: "Total",
+                            titleIcon: nil,
+                            onTitle: {},
+                            sideText: "35,584 sats",
+                            sideTextType: .body2bold,
+                            secondarySideText: "$10.00 at time confirmed",
+                            showBottomDivider: false
+                        ),
+                        buttons: []
+                    ),
+                ]
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
     func test_transaction_detail_pending() {
         let view = FormView(
             viewModel: .transactionDetailModel(

@@ -32,7 +32,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.statemachine.core.form.RenderContext.Screen
-import build.wallet.ui.app.account.toWalletTheme
 import build.wallet.ui.app.core.fadingEdge
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.callout.Callout
@@ -46,6 +45,7 @@ import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Multilin
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.toWalletTheme
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.components.list.ListGroup

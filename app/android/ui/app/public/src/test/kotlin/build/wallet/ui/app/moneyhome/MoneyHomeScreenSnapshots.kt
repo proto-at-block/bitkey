@@ -6,9 +6,15 @@ import io.kotest.core.spec.style.FunSpec
 class MoneyHomeScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("moneyhome_screen_full") {
+  test("MoneyHome Screen Full") {
     paparazzi.snapshot {
       MoneyHomeScreenFull()
+    }
+  }
+
+  test("MoneyHome Screen Full with large balance") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(largeBalance = true)
     }
   }
 

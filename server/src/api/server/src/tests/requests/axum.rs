@@ -6,6 +6,7 @@ use axum::Router;
 use experimentation::routes::{
     GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest, GetFeatureFlagsResponse,
 };
+use export_tools::routes::GetAccountDescriptorResponse;
 use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
@@ -27,6 +28,7 @@ use types::notification::NotificationsPreferences;
 use types::privileged_action::router::generic::{
     PrivilegedActionRequest, PrivilegedActionResponse,
 };
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 use authn_authz::routes::{
     AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
@@ -57,15 +59,18 @@ use onboarding::routes::{
 use types::account::identifiers::{AccountId, KeysetId};
 
 use recovery::routes::{
-    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, CreateRecoveryRelationshipRequest,
-    CreateRelationshipResponse, EndorseRecoveryRelationshipsRequest,
-    EndorseRecoveryRelationshipsResponse, FetchSocialChallengeResponse,
+    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse, CompleteDelayNotifyRequest,
+    CreateAccountDelayNotifyRequest, CreateInheritanceClaimRequest, CreateInheritanceClaimResponse,
+    CreateRecoveryRelationshipRequest, CreateRelationshipRequest, CreateRelationshipResponse,
+    EndorseRecoveryRelationshipsRequest, EndorseRecoveryRelationshipsResponse,
+    FetchSocialChallengeResponse, GetInheritanceClaimsResponse,
     GetRecoveryRelationshipInvitationForCodeResponse, GetRecoveryRelationshipsResponse,
     RespondToSocialChallengeRequest, RespondToSocialChallengeResponse,
     RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
     SendAccountVerificationCodeRequest, SendAccountVerificationCodeResponse,
     StartSocialChallengeRequest, StartSocialChallengeResponse, UpdateDelayForTestRecoveryRequest,
     UpdateRecoveryRelationshipRequest, UpdateRecoveryRelationshipResponse,
+    UploadInheritancePackagesRequest, UploadInheritancePackagesResponse,
     VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
     VerifySocialChallengeRequest, VerifySocialChallengeResponse,
 };
@@ -832,9 +837,13 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn get_bdk_configuration(&self) -> Response<BdkConfigResponse> {
+    pub(crate) async fn get_bdk_configuration(
+        &self,
+        headers: HeaderMap,
+    ) -> Response<BdkConfigResponse> {
         Request::builder()
             .uri("/api/bdk-configuration")
+            .with_headers(headers)
             .get()
             .call(&self.router)
             .await
@@ -866,6 +875,29 @@ impl TestClient {
     ) -> Response<CreateRelationshipResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/recovery/relationships"))
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn create_relationship(
+        &self,
+        account_id: &str,
+        request: &CreateRelationshipRequest,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<CreateRelationshipResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/relationships"))
             .with_authentication(
                 auth,
                 &AccountId::from_str(account_id).unwrap(),
@@ -990,6 +1022,23 @@ impl TestClient {
     ) -> Response<GetRecoveryRelationshipsResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/recovery/relationships"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_relationships(
+        &self,
+        account_id: &str,
+        trusted_contact_role: Option<&TrustedContactRole>,
+    ) -> Response<GetRecoveryRelationshipsResponse> {
+        let query = match trusted_contact_role {
+            Some(role) => format!("trusted_contact_role={}", role),
+            None => "".to_string(),
+        };
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/relationships?{query}"))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .get()
             .call(&self.router)
@@ -1315,6 +1364,124 @@ impl TestClient {
         Request::builder()
             .uri("/api/privileged-actions/cancel".to_string())
             .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_account_descriptors(
+        &self,
+        account_id: &str,
+    ) -> Response<GetAccountDescriptorResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/descriptors"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn start_inheritance_claim(
+        &self,
+        account_id: &str,
+        request: &CreateInheritanceClaimRequest,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<CreateInheritanceClaimResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/inheritance/claims"
+            ))
+            .with_authentication(
+                &CognitoAuthentication::Wallet {
+                    is_app_signed: false,
+                    is_hardware_signed: false,
+                },
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn package_upload(
+        &self,
+        account_id: &str,
+        request: &UploadInheritancePackagesRequest,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<UploadInheritancePackagesResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/inheritance/packages"
+            ))
+            .with_authentication(
+                &CognitoAuthentication::Wallet {
+                    is_app_signed: false,
+                    is_hardware_signed: false,
+                },
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn cancel_inheritance_claim(
+        &self,
+        account_id: &str,
+        inheritance_claim_id: &str,
+        request: &CancelInheritanceClaimRequest,
+        keys_account_id: &str,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<CancelInheritanceClaimResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/cancel"
+            ))
+            .with_authentication(
+                &CognitoAuthentication::Wallet {
+                    is_app_signed: false,
+                    is_hardware_signed: false,
+                },
+                &AccountId::from_str(keys_account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_inheritance_claims(
+        &self,
+        account_id: &str,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetInheritanceClaimsResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/inheritance/claims"
+            ))
+            .with_authentication(
+                &CognitoAuthentication::Recovery,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .get()
             .call(&self.router)
             .await
     }

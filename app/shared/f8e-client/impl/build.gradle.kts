@@ -20,7 +20,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.accountPublic)
         api(projects.shared.analyticsPublic)
         api(projects.shared.authPublic)
         api(projects.shared.databasePublic)
@@ -68,6 +67,13 @@ kotlin {
     val iosMain by getting {
       dependencies {
         api(libs.native.ktor.client.darwin)
+      }
+    }
+
+    val jvmIntegrationTest by getting {
+      dependencies {
+        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.integrationTestingPublic)
       }
     }
   }

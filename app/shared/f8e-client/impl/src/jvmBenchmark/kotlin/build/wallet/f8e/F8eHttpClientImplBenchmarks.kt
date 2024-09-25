@@ -14,7 +14,8 @@ import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.TracerHeaders
 import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.client.*
-import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryFake
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.debug.NetworkingDebugServiceFake
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.bodyResult
@@ -30,6 +31,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.*
 import kotlinx.benchmark.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 
 @State(Scope.Benchmark)
@@ -37,6 +41,18 @@ open class F8eHttpClientImplBenchmarks {
   private val fakeAppAuthKeyMessageSigner = AppAuthKeyMessageSignerMock()
   private val fakeKeyboxDao = KeyboxDaoMock({ Turbine() }, KeyboxMock)
   private val authTokensRepository = AuthTokensRepositoryMock()
+
+  private val engine =
+    MockEngine {
+      it.headers["a"] shouldBe "1"
+      it.headers["b"] shouldBe "2"
+
+      respond(
+        content = ByteReadChannel("{}"),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
+      )
+    }
 
   private val datadogTracer =
     object : DatadogTracer {
@@ -79,9 +95,20 @@ open class F8eHttpClientImplBenchmarks {
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
-      networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake(),
+      networkingDebugService = NetworkingDebugServiceFake(),
       appInstallationDao = AppInstallationDaoMock(),
       countryCodeGuesser = CountryCodeGuesserMock()
+    )
+
+  private val unauthenticatedF8eHttpClientFactory =
+    UnauthenticatedF8eHttpClientFactory(
+      appVariant = Development,
+      platformInfoProvider = PlatformInfoProviderMock(),
+      datadogTracer = datadogTracer,
+      networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine(name = it) },
+      appInstallationDao = AppInstallationDaoMock(),
+      countryCodeGuesser = CountryCodeGuesserMock(),
+      engine = engine
     )
 
   private val client =
@@ -95,25 +122,13 @@ open class F8eHttpClientImplBenchmarks {
         ),
       unauthenticatedF8eHttpClient =
         UnauthenticatedOnlyF8eHttpClientImpl(
-          f8eHttpClientProvider = f8eHttpClientProvider,
-          networkReachabilityProvider = networkReachabilityProvider
+          appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+          unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
         ),
       f8eHttpClientProvider = f8eHttpClientProvider,
       networkReachabilityProvider = networkReachabilityProvider,
       wsmVerifier = WsmVerifierMock()
     )
-
-  private val engine =
-    MockEngine {
-      it.headers["a"] shouldBe "1"
-      it.headers["b"] shouldBe "2"
-
-      respond(
-        content = ByteReadChannel("{}"),
-        status = HttpStatusCode.OK,
-        headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
-      )
-    }
 
   @Setup
   fun prepare() {
@@ -124,12 +139,11 @@ open class F8eHttpClientImplBenchmarks {
   fun unauthenticatedRequest() {
     @Suppress("ForbiddenMethodCall")
     runBlocking {
-      client.unauthenticated(
-        f8eEnvironment = F8eEnvironment.Development,
-        engine = engine
-      )
+      client.unauthenticated()
         .bodyResult<EmptyResponseBody> {
-          get("/soda/can")
+          get("/soda/can") {
+            withEnvironment(F8eEnvironment.Development)
+          }
         }
     }
   }

@@ -3,11 +3,11 @@ use tracing::{event, instrument, Level};
 use crate::entities::MigrationRecord;
 use crate::repository::PARTITION_KEY;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
+use database::ddb::{try_from_item, try_to_attribute_val, DatabaseError, Repository};
 
-use super::Repository;
+use super::MigrationRepository;
 
-impl Repository {
+impl MigrationRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch(
         &self,

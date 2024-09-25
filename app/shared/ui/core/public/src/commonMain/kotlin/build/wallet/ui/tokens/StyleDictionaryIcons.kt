@@ -55,17 +55,20 @@ import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
 import build.wallet.statemachine.core.Icon.SmallIconCloud
 import build.wallet.statemachine.core.Icon.SmallIconCloudError
+import build.wallet.statemachine.core.Icon.SmallIconConsolidation
 import build.wallet.statemachine.core.Icon.SmallIconCopy
 import build.wallet.statemachine.core.Icon.SmallIconCurrency
 import build.wallet.statemachine.core.Icon.SmallIconDigitOne
 import build.wallet.statemachine.core.Icon.SmallIconDigitThree
 import build.wallet.statemachine.core.Icon.SmallIconDigitTwo
+import build.wallet.statemachine.core.Icon.SmallIconDocument
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconExternal
 import build.wallet.statemachine.core.Icon.SmallIconFingerprint
 import build.wallet.statemachine.core.Icon.SmallIconInformation
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
+import build.wallet.statemachine.core.Icon.SmallIconInheritance
 import build.wallet.statemachine.core.Icon.SmallIconKey
 import build.wallet.statemachine.core.Icon.SmallIconKeyboard
 import build.wallet.statemachine.core.Icon.SmallIconLightning
@@ -168,17 +171,20 @@ private val Icon.drawableRes: DrawableResource
       SmallIconClock -> Res.drawable.small_icon_clock
       SmallIconCloud -> Res.drawable.small_icon_cloud
       SmallIconCloudError -> Res.drawable.small_icon_cloud_error
+      SmallIconConsolidation -> Res.drawable.small_icon_consolidation
       SmallIconCopy -> Res.drawable.small_icon_copy
       SmallIconCurrency -> Res.drawable.small_icon_currency
       SmallIconDigitOne -> Res.drawable.small_icon_digit_one
       SmallIconDigitThree -> Res.drawable.small_icon_digit_three
       SmallIconDigitTwo -> Res.drawable.small_icon_digit_two
+      SmallIconDocument -> Res.drawable.small_icon_document
       SmallIconElectrum -> Res.drawable.small_icon_electrum
       SmallIconEmail -> Res.drawable.small_icon_email
       SmallIconExternal -> Res.drawable.small_icon_external
       SmallIconFingerprint -> Res.drawable.small_icon_fingerprint
       SmallIconInformation -> Res.drawable.small_icon_information
       SmallIconInformationFilled -> Res.drawable.small_icon_information_filled
+      SmallIconInheritance -> Res.drawable.small_icon_inheritance
       SmallIconKey -> Res.drawable.small_icon_key
       SmallIconKeyboard -> Res.drawable.small_icon_keyboard
       SmallIconLightning -> Res.drawable.small_icon_lightning

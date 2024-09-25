@@ -15,6 +15,7 @@ members = [
   "src/api/database",
   "src/api/errors",
   "src/api/exchange_rate",
+  "src/api/export_tools",
   "src/api/external_identifier",
   "src/api/http_server",
   "src/api/instrumentation",
@@ -132,6 +133,7 @@ database = { path = "src/api/database" }
 errors = { path = "src/api/errors" }
 exchange_rate = { path = "src/api/exchange_rate" }
 experimentation = { path = "src/api/experimentation" }
+export_tools = { path = "src/api/export_tools" }
 external_identifier = { path = "src/api/external_identifier" }
 feature_flags = { path = "src/feature_flags" }
 http_server = { path = "src/api/http_server" }

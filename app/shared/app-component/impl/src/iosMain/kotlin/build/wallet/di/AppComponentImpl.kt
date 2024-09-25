@@ -59,7 +59,7 @@ fun makeAppComponent(
   xChaCha20Poly1305: XChaCha20Poly1305,
   xNonceGenerator: XNonceGenerator,
   firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
-): AppComponent {
+): AppComponentImpl {
   val appId = AppId(NSBundle.mainBundle.bundleIdentifier!!)
   val appVersion =
     run {

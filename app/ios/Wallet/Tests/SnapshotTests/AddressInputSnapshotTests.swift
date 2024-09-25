@@ -17,7 +17,9 @@ final class AddressInputSnapshotTests: XCTestCase {
                 onContinueClick: nil,
                 onBack: {},
                 onScanQrCodeClick: {},
-                onPasteButtonClick: {}
+                onPasteButtonClick: {},
+                showSelfSendWarningWithRedirect: false,
+                onGoToUtxoConsolidation: {}
             )
         )
 
@@ -34,7 +36,9 @@ final class AddressInputSnapshotTests: XCTestCase {
                 onContinueClick: nil,
                 onBack: {},
                 onScanQrCodeClick: {},
-                onPasteButtonClick: {}
+                onPasteButtonClick: {},
+                showSelfSendWarningWithRedirect: false,
+                onGoToUtxoConsolidation: {}
             )
         )
 
@@ -51,11 +55,31 @@ final class AddressInputSnapshotTests: XCTestCase {
                 onContinueClick: nil,
                 onBack: {},
                 onScanQrCodeClick: {},
-                onPasteButtonClick: {}
+                onPasteButtonClick: {},
+                showSelfSendWarningWithRedirect: false,
+                onGoToUtxoConsolidation: {}
             )
         )
 
         assertBitkeySnapshots(view: view)
     }
 
+    func test_address_input_self_send_warning() {
+        let view = FormView(
+            viewModel: BitcoinRecipientAddressScreenModelKt.BitcoinRecipientAddressScreenModel(
+                enteredText: "tb1qr2vljrk6wyjtvyy5cs35yan8w6xhedrr20a845v8qpg500zutf3sv29dzg",
+                warningText: nil,
+                onEnteredTextChanged: { _ in },
+                showPasteButton: false,
+                onContinueClick: nil,
+                onBack: {},
+                onScanQrCodeClick: {},
+                onPasteButtonClick: {},
+                showSelfSendWarningWithRedirect: true,
+                onGoToUtxoConsolidation: {}
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
 }

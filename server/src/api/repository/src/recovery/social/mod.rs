@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
@@ -38,12 +38,12 @@ enum SocialRecoveryRow {
 }
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct SocialRecoveryRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for SocialRecoveryRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

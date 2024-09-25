@@ -2,6 +2,8 @@ package build.wallet.statemachine.settings.full
 
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.limit.*
 import build.wallet.limit.MobilePayData.MobilePayDisabledData
 import build.wallet.money.FiatMoney
@@ -47,8 +49,8 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
     )
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-
   val mobilePayService = MobilePayServiceMock(turbines::create)
+  val mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
   val stateMachine =
     MobilePayStatusUiStateMachineImpl(
@@ -66,12 +68,14 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
               )
           ) {},
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      mobilePayService = mobilePayService
+      mobilePayService = mobilePayService,
+      mobilePayRevampFeatureFlag = mobilePayRevampFeatureFlag
     )
 
   beforeTest {
     fiatCurrencyPreferenceRepository.reset()
     mobilePayService.reset()
+    mobilePayRevampFeatureFlag.reset()
   }
 
   test("load mobile pay data") {

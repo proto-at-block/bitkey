@@ -2,14 +2,14 @@ use tracing::{event, instrument, Level};
 
 use bdk_utils::bdk::bitcoin::Txid;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
+use database::ddb::{try_from_item, try_to_attribute_val, DatabaseError, Repository};
 
 use crate::signed_psbt_cache::entities::{CachedPsbt, NonBase64CachedPsbt};
 use crate::signed_psbt_cache::repository::PARTITION_KEY;
 
-use super::Repository;
+use super::SignedPsbtCacheRepository;
 
-impl Repository {
+impl SignedPsbtCacheRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch(&self, txid: Txid) -> Result<CachedPsbt, DatabaseError> {
         let table_name = self.get_table_name().await?;

@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY_SHEET
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.home.HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY
 import build.wallet.limit.MobilePayData
@@ -16,12 +18,14 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import kotlinx.coroutines.launch
 
 class HomeUiBottomSheetStateMachineImpl(
   private val homeUiBottomSheetDao: HomeUiBottomSheetDao,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val mobilePayService: MobilePayService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : HomeUiBottomSheetStateMachine {
   @Composable
   override fun model(props: HomeUiBottomSheetProps): SheetModel? {
@@ -46,6 +50,7 @@ class HomeUiBottomSheetStateMachineImpl(
           account = props.account,
           fiatCurrency = fiatCurrency,
           mobilePayData = mobilePayData,
+          isMobilePayRevampEnabled = mobilePayRevampFeatureFlag.isEnabled(),
           onClearSheet = {
             homeUiBottomSheetDao.clearHomeUiBottomSheet()
           },
@@ -59,6 +64,7 @@ class HomeUiBottomSheetStateMachineImpl(
     account: FullAccount,
     fiatCurrency: FiatCurrency,
     mobilePayData: MobilePayData?,
+    isMobilePayRevampEnabled: Boolean,
     onClearSheet: suspend () -> Unit,
     onShowSetSpendingLimitFlow: () -> Unit,
   ): SheetModel? {
@@ -85,6 +91,12 @@ class HomeUiBottomSheetStateMachineImpl(
     val oldCurrencyCode = mobilePayCurrency.textCode.code
     val newCurrencyCode = fiatCurrency.textCode.code
 
+    val bottomSheetCopy = SpendingLimitsCopy.get(isRevampOn = isMobilePayRevampEnabled)
+      .reenableSpendingLimitBottomSheetCopy(
+        oldCurrencyString = oldCurrencyCode,
+        newCurrencyString = newCurrencyCode
+      )
+
     val scope = rememberStableCoroutineScope()
 
     return SheetModel(
@@ -104,13 +116,11 @@ class HomeUiBottomSheetStateMachineImpl(
               }
             }
           },
-          title = "Re-enable Mobile Pay",
-          subline =
-            "We noticed that you changed your currency from $oldCurrencyCode to $newCurrencyCode. " +
-              "Please make sure your Mobile Pay amount is correct.",
+          title = bottomSheetCopy.title,
+          subline = bottomSheetCopy.subline,
           primaryButton =
             ButtonDataModel(
-              text = "Enable Mobile Pay",
+              text = bottomSheetCopy.primaryActionString,
               onClick = {
                 isClearingBottomSheet = true
                 onShowSetSpendingLimitFlow()

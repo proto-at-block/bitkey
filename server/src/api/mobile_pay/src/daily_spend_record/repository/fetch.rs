@@ -1,16 +1,15 @@
 use time::Date;
 use tracing::{event, instrument, Level};
 
-use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
-use types::account::identifiers::AccountId;
-
 use crate::daily_spend_record::entities::DailySpendingRecord;
 use crate::daily_spend_record::repository::{PARTITION_KEY, SORT_KEY};
+use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
+use database::ddb::{try_from_item, try_to_attribute_val, DatabaseError, Repository};
+use types::account::identifiers::AccountId;
 
-use super::Repository;
+use super::DailySpendRecordRepository;
 
-impl Repository {
+impl DailySpendRecordRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch(
         &self,

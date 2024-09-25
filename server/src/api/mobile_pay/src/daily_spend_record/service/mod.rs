@@ -8,15 +8,15 @@ use errors::ApiError;
 use types::account::identifiers::AccountId;
 
 use crate::daily_spend_record::entities::DailySpendingRecord;
-use crate::daily_spend_record::repository::Repository;
+use crate::daily_spend_record::repository::DailySpendRecordRepository;
 
 #[derive(Clone)]
 pub struct Service {
-    repo: Repository,
+    repo: DailySpendRecordRepository,
 }
 
 impl Service {
-    pub fn new(repo: Repository) -> Self {
+    pub fn new(repo: DailySpendRecordRepository) -> Self {
         Self { repo }
     }
 

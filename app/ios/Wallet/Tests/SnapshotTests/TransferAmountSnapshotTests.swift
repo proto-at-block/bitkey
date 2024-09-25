@@ -22,6 +22,8 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 bannerModel: .HardwareRequiredBannerModel(),
                 continueButtonEnabled: false,
                 amountDisabled: false,
+                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
+                    .transferScreenUnavailableWarning,
                 onSendMaxClick: {},
                 onContinueClick: {},
                 onSwapCurrencyClick: {},
@@ -47,6 +49,8 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 bannerModel: .AmountEqualOrAboveBalanceBannerModel(),
                 continueButtonEnabled: false,
                 amountDisabled: false,
+                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
+                    .transferScreenUnavailableWarning,
                 onSendMaxClick: {},
                 onContinueClick: {},
                 onSwapCurrencyClick: {},
@@ -72,6 +76,8 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 bannerModel: nil,
                 continueButtonEnabled: true,
                 amountDisabled: false,
+                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
+                    .transferScreenUnavailableWarning,
                 onSendMaxClick: {},
                 onContinueClick: {},
                 onSwapCurrencyClick: {},

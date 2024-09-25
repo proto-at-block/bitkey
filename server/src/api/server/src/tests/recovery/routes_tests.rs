@@ -1,5 +1,5 @@
 use crate::tests::lib::{create_full_account, create_lite_account};
-use crate::tests::recovery::recovery_relationship_integration_tests::AccountType;
+use crate::tests::recovery::shared::AccountType;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::{gen_services, TestContext};
@@ -179,13 +179,10 @@ async fn test_get_relationships(
         .await;
 
     // act
-    let tc_query = serde_json::to_string(&target_tc_role)
-        .unwrap()
-        .trim_matches('"')
-        .to_string();
     let uri = format!(
-        "/api/accounts/{}/relationships?trusted_contact_role={tc_query}",
-        customer_account.get_id()
+        "/api/accounts/{}/relationships?trusted_contact_role={}",
+        customer_account.get_id(),
+        target_tc_role
     );
     let response = client
         .make_request_with_auth::<GetRelationshipsRequest>(

@@ -1,14 +1,14 @@
 use crate::entities::{
-    CommsVerificationClaim, CommsVerificationScope, FullAccountAuthKeys, LiteAccount,
-    LiteAccountAuthKeys, SoftwareAccountAuthKeys, TouchpointPlatform,
+    CommsVerificationClaim, CommsVerificationScope, LiteAccount, TouchpointPlatform,
 };
 use crate::spend_limit::SpendingLimit;
-use crate::{entities::Keyset, repository::Repository};
+use crate::{entities::Keyset, repository::AccountRepository};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use isocountry::CountryCode;
-use repository::consent::Repository as ConsentRepository;
+use repository::consent::ConsentRepository;
 use types::account::bitcoin::Network;
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
+use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
 use types::account::spending::{SpendingDistributedKey, SpendingKeyset};
 use userpool::userpool::UserPoolService;
 
@@ -35,14 +35,14 @@ mod upgrade_lite_account_to_full_account;
 
 #[derive(Clone)]
 pub struct Service {
-    account_repo: Repository,
+    account_repo: AccountRepository,
     consent_repo: ConsentRepository,
     userpool_service: UserPoolService,
 }
 
 impl Service {
     pub fn new(
-        account_repo: Repository,
+        account_repo: AccountRepository,
         consent_repo: ConsentRepository,
         userpool_service: UserPoolService,
     ) -> Self {

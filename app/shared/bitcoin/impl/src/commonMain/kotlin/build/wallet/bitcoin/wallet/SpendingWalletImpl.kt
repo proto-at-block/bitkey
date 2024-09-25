@@ -13,10 +13,7 @@ import build.wallet.bitcoin.bdk.bdkNetwork
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.Regular
@@ -38,18 +35,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.datetime.Instant
-import kotlin.collections.List
-import kotlin.collections.filter
 import kotlin.collections.fold
-import kotlin.collections.map
-import kotlin.collections.sortedByDescending
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 
 class SpendingWalletImpl(
   override val identifier: String,
   private val bdkWallet: BdkWallet,
-  private val networkType: BitcoinNetworkType,
+  override val networkType: BitcoinNetworkType,
   private val bdkTransactionMapper: BdkTransactionMapper,
   private val bdkWalletSyncer: BdkWalletSyncer,
   private val bdkPsbtBuilder: BdkPartiallySignedTransactionBuilder,
@@ -59,6 +52,7 @@ class SpendingWalletImpl(
   private val appSessionManager: AppSessionManager,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val syncContext: CoroutineContext = Dispatchers.IO,
+  private val feeBumpAllowShrinkingChecker: FeeBumpAllowShrinkingChecker,
 ) : SpendingWallet {
   private val balanceState = MutableStateFlow<BitcoinBalance?>(null)
   private val transactionsState =
@@ -303,9 +297,20 @@ class SpendingWalletImpl(
   ): Result<Psbt, Throwable> =
     coroutineBinding {
       withContext(Dispatchers.BdkIO) {
-        val psbtResult =
+        var bumpFeeTxBuilder =
           bdkBumpFeeTxBuilderFactory.bumpFeeTxBuilder(txid, feeRate.satsPerVByte)
             .enableRbf()
+
+        val shrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
+          txid = txid,
+          bdkWallet = bdkWallet
+        )
+        if (shrinkingScript != null) {
+          bumpFeeTxBuilder = bumpFeeTxBuilder.allowShrinking(shrinkingScript)
+        }
+
+        val psbtResult =
+          bumpFeeTxBuilder
             .finish(bdkWallet)
             .result
             .bind()

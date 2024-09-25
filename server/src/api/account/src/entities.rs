@@ -4,14 +4,15 @@ use std::{env, env::VarError};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 
+use bdk_utils::DescriptorKeyset;
 use isocountry::CountryCode;
 use serde::{Deserialize, Serialize};
 
 use strum_macros::{Display as StrumDisplay, EnumString};
 
 use time::{serde::rfc3339, OffsetDateTime};
-use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
-use types::account::identifiers::{KeyDefinitionId, TouchpointId};
+use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
+use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
 use types::account::spending::{SpendingKeyDefinition, SpendingKeyset};
 use types::account::{AccountType, PubkeysToAccount};
 use types::notification::{NotificationChannel, NotificationsPreferencesState};
@@ -342,6 +343,24 @@ impl FullAccount {
             .as_ref()
             .map_or(false, |limit| limit.active)
     }
+
+    pub fn active_descriptor_keyset(&self) -> Option<DescriptorKeyset> {
+        self.active_spending_keyset()
+            .map(|keyset| keyset.clone().into())
+    }
+
+    pub fn inactive_descriptor_keysets(&self) -> Vec<DescriptorKeyset> {
+        self.spending_keysets
+            .iter()
+            .filter_map(|keyset| {
+                if *keyset.0 == self.active_keyset_id {
+                    None
+                } else {
+                    Some(keyset.1.clone().into())
+                }
+            })
+            .collect()
+    }
 }
 
 impl From<FullAccount> for Account {
@@ -583,58 +602,6 @@ impl From<&Account> for AccountType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct FullAccountAuthKeys {
-    // Keys
-    pub app_pubkey: PublicKey,
-    pub hardware_pubkey: PublicKey,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub recovery_pubkey: Option<PublicKey>,
-}
-
-impl FullAccountAuthKeys {
-    #[must_use]
-    pub fn new(
-        app_pubkey: PublicKey,
-        hardware_pubkey: PublicKey,
-        recovery_pubkey: Option<PublicKey>,
-    ) -> Self {
-        Self {
-            app_pubkey,
-            hardware_pubkey,
-            recovery_pubkey,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct LiteAccountAuthKeys {
-    pub recovery_pubkey: PublicKey,
-}
-
-impl LiteAccountAuthKeys {
-    #[must_use]
-    pub fn new(recovery_pubkey: PublicKey) -> Self {
-        Self { recovery_pubkey }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-pub struct SoftwareAccountAuthKeys {
-    pub app_pubkey: PublicKey,
-    pub recovery_pubkey: PublicKey,
-}
-
-impl SoftwareAccountAuthKeys {
-    #[must_use]
-    pub fn new(app_pubkey: PublicKey, recovery_pubkey: PublicKey) -> Self {
-        Self {
-            app_pubkey,
-            recovery_pubkey,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Keyset {
     pub auth: FullAccountAuthKeys,
@@ -677,7 +644,9 @@ mod tests {
     use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
     use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
     use bdk_utils::bdk::keys::DescriptorPublicKey;
+    use std::collections::HashMap;
     use time::OffsetDateTime;
+    use types::account::bitcoin::Network;
     use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
 
     use super::{
@@ -687,30 +656,7 @@ mod tests {
 
     #[test]
     fn test_is_spending_limit_active() {
-        let keyset_id = KeysetId::gen().unwrap();
-        let mut pubkey = [2; 33];
-        pubkey[1] = 0xff;
-        let unset_spending_limit_account = FullAccount {
-            id: AccountId::gen().unwrap(),
-            active_keyset_id: keyset_id,
-            auth_keys: Default::default(),
-            spending_keysets: Default::default(),
-            spending_limit: None,
-            application_auth_pubkey: None,
-            hardware_auth_pubkey: PublicKey::from_slice(&pubkey).unwrap(),
-            common_fields: CommonAccountFields {
-                active_auth_keys_id: AuthKeysId::gen().unwrap(),
-                touchpoints: vec![],
-                created_at: OffsetDateTime::now_utc(),
-                updated_at: OffsetDateTime::now_utc(),
-                properties: Default::default(),
-                onboarding_complete: false,
-                recovery_auth_pubkey: None,
-                notifications_preferences_state: Default::default(),
-                configured_privileged_action_delay_durations: Default::default(),
-                comms_verification_claims: Default::default(),
-            },
-        };
+        let unset_spending_limit_account = generate_default_test_account();
         let set_and_enabled_spending_limit_account = FullAccount {
             spending_limit: Some(SpendingLimit {
                 active: true,
@@ -822,6 +768,86 @@ mod tests {
             let serialized = serde_json::to_string(account).unwrap();
             let deserialized: Account = serde_json::from_str(&serialized).unwrap();
             assert_eq!(account, &deserialized);
+        }
+    }
+
+    #[test]
+    fn test_active_descriptor_keyset() {
+        // Ensure that the active descriptor keyset is correctly returned
+        assert!(generate_default_test_account()
+            .active_spending_keyset()
+            .is_some());
+    }
+
+    #[test]
+    fn test_inactive_descriptor_keysets() {
+        let descriptor_public_key = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
+        let active_keyset_id = KeysetId::gen().unwrap();
+
+        let test_account = FullAccount {
+            spending_keysets: HashMap::from([
+                (
+                    active_keyset_id.clone(),
+                    SpendingKeyset {
+                        network: Network::BitcoinMain,
+                        app_dpub: descriptor_public_key.clone(),
+                        hardware_dpub: descriptor_public_key.clone(),
+                        server_dpub: descriptor_public_key.clone(),
+                    },
+                ),
+                (
+                    KeysetId::gen().unwrap(),
+                    SpendingKeyset {
+                        network: Network::BitcoinMain,
+                        app_dpub: descriptor_public_key.clone(),
+                        hardware_dpub: descriptor_public_key.clone(),
+                        server_dpub: descriptor_public_key.clone(),
+                    },
+                ),
+            ]),
+            active_keyset_id,
+            ..generate_default_test_account()
+        };
+
+        assert!(test_account.active_spending_keyset().is_some());
+        assert_eq!(test_account.inactive_descriptor_keysets().len(), 1);
+    }
+
+    fn generate_default_test_account() -> FullAccount {
+        let keyset_id = KeysetId::gen().unwrap();
+        let mut pubkey = [2; 33];
+        pubkey[1] = 0xff;
+
+        let descriptor_public_key = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
+
+        FullAccount {
+            id: AccountId::gen().unwrap(),
+            active_keyset_id: keyset_id.clone(),
+            auth_keys: Default::default(),
+            spending_keysets: HashMap::from([(
+                keyset_id,
+                SpendingKeyset::new(
+                    Network::BitcoinMain,
+                    descriptor_public_key.clone(),
+                    descriptor_public_key.clone(),
+                    descriptor_public_key,
+                ),
+            )]),
+            spending_limit: None,
+            application_auth_pubkey: None,
+            hardware_auth_pubkey: PublicKey::from_slice(&pubkey).unwrap(),
+            common_fields: CommonAccountFields {
+                active_auth_keys_id: AuthKeysId::gen().unwrap(),
+                touchpoints: vec![],
+                created_at: OffsetDateTime::now_utc(),
+                updated_at: OffsetDateTime::now_utc(),
+                properties: Default::default(),
+                onboarding_complete: false,
+                recovery_auth_pubkey: None,
+                notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
+            },
         }
     }
 }

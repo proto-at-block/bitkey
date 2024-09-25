@@ -4,25 +4,20 @@ import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.debug.NetworkingDebugConfigRepository
+import build.wallet.f8e.client.plugins.FailF8eRequestsPlugin
+import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.get
-import io.ktor.client.HttpClient
-import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.network.sockets.SocketTimeoutException
-import io.ktor.client.plugins.HttpRequestRetry
-import io.ktor.client.plugins.HttpSend
-import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.plugins.UserAgent
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.plugin
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.engine.*
+import io.ktor.client.network.sockets.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -35,7 +30,7 @@ class F8eHttpClientProvider(
   private val appVariant: AppVariant,
   private val platformInfoProvider: PlatformInfoProvider,
   private val datadogTracerPluginProvider: DatadogTracerPluginProvider,
-  private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
+  private val networkingDebugService: NetworkingDebugService,
   private val appInstallationDao: AppInstallationDao,
   private val countryCodeGuesser: CountryCodeGuesser,
 ) {
@@ -55,21 +50,6 @@ class F8eHttpClientProvider(
       } ?: run {
         HttpClient(block)
       }
-    }.also {
-      it.plugin(HttpSend).intercept { request ->
-        maybeFailRequest(request)
-        execute(request)
-      }
-    }
-  }
-
-  /**
-   * Force fail f8e request if such networking debug option is enabled.
-   */
-  private fun maybeFailRequest(request: HttpRequestBuilder) {
-    val networkingDebugConfig = networkingDebugConfigRepository.config.value
-    if (networkingDebugConfig.failF8eRequests) {
-      error("Intentionally failing f8e request: $request")
     }
   }
 
@@ -119,6 +99,9 @@ class F8eHttpClientProvider(
     }
 
     config.install(datadogTracerPluginProvider.getPlugin(accountId = accountId))
+    config.install(FailF8eRequestsPlugin) {
+      networkingDebugService = this@F8eHttpClientProvider.networkingDebugService
+    }
 
     config.install(
       TargetingHeadersPluginProvider(

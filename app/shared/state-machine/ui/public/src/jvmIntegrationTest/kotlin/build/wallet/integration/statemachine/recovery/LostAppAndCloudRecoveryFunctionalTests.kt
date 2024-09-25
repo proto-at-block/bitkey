@@ -35,6 +35,7 @@ import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.shouldBeOk
+import build.wallet.testing.tags.TestTag.FlakyTest
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
@@ -83,43 +84,44 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       )
   }
 
-  test("delay & notify") {
-    setup()
-    app.apply {
-      recoveryStateMachine.test(
-        props = Unit,
-        useVirtualTime = false,
-        testTimeout = 20.seconds,
-        turbineTimeout = 10.seconds
-      ) {
-        awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
-
-        appTester.completeRecoveryDelayPeriodOnF8e()
-        awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
-          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-        }
-        awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
-          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+  test("delay & notify")
+    .config(tags = setOf(FlakyTest)) {
+      setup()
+      app.apply {
+        recoveryStateMachine.test(
+          props = Unit,
+          useVirtualTime = false,
+          testTimeout = 20.seconds,
+          turbineTimeout = 10.seconds
         ) {
-          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+          awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
+            .clickPrimaryButton()
+          awaitUntilScreenWithBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
+            .clickPrimaryButton()
+          awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
+
+          appTester.completeRecoveryDelayPeriodOnF8e()
+          awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
+            .clickPrimaryButton()
+          awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+            state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+          }
+          awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+            .clickPrimaryButton()
+          awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+            .signInSuccess(CloudStoreAccount1Fake)
+          awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+            LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+          ) {
+            state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+          }
+          awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
+            .clickPrimaryButton()
+          awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
+          cancelAndIgnoreRemainingEvents()
         }
-        awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
-        cancelAndIgnoreRemainingEvents()
       }
     }
-  }
 
   test("recovery lost app - force exiting in the middle of initiating") {
     setup()

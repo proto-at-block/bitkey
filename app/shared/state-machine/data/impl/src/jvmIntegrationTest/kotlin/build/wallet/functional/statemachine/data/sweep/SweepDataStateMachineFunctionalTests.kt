@@ -58,12 +58,10 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
 
       stateMachine = app.app.run {
         SweepDataStateMachineImpl(
-          bitcoinBlockchain = bitcoinBlockchain,
           sweepService = sweepService,
           mobilePaySigningF8eClient = mobilePaySigningF8eClient,
           appSpendingWalletProvider = appSpendingWalletProvider,
-          exchangeRateService = appComponent.exchangeRateService,
-          outgoingTransactionDetailRepository = outgoingTransactionDetailRepository
+          transactionsService = appComponent.transactionsService
         )
       }
     }

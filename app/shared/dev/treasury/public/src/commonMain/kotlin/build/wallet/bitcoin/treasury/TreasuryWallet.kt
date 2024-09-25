@@ -79,6 +79,7 @@ class TreasuryWallet(
         println("Sync time: $timeTaken ms")
         awaitItem().total.shouldBeGreaterThanOrEqualTo(amount)
       }
+      cancelAndIgnoreRemainingEvents()
     }
 
     println("Treasury funding complete")

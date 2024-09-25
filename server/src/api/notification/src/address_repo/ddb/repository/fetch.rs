@@ -1,20 +1,21 @@
+use std::collections::HashMap;
+
 use crate::address_repo::ddb::entities::WatchedAddress;
-use crate::address_repo::ddb::repository::{Repository, HASH_KEY};
+use crate::address_repo::ddb::repository::{AddressRepository, HASH_KEY};
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::Address;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use database::aws_sdk_dynamodb::types::{AttributeValue, KeysAndAttributes};
 use database::aws_sdk_dynamodb::Client;
 use database::ddb::{
-    try_from_item, try_to_attribute_val, DDBService, DatabaseError, DatabaseObject,
+    try_from_item, try_to_attribute_val, DatabaseError, DatabaseObject, Repository,
 };
 use futures::future::try_join_all;
-use std::collections::HashMap;
 use tracing::{event, instrument, Level};
 
 const DDB_BATCH_READ_SIZE_MAX: usize = 100;
 
-impl Repository {
+impl AddressRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch_batch(
         &self,

@@ -2,6 +2,7 @@ package build.wallet.f8e.demo
 
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.bodyResult
@@ -20,9 +21,10 @@ class DemoModeF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     code: String,
   ): Result<EmptyResponseBody, Error> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<EmptyResponseBody> {
         post("/api/demo/initiate") {
+          withEnvironment(f8eEnvironment)
           setRedactedBody(
             InitiateDemoModeRequest(
               code = code

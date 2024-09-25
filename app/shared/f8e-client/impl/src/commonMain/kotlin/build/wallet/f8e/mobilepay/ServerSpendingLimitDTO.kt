@@ -23,7 +23,7 @@ data class ServerSpendingLimitDTO(
   )
 }
 
-fun SpendingLimit.toServerSpendingLimit(clock: Clock = Clock.System): ServerSpendingLimitDTO =
+fun SpendingLimit.toServerSpendingLimit(clock: Clock): ServerSpendingLimitDTO =
   ServerSpendingLimitDTO(
     active = active,
     amount =

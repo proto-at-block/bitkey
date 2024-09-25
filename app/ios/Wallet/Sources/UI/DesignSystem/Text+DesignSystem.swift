@@ -36,7 +36,8 @@ public extension TextModel {
         textAlignment: TextAlignment? = .leading,
         width: Width? = nil,
         textColor: Color = .foreground,
-        treatment: LabelTreatment = .unspecified
+        treatment: LabelTreatment = .unspecified,
+        scalingFactor: CGFloat? = nil
     ) -> TextModel {
         return .init(
             content: .text(text),
@@ -47,7 +48,8 @@ public extension TextModel {
             textAlignment: textAlignment,
             width: width,
             textColor: textColor,
-            treatment: treatment
+            treatment: treatment,
+            scalingFactor: scalingFactor
         )
     }
 
@@ -69,7 +71,7 @@ public extension TextModel {
         )
     }
 
-    static func linkedText(
+    private static func linkedText(
         textContent: TextModel.Content,
         font: FontTheme,
         textAlignment: TextAlignment = .leading,
@@ -85,5 +87,34 @@ public extension TextModel {
             textColor: textColor,
             treatment: .unspecified
         )
+    }
+
+    // Derives the appropriate TextModel for the provided LabelModel, handling
+    // text styling and sublinks.
+    static func fromModel(
+        model: LabelModel,
+        font: FontTheme,
+        textColor: Color = .foreground
+    ) -> TextModel {
+        return switch model {
+        case let model as LabelModelStringModel:
+            .standard(model.string, font: font, textColor: textColor)
+
+        case let model as LabelModelStringWithStyledSubstringModel:
+            .standard(.string(from: model, font: font), font: font, textColor: textColor)
+
+        case let model as LabelModelLinkSubstringModel:
+            .linkedText(
+                textContent: .linkedText(
+                    string: .string(from: model, font: font, textColor: textColor),
+                    links: model.linkedSubstrings
+                ),
+                font: font,
+                textColor: textColor
+            )
+
+        default:
+            fatalError("Unexpected Kotlin LabelModel")
+        }
     }
 }

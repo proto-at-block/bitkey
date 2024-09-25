@@ -4,25 +4,18 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action
 import build.wallet.bdk.bindings.BdkError
-import build.wallet.bitcoin.BlockTimeFake
-import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.explorer.BitcoinExplorerMock
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
-import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerFake
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
-import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -38,7 +31,10 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.time.*
+import build.wallet.time.ClockFake
+import build.wallet.time.DateTimeFormatterMock
+import build.wallet.time.DurationFormatterFake
+import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -48,22 +44,21 @@ import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.icon.*
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 class TransactionDetailsUiStateMachineImplTests :
   FunSpec({
 
     val timeZoneProvider = TimeZoneProviderMock()
-    val confirmedTime = TEST_SEND_TXN.confirmationTime()!!
-    val broadcastTime = TEST_SEND_TXN.broadcastTime!!
-    val estimatedConfirmationTime = TEST_SEND_TXN.estimatedConfirmationTime!!
+    val confirmedTime = BitcoinTransactionSend.confirmationTime()!!
+    val broadcastTime = BitcoinTransactionSend.broadcastTime!!
+    val estimatedConfirmationTime = BitcoinTransactionSend.estimatedConfirmationTime!!
     val timeToFormattedTime =
       mapOf(
         confirmedTime.toLocalDateTime(timeZoneProvider.current)
@@ -119,28 +114,42 @@ class TransactionDetailsUiStateMachineImplTests :
     val receivedProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
-        transaction = TEST_RECEIVE_TXN,
+        transaction = BitcoinTransactionReceive,
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val sentProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
-        transaction = TEST_SEND_TXN,
+        transaction = BitcoinTransactionSend,
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
+      )
+
+    val utxoConsolidationProps =
+      TransactionDetailsUiProps(
+        accountData = ActiveKeyboxLoadedDataMock,
+        transaction = BitcoinTransactionUtxoConsolidation,
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingReceiveProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
-        transaction = TEST_RECEIVE_TXN.copy(confirmationStatus = Pending),
+        transaction = BitcoinTransactionReceive.copy(confirmationStatus = Pending),
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingSentProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
-        transaction = TEST_SEND_TXN.copy(confirmationStatus = Pending),
+        transaction = BitcoinTransactionSend.copy(confirmationStatus = Pending),
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
+      )
+
+    val pendingUtxoConsolidationProps =
+      TransactionDetailsUiProps(
+        accountData = ActiveKeyboxLoadedDataMock,
+        transaction = BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending),
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
@@ -148,7 +157,7 @@ class TransactionDetailsUiStateMachineImplTests :
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
         transaction =
-          TEST_SEND_TXN.copy(
+          BitcoinTransactionSend.copy(
             confirmationStatus = Pending,
             estimatedConfirmationTime = null
           ),
@@ -157,6 +166,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
     beforeTest {
       transactionsService.reset()
+      bitcoinTransactionBumpabilityChecker.isBumpable = false
     }
 
     test("pending receive transaction returns correct model") {
@@ -164,7 +174,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           // before currency conversion
 
-          testButtonsAndHeader(isPending = true, isReceive = true, isLate = false)
+          testButtonsAndHeader(isPending = true, transactionType = Incoming, isLate = false)
 
           mainContentList[0]
             .shouldBeInstanceOf<DataList>()
@@ -203,7 +213,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           // before currency conversion
 
-          testButtonsAndHeader(isPending = false, isReceive = true, isLate = false)
+          testButtonsAndHeader(isPending = false, transactionType = Incoming, isLate = false)
 
           // Time Details
           mainContentList[0]
@@ -242,7 +252,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           // before currency conversion
 
-          testButtonsAndHeader(isPending = true, isReceive = false, isLate = false)
+          testButtonsAndHeader(isPending = true, transactionType = Outgoing, isLate = false)
 
           // Time Details
           with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -287,7 +297,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           // before currency conversion
 
-          testButtonsAndHeader(isPending = true, isReceive = false, isLate = false)
+          testButtonsAndHeader(isPending = true, transactionType = Outgoing, isLate = false)
 
           // Time Details
           with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -305,7 +315,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           // before currency conversion
 
-          testButtonsAndHeader(isPending = false, isReceive = false, isLate = false)
+          testButtonsAndHeader(isPending = false, transactionType = Outgoing, isLate = false)
 
           // Time Details
           with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -383,7 +393,12 @@ class TransactionDetailsUiStateMachineImplTests :
           awaitScreenWithBody<FormBodyModel> {
             // before currency conversion
 
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = false)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = false
+            )
 
             // Time Details
             with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -429,7 +444,12 @@ class TransactionDetailsUiStateMachineImplTests :
 
         stateMachine.test(pendingSentProps) {
           awaitScreenWithBody<FormBodyModel> {
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = true
+            )
 
             with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
               items[0].title.shouldBe("Should have arrived by")
@@ -462,7 +482,12 @@ class TransactionDetailsUiStateMachineImplTests :
 
         stateMachine.test(pendingSentProps) {
           awaitScreenWithBody<FormBodyModel> {
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = true
+            )
 
             with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
               items[0]
@@ -507,7 +532,12 @@ class TransactionDetailsUiStateMachineImplTests :
       test("tapping speed up should open the fee bump flow") {
         stateMachine.test(pendingSentProps) {
           awaitScreenWithBody<FormBodyModel> {
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = true
+            )
           }
 
           // after currency conversion
@@ -530,7 +560,12 @@ class TransactionDetailsUiStateMachineImplTests :
         spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
         stateMachine.test(pendingSentProps) {
           awaitScreenWithBody<FormBodyModel> {
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = true
+            )
           }
 
           // after currency conversion
@@ -559,7 +594,12 @@ class TransactionDetailsUiStateMachineImplTests :
         spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
         stateMachine.test(pendingSentProps) {
           awaitScreenWithBody<FormBodyModel> {
-            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+            testButtonsAndHeader(
+              isSpeedUpOn = true,
+              isPending = true,
+              transactionType = Outgoing,
+              isLate = true
+            )
           }
 
           // after currency conversion
@@ -590,55 +630,104 @@ class TransactionDetailsUiStateMachineImplTests :
         }
       }
     }
-  })
 
-private val TEST_ID = "c4f5835c0b77d438160cf54c4355208b0a39f58919ff4c221df6ebedc1ad67be"
-private val TEST_RECEIVE_TXN =
-  BitcoinTransaction(
-    id = TEST_ID,
-    broadcastTime = null,
-    estimatedConfirmationTime = null,
-    confirmationStatus =
-      ConfirmationStatus.Confirmed(
-        blockTime = BlockTimeFake
-      ),
-    recipientAddress = someBitcoinAddress,
-    total = BitcoinMoney.btc(1.1),
-    subtotal = BitcoinMoney.btc(1.0),
-    fee = null,
-    weight = 253UL,
-    vsize = 63UL,
-    transactionType = Incoming,
-    inputs = immutableListOf(),
-    outputs = immutableListOf()
-  )
-private val TEST_SEND_TXN =
-  BitcoinTransaction(
-    id = TEST_ID,
-    broadcastTime = someInstant,
-    estimatedConfirmationTime = someInstant.plus(10.toDuration(DurationUnit.MINUTES)),
-    confirmationStatus =
-      ConfirmationStatus.Confirmed(
-        blockTime = BlockTimeFake
-      ),
-    recipientAddress = someBitcoinAddress,
-    total = BitcoinMoney.btc(1.01000000),
-    subtotal = BitcoinMoney.btc(1.0),
-    fee = BitcoinMoney.sats(1_000_000),
-    weight = 253UL,
-    vsize = 63UL,
-    transactionType = Outgoing,
-    inputs = immutableListOf(),
-    outputs = immutableListOf()
-  )
+    context("utxo consolidation") {
+      test("pending utxo consolidation transaction returns correct model") {
+        stateMachine.test(pendingUtxoConsolidationProps) {
+          awaitScreenWithBody<FormBodyModel> {
+            // before currency conversion
+
+            testButtonsAndHeader(
+              isPending = true,
+              transactionType = UtxoConsolidation,
+              isLate = false
+            )
+
+            mainContentList[0]
+              .shouldBeInstanceOf<DataList>()
+              .items[0]
+              .expect(title = "Confirmed at", sideText = "Unconfirmed")
+
+            // Amount Details
+            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+              items[0].expect(title = "UTXOs consolidated", sideText = "2")
+              items[1].expect(
+                title = "Consolidation cost",
+                sideText = "10,000,000 sats",
+                secondarySideText = "~$0.00"
+              )
+              total.shouldBeNull()
+            }
+          }
+
+          awaitScreenWithBody<FormBodyModel> {
+            // after currency conversion
+            // Should use the current exchange rate
+            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+              items[1].expect(
+                title = "Consolidation cost",
+                sideText = "10,000,000 sats",
+                secondarySideText = "~$0.30"
+              )
+              total.shouldBeNull()
+            }
+          }
+        }
+      }
+
+      test("utxo consolidation transaction returns correct model") {
+        stateMachine.test(utxoConsolidationProps) {
+          awaitScreenWithBody<FormBodyModel> {
+            // before currency conversion
+
+            testButtonsAndHeader(
+              isPending = false,
+              transactionType = UtxoConsolidation,
+              isLate = false
+            )
+
+            // Time Details
+            mainContentList[0]
+              .shouldBeInstanceOf<DataList>()
+              .items[0]
+              .expect(title = "Confirmed at", sideText = "confirmed-time")
+
+            // Amount Details
+            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+              items[0].expect(title = "UTXOs consolidated", sideText = "2")
+              items[1].expect(
+                title = "Consolidation cost",
+                sideText = "10,000,000 sats",
+                secondarySideText = "$0.00 at time confirmed"
+              )
+              total.shouldBeNull()
+            }
+          }
+
+          awaitScreenWithBody<FormBodyModel> {
+            // after currency conversion
+            // Should use the current exchange rate
+            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+              items[1].expect(
+                title = "Consolidation cost",
+                sideText = "10,000,000 sats",
+                secondarySideText = "$0.30 at time confirmed"
+              )
+              total.shouldBeNull()
+            }
+          }
+        }
+      }
+    }
+  })
 
 private fun FormBodyModel.testButtonsAndHeader(
   isSpeedUpOn: Boolean = false,
   isPending: Boolean,
-  isReceive: Boolean,
+  transactionType: TransactionType,
   isLate: Boolean,
 ) {
-  if (isReceive || !isPending || !isSpeedUpOn) {
+  if (transactionType == Incoming || transactionType == UtxoConsolidation || !isPending || !isSpeedUpOn) {
     primaryButton
       .shouldNotBeNull()
       .expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
@@ -667,15 +756,11 @@ private fun FormBodyModel.testButtonsAndHeader(
           )
         }
       } else {
-        IconModel(
-          icon = if (isReceive) {
-            Bitcoin
-          } else {
-            LargeIconCheckFilled
-          },
-          iconSize = IconSize.Avatar,
-          iconTint = IconTint.Primary
-        )
+        when (transactionType) {
+          Incoming -> IncomingTransactionIconModel
+          Outgoing -> OutgoingTransactionIconModel
+          UtxoConsolidation -> UtxoConsolidationTransactionIconModel
+        }
       },
       headline =
         if (isPending) {
@@ -685,10 +770,10 @@ private fun FormBodyModel.testButtonsAndHeader(
             "Transaction pending"
           }
         } else {
-          if (isReceive) {
-            "Transaction received"
-          } else {
-            "Transaction sent"
+          when (transactionType) {
+            Incoming -> "Transaction received"
+            Outgoing -> "Transaction sent"
+            UtxoConsolidation -> "UTXO Consolidation"
           }
         },
       subline = "bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs"

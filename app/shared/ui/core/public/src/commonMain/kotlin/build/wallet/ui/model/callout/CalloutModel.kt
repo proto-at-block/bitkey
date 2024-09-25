@@ -1,6 +1,7 @@
 package build.wallet.ui.model.callout
 
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.Click
 
 /**
@@ -14,7 +15,7 @@ import build.wallet.ui.model.Click
  */
 data class CalloutModel(
   val title: String,
-  val subtitle: String? = null,
+  val subtitle: LabelModel? = null,
   val treatment: Treatment = Treatment.Default,
   val leadingIcon: Icon? = null,
   val trailingIcon: Icon? = null,

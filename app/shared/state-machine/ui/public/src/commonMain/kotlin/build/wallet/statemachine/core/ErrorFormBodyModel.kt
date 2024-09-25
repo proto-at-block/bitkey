@@ -3,6 +3,7 @@ package build.wallet.statemachine.core
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
@@ -32,7 +33,7 @@ fun ErrorFormBodyModel(
   secondaryButtonIcon: Icon? = null,
 ) = ErrorFormBodyModelWithOptionalErrorData(
   title = title,
-  subline = subline,
+  subline = subline?.let { StringModel(it) },
   primaryButton = primaryButton,
   onBack = onBack,
   toolbar = toolbar,
@@ -62,7 +63,7 @@ fun ErrorFormBodyModel(
   secondaryButtonIcon: Icon? = null,
 ) = ErrorFormBodyModelWithOptionalErrorData(
   title = title,
-  subline = subline,
+  subline = subline?.let { StringModel(it) },
   primaryButton = primaryButton,
   onBack = onBack,
   toolbar = toolbar,
@@ -79,7 +80,7 @@ fun ErrorFormBodyModel(
 @Deprecated("Specify [errorData] argument")
 fun ErrorFormBodyModelWithOptionalErrorData(
   title: String,
-  subline: String? = null,
+  subline: LabelModel? = null,
   primaryButton: ButtonDataModel,
   onBack: (() -> Unit)? = primaryButton.onClick,
   toolbar: ToolbarModel? = null,
@@ -102,7 +103,7 @@ fun ErrorFormBodyModelWithOptionalErrorData(
       FormHeaderModel(
         icon = LargeIconWarningFilled,
         headline = title,
-        subline = subline,
+        sublineModel = subline,
         alignment =
           when (renderContext) {
             Sheet -> CENTER

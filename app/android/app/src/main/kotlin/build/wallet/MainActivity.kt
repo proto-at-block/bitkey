@@ -19,6 +19,7 @@ import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponent
+import build.wallet.di.AppComponentImpl
 import build.wallet.encrypt.*
 import build.wallet.google.signin.GoogleSignInClientProviderImpl
 import build.wallet.google.signin.GoogleSignInLauncherImpl
@@ -45,7 +46,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
 class MainActivity : FragmentActivity() {
-  private lateinit var appComponent: AppComponent
+  private lateinit var appComponent: AppComponentImpl
   private lateinit var inAppBrowserNavigator: InAppBrowserNavigator
   private lateinit var activityComponent: ActivityComponent
 

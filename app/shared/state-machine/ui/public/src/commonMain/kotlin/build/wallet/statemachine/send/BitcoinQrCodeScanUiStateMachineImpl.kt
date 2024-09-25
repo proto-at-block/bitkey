@@ -8,10 +8,12 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.*
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.onSuccess
 class BitcoinQrCodeScanUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
   private val transactionsService: TransactionsService,
+  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BitcoinQrCodeUiScanStateMachine {
   @Composable
   override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
@@ -84,12 +87,13 @@ class BitcoinQrCodeScanUiStateMachineImpl(
       }
       is UnrecognizedErrorUiState ->
         UnrecognizedErrorScreen(
-          onDoneClick = { props.onClose() }
+          onDoneClick = props.onClose
         )
 
       SelfSendErrorUiState ->
         SelfSendErrorScreen(
-          onDoneClick = { props.onClose() }
+          onDoneClick = props.onClose,
+          onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
         )
     }
   }
@@ -109,16 +113,44 @@ class BitcoinQrCodeScanUiStateMachineImpl(
   }
 
   @Composable
-  private fun SelfSendErrorScreen(onDoneClick: () -> Unit): ScreenModel {
-    return ErrorFormBodyModel(
-      title = "You can’t send to your own address",
-      primaryButton =
-        ButtonDataModel(
+  private fun SelfSendErrorScreen(
+    onDoneClick: () -> Unit,
+    onGoToUtxoConsolidation: () -> Unit,
+  ): ScreenModel {
+    return if (utxoConsolidationFeatureFlag.isEnabled()) {
+      ErrorFormBodyModelWithOptionalErrorData(
+        title = "This is your Bitkey wallet address",
+        subline = LabelModel.LinkSubstringModel.from(
+          string = "The address you entered belongs to this Bitkey wallet. Enter an external address" +
+            " to transfer funds." +
+            "\n\n" +
+            "For UTXO consolidation, go to UTXO Consolidation in Settings.",
+          substringToOnClick = mapOf("UTXO Consolidation" to onGoToUtxoConsolidation),
+          underline = true,
+          bold = false,
+          color = LabelModel.Color.UNSPECIFIED
+        ),
+        primaryButton = ButtonDataModel(
           text = "Done",
           onClick = onDoneClick
         ),
-      eventTrackerScreenId = null
-    ).asModalScreen()
+        toolbar = ToolbarModel(
+          leadingAccessory = BackAccessory(onClick = onDoneClick)
+        ),
+        eventTrackerScreenId = null,
+        errorData = null
+      ).asModalScreen()
+    } else {
+      return ErrorFormBodyModel(
+        title = "You can’t send to your own address",
+        primaryButton =
+          ButtonDataModel(
+            text = "Done",
+            onClick = onDoneClick
+          ),
+        eventTrackerScreenId = null
+      ).asModalScreen()
+    }
   }
 
   private suspend fun handlePaymentDataCaptured(

@@ -50,14 +50,22 @@ public struct CalloutView: View {
                         .foregroundStyle(theme.titleColor)
 
                     if let subtitle = model.subtitle {
-                        Text(subtitle)
-                            .font(
-                                Font.custom("Inter", size: 16)
+                        let fontTheme = FontTheme(
+                            name: "Inter",
+                            size: "16",
+                            lineHeight: "24",
+                            kerning: "0"
+                        )
+                        ModeledText(
+                            model: .fromModel(
+                                model: subtitle,
+                                font: fontTheme,
+                                textColor: theme.subtitleColor
                             )
-                            .opacity(0.60)
-                            .lineLimit(2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundStyle(theme.subtitleColor)
+                        )
+                        .opacity(0.60)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(theme.subtitleColor)
                     }
                 }
 
@@ -194,7 +202,7 @@ struct CalloutViewPreview: PreviewProvider {
                     model:
                     CalloutModel(
                         title: "Title",
-                        subtitle: "Subtitle",
+                        subtitle: LabelModelStringModel(string: "Subtitle"),
                         treatment: $0,
                         leadingIcon: .largeiconcheckstroked,
                         trailingIcon: .smalliconarrowright,

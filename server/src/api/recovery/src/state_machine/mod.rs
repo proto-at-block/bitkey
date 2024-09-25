@@ -17,10 +17,7 @@ use utoipa::ToSchema;
 
 use crate::entities::{RecoveryStatus, RecoveryType};
 use crate::service::social::challenge::Service as SocialChallengeService;
-use crate::{
-    entities::RecoveryDestination, error::RecoveryError,
-    repository::Repository as RecoveryRepository,
-};
+use crate::{entities::RecoveryDestination, error::RecoveryError, repository::RecoveryRepository};
 
 use self::start_recovery::StartRecoveryState;
 

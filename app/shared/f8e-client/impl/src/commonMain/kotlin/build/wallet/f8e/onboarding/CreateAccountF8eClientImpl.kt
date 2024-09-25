@@ -11,6 +11,7 @@ import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -107,9 +108,10 @@ class CreateAccountF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     requestBody: CreateAccountRequestBody,
   ): Result<ResponseBody, F8eError<CreateAccountClientErrorCode>> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
+    return f8eHttpClient.unauthenticated()
       .bodyResult<ResponseBody> {
         post("/api/accounts") {
+          withEnvironment(f8eEnvironment)
           withDescription("Create account on f8e")
           setRedactedBody(requestBody)
         }

@@ -98,21 +98,23 @@ android-snapshots-record:
 android-snapshots-verify:
   {{gradle_android}} verifyPaparazziDebug
 
-# Record and update baseline UI snapshots for iOS
-ios-snapshots-record:
-  #!/bin/bash
-  set -e
-  just ios-snapshot-prework
-  export SNAPSHOT_TESTS_RECORD=true
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
-
 # Verify UI snapshots for iOS
 ios-snapshots-verify:
   #!/bin/bash
   set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5' -retry-tests-on-failure -test-iterations 3
+  echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
+
+# Record and update baseline UI snapshots for iOS
+ios-snapshots-record:
+  #!/bin/bash
+  set -e
+  just ios-snapshot-prework
+  export SNAPSHOT_TESTS_RECORD=true
+  echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
 
 [private]
 ios-snapshot-prework:

@@ -1,15 +1,15 @@
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_attribute_val, try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 use serde::Serialize;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
 use types::privileged_action::repository::PrivilegedActionInstanceRecord;
 
-use super::Repository;
+use super::PrivilegedActionRepository;
 
-impl Repository {
+impl PrivilegedActionRepository {
     #[instrument(skip(self, instance))]
     pub async fn persist<T>(
         &self,

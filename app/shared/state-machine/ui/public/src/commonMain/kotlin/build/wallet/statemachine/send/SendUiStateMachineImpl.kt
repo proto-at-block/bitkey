@@ -77,7 +77,6 @@ class SendUiStateMachineImpl(
                 ),
               requiredSigner = SigningFactor.Hardware,
               recipientAddress = entryPoint.speedUpTransactionDetails.recipientAddress,
-              fiatMoney = entryPoint.fiatMoney,
               sendAmount = ExactAmount(entryPoint.speedUpTransactionDetails.sendAmount),
               spendingLimit = entryPoint.spendingLimit,
               fees = entryPoint.fees
@@ -146,7 +145,8 @@ class SendUiStateMachineImpl(
                   } else {
                     ScanningQrCodeUiState
                   }
-              }
+              },
+              onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
             )
         ).asModalFullScreen()
 
@@ -191,7 +191,8 @@ class SendUiStateMachineImpl(
                     recipientAddress = invoice.address,
                     transferMoney = invoice.amount ?: defaultAmountEntryAmount
                   )
-              }
+              },
+              onGoToUtxoConsolidation = props.onGoToUtxoConsolidation
             )
         )
 
@@ -208,7 +209,6 @@ class SendUiStateMachineImpl(
             uiState = SelectingTransactionPriorityUiState(
               recipientAddress = state.recipientAddress,
               sendAmount = continueParams.sendAmount,
-              fiatMoney = continueParams.fiatMoney,
               requiredSigner = continueParams.requiredSigner,
               spendingLimit = continueParams.spendingLimit
             )
@@ -304,7 +304,6 @@ class SendUiStateMachineImpl(
                   ConfirmingTransferUiState(
                     variant = Variant.Regular(selectedPriority = priority),
                     recipientAddress = state.recipientAddress,
-                    fiatMoney = state.fiatMoney,
                     requiredSigner = state.requiredSigner,
                     spendingLimit = state.spendingLimit,
                     sendAmount = state.sendAmount,
@@ -344,7 +343,6 @@ private sealed interface SendUiState {
     val requiredSigner: SigningFactor,
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
-    val fiatMoney: FiatMoney?,
     val spendingLimit: SpendingLimit?,
   ) : SendUiState
 
@@ -363,7 +361,6 @@ private sealed interface SendUiState {
     val variant: Variant,
     val requiredSigner: SigningFactor,
     val recipientAddress: BitcoinAddress,
-    val fiatMoney: FiatMoney?,
     val sendAmount: BitcoinTransactionSendAmount,
     val spendingLimit: SpendingLimit?,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,

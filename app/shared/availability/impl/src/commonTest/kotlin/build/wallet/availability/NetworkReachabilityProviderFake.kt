@@ -1,6 +1,7 @@
 package build.wallet.availability
 
 import build.wallet.f8e.F8eEnvironment
+import io.ktor.client.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -17,6 +18,20 @@ class NetworkReachabilityProviderFake : NetworkReachabilityProvider {
     return f8eEnvironmentReachabilityFlow
   }
 
+  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient,
+    reachability: NetworkReachability,
+    connection: NetworkConnection,
+  ) {
+    when (connection) {
+      is NetworkConnection.HttpClientNetworkConnection.F8e ->
+        f8eEnvironmentReachabilityFlow.value =
+          reachability
+      else -> Unit // noop
+    }
+  }
+
+  @Suppress("OVERRIDE_DEPRECATION")
   override suspend fun updateNetworkReachabilityForConnection(
     reachability: NetworkReachability,
     connection: NetworkConnection,

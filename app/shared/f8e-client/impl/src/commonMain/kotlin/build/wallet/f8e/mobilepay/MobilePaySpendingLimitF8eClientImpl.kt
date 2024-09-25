@@ -21,10 +21,12 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.delete
 import io.ktor.client.request.put
+import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 
 class MobilePaySpendingLimitF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
+  private val clock: Clock,
 ) : MobilePaySpendingLimitF8eClient {
   override suspend fun setSpendingLimit(
     f8eEnvironment: F8eEnvironment,
@@ -42,7 +44,7 @@ class MobilePaySpendingLimitF8eClientImpl(
         put("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
           setRedactedBody(
             RequestBody(
-              limit = limit.toServerSpendingLimit()
+              limit = limit.toServerSpendingLimit(clock)
             )
           )
         }

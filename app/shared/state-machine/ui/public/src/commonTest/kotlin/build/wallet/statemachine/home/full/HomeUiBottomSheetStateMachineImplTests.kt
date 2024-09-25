@@ -2,6 +2,8 @@ package build.wallet.statemachine.home.full
 
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.home.HomeUiBottomSheetId
 import build.wallet.limit.MobilePayEnabledDataMock
@@ -29,7 +31,8 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   val stateMachine = HomeUiBottomSheetStateMachineImpl(
     homeUiBottomSheetDao = homeUiBottomSheetDao,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-    mobilePayService = mobilePayService
+    mobilePayService = mobilePayService,
+    mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
   )
 
   val onShowSetSpendingLimitFlowCalls = turbines.create<Unit>("onShowSetSpendingLimitFlow calls")

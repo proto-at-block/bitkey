@@ -17,6 +17,9 @@ data class FunctionalityFeatureStates(
   val notifications: FeatureState,
   val helpCenter: FeatureState,
   val cloudBackupHealth: FeatureState,
+  val inheritance: FeatureState,
+  val utxoConsolidation: FeatureState,
+  val exportTools: FeatureState,
 ) {
   /**
    * The state a feature can be in.

@@ -64,7 +64,7 @@ async fn fetch_unique_accounts_by_address(
     addresses: Vec<Address<NetworkUnchecked>>,
 ) -> Result<Vec<AccountIdAndKeysetId>, WorkerError> {
     Ok(state
-        .address_repo
+        .address_service
         .get(&addresses)
         .await?
         .values()
@@ -85,7 +85,7 @@ fn filter_accounts_by_flag(
                 if let Ok(boolean) = evaluate_flag_value(
                     &state.feature_flags_service,
                     flag_key.clone(),
-                    ContextKey::Account(v.account_id.to_string(), HashMap::new()),
+                    &ContextKey::Account(v.account_id.to_string(), HashMap::new()),
                 ) {
                     return boolean;
                 }

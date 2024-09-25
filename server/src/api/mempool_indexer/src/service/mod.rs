@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use crate::repository::Repository;
+use crate::repository::MempoolIndexerRepository;
 use bdk_utils::bdk::bitcoin::{Network, Txid};
 use config::{Config, ConfigError, Environment};
 use reqwest::Client;
@@ -17,7 +17,7 @@ const MEMPOOL_SPACE_SIGNET_URL: &str = "https://bitkey.mempool.space/signet/api"
 
 #[derive(Clone)]
 pub struct Service {
-    pub repo: Repository,
+    pub repo: MempoolIndexerRepository,
     http_client: ClientWithMiddleware,
     settings: Settings,
     recorded_txids: Arc<RwLock<HashSet<Txid>>>,
@@ -44,7 +44,7 @@ impl Settings {
 }
 
 impl Service {
-    pub fn new(repo: Repository) -> Self {
+    pub fn new(repo: MempoolIndexerRepository) -> Self {
         let retry_policy = ExponentialBackoff::builder().build_with_max_retries(5);
         let http_client = ClientBuilder::new(Client::new())
             .with(RetryTransientMiddleware::new_with_policy(retry_policy))

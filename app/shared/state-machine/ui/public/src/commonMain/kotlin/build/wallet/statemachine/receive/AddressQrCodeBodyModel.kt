@@ -7,11 +7,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -58,7 +54,7 @@ data class AddressQrCodeBodyModel(
               // Filter to only the odd indices to color those substrings
               .filterIndexed { index, _ -> index % 2 != 0 }
               // Map to ON60 color
-              .associateWith { LabelModel.StringWithStyledSubstringModel.Color.ON60 }
+              .associateWith { LabelModel.Color.ON60 }
           )
         } // Fall back on showing "..." while we are loading an address
           ?: LabelModel.StringModel("..."),

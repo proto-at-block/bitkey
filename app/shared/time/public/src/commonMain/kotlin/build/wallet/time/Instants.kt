@@ -52,3 +52,19 @@ fun Instant.isThisYear(
   return toLocalDateTime(timeZoneProvider.current()).year ==
     now.toLocalDateTime(timeZoneProvider.current()).year
 }
+
+/**
+ * Truncates this `Instant` to millisecond precision, removing any microseconds or nanoseconds.
+ *
+ * If the `Instant` already has millisecond precision, it remains unchanged.
+ * Any extra precision (like microseconds or nanoseconds) is discarded, rounding down.
+ *
+ * Example:
+ * ```
+ * val instant = "2023-01-10T08:22:25.736822Z".toInstant()
+ * val truncated = instant.truncateToMilliseconds()
+ * // output: 2023-01-10T08:22:25.736Z
+ * ```
+ */
+fun Instant.truncateToMilliseconds(): Instant =
+  Instant.fromEpochMilliseconds(this.toEpochMilliseconds())

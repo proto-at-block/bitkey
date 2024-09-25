@@ -22,10 +22,9 @@ use types::time::Clock;
 use ulid::Ulid;
 
 use account::entities::{
-    Account, Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, SoftwareAccount,
-    SoftwareAccountAuthKeys, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+    Account, Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, LiteAccount, SoftwareAccount,
+    SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
 };
-use account::entities::{FullAccountAuthKeys, LiteAccount, LiteAccountAuthKeys};
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput,
     CreateAccountAndKeysetsInput, CreateLiteAccountInput, CreateSoftwareAccountInput,
@@ -55,6 +54,7 @@ use recovery::entities::{
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
 
 use crate::Services;
 

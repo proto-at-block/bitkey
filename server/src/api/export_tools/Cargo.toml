@@ -1,0 +1,19 @@
+[package]
+edition = { workspace = true }
+name = "export_tools"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+bdk_utils = { workspace = true }
+errors = { workspace = true }
+http_server = { workspace = true }
+types = { workspace = true }

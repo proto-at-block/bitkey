@@ -32,6 +32,7 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.timeFake)
       }
     }

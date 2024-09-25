@@ -1,12 +1,7 @@
 package build.wallet.ui.components.callout
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
@@ -23,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import build.wallet.android.ui.core.R
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
@@ -87,8 +83,10 @@ fun Callout(model: CalloutModel) {
         )
         model.subtitle?.let { subtitle ->
           Label(
-            text = subtitle,
-            modifier = Modifier.alpha(0.6f),
+            model = subtitle,
+            modifier = Modifier
+              .padding(top = 4.dp)
+              .alpha(0.6f),
             style = TextStyle(
               fontSize = 16.sp,
               lineHeight = 24.sp,
@@ -218,7 +216,7 @@ internal fun CalloutPreviews() {
           Callout(
             model = CalloutModel(
               title = "Title",
-              subtitle = "Subtitle",
+              subtitle = StringModel("Subtitle"),
               treatment = treatment,
               leadingIcon = Icon.SmallIconCheck,
               trailingIcon = Icon.SmallIconArrowRight,

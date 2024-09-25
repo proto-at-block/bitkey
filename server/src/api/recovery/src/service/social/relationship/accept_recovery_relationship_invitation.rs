@@ -90,6 +90,7 @@ impl Service {
         let prev_common_fields = prev_relationship.common_fields();
         let customer_account_id = &prev_common_fields.customer_account_id;
         let trusted_contact_alias = &prev_common_fields.trusted_contact_info.alias;
+        let trusted_contact_roles = &prev_common_fields.trusted_contact_info.roles;
 
         if customer_account_id == input.trusted_contact_account_id {
             return Err(ServiceError::CustomerIsTrustedContact);
@@ -150,6 +151,7 @@ impl Service {
                     .recovery_relationship_invitation_accepted_payload(Some(
                         RecoveryRelationshipInvitationAcceptedPayload {
                             trusted_contact_alias: trusted_contact_alias.to_owned(),
+                            trusted_contact_roles: trusted_contact_roles.to_owned(),
                         },
                     ))
                     .build()?,

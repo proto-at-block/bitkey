@@ -1,7 +1,8 @@
+use types::account::keys::FullAccountAuthKeys;
 use types::account::spending::SpendingKeyset;
 
 use crate::{
-    entities::{AccountProperties, FullAccount, FullAccountAuthKeys},
+    entities::{AccountProperties, FullAccount},
     error::AccountError,
 };
 

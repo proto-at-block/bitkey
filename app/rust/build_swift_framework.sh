@@ -112,6 +112,7 @@ infoplist() {
     /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string build.wallet.rust.$LIB" "$plist"
     /usr/libexec/PlistBuddy -c "Add :CFBundleInfoDictionaryVersion string 6.0" "$plist"
     /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string FMWK" "$plist"
+    # The following values are required. Without them, the App Store will return an "Asset validation failed" error.
     /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string 1.0" "$plist"
     /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string 1" "$plist"
     /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 15.2" "$plist"

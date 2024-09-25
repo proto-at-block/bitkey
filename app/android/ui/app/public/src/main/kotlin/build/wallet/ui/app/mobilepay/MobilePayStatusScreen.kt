@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardModel
 import build.wallet.statemachine.settings.full.mobilepay.disableMobilePayAlertModel
@@ -72,6 +73,7 @@ fun MobilePayStatusScreenEnabledPreview() {
             onClick = {}
           ),
         disableAlertModel = null,
+        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false),
         spendingLimitCardModel =
           SpendingLimitCardModel(
             titleText = "Daily limit",
@@ -102,9 +104,12 @@ fun MobilePayStatusScreenEnabledWithDialogPreview() {
           ),
         disableAlertModel =
           disableMobilePayAlertModel(
+            title = SpendingLimitsCopy.get(false).disableAlert.title,
+            subline = SpendingLimitsCopy.get(false).disableAlert.subline,
             onConfirm = {},
             onCancel = {}
           ),
+        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false),
         spendingLimitCardModel =
           SpendingLimitCardModel(
             titleText = "Daily limit",
@@ -129,7 +134,8 @@ fun MobilePayStatusScreenDisabledPreview() {
         onSwitchCheckedChange = {},
         dailyLimitRow = null,
         disableAlertModel = null,
-        spendingLimitCardModel = null
+        spendingLimitCardModel = null,
+        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false)
       )
     )
   }

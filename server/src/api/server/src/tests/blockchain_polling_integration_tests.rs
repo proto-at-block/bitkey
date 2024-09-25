@@ -49,7 +49,7 @@ async fn test_init_block_received_payment() {
 
     let notification_service = services.notification_service;
     let sqs_queue = services.sqs;
-    let address_repo = services.address_repo;
+    let address_service = services.address_service;
 
     // Initializing service with block 107036
     run_and_test_blockchain_polling_worker(
@@ -119,7 +119,7 @@ async fn test_init_block_received_payment() {
             .unwrap(),
         account.active_keyset_id.clone(),
     );
-    address_repo
+    address_service
         .clone()
         .insert(&[fake_registration], &account.id)
         .await
@@ -163,7 +163,7 @@ async fn setup_full_accounts_and_server(
         notification_service: bootstrap.services.notification_service.clone(),
         account_service: bootstrap.services.account_service.clone(),
         recovery_service: bootstrap.services.recovery_service.clone(),
-        address_repo: bootstrap.services.address_repo.clone(),
+        address_service: bootstrap.services.address_service.clone(),
         chain_indexer_service: bootstrap
             .services
             .chain_indexer_service
@@ -238,7 +238,7 @@ async fn setup_full_accounts_and_server(
     );
     bootstrap
         .services
-        .address_repo
+        .address_service
         .clone()
         .insert(&[fake_registration], &account_with_payment.id)
         .await

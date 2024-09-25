@@ -2,6 +2,7 @@ package build.wallet.statemachine.transactions
 
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -12,10 +13,13 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconSize.*
+import build.wallet.ui.model.icon.IconTint.Foreground
+import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
@@ -93,7 +97,7 @@ sealed interface TxStatusModel {
           iconModel = IconModel(
             iconImage = IconImage.Loader,
             iconSize = IconSize.Large,
-            iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Avatar)
+            iconBackgroundType = Circle(circleSize = Avatar)
           ),
           headline = "Transaction pending",
           sublineModel = LabelModel.StringWithStyledSubstringModel.from(
@@ -112,13 +116,15 @@ sealed interface TxStatusModel {
   ) : TxStatusModel {
     override fun toFormHeaderModel(): FormHeaderModel =
       FormHeaderModel(
-        icon = when (transactionType) {
-          TransactionType.Incoming -> Bitcoin
-          TransactionType.Outgoing -> LargeIconCheckFilled
+        iconModel = when (transactionType) {
+          Incoming -> IncomingTransactionIconModel
+          Outgoing -> OutgoingTransactionIconModel
+          UtxoConsolidation -> UtxoConsolidationTransactionIconModel
         },
         headline = when (transactionType) {
-          TransactionType.Incoming -> "Transaction received"
-          TransactionType.Outgoing -> "Transaction sent"
+          Incoming -> "Transaction received"
+          Outgoing -> "Transaction sent"
+          UtxoConsolidation -> "UTXO Consolidation"
         },
         subline = recipientAddress,
         sublineTreatment = MONO,
@@ -126,3 +132,22 @@ sealed interface TxStatusModel {
       )
   }
 }
+
+internal val OutgoingTransactionIconModel = IconModel(
+  icon = LargeIconCheckFilled,
+  iconSize = Avatar,
+  iconTint = Primary
+)
+
+internal val IncomingTransactionIconModel = IconModel(
+  icon = Bitcoin,
+  iconSize = Avatar,
+  iconTint = Primary
+)
+
+internal val UtxoConsolidationTransactionIconModel = IconModel(
+  icon = SmallIconConsolidation,
+  iconSize = Large,
+  iconBackgroundType = Circle(circleSize = Avatar),
+  iconTint = Foreground
+)

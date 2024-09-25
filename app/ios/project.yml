@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.69.0
-        PROJECT_BUNDLE_VERSION: 6
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.70.0
+        PROJECT_BUNDLE_VERSION: 1
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -279,7 +279,7 @@ packages:
     exactVersion: 6.28.0
   dd-sdk-ios:
     url: https://github.com/Datadog/dd-sdk-ios
-    exactVersion: 2.10.0
+    exactVersion: 2.11.1
   kmp-nativecoroutines:
     url: https://github.com/rickclephas/kmp-nativecoroutines
     exactVersion: 1.0.0-ALPHA-31

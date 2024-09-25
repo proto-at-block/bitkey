@@ -63,6 +63,7 @@ class DeviceSettingsUiStateMachineImpl(
   private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val firmwareDataService: FirmwareDataService,
+  private val clock: Clock,
 ) : DeviceSettingsUiStateMachine {
   @Composable
   override fun model(props: DeviceSettingsProps): ScreenModel {
@@ -143,9 +144,6 @@ class DeviceSettingsUiStateMachineImpl(
           },
           onManageReplacement = { uiState = HardwareRecoveryDelayAndNotifyUiState },
           onResetDevice = { uiState = ResettingDeviceUiState },
-          dateTimeFormatter = dateTimeFormatter,
-          timeZoneProvider = timeZoneProvider,
-          durationFormatter = durationFormatter,
           replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available,
           firmwareData = firmwareData,
           onManageFingerprints = {
@@ -251,111 +249,108 @@ class DeviceSettingsUiStateMachineImpl(
       }
     }
   }
-}
 
-@Composable
-private fun ViewingDeviceScreenModel(
-  props: DeviceSettingsProps,
-  firmwareData: FirmwareData?,
-  coachmark: CoachmarkModel?,
-  firmwareDeviceAvailability: FirmwareDeviceAvailability,
-  goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
-  goToNfcMetadata: () -> Unit,
-  goToRecovery: () -> Unit,
-  onManageReplacement: () -> Unit,
-  onResetDevice: () -> Unit,
-  dateTimeFormatter: DateTimeFormatter,
-  timeZoneProvider: TimeZoneProvider,
-  durationFormatter: DurationFormatter,
-  replaceDeviceEnabled: Boolean,
-  onManageFingerprints: () -> Unit,
-): ScreenModel {
-  val noInfo = "-"
+  @Composable
+  private fun ViewingDeviceScreenModel(
+    props: DeviceSettingsProps,
+    firmwareData: FirmwareData?,
+    coachmark: CoachmarkModel?,
+    firmwareDeviceAvailability: FirmwareDeviceAvailability,
+    goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
+    goToNfcMetadata: () -> Unit,
+    goToRecovery: () -> Unit,
+    onManageReplacement: () -> Unit,
+    onResetDevice: () -> Unit,
+    replaceDeviceEnabled: Boolean,
+    onManageFingerprints: () -> Unit,
+  ): ScreenModel {
+    val noInfo = "-"
 
-  data class ModelData(
-    val trackerScreenId: EventTrackerScreenId,
-    val emptyState: Boolean = true,
-    val currentVersion: String = noInfo,
-    val updateVersion: String? = null,
-    val modelNumber: String = noInfo,
-    val serialNumber: String = noInfo,
-    val deviceCharge: String = noInfo,
-    val lastSyncDate: String = noInfo,
-    val modelName: String = noInfo,
-    val replacementPending: String? = null,
-  )
-  return ScreenModel(
-    body = run {
-      val modelData = when (firmwareDeviceAvailability) {
-        FirmwareDeviceAvailability.None -> ModelData(
-          trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO_EMPTY
-        )
-        is FirmwareDeviceAvailability.Present -> {
-          val firmwareDeviceInfo = firmwareDeviceAvailability.firmwareDeviceInfo
-          ModelData(
-            trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO,
-            currentVersion = firmwareDeviceInfo.version,
-            updateVersion = firmwareData?.updateVersion,
-            modelNumber = firmwareDeviceInfo.hwRevision,
-            serialNumber = firmwareDeviceInfo.serial,
-            deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
-            lastSyncDate =
-              dateTimeFormatter.fullShortDateWithTime(
-                localDateTime =
-                  Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)
-                    .toLocalDateTime(timeZoneProvider.current())
-              ),
-            modelName = "Bitkey",
-            emptyState = false,
-            replacementPending =
-              when (val recoveryData = props.accountData.lostHardwareRecoveryData) {
-                is LostHardwareRecoveryInProgressData ->
-                  when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
-                    is WaitingForRecoveryDelayPeriodData ->
-                      durationFormatter.formatWithWords(
-                        nonNegativeDurationBetween(
-                          startTime = Clock.System.now(),
-                          endTime = recoveryInProgressData.delayPeriodEndTime
-                        )
-                      )
-                    is CompletingRecoveryData -> "Awaiting confirmation"
-                    else -> null
-                  }
-                else -> null
-              }
+    data class ModelData(
+      val trackerScreenId: EventTrackerScreenId,
+      val emptyState: Boolean = true,
+      val currentVersion: String = noInfo,
+      val updateVersion: String? = null,
+      val modelNumber: String = noInfo,
+      val serialNumber: String = noInfo,
+      val deviceCharge: String = noInfo,
+      val lastSyncDate: String = noInfo,
+      val modelName: String = noInfo,
+      val replacementPending: String? = null,
+    )
+    return ScreenModel(
+      body = run {
+        val modelData = when (firmwareDeviceAvailability) {
+          FirmwareDeviceAvailability.None -> ModelData(
+            trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO_EMPTY
           )
+          is FirmwareDeviceAvailability.Present -> {
+            val firmwareDeviceInfo = firmwareDeviceAvailability.firmwareDeviceInfo
+            ModelData(
+              trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO,
+              currentVersion = firmwareDeviceInfo.version,
+              updateVersion = firmwareData?.updateVersion,
+              modelNumber = firmwareDeviceInfo.hwRevision,
+              serialNumber = firmwareDeviceInfo.serial,
+              deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
+              lastSyncDate =
+                dateTimeFormatter.fullShortDateWithTime(
+                  localDateTime =
+                    Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)
+                      .toLocalDateTime(timeZoneProvider.current())
+                ),
+              modelName = "Bitkey",
+              emptyState = false,
+              replacementPending =
+                when (val recoveryData = props.accountData.lostHardwareRecoveryData) {
+                  is LostHardwareRecoveryInProgressData ->
+                    when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
+                      is WaitingForRecoveryDelayPeriodData ->
+                        durationFormatter.formatWithWords(
+                          nonNegativeDurationBetween(
+                            startTime = clock.now(),
+                            endTime = recoveryInProgressData.delayPeriodEndTime
+                          )
+                        )
+                      is CompletingRecoveryData -> "Awaiting confirmation"
+                      else -> null
+                    }
+                  else -> null
+                }
+            )
+          }
         }
-      }
-      DeviceSettingsFormBodyModel(
-        trackerScreenId = modelData.trackerScreenId,
-        emptyState = modelData.emptyState,
-        modelName = modelData.modelName,
-        currentVersion = modelData.currentVersion,
-        updateVersion = modelData.updateVersion,
-        modelNumber = modelData.modelNumber,
-        serialNumber = modelData.serialNumber,
-        deviceCharge = modelData.deviceCharge,
-        lastSyncDate = modelData.lastSyncDate,
-        replaceDeviceEnabled = replaceDeviceEnabled,
-        replacementPending = modelData.replacementPending,
-        onUpdateVersion =
-          when (val firmwareUpdateState = firmwareData?.firmwareUpdateState) {
-            is FirmwareData.FirmwareUpdateState.UpToDate, null -> null
-            is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
-              { goToFwup(firmwareUpdateState) }
-            }
-          },
-        onSyncDeviceInfo = { goToNfcMetadata() },
-        onReplaceDevice = goToRecovery,
-        onManageReplacement = { onManageReplacement() },
-        onResetDevice = { onResetDevice() },
-        onBack = props.onBack,
-        onManageFingerprints = onManageFingerprints,
-        coachmark = coachmark
-      )
-    },
-    presentationStyle = Root
-  )
+        DeviceSettingsFormBodyModel(
+          trackerScreenId = modelData.trackerScreenId,
+          emptyState = modelData.emptyState,
+          modelName = modelData.modelName,
+          currentVersion = modelData.currentVersion,
+          updateVersion = modelData.updateVersion,
+          modelNumber = modelData.modelNumber,
+          serialNumber = modelData.serialNumber,
+          deviceCharge = modelData.deviceCharge,
+          lastSyncDate = modelData.lastSyncDate,
+          replaceDeviceEnabled = replaceDeviceEnabled,
+          replacementPending = modelData.replacementPending,
+          onUpdateVersion =
+            when (val firmwareUpdateState = firmwareData?.firmwareUpdateState) {
+              is FirmwareData.FirmwareUpdateState.UpToDate, null -> null
+              is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
+                { goToFwup(firmwareUpdateState) }
+              }
+            },
+          onSyncDeviceInfo = { goToNfcMetadata() },
+          onReplaceDevice = goToRecovery,
+          onManageReplacement = { onManageReplacement() },
+          onResetDevice = { onResetDevice() },
+          onBack = props.onBack,
+          onManageFingerprints = onManageFingerprints,
+          coachmark = coachmark
+        )
+      },
+      presentationStyle = Root
+    )
+  }
 }
 
 private sealed interface FirmwareDeviceAvailability {

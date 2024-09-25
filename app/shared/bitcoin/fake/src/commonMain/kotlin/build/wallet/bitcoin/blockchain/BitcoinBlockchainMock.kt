@@ -11,11 +11,12 @@ import kotlinx.datetime.Clock
 
 class BitcoinBlockchainMock(
   turbine: (String) -> Turbine<Any>,
+  private val clock: Clock = Clock.System,
   private val defaultBlockHeight: Long = 807770,
   private val defaultBlockHash: String = "00000000000000000000cb4e25f60ca18a883d449b723771d8ebf4d4dae1f07e",
   private val defaultBroadcastDetail: BroadcastDetail =
     BroadcastDetail(
-      broadcastTime = Clock.System.now(),
+      broadcastTime = clock.now(),
       transactionId = "abcdef"
     ),
 ) : BitcoinBlockchain {

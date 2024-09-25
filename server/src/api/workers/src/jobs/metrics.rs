@@ -1,19 +1,17 @@
 use account::entities::Factor;
 use bdk_utils::{
-    generate_electrum_rpc_uris,
     metrics::{
         self as bdk_utils_metrics, MonitoredElectrumNode, ELECTRUM_NETWORK_KEY,
         ELECTRUM_PROVIDER_KEY, ELECTRUM_URI_KEY,
     },
     ElectrumRpcUris,
 };
-use instrumentation::metrics::{factory::Histogram, factory::ObservableCallbackRegistry, KeyValue};
+use instrumentation::metrics::{factory::ObservableCallbackRegistry, KeyValue};
 use notification::{
     metrics as notification_metrics, EMAIL_QUEUE_ENV_VAR, PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR,
 };
 use recovery::metrics as recovery_metrics;
 
-use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::electrum_client::ElectrumApi;
 use bdk_utils::get_electrum_client;
 use std::{
@@ -322,54 +320,57 @@ pub async fn run_once(
             messages_per_queue.get(&sms_queue_url).unwrap().to_owned();
     }
 
-    measure_electrum_signet_ping_response_time(state).await;
-    measure_electrum_mainnet_ping_response_time(state).await;
+    measure_electrum_ping_response_time(state).await;
     measure_electrum_tip_height(state, measurements_cache).await?;
 
     event!(Level::INFO, "Ending metrics job");
     Ok(())
 }
 
-async fn measure_electrum_ping_response_time(
-    network: Network,
-    state: &WorkerState,
-    metric: &Histogram<u64>,
-) {
-    if let Err(e) = (|| -> Result<(), WorkerError> {
-        let rpc_uris = generate_electrum_rpc_uris(&state.feature_flags_service)?;
-        let electrum_client = get_electrum_client(network, &rpc_uris)?;
+async fn measure_electrum_ping_response_time(state: &WorkerState) {
+    for node in &state.config.monitored_electrum_nodes {
+        let electrum_client = match get_electrum_client(
+            node.network,
+            &ElectrumRpcUris {
+                mainnet: node.uri.clone(),
+                testnet: node.uri.clone(),
+                signet: node.uri.clone(),
+            },
+        ) {
+            Ok(electrum_client) => electrum_client,
+            Err(e) => {
+                event!(
+                    Level::WARN,
+                    "Error instantiating {node}'s client: {e}; skipping",
+                    node = node.uri,
+                    e = e
+                );
+                continue;
+            }
+        };
 
         let start = std::time::Instant::now();
-        electrum_client.ping()?;
+        if let Err(e) = electrum_client.ping() {
+            event!(
+                Level::WARN,
+                "Error measuring {node}'s electrum ping: {e}; skipping",
+                node = node.uri,
+                e = e
+            );
+            continue;
+        }
         let end = std::time::Instant::now();
 
         let elapsed = end.duration_since(start).as_millis() as u64;
-        metric.record(elapsed, &[]);
-        Ok(())
-    })() {
-        event!(
-            Level::ERROR,
-            "Error measuring {network} Electrum ping response time: {e}"
-        )
+        bdk_utils_metrics::ELECTRUM_PING_RESPONSE_TIME.record(
+            elapsed,
+            &[
+                KeyValue::new(ELECTRUM_URI_KEY, node.uri.to_owned()),
+                KeyValue::new(ELECTRUM_NETWORK_KEY, node.network.to_string()),
+                KeyValue::new(ELECTRUM_PROVIDER_KEY, node.provider.to_owned()),
+            ],
+        );
     }
-}
-
-async fn measure_electrum_mainnet_ping_response_time(state: &WorkerState) {
-    measure_electrum_ping_response_time(
-        Network::Bitcoin,
-        state,
-        &bdk_utils_metrics::ELECTRUM_MAINNET_PING_RESPONSE_TIME,
-    )
-    .await
-}
-
-async fn measure_electrum_signet_ping_response_time(state: &WorkerState) {
-    measure_electrum_ping_response_time(
-        Network::Signet,
-        state,
-        &bdk_utils_metrics::ELECTRUM_SIGNET_PING_RESPONSE_TIME,
-    )
-    .await
 }
 
 async fn measure_electrum_tip_height(

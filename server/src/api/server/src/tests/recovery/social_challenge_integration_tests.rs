@@ -1,4 +1,4 @@
-use super::recovery_relationship_integration_tests::{
+use super::shared::{
     try_accept_recovery_relationship_invitation, try_create_recovery_relationship,
     try_endorse_recovery_relationship, AccountType, CodeOverride,
 };
@@ -28,6 +28,7 @@ use recovery::{
 };
 use time::UtcOffset;
 use types::account::bitcoin::Network;
+use types::recovery::trusted_contacts::TrustedContactRole;
 use types::{
     account::identifiers::AccountId,
     currencies::CurrencyCode,
@@ -348,6 +349,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
         } else {
             &other_account.id
         },
+        &TrustedContactRole::SocialRecoveryContact,
         &CognitoAuthentication::Recovery,
         &create_relationship_body.invitation,
         CodeOverride::None,
@@ -361,6 +363,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
             &context,
             &client,
             &customer_account.id,
+            &TrustedContactRole::SocialRecoveryContact,
             &create_relationship_body
                 .invitation
                 .recovery_relationship_info
@@ -504,6 +507,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         } else {
             &other_account.id
         },
+        &TrustedContactRole::SocialRecoveryContact,
         &CognitoAuthentication::Recovery,
         &create_relationship_body.invitation,
         CodeOverride::None,
@@ -517,6 +521,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
             &context,
             &client,
             &customer_account.id,
+            &TrustedContactRole::SocialRecoveryContact,
             &create_relationship_body
                 .invitation
                 .recovery_relationship_info

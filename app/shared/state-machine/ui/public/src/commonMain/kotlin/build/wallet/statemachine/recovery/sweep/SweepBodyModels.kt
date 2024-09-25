@@ -87,6 +87,7 @@ private val walletUpdateExplainers = immutableListOf(
 fun sweepInactiveHelpModel(
   id: EventTrackerScreenId?,
   presentationStyle: ScreenPresentationStyle,
+  onLearnMore: () -> Unit,
   onBack: () -> Unit,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
@@ -108,7 +109,13 @@ fun sweepInactiveHelpModel(
           items = walletUpdateExplainers
         )
       ),
-      primaryButton = null
+      primaryButton = ButtonModel(
+        text = "Learn more",
+        treatment = ButtonModel.Treatment.Secondary,
+        leadingIcon = Icon.SmallIconArrowUpRight,
+        onClick = StandardClick { onLearnMore() },
+        size = Footer
+      )
     )
 )
 

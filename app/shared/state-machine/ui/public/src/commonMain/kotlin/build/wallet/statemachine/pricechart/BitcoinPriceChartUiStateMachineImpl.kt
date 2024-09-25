@@ -156,8 +156,10 @@ class BitcoinPriceChartUiStateMachineImpl(
         },
         onChartTypeSelected = { selectedType = it },
         onChartHistorySelected = {
-          isLoading = true
-          selectedHistory = it
+          if (selectedHistory != it) {
+            isLoading = true
+            selectedHistory = it
+          }
         },
         onPointSelected = { selectedPoint = it },
         onBack = props.onBack

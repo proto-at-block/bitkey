@@ -6,7 +6,7 @@ use database::{
     aws_sdk_dynamodb::types::{
         AttributeDefinition, BillingMode, KeySchemaElement, KeyType, ScalarAttributeType,
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 
 mod fetch;
@@ -15,12 +15,12 @@ mod persist;
 pub(crate) const PARTITION_KEY: &str = "service_identifier";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct MigrationRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for MigrationRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

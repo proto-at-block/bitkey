@@ -1,4 +1,4 @@
-use crate::repository::Repository as RecoveryService;
+use crate::repository::RecoveryRepository;
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use entities::RecoveryStatus;
@@ -15,7 +15,7 @@ pub mod state_machine;
 
 pub(crate) async fn ensure_pubkeys_unique(
     account_service: &AccountService,
-    recovery_service: &RecoveryService,
+    recovery_service: &RecoveryRepository,
     app_auth_pubkey: Option<PublicKey>,
     hw_auth_pubkey: Option<PublicKey>,
     recovery_auth_pubkey: Option<PublicKey>,

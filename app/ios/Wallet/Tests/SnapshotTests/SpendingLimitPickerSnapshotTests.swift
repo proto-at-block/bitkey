@@ -13,7 +13,9 @@ final class SpendingLimitPickerSnapshotTests: XCTestCase {
                 primaryAmount: "$0",
                 secondaryAmount: "0 sats",
                 value: 0,
-                buttonIsEnabled: false
+                buttonIsEnabled: false,
+                isKeypad: false,
+                isRevamp: false
             )
         )
 
@@ -26,7 +28,39 @@ final class SpendingLimitPickerSnapshotTests: XCTestCase {
                 primaryAmount: "$150",
                 secondaryAmount: "456,789 sats",
                 value: 150,
-                buttonIsEnabled: true
+                buttonIsEnabled: true,
+                isKeypad: false,
+                isRevamp: false
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
+    func test_limit_picker_zero_with_keypad() {
+        let view = SpendingLimitPickerView(
+            viewModel: .snapshot(
+                primaryAmount: "$0",
+                secondaryAmount: "0 sats",
+                value: 0,
+                buttonIsEnabled: false,
+                isKeypad: true,
+                isRevamp: true
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
+    func test_limit_picker_nonzero_with_keypad() {
+        let view = SpendingLimitPickerView(
+            viewModel: .snapshot(
+                primaryAmount: "$150",
+                secondaryAmount: "456,789 sats",
+                value: 150,
+                buttonIsEnabled: true,
+                isKeypad: true,
+                isRevamp: true
             )
         )
 
@@ -43,9 +77,36 @@ private extension SpendingLimitPickerModel {
         primaryAmount: String,
         secondaryAmount: String,
         value: Float,
-        buttonIsEnabled: Bool
+        buttonIsEnabled: Bool,
+        isKeypad: Bool,
+        isRevamp: Bool
     ) -> SpendingLimitPickerModel {
         let maxValue = Float(200.0)
+        let entryMode = if isKeypad {
+            EntryMode.Keypad(
+                amountModel: .init(
+                    primaryAmount: primaryAmount,
+                    primaryAmountGhostedSubstringRange: nil,
+                    secondaryAmount: secondaryAmount,
+                    eventTrackerScreenInfo: nil
+                ),
+
+                keypadModel: .init(
+                    showDecimal: false,
+                    onButtonPress: { _ in }
+                )
+            )
+        } else {
+            EntryMode.Slider(sliderModel: .init(
+                primaryAmount: primaryAmount,
+                secondaryAmount: secondaryAmount,
+                value: value,
+                valueRange: FloatingPointRange(start: 0, endInclusive: 200),
+                onValueUpdate: { _ in },
+                isEnabled: true
+            ))
+        }
+
         return .init(
             onBack: {},
             toolbarModel: .init(
@@ -53,14 +114,8 @@ private extension SpendingLimitPickerModel {
                 middleAccessory: nil,
                 trailingAccessory: nil
             ),
-            limitSliderModel: .init(
-                primaryAmount: primaryAmount,
-                secondaryAmount: secondaryAmount,
-                value: value,
-                valueRange: FloatingPointRange(start: 0, endInclusive: 200),
-                onValueUpdate: { _ in },
-                isEnabled: true
-            ),
+            entryMode: entryMode,
+            spendingLimitsCopy: SpendingLimitsCopy.Companion().get(isRevampOn: isRevamp),
             setLimitButtonEnabled: buttonIsEnabled,
             setLimitButtonLoading: false,
             onSetLimitClick: {}

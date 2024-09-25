@@ -19,6 +19,7 @@ use axum_extra::{
 use bdk_utils::generate_electrum_rpc_uris;
 use bdk_utils::{bdk::miniscript::ToPublicKey, error::BdkUtilError};
 use crypto::frost::KeyCommitments;
+use experimentation::claims::ExperimentationClaims;
 use isocountry::CountryCode;
 use notification::entities::NotificationTouchpoint;
 use privileged_action::service::authorize_privileged_action::{
@@ -44,11 +45,10 @@ use account::service::{
 };
 use account::{
     entities::{
-        Account, CommsVerificationScope, FullAccountAuthKeys,
-        FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
-        LiteAccountAuthKeys, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
-        SoftwareAccountAuthKeys, SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest,
-        SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+        Account, CommsVerificationScope, FullAccountAuthKeysPayload as FullAccountAuthKeysRequest,
+        Keyset, LiteAccount, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
+        SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
+        Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
     },
     service::CreateSoftwareAccountInput,
 };
@@ -72,10 +72,11 @@ use http_server::swagger::{SwaggerEndpoint, Url};
 use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
 use privileged_action::service::Service as PrivilegedActionService;
-use recovery::repository::Repository as RecoveryService;
+use recovery::repository::RecoveryRepository;
 use types::{
     account::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
+        keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys},
         spending::{SpendingDistributedKey, SpendingKeyset},
     },
     privileged_action::{
@@ -116,7 +117,7 @@ pub struct RouteState(
     pub Config,
     pub IdentifierGenerator,
     pub AccountService,
-    pub RecoveryService,
+    pub RecoveryRepository,
     pub WsmClient,
     pub CommsVerificationService,
     pub IterableClient,
@@ -891,7 +892,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
     fields(account_id),
     skip(
         account_service,
-        recovery_service,
+        recovery_repository,
         id_generator,
         user_pool_service,
         config,
@@ -911,7 +912,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
 // `create_keyset` to common function
 pub async fn create_account(
     State(account_service): State<AccountService>,
-    State(recovery_service): State<RecoveryService>,
+    State(recovery_repository): State<RecoveryRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -924,7 +925,7 @@ pub async fn create_account(
             AccountValidationRequest::from(&request),
             &config,
             &account_service,
-            &recovery_service,
+            &recovery_repository,
         )
         .await?
     {
@@ -1106,7 +1107,7 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
     fields(account_id),
     skip(
         account_service,
-        recovery_service,
+        recovery_repository,
         id_generator,
         user_pool_service,
         config
@@ -1123,7 +1124,7 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
 )]
 pub async fn upgrade_account(
     State(account_service): State<AccountService>,
-    State(recovery_service): State<RecoveryService>,
+    State(recovery_repository): State<RecoveryRepository>,
     State(wsm_client): State<WsmClient>,
     State(id_generator): State<IdentifierGenerator>,
     State(user_pool_service): State<UserPoolService>,
@@ -1179,7 +1180,7 @@ pub async fn upgrade_account(
             AccountValidationRequest::from((lite_account, &request)),
             &config,
             &account_service,
-            &recovery_service,
+            &recovery_repository,
         )
         .await?;
 
@@ -1860,8 +1861,10 @@ impl From<ElectrumServerConfig> for ElectrumServer {
 )]
 pub async fn get_bdk_config(
     feature_flags_service: State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
 ) -> Result<Json<BdkConfigResponse>, ApiError> {
-    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service)?;
+    let context_key = experimentation_claims.app_installation_context_key().ok();
+    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
     Ok(Json(BdkConfigResponse {
         electrum_servers: ElectrumServers {
             mainnet: get_electrum_server(Network::Bitcoin, &rpc_uris)?.into(),

@@ -30,7 +30,7 @@ extension XCTestCase {
         }
 
         let iPhoneSEResult = verifySnapshot(
-            matching: viewController,
+            of: viewController,
             as: .image(
                 drawHierarchyInKeyWindow: usesVisualEffect,
                 precision: precision,
@@ -46,13 +46,13 @@ extension XCTestCase {
         XCTAssertNil(iPhoneSEResult)
 
         let iPhone15ProMax = verifySnapshot(
-            matching: viewController,
+            of: viewController,
             as: .image(
                 drawHierarchyInKeyWindow: usesVisualEffect,
                 precision: precision,
                 perceptualPrecision: perceptualPrecision,
                 size: ViewImageConfig.iPhone13ProMax.size,
-                traits: ViewImageConfig.iPhone13Pro.traits
+                traits: ViewImageConfig.iPhone13ProMax.traits
             ),
             named: "iPhoneProMax",
             record: isRecording,
@@ -176,12 +176,18 @@ extension ListModel {
         sections: [
             ListGroupModel(
                 header: nil,
-                items: [.snapshotTestOutgoing, .snapshotTestIncoming],
+                items: [
+                    .snapshotTestOutgoing,
+                    .snapshotTestIncoming,
+                    .snapshotTestUtxoConsolidation,
+                ],
                 style: .none,
                 headerTreatment: .secondary,
                 footerButton: nil,
                 explainerSubtext: nil
             ),
+            // Add a second section to make sure it looks visually correct. In practice, we separate
+            // pending transactions followed by confirmed transactions.
             ListGroupModel(
                 header: nil,
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
@@ -215,6 +221,16 @@ extension ListItemModel {
         amount: "$23.50",
         amountEquivalent: "45,075 sats",
         transactionType: BitcoinTransactionTransactionTypeIncoming(),
+        isPending: false,
+        onClick: {}
+    )
+
+    static let snapshotTestUtxoConsolidation = TransactionItemModelKt.TransactionItemModel(
+        truncatedRecipientAddress: "Txn Id Here",
+        date: "Pending",
+        amount: "$23.50",
+        amountEquivalent: "45,075 sats",
+        transactionType: BitcoinTransactionTransactionTypeUtxoConsolidation(),
         isPending: false,
         onClick: {}
     )

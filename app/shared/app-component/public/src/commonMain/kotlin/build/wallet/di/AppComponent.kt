@@ -17,14 +17,17 @@ import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
+import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
+import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
 import build.wallet.configuration.MobilePayFiatConfigService
@@ -36,7 +39,7 @@ import build.wallet.debug.DebugOptionsService
 import build.wallet.encrypt.*
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.client.F8eHttpClient
-import build.wallet.f8e.debug.NetworkingDebugConfigRepository
+import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.feature.FeatureFlag
@@ -130,6 +133,7 @@ interface AppComponent {
   val bdkMnemonicGenerator: BdkMnemonicGenerator
   val bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilder
   val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository
+  val bitcoinBlockchain: BitcoinBlockchain
   val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder
   val bitkeyDatabaseProvider: BitkeyDatabaseProvider
   val bugsnagContext: BugsnagContext
@@ -149,6 +153,7 @@ interface AppComponent {
   val eventStore: EventStore
   val eventTracker: EventTracker
   val exchangeRateService: ExchangeRateService
+  val exportToolsFeatureFlag: ExportToolsFeatureFlag
   val extendedKeyGenerator: ExtendedKeyGenerator
   val inviteCodeLoader: InviteCodeLoader
   val f8eHttpClient: F8eHttpClient
@@ -184,7 +189,7 @@ interface AppComponent {
   val spake2: Spake2
   val symmetricKeyEncryptor: SymmetricKeyEncryptor
   val symmetricKeyGenerator: SymmetricKeyGenerator
-  val networkingDebugConfigRepository: NetworkingDebugConfigRepository
+  val networkingDebugService: NetworkingDebugService
   val networkReachabilityProvider: NetworkReachabilityProvider
   val notificationTouchpointDao: NotificationTouchpointDao
   val notificationTouchpointF8eClient: NotificationTouchpointF8eClient
@@ -206,6 +211,7 @@ interface AppComponent {
   val secureStoreFactory: EncryptedKeyValueStoreFactory
   val appSessionManager: AppSessionManager
   val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
+  val feeBumpAllowShrinkingChecker: FeeBumpAllowShrinkingChecker
   val spendingWalletProvider: SpendingWalletProvider
   val debugOptionsService: DebugOptionsService
   val outgoingTransactionDetailDao: OutgoingTransactionDetailDao
@@ -242,5 +248,9 @@ interface AppComponent {
   val xNonceGenerator: XNonceGenerator
   val mobilePayService: MobilePayService
   val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag
+  val speedUpAllowShrinkingFeatureFlag: SpeedUpAllowShrinkingFeatureFlag
+  val utxoConsolidationService: UtxoConsolidationService
+  val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag
   val databaseIntegrityChecker: DatabaseIntegrityChecker
+  val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag
 }

@@ -4,7 +4,7 @@ use database::{
     aws_sdk_dynamodb::types::{
         AttributeDefinition, BillingMode, KeySchemaElement, KeyType, ScalarAttributeType,
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -14,12 +14,12 @@ mod persist;
 const HASH_KEY: &str = "address";
 
 #[derive(Clone, Debug)]
-pub struct Repository {
+pub struct AddressRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for AddressRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

@@ -25,12 +25,33 @@ public struct SpendingLimitPickerView: View {
             Spacer()
                 .frame(height: 16)
 
-            FormHeaderView(viewModel: viewModel.headerModel, headlineFont: .title1)
+            if let headerModel = viewModel.headerModel {
+                FormHeaderView(viewModel: headerModel, headlineFont: .title1)
+            }
 
             Spacer()
                 .frame(height: 24)
 
-            AmountSliderView(viewModel: viewModel.limitSliderModel)
+            switch viewModel.entryMode {
+            case let sliderEntryMode as EntryMode.Slider:
+                AmountSliderView(viewModel: sliderEntryMode.sliderModel)
+            case let keypadEntryMode as EntryMode.Keypad:
+                VStack {
+                    Spacer()
+
+                    AmountEntryView(
+                        viewModel: keypadEntryMode.amountModel,
+                        disabled: false
+                    )
+
+                    Spacer()
+
+                    KeypadView(viewModel: keypadEntryMode.keypadModel)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            default:
+                fatalError("Unexpected amount entry mode")
+            }
 
             Spacer()
 

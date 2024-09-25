@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.InsufficientFunds
-import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet
@@ -19,7 +18,6 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -49,14 +47,11 @@ import kotlinx.collections.immutable.toImmutableMap
 
 class TransferConfirmationUiStateMachineImpl(
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
-  private val bitcoinBlockchain: BitcoinBlockchain,
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
-  private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
-  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val transactionsService: TransactionsService,
 ) : TransferConfirmationUiStateMachine {
   @Composable
@@ -282,23 +277,16 @@ class TransferConfirmationUiStateMachineImpl(
     onBdkError: () -> Unit,
   ) {
     LaunchedEffect("broadcasting-txn") {
-      bitcoinBlockchain.broadcast(psbt = state.twoOfThreeSignedPsbt)
+      transactionsService
+        .broadcast(
+          psbt = state.twoOfThreeSignedPsbt,
+          estimatedTransactionPriority = selectedPriority
+        )
         .onSuccess {
-          transactionsService.syncTransactions()
           transactionPriorityPreference.set(selectedPriority)
           props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
-          // When we successfully broadcast the transaction, store the transaction details and
-          // exchange rate.
-          outgoingTransactionDetailRepository.persistDetails(
-            details =
-              OutgoingTransactionDetail(
-                broadcastDetail = it,
-                exchangeRates = props.exchangeRates,
-                estimatedConfirmationTime = it.broadcastTime.plus(selectedPriority.toDuration())
-              )
-          )
         }
-        .logFailure { "Failed to broadcast transaction" }
+        .logFailure { "Error broadcasting regular transaction." }
         .onFailure {
           when (props.requiredSigner) {
             Hardware -> onBdkError()
@@ -413,7 +401,6 @@ class TransferConfirmationUiStateMachineImpl(
     onCloseSheet: () -> Unit,
     onFeeOptionSelected: (EstimatedTransactionPriority) -> Unit,
   ): ScreenModel {
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val transferBitcoinAmount = BitcoinMoney.sats(state.appSignedPsbt.amountSats.toBigInteger())
     val feeBitcoinAmount = state.appSignedPsbt.fee
     val transactionDetails =
@@ -433,7 +420,6 @@ class TransferConfirmationUiStateMachineImpl(
     val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
         transactionDetails = transactionDetails,
-        fiatCurrency = fiatCurrency,
         exchangeRates = props.exchangeRates
       )
     )

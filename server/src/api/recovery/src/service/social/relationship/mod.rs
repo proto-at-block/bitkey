@@ -1,6 +1,6 @@
 use account::entities::AccountProperties;
 use rand::Rng;
-use repository::recovery::social::Repository;
+use repository::recovery::social::SocialRecoveryRepository;
 use time::{Duration, OffsetDateTime};
 
 use notification::service::Service as NotificationService;
@@ -22,13 +22,16 @@ const EXPIRATION_DAYS: i64 = 3;
 
 #[derive(Clone)]
 pub struct Service {
-    pub repository: Repository,
+    pub repository: SocialRecoveryRepository,
     pub notification_service: NotificationService,
 }
 
 impl Service {
     #[must_use]
-    pub fn new(repository: Repository, notification_service: NotificationService) -> Self {
+    pub fn new(
+        repository: SocialRecoveryRepository,
+        notification_service: NotificationService,
+    ) -> Self {
         Self {
             repository,
             notification_service,

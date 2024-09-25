@@ -2525,6 +2525,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "export_tools"
+version = "0.1.0"
+dependencies = [
+ "account",
+ "axum 0.7.4",
+ "axum-macros",
+ "bdk_utils",
+ "errors",
+ "http_server",
+ "serde",
+ "tracing",
+ "types",
+ "utoipa",
+]
+
+[[package]]
 name = "external_identifier"
 version = "0.1.0"
 dependencies = [
@@ -3915,6 +3931,7 @@ dependencies = [
  "database",
  "errors",
  "exchange_rate",
+ "experimentation",
  "feature_flags",
  "http_server",
  "instrumentation",
@@ -4177,6 +4194,7 @@ dependencies = [
  "crypto",
  "database",
  "errors",
+ "experimentation",
  "external_identifier",
  "feature_flags",
  "http_server",
@@ -5122,6 +5140,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "time",
+ "tokio",
  "tracing",
  "types",
  "userpool",
@@ -5882,6 +5901,7 @@ dependencies = [
  "errors",
  "exchange_rate",
  "experimentation",
+ "export_tools",
  "external_identifier",
  "feature_flags",
  "hex",

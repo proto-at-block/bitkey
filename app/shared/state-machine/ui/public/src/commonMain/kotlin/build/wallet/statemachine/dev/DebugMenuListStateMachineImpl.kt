@@ -76,12 +76,15 @@ class DebugMenuListStateMachineImpl(
       groups =
         immutableListOfNotNull(
           accountConfigUiStateMachine.model(
-            AccountConfigProps(props.accountData)
+            AccountConfigProps(
+              accountData = props.accountData,
+              onBitcoinWalletClick = {
+                props.onSetState(DebugMenuState.ShowingBitcoinWalletDebugMenu)
+              }
+            )
           ),
           OnboardingConfigListGroupModel(props),
-          bitcoinNetworkPickerUiStateMachine.model(
-            Unit
-          ),
+          bitcoinNetworkPickerUiStateMachine.model(Unit),
           F8eEnvironmentPickerListGroupModel(props),
           infoOptionsUiStateMachine.model(Unit),
           BitkeyDeviceOptionsListGroupModel(

@@ -41,7 +41,10 @@ sealed interface AppFunctionalityStatus {
             fiatExchangeRates = Available,
             notifications = Available,
             helpCenter = Available,
-            cloudBackupHealth = Available
+            cloudBackupHealth = Available,
+            inheritance = Available,
+            utxoConsolidation = Available,
+            exportTools = Available
           )
 
         is LimitedFunctionality -> cause.featureStates

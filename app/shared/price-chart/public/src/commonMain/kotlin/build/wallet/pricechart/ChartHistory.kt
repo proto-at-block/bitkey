@@ -12,33 +12,33 @@ enum class ChartHistory(
   val diffLabel: StringResource,
 ) {
   DAY(
-    Res.string.chart_history_label_day,
-    1.days,
-    75,
-    Res.string.chart_history_label_day_diff
+    label = Res.string.chart_history_label_day,
+    days = 1.days,
+    maxPricePoints = 75,
+    diffLabel = Res.string.chart_history_label_day_diff
   ),
   WEEK(
-    Res.string.chart_history_label_week,
-    7.days,
-    75,
-    Res.string.chart_history_label_week_diff
+    label = Res.string.chart_history_label_week,
+    days = 7.days,
+    maxPricePoints = 75,
+    diffLabel = Res.string.chart_history_label_week_diff
   ),
   MONTH(
-    Res.string.chart_history_label_month,
-    30.days,
-    100,
-    Res.string.chart_history_label_month_diff
+    label = Res.string.chart_history_label_month,
+    days = 30.days,
+    maxPricePoints = 100,
+    diffLabel = Res.string.chart_history_label_month_diff
   ),
   YEAR(
-    Res.string.chart_history_label_year,
-    365.days,
-    150,
-    Res.string.chart_history_label_year_diff
+    label = Res.string.chart_history_label_year,
+    days = 365.days,
+    maxPricePoints = 150,
+    diffLabel = Res.string.chart_history_label_year_diff
   ),
   ALL(
-    Res.string.chart_history_label_all,
-    3650.days,
-    200,
-    Res.string.chart_history_label_all_diff
+    label = Res.string.chart_history_label_all,
+    days = 3650.days,
+    maxPricePoints = 170,
+    diffLabel = Res.string.chart_history_label_all_diff
   ),
 }

@@ -3,6 +3,8 @@ package build.wallet.bitcoin.wallet
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -10,8 +12,7 @@ import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.compose.collections.emptyImmutableList
@@ -55,6 +56,7 @@ import kotlin.time.toDuration
  */
 class SpendingWalletFake(
   override val identifier: String = "wallet-fake",
+  override val networkType: BitcoinNetworkType = BITCOIN,
 ) : SpendingWallet {
   private val walletLock = Mutex()
 
@@ -182,7 +184,7 @@ class SpendingWalletFake(
             false ->
               confirmedTransactions.sumOf {
                 when (it.transactionType) {
-                  Incoming -> it.total
+                  Incoming, UtxoConsolidation -> it.total
                   Outgoing -> it.total.negate()
                 }
               }
@@ -194,7 +196,7 @@ class SpendingWalletFake(
             false ->
               pendingTransactions.sumOf {
                 when (it.transactionType) {
-                  Incoming -> it.total
+                  Incoming, UtxoConsolidation -> it.total
                   Outgoing -> it.total.negate()
                 }
               }

@@ -1,6 +1,6 @@
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use async_trait::async_trait;
-use recovery::repository::Repository as RecoveryService;
+use recovery::repository::RecoveryRepository;
 
 use crate::routes::Config;
 
@@ -17,7 +17,7 @@ impl Rule for UniqueAppAuthPubkeyForAccountRule {
         request: &AccountValidationRequest,
         _: &Config,
         account_service: &AccountService,
-        _: &RecoveryService,
+        _: &RecoveryRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating or upgrading to full accounts
         let app_auth_pubkey = match request {

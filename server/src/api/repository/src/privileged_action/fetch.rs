@@ -1,6 +1,6 @@
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_item, try_from_items, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_item, try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
 use serde::de::DeserializeOwned;
 use tracing::{event, instrument, Level};
@@ -13,7 +13,7 @@ use types::{
 };
 
 use super::{
-    Repository, ACCOUNT_IDX, ACCOUNT_IDX_PARTITION_KEY, CANCELLATION_TOKEN_IDX,
+    PrivilegedActionRepository, ACCOUNT_IDX, ACCOUNT_IDX_PARTITION_KEY, CANCELLATION_TOKEN_IDX,
     CANCELLATION_TOKEN_IDX_PARTITION_KEY, PARTITION_KEY,
 };
 
@@ -22,7 +22,7 @@ const AUTHORIZATION_STRATEGY_TYPE_EXPRESSION: &str =
 const PRIVILEGED_ACTION_TYPE_EXPRESSION: &str = "privileged_action_type = :privileged_action_type";
 const STATUS_EXPRESSION: &str = "#status = :status";
 
-impl Repository {
+impl PrivilegedActionRepository {
     #[instrument(skip(self))]
     pub async fn fetch_by_id<T>(
         &self,

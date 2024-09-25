@@ -65,6 +65,7 @@ kotlin {
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.availabilityPublic)
         implementation(projects.shared.inAppSecurityPublic)
+        implementation(projects.shared.inheritancePublic)
       }
     }
 
@@ -123,6 +124,7 @@ kotlin {
         implementation(projects.shared.inAppSecurityFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.coachmarkFake)
+        implementation(projects.shared.inheritanceFake)
       }
     }
 

@@ -1,0 +1,5 @@
+# https://docs.github.com/en/repositories/working-with-files/using-files/viewing-a-file#ignore-commits-in-the-blame-view
+
+# ignore ktlint reformat
+5bf8687bbf21344fbef76e773260740c65ed4df4
+5eebba6fa2ded736a7e8302c39da4d923dcd0877

@@ -10,6 +10,8 @@ import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
@@ -24,6 +26,7 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowDustLimitUiState
@@ -41,6 +44,7 @@ class TransferAmountEntryUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val transactionsService: TransactionsService,
   private val mobilePayService: MobilePayService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : TransferAmountEntryUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -66,7 +70,8 @@ class TransferAmountEntryUiStateMachineImpl(
     }
 
     val transactionsData = remember { transactionsService.transactionsData() }
-      .collectAsState().value
+      .collectAsState()
+      .value
 
     val transactions = when (transactionsData) {
       TransactionsData.LoadingTransactionsData -> immutableListOf()
@@ -238,7 +243,8 @@ class TransferAmountEntryUiStateMachineImpl(
           transferAmountState is AmountWithZeroBalanceUiState -> null
           transferAmountState is AmountEqualOrAboveBalanceUiState -> AmountEqualOrAboveBalanceBannerModel
           transferAmountState is AmountBelowBalanceUiState && requiresHardware -> HardwareRequiredBannerModel
-          transferAmountState is AmountBelowBalanceUiState && props.f8eReachability == NetworkReachability.UNREACHABLE ->
+          transferAmountState is AmountBelowBalanceUiState &&
+            props.f8eReachability == NetworkReachability.UNREACHABLE ->
             F8eUnavailableBannerModel
           else -> null
         }
@@ -279,12 +285,12 @@ class TransferAmountEntryUiStateMachineImpl(
         bannerModel = bannerModel,
         continueButtonEnabled = transferAmountState is AmountBelowBalanceUiState,
         amountDisabled = disableTransferAmount,
+        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()).transferScreenUnavailableWarning,
         onContinueClick = {
           if (transferAmountState is ValidAmountEnteredUiState) {
             props.onContinueClick(
               ContinueTransferParams(
                 ExactAmount(enteredBitcoinMoney),
-                enteredFiatMoney,
                 requiredSigner,
                 spendingLimitStatus.spendingLimit
               )
@@ -295,7 +301,6 @@ class TransferAmountEntryUiStateMachineImpl(
           props.onContinueClick(
             ContinueTransferParams(
               SendAll,
-              fiatBalance,
               requiredSigner,
               spendingLimitStatus.spendingLimit
             )

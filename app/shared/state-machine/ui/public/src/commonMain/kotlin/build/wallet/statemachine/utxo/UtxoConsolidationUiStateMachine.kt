@@ -9,5 +9,6 @@ import build.wallet.statemachine.core.StateMachine
 interface UtxoConsolidationUiStateMachine : StateMachine<UtxoConsolidationProps, ScreenModel>
 
 data class UtxoConsolidationProps(
+  val onConsolidationSuccess: () -> Unit,
   val onBack: () -> Unit,
 )

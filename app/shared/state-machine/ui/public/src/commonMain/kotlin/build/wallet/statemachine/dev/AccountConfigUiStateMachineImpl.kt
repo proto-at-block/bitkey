@@ -35,8 +35,12 @@ class AccountConfigUiStateMachineImpl(
       .collectAsState(null).value ?: return null
 
     return when (props.accountData) {
-      is AccountData.HasActiveFullAccountData ->
-        ActiveFullAccountModel(props.accountData.account.config)
+      is AccountData.HasActiveFullAccountData -> {
+        ActiveFullAccountModel(
+          accountConfig = props.accountData.account.config,
+          onBitcoinWalletClick = props.onBitcoinWalletClick
+        )
+      }
 
       is AccountData.HasActiveLiteAccountData ->
         ActiveLiteAccountModel(
@@ -48,7 +52,10 @@ class AccountConfigUiStateMachineImpl(
     }
   }
 
-  private fun ActiveFullAccountModel(accountConfig: FullAccountConfig): ListGroupModel {
+  private fun ActiveFullAccountModel(
+    accountConfig: FullAccountConfig,
+    onBitcoinWalletClick: () -> Unit,
+  ): ListGroupModel {
     return ListGroupModel(
       header = "Keybox Configuration",
       style = ListGroupStyle.DIVIDER,
@@ -64,6 +71,13 @@ class AccountConfigUiStateMachineImpl(
           ListItemModel(
             title = "Fake hardware",
             sideText = accountConfig.isHardwareFake.toString()
+          )
+        )
+        add(
+          ListItemModel(
+            title = "Bitcoin wallet",
+            trailingAccessory = ListItemAccessory.drillIcon(),
+            onClick = onBitcoinWalletClick
           )
         )
       }.toImmutableList()

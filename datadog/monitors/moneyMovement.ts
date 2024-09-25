@@ -10,6 +10,8 @@ import {
 import { HttpStatusCompositeMonitor } from "./common/http";
 import { getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
 
+const SLACK_ALERT_CHANNEL = "@slack-Block--bitkey-money-movement-alerts";
+
 export class MoneyMovementMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
         super(scope, `money-movement_${environment}`)
@@ -191,7 +193,7 @@ export class MoneyMovementMonitors extends Construct {
         }
         // This config uses a temp Slack channel for testing the alert
         let tempLatencyConfig = {
-            recipients: ["@slack-Block--w1-money-movement-alerts"],
+            recipients: [SLACK_ALERT_CHANNEL],
             type: "query alert",
             monitorThresholds: {
                 critical: "2000",
@@ -212,26 +214,52 @@ export class MoneyMovementMonitors extends Construct {
             ...latencyConfig
         })
 
-        new Monitor(this, "high-mainnet-electrum-latency", {
+        new Monitor(this, "mempool-high-mainnet-electrum-latency", {
             query: metric_avg_query(
-                `avg:bdk_utils.electrum_mainnet_time_to_ping{env:${environment}}`,
+                `avg:bdk_utils.electrum_time_to_ping{env:${environment},network:bitcoin,provider:mempool}`,
                 latencyWindow,
                 latencyConfig.monitorThresholds.critical
             ),
-            name: `[Money Movement] High latency connecting to mainnet Electrum server on ${environment}`,
+            name: `[Money Movement] High latency connecting to Mempool's mainnet Electrum server on ${environment}`,
             message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...tempLatencyConfig
         })
 
-        new Monitor(this, "high-signet-electrum-latency", {
+        new Monitor(this, "blockstream-high-mainnet-electrum-latency", {
             query: metric_avg_query(
-                `avg:bdk_utils.electrum_signet_time_to_ping{env:${environment}}`,
+                `avg:bdk_utils.electrum_time_to_ping{env:${environment},network:bitcoin,provider:blockstream}`,
                 latencyWindow,
                 latencyConfig.monitorThresholds.critical
             ),
-            name: `[Money Movement] High latency connecting to signet Electrum server on ${environment}`,
+            name: `[Money Movement] High latency connecting to Blockstream's mainnet Electrum server on ${environment}`,
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...tempLatencyConfig
+        })
+
+        new Monitor(this, "mempool-high-signet-electrum-latency", {
+            query: metric_avg_query(
+                `avg:bdk_utils.electrum_time_to_ping{env:${environment},network:signet,provider:mempool}`,
+                latencyWindow,
+                latencyConfig.monitorThresholds.critical
+            ),
+            name: `[Money Movement] High latency connecting to Mempool's signet Electrum server on ${environment}`,
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...tempLatencyConfig
+        })
+
+        new Monitor(this, "blockstream-high-signet-electrum-latency", {
+            query: metric_avg_query(
+                `avg:bdk_utils.electrum_time_to_ping{env:${environment},network:signet,provider:blockstream}`,
+                latencyWindow,
+                latencyConfig.monitorThresholds.critical
+            ),
+            name: `[Money Movement] High latency connecting to Blockstream's signet Electrum server on ${environment}`,
             message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
@@ -240,7 +268,7 @@ export class MoneyMovementMonitors extends Construct {
 
         // Electrum Success/Failure Ratio Alerts
         let electrumRatioConfig = {
-            recipients: ["@slack-Block--w1-money-movement-alerts"],
+            recipients: [SLACK_ALERT_CHANNEL],
             type: "rum alert",
             monitorThresholds: {
                 critical: "1",
@@ -281,7 +309,7 @@ export class MoneyMovementMonitors extends Construct {
 
         // Log Alerts
         let log_alert_config = {
-            recipients: ["@slack-Block--w1-money-movement-alerts"],
+            recipients: [SLACK_ALERT_CHANNEL],
             type: "log alert",
             monitorThresholds: {
                 critical: "2",

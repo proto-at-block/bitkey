@@ -13,7 +13,9 @@ import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerSc
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.ErrorData
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
@@ -30,6 +32,7 @@ class SweepUiStateMachineImpl(
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val sweepDataStateMachine: SweepDataStateMachine,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
@@ -41,13 +44,26 @@ class SweepUiStateMachineImpl(
       )
     )
 
-    return when (screenState) {
+    return when (val uiState = screenState) {
       ScreenState.ShowingSweepState -> getSweepScreen(props, sweepData, setState = { screenState = it })
       ScreenState.ShowingHelpText -> sweepInactiveHelpModel(
         id = InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP,
         presentationStyle = props.presentationStyle,
+        onLearnMore = {
+          screenState = ScreenState.ShowingLearnMore("https://support.bitkey.world/hc/en-us/articles/28019865146516-How-do-I-access-funds-sent-to-a-previously-created-Bitkey-address")
+        },
         onBack = { screenState = ScreenState.ShowingSweepState }
       )
+      is ScreenState.ShowingLearnMore -> {
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = uiState.urlString,
+              onClose = { screenState = ScreenState.ShowingHelpText }
+            )
+          }
+        ).asModalScreen()
+      }
     }
   }
 
@@ -208,5 +224,12 @@ class SweepUiStateMachineImpl(
      * Displaying help text to explain why a sweep is required
      */
     data object ShowingHelpText : ScreenState
+
+    /**
+     * Displaying 'learn more' help center article
+     */
+    data class ShowingLearnMore(
+      val urlString: String,
+    ) : ScreenState
   }
 }

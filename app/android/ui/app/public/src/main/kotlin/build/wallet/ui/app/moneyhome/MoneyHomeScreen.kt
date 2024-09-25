@@ -15,8 +15,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
@@ -291,7 +290,10 @@ private fun Transactions(
 
 @Preview
 @Composable
-internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
+internal fun MoneyHomeScreenFull(
+  hideBalance: Boolean = false,
+  largeBalance: Boolean = false,
+) {
   PreviewWalletTheme {
     MoneyHomeScreen(
       model =
@@ -299,11 +301,17 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
           onSettings = {},
           hideBalance = hideBalance,
           onHideBalance = {},
-          balanceModel =
+          balanceModel = if (largeBalance) {
+            MoneyAmountModel(
+              primaryAmount = "$88,888,888.88",
+              secondaryAmount = "153,984,147,317 sats"
+            )
+          } else {
             MoneyAmountModel(
               primaryAmount = "$289,745",
               secondaryAmount = "424,567 sats"
-            ),
+            )
+          },
           cardsModel = MoneyHomeCardsModel(cards = emptyImmutableList()),
           transactionsModel =
             ListModel(
@@ -330,6 +338,15 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
                           amount = "$21.36",
                           amountEquivalent = "0.000205 BTC",
                           transactionType = Outgoing,
+                          isPending = false,
+                          onClick = {}
+                        ),
+                        TransactionItemModel(
+                          truncatedRecipientAddress = "3AH7...CkGJ",
+                          date = "Pending",
+                          amount = "$31.36",
+                          amountEquivalent = "0.000305 BTC",
+                          transactionType = UtxoConsolidation,
                           isPending = false,
                           onClick = {}
                         )

@@ -1,14 +1,11 @@
 package build.wallet.statemachine.transactions
 
 import build.wallet.bitcoin.BlockTimeFake
-import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.money.BitcoinMoney
+import build.wallet.bitcoin.transactions.BitcoinTransactionReceive
+import build.wallet.bitcoin.transactions.BitcoinTransactionSend
+import build.wallet.bitcoin.transactions.BitcoinTransactionUtxoConsolidation
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -21,12 +18,10 @@ import build.wallet.ui.model.list.ListItemSideTextTint.PRIMARY
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.DurationUnit
-import kotlin.time.toDuration
 
 class TransactionItemUiStateMachineImplTests : FunSpec({
   val timeZoneProvider = TimeZoneProviderMock()
-  val confirmedTime = TEST_SEND_TXN.confirmationTime()!!
+  val confirmedTime = BitcoinTransactionSend.confirmationTime()!!
   val broadcastTime = someInstant
   val timeToFormattedTime =
     mapOf(
@@ -49,7 +44,7 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
     )
 
   test("pending receive transaction model") {
-    stateMachine.test(makeProps(TEST_RECEIVE_TXN.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionReceive.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
@@ -66,7 +61,7 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("confirmed receive transaction model") {
-    stateMachine.test(makeProps(TEST_RECEIVE_TXN)) {
+    stateMachine.test(makeProps(BitcoinTransactionReceive)) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
@@ -83,12 +78,46 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("pending send transaction model") {
-    stateMachine.test(makeProps(TEST_SEND_TXN.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
-        it.secondarySideText.shouldBe("100,000,100 sats")
+        it.secondarySideText.shouldBe("101,000,000 sats")
+        it.sideTextTint.shouldBe(PRIMARY)
+      }
+
+      awaitItem().let { // after currency conversion
+        // Should use the current exchange rate
+        it.sideText.shouldBe("\$3.03")
+      }
+    }
+  }
+
+  test("confirmed send transaction model") {
+    stateMachine.test(makeProps(BitcoinTransactionSend)) {
+      awaitItem().let { // before currency conversion
+        it.title.shouldBe("bc1z...xpcs")
+        it.secondaryText.shouldBe("confirmed-time")
+        it.sideText.shouldBe("~~")
+        it.secondarySideText.shouldBe("101,000,000 sats")
+        it.sideTextTint.shouldBe(PRIMARY)
+      }
+
+      awaitItem().let { // after currency conversion
+        // Should use the historical exchange rate
+        it.sideText.shouldBe("\$4.04")
+      }
+    }
+  }
+
+  test("pending utxo consolidation transaction model") {
+    stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending))) {
+      awaitItem().let { // before currency conversion
+        it.title.shouldBe("bc1z...xpcs")
+        it.secondaryText.shouldBe("Pending")
+        it.sideText.shouldBe("~~")
+        it.secondarySideText.shouldBe("100,000,000 sats")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
@@ -99,13 +128,13 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("confirmed send transaction model") {
-    stateMachine.test(makeProps(TEST_SEND_TXN)) {
+  test("confirmed utxo consolidation transaction model") {
+    stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation)) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("~~")
-        it.secondarySideText.shouldBe("100,000,100 sats")
+        it.secondarySideText.shouldBe("100,000,000 sats")
         it.sideTextTint.shouldBe(PRIMARY)
       }
 
@@ -122,44 +151,4 @@ private fun makeProps(transaction: BitcoinTransaction) =
     transaction = transaction,
     fiatCurrency = USD,
     onClick = {}
-  )
-
-private val TEST_ID = "c4f5835c0b77d438160cf54c4355208b0a39f58919ff4c221df6ebedc1ad67be"
-private val TEST_RECEIVE_TXN =
-  BitcoinTransaction(
-    id = TEST_ID,
-    broadcastTime = null,
-    estimatedConfirmationTime = null,
-    confirmationStatus =
-      ConfirmationStatus.Confirmed(
-        blockTime = BlockTimeFake
-      ),
-    recipientAddress = someBitcoinAddress,
-    total = BitcoinMoney.btc(1.1),
-    subtotal = BitcoinMoney.btc(1.0),
-    fee = null,
-    weight = null,
-    vsize = null,
-    transactionType = Incoming,
-    inputs = immutableListOf(),
-    outputs = immutableListOf()
-  )
-private val TEST_SEND_TXN =
-  BitcoinTransaction(
-    id = TEST_ID,
-    broadcastTime = someInstant,
-    estimatedConfirmationTime = someInstant.plus(10.toDuration(DurationUnit.MINUTES)),
-    confirmationStatus =
-      ConfirmationStatus.Confirmed(
-        blockTime = BlockTimeFake
-      ),
-    recipientAddress = someBitcoinAddress,
-    total = BitcoinMoney.btc(1.00000100),
-    subtotal = BitcoinMoney.btc(1.0),
-    fee = BitcoinMoney.sats(100),
-    weight = null,
-    vsize = null,
-    transactionType = Outgoing,
-    inputs = immutableListOf(),
-    outputs = immutableListOf()
   )

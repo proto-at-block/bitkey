@@ -64,7 +64,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     socRecService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
-  test("happy path") {
+  test("happy path").config(invocations = 20) {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel

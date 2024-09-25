@@ -10,7 +10,10 @@ public struct TextModel {
     public enum Content {
         case text(String)
         case attributedText(AttributedString)
-        case linkedText(string: String, links: [LabelModelLinkSubstringModel.LinkSubstring])
+        case linkedText(
+            string: AttributedString,
+            links: [LabelModelLinkSubstringModel.LinkSubstring]
+        )
     }
 
     public enum Width {
@@ -28,6 +31,7 @@ public struct TextModel {
     public let textColor: Color
     public let width: Width
     public let treatment: LabelTreatment
+    public let scalingFactor: CGFloat?
 
     // MARK: - Life Cycle
 
@@ -40,7 +44,8 @@ public struct TextModel {
         textAlignment: TextAlignment?,
         width: Width? = nil,
         textColor: Color,
-        treatment: LabelTreatment
+        treatment: LabelTreatment,
+        scalingFactor: CGFloat? = nil
     ) {
         self.content = content
         self.font = font
@@ -57,6 +62,7 @@ public struct TextModel {
             self.width = .hug
         }
         self.treatment = treatment
+        self.scalingFactor = scalingFactor
     }
 
 }
@@ -79,17 +85,25 @@ public struct ModeledText: View {
                     .if(model.treatment == .strikethrough) { text in
                         text.strikethrough()
                     }
-            case let .attributedText(string):
-                Text(string)
-            case let .linkedText(string, links):
-                Text(LocalizedStringKey(string)).environment(\.openURL, OpenURLAction { url in
-                    let urlString = url.absoluteString
-                    let startIndex = urlString.index(urlString.startIndex, offsetBy: "ls:".count)
-                    let linkIndexString = urlString[startIndex ..< urlString.endIndex]
-                    links[Int(linkIndexString)!].onClick()
-                    return .handled
+                    .ifNonnull(model.scalingFactor) { text, factor in
+                        text.lineLimit(1)
+                            .minimumScaleFactor(factor)
+                    }
+            case let .attributedText(attributedString):
+                Text(attributedString)
+            case let .linkedText(attributedString, links):
+                Text(attributedString).environment(\.openURL, OpenURLAction { url in
+                    // We pass the callback index as the URL string value, see
+                    // AttributedStringExtensions.swift
+                    if let callbackIndex = Int(url.absoluteString),
+                       links.count - 1 >= callbackIndex
+                    {
+                        links[callbackIndex].onClick()
+                        return .handled
+                    } else {
+                        return .discarded
+                    }
                 })
-                .tint(Color.bitkeyPrimary)
             }
         }
         .font(model.font)

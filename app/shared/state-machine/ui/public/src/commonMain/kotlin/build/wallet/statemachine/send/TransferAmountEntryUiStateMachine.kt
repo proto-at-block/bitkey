@@ -4,7 +4,6 @@ import build.wallet.availability.NetworkReachability
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.limit.SpendingLimit
-import build.wallet.money.FiatMoney
 import build.wallet.money.Money
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
@@ -18,7 +17,6 @@ interface TransferAmountEntryUiStateMachine : StateMachine<TransferAmountEntryUi
 
 data class ContinueTransferParams(
   val sendAmount: BitcoinTransactionSendAmount,
-  val fiatMoney: FiatMoney?,
   val requiredSigner: SigningFactor,
   val spendingLimit: SpendingLimit?,
 )

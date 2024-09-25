@@ -31,7 +31,6 @@ import build.wallet.statemachine.send.SendEntryPoint.SendButton
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.time.ClockFake
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -85,14 +84,14 @@ class SendUiStateMachineImplTests : FunSpec({
 
   val transactionsService = TransactionsServiceFake()
 
-  val props =
-    SendUiProps(
-      entryPoint = SendButton,
-      account = FullAccountMock,
-      validInvoiceInClipboard = null,
-      onExit = {},
-      onDone = {}
-    )
+  val props = SendUiProps(
+    entryPoint = SendButton,
+    account = FullAccountMock,
+    validInvoiceInClipboard = null,
+    onExit = {},
+    onDone = {},
+    onGoToUtxoConsolidation = {}
+  )
 
   beforeTest {
     permissionUiStateMachine.isImplemented = true
@@ -127,7 +126,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               sendAmount = ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger())),
-              fiatMoney = FiatMoney.usd(dollars = BigDecimal.TEN),
               requiredSigner = SigningFactor.Hardware,
               spendingLimit = null
             )
@@ -173,7 +171,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               ExactAmount(BitcoinMoney.zero()),
-              FiatMoney.zeroUsd(),
               SigningFactor.Hardware,
               null
             )
@@ -203,7 +200,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               ExactAmount(moneyToSend),
-              FiatMoney.usd(dollars = BigDecimal.TEN),
               SigningFactor.Hardware,
               null
             )
@@ -247,7 +243,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               SendAll,
-              FiatMoney.usd(dollars = BigDecimal.TEN),
               SigningFactor.Hardware,
               null
             )
@@ -296,7 +291,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               SendAll,
-              FiatMoney.usd(dollars = BigDecimal.TEN),
               SigningFactor.Hardware,
               null
             )
@@ -361,7 +355,6 @@ class SendUiStateMachineImplTests : FunSpec({
           onContinueClick(
             ContinueTransferParams(
               SendAll,
-              FiatMoney.usd(dollars = BigDecimal.TEN),
               SigningFactor.Hardware,
               null
             )
@@ -393,7 +386,6 @@ class SendUiStateMachineImplTests : FunSpec({
                 sendAmount = BitcoinMoney.sats(50_000),
                 oldFee = Fee(BitcoinMoney.sats(125), feeRate = FeeRate(satsPerVByte = 1f))
               ),
-            fiatMoney = FiatMoney.usd(dollars = 5.0),
             spendingLimit = null,
             newFeeRate = FeeRate(satsPerVByte = 2f),
             fees = persistentMapOf()
@@ -401,7 +393,8 @@ class SendUiStateMachineImplTests : FunSpec({
         account = FullAccountMock,
         validInvoiceInClipboard = null,
         onExit = {},
-        onDone = {}
+        onDone = {},
+        onGoToUtxoConsolidation = {}
       )
 
     test("Goes straight to transfer confirmation screen") {

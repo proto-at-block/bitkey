@@ -2,6 +2,7 @@ package build.wallet.availability
 
 import app.cash.turbine.Turbine
 import build.wallet.f8e.F8eEnvironment
+import io.ktor.client.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -27,6 +28,21 @@ class NetworkReachabilityProviderMock(
     return f8eReachability
   }
 
+  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient,
+    reachability: NetworkReachability,
+    connection: NetworkConnection,
+  ) {
+    when (connection) {
+      is NetworkConnection.HttpClientNetworkConnection.F8e -> f8eReachability.value = reachability
+      else -> {} // no-op
+    }
+    updateNetworkReachabilityForConnectionCalls.add(
+      UpdateNetworkReachabilityForConnectionParams(reachability, connection)
+    )
+  }
+
+  @Suppress("OVERRIDE_DEPRECATION")
   override suspend fun updateNetworkReachabilityForConnection(
     reachability: NetworkReachability,
     connection: NetworkConnection,

@@ -20,6 +20,7 @@ use bdk::wallet::AddressIndex;
 use bdk::Error::Electrum;
 use bdk::SyncOptions;
 use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
+use feature_flags::flag::{evaluate_flag_value, ContextKey};
 use tracing::{event, instrument, Level};
 use url::Url;
 
@@ -170,17 +171,47 @@ pub struct ElectrumRpcUris {
 
 pub fn generate_electrum_rpc_uris(
     service: &FeatureFlagsService,
-) -> Result<ElectrumRpcUris, ApiError> {
-    //TODO: [W-4850] Move to axum extractor
-    let mainnet = FLAG_MAINNET_ELECTRUM_RPC_URI.resolver(service).resolve();
-    let testnet = FLAG_TESTNET_ELECTRUM_RPC_URI.resolver(service).resolve();
-    let signet = FLAG_SIGNET_ELECTRUM_RPC_URI.resolver(service).resolve();
+    context_key: Option<ContextKey>,
+) -> ElectrumRpcUris {
+    let (mainnet, testnet, signet) = context_key
+        .as_ref()
+        .map(|context_key| {
+            // The following `evaluate_flag_value` calls should not fail, but just to be safe, we fall
+            // back to the default flag value.
+            macro_rules! evaluate_flag_with_fallback {
+			($flag: expr, $network: expr) => {
+				evaluate_flag_value(
+					service,
+					$flag.key.to_string(),
+					context_key,
+				)
+				.unwrap_or_else(|e| {
+					event!(
+						Level::WARN,
+						"Failed to resolve {} Electrum RPC URI using app installation ID: {e}",
+						$network,
+					);
+					$flag.resolver(service).resolve()
+				})
+			};
+		}
+            let mainnet = evaluate_flag_with_fallback!(FLAG_MAINNET_ELECTRUM_RPC_URI, "mainnet");
+            let testnet = evaluate_flag_with_fallback!(FLAG_TESTNET_ELECTRUM_RPC_URI, "testnet");
+            let signet = evaluate_flag_with_fallback!(FLAG_SIGNET_ELECTRUM_RPC_URI, "signet");
+            (mainnet, testnet, signet)
+        })
+        .unwrap_or_else(|| {
+            let mainnet = FLAG_MAINNET_ELECTRUM_RPC_URI.resolver(service).resolve();
+            let testnet = FLAG_TESTNET_ELECTRUM_RPC_URI.resolver(service).resolve();
+            let signet = FLAG_SIGNET_ELECTRUM_RPC_URI.resolver(service).resolve();
+            (mainnet, testnet, signet)
+        });
 
-    Ok(ElectrumRpcUris {
+    ElectrumRpcUris {
         mainnet,
         testnet,
         signet,
-    })
+    }
 }
 
 pub fn get_electrum_server(

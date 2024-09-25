@@ -116,6 +116,7 @@ impl Connection {
             DatabaseObject::SocialRecovery => ("SOCIAL_RECOVERY_TABLE", "SocialRecovery"),
             DatabaseObject::Consent => ("CONSENT_TABLE", "Consent"),
             DatabaseObject::PrivilegedAction => ("PRIVILEGED_ACTION_TABLE", "PrivilegedAction"),
+            DatabaseObject::Inheritance => ("INHERITANCE_TABLE", "Inheritance"),
         };
 
         match self {
@@ -138,7 +139,7 @@ impl Connection {
 }
 
 #[async_trait]
-pub trait DDBService {
+pub trait Repository {
     fn new(config: Connection) -> Self
     where
         Self: Sized;
@@ -195,6 +196,7 @@ pub enum DatabaseObject {
     SocialRecovery,
     Consent,
     PrivilegedAction,
+    Inheritance,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -213,6 +215,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::SocialRecovery => write!(f, "SocialRecovery"),
             DatabaseObject::Consent => write!(f, "Consent"),
             DatabaseObject::PrivilegedAction => write!(f, "PrivilegedAction"),
+            DatabaseObject::Inheritance => write!(f, "Inheritance"),
         }
     }
 }
@@ -249,6 +252,8 @@ pub enum DatabaseError {
     ObjectNotUnique(DatabaseObject),
     #[error("Could not add TTL specification on {0}")]
     TimeToLiveSpecification(DatabaseObject),
+    #[error("Dependant object not found")]
+    DependantObjectNotFound(DatabaseObject),
 }
 
 impl From<DatabaseError> for ApiError {
@@ -271,6 +276,7 @@ impl From<DatabaseError> for ApiError {
             | DatabaseError::TimeToLiveSpecification(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
+            DatabaseError::DependantObjectNotFound(_) => ApiError::GenericBadRequest(err_msg),
             DatabaseError::ObjectNotFound(_) => ApiError::GenericNotFound(err_msg),
         }
     }

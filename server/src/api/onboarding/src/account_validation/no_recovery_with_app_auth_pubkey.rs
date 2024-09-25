@@ -1,6 +1,6 @@
 use account::service::Service as AccountService;
 use async_trait::async_trait;
-use recovery::repository::Repository as RecoveryService;
+use recovery::repository::RecoveryRepository;
 
 use crate::routes::Config;
 
@@ -15,7 +15,7 @@ impl Rule for NoRecoveryWithAppAuthPubkeyRule {
         request: &AccountValidationRequest,
         _: &Config,
         _: &AccountService,
-        recovery_service: &RecoveryService,
+        recovery_repository: &RecoveryRepository,
     ) -> Result<(), AccountValidationError> {
         // This check only applies to creating or upgrading to full accounts
         let app_auth_pubkey = match request {
@@ -28,7 +28,7 @@ impl Rule for NoRecoveryWithAppAuthPubkeyRule {
         };
 
         // If the app key is the destination of a pending recovery, error
-        if recovery_service
+        if recovery_repository
             .fetch_optional_recovery_by_app_auth_pubkey(
                 app_auth_pubkey,
                 recovery::entities::RecoveryStatus::Pending,

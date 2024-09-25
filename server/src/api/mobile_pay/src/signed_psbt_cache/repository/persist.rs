@@ -2,14 +2,14 @@ use tracing::{event, instrument, Level};
 
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_item, DatabaseError, Repository},
 };
 
 use crate::signed_psbt_cache::entities::CachedPsbt;
 
-use super::Repository;
+use super::SignedPsbtCacheRepository;
 
-impl Repository {
+impl SignedPsbtCacheRepository {
     #[instrument(skip(self, cached_psbt))]
     pub async fn persist(&self, cached_psbt: &CachedPsbt) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;

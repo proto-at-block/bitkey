@@ -1,13 +1,13 @@
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
 use tracing::{event, instrument, Level};
 use types::{account::identifiers::AccountId, consent::Consent};
 
-use super::Repository;
+use super::ConsentRepository;
 
-impl Repository {
+impl ConsentRepository {
     #[instrument(skip(self))]
     pub async fn fetch_for_account_id(
         &self,

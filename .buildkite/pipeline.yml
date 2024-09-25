@@ -1,7 +1,7 @@
 notify:
   - slack:
       channels:
-        - "#w1-robots"
+        - "#bitkey-robots"
 
 steps:
   - label: "build customer app"

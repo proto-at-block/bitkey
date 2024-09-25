@@ -12,6 +12,15 @@ class BdkBumpFeeTxBuilderImpl: BdkBumpFeeTxBuilder {
         return BdkBumpFeeTxBuilderImpl(txBuilder: txBuilder.enableRbf())
     }
 
+    func allowShrinking(script: BdkScript) -> BdkBumpFeeTxBuilder {
+        let realBdkScript = script as! BdkScriptImpl
+
+        return BdkBumpFeeTxBuilderImpl(
+            txBuilder: txBuilder
+                .allowShrinking(scriptPubkey: realBdkScript.toFfiScript())
+        )
+    }
+
     func finish(wallet: BdkWallet) -> BdkResult<BdkPartiallySignedTransaction> {
         let realBdkWallet = wallet as! BdkWalletImpl
 

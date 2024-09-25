@@ -1,14 +1,14 @@
-use database::{
-    aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_items, DDBService, DatabaseError},
-};
 use tracing::{event, instrument, Level};
 
 use crate::{entities::ScheduledNotification, DeliveryStatus};
+use database::{
+    aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
+    ddb::{try_from_items, DatabaseError, Repository},
+};
 
-use super::{Repository, WORKER_SECONDARY_INDEX_NAME};
+use super::{NotificationRepository, WORKER_SECONDARY_INDEX_NAME};
 
-impl Repository {
+impl NotificationRepository {
     /// Returns all scheduled notifications in a given execution window for a worker
     ///
     /// This is currently used by our workers.

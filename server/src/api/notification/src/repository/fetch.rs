@@ -1,14 +1,14 @@
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
-    ddb::{try_from_item, DDBService, DatabaseError},
+    ddb::{try_from_item, DatabaseError, Repository},
 };
 use tracing::{event, instrument, Level};
 
 use crate::{entities::CustomerNotification, DeliveryStatus, NotificationCompositeKey};
 
-use super::Repository;
+use super::NotificationRepository;
 
-impl Repository {
+impl NotificationRepository {
     /// Returns a pending customer notification corresponding to the account id and unique_id
     ///
     /// ### Arguments

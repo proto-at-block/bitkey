@@ -2,6 +2,7 @@ package build.wallet.statemachine.core.form
 
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.REGULAR
 import build.wallet.ui.model.icon.IconModel
@@ -32,15 +33,11 @@ data class FormHeaderModel(
   ) : this(
     iconModel = iconModel,
     headline = headline,
-    sublineModel = subline?.let {
-      LabelModel.StringWithStyledSubstringModel.from(
-        string = it,
-        substringToColor = emptyMap()
-      )
-    },
+    sublineModel = subline?.let { StringModel(it) },
     sublineTreatment = sublineTreatment,
     alignment = alignment
   )
+
   constructor(
     icon: Icon? = null,
     headline: String,

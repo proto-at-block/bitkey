@@ -2,14 +2,14 @@ use tracing::{event, instrument, Level};
 
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_attribute_val, try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 
 use crate::daily_spend_record::entities::DailySpendingRecord;
 
-use super::Repository;
+use super::DailySpendRecordRepository;
 
-impl Repository {
+impl DailySpendRecordRepository {
     /// Persist the DailySpendingRecord to the repository. Consumes the record and returns () if OK.
     #[instrument(skip(self, spending_record))]
     pub(crate) async fn persist(

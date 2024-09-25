@@ -1,15 +1,15 @@
 use database::{
     aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_attribute_val, try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_attribute_val, try_to_item, DatabaseError, Repository},
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
 
 use crate::entities::{Account, CommonAccountFields};
 
-use super::Repository;
+use super::AccountRepository;
 
-impl Repository {
+impl AccountRepository {
     #[instrument(skip(self, account))]
     pub async fn persist(&self, account: &Account) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;

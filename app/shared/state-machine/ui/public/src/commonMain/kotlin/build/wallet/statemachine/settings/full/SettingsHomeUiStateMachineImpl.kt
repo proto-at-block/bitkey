@@ -1,6 +1,8 @@
 package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
+import build.wallet.feature.flags.ExportToolsFeatureFlag
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
@@ -12,6 +14,10 @@ import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateM
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
+import build.wallet.statemachine.export.ExportToolsUiProps
+import build.wallet.statemachine.export.ExportToolsUiStateMachine
+import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
+import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
@@ -61,6 +67,10 @@ class SettingsHomeUiStateMachineImpl(
   private val firmwareDataService: FirmwareDataService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
+  private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
+  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
+  private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
+  private val exportToolsFeatureFlag: ExportToolsFeatureFlag,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -125,7 +135,13 @@ class SettingsHomeUiStateMachineImpl(
                       },
                       SettingsListUiProps.SettingsListRow.UtxoConsolidation {
                         state = ShowingUtxoConsolidationUiState
-                      }.takeIf { utxoConsolidationFeatureFlag.isEnabled() }
+                      }.takeIf { utxoConsolidationFeatureFlag.isEnabled() },
+                      SettingsListUiProps.SettingsListRow.InheritanceManagement {
+                        state = ShowingInheritanceUiState
+                      }.takeIf { inheritanceFeatureFlag.isEnabled() },
+                      SettingsListUiProps.SettingsListRow.ExportTools {
+                        state = ShowingExportToolsUiState
+                      }.takeIf { exportToolsFeatureFlag.isEnabled() }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null }
@@ -250,9 +266,21 @@ class SettingsHomeUiStateMachineImpl(
       )
       is ShowingUtxoConsolidationUiState -> utxoConsolidationUiStateMachine.model(
         UtxoConsolidationProps(
+          onConsolidationSuccess = props.onBack,
           onBack = {
             state = ShowingAllSettingsUiState
           }
+        )
+      )
+      ShowingInheritanceUiState -> inheritanceManagementUiStateMachine.model(
+        props = InheritanceManagementUiProps(
+          account = props.accountData.account,
+          onBack = { state = ShowingAllSettingsUiState }
+        )
+      )
+      is ShowingExportToolsUiState -> exportToolsUiStateMachine.model(
+        ExportToolsUiProps(
+          onBack = { state = ShowingAllSettingsUiState }
         )
       )
     }
@@ -307,5 +335,9 @@ class SettingsHomeUiStateMachineImpl(
     data object ShowingBiometricSettingUiState : State()
 
     data object ShowingUtxoConsolidationUiState : State()
+
+    data object ShowingInheritanceUiState : State()
+
+    data object ShowingExportToolsUiState : State()
   }
 }

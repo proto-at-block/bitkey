@@ -1,1 +1,1 @@
-Tests/__Snapshots__/ filter=lfs diff=lfs merge=lfs -text
+app/ios/Wallet/Tests/SnapshotTests/__Snapshots__/SnapshotTestHelpers/*.png filter=lfs diff=lfs merge=lfs -text

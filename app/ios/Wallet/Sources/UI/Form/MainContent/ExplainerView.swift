@@ -77,28 +77,8 @@ private struct LabelView: View {
     // MARK: - View
 
     var body: some View {
-        switch viewModel {
-        case let model as LabelModelStringModel:
-            ModeledText(model: .standard(model.string, font: .body2Regular))
-
-        case let model as LabelModelStringWithStyledSubstringModel:
-            ModeledText(
-                model: .standard(.string(from: model, font: .body2Regular), font: .body2Regular)
-            )
-
-        case let model as LabelModelLinkSubstringModel:
-            ModeledText(
-                model: .linkedText(
-                    textContent: .linkedText(
-                        string: model.markdownString(),
-                        links: model.linkedSubstrings
-                    ),
-                    font: FontTheme.body2Regular
-                )
-            )
-
-        default:
-            fatalError("Unexpected Kotlin LabelModel")
-        }
+        ModeledText(
+            model: .fromModel(model: viewModel, font: .body2Regular)
+        )
     }
 }

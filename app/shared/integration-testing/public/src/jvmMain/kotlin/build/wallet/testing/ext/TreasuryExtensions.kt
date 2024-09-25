@@ -9,6 +9,8 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.testing.AppTester
 import build.wallet.testing.fakeTransact
 import com.github.michaelbull.result.getOrThrow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 /**
  * Returns funds to the treasury wallet.
@@ -37,7 +39,7 @@ suspend fun AppTester.returnFundsToTreasury(account: FullAccount) {
           commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
         }
       ).getOrThrow()
-    bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
+    appComponent.bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
     mineBlock()
   }
 }
@@ -50,8 +52,6 @@ suspend fun AppTester.returnFundsToTreasury(account: FullAccount) {
 suspend fun AppTester.addSomeFunds(
   amount: BitcoinMoney = BitcoinMoney.sats(10_000L),
 ): FundingResult {
-  val wallet = app.appComponent.appSpendingWalletProvider
-    .getSpendingWallet(getActiveFullAccount())
-    .getOrThrow()
+  val wallet = app.appComponent.transactionsService.spendingWallet().filterNotNull().first()
   return treasuryWallet.fund(wallet, amount)
 }

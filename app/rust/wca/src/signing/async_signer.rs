@@ -14,7 +14,7 @@ pub(crate) fn derive_and_sign(
     async_sign: bool,
 ) -> Result<Signature, CommandError> {
     let apdu: apdu::Command = DeriveKeyDescriptorAndSignCmd {
-        derivation_path: Some(derivation_path.into()),
+        derivation_path: Some(derivation_path),
         hash,
         async_sign,
     }

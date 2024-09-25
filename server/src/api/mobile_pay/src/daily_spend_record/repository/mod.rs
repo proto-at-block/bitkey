@@ -6,7 +6,7 @@ use database::{
     aws_sdk_dynamodb::types::{
         AttributeDefinition, BillingMode, KeySchemaElement, KeyType, ScalarAttributeType,
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 
 mod fetch;
@@ -16,12 +16,12 @@ pub(crate) const PARTITION_KEY: &str = "account_id";
 pub(crate) const SORT_KEY: &str = "date";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct DailySpendRecordRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for DailySpendRecordRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

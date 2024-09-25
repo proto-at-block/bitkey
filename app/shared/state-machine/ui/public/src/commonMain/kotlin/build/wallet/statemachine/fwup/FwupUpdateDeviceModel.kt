@@ -31,7 +31,8 @@ fun FwupUpdateDeviceModel(
               )
             ),
             string = "Press the button below and hold your unlocked device to the back of your phone until the update has completed. To learn more about this firmware update, see the release notes.",
-            underline = true
+            underline = true,
+            bold = true
           ),
           alignment = CENTER
         ),

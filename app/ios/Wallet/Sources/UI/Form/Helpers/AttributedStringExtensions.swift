@@ -8,10 +8,12 @@ extension AttributedString {
     /// - Parameters:
     ///   - model: label model
     ///   - font: font
+    ///   - textColor: text color override for sublink text
     /// - Returns: styled attributed string
     static func string(
         from model: LabelModel,
-        font: FontTheme
+        font: FontTheme,
+        textColor: Color? = nil
     ) -> AttributedString {
         switch model {
         case let labelModel as LabelModelStringModel:
@@ -19,7 +21,7 @@ extension AttributedString {
         case let labelModel as LabelModelStringWithStyledSubstringModel:
             return attributedStringWithStyle(labelModel, font: font)
         case let labelModel as LabelModelLinkSubstringModel:
-            return attributedStringWithURL(labelModel, font: font)
+            return attributedStringWithURL(labelModel, font: font, sublinkColor: textColor)
         default:
             fatalError("Unexpected LabelModel type")
         }
@@ -52,16 +54,27 @@ extension AttributedString {
     // Apply link styling to an attributed string from a link substring model
     private static func attributedStringWithURL(
         _ model: LabelModelLinkSubstringModel,
-        font: FontTheme
+        font: FontTheme,
+        sublinkColor: Color?
     ) -> AttributedString {
         var attributedString = AttributedString(model.string)
         for link in model.linkedSubstrings {
             let substringStart = attributedString.index(to: link.range.start)
             let substringEnd = attributedString.index(to: link.range.endInclusive)
-            attributedString[substringStart ... substringEnd].font = font.font.bold()
+            if model.bold {
+                attributedString[substringStart ... substringEnd].font = font.font.bold()
+            }
             attributedString[substringStart ... substringEnd].underlineStyle = model
                 .underline ? .single : .none
-            attributedString[substringStart ... substringEnd].foregroundColor = .bitkeyPrimary
+            if model.color != LabelModelColor.unspecified {
+                // If the model indicates a specific color for the substring, use that.
+                attributedString[substringStart ... substringEnd].foregroundColor = model.color
+                    .nativeColor
+            } else if let sublinkColor {
+                // Otherwise, default to the provided sublink color.
+                attributedString[substringStart ... substringEnd].foregroundColor = sublinkColor
+            }
+
             // We use the link range to determine the index in the callback array which is then
             // executed on tap
             attributedString[substringStart ... substringEnd]
@@ -121,12 +134,13 @@ extension AttributedString {
     }
 }
 
-private extension LabelModelStringWithStyledSubstringModel.Color {
+private extension LabelModelColor {
     var nativeColor: Color {
         switch self {
         case .green: return .deviceLEDGreen
         case .blue: return .deviceLEDBlue
         case .on60: return .foreground60
+        case .primary: return .bitkeyPrimary
         default: fatalError("Color not implemented")
         }
     }

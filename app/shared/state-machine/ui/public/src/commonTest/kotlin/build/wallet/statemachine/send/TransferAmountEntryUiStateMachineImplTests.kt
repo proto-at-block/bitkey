@@ -9,6 +9,8 @@ import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.limit.MobilePaySpendingPolicyMock
 import build.wallet.money.BitcoinMoney
@@ -75,7 +77,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     transactionsService = transactionsService,
-    mobilePayService = mobilePayService
+    mobilePayService = mobilePayService,
+    mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
   )
 
   val onContinueClickCalls = turbines.create<ContinueTransferParams>("onContinueClick calls")
@@ -227,7 +230,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         onContinueClickCalls.awaitItem().shouldBe(
           ContinueTransferParams(
             sendAmount = SendAll,
-            fiatMoney = FiatMoney.usd(16.67),
             requiredSigner = SigningFactor.Hardware,
             spendingLimit = null
           )

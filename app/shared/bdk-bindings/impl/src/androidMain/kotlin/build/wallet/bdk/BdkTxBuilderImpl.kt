@@ -1,12 +1,8 @@
 package build.wallet.bdk
 
-import build.wallet.bdk.bindings.BdkAddress
-import build.wallet.bdk.bindings.BdkResult
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTxBuilder
-import build.wallet.bdk.bindings.BdkTxBuilderResult
-import build.wallet.bdk.bindings.BdkWallet
+import build.wallet.bdk.bindings.*
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import org.bitcoindevkit.OutPoint
 
 internal class BdkTxBuilderImpl(
   private val ffiTxBuilder: FfiTxBuilder,
@@ -30,6 +26,14 @@ internal class BdkTxBuilderImpl(
 
   override fun feeAbsolute(fee: Long): BdkTxBuilder {
     return BdkTxBuilderImpl(ffiTxBuilder.feeAbsolute(fee.toULong()))
+  }
+
+  override fun addUtxos(utxos: List<BdkOutPoint>): BdkTxBuilder {
+    return BdkTxBuilderImpl(
+      ffiTxBuilder.addUtxos(
+        utxos.map { OutPoint(txid = it.txid, vout = it.vout) }
+      )
+    )
   }
 
   override fun drainTo(address: BdkAddress): BdkTxBuilder {

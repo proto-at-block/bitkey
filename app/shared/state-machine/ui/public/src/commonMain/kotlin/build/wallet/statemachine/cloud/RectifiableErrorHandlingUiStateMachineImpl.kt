@@ -1,15 +1,12 @@
 package build.wallet.statemachine.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.AttemptingRectificationState
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.ShowingExplanationState
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModelWithOptionalErrorData
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 
@@ -28,7 +25,7 @@ class RectifiableErrorHandlingUiStateMachineImpl(
             props.onFailure(null)
           },
           title = props.messages.title,
-          subline = props.messages.subline,
+          subline = StringModel(props.messages.subline),
           primaryButton =
             ButtonDataModel(
               text = "Try again",

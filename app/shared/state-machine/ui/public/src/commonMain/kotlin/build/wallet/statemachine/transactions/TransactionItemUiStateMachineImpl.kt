@@ -7,8 +7,7 @@ import androidx.compose.runtime.remember
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrNull
@@ -27,7 +26,7 @@ class TransactionItemUiStateMachineImpl(
   override fun model(props: TransactionItemUiProps): ListItemModel {
     val totalToUse =
       when (props.transaction.transactionType) {
-        Incoming -> props.transaction.subtotal
+        Incoming, UtxoConsolidation -> props.transaction.subtotal
         Outgoing -> props.transaction.total
       }
 
@@ -45,7 +44,7 @@ class TransactionItemUiStateMachineImpl(
           val formatted = moneyDisplayFormatter.format(it)
           when (props.transaction.transactionType) {
             Incoming -> "+ $formatted"
-            Outgoing -> formatted
+            Outgoing, UtxoConsolidation -> formatted
           }
         } ?: "~~"
       }

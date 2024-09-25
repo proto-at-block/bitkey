@@ -13,6 +13,8 @@ import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.SocRecRelationshipsFake
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -79,7 +81,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       eventTracker = eventTracker,
       transactionsService = transactionsService,
       mobilePayService = mobilePayService,
-      socRecService = socRecService
+      socRecService = socRecService,
+      mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
     )
 
   beforeTest {

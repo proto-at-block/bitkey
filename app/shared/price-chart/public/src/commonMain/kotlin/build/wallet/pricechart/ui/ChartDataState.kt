@@ -17,8 +17,8 @@ internal data class ChartDataState(
   private val yMin: Double = data.minOfOrNull { it.second } ?: 0.0
   private val yMax: Double = data.maxOfOrNull { it.second } ?: 1.0
   private val intervalValue: Double
-  private val yFloor: Double
-  private val yCeil: Double
+  private var yFloor: Double
+  private var yCeil: Double
   private val range: Double
 
   init {
@@ -33,16 +33,13 @@ internal data class ChartDataState(
       else -> 10.0
     } * step
     yFloor = floor(yMin / niceInterval) * niceInterval
-
-    val initialYCeil = ceil(yMax / niceInterval) * niceInterval
-    val remainder = initialYCeil % step
-    yCeil = if (remainder == 0.0) {
-      initialYCeil
-    } else {
-      initialYCeil + (step - remainder)
-    }
-    val baseInterval = (yCeil - yFloor) / intervals
+    val baseInterval = (yMax - yFloor) / intervals
     intervalValue = ceil(baseInterval / step) * step
+    yCeil = yFloor + (intervalValue * intervals)
+    if (yCeil > yMax + intervalValue) {
+      yCeil -= intervalValue
+      yFloor -= intervalValue
+    }
     range = yCeil - yFloor
   }
 
@@ -84,28 +81,28 @@ internal data class ChartDataState(
   ): Path {
     path.rewind()
     val stopAtIndex = stopAtDataPoint?.let { data.indexOf(it) }
-    val normalizedData = data.map { (it.second - yFloor) / range }
+    val normalizedData = data.map {
+      canvasHeight - ((it.second - yFloor) / range * canvasHeight).toFloat()
+    }
     val xInterval = canvasWidth / normalizedData.lastIndex
 
-    fun calculateY(i: Int) = (canvasHeight - normalizedData[i] * canvasHeight).toFloat()
+    path.moveTo(0f, normalizedData[0])
 
-    path.moveTo(0f, calculateY(0))
-
-    for (index in 1 until normalizedData.lastIndex) {
+    for (index in 1 until normalizedData.size) {
       val startIndex = index - 1
       if (startIndex == stopAtIndex) {
         if (stopAtIndex == 0) {
           // if we stop drawing before creating a line,
           // add a small line to allow UI anchoring.
-          path.lineTo(1f, calculateY(0))
+          path.lineTo(1f, normalizedData[0])
         }
         return path
       }
 
       val startPointX = startIndex * xInterval
-      val startPointY = calculateY(startIndex)
+      val startPointY = normalizedData[startIndex]
       val targetPointX = index * xInterval
-      val targetPointY = calculateY(index)
+      val targetPointY = normalizedData[index]
       path.quadraticBezierTo(
         x1 = startPointX,
         y1 = startPointY,
@@ -114,7 +111,7 @@ internal data class ChartDataState(
       )
     }
 
-    path.lineTo(canvasWidth, calculateY(normalizedData.lastIndex))
+    path.lineTo(canvasWidth, normalizedData[normalizedData.lastIndex])
 
     return path
   }

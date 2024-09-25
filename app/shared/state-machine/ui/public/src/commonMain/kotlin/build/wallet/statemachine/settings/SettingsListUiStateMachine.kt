@@ -57,5 +57,9 @@ data class SettingsListUiProps(
     data class Biometric(override val onClick: () -> Unit) : SettingsListRow
 
     data class UtxoConsolidation(override val onClick: () -> Unit) : SettingsListRow
+
+    data class InheritanceManagement(override val onClick: () -> Unit) : SettingsListRow
+
+    data class ExportTools(override val onClick: () -> Unit) : SettingsListRow
   }
 }

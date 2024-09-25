@@ -20,7 +20,6 @@ import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -37,14 +36,9 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class EmergencyAccessRecoveryFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  beforeTest {
-    app = launchNewApp()
-  }
-
   test("recover keybox with no funds from emergency access kit")
     .config(tags = setOf(FlakyTest)) {
+      val app = launchNewApp()
       // Onboard a new account, and generate an EAK payload.
       app.onboardFullAccountWithFakeHardware()
 

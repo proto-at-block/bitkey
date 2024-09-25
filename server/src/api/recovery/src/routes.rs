@@ -17,6 +17,12 @@ use time::serde::rfc3339;
 use time::{Duration, OffsetDateTime};
 use tracing::{event, instrument, Level};
 use types::authn_authz::cognito::CognitoUser;
+use types::recovery::inheritance::claim::{
+    InheritanceClaimAuthKeys, InheritanceClaimCanceledBy, InheritanceClaimId,
+};
+use types::recovery::inheritance::router::{
+    BenefactorInheritanceClaimView, BeneficiaryInheritanceClaimView,
+};
 use types::recovery::social::challenge::{
     SocialChallenge, SocialChallengeId, SocialChallengeResponse, TrustedContactChallengeRequest,
 };
@@ -49,6 +55,10 @@ use types::account::identifiers::{AccountId, TouchpointId};
 use wsm_rust_client::WsmClient;
 
 use crate::ensure_pubkeys_unique;
+use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
+use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
+use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
+use crate::service::inheritance::Service as InheritanceService;
 use crate::service::social::challenge::create_social_challenge::CreateSocialChallengeInput;
 use crate::service::social::challenge::fetch_social_challenge::{
     FetchSocialChallengeAsCustomerInput, FetchSocialChallengeAsTrustedContactInput,
@@ -69,7 +79,7 @@ use crate::{
     },
     error::RecoveryError,
     metrics,
-    repository::Repository as RecoveryRepository,
+    repository::RecoveryRepository,
     service::social::challenge::Service as SocialChallengeService,
     service::social::relationship::Service as RecoveryRelationshipService,
     state_machine::{
@@ -77,6 +87,7 @@ use crate::{
         run_recovery_fsm, PendingDelayNotifyRecovery, RecoveryEvent, RecoveryResponse,
     },
 };
+use types::recovery::inheritance::package::Package;
 use types::recovery::social::relationship::RecoveryRelationshipEndorsement;
 use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
 use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
@@ -92,6 +103,7 @@ pub struct RouteState(
     pub RecoveryRelationshipService,
     pub SocialChallengeService,
     pub FeatureFlagsService,
+    pub InheritanceService,
 );
 
 impl RouteState {
@@ -147,6 +159,18 @@ impl RouteState {
                 "/api/accounts/:account_id/recovery/relationships",
                 put(endorse_recovery_relationships),
             )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims",
+                post(create_inheritance_claim),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/packages",
+                post(upload_inheritance_packages),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/cancel",
+                post(cancel_inheritance_claim),
+            )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
     }
@@ -168,6 +192,10 @@ impl RouteState {
             .route(
                 "/api/accounts/:account_id/recovery/social-challenges/:social_challenge_id",
                 get(fetch_social_challenge),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims",
+                get(get_inheritance_claims),
             )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
@@ -226,10 +254,13 @@ impl From<RouteState> for SwaggerEndpoint {
         respond_to_social_challenge,
         rotate_authentication_keys,
         send_verification_code,
+        create_inheritance_claim,
         start_social_challenge,
         update_recovery_relationship,
+        upload_inheritance_packages,
         verify_code,
         verify_social_challenge,
+        get_inheritance_claims,
     ),
     components(
         schemas(
@@ -272,16 +303,21 @@ impl From<RouteState> for SwaggerEndpoint {
             StartChallengeTrustedContactRequest,
             StartSocialChallengeRequest,
             StartSocialChallengeResponse,
+            CreateInheritanceClaimRequest,
+            CreateInheritanceClaimResponse,
             TrustedContactRecoveryRelationshipView,
             TrustedContactSocialChallenge,
             UnendorsedTrustedContact,
             UpdateRecoveryRelationshipRequest,
             UpdateRecoveryRelationshipResponse,
+            UploadInheritancePackagesRequest,
+            UploadInheritancePackagesResponse,
             VerifyAccountVerificationCodeRequest,
             VerifyAccountVerificationCodeResponse,
             VerifySocialChallengeRequest,
             VerifySocialChallengeResponse,
             WalletRecovery,
+            GetInheritanceClaimsResponse,
         )
     ),
     tags(
@@ -1298,7 +1334,7 @@ pub async fn get_recovery_relationships(
     let result = recovery_relationship_service
         .get_recovery_relationships(GetRecoveryRelationshipsInput {
             account_id: &account_id,
-            trusted_contact_role: SocialRecoveryContact,
+            trusted_contact_role: Some(SocialRecoveryContact),
         })
         .await?;
 
@@ -1329,7 +1365,7 @@ pub async fn get_recovery_relationships(
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetRelationshipsRequest {
-    trusted_contact_role: TrustedContactRole,
+    trusted_contact_role: Option<TrustedContactRole>,
 }
 
 ///
@@ -1574,7 +1610,7 @@ pub async fn endorse_recovery_relationships(
     let result = recovery_relationship_service
         .get_recovery_relationships(GetRecoveryRelationshipsInput {
             account_id: &account_id,
-            trusted_contact_role: SocialRecoveryContact,
+            trusted_contact_role: Some(SocialRecoveryContact),
         })
         .await?;
 
@@ -1922,4 +1958,245 @@ pub async fn fetch_social_challenge(
     Ok(Json(FetchSocialChallengeResponse {
         social_challenge: result.into(),
     }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateInheritanceClaimRequest {
+    pub recovery_relationship_id: RecoveryRelationshipId,
+    pub auth: InheritanceClaimAuthKeys,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CreateInheritanceClaimResponse {
+    pub claim: BeneficiaryInheritanceClaimView,
+}
+
+///
+/// This route is used by a beneficiary to start an inheritance claim
+/// to claim funds from a deceased benefactor. The beneficiary must provide
+/// the recovery relationship id and the auth keys to start the claim.
+///
+#[instrument(err, skip(account_service, inheritance_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = CreateInheritanceClaimRequest,
+    responses(
+        (status = 200, description = "Created a new inheritance claim", body=CreateInheritanceClaimResponse),
+    ),
+)]
+pub async fn create_inheritance_claim(
+    Path(beneficiary_account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
+    Json(request): Json<CreateInheritanceClaimRequest>,
+) -> Result<Json<CreateInheritanceClaimResponse>, ApiError> {
+    let beneficiary_account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &beneficiary_account_id,
+        })
+        .await?;
+    if !matches!(beneficiary_account, Account::Full(_)) {
+        return Err(ApiError::GenericForbidden(
+            "Incorrect calling account type".to_string(),
+        ));
+    }
+
+    let claim = inheritance_service
+        .create_claim(CreateInheritanceClaimInput {
+            beneficiary_account: &beneficiary_account,
+            recovery_relationship_id: request.recovery_relationship_id,
+            auth_keys: request.auth,
+        })
+        .await?;
+
+    Ok(Json(CreateInheritanceClaimResponse {
+        claim: claim.into(),
+    }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetInheritanceClaimsResponse {
+    pub claims_as_benefactor: Vec<BenefactorInheritanceClaimView>,
+    pub claims_as_beneficiary: Vec<BeneficiaryInheritanceClaimView>,
+}
+
+///
+/// This route is used by both Benefactors and Beneficiaries to retrieve
+/// inheritance claims.
+///
+/// For Benefactors, we will show:
+/// - All the inheritance claims for which they are a benefactor
+///
+/// For Trusted Contacts, we will show:
+/// - All the inheritance claims for which they are a beneficiary
+///
+#[instrument(err, skip(inheritance_service))]
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    responses(
+        (status = 200, description = "Inheritance claims", body=GetInheritanceClaimsResponse),
+    ),
+)]
+pub async fn get_inheritance_claims(
+    Path(account_id): Path<AccountId>,
+    State(inheritance_service): State<InheritanceService>,
+) -> Result<Json<GetInheritanceClaimsResponse>, ApiError> {
+    let result = inheritance_service
+        .get_inheritance_claims(GetInheritanceClaimsInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    Ok(Json(GetInheritanceClaimsResponse {
+        claims_as_benefactor: result
+            .claims_as_benefactor
+            .into_iter()
+            .map(|c| c.into())
+            .collect(),
+        claims_as_beneficiary: result
+            .claims_as_beneficiary
+            .into_iter()
+            .map(|c| c.into())
+            .collect(),
+    }))
+}
+
+#[derive(Serialize, Deserialize, ToSchema, Debug, Clone)]
+pub struct InheritancePackage {
+    pub recovery_relationship_id: RecoveryRelationshipId,
+    pub sealed_dek: String,
+    pub sealed_mobile_key: String,
+}
+impl From<InheritancePackage> for Package {
+    fn from(value: InheritancePackage) -> Self {
+        Self {
+            recovery_relationship_id: value.recovery_relationship_id,
+            sealed_dek: value.sealed_dek,
+            sealed_mobile_key: value.sealed_mobile_key,
+
+            updated_at: OffsetDateTime::now_utc(),
+            created_at: OffsetDateTime::now_utc(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UploadInheritancePackagesRequest {
+    pub packages: Vec<InheritancePackage>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct UploadInheritancePackagesResponse {}
+
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/recovery/inheritance/packages",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = UploadInheritancePackagesRequest,
+    responses(
+        (status = 200, description = "Upload successful", body=UploadInheritancePackagesResponse),
+    ),
+)]
+pub async fn upload_inheritance_packages(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
+    Json(request): Json<UploadInheritancePackagesRequest>,
+) -> Result<Json<UploadInheritancePackagesResponse>, ApiError> {
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let Account::Full(_) = account else {
+        return Err(ApiError::GenericForbidden(
+            "Incorrect calling account type".to_string(),
+        ));
+    };
+
+    inheritance_service
+        .upload_packages(request.packages.into_iter().map(Package::from).collect())
+        .await?;
+
+    Ok(Json(UploadInheritancePackagesResponse {}))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CancelInheritanceClaimRequest {}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(untagged)]
+pub enum CancelInheritanceClaimResponse {
+    Benefactor {
+        claim: BenefactorInheritanceClaimView,
+    },
+    Beneficiary {
+        claim: BeneficiaryInheritanceClaimView,
+    },
+}
+
+///
+/// This route is used by the benefactor or beneficiary to cancel an
+/// inheritance claim. For both, an inheritance claim id must be provided.
+///
+#[instrument(err, skip(account_service, inheritance_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/cancel",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("inheritance_claim_id" = InheritanceClaimId, Path, description = "Identifier for the inheritance claim"),
+    ),
+    request_body = CancelInheritanceClaimRequest,
+    responses(
+        (status = 200, description = "Cancel the inheritance claim", body=CancelInheritanceClaimResponse),
+    ),
+)]
+pub async fn cancel_inheritance_claim(
+    Path((account_id, inheritance_claim_id)): Path<(AccountId, InheritanceClaimId)>,
+    State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
+    Json(request): Json<CancelInheritanceClaimRequest>,
+) -> Result<Json<CancelInheritanceClaimResponse>, ApiError> {
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    if !matches!(account, Account::Full(_)) {
+        return Err(ApiError::GenericForbidden(
+            "Incorrect calling account type".to_string(),
+        ));
+    }
+    let (canceled_by, claim) = inheritance_service
+        .cancel_claim(CancelInheritanceClaimInput {
+            account: &account,
+            inheritance_claim_id,
+        })
+        .await?;
+
+    match canceled_by {
+        InheritanceClaimCanceledBy::Benefactor => {
+            return Ok(Json(CancelInheritanceClaimResponse::Benefactor {
+                claim: claim.into(),
+            }));
+        }
+        InheritanceClaimCanceledBy::Beneficiary => {
+            return Ok(Json(CancelInheritanceClaimResponse::Beneficiary {
+                claim: claim.into(),
+            }));
+        }
+    }
 }

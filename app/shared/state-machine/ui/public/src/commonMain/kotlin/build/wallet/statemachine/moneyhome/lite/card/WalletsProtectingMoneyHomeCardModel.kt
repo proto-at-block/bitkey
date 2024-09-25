@@ -33,7 +33,7 @@ fun WalletsProtectingMoneyHomeCardModel(
     ) {
       LabelModel.StringWithStyledSubstringModel.from(
         this,
-        mapOf(this to LabelModel.StringWithStyledSubstringModel.Color.ON60)
+        mapOf(this to LabelModel.Color.ON60)
       )
     }
   } else {

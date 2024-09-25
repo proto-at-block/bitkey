@@ -3,6 +3,7 @@ package build.wallet.statemachine.core
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.nfc.NfcException
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.FormBodyModel
 
 /**
@@ -33,7 +34,7 @@ fun NfcErrorFormBodyModel(
 
   return ErrorFormBodyModelWithOptionalErrorData(
     title = message.title,
-    subline = message.description,
+    subline = StringModel(message.description),
     primaryButton = ButtonDataModel("OK", onClick = onPrimaryButtonClick),
     secondaryButton = secondaryButton,
     errorData = if (segment != null && actionDescription != null) {

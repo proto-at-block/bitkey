@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -24,12 +24,12 @@ const WORKER_SECONDARY_PARTITION_KEY: &str = "sharded_execution_date";
 const WORKER_SECONDARY_SORT_KEY: &str = "execution_time";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct NotificationRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for NotificationRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

@@ -5,14 +5,17 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconScan
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
+import build.wallet.statemachine.core.form.FormMainContentModel.Callout
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -29,7 +32,6 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  *
  * @param enteredText - The current entered address text
  * @param onEnteredTextChanged - Change handler for the input field
- * @param continueButtonEnabled - Flag for conditionally enabling continue primary button
  * @param showPasteButton - Flag for showing paste button within the input field
  * @param onContinueClick - Click handler for primary button
  * @param onBack - Handler for back press
@@ -45,6 +47,8 @@ fun BitcoinRecipientAddressScreenModel(
   onBack: () -> Unit,
   onScanQrCodeClick: () -> Unit,
   onPasteButtonClick: () -> Unit,
+  showSelfSendWarningWithRedirect: Boolean,
+  onGoToUtxoConsolidation: () -> Unit,
 ) = FormBodyModel(
   onBack = onBack,
   toolbar =
@@ -102,7 +106,23 @@ fun BitcoinRecipientAddressScreenModel(
               )
             )
         )
-      }
+      },
+      Callout(
+        item = CalloutModel(
+          title = "This is your Bitkey wallet address",
+          subtitle = LabelModel.LinkSubstringModel.from(
+            string = "The address you entered belongs to this Bitkey wallet. Enter an external address" +
+              " to transfer funds." +
+              "\n\n" +
+              "For UTXO consolidation, go to UTXO Consolidation in Settings.",
+            substringToOnClick = mapOf("UTXO Consolidation" to onGoToUtxoConsolidation),
+            underline = true,
+            bold = true,
+            color = LabelModel.Color.UNSPECIFIED
+          ),
+          treatment = CalloutModel.Treatment.Information
+        )
+      ).takeIf { showSelfSendWarningWithRedirect }
     ),
   primaryButton =
     ButtonModel(

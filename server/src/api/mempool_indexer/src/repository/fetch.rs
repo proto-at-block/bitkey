@@ -3,13 +3,13 @@ use std::collections::HashSet;
 use bdk_utils::bdk::bitcoin::{Network, Txid};
 use database::{
     aws_sdk_dynamodb::types::{AttributeValue, Select::SpecificAttributes},
-    ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
+    ddb::{try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
 use serde::Deserialize;
 use time::{Duration, OffsetDateTime};
 use tracing::{event, instrument, Level};
 
-use super::{Repository, NETWORK_EXPIRING_IDX, PARTITION_KEY};
+use super::{MempoolIndexerRepository, NETWORK_EXPIRING_IDX, PARTITION_KEY};
 use crate::entities::TransactionRecord;
 
 const EXPIRY_UPDATE_WINDOW_MINS: i64 = 20;
@@ -19,7 +19,7 @@ struct FetchTransactionId {
     tx_id: Txid,
 }
 
-impl Repository {
+impl MempoolIndexerRepository {
     #[instrument(skip(self))]
     pub(crate) async fn fetch_recorded_transaction_ids(
         &self,

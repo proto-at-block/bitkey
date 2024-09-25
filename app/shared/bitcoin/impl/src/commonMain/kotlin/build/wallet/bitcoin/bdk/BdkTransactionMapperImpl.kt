@@ -9,18 +9,21 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
+import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
 
 class BdkTransactionMapperImpl(
   private val bdkAddressBuilder: BdkAddressBuilder,
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
+  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BdkTransactionMapper {
   override suspend fun createTransaction(
     bdkTransaction: BdkTransactionDetails,
@@ -32,6 +35,8 @@ class BdkTransactionMapperImpl(
     //    This value is always 0, since you will not own any of the inputs.
     // AS A SENDER
     //    This value will not be 0, since you will have to put up your UTXOs as inputs.
+    // AS A UTXO CONSOLIDATION
+    //    This value will not be 0, since you are "sending" to yourself.
     val sent = BitcoinMoney.sats(bdkTransaction.sent)
 
     // Sum of owned outputs of this transaction.
@@ -42,6 +47,8 @@ class BdkTransactionMapperImpl(
     //    This is likely a sweep-out transaction.
     //  WHEN received != 0
     //    The value here represents the change.
+    // AS A UTXO CONSOLIDATION
+    //    This value will not be 0, since you are receiving a new UTXO that you now own.
     val received = BitcoinMoney.sats(bdkTransaction.received)
 
     // If sent amount is zero, that means this transaction is one where you only received.
@@ -51,8 +58,14 @@ class BdkTransactionMapperImpl(
     val transactionWeight = bdkTransaction.transaction?.weight()
     val vsize = bdkTransaction.transaction?.vsize()
 
+    val isUtxoConsolidation = if (utxoConsolidationFeatureFlag.isEnabled()) {
+      bdkTransaction.transaction?.isUtxoConsolidation(bdkWallet, sent) ?: false
+    } else {
+      false
+    }
+
     val total =
-      if (isZeroSumTransaction) {
+      if (isZeroSumTransaction || isUtxoConsolidation) {
         received + (fee ?: BitcoinMoney.zero())
       } else {
         sent - received
@@ -60,7 +73,7 @@ class BdkTransactionMapperImpl(
 
     // If this a receive, the subtotal is just how much you received.
     val subtotal =
-      if (isZeroSumTransaction) {
+      if (isZeroSumTransaction || isUtxoConsolidation) {
         received
       } else {
         total - (fee ?: BitcoinMoney.zero())
@@ -68,6 +81,7 @@ class BdkTransactionMapperImpl(
 
     val transactionType = when {
       sent.isZero -> Incoming
+      isUtxoConsolidation -> UtxoConsolidation
       else -> Outgoing
     }
 
@@ -120,13 +134,13 @@ class BdkTransactionMapperImpl(
     bdkWallet: BdkWallet,
     transactionType: TransactionType,
   ): BitcoinAddress? {
-    // Find the TxOut that does or does not correspond to the current wallet based on [incoming]
+    // Find the TxOut that does or does not correspond to the current wallet based on [transactionType]
     val addressTxOut =
       output()
         .firstOrNull {
           when (val isMine = bdkWallet.isMine(it.scriptPubkey)) {
             is Ok -> when (transactionType) {
-              Incoming -> isMine.value
+              Incoming, UtxoConsolidation -> isMine.value
               Outgoing -> !isMine.value
             }
             is Err -> {
@@ -152,6 +166,18 @@ class BdkTransactionMapperImpl(
     }
   }
 }
+
+/**
+ * Indicates whether a transaction is considered a UTXO consolidation; that is, whether all outputs
+ * have a destination of [myWallet].
+ */
+private suspend fun BdkTransaction.isUtxoConsolidation(
+  myWallet: BdkWallet,
+  amountSent: BitcoinMoney,
+): Boolean =
+  !amountSent.isZero &&
+    output().isNotEmpty() &&
+    output().all { myWallet.isMine(it.scriptPubkey).result.get() ?: false }
 
 private val BdkBlockTime.blockTime: BlockTime
   get() =

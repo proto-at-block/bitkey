@@ -5,15 +5,15 @@ use database::{
         error::ProvideErrorMetadata,
         types::{AttributeValue, PutRequest, WriteRequest},
     },
-    ddb::{try_to_item, DDBService, DatabaseError},
+    ddb::{try_to_item, DatabaseError, Repository},
 };
 use tracing::{event, instrument, Level};
 
 use crate::entities::Notification;
 
-use super::Repository;
+use super::NotificationRepository;
 
-impl Repository {
+impl NotificationRepository {
     /// Persists notification agnostic of type
     ///
     /// ### Arguments

@@ -18,6 +18,7 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
@@ -272,7 +273,7 @@ class CompletingRecoveryUiStateMachineImpl(
       is FailedPerformingCloudBackupData ->
         ErrorFormBodyModelWithOptionalErrorData(
           title = "We were unable to upload backup",
-          subline = "Please try again.",
+          subline = StringModel("Please try again."),
           errorData = props.completingRecoveryData.cause?.let { cause ->
             ErrorData(
               cause = cause,

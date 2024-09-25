@@ -15,6 +15,8 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
@@ -36,6 +38,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
+import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
@@ -95,6 +98,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val haptics: Haptics,
   private val firmwareDataService: FirmwareDataService,
   private val transactionsService: TransactionsService,
+  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -498,6 +502,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               }
             }
             val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            val spendingLimitsCopy = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
             MobilePayOnboardingScreenModel(
               onContinue = { props.setState(SetSpendingLimitFlowUiState) },
               onSetUpLater = {
@@ -507,7 +512,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                   )
                 )
               },
-              onClosed = onClosed
+              onClosed = onClosed,
+              headerHeadline = spendingLimitsCopy.onboardingModal.headline,
+              headerSubline = spendingLimitsCopy.onboardingModal.subline,
+              primaryButtonString = spendingLimitsCopy.onboardingModal.primaryButtonString
             ).asSheetModalScreen(onClosed)
           }
           is TrustedContact -> {

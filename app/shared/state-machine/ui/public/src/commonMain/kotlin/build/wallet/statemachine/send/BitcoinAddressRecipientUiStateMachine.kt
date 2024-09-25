@@ -30,4 +30,5 @@ data class BitcoinAddressRecipientUiProps(
   val onBack: () -> Unit,
   val onRecipientEntered: (address: BitcoinAddress) -> Unit,
   val onScanQrCodeClick: () -> Unit,
+  val onGoToUtxoConsolidation: () -> Unit,
 )

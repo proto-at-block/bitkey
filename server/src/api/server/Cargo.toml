@@ -28,11 +28,10 @@ serde_urlencoded = "0.7.1"
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
+tower = { workspace = true }
 tracing = { workspace = true }
 ulid = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
-wallet-telemetry = { workspace = true }
-wsm-rust-client = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
@@ -46,6 +45,7 @@ database = { workspace = true }
 errors = { workspace = true }
 exchange_rate = { workspace = true }
 experimentation = { workspace = true }
+export_tools = { workspace = true }
 external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
@@ -68,7 +68,9 @@ types = { workspace = true, features = [
   "time",
 ] }
 userpool = { workspace = true }
+wallet-telemetry = { workspace = true }
 workers = { workspace = true }
+wsm-rust-client = { workspace = true }
 
 [dev-dependencies]
 aws-sdk-sqs = { workspace = true }
@@ -83,7 +85,6 @@ mockall = "0.12.1"
 once_cell = { workspace = true }
 regex = { version = "1.10.6", features = [] }
 rstest = "0.18.1"
-tower = { workspace = true }
 
 [features]
 partnerships = ["dep:partnerships"]

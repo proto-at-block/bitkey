@@ -6,18 +6,18 @@ use bdk_utils::bdk::bitcoin::absolute::LockTime;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::{Address, Transaction, TxOut};
 use database::ddb;
-use database::ddb::{try_to_item, Connection, DDBService};
+use database::ddb::{try_to_item, Connection, Repository};
 use http_server::config;
 
 use crate::signed_psbt_cache::entities::NonBase64CachedPsbt;
-use crate::signed_psbt_cache::repository::Repository;
+use crate::signed_psbt_cache::repository::SignedPsbtCacheRepository;
 use crate::signed_psbt_cache::service::Service;
 
 #[tokio::test]
 async fn test_fetch_non_base64_serialized_psbt() {
     // arrange
     let conn = connection().await;
-    let repo = Repository::new(conn.clone());
+    let repo = SignedPsbtCacheRepository::new(conn.clone());
     let service = Service::new(repo.clone());
     let psbt = construct_psbt();
 
@@ -35,7 +35,7 @@ async fn test_fetch_non_base64_serialized_psbt() {
 async fn test_fetch_base64_serialized_psbt() {
     // arrange
     let conn = connection().await;
-    let repo = Repository::new(conn.clone());
+    let repo = SignedPsbtCacheRepository::new(conn.clone());
     let service = Service::new(repo.clone());
     let psbt = construct_psbt();
 
@@ -74,7 +74,11 @@ fn construct_psbt() -> Psbt {
     .unwrap()
 }
 
-pub async fn persist_unencoded(psbt: &Psbt, repository: &Repository, connection: &Connection) {
+pub async fn persist_unencoded(
+    psbt: &Psbt,
+    repository: &SignedPsbtCacheRepository,
+    connection: &Connection,
+) {
     let unencoded_psbt = NonBase64CachedPsbt {
         txid: psbt.unsigned_tx.txid(),
         psbt: psbt.clone(),

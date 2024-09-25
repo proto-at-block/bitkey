@@ -1,9 +1,9 @@
 use std::{collections::HashSet, env};
 
-use account::{repository::Repository as AccountRepository, service::Service as AccountService};
+use account::{repository::AccountRepository, service::Service as AccountService};
 use authn_authz::key_claims::KeyClaims;
 use queue::sqs::SqsQueue;
-use repository::consent::Repository as ConsentRepository;
+use repository::consent::ConsentRepository;
 use serde::Deserialize;
 use types::{account::identifiers::AccountId, notification::NotificationsPreferences};
 
@@ -15,7 +15,7 @@ use crate::{
         CustomerNotification, NotificationCompositeKey, NotificationSchedule,
         NotificationTouchpoint, ScheduledNotification,
     },
-    repository::Repository,
+    repository::NotificationRepository,
     schedule::ScheduleNotificationType,
     DeliveryStatus, NotificationPayload, NotificationPayloadType, EMAIL_QUEUE_ENV_VAR,
     PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR,
@@ -37,7 +37,7 @@ pub struct Config {
 
 #[derive(Clone)]
 pub struct Service {
-    notification_repo: Repository,
+    notification_repo: NotificationRepository,
     account_repo: AccountRepository,
     account_service: AccountService,
     sqs: SqsQueue,
@@ -50,7 +50,7 @@ pub struct Service {
 
 impl Service {
     pub async fn new(
-        notification_repo: Repository,
+        notification_repo: NotificationRepository,
         account_repo: AccountRepository,
         account_service: AccountService,
         sqs: SqsQueue,

@@ -65,3 +65,5 @@ inline fun <T> Iterable<T>.sumOf(selector: (T) -> BitcoinMoney): BitcoinMoney {
  * Negate the amount value of the [BitcoinMoney] by inverting the sign.
  */
 fun BitcoinMoney.negate(): BitcoinMoney = copy(value = value.negate())
+
+fun BitcoinMoney?.orZero(): BitcoinMoney = this ?: BitcoinMoney.zero()

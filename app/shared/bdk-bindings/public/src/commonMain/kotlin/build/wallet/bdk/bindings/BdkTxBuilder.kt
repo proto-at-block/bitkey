@@ -28,6 +28,13 @@ interface BdkTxBuilder {
   fun feeAbsolute(fee: Long): BdkTxBuilder
 
   /**
+   * Add the list of outpoints to the internal list of UTXOs that must be spent.
+   *
+   * If an error occurs while adding any of the UTXOs then none of them are added and the error is thrown.
+   */
+  fun addUtxos(utxos: List<BdkOutPoint>): BdkTxBuilder
+
+  /**
    * Drain the wallet to the given address.
    */
   fun drainTo(address: BdkAddress): BdkTxBuilder

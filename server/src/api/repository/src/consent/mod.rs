@@ -7,7 +7,7 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
 use tracing::{event, Level};
 
@@ -22,12 +22,12 @@ const EMAIL_IDX_PARTITION_KEY: &str = "email_address";
 const EMAIL_IDX_SORT_KEY: &str = "created_at";
 
 #[derive(Clone)]
-pub struct Repository {
+pub struct ConsentRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl DDBService for Repository {
+impl Repository for ConsentRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

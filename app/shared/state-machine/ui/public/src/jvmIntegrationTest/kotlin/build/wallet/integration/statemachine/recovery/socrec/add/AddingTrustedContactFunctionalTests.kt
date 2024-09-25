@@ -26,7 +26,6 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Clock
 
 class AddingTrustedContactFunctionalTests : FunSpec({
-  val appTester = launchNewApp()
   val onExitCalls = turbines.create<Unit>("exit-tc-flow")
   val onInvitationShared = turbines.create<Unit>("add-tc")
   val onAddTcCalls = turbines.create<Unit>("tc-added")
@@ -48,6 +47,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Enter TC Name") {
+    val appTester = launchNewApp()
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
@@ -92,6 +92,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Save Contact With Bitkey") {
+    val appTester = launchNewApp()
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
@@ -110,6 +111,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Share Invite") {
+    val appTester = launchNewApp()
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
@@ -138,6 +140,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Complete TC Invite") {
+    val appTester = launchNewApp()
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
