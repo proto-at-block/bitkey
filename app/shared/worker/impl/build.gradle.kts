@@ -15,6 +15,8 @@ kotlin {
         api(projects.shared.fwupPublic)
         api(projects.shared.queueProcessorPublic)
         api(projects.shared.recoveryPublic)
+        api(projects.shared.inheritancePublic)
+        api(projects.shared.relationshipsPublic)
 
         implementation(projects.shared.loggingPublic)
       }

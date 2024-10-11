@@ -328,7 +328,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       is ActivationApprovalInstructionsUiState ->
         NotificationOperationApprovalInstructionsFormScreenModel(
           onExit = props.onClose,
-          operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+          operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
           isApproveButtonLoading = false,
           errorBottomSheetState = ErrorBottomSheetState.Hidden,
           onApprove = {
@@ -371,7 +371,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 // but with the button in a loading state
                 NotificationOperationApprovalInstructionsFormScreenModel(
                   onExit = props.onClose,
-                  operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+                  operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
                   isApproveButtonLoading = true,
                   errorBottomSheetState = ErrorBottomSheetState.Hidden,
                   onApprove = {
@@ -385,7 +385,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                 // but with the error bottom sheet showing
                 NotificationOperationApprovalInstructionsFormScreenModel(
                   onExit = props.onClose,
-                  operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
+                  operationDescription = operationDescription(state.touchpointToActivate.formattedDisplayValue),
                   isApproveButtonLoading = false,
                   errorBottomSheetState = ErrorBottomSheetState.Showing(
                     isConnectivityError = isConnectivityError,

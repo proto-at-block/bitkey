@@ -1,11 +1,11 @@
-use account::spend_limit::SpendingLimit;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{AttributableWallet, PsbtWithDerivation};
+use errors::ApiError;
 use thiserror::Error;
 use time::{Duration, OffsetDateTime, Time, UtcOffset};
+use types::account::spend_limit::SpendingLimit;
 
 use crate::daily_spend_record::entities::SpendingEntry;
-use errors::ApiError;
 
 const START_OF_WINDOW_HOUR: u8 = 3; // 3 AM is the start of the quickspend window
 

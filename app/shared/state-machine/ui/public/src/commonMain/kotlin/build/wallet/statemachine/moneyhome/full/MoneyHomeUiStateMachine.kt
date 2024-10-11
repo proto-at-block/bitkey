@@ -1,7 +1,6 @@
 package build.wallet.statemachine.moneyhome.full
 
-import build.wallet.partnerships.PartnerInfo
-import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.partnerships.*
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
@@ -29,8 +28,15 @@ data class MoneyHomeUiProps(
   val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,
   val origin: Origin,
 ) {
-  enum class Origin {
-    Launch,
-    Settings,
+  sealed class Origin {
+    data object Launch : Origin()
+
+    data object Settings : Origin()
+
+    data class PartnershipsSell(
+      val partnerId: PartnerId?,
+      val event: PartnershipEvent?,
+      val partnerTransactionId: PartnershipTransactionId?,
+    ) : Origin()
   }
 }

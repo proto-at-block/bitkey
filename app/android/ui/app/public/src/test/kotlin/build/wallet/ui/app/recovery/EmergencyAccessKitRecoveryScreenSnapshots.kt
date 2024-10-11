@@ -1,10 +1,10 @@
 package build.wallet.ui.app.recovery
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitCodeNotRecognized
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportPasteMobileKeyModel
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportWalletModel
-import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRestoreWallet
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitCodeNotRecognizedBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportPasteMobileKeyBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportWalletBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRestoreWalletBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
 
@@ -14,12 +14,11 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
   test("emergency access import your wallet method selection screen") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          EmergencyAccessKitImportWalletModel(
-            onBack = {},
-            onScanQRCode = {},
-            onEnterManually = {}
-          )
+        model = EmergencyAccessKitImportWalletBodyModel(
+          onBack = {},
+          onScanQRCode = {},
+          onEnterManually = {}
+        )
       )
     }
   }
@@ -27,14 +26,13 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
   test("emergency access paste your mobile key screen") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          EmergencyAccessKitImportPasteMobileKeyModel(
-            enteredText = "",
-            onBack = {},
-            onEnterTextChanged = {},
-            onPasteButtonClick = {},
-            onContinue = {}
-          )
+        model = EmergencyAccessKitImportPasteMobileKeyBodyModel(
+          enteredText = "",
+          onBack = {},
+          onEnterTextChanged = {},
+          onPasteButtonClick = {},
+          onContinue = {}
+        )
       )
     }
   }
@@ -42,13 +40,12 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
   test("emergency access code not recognized error screen") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          EmergencyAccessKitCodeNotRecognized(
-            arrivedFromManualEntry = false,
-            onBack = {},
-            onScanQRCode = {},
-            onImport = {}
-          )
+        model = EmergencyAccessKitCodeNotRecognizedBodyModel(
+          arrivedFromManualEntry = false,
+          onBack = {},
+          onScanQRCode = {},
+          onImport = {}
+        )
       )
     }
   }
@@ -56,11 +53,10 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
   test("emergency access restore your wallet screen") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          EmergencyAccessKitRestoreWallet(
-            onBack = {},
-            onRestore = {}
-          )
+        model = EmergencyAccessKitRestoreWalletBodyModel(
+          onBack = {},
+          onRestore = {}
+        )
       )
     }
   }

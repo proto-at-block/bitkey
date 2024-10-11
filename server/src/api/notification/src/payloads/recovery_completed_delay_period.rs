@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use account::entities::Factor;
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, OffsetDateTime};
+use types::account::entities::Factor;
 
 use crate::{
     clients::iterable::IterableCampaignType, email::EmailPayload,

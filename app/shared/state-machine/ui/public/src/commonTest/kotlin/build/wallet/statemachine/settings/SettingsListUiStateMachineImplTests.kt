@@ -48,7 +48,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     mapOf(
       BitkeyDevice::class to turbines.create("BitkeyDevice onClick calls"),
       CustomElectrumServer::class to turbines.create("CustomElectrumServer onClick calls"),
-      CurrencyPreference::class to turbines.create("CurrencyPreference onClick calls"),
+      AppearancePreference::class to turbines.create("AppearancePreference onClick calls"),
       HelpCenter::class to turbines.create("HelpCenter onClick calls"),
       MobilePay::class to turbines.create("MobilePay onClick calls"),
       NotificationPreferences::class to turbines.create("Notifications onClick calls"),
@@ -67,7 +67,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         setOf(
           BitkeyDevice { propsOnClickCalls[BitkeyDevice::class]?.add(Unit) },
           CustomElectrumServer { propsOnClickCalls[CustomElectrumServer::class]?.add(Unit) },
-          CurrencyPreference { propsOnClickCalls[CurrencyPreference::class]?.add(Unit) },
+          AppearancePreference { propsOnClickCalls[AppearancePreference::class]?.add(Unit) },
           HelpCenter { propsOnClickCalls[HelpCenter::class]?.add(Unit) },
           MobilePay { propsOnClickCalls[MobilePay::class]?.add(Unit) },
           NotificationPreferences { propsOnClickCalls[NotificationPreferences::class]?.add(Unit) },
@@ -106,7 +106,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
               "General" to listOf(
                 "Mobile Pay",
                 "Bitkey Device",
-                "Currency Display",
+                "Appearance",
                 "Notifications"
               ),
               "Security & Recovery" to listOf(
@@ -161,7 +161,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("Currency updates state") {
     stateMachine
-      .testRowOnClickCallsProps<CurrencyPreference>("Currency Display", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<AppearancePreference>("Appearance", props, propsOnClickCalls)
   }
 
   test("Notifications updates state") {
@@ -215,7 +215,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       expectDisabledRows(
         setOf(
           "Mobile Pay",
-          "Currency Display",
+          "Appearance",
           "Notifications",
           "Trusted Contacts",
           "Help Center",
@@ -242,7 +242,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       expectDisabledRows(
         setOf(
           "Mobile Pay",
-          "Currency Display",
+          "Appearance",
           "Notifications",
           "Trusted Contacts",
           "Custom Electrum Server",
@@ -270,7 +270,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
             .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
             .shouldBe(
               listOf(
-                "General" to listOf("Transfer settings", "Bitkey Device", "Currency Display", "Notifications"),
+                "General" to listOf("Transfers", "Bitkey Device", "Appearance", "Notifications"),
                 "Security & Recovery" to listOf("App Security", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
                 "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
                 "Support" to listOf("Contact Us", "Help Center")
@@ -282,7 +282,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
     test("Transfer settings updates state") {
       stateMachine
-        .testRowOnClickCallsProps<MobilePay>("Transfer settings", props, propsOnClickCalls)
+        .testRowOnClickCallsProps<MobilePay>("Transfers", props, propsOnClickCalls)
     }
 
     test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
@@ -295,8 +295,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         )
         expectDisabledRows(
           setOf(
-            "Transfer settings",
-            "Currency Display",
+            "Transfers",
+            "Appearance",
             "Notifications",
             "Trusted Contacts",
             "Help Center",
@@ -322,8 +322,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         )
         expectDisabledRows(
           setOf(
-            "Transfer settings",
-            "Currency Display",
+            "Transfers",
+            "Appearance",
             "Notifications",
             "Trusted Contacts",
             "Custom Electrum Server",

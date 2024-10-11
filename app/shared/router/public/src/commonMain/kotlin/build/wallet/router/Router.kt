@@ -78,6 +78,7 @@ sealed class Route {
 
   object Context {
     const val PARTNER_TRANSFER_REDIRECT = "partner_transfer"
+    const val PARTNER_SALE_REDIRECT = "partner_sale"
   }
 
   companion object {
@@ -110,6 +111,11 @@ sealed class Route {
                 event = parsedUrl.parameters[QueryParamKeys.EVENT],
                 partnerTransactionId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
               )
+            Context.PARTNER_SALE_REDIRECT -> PartnerSaleDeeplink(
+              partner = parsedUrl.parameters[QueryParamKeys.SOURCE],
+              event = parsedUrl.parameters[QueryParamKeys.EVENT],
+              partnerTransactionId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
+            )
             else -> null
           }
         }
@@ -125,4 +131,6 @@ sealed class Route {
   data class TrustedContactInvite(val inviteCode: String) : Route()
 
   data class PartnerTransferDeeplink(val partner: String?, val event: String?, val partnerTransactionId: String?) : Route()
+
+  data class PartnerSaleDeeplink(val partner: String?, val event: String?, val partnerTransactionId: String?) : Route()
 }

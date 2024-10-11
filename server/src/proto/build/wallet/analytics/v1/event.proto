@@ -248,6 +248,9 @@ enum Action {
     /** [App] Customer has seen the bitcoin price card coachmark */
     ACTION_APP_COACHMARK_VIEWIED_BITCOIN_PRICE_CARD = 67;
 
+    /** [App] Customer has seen partnerships sale partner */
+    ACTION_APP_PARTNERSHIPS_VIEWED_SALE_PARTNER = 68;
+
     // Next tag is 68
 }
 

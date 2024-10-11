@@ -42,51 +42,68 @@ fun EmailInputScreenModel(
   onSkip: (() -> Unit)?,
   errorOverlayModel: SheetModel? = null,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.EMAIL_INPUT_ENTERING_EMAIL,
-      onSwipeToDismiss = onClose,
-      onBack = onClose,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onClose),
-          trailingAccessory =
-            onSkip?.let {
-              ButtonAccessory(
-                model =
-                  ButtonModel(
-                    text = "Skip",
-                    treatment = Tertiary,
-                    onClick = StandardClick(onSkip),
-                    size = Compact
-                  )
-              )
-            }
-        ),
-      header = FormHeaderModel(headline = title, subline = subline),
-      mainContentList =
-        immutableListOf(
-          TextInput(
-            fieldModel =
-              TextFieldModel(
-                value = value,
-                placeholderText = "Email",
-                onValueChange = { newValue, _ -> onValueChange(newValue) },
-                keyboardType = Email,
-                onDone =
-                  if (primaryButton.isEnabled) {
-                    { primaryButton.onClick.invoke() }
-                  } else {
-                    null
-                  }
-              )
-          )
-        ),
-      primaryButton = primaryButton
-    ),
+  body = EmailInputScreenModel(
+    title = title,
+    subline = subline,
+    value = value,
+    primaryButton = primaryButton,
+    onValueChange = onValueChange,
+    onClose = onClose,
+    onSkip = onSkip
+  ),
   presentationStyle = ScreenPresentationStyle.Modal,
   bottomSheetModel = errorOverlayModel
 )
+
+private data class EmailInputScreenModel(
+  val title: String,
+  val subline: String? = null,
+  val value: String = "",
+  override val primaryButton: ButtonModel,
+  val onValueChange: (String) -> Unit,
+  val onClose: () -> Unit,
+  val onSkip: (() -> Unit)?,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.EMAIL_INPUT_ENTERING_EMAIL,
+    onSwipeToDismiss = onClose,
+    onBack = onClose,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onClose),
+        trailingAccessory =
+          onSkip?.let {
+            ButtonAccessory(
+              model =
+                ButtonModel(
+                  text = "Skip",
+                  treatment = Tertiary,
+                  onClick = StandardClick(onSkip),
+                  size = Compact
+                )
+            )
+          }
+      ),
+    header = FormHeaderModel(headline = title, subline = subline),
+    mainContentList =
+      immutableListOf(
+        TextInput(
+          fieldModel =
+            TextFieldModel(
+              value = value,
+              placeholderText = "Email",
+              onValueChange = { newValue, _ -> onValueChange(newValue) },
+              keyboardType = Email,
+              onDone =
+                if (primaryButton.isEnabled) {
+                  { primaryButton.onClick.invoke() }
+                } else {
+                  null
+                }
+            )
+        )
+      ),
+    primaryButton = primaryButton
+  )
 
 fun EmailTouchpointAlreadyActiveErrorSheetModel(onBack: () -> Unit) =
   SheetModel(

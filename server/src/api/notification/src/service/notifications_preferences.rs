@@ -1,16 +1,15 @@
-use account::entities::{Account, CommonAccountFields, Touchpoint};
 use errors::ApiError;
 use repository::consent::ConsentRepository;
 use time::{Duration, OffsetDateTime};
 use tracing::instrument;
+use types::account::entities::{Account, CommonAccountFields, Touchpoint};
 use types::{
     consent::Consent,
     notification::{NotificationsPreferences, NotificationsPreferencesState},
 };
 
-use crate::clients::iterable::IterableUserId;
-
 use super::{FetchNotificationsPreferencesInput, Service, UpdateNotificationsPreferencesInput};
+use crate::clients::iterable::IterableUserId;
 
 const SYNC_FROM_ITERABLE_DELAY: Duration = Duration::minutes(5);
 

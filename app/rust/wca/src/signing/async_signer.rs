@@ -25,9 +25,11 @@ pub(crate) fn derive_and_sign(
     let message_outer = wca::decode_and_check(response)?;
     let message = message_outer.msg.ok_or(CommandError::MissingMessage)?;
 
-    // For synchronous signing, we're done.
-    if !async_sign {
-        return check_sync_signing_result(message);
+    // Handle backwards compatibility with old firmware.
+    if got_sync_signing_status(&message) {
+        // Firmware did sync signing, so we should return the result.
+        // This is to ensure that we don't break compatibility with old firmware, which will always return sync results.
+        return extract_sync_signing_result(message);
     }
 
     // Async signing
@@ -69,7 +71,7 @@ pub(crate) fn derive_and_sign(
     Err(CommandError::Timeout)
 }
 
-fn check_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signature, CommandError> {
+fn extract_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signature, CommandError> {
     if let fwpb::wallet_rsp::Msg::DeriveAndSignRsp(fwpb::DeriveAndSignRsp { status, signature }) =
         message
     {
@@ -85,5 +87,21 @@ fn check_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signature
         }
     } else {
         Err(CommandError::MissingMessage)
+    }
+}
+
+// Return true if the firmware returned anything within the sync signing field.
+fn got_sync_signing_status(message: &fwpb::wallet_rsp::Msg) -> bool {
+    if let fwpb::wallet_rsp::Msg::DeriveAndSignRsp(fwpb::DeriveAndSignRsp {
+        status,
+        signature: _,
+    }) = message
+    {
+        match DeriveAndSignRspStatus::from_i32(*status) {
+            Some(DeriveAndSignRspStatus::Unspecified) => false,
+            _ => true,
+        }
+    } else {
+        false
     }
 }

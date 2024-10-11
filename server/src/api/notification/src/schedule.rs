@@ -1,4 +1,5 @@
 use time::{Duration, OffsetDateTime};
+use types::recovery::social::relationship::RecoveryRelationshipRole;
 
 use crate::entities::NotificationSchedule;
 
@@ -15,6 +16,8 @@ pub enum ScheduleNotificationType {
     TestPushNotification,
     RecoveryPendingDelayNotify(OffsetDateTime),
     PrivilegedActionPendingDelayNotify(OffsetDateTime),
+    InheritanceClaimPeriodInitiated(OffsetDateTime, RecoveryRelationshipRole),
+    RecoveryRelationshipInvitationPending,
 }
 
 impl ScheduleNotificationType {
@@ -123,6 +126,54 @@ impl ScheduleNotificationType {
                         }),
                     ),
                 ]
+            }
+            ScheduleNotificationType::InheritanceClaimPeriodInitiated(
+                delay_end_time,
+                recipient_role,
+            ) => {
+                vec![
+                    (
+                        // Starts now
+                        // Sends every week if PC, else doesn't reschedule
+                        // Ends at delay end
+                        // =
+                        // DAYS 0, 7, 14, ..., 182 (standard 6-month window)
+                        NotificationPayloadType::InheritanceClaimPeriodInitiated,
+                        now,
+                        match recipient_role {
+                            RecoveryRelationshipRole::ProtectedCustomer => {
+                                Some(NotificationSchedule {
+                                    interval: Duration::days(7),
+                                    end_date_time: Some(*delay_end_time),
+                                    jitter: Some(Duration::ZERO),
+                                })
+                            }
+                            RecoveryRelationshipRole::TrustedContact => None,
+                        },
+                    ),
+                    (
+                        // Sends once at delay end
+                        NotificationPayloadType::InheritanceClaimPeriodCompleted,
+                        *delay_end_time,
+                        None,
+                    ),
+                ]
+            }
+            ScheduleNotificationType::RecoveryRelationshipInvitationPending => {
+                vec![(
+                    // Starts in 7 days
+                    // Sends every week
+                    // Ends after a month
+                    // =
+                    // DAYS 7, 14, ...
+                    NotificationPayloadType::RecoveryRelationshipInvitationPending,
+                    now + Duration::days(7),
+                    Some(NotificationSchedule {
+                        interval: Duration::days(7),
+                        end_date_time: Some(now + Duration::days(31)),
+                        jitter: Some(Duration::ZERO),
+                    }),
+                )]
             }
         }
     }

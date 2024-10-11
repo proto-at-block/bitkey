@@ -1,19 +1,22 @@
+use std::default::Default;
 use std::str::FromStr;
 
-use http::StatusCode;
-use std::default::Default;
-use time::{Duration, OffsetDateTime};
-use types::account::bitcoin::Network;
-use types::account::identifiers::AccountId;
-
-use account::entities::{Factor, FullAccountAuthKeysPayload, SpendingKeysetRequest};
-use account::service::FetchAccountInput;
+use account::service::{
+    tests::{TestAuthenticationKeys, TestKeypair},
+    FetchAccountInput,
+};
 use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
-use recovery::routes::{AuthenticationKey, RotateAuthenticationKeysRequest};
+use recovery::routes::delay_notify::{AuthenticationKey, RotateAuthenticationKeysRequest};
+use time::{Duration, OffsetDateTime};
+use types::account::bitcoin::Network;
+use types::account::entities::{Factor, FullAccountAuthKeysPayload, SpendingKeysetRequest};
+use types::account::identifiers::AccountId;
+
 use types::authn_authz::cognito::CognitoUser;
 
 use crate::tests;
@@ -21,7 +24,7 @@ use crate::tests::lib::{
     create_keypair, create_new_authkeys, create_phone_touchpoint, create_push_touchpoint,
     generate_delay_and_notify_recovery,
 };
-use crate::tests::{gen_services, requests::axum::TestClient, TestAuthenticationKeys, TestKeypair};
+use crate::tests::{gen_services, requests::axum::TestClient};
 
 struct RotateAuthenticationKeysTestVector {
     include_initial_recovery_pubkey: bool,

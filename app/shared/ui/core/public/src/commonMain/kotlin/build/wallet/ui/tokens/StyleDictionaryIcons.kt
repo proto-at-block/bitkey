@@ -6,17 +6,20 @@ package build.wallet.ui.tokens
 import androidx.compose.runtime.Composable
 import bitkey.shared.ui_core_public.generated.resources.*
 import bitkey.shared.ui_core_public.generated.resources.Res
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.BitcoinOrange
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
+import build.wallet.statemachine.core.Icon.BitkeyLogo
 import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
-import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
 import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
 import build.wallet.statemachine.core.Icon.LargeIconAdd
+import build.wallet.statemachine.core.Icon.LargeIconMinus
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
 import build.wallet.statemachine.core.Icon.LargeIconEllipsisFilled
@@ -46,10 +49,10 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretLeft
 import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
-import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
-import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
 import build.wallet.statemachine.core.Icon.SmallIconCheckbox
 import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
+import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
+import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
 import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
@@ -62,6 +65,7 @@ import build.wallet.statemachine.core.Icon.SmallIconDigitOne
 import build.wallet.statemachine.core.Icon.SmallIconDigitThree
 import build.wallet.statemachine.core.Icon.SmallIconDigitTwo
 import build.wallet.statemachine.core.Icon.SmallIconDocument
+import build.wallet.statemachine.core.Icon.SmallIconDownload
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconExternal
@@ -80,6 +84,7 @@ import build.wallet.statemachine.core.Icon.SmallIconMinusStroked
 import build.wallet.statemachine.core.Icon.SmallIconMobileKey
 import build.wallet.statemachine.core.Icon.SmallIconMobileLimit
 import build.wallet.statemachine.core.Icon.SmallIconNotification
+import build.wallet.statemachine.core.Icon.SmallIconPaintBrush
 import build.wallet.statemachine.core.Icon.SmallIconPause
 import build.wallet.statemachine.core.Icon.SmallIconPauseFilled
 import build.wallet.statemachine.core.Icon.SmallIconPauseStroked
@@ -101,6 +106,7 @@ import build.wallet.statemachine.core.Icon.SmallIconShield
 import build.wallet.statemachine.core.Icon.SmallIconShieldCheck
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
 import build.wallet.statemachine.core.Icon.SmallIconSpeed
+import build.wallet.statemachine.core.Icon.SmallIconStar
 import build.wallet.statemachine.core.Icon.SmallIconSwap
 import build.wallet.statemachine.core.Icon.SmallIconSync
 import build.wallet.statemachine.core.Icon.SmallIconTicket
@@ -113,10 +119,9 @@ import build.wallet.statemachine.core.Icon.SmallIconXFilled
 import build.wallet.statemachine.core.Icon.SmallIconXStroked
 import build.wallet.statemachine.core.Icon.SubtractLeft
 import build.wallet.statemachine.core.Icon.SubtractRight
+import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.TabIconHome
 import build.wallet.statemachine.core.Icon.TabIconProfile
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun Icon.painter() = painterResource(drawableRes)
@@ -129,10 +134,12 @@ private val Icon.drawableRes: DrawableResource
       BitkeyDevice3D -> Res.drawable.bitkey_device_3d
       BitkeyDeviceRaised -> Res.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small
+      BitkeyLogo -> Res.drawable.bitkey_logo
       BuyOwnBitkeyHero -> Res.drawable.buy_own_bitkey_hero
       CloudBackupEmergencyAccessKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
       LargeIconAdd -> Res.drawable.large_icon_add
+      LargeIconMinus -> Res.drawable.large_icon_minus
       LargeIconCheckFilled -> Res.drawable.large_icon_check_filled
       LargeIconCheckStroked -> Res.drawable.large_icon_check_stroked
       LargeIconEllipsisFilled -> Res.drawable.large_icon_ellipsis_filled
@@ -178,6 +185,7 @@ private val Icon.drawableRes: DrawableResource
       SmallIconDigitThree -> Res.drawable.small_icon_digit_three
       SmallIconDigitTwo -> Res.drawable.small_icon_digit_two
       SmallIconDocument -> Res.drawable.small_icon_document
+      SmallIconDownload -> Res.drawable.small_icon_download
       SmallIconElectrum -> Res.drawable.small_icon_electrum
       SmallIconEmail -> Res.drawable.small_icon_email
       SmallIconExternal -> Res.drawable.small_icon_external
@@ -196,6 +204,7 @@ private val Icon.drawableRes: DrawableResource
       SmallIconMobileKey -> Res.drawable.small_icon_mobile_key
       SmallIconMobileLimit -> Res.drawable.small_icon_mobile_limit
       SmallIconNotification -> Res.drawable.small_icon_notification
+      SmallIconPaintBrush -> Res.drawable.small_icon_paint_brush
       SmallIconPause -> Res.drawable.small_icon_pause
       SmallIconPauseFilled -> Res.drawable.small_icon_pause_filled
       SmallIconPauseStroked -> Res.drawable.small_icon_pause_stroked
@@ -217,6 +226,7 @@ private val Icon.drawableRes: DrawableResource
       SmallIconShieldCheck -> Res.drawable.small_icon_shield_check
       SmallIconShieldPerson -> Res.drawable.small_icon_shield_person
       SmallIconSpeed -> Res.drawable.small_icon_speed
+      SmallIconStar -> Res.drawable.small_icon_star
       SmallIconSwap -> Res.drawable.small_icon_swap
       SmallIconSync -> Res.drawable.small_icon_sync
       SmallIconTicket -> Res.drawable.small_icon_ticket

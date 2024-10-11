@@ -4,8 +4,8 @@ use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
 use experimentation::claims::ExperimentationClaims;
 
+use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
-
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::Service as AccountService;
@@ -13,7 +13,7 @@ use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use partnerships_lib::models::partners::Partner;
-use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
+use partnerships_lib::models::{PartnerTransaction, PurchaseOptions, SaleQuote, TransactionType};
 use partnerships_lib::{
     errors::ApiError,
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
@@ -56,8 +56,8 @@ impl RouteState {
     }
 }
 
-impl From<RouteState> for Router {
-    fn from(value: RouteState) -> Self {
+impl RouterBuilder for RouteState {
+    fn basic_validation_router(&self) -> Router {
         Router::new()
             .route("/api/partnerships/transfers", post(list_transfer_partners))
             .route(
@@ -81,7 +81,12 @@ impl From<RouteState> for Router {
                 get(get_partner_transaction),
             )
             .route("/api/partnerships/partners/:partner", get(get_partner))
-            .with_state(value)
+            .route("/api/partnerships/sales/quotes", post(list_sale_quotes))
+            .route(
+                "/api/partnerships/sales/redirects",
+                post(get_sales_redirect),
+            )
+            .with_state(self.to_owned())
     }
 }
 
@@ -106,11 +111,10 @@ impl From<RouteState> for SwaggerEndpoint {
         schemas(
             ListTransferPartnersResponse,
             GetTransferRedirectRequest,
-            GetTransferRedirectResponse,
             ListPurchaseQuotesRequest,
             ListPurchaseQuotesResponse,
             GetPurchaseRedirectRequest,
-            GetPurchaseRedirectResponse
+            GetRedirectResponse
         )
     ),
     tags(
@@ -139,7 +143,7 @@ pub struct ListTransferPartnersResponse {
     params(),
     request_body = ListTransferPartnersRequest,
     responses(
-        (status = 200, description = "List of transfer partners was successfully retrieved", body=GetTransferRedirectResponse),
+        (status = 200, description = "List of transfer partners was successfully retrieved", body=GetRedirectResponse),
         (status = 400, description = "Country code is invalid or not supported"),
     ),
 )]
@@ -164,26 +168,20 @@ pub struct GetTransferRedirectRequest {
     pub partner_transaction_id: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct GetTransferRedirectResponse {
-    pub redirect_info: RedirectInfo,
-}
-
 #[utoipa::path(
     post,
     path = "/api/partnerships/transfers/redirect",
     params(),
     request_body = GetTransferRedirectRequest,
     responses(
-        (status = 200, description = "Transfer redirect URL for a given partner was successfully retrieved", body=GetTransferRedirectResponse),
+        (status = 200, description = "Transfer redirect URL for a given partner was successfully retrieved", body=GetRedirectResponse),
         (status = 503, description = "Partner is temporarily unavailable"),
     ),
 )]
 async fn get_transfer_redirect(
     State(partnerships): State<Partnerships>,
     Json(request): Json<GetTransferRedirectRequest>,
-) -> Result<Json<GetTransferRedirectResponse>, ApiError> {
+) -> Result<Json<GetRedirectResponse>, ApiError> {
     let redirect_info = partnerships
         .transfer_redirect_url(
             request.address,
@@ -191,7 +189,7 @@ async fn get_transfer_redirect(
             request.partner_transaction_id,
         )
         .await?;
-    Ok(Json(GetTransferRedirectResponse { redirect_info }))
+    Ok(Json(GetRedirectResponse { redirect_info }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -252,7 +250,7 @@ pub struct GetPurchaseRedirectRequest {
 
 #[derive(Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct GetPurchaseRedirectResponse {
+pub struct GetRedirectResponse {
     pub redirect_info: RedirectInfo,
 }
 
@@ -260,16 +258,16 @@ pub struct GetPurchaseRedirectResponse {
     post,
     path = "/api/partnerships/purchases/redirect",
     params(),
-    request_body = GetPurchaseRedirectRequest,
+    request_body = GetRedirectRequest,
     responses(
-        (status = 200, description = "Purchase redirect URL for a given partner was successfully retrieved", body=GetPurchaseRedirectResponse),
+        (status = 200, description = "Purchase redirect URL for a given partner was successfully retrieved", body=GetRedirectResponse),
         (status = 503, description = "Partner is temporarily unavailable"),
     ),
 )]
 async fn get_purchase_redirect(
     State(partnerships): State<Partnerships>,
     Json(request): Json<GetPurchaseRedirectRequest>,
-) -> Result<Json<GetPurchaseRedirectResponse>, ApiError> {
+) -> Result<Json<GetRedirectResponse>, ApiError> {
     let redirect_info = partnerships
         .purchase_redirect_url(
             request.address,
@@ -281,7 +279,7 @@ async fn get_purchase_redirect(
             request.partner_transaction_id,
         )
         .await?;
-    Ok(Json(GetPurchaseRedirectResponse { redirect_info }))
+    Ok(Json(GetRedirectResponse { redirect_info }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -332,6 +330,12 @@ pub struct GetPartnerTransactionRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetPartnerTransactionQuery {
+    #[serde(rename = "type")]
+    transaction_type: Option<TransactionType>,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetPartnerTransactionResponse {
     transaction: PartnerTransaction,
 }
@@ -351,9 +355,11 @@ pub struct GetPartnerTransactionResponse {
 async fn get_partner_transaction(
     State(partnerships): State<Partnerships>,
     request: Path<GetPartnerTransactionRequest>,
+    query: Query<GetPartnerTransactionQuery>,
 ) -> Result<Json<GetPartnerTransactionResponse>, ApiError> {
+    let transaction_type = query.transaction_type.unwrap_or(TransactionType::Purchase);
     let partner_transaction = partnerships
-        .get_partner_transaction(&request.id, &request.partner)
+        .get_partner_transaction(&request.id, &request.partner, transaction_type)
         .await?;
     Ok(Json(GetPartnerTransactionResponse {
         transaction: partner_transaction,
@@ -380,4 +386,79 @@ async fn get_partner(
 ) -> Result<Json<PartnerInfo>, ApiError> {
     let partner_info = partnerships.get_partner(request.partner).await?;
     Ok(Json(partner_info))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ListSaleQuotesRequest {
+    //TODO: W-5560 use ISO country code based enum
+    pub country: String,
+    pub crypto_amount: f64,
+    pub fiat_currency: CurrencyCode,
+}
+
+#[derive(Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ListSaleQuotesResponse {
+    quotes: Vec<SaleQuote>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/partnerships/sales/quotes",
+    params(),
+    request_body = ListSaleQuotesRequest,
+    responses(
+        (status = 200, description = "Sale quotes were successfully retrieved", body=ListSaleQuotesResponse),
+        (status = 422, description = "Invalid parameters"),
+    ),
+)]
+async fn list_sale_quotes(
+    State(partnerships): State<Partnerships>,
+    experimentation_claims: ExperimentationClaims,
+    Json(request): Json<ListSaleQuotesRequest>,
+) -> Result<Json<ListSaleQuotesResponse>, ApiError> {
+    let quotes = partnerships
+        .sale_quote(
+            request.country,
+            request.crypto_amount,
+            request.fiat_currency,
+            experimentation_claims.account_context_key()?,
+        )
+        .await;
+    Ok(Json(ListSaleQuotesResponse { quotes }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct GetSaleRedirectRequest {
+    pub refund_address: Option<String>,
+    pub fiat_amount: f64,
+    pub fiat_currency: CurrencyCode,
+    pub partner: String,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/partnerships/sales/redirect",
+    params(),
+    request_body = GetSaleRedirectRequest,
+    responses(
+        (status = 200, description = "Sale redirect URL for a given partner was successfully retrieved", body=GetRedirectResponse),
+        (status = 503, description = "Partner is temporarily unavailable"),
+    ),
+)]
+async fn get_sales_redirect(
+    State(partnerships): State<Partnerships>,
+    Json(request): Json<GetSaleRedirectRequest>,
+) -> Result<Json<GetRedirectResponse>, ApiError> {
+    let redirect_info = partnerships
+        .sale_redirect_url(
+            request.refund_address,
+            request.fiat_amount,
+            request.fiat_currency,
+            request.partner,
+        )
+        .await?;
+    Ok(Json(GetRedirectResponse { redirect_info }))
 }

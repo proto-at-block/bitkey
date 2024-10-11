@@ -264,7 +264,7 @@ class TransactionDetailScreenSnapshots :
                       immutableListOf(
                         Data(
                           title = "Confirmed at",
-                          sideText = "03-17-1963"
+                          sideText = "Sep 20 at 1:28 pm"
                         )
                       )
                   ),
@@ -273,20 +273,15 @@ class TransactionDetailScreenSnapshots :
                       immutableListOf(
                         Data(
                           title = "UTXOs consolidated",
-                          sideText = "2"
+                          sideText = "2 → 1"
                         ),
                         Data(
                           title = "Consolidation cost",
-                          sideText = "2000 sats"
+                          sideText = "2000 sats",
+                          secondarySideText = "$3.07 at time confirmed"
                         )
                       ),
-                    total =
-                      Data(
-                        title = "Total",
-                        sideText = "35,584 sats",
-                        sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "$10.00 at time sent"
-                      )
+                    total = null
                   )
                 )
             )

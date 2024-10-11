@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package build.wallet.bitcoin.transactions
 
 import app.cash.turbine.test
@@ -37,6 +39,8 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
@@ -268,5 +272,16 @@ class TransactionsServiceImplTests : FunSpec({
       .shouldBe(someInstant)
     outgoingTransactionDetailDao.confirmationTimeForTransaction("abcdef")
       .shouldBe(someInstant + 10.minutes)
+  }
+
+  test("transactionsLoadedData") {
+    backgroundScope.launch {
+      service.executeWork()
+    }
+
+    service.transactionsLoadedData().first().shouldNotBeNull()
+
+    wallet.initializeCalls.awaitItem()
+    wallet.launchPeriodicSyncCalls.awaitItem()
   }
 })

@@ -1,15 +1,11 @@
 package build.wallet.statemachine.recovery.socrec.list.full
 
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.relationships.EndorsedTrustedContact
-import build.wallet.bitkey.relationships.Invitation
-import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
-import build.wallet.bitkey.relationships.TrustedContactRole
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.f8e.relationships.Relationships
+import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
@@ -27,7 +23,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.datetime.Instant
 
 class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
-  val socRecService = SocRecServiceMock(turbines::create)
+  val socRecService = SocRecServiceFake()
 
   val listingTrustedContactsUiStateMachine =
     ListingTrustedContactsUiStateMachineImpl(
@@ -52,7 +48,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     )
   val onExitCalls = turbines.create<Unit>("onExit")
   val onAddTCCalls = turbines.create<Unit>("onAddTC")
-  val relationships = SocRecRelationships.EMPTY
+  val relationships = Relationships.EMPTY
   val props =
     ListingTrustedContactsUiProps(
       account = FullAccountMock,
@@ -62,8 +58,8 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    socRecService.clear()
-    socRecService.relationships.value = relationships
+    socRecService.reset()
+    socRecService.socRecRelationships.value = relationships
   }
 
   test("onBack calls onExit") {
@@ -100,7 +96,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
         authenticationState = VERIFIED,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
-    socRecService.relationships.value = SocRecRelationships.EMPTY.copy(
+    socRecService.socRecRelationships.value = Relationships.EMPTY.copy(
       endorsedTrustedContacts = listOf(
         testContact
       )
@@ -131,8 +127,8 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
         expiresAt = Instant.DISTANT_FUTURE,
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
-    socRecService.relationships.value =
-      SocRecRelationships.EMPTY.copy(invitations = listOf(testInvitation))
+    socRecService.socRecRelationships.value =
+      Relationships.EMPTY.copy(invitations = listOf(testInvitation))
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilScreenWithBody<FormBodyModel> {

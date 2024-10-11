@@ -1,9 +1,9 @@
 package build.wallet.limit
 
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.mobilepay.MobilePayBalanceF8eClient
 import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.get
@@ -15,7 +15,7 @@ class MobilePayStatusRepositoryImpl(
   private val spendingLimitDao: SpendingLimitDao,
   private val mobilePayBalanceF8eClient: MobilePayBalanceF8eClient,
   private val uuidGenerator: UuidGenerator,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
+  private val transactionsService: TransactionsService,
 ) : MobilePayStatusRepository {
   // We initialize with null so that we can filter the initialization event when merging.
   private val onDemandRefreshStatusFlow = MutableStateFlow<String?>(null)
@@ -26,9 +26,9 @@ class MobilePayStatusRepositoryImpl(
 
   override fun status(account: FullAccount): Flow<MobilePayStatus> {
     return channelFlow {
-      val wallet = appSpendingWalletProvider
-        .getSpendingWallet(account.keybox.activeSpendingKeyset)
-        .get() ?: return@channelFlow
+      val wallet = transactionsService.spendingWallet()
+        .filterNotNull()
+        .first()
 
       // The Mobile Pay balance calculation is dependent on both the limit that the customer sets, and
       // the transactions the customer creates. Therefore, we need to listen to transaction list sync

@@ -1,14 +1,26 @@
 package build.wallet.inheritance
 
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.relationships.Relationships
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Service for managing inheritance relationships and executing inheritance operations.
  */
 interface InheritanceService {
+/**
+   * Emits latest [Relationships] stored in the database by filtering [RelationshipsService.relationships]
+   * by the [TrustedContactRole.BENEFICIARY].
+   *
+   * Emits `null` on initial loading.
+   * Emits [Relationships.EMPTY] if there was an error loading relationships from the database.
+   */
+  val inheritanceRelationships: StateFlow<Relationships?>
+
   /**
    * Creates an invitation for a trusted contact to become a beneficiary
    *
@@ -21,4 +33,11 @@ interface InheritanceService {
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
   ): Result<OutgoingInvitation, Error>
+
+  /**
+   * Uploads any inheritance material to the server for storage.
+   *
+   * This will only sync if the material is not already uploaded.
+   */
+  suspend fun syncInheritanceMaterial(keybox: Keybox): Result<Unit, Error>
 }

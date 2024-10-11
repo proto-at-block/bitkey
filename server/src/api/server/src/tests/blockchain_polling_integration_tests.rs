@@ -1,3 +1,20 @@
+use std::collections::{HashMap, HashSet};
+
+use account::service::{AddPushTouchpointToAccountInput, FetchAccountInput};
+use httpmock::{prelude::*, Mock, MockExt};
+use notification::address_repo::AddressAndKeysetId;
+use notification::service::FetchForAccountInput;
+use notification::service::Service as NotificationService;
+use notification::NotificationPayloadType;
+use onboarding::routes::RotateSpendingKeysetRequest;
+use queue::sqs::SqsQueue;
+use types::account::entities::{FullAccount, TouchpointPlatform};
+use types::{
+    account::identifiers::AccountId,
+    notification::{NotificationChannel, NotificationsPreferences},
+};
+
+use super::lib::create_inactive_spending_keyset_for_account;
 use crate::{
     tests::{
         gen_services,
@@ -6,22 +23,6 @@ use crate::{
     },
     Services,
 };
-use account::{entities::FullAccount, service::FetchAccountInput};
-use account::{entities::TouchpointPlatform, service::AddPushTouchpointToAccountInput};
-use httpmock::{prelude::*, Mock, MockExt};
-use notification::address_repo::AddressAndKeysetId;
-use notification::service::FetchForAccountInput;
-use notification::service::Service as NotificationService;
-use notification::NotificationPayloadType;
-use onboarding::routes::RotateSpendingKeysetRequest;
-use queue::sqs::SqsQueue;
-use std::collections::{HashMap, HashSet};
-use types::{
-    account::identifiers::AccountId,
-    notification::{NotificationChannel, NotificationsPreferences},
-};
-
-use super::lib::create_inactive_spending_keyset_for_account;
 
 struct ChainMockData {
     tip_hash_mock_id: Option<usize>,
@@ -177,6 +178,8 @@ async fn setup_full_accounts_and_server(
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
         privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
+        inheritance_repository: bootstrap.services.inheritance_repository.clone(),
+        social_recovery_repository: bootstrap.services.social_recovery_repository.clone(),
     };
     state
         .account_service

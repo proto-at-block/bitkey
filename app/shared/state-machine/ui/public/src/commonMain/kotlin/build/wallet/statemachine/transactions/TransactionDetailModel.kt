@@ -17,24 +17,24 @@ import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconSize.*
+import build.wallet.ui.model.icon.IconSize.Avatar
+import build.wallet.ui.model.icon.IconSize.Large
 import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
-fun TransactionDetailModel(
-  feeBumpEnabled: Boolean,
-  txStatusModel: TxStatusModel,
-  isLoading: Boolean,
-  onViewTransaction: () -> Unit,
-  onClose: () -> Unit,
-  onSpeedUpTransaction: () -> Unit,
-  content: ImmutableList<DataList>,
-) = FormBodyModel(
-  primaryButton =
-    if (feeBumpEnabled) {
+data class TransactionDetailModel(
+  val feeBumpEnabled: Boolean,
+  val txStatusModel: TxStatusModel,
+  val isLoading: Boolean,
+  val onViewTransaction: () -> Unit,
+  val onClose: () -> Unit,
+  val onSpeedUpTransaction: () -> Unit,
+  val content: ImmutableList<DataList>,
+) : FormBodyModel(
+    primaryButton = if (feeBumpEnabled) {
       ButtonModel(
         leadingIcon = SmallIconLightning,
         text = "Speed Up",
@@ -51,8 +51,7 @@ fun TransactionDetailModel(
         onClick = StandardClick(onViewTransaction)
       )
     },
-  secondaryButton =
-    if (feeBumpEnabled) {
+    secondaryButton = if (feeBumpEnabled) {
       ButtonModel(
         leadingIcon = SmallIconArrowUpRight,
         text = "View Transaction",
@@ -62,16 +61,15 @@ fun TransactionDetailModel(
     } else {
       null
     },
-  onBack = onClose,
-  onSwipeToDismiss = onClose,
-  header = txStatusModel.toFormHeaderModel(),
-  toolbar =
-    ToolbarModel(
+    onBack = onClose,
+    onSwipeToDismiss = onClose,
+    header = txStatusModel.toFormHeaderModel(),
+    toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onClose)
     ),
-  mainContentList = content,
-  id = MoneyHomeEventTrackerScreenId.TRANSACTION_DETAIL
-)
+    mainContentList = content,
+    id = MoneyHomeEventTrackerScreenId.TRANSACTION_DETAIL
+  )
 
 sealed interface TxStatusModel {
   val transactionType: TransactionType
@@ -99,7 +97,10 @@ sealed interface TxStatusModel {
             iconSize = IconSize.Large,
             iconBackgroundType = Circle(circleSize = Avatar)
           ),
-          headline = "Transaction pending",
+          headline = when (transactionType) {
+            Incoming, Outgoing -> "Transaction pending"
+            UtxoConsolidation -> "Consolidation pending"
+          },
           sublineModel = LabelModel.StringWithStyledSubstringModel.from(
             string = recipientAddress,
             substringToColor = emptyMap()

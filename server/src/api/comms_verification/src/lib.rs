@@ -2,16 +2,11 @@ pub mod error;
 
 use std::collections::HashSet;
 
-use account::entities::{AccountProperties, CommsVerificationClaim};
+use account::service::FetchOrCreateCommsVerificationClaimInput;
 use account::service::{PutCommsVerificationClaimInput, Service as AccountService};
-use account::{
-    entities::{CommsVerificationScope, CommsVerificationStatus},
-    service::FetchOrCreateCommsVerificationClaimInput,
-};
 use argon2::password_hash::SaltString;
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use error::CommsVerificationError;
-
 use notification::entities::NotificationTouchpoint;
 use notification::payloads::comms_verification::TemplateType;
 use notification::service::SendNotificationInput;
@@ -24,6 +19,8 @@ use rand::Rng;
 use serde::Deserialize;
 use strum_macros::EnumString;
 use time::{Duration, OffsetDateTime};
+use types::account::entities::{AccountProperties, CommsVerificationClaim};
+use types::account::entities::{CommsVerificationScope, CommsVerificationStatus};
 use types::account::identifiers::AccountId;
 
 pub const TEST_CODE: &str = "123456";

@@ -108,6 +108,7 @@ open class F8eHttpClientImplBenchmarks {
       networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine(name = it) },
       appInstallationDao = AppInstallationDaoMock(),
       countryCodeGuesser = CountryCodeGuesserMock(),
+      networkingDebugService = NetworkingDebugServiceFake(),
       engine = engine
     )
 

@@ -41,4 +41,25 @@ enum class UtxoConsolidationEventTrackerScreenId : EventTrackerScreenId {
    * Bottom sheet displaying helper information about the consolidation cost.
    */
   UTXO_CONSOLIDATION_COST_INFO,
+
+  /**
+   * Screen asking the user to confirm whether they'd like to speed up their UTXO consolidation.
+   */
+  UTXO_CONSOLIDATION_SPEED_UP_CONFIRMATION,
+
+  /**
+   * The UTXO consolidation was successfully sped up.
+   */
+  UTXO_CONSOLIDATION_SPEED_UP_SENT,
+
+  /**
+   * Screen telling the user they have too many UTXOs and will have to consolidate multiple times.
+   */
+  UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT,
+
+  /**
+   * Showing the Tap & Hold to consolidate sheet before hardware interaction, explaining
+   * consolidations can take awhile.
+   */
+  TAP_AND_HOLD_TO_CONSOLIDATE_SHEET,
 }

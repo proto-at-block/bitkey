@@ -374,9 +374,8 @@ module "inheritance_table" {
 
   create_table = var.create_dynamodb_tables
 
-  name      = var.inheritance_table_name
-  hash_key  = "partition_key"
-  range_key = "created_at"
+  name     = var.inheritance_table_name
+  hash_key = "partition_key"
 
   attributes = [
     { name = "partition_key", type = "S" },

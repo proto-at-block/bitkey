@@ -7,19 +7,8 @@ import build.wallet.logging.NFC_TAG
 import build.wallet.logging.log
 import build.wallet.toByteString
 import build.wallet.toUByteList
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import java.io.IOException
 
 class NfcSessionImpl(
@@ -83,7 +72,7 @@ class NfcSessionImpl(
       log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC connection failed" }
       return null
     }
-    parameters.onTagConnected()
+    parameters.onTagConnected(this)
     return newTag
   }
 

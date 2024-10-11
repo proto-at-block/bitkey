@@ -1,2 +1,2 @@
 #[cfg(test)]
-mod service_tests;
+mod signed_psbt_cache_service_tests;

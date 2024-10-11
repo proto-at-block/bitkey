@@ -3,13 +3,12 @@ use async_trait::async_trait;
 use time::Duration;
 use types::account::identifiers::AccountId;
 
-use crate::{entities::RecoveryType, error::RecoveryError};
-
 use super::{
     current_account_recovery::CurrentAccountRecoveryState, has_recent_contested_delay_notify,
     pending_recovery::PendingRecoveryState, RecoveryEvent, RecoveryServices, RecoveryStateResponse,
     Transition, TransitionTo, TransitioningRecoveryState, CONTEST_LOOKBACK_DAYS,
 };
+use crate::{entities::RecoveryType, error::RecoveryError};
 
 pub(crate) struct StartRecoveryState {
     pub(crate) account_id: AccountId,

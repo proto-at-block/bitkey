@@ -9,7 +9,7 @@ final class SuccessSnapshotTests: XCTestCase {
 
     func test_success_explicit() {
         let view = FormView(
-            viewModel: SuccessBodyModelKt.SuccessBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateSuccessBodyModel(
                 title: "You have succeeded",
                 message: nil,
                 primaryButtonModel: .init(
@@ -27,7 +27,7 @@ final class SuccessSnapshotTests: XCTestCase {
 
     func test_success_explicit_with_message() {
         let view = FormView(
-            viewModel: SuccessBodyModelKt.SuccessBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateSuccessBodyModel(
                 title: "You have succeeded",
                 message: "Congratulations for doing such a great job.",
                 primaryButtonModel: .init(
@@ -45,7 +45,7 @@ final class SuccessSnapshotTests: XCTestCase {
 
     func test_success_implicit() {
         let view = FormView(
-            viewModel: SuccessBodyModelKt.SuccessBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateSuccessBodyModel(
                 title: "You have succeeded",
                 message: nil,
                 primaryButtonModel: nil,

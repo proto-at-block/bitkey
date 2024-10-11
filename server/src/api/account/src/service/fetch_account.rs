@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use crate::entities::{AuthFactor, FullAccount, SoftwareAccount};
-use crate::service::FetchAccountByAuthKeyInput;
-use crate::{entities::Account, error::AccountError};
 use database::ddb::DatabaseError;
 use errors::ApiError;
+use types::account::entities::{Account, AuthFactor, FullAccount, SoftwareAccount};
 use types::account::identifiers::AccountId;
 use types::account::PubkeysToAccount;
 
 use super::{FetchAccountInput, Service};
+use crate::error::AccountError;
+use crate::service::FetchAccountByAuthKeyInput;
 
 impl Service {
     pub async fn fetch_account(

@@ -1,9 +1,7 @@
-use crate::{
-    entities::{AccountProperties, SoftwareAccount},
-    error::AccountError,
-};
+use types::account::entities::{AccountProperties, SoftwareAccount};
 
 use super::{CreateSoftwareAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn create_software_account(

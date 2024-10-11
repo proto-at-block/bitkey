@@ -130,7 +130,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                             withTitle: "Confirmed at",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "03-17-1963",
+                            sideText: "Sep 20 at 1:28 pm",
                             secondarySideText: nil,
                             showBottomDivider: false
                         )],
@@ -144,7 +144,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 withTitle: "UTXOs consolidated",
                                 titleIcon: nil,
                                 onTitle: {},
-                                sideText: "2",
+                                sideText: "2 → 1",
                                 secondarySideText: nil,
                                 showBottomDivider: false
                             ),
@@ -153,19 +153,11 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "2000 sats",
-                                secondarySideText: nil,
+                                secondarySideText: "$3.07 at time confirmed",
                                 showBottomDivider: false
                             ),
                         ],
-                        total: .init(
-                            withTitle: "Total",
-                            titleIcon: nil,
-                            onTitle: {},
-                            sideText: "35,584 sats",
-                            sideTextType: .body2bold,
-                            secondarySideText: "$10.00 at time confirmed",
-                            showBottomDivider: false
-                        ),
+                        total: nil,
                         buttons: []
                     ),
                 ]
@@ -347,7 +339,7 @@ private extension FormBodyModel {
             )
         }
 
-        return TransactionDetailModelKt.TransactionDetailModel(
+        return SnapshotTestModels.shared.CreateTransactionDetailModel(
             feeBumpEnabled: isFeeBumpEnabled,
             txStatusModel: txStatusModel,
             isLoading: false,

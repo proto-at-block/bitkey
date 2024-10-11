@@ -7,8 +7,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
+import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.DIVIDER
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
@@ -26,7 +26,7 @@ class NetworkingDebugConfigPickerUiStateMachineImpl(
     val networkingDebugConfig = networkingDebugService.config.collectAsState()
     val scope = rememberStableCoroutineScope()
 
-    return FormBodyModel(
+    return formBodyModel(
       id = NetworkingDebugConfigPickerScreenId,
       onBack = props.onExit,
       toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = props.onExit)),

@@ -17,7 +17,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.recovery.socrec.*
+import build.wallet.relationships.*
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
@@ -29,10 +29,10 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class TrustedContactEnrollmentUiStateMachineImpl(
-  private val socRecKeysRepository: SocRecKeysRepository,
+  private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
 ) : TrustedContactEnrollmentUiStateMachine {
   @Composable
   override fun model(props: TrustedContactEnrollmentUiProps): ScreenModel {
@@ -66,7 +66,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.RetrievingInviteWithF8e -> {
         LaunchedEffect("retrieve-invitation") {
-          socRecService.retrieveInvitation(props.account, inviteCode)
+          relationshipsService.retrieveInvitation(props.account, inviteCode)
             .onFailure {
               log(LogLevel.Debug) { "Failed to retrieve invite using code [$inviteCode]" }
               uiState =
@@ -114,7 +114,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.LoadIdentityKey -> {
         LaunchedEffect("load-keys") {
-          socRecKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
+          relationshipsKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
             .onSuccess { key ->
               uiState = State.AcceptingInviteWithF8e(state.invitation, state.protectedCustomerAlias, key)
             }
@@ -133,7 +133,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.AcceptingInviteWithF8e -> {
         LaunchedEffect("accept-invitation") {
-          socRecService.acceptInvitation(
+          relationshipsService.acceptInvitation(
             account = props.account,
             invitation = state.invitation,
             protectedCustomerAlias = state.protectedCustomerAlias,
@@ -205,7 +205,7 @@ private sealed interface State {
   data class LoadIdentityKeyFailure(
     val invitation: IncomingInvitation,
     val protectedCustomerAlias: ProtectedCustomerAlias,
-    val socRecKeyError: SocRecKeyError,
+    val relationshipsKeyError: RelationshipsKeyError,
   ) : State
 
   /** Server call to f8e to accept the invite */

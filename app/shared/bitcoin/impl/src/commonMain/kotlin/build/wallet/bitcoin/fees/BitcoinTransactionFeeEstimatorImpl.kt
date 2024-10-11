@@ -5,15 +5,14 @@ import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bdk.bindings.BdkError.OutputBelowDustLimit
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.CannotCreatePsbtError
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.CannotGetSpendingWalletError
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.SpendingBelowDustLimitError
+import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Source
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.ensureNotNull
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
@@ -29,7 +28,7 @@ private const val WITNESS_SIZE_BYTES = 253
 
 class BitcoinTransactionFeeEstimatorImpl(
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
+  private val transactionsService: TransactionsService,
   private val datadogRumMonitor: DatadogRumMonitor,
 ) : BitcoinTransactionFeeEstimator {
   override suspend fun getFeesForTransaction(
@@ -50,11 +49,8 @@ class BitcoinTransactionFeeEstimatorImpl(
           }
           .bind()
 
-      val wallet =
-        appSpendingWalletProvider.getSpendingWallet(account)
-          .logFailure { "Error creating spending wallet to get fees for a transaction" }
-          .mapError { CannotGetSpendingWalletError }
-          .bind()
+      val wallet = transactionsService.spendingWallet().value
+      ensureNotNull(wallet) { NoSpendingWalletFoundError }
 
       val psbt =
         wallet

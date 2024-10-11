@@ -88,7 +88,7 @@ struct FormView_Previews: PreviewProvider {
 
     static var previews: some View {
         FormView(
-            viewModel: ListFormBodyModelKt.ListFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateListFormBodyModel(
                 onBack: {},
                 toolbarTitle: "Activity",
                 listGroups: [

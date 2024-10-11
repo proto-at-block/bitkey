@@ -2,7 +2,6 @@ package build.wallet.testing.ext
 
 import app.cash.turbine.test
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.MobilePayData
@@ -18,11 +17,9 @@ import kotlinx.datetime.TimeZone
 /**
  * Sets up mobile pay limits.
  */
-suspend fun AppTester.setupMobilePay(
-  account: FullAccount,
-  limit: FiatMoney,
-): SpendingLimit {
+suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
   return app.run {
+    val account = getActiveFullAccount()
     val accessToken =
       appComponent.authTokensRepository
         .getAuthTokens(account.accountId, AuthTokenScope.Global)

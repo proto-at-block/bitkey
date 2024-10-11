@@ -17,7 +17,11 @@ class AddBitcoinUiStateMachineImpl(
   override fun model(props: AddBitcoinUiProps): SheetModel {
     var uiState: AddBitcoinUiState by remember {
       mutableStateOf(
-        props.purchaseAmount?.let { PurchasingUiState(it) } ?: ShowingBuyOrTransferUiState
+        when (props.initialState) {
+          AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState -> ShowingBuyOrTransferUiState
+          AddBitcoinBottomSheetDisplayState.TransferringUiState -> TransferringUiState
+          is AddBitcoinBottomSheetDisplayState.PurchasingUiState -> PurchasingUiState(props.initialState.selectedAmount)
+        }
       )
     }
     val showBuyOrTransferState: () -> Unit = {
@@ -41,6 +45,7 @@ class AddBitcoinUiStateMachineImpl(
             PartnershipsTransferUiProps(
               account = props.account,
               keybox = props.keybox,
+              sellBitcoinEnabled = props.sellBitcoinEnabled,
               onBack = { uiState = ShowingBuyOrTransferUiState },
               onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
               onPartnerRedirected = props.onPartnerRedirected,

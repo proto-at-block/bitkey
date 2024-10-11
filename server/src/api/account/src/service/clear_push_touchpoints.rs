@@ -1,9 +1,7 @@
-use crate::{
-    entities::{Account, Touchpoint},
-    error::AccountError,
-};
+use types::account::entities::{Account, Touchpoint};
 
 use super::{ClearPushTouchpointsInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn clear_push_touchpoints(

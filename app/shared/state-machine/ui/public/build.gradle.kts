@@ -1,5 +1,6 @@
 import build.wallet.gradle.logic.GenerateStateMachineDiagramTask
 import build.wallet.gradle.logic.extensions.allTargets
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
   id("build.wallet.kmp")
@@ -7,6 +8,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.coroutines.native)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.ksp)
   id("build.wallet.redacted")
 }
 
@@ -22,6 +24,7 @@ kotlin {
         implementation(projects.shared.serializationPublic)
         implementation(projects.shared.stdlibPublic)
         implementation(libs.kmp.settings)
+        implementation(compose.components.uiToolingPreview)
 
         api(libs.kmp.test.kotest.framework.api)
 
@@ -66,6 +69,7 @@ kotlin {
         implementation(projects.shared.availabilityPublic)
         implementation(projects.shared.inAppSecurityPublic)
         implementation(projects.shared.inheritancePublic)
+        implementation(projects.shared.relationshipsPublic)
       }
     }
 
@@ -113,6 +117,7 @@ kotlin {
         implementation(projects.shared.timeFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.recoveryFake)
+        implementation(projects.shared.relationshipsFake)
         implementation(projects.shared.stateMachineDataFake)
         implementation(projects.shared.stateMachineFrameworkFake)
         implementation(projects.shared.stateMachineFrameworkTesting)
@@ -141,7 +146,26 @@ kotlin {
         implementation(projects.shared.cloudStoreFake)
       }
     }
+
+    kotlin.targets
+      .filterIsInstance<KotlinNativeTarget>()
+      .forEach { target ->
+        getByName("${target.name}Main")
+          .kotlin
+          .srcDirs("generated/ksp/${target.name}/${target.name}/kotlin")
+      }
   }
+}
+
+dependencies {
+  kotlin.targets
+    .filterIsInstance<KotlinNativeTarget>()
+    .forEach { target ->
+      add(
+        "ksp${target.name.replaceFirstChar { it.uppercaseChar() }}",
+        projects.gradle.formbodymodelGenerator
+      )
+    }
 }
 
 tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {

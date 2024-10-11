@@ -3,12 +3,8 @@ package build.wallet.statemachine.trustedcontact.model
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT_FOUND
-import build.wallet.recovery.socrec.RetrieveInvitationCodeError
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
+import build.wallet.relationships.RetrieveInvitationCodeError
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 
 fun RetrievingInviteWithF8eFailureBodyModel(

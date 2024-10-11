@@ -11,11 +11,13 @@ time = { workspace = true }
 tracing = { workspace = true }
 
 # path dependencies
+bdk_utils = { workspace = true }
 database = { workspace = true }
 types = { workspace = true }
 
 [features]
-all = ["consent", "privileged_action", "recovery"]
+account = ["types/account"]
+all = ["account", "consent", "privileged_action", "recovery"]
 consent = ["types/consent"]
 privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]

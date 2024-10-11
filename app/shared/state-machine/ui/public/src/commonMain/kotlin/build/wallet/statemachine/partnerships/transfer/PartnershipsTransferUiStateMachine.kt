@@ -12,6 +12,7 @@ interface PartnershipsTransferUiStateMachine : StateMachine<PartnershipsTransfer
 data class PartnershipsTransferUiProps(
   val account: FullAccount,
   val keybox: Keybox,
+  val sellBitcoinEnabled: Boolean,
   val onBack: () -> Unit,
   val onAnotherWalletOrExchange: () -> Unit,
   val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,

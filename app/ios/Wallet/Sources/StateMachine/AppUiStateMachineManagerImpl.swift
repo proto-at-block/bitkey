@@ -370,25 +370,54 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             }
 
         case let viewModel as FormBodyModel:
-            let shouldBeSameView = bodyModel
-                .shouldBeSameView(currentKey: stateChangeHandlerStack.topScreenModelKey)
-            if let vc = topViewController as? SwiftUIWrapperViewController<FormView>,
-               shouldBeSameView
-            {
-                vc.updateWrappedView(FormView(viewModel: viewModel), screenModel: screenModel)
-                return .none
+            if viewModel.enableComposeRendering {
+                if let vc =
+                    topViewController as? SwiftUIWrapperViewController<ComposableRenderedView>
+                {
+                    vc.updateWrappedView { view in
+                        view.update(bodyModel: viewModel)
+                    }
+                    return .none
+                } else {
+                    let vc = SwiftUIWrapperViewController(
+                        ComposableRenderedView(bodyModel: viewModel),
+                        screenModel: screenModel
+                    )
+                    return .showNewView(
+                        vc: vc,
+                        key: viewModel.key,
+                        animation: bodyModel
+                            .animatePushOrPop(
+                                currentKey: stateChangeHandlerStack
+                                    .topScreenModelKey
+                            ) ?
+                            .pushPop : .none
+                    )
+                }
             } else {
-                let vc = SwiftUIWrapperViewController(
-                    FormView(viewModel: viewModel),
-                    screenModel: screenModel
-                )
-                return .showNewView(
-                    vc: vc,
-                    key: bodyModel.key,
-                    animation: bodyModel
-                        .animatePushOrPop(currentKey: stateChangeHandlerStack.topScreenModelKey) ?
-                        .pushPop : .none
-                )
+                let shouldBeSameView = bodyModel
+                    .shouldBeSameView(currentKey: stateChangeHandlerStack.topScreenModelKey)
+                if let vc = topViewController as? SwiftUIWrapperViewController<FormView>,
+                   shouldBeSameView
+                {
+                    vc.updateWrappedView(FormView(viewModel: viewModel), screenModel: screenModel)
+                    return .none
+                } else {
+                    let vc = SwiftUIWrapperViewController(
+                        FormView(viewModel: viewModel),
+                        screenModel: screenModel
+                    )
+                    return .showNewView(
+                        vc: vc,
+                        key: bodyModel.key,
+                        animation: bodyModel
+                            .animatePushOrPop(
+                                currentKey: stateChangeHandlerStack
+                                    .topScreenModelKey
+                            ) ?
+                            .pushPop : .none
+                    )
+                }
             }
 
         case let viewModel as PairNewHardwareBodyModel:
@@ -746,6 +775,20 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                     key: "ios-lite-money-home",
                     animation: shouldAnimate ? .pushPop : .none
                 )
+            }
+
+        case let viewModel as ComposableRenderedModel:
+            if let vc = topViewController as? SwiftUIWrapperViewController<ComposableRenderedView> {
+                vc.updateWrappedView { view in
+                    view.update(bodyModel: viewModel)
+                }
+                return .none
+            } else {
+                let vc = SwiftUIWrapperViewController(
+                    ComposableRenderedView(bodyModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(vc: vc, key: viewModel.key, animation: .pushPop)
             }
 
         case let viewModel as ComposeBodyModel:

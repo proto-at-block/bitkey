@@ -2,8 +2,8 @@ package build.wallet.ui.app.recovery
 
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.relationships.TrustedContactRole
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeContactListBodyModel

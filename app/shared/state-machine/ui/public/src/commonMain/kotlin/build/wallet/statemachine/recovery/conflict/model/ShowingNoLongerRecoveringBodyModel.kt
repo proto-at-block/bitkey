@@ -11,43 +11,36 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun ShowingNoLongerRecoveringBodyModel(
-  canceledRecoveringFactor: PhysicalFactor,
-  isLoading: Boolean,
-  errorData: ErrorData?,
-  onAcknowledge: () -> Unit,
-): FormBodyModel {
-  return FormBodyModel(
+data class ShowingNoLongerRecoveringBodyModel(
+  val canceledRecoveringFactor: PhysicalFactor,
+  val isLoading: Boolean,
+  override val errorData: ErrorData?,
+  val onAcknowledge: () -> Unit,
+) : FormBodyModel(
     id = null,
     onBack = null,
     toolbar = ToolbarModel(),
-    header =
-      FormHeaderModel(
-        headline = "Your recovery attempt has been canceled.",
-        sublineModel =
-          when (canceledRecoveringFactor) {
-            Hardware ->
-              LabelModel.StringWithStyledSubstringModel.from(
-                string = CANCELED_HW_SUBLINE,
-                boldedSubstrings = listOf(CANCELED_HW_SUBLINE_BOLD)
-              )
-            App ->
-              LabelModel.StringWithStyledSubstringModel.from(
-                string = CANCELED_APP_SUBLINE,
-                boldedSubstrings = listOf(CANCELED_APP_SUBLINE_BOLD)
-              )
-          }
-      ),
-    primaryButton =
-      ButtonModel(
-        text = "Got it",
-        onClick = StandardClick(onAcknowledge),
-        size = ButtonModel.Size.Footer,
-        isLoading = isLoading
-      ),
+    header = FormHeaderModel(
+      headline = "Your recovery attempt has been canceled.",
+      sublineModel = when (canceledRecoveringFactor) {
+        Hardware -> LabelModel.StringWithStyledSubstringModel.from(
+          string = CANCELED_HW_SUBLINE,
+          boldedSubstrings = listOf(CANCELED_HW_SUBLINE_BOLD)
+        )
+        App -> LabelModel.StringWithStyledSubstringModel.from(
+          string = CANCELED_APP_SUBLINE,
+          boldedSubstrings = listOf(CANCELED_APP_SUBLINE_BOLD)
+        )
+      }
+    ),
+    primaryButton = ButtonModel(
+      text = "Got it",
+      onClick = StandardClick(onAcknowledge),
+      size = ButtonModel.Size.Footer,
+      isLoading = isLoading
+    ),
     errorData = errorData
   )
-}
 
 private const val CANCELED_HW_SUBLINE_BOLD =
   "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."

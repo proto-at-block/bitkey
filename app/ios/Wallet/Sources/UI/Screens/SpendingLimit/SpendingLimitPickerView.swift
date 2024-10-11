@@ -48,6 +48,9 @@ public struct SpendingLimitPickerView: View {
 
                     KeypadView(viewModel: keypadEntryMode.keypadModel)
                         .frame(maxWidth: .infinity, alignment: .center)
+
+                    Spacer()
+                        .frame(height: 24)
                 }
             default:
                 fatalError("Unexpected amount entry mode")

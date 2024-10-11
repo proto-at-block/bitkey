@@ -1,13 +1,10 @@
 use aws_config::BehaviorVersion;
 use aws_sdk_sns::{error::ProvideErrorMetadata, Client as SNSClient};
 use tracing::{event, Level};
-
-use crate::{
-    entities::{Account, Touchpoint, TouchpointPlatform},
-    error::AccountError,
-};
+use types::account::entities::{Account, Touchpoint, TouchpointPlatform};
 
 use super::{AddPushTouchpointToAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn add_push_touchpoint_for_account(

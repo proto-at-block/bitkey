@@ -15,40 +15,36 @@ import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun RecoveryChallengeCodeBodyModel(
-  recoveryChallengeCode: String,
-  onBack: () -> Unit,
-  onDone: () -> Unit,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TC_VERIFICATION_CODE,
-  toolbar = ToolbarModel(),
-  header =
-    FormHeaderModel(
+data class RecoveryChallengeCodeBodyModel(
+  val recoveryChallengeCode: String,
+  override val onBack: () -> Unit,
+  val onDone: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TC_VERIFICATION_CODE,
+    toolbar = ToolbarModel(),
+    header = FormHeaderModel(
       headline = "Share Recovery Code",
       subline = "Call your Trusted Contact and have them enter this code within their app."
     ),
-  mainContentList =
-    immutableListOf(
+    mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         ListGroupModel(
-          items =
-            immutableListOf(
-              ListItemModel(
-                title = recoveryChallengeCode,
-                titleAlignment = ListItemTitleAlignment.CENTER,
-                treatment = ListItemTreatment.PRIMARY_TITLE,
-                listItemTitleBackgroundTreatment = ListItemTitleBackgroundTreatment.RECOVERY
-              )
-            ),
+          items = immutableListOf(
+            ListItemModel(
+              title = recoveryChallengeCode,
+              titleAlignment = ListItemTitleAlignment.CENTER,
+              treatment = ListItemTreatment.PRIMARY_TITLE,
+              listItemTitleBackgroundTreatment = ListItemTitleBackgroundTreatment.RECOVERY
+            )
+          ),
           style = ListGroupStyle.NONE
         )
       )
     ),
-  onBack = onBack,
-  primaryButton =
-    ButtonModel(
+    onBack = onBack,
+    primaryButton = ButtonModel(
       text = "Done",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onDone)
     )
-)
+  )

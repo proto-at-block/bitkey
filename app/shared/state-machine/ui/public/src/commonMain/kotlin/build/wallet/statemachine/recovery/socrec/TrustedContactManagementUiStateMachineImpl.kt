@@ -1,8 +1,9 @@
 package build.wallet.statemachine.recovery.socrec
 
 import androidx.compose.runtime.*
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
@@ -22,7 +23,7 @@ class TrustedContactManagementUiStateMachineImpl(
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
 ) : TrustedContactManagementUiStateMachine {
   @Composable
   override fun model(props: TrustedContactManagementProps): ScreenModel {
@@ -46,10 +47,11 @@ class TrustedContactManagementUiStateMachineImpl(
           AddingTrustedContactUiProps(
             account = props.account,
             onAddTc = { tcAlias, hardwareProofOfPossession ->
-              socRecService.createInvitation(
+              relationshipsService.createInvitation(
                 account = props.account,
                 trustedContactAlias = tcAlias,
-                hardwareProofOfPossession = hardwareProofOfPossession
+                hardwareProofOfPossession = hardwareProofOfPossession,
+                roles = setOf(TrustedContactRole.SocialRecoveryContact)
               )
             },
             onInvitationShared = {

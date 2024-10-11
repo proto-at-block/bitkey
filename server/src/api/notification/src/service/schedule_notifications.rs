@@ -1,8 +1,10 @@
-use errors::ApiError;
 use rand::Rng;
 use time::{Duration, OffsetDateTime};
 use tracing::instrument;
 
+use super::{
+    RescheduleNotificationInput, ScheduleNotificationsInput, SendNotificationInput, Service,
+};
 use crate::{
     entities::{
         NotificationSchedule, ScheduledNotification, EXECUTION_DATE_FORMAT, EXECUTION_TIME_FORMAT,
@@ -11,16 +13,12 @@ use crate::{
     DeliveryStatus, NotificationError,
 };
 
-use super::{
-    RescheduleNotificationInput, ScheduleNotificationsInput, SendNotificationInput, Service,
-};
-
 impl Service {
     #[instrument(skip(self))]
     pub async fn schedule_notifications(
         &self,
         input: ScheduleNotificationsInput,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), NotificationError> {
         let schedule = input.notification_type.gen_schedule();
         let now = OffsetDateTime::now_utc();
         let (immediate, future) = schedule.into_iter().try_fold(
@@ -82,6 +80,7 @@ impl Service {
         self.notification_repo
             .persist_notifications(future.into_iter().map(|n| n.into()).collect())
             .await?;
+
         Ok(())
     }
 
@@ -89,7 +88,7 @@ impl Service {
     pub async fn reschedule_notification(
         &self,
         input: RescheduleNotificationInput<'_>,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), NotificationError> {
         let Some(schedule) = input.schedule.as_ref() else {
             return Ok(());
         };

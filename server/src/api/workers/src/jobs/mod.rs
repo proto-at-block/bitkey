@@ -11,6 +11,8 @@ use notification_validation::NotificationValidationState;
 use queue::sqs::SqsQueue;
 use recovery::repository::RecoveryRepository;
 use repository::privileged_action::PrivilegedActionRepository;
+use repository::recovery::inheritance::InheritanceRepository;
+use repository::recovery::social::SocialRecoveryRepository;
 use serde::Deserialize;
 
 use crate::{ses::SESMode, sns::SNSMode};
@@ -45,10 +47,17 @@ pub struct WorkerState {
     pub sqs: SqsQueue,
     pub feature_flags_service: FeatureFlagsService,
     pub privileged_action_repository: PrivilegedActionRepository,
+    pub inheritance_repository: InheritanceRepository,
+    pub social_recovery_repository: SocialRecoveryRepository,
 }
 
 impl From<WorkerState> for NotificationValidationState {
     fn from(value: WorkerState) -> Self {
-        NotificationValidationState::new(value.recovery_service, value.privileged_action_repository)
+        NotificationValidationState::new(
+            value.recovery_service,
+            value.privileged_action_repository,
+            value.inheritance_repository,
+            value.social_recovery_repository,
+        )
     }
 }

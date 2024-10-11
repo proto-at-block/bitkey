@@ -7,10 +7,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.recovery.getEventId
-import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
-import build.wallet.statemachine.core.Icon.SmallIconBitcoinStroked
-import build.wallet.statemachine.core.Icon.SmallIconClock
-import build.wallet.statemachine.core.Icon.SmallIconMinusStroked
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
@@ -26,19 +23,15 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun RecoverYourMobileKeyBodyModel(
-  onBack: () -> Unit,
-  onStartRecovery: () -> Unit,
-) = FormBodyModel(
-  id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
-  onBack = onBack,
-  toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-  header =
-    FormHeaderModel(
-      headline = "Recover your wallet with a new mobile key"
-    ),
-  mainContentList =
-    immutableListOf(
+data class RecoverYourMobileKeyBodyModel(
+  override val onBack: () -> Unit,
+  val onStartRecovery: () -> Unit,
+) : FormBodyModel(
+    id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
+    header = FormHeaderModel(headline = "Recover your wallet with a new mobile key"),
+    mainContentList = immutableListOf(
       Explainer(
         immutableListOf(
           Statement(
@@ -59,80 +52,68 @@ fun RecoverYourMobileKeyBodyModel(
         )
       )
     ),
-  primaryButton =
-    BitkeyInteractionButtonModel(
+    primaryButton = BitkeyInteractionButtonModel(
       text = "Start recovery",
       onClick = StandardClick(onStartRecovery),
       size = Footer
     )
-)
+  )
 
-fun DelayAndNotifyNewKeyReady(
-  factorToRecover: PhysicalFactor,
-  onStopRecovery: () -> Unit,
-  onCompleteRecovery: () -> Unit,
-  onExit: (() -> Unit)?,
-) = FormBodyModel(
-  id =
-    factorToRecover.getEventId(
+data class DelayAndNotifyNewKeyReady(
+  val factorToRecover: PhysicalFactor,
+  val onStopRecovery: () -> Unit,
+  val onCompleteRecovery: () -> Unit,
+  val onExit: (() -> Unit)?,
+) : FormBodyModel(
+    id = factorToRecover.getEventId(
       DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY,
       HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
     ),
-  onBack = onExit,
-  toolbar =
-    ToolbarModel(
-      leadingAccessory =
-        onExit?.let {
-          IconAccessory.CloseAccessory(onClick = onExit)
-        },
-      trailingAccessory =
-        ButtonAccessory(
-          model =
-            ButtonModel(
-              text = "Cancel recovery",
-              treatment = TertiaryDestructive,
-              size = Compact,
-              onClick = StandardClick { onStopRecovery() }
-            )
+    onBack = onExit,
+    toolbar = ToolbarModel(
+      leadingAccessory = onExit?.let {
+        IconAccessory.CloseAccessory(onClick = onExit)
+      },
+      trailingAccessory = ButtonAccessory(
+        model = ButtonModel(
+          text = "Cancel recovery",
+          treatment = TertiaryDestructive,
+          size = Compact,
+          onClick = StandardClick { onStopRecovery() }
         )
+      )
     ),
-  header =
-    FormHeaderModel(
+    header = FormHeaderModel(
       icon = LargeIconCheckStroked,
-      headline =
+      headline = when (factorToRecover) {
+        App -> "Confirm mobile key replacement"
+        Hardware -> "Confirm your replacement device"
+      },
+      subline = buildString {
         when (factorToRecover) {
-          App -> "Confirm mobile key replacement"
-          Hardware -> "Confirm your replacement device"
-        },
-      subline =
-        buildString {
-          when (factorToRecover) {
-            App ->
-              append(
-                "The security waiting period is complete and your new mobile key is ready to be created."
-              )
-            Hardware ->
-              append(
-                "The security waiting period is complete and your new Bitkey device is ready to use."
-              )
-          }
-          appendLine()
-          appendLine()
-          append(
-            "To finish your recovery, you’ll need to approve a transaction, including an additional network fee."
+          App -> append(
+            "The security waiting period is complete and your new mobile key is ready to be created."
           )
-          appendLine()
-          appendLine()
-          append(
-            "If this fee appears very high, the network may be very busy. You can try returning later when fees may be lower."
+          Hardware -> append(
+            "The security waiting period is complete and your new Bitkey device is ready to use."
           )
         }
+        appendLine()
+        appendLine()
+        append(
+          "To finish your recovery, you’ll need to approve a transaction, including an additional network fee."
+        )
+        appendLine()
+        appendLine()
+        append(
+          "If this fee appears very high, the network may be very busy. You can try returning later when fees may be lower."
+        )
+      }
     ),
-  primaryButton =
-    BitkeyInteractionButtonModel(
+    primaryButton = BitkeyInteractionButtonModel(
       text = "Confirm replacement",
       onClick = StandardClick(onCompleteRecovery),
       size = Footer
     ),
-  eventTrackerShouldTrack = false
-)
+    eventTrackerShouldTrack = false
+  )

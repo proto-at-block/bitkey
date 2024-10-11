@@ -8,7 +8,7 @@ import platform.posix.uname
 import platform.posix.utsname
 
 actual class DeviceInfoProviderImpl : DeviceInfoProvider {
-  override fun getDeviceInfo() =
+  actual override fun getDeviceInfo() =
     DeviceInfo(
       deviceModel = getDeviceModel(),
       devicePlatform = DevicePlatform.IOS,

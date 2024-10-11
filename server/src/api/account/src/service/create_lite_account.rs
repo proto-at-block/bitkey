@@ -1,9 +1,7 @@
-use crate::{
-    entities::{AccountProperties, LiteAccount},
-    error::AccountError,
-};
+use types::account::entities::{AccountProperties, LiteAccount};
 
 use super::{CreateLiteAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn create_lite_account(

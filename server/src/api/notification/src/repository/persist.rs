@@ -59,6 +59,10 @@ impl NotificationRepository {
         &self,
         notifications: Vec<Notification>,
     ) -> Result<(), DatabaseError> {
+        if notifications.is_empty() {
+            return Ok(());
+        }
+
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
         let items = notifications

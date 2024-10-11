@@ -6,20 +6,18 @@ import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
-import build.wallet.bitkey.socrec.TrustedContactFake2
+import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.bitkey.relationships.EndorsedTrustedContactFake2
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.AppAuthPrivateKeyRetrievalError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.AppSpendingPrivateKeyRetrievalError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError
+import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
 import build.wallet.encrypt.SealedDataMock
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.encrypt.XCiphertextMock
-import build.wallet.recovery.socrec.SocRecCryptoFake
+import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -34,15 +32,15 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   val symmetricKeyEncryptor = SymmetricKeyEncryptorMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val csekDao = CsekDaoFake()
-  val trustedContacts = listOf(EndorsedTrustedContactFake1, TrustedContactFake2)
+  val trustedContacts = listOf(EndorsedTrustedContactFake1, EndorsedTrustedContactFake2)
 
-  val socRecCrypto = SocRecCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
+  val relationshipsCrypto = RelationshipsCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
   val fullAccountFieldsCreator =
     FullAccountFieldsCreatorImpl(
       appPrivateKeyDao = appPrivateKeyDao,
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      socRecCrypto = socRecCrypto
+      relationshipsCrypto = relationshipsCrypto
     )
 
   afterTest {

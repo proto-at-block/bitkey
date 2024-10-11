@@ -1,9 +1,10 @@
-use super::{error::ServiceError, Service};
 use repository::recovery::social::fetch::RecoveryRelationshipsForAccount;
 use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::RecoveryRelationship;
 use types::recovery::trusted_contacts::TrustedContactRole;
+
+use super::{error::ServiceError, Service};
 
 /// The input for the `get_recovery_relationships` function
 ///
@@ -12,7 +13,7 @@ use types::recovery::trusted_contacts::TrustedContactRole;
 /// * `account_id` - The account to fetch the recovery relationships for
 pub struct GetRecoveryRelationshipsInput<'a> {
     pub account_id: &'a AccountId,
-    pub trusted_contact_role: Option<TrustedContactRole>,
+    pub trusted_contact_role_filter: Option<TrustedContactRole>,
 }
 
 /// The output for the `get_recovery_relationships` function
@@ -63,7 +64,7 @@ impl Service {
             .fetch_recovery_relationships_for_account(input.account_id)
             .await?;
 
-        if let Some(role) = input.trusted_contact_role {
+        if let Some(role) = input.trusted_contact_role_filter {
             let filtered_relationships = RecoveryRelationshipsForAccount {
                 invitations: filter_by_role(relationships.invitations, &role),
                 endorsed_trusted_contacts: filter_by_role(

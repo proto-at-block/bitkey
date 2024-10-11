@@ -30,6 +30,5 @@ class AppSpendingPublicKeySerializerTests : FunSpec({
 
 @Serializable
 private data class AppSpendingPublicKeyHolder(
-  @Serializable(with = AppSpendingPublicKeySerializer::class)
   val appSpendingPublicKey: AppSpendingPublicKey,
 )

@@ -1,9 +1,7 @@
-use crate::{
-    entities::{Account, FullAccount},
-    error::AccountError,
-};
+use types::account::entities::{Account, FullAccount};
 
 use super::{FetchAccountInput, RotateToSpendingKeysetInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn rotate_to_spending_keyset(

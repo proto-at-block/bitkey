@@ -10,12 +10,16 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
 import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClientMock
+import build.wallet.f8e.mobilepay.isServerSigned
+import build.wallet.ktor.result.HttpError
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
 import build.wallet.limit.MobilePayStatus.MobilePayEnabled
@@ -26,9 +30,11 @@ import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.testing.shouldBeOk
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.firstOrNull
@@ -50,6 +56,7 @@ class MobilePayServiceImplTests : FunSpec({
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
   val accountService = AccountServiceFake()
   val currencyConverter = CurrencyConverterFake()
+  val mobilePaySigningF8eClient = MobilePaySigningF8eClientMock(turbines::create)
 
   val mobilePayBalance = MobilePayBalance(
     spent = BitcoinMoney.zero(),
@@ -77,6 +84,7 @@ class MobilePayServiceImplTests : FunSpec({
     accountService.reset()
     currencyConverter.reset()
     fiatCurrencyPreferenceRepository.reset()
+    mobilePaySigningF8eClient.reset()
 
     mobilePayService = MobilePayServiceImpl(
       eventTracker = eventTracker,
@@ -87,7 +95,8 @@ class MobilePayServiceImplTests : FunSpec({
       transactionsService = transactionsService,
       accountService = accountService,
       currencyConverter = currencyConverter,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      mobilePaySigningF8eClient = mobilePaySigningF8eClient
     )
   }
 
@@ -335,5 +344,25 @@ class MobilePayServiceImplTests : FunSpec({
         )
       )
     }
+  }
+
+  test("successfully signing a psbt with mobile pay") {
+    accountService.setActiveAccount(FullAccountMock)
+    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+      .value
+      .isServerSigned()
+      .shouldBeTrue()
+
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
+  }
+
+  test("error signing a psbt with mobile pay") {
+    accountService.setActiveAccount(FullAccountMock)
+    mobilePaySigningF8eClient.signWithSpecificKeysetResult = Err(HttpError.NetworkError(Error("no sign")))
+    mobilePayService.signPsbtWithMobilePay(PsbtMock)
+      .isErr
+      .shouldBeTrue()
+
+    mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
   }
 })

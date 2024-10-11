@@ -8,10 +8,13 @@ import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.ensure
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClient
 import build.wallet.limit.MobilePayData.MobilePayDisabledData
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
@@ -40,6 +43,7 @@ class MobilePayServiceImpl(
   private val accountService: AccountService,
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
 ) : MobilePayService, MobilePayBalanceSyncWorker {
   private val syncTicker =
     flow {
@@ -95,6 +99,19 @@ class MobilePayServiceImpl(
   override suspend fun deleteLocal(): Result<Unit, Error> {
     return spendingLimitDao.removeAllLimits()
   }
+
+  override suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error> =
+    coroutineBinding {
+      val account = accountService.activeAccount().first()
+      ensure(account is FullAccount) { Error("No active full account present.") }
+
+      mobilePaySigningF8eClient.signWithSpecificKeyset(
+        f8eEnvironment = account.config.f8eEnvironment,
+        fullAccountId = account.accountId,
+        keysetId = account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+        psbt = psbt
+      ).bind()
+    }
 
   override suspend fun disable(account: FullAccount): Result<Unit, Error> =
     coroutineBinding {

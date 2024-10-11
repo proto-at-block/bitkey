@@ -9,7 +9,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_choice__proposed_rotation() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().DeactivateDevicesAfterRestoreChoice(
+            viewModel: SnapshotTestModels.shared.CreateDeactivateDevicesAfterRestoreChoice(
                 onNotRightNow: {},
                 removeAllOtherDevicesEnabled: false,
                 onRemoveAllOtherDevices: {}
@@ -21,7 +21,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_choice__settings() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().DeactivateDevicesFromSettingsChoice(
+            viewModel: SnapshotTestModels.shared.CreateDeactivateDevicesFromSettingsChoice(
                 onBack: {},
                 removeAllOtherDevicesEnabled: false,
                 onRemoveAllOtherDevices: {}
@@ -63,7 +63,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_success__proposed_rotation() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().Confirmation(
+            viewModel: SnapshotTestModels.shared.CreateConfirmation(
                 context: .proposedRotation,
                 onSelected: {}
             )
@@ -74,7 +74,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_success__settings() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().Confirmation(
+            viewModel: SnapshotTestModels.shared.CreateConfirmation(
                 context: .settings,
                 onSelected: {}
             )
@@ -85,7 +85,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_success__failed_attempt() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().Confirmation(
+            viewModel: SnapshotTestModels.shared.CreateConfirmation(
                 context: .failedAttempt,
                 onSelected: {}
             )
@@ -96,7 +96,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_acceptable_failure__proposed_rotation() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AcceptableFailure(
+            viewModel: SnapshotTestModels.shared.CreateAcceptableFailure(
                 context: .proposedRotation,
                 onRetry: {},
                 onAcknowledge: {}
@@ -108,7 +108,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_acceptable_failure__settings() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AcceptableFailure(
+            viewModel: SnapshotTestModels.shared.CreateAcceptableFailure(
                 context: .settings,
                 onRetry: {},
                 onAcknowledge: {}
@@ -120,7 +120,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_acceptable_failure__failed_attempt() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AcceptableFailure(
+            viewModel: SnapshotTestModels.shared.CreateAcceptableFailure(
                 context: .failedAttempt,
                 onRetry: {},
                 onAcknowledge: {}
@@ -132,7 +132,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_unexpected_failure__proposed_rotation() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().UnexpectedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthUnexpected,
                 context: .proposedRotation,
                 onRetry: {},
                 onContactSupport: {}
@@ -144,7 +145,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_unexpected_failure__settings() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().UnexpectedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthUnexpected,
                 context: .settings,
                 onRetry: {},
                 onContactSupport: {}
@@ -156,7 +158,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_unexpected_failure__failed_attempt() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().UnexpectedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthUnexpected,
                 context: .failedAttempt,
                 onRetry: {},
                 onContactSupport: {}
@@ -168,7 +171,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_account_locked_failure__proposed_rotation() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AccountLockedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthAccountLocked,
                 context: .proposedRotation,
                 onRetry: {},
                 onContactSupport: {}
@@ -180,7 +184,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_account_locked_failure__settings() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AccountLockedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthAccountLocked,
                 context: .settings,
                 onRetry: {},
                 onContactSupport: {}
@@ -192,7 +197,8 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
 
     func test_key_rotation_account_locked_failure__failed_attempt() {
         let view = FormView(
-            viewModel: RotateAuthKeyScreens().AccountLockedFailure(
+            viewModel: SnapshotTestModels.shared.CreateAccountOutOfSyncBodyModel(
+                id: InactiveAppEventTrackerScreenId.failedToRotateAuthAccountLocked,
                 context: .failedAttempt,
                 onRetry: {},
                 onContactSupport: {}

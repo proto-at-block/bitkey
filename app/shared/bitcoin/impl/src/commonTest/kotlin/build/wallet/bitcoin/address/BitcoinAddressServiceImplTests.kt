@@ -1,6 +1,7 @@
 package build.wallet.bitcoin.address
 
 import build.wallet.bdk.bindings.BdkError.Generic
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountIdMock
@@ -8,7 +9,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.F8eSpendingPublicKeyMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.queueprocessor.ProcessorMock
 import com.github.michaelbull.result.Err
@@ -25,14 +25,17 @@ class BitcoinAddressServiceImplTests : FunSpec({
   val spendingWallet = SpendingWalletMock(turbines::create)
   val registerWatchAddressProcessor =
     ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val transactionService = TransactionsServiceFake()
   val service = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
-    appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
+    transactionsService = transactionService
   )
 
   beforeTest {
     spendingWallet.reset()
     registerWatchAddressProcessor.reset()
+    transactionService.reset()
+    transactionService.spendingWallet.value = spendingWallet
   }
 
   test("generate new address successfully") {

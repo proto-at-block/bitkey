@@ -1,4 +1,3 @@
-
 import build.wallet.gradle.logic.extensions.targets
 import build.wallet.gradle.logic.gradle.HostEnvironment
 import build.wallet.gradle.logic.gradle.konanTargetsForIOS
@@ -182,18 +181,6 @@ kotlin {
         "-linker-option", "-framework", "-linker-option", "CoreText",
         "-linker-option", "-framework", "-linker-option", "CoreGraphics"
       )
-
-      // TODO: Remove after https://youtrack.jetbrains.com/issue/KT-64137 is fixed.
-      @Suppress("UnstableApiUsage")
-      if (gradle.startParameter.isConfigurationCacheRequested) {
-        linkTaskProvider {
-          kotlinOptions.freeCompilerArgs +=
-            listOf(
-              "-Xauto-cache-from=${gradle.gradleUserHomeDir}",
-              "-Xbackend-threads=${Runtime.getRuntime().availableProcessors()}"
-            )
-        }
-      }
     }
   }
 }

@@ -18,53 +18,49 @@ import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.toImmutableList
 
-fun FiatCurrencyListFormModel(
-  onClose: () -> Unit,
-  selectedCurrency: FiatCurrency,
-  currencyList: List<FiatCurrency>,
-  onCurrencySelection: (FiatCurrency) -> Unit,
-) = FormBodyModel(
-  id = CurrencyEventTrackerScreenId.CURRENCY_FIAT_LIST_SELECTION,
-  onBack = onClose,
-  toolbar =
-    ToolbarModel(
+data class FiatCurrencyListFormModel(
+  val onClose: () -> Unit,
+  val selectedCurrency: FiatCurrency,
+  val currencyList: List<FiatCurrency>,
+  val onCurrencySelection: (FiatCurrency) -> Unit,
+) : FormBodyModel(
+    id = CurrencyEventTrackerScreenId.CURRENCY_FIAT_LIST_SELECTION,
+    onBack = onClose,
+    toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onClose),
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Fiat")
     ),
-  header = null,
-  mainContentList =
-    immutableListOf(
+    header = null,
+    mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
-        listGroupModel =
-          ListGroupModel(
-            items =
-              currencyList
-                .map { currency ->
-                  currency.displayConfiguration.let {
-                    ListItemModel(
-                      title = currency.textCode.code,
-                      secondaryText = it.name,
-                      leadingAccessory = ListItemAccessory.TextAccessory(it.flagEmoji),
-                      trailingAccessory =
-                        if (selectedCurrency == currency) {
-                          ListItemAccessory.IconAccessory(
-                            model =
-                              IconModel(
-                                icon = Icon.SmallIconCheckFilled,
-                                iconSize = IconSize.Small,
-                                iconTint = IconTint.Primary
-                              )
+        listGroupModel = ListGroupModel(
+          items = currencyList
+            .map { currency ->
+              currency.displayConfiguration.let {
+                ListItemModel(
+                  title = currency.textCode.code,
+                  secondaryText = it.name,
+                  leadingAccessory = ListItemAccessory.TextAccessory(it.flagEmoji),
+                  trailingAccessory =
+                    if (selectedCurrency == currency) {
+                      ListItemAccessory.IconAccessory(
+                        model =
+                          IconModel(
+                            icon = Icon.SmallIconCheckFilled,
+                            iconSize = IconSize.Small,
+                            iconTint = IconTint.Primary
                           )
-                        } else {
-                          null
-                        },
-                      onClick = { onCurrencySelection(currency) }
-                    )
-                  }
-                }.toImmutableList(),
-            style = ListGroupStyle.NONE
-          )
+                      )
+                    } else {
+                      null
+                    },
+                  onClick = { onCurrencySelection(currency) }
+                )
+              }
+            }.toImmutableList(),
+          style = ListGroupStyle.NONE
+        )
       )
     ),
-  primaryButton = null
-)
+    primaryButton = null
+  )

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-ui-tooling-preview-iosX64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-iosx64-1.6.11-metadata.jar": "0efa6f77a20686fae8575d073faa2c6b44c020fe081e4f2fd69ecf7bdadca01c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "library.klib": "abef52ef358f2358ce67474837e84460233ca2720a0a66a960fc95c22caa1378"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

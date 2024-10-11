@@ -5,6 +5,8 @@ import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.feature.flags.SellBitcoinFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.limit.MobilePayService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.partnerships.PartnerId
@@ -62,6 +64,7 @@ class HomeUiStateMachineImpl(
   private val clock: Clock,
   private val timeZoneProvider: TimeZoneProvider,
   private val mobilePayService: MobilePayService,
+  private val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
@@ -99,6 +102,23 @@ class HomeUiStateMachineImpl(
                 )
               )
             return@onRouteChange true
+          }
+          is Route.PartnerSaleDeeplink -> {
+            if (sellBitcoinFeatureFlag.isEnabled()) {
+              inAppBrowserNavigator.close()
+              uiState = uiState.copy(
+                rootScreen = MoneyHome(
+                  origin = MoneyHomeUiProps.Origin.PartnershipsSell(
+                    partnerId = route.partner?.let(::PartnerId),
+                    event = route.event?.let(::PartnershipEvent),
+                    partnerTransactionId = route.partnerTransactionId?.let(::PartnershipTransactionId)
+                  )
+                )
+              )
+              return@onRouteChange true
+            } else {
+              return@onRouteChange false
+            }
           }
           else -> false
         }

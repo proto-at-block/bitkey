@@ -1,5 +1,7 @@
+use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Map, Value};
+use tracing::{event, Level};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case")]
@@ -7,6 +9,30 @@ pub enum AndroidChannelId {
     General,
     Transactions,
     RecoveryAccountSecurity,
+    UrgentSecurity,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, Builder)]
+pub struct SNSPushPayloadExtras {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub navigate_to_screen_id: Option<String>,
+}
+
+impl SNSPushPayloadExtras {
+    fn to_map(&self) -> Map<String, Value> {
+        let Ok(value) = serde_json::to_value(self) else {
+            event!(
+                Level::ERROR,
+                "Failed to convert SNSPushPayloadExtras to Map: {:?}",
+                self
+            );
+            return Map::new();
+        };
+        match value {
+            Value::Object(map) => map,
+            _ => Map::new(),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -15,6 +41,7 @@ pub struct SNSPushPayload {
     pub message: String,
     pub android_channel_id: AndroidChannelId,
     pub android_color: String,
+    pub extras: SNSPushPayloadExtras,
 }
 
 impl Default for SNSPushPayload {
@@ -24,6 +51,7 @@ impl Default for SNSPushPayload {
             message: "".to_owned(),
             android_channel_id: AndroidChannelId::General,
             android_color: "#000000".to_owned(),
+            extras: SNSPushPayloadExtras::default(),
         }
     }
 }
@@ -33,24 +61,33 @@ impl SNSPushPayload {
         // https://docs.aws.amazon.com/sns/latest/dg/sns-send-custom-platform-specific-payloads-mobile-devices.html
         // https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/PayloadKeyReference.html#//apple_ref/doc/uid/TP40008194-CH17-SW5
         // https://firebase.google.com/docs/cloud-messaging/http-server-ref
-        let ios = json!({
-            "aps": {
-                "alert": {
+        let extras = self.extras.to_map();
+        let mut ios_map = Map::new();
+        ios_map.insert(
+            String::from("aps"),
+            json!({
+                    "alert": {
+                        "title": self.title,
+                        "body": self.message,
+                    },
+                    "badge": 1,
+            }),
+        );
+        ios_map.extend(extras.clone());
+        let ios = Value::Object(ios_map);
+
+        let mut android_map = Map::new();
+        android_map.insert(
+            String::from("notification"),
+            json!({
                     "title": self.title,
                     "body": self.message,
-                },
-                "badge": 1,
-            }
-        });
-
-        let android = json!({
-            "notification": {
-                "title": self.title,
-                "body": self.message,
-                "android_channel_id": self.android_channel_id,
-                "color": self.android_color
-            }
-        });
+                    "android_channel_id": self.android_channel_id,
+                    "color": self.android_color
+            }),
+        );
+        android_map.extend(extras);
+        let android = Value::Object(android_map);
 
         let message = json!({
             "default": self.message,
@@ -123,6 +160,8 @@ fn json_to_string<S: Serialize>(s: &S) -> String {
 mod tests {
     use crate::push::AndroidChannelId;
     use crate::push::SNSPushPayload;
+    use crate::push::SNSPushPayloadExtras;
+    use crate::push::SNSPushPayloadExtrasBuilder;
     #[test]
     fn test_to_sns_message() {
         let payload = SNSPushPayload {
@@ -130,10 +169,30 @@ mod tests {
             message: "This is a notification message".to_owned(),
             android_channel_id: AndroidChannelId::Transactions,
             android_color: "#ffffff".to_owned(),
+            extras: SNSPushPayloadExtras::default(),
         };
         assert_eq!(
             payload.to_sns_message(),
             "{\"APNS\":\"{\\\"aps\\\":{\\\"alert\\\":{\\\"body\\\":\\\"This is a notification message\\\",\\\"title\\\":\\\"This is a notification title\\\"},\\\"badge\\\":1}}\",\"GCM\":\"{\\\"notification\\\":{\\\"android_channel_id\\\":\\\"transactions\\\",\\\"body\\\":\\\"This is a notification message\\\",\\\"color\\\":\\\"#ffffff\\\",\\\"title\\\":\\\"This is a notification title\\\"}}\",\"default\":\"This is a notification message\"}",
+        );
+    }
+
+    #[test]
+    fn test_to_sns_message_with_extras() {
+        let extras = SNSPushPayloadExtrasBuilder::default()
+            .navigate_to_screen_id(Some("money_home".to_string()))
+            .build()
+            .expect("Valid extras payload");
+        let payload = SNSPushPayload {
+            title: "This is a notification title".to_owned(),
+            message: "This is a notification message".to_owned(),
+            android_channel_id: AndroidChannelId::Transactions,
+            android_color: "#ffffff".to_owned(),
+            extras,
+        };
+        assert_eq!(
+            payload.to_sns_message(),
+            "{\"APNS\":\"{\\\"aps\\\":{\\\"alert\\\":{\\\"body\\\":\\\"This is a notification message\\\",\\\"title\\\":\\\"This is a notification title\\\"},\\\"badge\\\":1},\\\"navigate_to_screen_id\\\":\\\"money_home\\\"}\",\"GCM\":\"{\\\"navigate_to_screen_id\\\":\\\"money_home\\\",\\\"notification\\\":{\\\"android_channel_id\\\":\\\"transactions\\\",\\\"body\\\":\\\"This is a notification message\\\",\\\"color\\\":\\\"#ffffff\\\",\\\"title\\\":\\\"This is a notification title\\\"}}\",\"default\":\"This is a notification message\"}",
         );
     }
 }

@@ -1,20 +1,19 @@
 package build.wallet.bitcoin.address
 
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.ensureNotNull
 import build.wallet.logging.logFailure
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.queueprocessor.Processor
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 
 class BitcoinAddressServiceImpl(
   private val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
+  private val transactionsService: TransactionsService,
 ) : BitcoinAddressService, BitcoinRegisterWatchAddressWorker {
   private val addressCache = MutableStateFlow<AccountWithAddress?>(null)
 
@@ -37,20 +36,12 @@ class BitcoinAddressServiceImpl(
 
   override suspend fun generateAddress(account: FullAccount): Result<BitcoinAddress, Throwable> {
     return coroutineBinding {
-      appSpendingWalletProvider
-        .getSpendingWallet(account)
-        .flatMap { it.getNewAddress() }
-        .logFailure { "Failed to generate bitcoin address" }
-        .onSuccess { address ->
-          addressCache.emit(
-            AccountWithAddress(
-              account = account,
-              bitcoinAddress = address
-            )
-          )
-        }
-        .bind()
-    }
+      val wallet = transactionsService.spendingWallet().value
+      ensureNotNull(wallet) { Error("No spending wallet found.") }
+      val address = wallet.getNewAddress().bind()
+      addressCache.emit(AccountWithAddress(account = account, bitcoinAddress = address))
+      address
+    }.logFailure { "Error generating bitcoin address." }
   }
 
   /**

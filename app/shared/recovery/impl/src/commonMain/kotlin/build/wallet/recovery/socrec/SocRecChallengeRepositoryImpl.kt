@@ -14,21 +14,19 @@ import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.SocRecF8eClient
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
-import build.wallet.recovery.socrec.RecoveryCodeParts.Schema
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import build.wallet.relationships.RecoveryCodeParts.Schema
+import build.wallet.relationships.RelationshipsCodeBuilder
+import build.wallet.relationships.RelationshipsCrypto
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
 import kotlinx.collections.immutable.ImmutableList
 import okio.ByteString
 
 class SocRecChallengeRepositoryImpl(
   private val socRec: SocRecF8eClient,
-  private val socRecCrypto: SocRecCrypto,
+  private val relationshipsCrypto: RelationshipsCrypto,
   private val socRecFake: SocRecF8eClient,
-  private val socRecCodeBuilder: SocialRecoveryCodeBuilder,
+  private val relationshipsCodeBuilder: RelationshipsCodeBuilder,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao,
 ) : SocRecChallengeRepository {
@@ -49,7 +47,7 @@ class SocRecChallengeRepositoryImpl(
         val pakeCode = Schema.maskPakeData(SecureRandom().nextBytes(Schema.pakeByteArraySize()))
         // and a ProtectedCustomerRecoveryPakeKey
         val protectedCustomerRecoveryPakeKey =
-          socRecCrypto.generateProtectedCustomerRecoveryPakeKey(pakeCode)
+          relationshipsCrypto.generateProtectedCustomerRecoveryPakeKey(pakeCode)
             .bind()
         // insert them into the db
         socRecStartedChallengeAuthenticationDao.insert(
@@ -122,7 +120,7 @@ class SocRecChallengeRepositoryImpl(
         .bind()
         .map {
           val pakeCode = it.pakeCode
-          val fullCode = socRecCodeBuilder.buildRecoveryCode(socialChallenge.counter, pakeCode)
+          val fullCode = relationshipsCodeBuilder.buildRecoveryCode(socialChallenge.counter, pakeCode)
             .mapError { genErr -> Error(genErr) }
             .bind()
           ChallengeAuthentication(

@@ -3,6 +3,7 @@ package build.wallet.ui.model
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import build.wallet.statemachine.core.form.FormBodyModel
 
 /**
  * Render UI for the given [Model], assuming that [LocalUiModelMap] provides a [UiModelMap] with
@@ -17,10 +18,14 @@ fun UiModelContent(
   model: Model,
   modifier: Modifier = Modifier,
 ) {
-  /** Lookup [UiModel] using [model]s type, if any. */
+  val modelClass = when (model) {
+    is FormBodyModel -> FormBodyModel::class
+    else -> model::class
+  }
+  // Lookup [UiModel] using [model]s type, if any.
   val uiModel =
     LocalUiModelMap.current
-      .getUiModelFor(model::class, model)
+      .getUiModelFor(modelClass, model)
 
   when (uiModel) {
     null -> {

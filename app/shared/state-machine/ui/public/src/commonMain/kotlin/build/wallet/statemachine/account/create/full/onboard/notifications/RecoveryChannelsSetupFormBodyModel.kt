@@ -47,72 +47,87 @@ fun RecoveryChannelsSetupFormBodyModel(
   alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
   bottomSheetModel = bottomSheetModel,
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
-      onBack = onBack,
-      toolbar = onBack?.let { ob ->
-        ToolbarModel(leadingAccessory = BackAccessory(ob))
-      },
-      header =
-        FormHeaderModel(
-          headline = "Set up secure recovery communication channels",
-          subline = "We’ll only use these channels to notify you of wallet recovery attempts and privacy updates, nothing else."
-        ),
-      mainContentList =
-        immutableListOf(
-          ListGroup(
-            listGroupModel =
-              ListGroupModel(
-                items = immutableListOfNotNull(
-                  createListItem(
-                    itemModel = emailItem,
-                    icon = SmallIconEmail,
-                    title = "Email",
-                    secondaryText = emailItem.displayValue ?: "Required"
-                  ),
-                  smsItem?.run {
-                    createListItem(
-                      itemModel = this,
-                      icon = SmallIconMessage,
-                      title = "SMS",
-                      secondaryText = smsDisplayString(this)
-                    )
-                  },
-                  createListItem(
-                    itemModel = pushItem,
-                    icon = SmallIconPushNotification,
-                    title = "Push notifications",
-                    secondaryText = "Recommended"
-                  )
-                ),
-                style = ListGroupStyle.DIVIDER
-              )
-          ),
-          ListGroup(
-            listGroupModel = ListGroupModel(
-              style = ListGroupStyle.CARD_GROUP,
-              items = immutableListOf(
-                ListItemModel(
-                  title = "We’re serious about security",
-                  secondaryText = "Learn more about wallet recovery.",
-                  trailingAccessory = ListItemAccessory.drillIcon(),
-                  onClick = learnOnClick
-                )
-              )
-            )
-          )
-        ),
-      primaryButton = ButtonModel(
-        text = "Continue",
-        treatment = ButtonModel.Treatment.Primary,
-        size = ButtonModel.Size.Footer,
-        onClick = StandardClick(continueOnClick)
-      )
-    ),
+  body = RecoveryChannelsSetupFormBodyModel(
+    pushItem = pushItem,
+    smsItem = smsItem,
+    emailItem = emailItem,
+    onBack = onBack,
+    learnOnClick = learnOnClick,
+    continueOnClick = continueOnClick
+  ),
   presentationStyle = ScreenPresentationStyle.Root,
   alertModel = alertModel
 )
+
+private data class RecoveryChannelsSetupFormBodyModel(
+  val pushItem: RecoveryChannelsSetupFormItemModel,
+  val smsItem: RecoveryChannelsSetupFormItemModel?,
+  val emailItem: RecoveryChannelsSetupFormItemModel,
+  override val onBack: (() -> Unit)?,
+  val learnOnClick: (() -> Unit),
+  val continueOnClick: (() -> Unit),
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
+    onBack = onBack,
+    toolbar = onBack?.let { ob ->
+      ToolbarModel(leadingAccessory = BackAccessory(ob))
+    },
+    header =
+      FormHeaderModel(
+        headline = "Set up secure recovery communication channels",
+        subline = "We’ll only use these channels to notify you of wallet recovery attempts and privacy updates, nothing else."
+      ),
+    mainContentList =
+      immutableListOf(
+        ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              items = immutableListOfNotNull(
+                createListItem(
+                  itemModel = emailItem,
+                  icon = SmallIconEmail,
+                  title = "Email",
+                  secondaryText = emailItem.displayValue ?: "Required"
+                ),
+                smsItem?.run {
+                  createListItem(
+                    itemModel = this,
+                    icon = SmallIconMessage,
+                    title = "SMS",
+                    secondaryText = smsDisplayString(this)
+                  )
+                },
+                createListItem(
+                  itemModel = pushItem,
+                  icon = SmallIconPushNotification,
+                  title = "Push notifications",
+                  secondaryText = "Recommended"
+                )
+              ),
+              style = ListGroupStyle.DIVIDER
+            )
+        ),
+        ListGroup(
+          listGroupModel = ListGroupModel(
+            style = ListGroupStyle.CARD_GROUP,
+            items = immutableListOf(
+              ListItemModel(
+                title = "We’re serious about security",
+                secondaryText = "Learn more about wallet recovery.",
+                trailingAccessory = ListItemAccessory.drillIcon(),
+                onClick = learnOnClick
+              )
+            )
+          )
+        )
+      ),
+    primaryButton = ButtonModel(
+      text = "Continue",
+      treatment = ButtonModel.Treatment.Primary,
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(continueOnClick)
+    )
+  )
 
 private fun createListItem(
   itemModel: RecoveryChannelsSetupFormItemModel,
@@ -202,34 +217,47 @@ fun OpenSettingsForPushAlertModel(
 fun ConfirmSkipRecoveryMethodsSheetModel(
   onCancel: () -> Unit,
   onContinue: () -> Unit,
-) = FormBodyModel(
-  id = NotificationsEventTrackerScreenId.RECOVERY_SKIP_SHEET,
-  header = FormHeaderModel(
-    headline = "Continue without all recovery methods?",
-    subline = "To help keep your account safe and secure, we recommend enabling all " +
-      "recovery methods. You can always add these later.",
-    alignment = FormHeaderModel.Alignment.LEADING
-  ),
-  onBack = onCancel,
-  toolbar = null,
-  primaryButton =
-    ButtonModel(
-      text = "Add recovery methods",
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onCancel)
-    ),
-  secondaryButton =
-    ButtonModel(
-      text = "Skip",
-      size = ButtonModel.Size.Footer,
-      treatment = ButtonModel.Treatment.Secondary,
-      onClick = StandardClick(onContinue)
-    ),
-  renderContext = RenderContext.Sheet
+) = ConfirmSkipRecoveryMethodsBodyModel(
+  onCancel = onCancel,
+  onContinue = onContinue
 ).asSheetModalScreen(onCancel)
 
+private data class ConfirmSkipRecoveryMethodsBodyModel(
+  val onCancel: () -> Unit,
+  val onContinue: () -> Unit,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.RECOVERY_SKIP_SHEET,
+    header = FormHeaderModel(
+      headline = "Continue without all recovery methods?",
+      subline = "To help keep your account safe and secure, we recommend enabling all " +
+        "recovery methods. You can always add these later.",
+      alignment = FormHeaderModel.Alignment.LEADING
+    ),
+    onBack = onCancel,
+    toolbar = null,
+    primaryButton =
+      ButtonModel(
+        text = "Add recovery methods",
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onCancel)
+      ),
+    secondaryButton =
+      ButtonModel(
+        text = "Skip",
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Secondary,
+        onClick = StandardClick(onContinue)
+      ),
+    renderContext = RenderContext.Sheet
+  )
+
 fun EmailRecoveryMethodRequiredErrorModal(onCancel: () -> Unit) =
-  FormBodyModel(
+  EmailRecoveryMethodRequiredErrorBodyModal(onCancel)
+    .asSheetModalScreen(onCancel)
+
+private data class EmailRecoveryMethodRequiredErrorBodyModal(
+  val onCancel: () -> Unit,
+) : FormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_EMAIL_REQUIRED_ERROR_SHEET,
     header = FormHeaderModel(
       icon = LargeIconWarningFilled,
@@ -247,7 +275,7 @@ fun EmailRecoveryMethodRequiredErrorModal(onCancel: () -> Unit) =
         onClick = StandardClick(onCancel)
       ),
     renderContext = RenderContext.Sheet
-  ).asSheetModalScreen(onCancel)
+  )
 
 private fun smsDisplayString(smsItem: RecoveryChannelsSetupFormItemModel): String {
   return if (smsItem.uiErrorHint == UiErrorHint.NotAvailableInYourCountry) {

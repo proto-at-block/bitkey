@@ -1,14 +1,12 @@
-use account::entities::Factor;
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, types::AttributeValue},
     ddb::{try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
-
 use tracing::{event, instrument, Level};
-
-use crate::entities::{RecoveryStatus, RecoveryType, WalletRecovery};
+use types::account::entities::Factor;
 
 use super::RecoveryRepository;
+use crate::entities::{RecoveryStatus, RecoveryType, WalletRecovery};
 
 pub struct PendingDelayNotifyCounts {
     pub lost_app_delay_incomplete: u64,

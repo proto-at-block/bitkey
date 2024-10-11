@@ -18,8 +18,8 @@ import build.wallet.statemachine.export.ExportToolsUiProps
 import build.wallet.statemachine.export.ExportToolsUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
-import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.money.currency.AppearancePreferenceProps
+import build.wallet.statemachine.money.currency.AppearancePreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Settings
 import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachine
@@ -53,7 +53,7 @@ class SettingsHomeUiStateMachineImpl(
   private val mobilePaySettingsUiStateMachine: MobilePaySettingsUiStateMachine,
   private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
   private val recoveryChannelSettingsUiStateMachine: RecoveryChannelSettingsUiStateMachine,
-  private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
+  private val appearancePreferenceUiStateMachine: AppearancePreferenceUiStateMachine,
   private val customElectrumServerSettingUiStateMachine: CustomElectrumServerSettingUiStateMachine,
   private val deviceSettingsUiStateMachine: DeviceSettingsUiStateMachine,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
@@ -100,8 +100,8 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.CustomElectrumServer {
                         state = ShowingCustomElectrumServerSettingsUiState
                       },
-                      SettingsListUiProps.SettingsListRow.CurrencyPreference {
-                        state = ShowingCurrencyPreferenceUiState
+                      SettingsListUiProps.SettingsListRow.AppearancePreference {
+                        state = ShowingAppearancePreferenceUiState
                       },
                       SettingsListUiProps.SettingsListRow.HelpCenter {
                         state = ShowingHelpCenterUiState
@@ -189,9 +189,9 @@ class SettingsHomeUiStateMachineImpl(
             )
         )
 
-      is ShowingCurrencyPreferenceUiState -> {
-        currencyPreferenceUiStateMachine.model(
-          props = CurrencyPreferenceProps(
+      is ShowingAppearancePreferenceUiState -> {
+        appearancePreferenceUiStateMachine.model(
+          props = AppearancePreferenceProps(
             onBack = { state = ShowingAllSettingsUiState }
           )
         )
@@ -314,7 +314,7 @@ class SettingsHomeUiStateMachineImpl(
 
     data object ShowingBitkeyDeviceSettingsUiState : State()
 
-    data object ShowingCurrencyPreferenceUiState : State()
+    data object ShowingAppearancePreferenceUiState : State()
 
     data object ShowingSendFeedbackUiState : State()
 

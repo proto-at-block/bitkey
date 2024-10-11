@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionDetails
@@ -16,6 +17,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId
+import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
+import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.integer.toBigInteger
@@ -39,6 +42,8 @@ class FeeBumpConfirmationUiStateMachineImpl(
       )
     }
 
+    val exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
+
     return when (val currentState = uiState) {
       is State.ConfirmingFeeBump -> {
         val transferBitcoinAmount = BitcoinMoney
@@ -54,29 +59,48 @@ class FeeBumpConfirmationUiStateMachineImpl(
         val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
           props = TransactionDetailsCardUiProps(
             transactionDetails = transactionDetails,
-            exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
+            exchangeRates = exchangeRates,
+            variant = TransferConfirmationScreenVariant.SpeedUp
           )
         )
 
-        return TransferConfirmationScreenModel(
-          onBack = props.onExit,
-          onCancel = props.onExit,
-          variant = TransferConfirmationUiProps.Variant.SpeedUp(
-            txid = props.speedUpTransactionDetails.txid,
-            oldFee = props.speedUpTransactionDetails.oldFee,
-            newFeeRate = currentState.feeRate
-          ),
-          recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
-          transactionDetails = transactionDetailsCard,
-          requiresHardware = true, // currently all fee bumps require hardware
-          confirmButtonEnabled = true,
-          onConfirmClick = {
-            uiState = State.SigningWithHardware(currentState.appSignedPsbt)
-          },
-          onNetworkFeesClick = {},
-          onArrivalTimeClick = null,
-          errorOverlayModel = null
-        )
+        val speedUpTransactionDetails =
+          transactionDetailsCard.transactionDetailModelType as? TransactionDetailModelType.SpeedUp
+            ?: error("Transaction details card state machine created a transaction detail model that wasn't of type SpeedUp")
+
+        return when (props.speedUpTransactionDetails.transactionType) {
+          Outgoing -> TransferConfirmationScreenModel(
+            onBack = props.onExit,
+            onCancel = props.onExit,
+            variant = TransferConfirmationScreenVariant.SpeedUp,
+            recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
+            transactionDetails = transactionDetailsCard,
+            requiresHardware = true, // currently all fee bumps require hardware
+            confirmButtonEnabled = true,
+            onConfirmClick = {
+              uiState = State.SigningWithHardware(currentState.appSignedPsbt)
+            },
+            onNetworkFeesClick = {},
+            onArrivalTimeClick = null,
+            errorOverlayModel = null
+          )
+          UtxoConsolidation -> UtxoConsolidationSpeedUpConfirmationModel(
+            onBack = props.onExit,
+            onCancel = props.onExit,
+            recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
+            transactionSpeedText = transactionDetailsCard.transactionSpeedText,
+            originalConsolidationCost = speedUpTransactionDetails.oldFeeAmountText,
+            originalConsolidationCostSecondaryText = speedUpTransactionDetails.oldFeeAmountSecondaryText,
+            consolidationCostDifference = speedUpTransactionDetails.feeDifferenceText,
+            consolidationCostDifferenceSecondaryText = speedUpTransactionDetails.feeDifferenceSecondaryText,
+            totalConsolidationCost = speedUpTransactionDetails.totalFeeText,
+            totalConsolidationCostSecondaryText = speedUpTransactionDetails.totalFeeSecondaryText,
+            onConfirmClick = {
+              uiState = State.SigningWithHardware(currentState.appSignedPsbt)
+            }
+          ).asModalFullScreen()
+          Incoming -> error("Can't speed up an incoming transaction")
+        }
       }
 
       is State.SigningWithHardware -> nfcSessionUIStateMachine.model(
@@ -99,7 +123,8 @@ class FeeBumpConfirmationUiStateMachineImpl(
           },
           isHardwareFake = props.account.config.isHardwareFake,
           screenPresentationStyle = ScreenPresentationStyle.Modal,
-          eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION
+          eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
+          shouldShowLongRunningOperation = true
         )
       )
       is State.BroadcastingTransaction -> {
@@ -140,26 +165,55 @@ class FeeBumpConfirmationUiStateMachineImpl(
           ),
         eventTrackerScreenId = FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
       ).asModalScreen()
-      is State.ViewingFeeBumpConfirmation ->
-        transferInitiatedUiStateMachine
-          .model(
-            props = TransferInitiatedUiProps(
-              recipientAddress = props.speedUpTransactionDetails.recipientAddress,
-              transactionDetails = TransactionDetails.SpeedUp(
-                transferAmount = BitcoinMoney
-                  .sats(currentState.appAndHwSignedPsbt.amountSats.toBigInteger()),
-                oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount,
-                feeAmount = currentState.appAndHwSignedPsbt.fee
-              ),
-              exchangeRates = null,
-              onBack = {
-                props.onExit()
-              },
-              onDone = {
-                props.onExit()
-              }
+      is State.ViewingFeeBumpConfirmation -> {
+        val transactionDetails = TransactionDetails.SpeedUp(
+          transferAmount = BitcoinMoney
+            .sats(currentState.appAndHwSignedPsbt.amountSats.toBigInteger()),
+          oldFeeAmount = props.speedUpTransactionDetails.oldFee.amount,
+          feeAmount = currentState.appAndHwSignedPsbt.fee
+        )
+
+        when (props.speedUpTransactionDetails.transactionType) {
+          Outgoing ->
+            transferInitiatedUiStateMachine
+              .model(
+                props = TransferInitiatedUiProps(
+                  recipientAddress = props.speedUpTransactionDetails.recipientAddress,
+                  transactionDetails = transactionDetails,
+                  exchangeRates = exchangeRates,
+                  onBack = props.onExit,
+                  onDone = props.onExit
+                )
+              ).asModalFullScreen()
+          UtxoConsolidation -> {
+            val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
+              props = TransactionDetailsCardUiProps(
+                transactionDetails = transactionDetails,
+                exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList(),
+                variant = TransferConfirmationScreenVariant.Regular
+              )
             )
-          ).asModalFullScreen()
+
+            val speedUpTransactionDetails =
+              transactionDetailsCard.transactionDetailModelType as? TransactionDetailModelType.SpeedUp
+                ?: error("Transaction details card state machine created a transaction detail model that wasn't of type SpeedUp")
+
+            UtxoConsolidationSpeedUpTransactionSentModel(
+              targetAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
+              arrivalTime = transactionDetailsCard.transactionSpeedText,
+              originalConsolidationCost = speedUpTransactionDetails.oldFeeAmountText,
+              originalConsolidationCostSecondaryText = speedUpTransactionDetails.oldFeeAmountSecondaryText,
+              consolidationCostDifference = speedUpTransactionDetails.feeDifferenceText,
+              consolidationCostDifferenceSecondaryText = speedUpTransactionDetails.feeDifferenceSecondaryText,
+              totalConsolidationCost = speedUpTransactionDetails.totalFeeText,
+              totalConsolidationCostSecondaryText = speedUpTransactionDetails.totalFeeSecondaryText,
+              onBack = props.onExit,
+              onDone = props.onExit
+            ).asModalFullScreen()
+          }
+          Incoming -> error("Can't speed up an incoming transaction")
+        }
+      }
     }
   }
 }

@@ -1,314 +1,39 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.account.AccountService
-import build.wallet.account.AccountStatus
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthKey
-import build.wallet.bitkey.f8e.AccountId
-import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.relationships.*
-import build.wallet.crypto.PublicKey
-import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.f8e.sync.F8eSyncSequencer
-import build.wallet.isOk
-import build.wallet.logging.logFailure
-import build.wallet.mapResult
-import build.wallet.recovery.socrec.InviteCodeParts.Schema
+import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.f8e.relationships.Relationships
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementScreens
-import com.github.michaelbull.result.*
-import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.*
+import build.wallet.relationships.RelationshipsService
+import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
-import kotlin.random.Random
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 
 class SocRecServiceImpl(
-  private val socRecF8eClientProvider: SocRecF8eClientProvider,
-  private val socRecRelationshipsDao: SocRecRelationshipsDao,
-  private val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao,
-  private val socRecCrypto: SocRecCrypto,
-  private val socialRecoveryCodeBuilder: SocialRecoveryCodeBuilder,
-  private val appSessionManager: AppSessionManager,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
-  private val accountService: AccountService,
-) : SocRecService, SocRecSyncRelationshipsWorker {
+  relationshipsService: RelationshipsService,
+  appCoroutineScope: CoroutineScope,
+) : SocRecService {
+  override val socRecRelationships = relationshipsService.relationships
+    .filterNotNull()
+    .map { relationships ->
+      Relationships(
+        invitations = relationships.invitations
+          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
+        endorsedTrustedContacts = relationships.endorsedTrustedContacts
+          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
+        unendorsedTrustedContacts = relationships.unendorsedTrustedContacts
+          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
+        protectedCustomers = relationships.protectedCustomers
+          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) }
+          .toImmutableList()
+      )
+    }
+    .stateIn(appCoroutineScope, Eagerly, null)
+
   override fun justCompletedRecovery(): Flow<Boolean> {
     return postSocRecTaskRepository.taskState
       .map { it == HardwareReplacementScreens }
       .distinctUntilChanged()
   }
-
-  private val f8eSyncSequencer = F8eSyncSequencer()
-
-  private suspend fun socRecF8eClient() = socRecF8eClientProvider.get()
-
-  override val relationships = MutableStateFlow<SocRecRelationships?>(value = null)
-
-  override suspend fun getRelationshipsWithoutSyncing(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-  ): Result<SocRecRelationships, Error> =
-    socRecF8eClient().getRelationships(
-      accountId,
-      f8eEnvironment
-    )
-
-  override suspend fun executeWork() {
-    coroutineScope {
-      // Sync relationships from the database into memory cache
-      launch {
-        socRecRelationshipsDao.socRecRelationships()
-          .map { result ->
-            result
-              .logFailure { "Failed to get relationships" }
-              .getOr(SocRecRelationships.EMPTY)
-          }
-          .collectLatest(relationships::emit)
-      }
-
-      // Sync relationships with f8e
-      launch {
-        accountService.accountStatus()
-          .mapResult { it as? AccountStatus.ActiveAccount }
-          .mapNotNull { it.get()?.account }
-          .distinctUntilChanged()
-          .collectLatest { account ->
-            f8eSyncSequencer.run(account) {
-              while (isActive) {
-                if (appSessionManager.isAppForegrounded()) {
-                  syncAndVerifyRelationships(account)
-                }
-                delay(5.seconds)
-              }
-            }
-          }
-      }
-    }
-  }
-
-  override suspend fun removeRelationshipWithoutSyncing(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
-    authTokenScope: AuthTokenScope,
-    relationshipId: String,
-  ): Result<Unit, Error> {
-    return socRecF8eClient()
-      .removeRelationship(
-        accountId = accountId,
-        f8eEnvironment = f8eEnvironment,
-        hardwareProofOfPossession = hardwareProofOfPossession,
-        authTokenScope = authTokenScope,
-        relationshipId = relationshipId
-      )
-  }
-
-  override suspend fun removeRelationship(
-    account: Account,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
-    authTokenScope: AuthTokenScope,
-    relationshipId: String,
-  ): Result<Unit, Error> {
-    return socRecF8eClient()
-      .removeRelationship(
-        accountId = account.accountId,
-        f8eEnvironment = account.config.f8eEnvironment,
-        hardwareProofOfPossession = hardwareProofOfPossession,
-        authTokenScope = authTokenScope,
-        relationshipId = relationshipId
-      )
-      .also {
-        syncAndVerifyRelationships(account)
-      }
-  }
-
-  override suspend fun createInvitation(
-    account: FullAccount,
-    trustedContactAlias: TrustedContactAlias,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<OutgoingInvitation, Error> =
-    coroutineBinding {
-      // TODO: Use SocRecCrypto to generate.
-      val enrollmentPakeCode = Schema.maskPakeData(Random.nextBytes(Schema.pakeByteArraySize()))
-      val protectedCustomerEnrollmentPakeKey =
-        socRecCrypto.generateProtectedCustomerEnrollmentPakeKey(enrollmentPakeCode).bind()
-      socRecF8eClient()
-        .createInvitation(
-          account = account,
-          hardwareProofOfPossession = hardwareProofOfPossession,
-          trustedContactAlias = trustedContactAlias,
-          protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey.publicKey
-        )
-        .flatMap { invitation ->
-          socRecEnrollmentAuthenticationDao
-            .insert(
-              invitation.relationshipId,
-              protectedCustomerEnrollmentPakeKey,
-              enrollmentPakeCode
-            )
-            .mapError { Error("Failed to insert into socRecEnrollmentAuthenticationDao", it) }
-            .flatMap {
-              socialRecoveryCodeBuilder.buildInviteCode(
-                invitation.code,
-                invitation.codeBitLength,
-                enrollmentPakeCode
-              )
-            }
-            .mapError { Error("Failed to build invite code", it) }
-            .map { OutgoingInvitation(invitation, it) }
-        }.bind()
-        .also { syncAndVerifyRelationships(account) }
-    }
-
-  override suspend fun refreshInvitation(
-    account: FullAccount,
-    relationshipId: String,
-    hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<OutgoingInvitation, Error> {
-    return socRecF8eClient()
-      .refreshInvitation(account, hardwareProofOfPossession, relationshipId)
-      .flatMap { invitation ->
-        socRecEnrollmentAuthenticationDao.getByRelationshipId(relationshipId)
-          .mapError { Error("Failed to get PAKE data", it) }
-          .toErrorIfNull { Error("Can't refresh invitation if PAKE data isn't present") }
-          .map { it.pakeCode }
-          .flatMap {
-            socialRecoveryCodeBuilder.buildInviteCode(
-              serverPart = invitation.code,
-              serverBits = invitation.codeBitLength,
-              pakePart = it
-            )
-          }
-          .mapError { Error("Failed to build invite code", it) }
-          .map { OutgoingInvitation(invitation, it) }
-      }
-      .also { syncAndVerifyRelationships(account) }
-  }
-
-  override suspend fun retrieveInvitation(
-    account: Account,
-    invitationCode: String,
-  ): Result<IncomingInvitation, RetrieveInvitationCodeError> {
-    return socialRecoveryCodeBuilder.parseInviteCode(invitationCode)
-      .mapError { error ->
-        when (error) {
-          is SocialRecoveryCodeVersionError -> RetrieveInvitationCodeError.InvitationCodeVersionMismatch(
-            error
-          )
-
-          else -> RetrieveInvitationCodeError.InvalidInvitationCode(error)
-        }
-      }
-      .andThen { (serverPart, _) ->
-        socRecF8eClient().retrieveInvitation(
-          account,
-          serverPart
-        )
-          .mapError {
-            RetrieveInvitationCodeError.F8ePropagatedError(it)
-          }
-      }
-  }
-
-  override suspend fun acceptInvitation(
-    account: Account,
-    invitation: IncomingInvitation,
-    protectedCustomerAlias: ProtectedCustomerAlias,
-    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
-    inviteCode: String,
-  ): Result<ProtectedCustomer, AcceptInvitationCodeError> {
-    return socialRecoveryCodeBuilder.parseInviteCode(inviteCode)
-      .mapError { AcceptInvitationCodeError.InvalidInvitationCode }
-      .andThen { (_, pakePart) ->
-        socRecCrypto.encryptDelegatedDecryptionKey(
-          pakePart,
-          invitation.protectedCustomerEnrollmentPakeKey,
-          delegatedDecryptionKey
-        )
-          .logFailure { "Failed to encrypt trusted contact identity key" }
-          .mapError { AcceptInvitationCodeError.CryptoError(it) }
-      }
-      .andThen {
-        socRecF8eClient()
-          .acceptInvitation(
-            account = account,
-            invitation = invitation,
-            protectedCustomerAlias = protectedCustomerAlias,
-            trustedContactEnrollmentPakeKey = it.trustedContactEnrollmentPakeKey,
-            enrollmentPakeConfirmation = it.keyConfirmation,
-            sealedDelegateDecryptionKeyCipherText = it.sealedDelegatedDecryptionKey
-          )
-          .mapError { AcceptInvitationCodeError.F8ePropagatedError(it) }
-      }
-      .also { syncAndVerifyRelationships(account) }
-  }
-
-  override suspend fun syncAndVerifyRelationships(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-    appAuthKey: PublicKey<AppGlobalAuthKey>?,
-    hwAuthPublicKey: HwAuthPublicKey?,
-  ): Result<SocRecRelationships, Error> =
-    coroutineBinding {
-      // Fetch latest relationships from f8e
-      val relationships = socRecF8eClient()
-        .getRelationships(accountId, f8eEnvironment)
-        .bind()
-
-      // If full account, verify relationships using the account's auth keys
-      val verifiedRelationships = when (accountId) {
-        is FullAccountId -> relationships.verified(appAuthKey, hwAuthPublicKey)
-        else -> relationships
-      }
-
-      // Update database
-      socRecRelationshipsDao.setSocRecRelationships(verifiedRelationships).bind()
-
-      verifiedRelationships
-    }
-
-  /**
-   * Returns a copy of the given relationships with the trusted contacts verified using [account]'s
-   * auth keys.
-   */
-  private fun SocRecRelationships.verified(
-    appAuthKey: PublicKey<AppGlobalAuthKey>?,
-    hwAuthPublicKey: HwAuthPublicKey?,
-  ): SocRecRelationships =
-    copy(
-      endorsedTrustedContacts = endorsedTrustedContacts.map {
-        it.verified(appAuthKey, hwAuthPublicKey)
-      }
-    )
-
-  /**
-   * Verifies that the given endorsed TC is authentic by signing the key certificate with
-   * [account]'s active app and/or auth key.
-   */
-  private fun EndorsedTrustedContact.verified(
-    appAuthKey: PublicKey<AppGlobalAuthKey>?,
-    hwAuthPublicKey: HwAuthPublicKey?,
-  ): EndorsedTrustedContact {
-    val isVerified = socRecCrypto
-      .verifyKeyCertificate(keyCertificate, hwAuthPublicKey, appAuthKey)
-      // DO NOT REMOVE this log line. We alert on it.
-      // See BKR-858
-      .logFailure { "[socrec_key_certificate_verification_failure] Error verifying TC certificate $this" }
-      .isOk()
-
-    val authState = when {
-      isVerified -> build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
-      else -> build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
-    }
-
-    return copy(authenticationState = authState)
-  }
-
-  override suspend fun clear(): Result<Unit, Error> = socRecRelationshipsDao.clear()
 }

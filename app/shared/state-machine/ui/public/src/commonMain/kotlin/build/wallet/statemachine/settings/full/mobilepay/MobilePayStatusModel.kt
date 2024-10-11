@@ -49,11 +49,15 @@ data class MobilePayStatusModel(
 fun disableMobilePayAlertModel(
   title: String,
   subline: String,
+  primaryButtonText: String,
+  cancelText: String,
   onConfirm: () -> Unit,
   onCancel: () -> Unit,
 ) = DisableAlertModel(
   title = title,
   subline = subline,
+  primaryButtonText = primaryButtonText,
+  secondaryButtonText = cancelText,
   onConfirm = onConfirm,
   onCancel = onCancel
 )

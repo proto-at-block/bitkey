@@ -15,7 +15,7 @@ import io.kotest.matchers.types.shouldNotBeInstanceOf
  * Awaits for a body model of type [T] for the [ScreenModel] Turbine receiver.
  * Executes [block] with the given [T] model.
  */
-suspend inline fun <reified T : Model> ReceiveTurbine<ScreenModel>.awaitScreenWithBody(
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitScreenWithBody(
   id: EventTrackerScreenId? = null,
   block: T.() -> Unit = {},
 ) {

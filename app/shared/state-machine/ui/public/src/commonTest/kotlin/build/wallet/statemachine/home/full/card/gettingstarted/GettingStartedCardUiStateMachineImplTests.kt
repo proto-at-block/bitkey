@@ -11,8 +11,8 @@ import build.wallet.availability.InternetUnreachable
 import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.f8e.socrec.SocRecRelationshipsFake
+import build.wallet.f8e.relationships.Relationships
+import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.home.GettingStartedTask
@@ -22,7 +22,7 @@ import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.limit.MobilePayEnabledDataMock
 import build.wallet.limit.MobilePayServiceMock
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
@@ -61,7 +61,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
   val transactionsService = TransactionsServiceFake()
   val mobilePayService = MobilePayServiceMock(turbines::create)
-  val socRecService = SocRecServiceMock(turbines::create)
+  val socRecService = SocRecServiceFake()
 
   val props =
     GettingStartedCardUiProps(
@@ -90,9 +90,9 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
     transactionsService.reset()
     mobilePayService.reset()
     appFunctionalityService.reset()
-    socRecService.clear()
+    socRecService.reset()
 
-    socRecService.relationships.value = SocRecRelationships.EMPTY
+    socRecService.socRecRelationships.value = Relationships.EMPTY
   }
 
   test("card model should be null") {
@@ -341,7 +341,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           )
       )
 
-      socRecService.relationshipsFlow.value = SocRecRelationshipsFake
+      socRecService.socRecRelationships.value = RelationshipsFake
 
       awaitItem()
       awaitItem().shouldNotBeNull().expect(

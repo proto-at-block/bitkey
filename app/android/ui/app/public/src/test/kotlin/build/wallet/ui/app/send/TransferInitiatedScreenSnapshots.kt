@@ -37,19 +37,27 @@ private fun TransferInitiatedScreen(speedUp: Boolean) {
             if (speedUp) {
               TransactionDetailModelType.SpeedUp(
                 transferAmountText = "$20.00",
-                oldFeeAmountText = "$1.00",
+                transferAmountSecondaryText = "0.0003 BTC",
+                oldFeeAmountText = "$1.36",
+                oldFeeAmountSecondaryText = "0.00002 BTC",
                 feeDifferenceText = "+$1.00",
+                feeDifferenceSecondaryText = "0.00001 BTC",
                 totalAmountPrimaryText = "$22.36",
-                totalAmountSecondaryText = "(0.0010 BTC)"
+                totalAmountSecondaryText = "0.0010 BTC",
+                totalFeeText = "$2.36",
+                totalFeeSecondaryText = "0.00003 BTC"
               )
             } else {
               TransactionDetailModelType.Regular(
                 transferAmountText = "$20.00",
+                transferAmountSecondaryText = "0.0003 BTC",
                 feeAmountText = "$1.36",
+                feeAmountSecondaryText = "0.00002 BTC",
                 totalAmountPrimaryText = "$21.36",
-                totalAmountSecondaryText = "(0.0010 BTC)"
+                totalAmountSecondaryText = "0.0010 BTC"
               )
-            }
+            },
+          amountLabel = "Recipient receives"
         ),
       onDone = {}
     )

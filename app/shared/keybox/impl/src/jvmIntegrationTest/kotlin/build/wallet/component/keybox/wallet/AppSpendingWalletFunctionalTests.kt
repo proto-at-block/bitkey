@@ -10,6 +10,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.fakeTransact
@@ -39,8 +40,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
   test("wallet for active spending keyset")
     .config(tags = setOf(FlakyTest)) {
       val account = appTester.onboardFullAccountWithFakeHardware()
-      val wallet =
-        appTester.app.appComponent.appSpendingWalletProvider.getSpendingWallet(account).getOrThrow()
+      val wallet = appTester.getActiveWallet()
 
       withClue("wallet and keybox keysets match") {
         wallet.identifier.shouldBe(account.keybox.activeSpendingKeyset.localId)
@@ -148,6 +148,6 @@ class AppSpendingWalletFunctionalTests : FunSpec({
         transactions.cancelAndIgnoreRemainingEvents()
       }
 
-      appTester.returnFundsToTreasury(account)
+      appTester.returnFundsToTreasury()
     }
 })

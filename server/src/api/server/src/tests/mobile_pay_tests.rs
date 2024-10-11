@@ -1,20 +1,17 @@
+use account::service::{FetchAccountInput, FetchAndUpdateSpendingLimitInput};
+use external_identifier::ExternalIdentifier;
 use http::StatusCode;
+use mobile_pay::routes::{MobilePaySetupRequest, MobilePaySetupResponse};
 use time::UtcOffset;
+use types::account::identifiers::AccountId;
+use types::account::spend_limit::{Money, SpendingLimit};
+use types::currencies::CurrencyCode::{USD, XXX};
 use ulid::Ulid;
 
-use account::service::{FetchAccountInput, FetchAndUpdateSpendingLimitInput};
-use account::spend_limit::{Money, SpendingLimit};
-
-use external_identifier::ExternalIdentifier;
-use mobile_pay::routes::{MobilePaySetupRequest, MobilePaySetupResponse};
-use types::account::identifiers::AccountId;
-use types::currencies::CurrencyCode::{USD, XXX};
-
+use super::requests::axum::TestClient;
 use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::create_default_account_with_predefined_wallet;
-
-use super::requests::axum::TestClient;
 
 #[tokio::test]
 async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
@@ -276,18 +273,17 @@ pub(crate) fn build_mobile_pay_request(limit: SpendingLimit) -> MobilePaySetupRe
 mod get_mobile_pay_tests {
     use std::str::FromStr;
 
-    use http::StatusCode;
-    use time::{OffsetDateTime, UtcOffset};
-
-    use account::spend_limit::{Money, SpendingLimit};
     use bdk_utils::bdk::bitcoin::absolute::LockTime;
     use bdk_utils::bdk::bitcoin::psbt::Psbt;
     use bdk_utils::bdk::bitcoin::{Address, ScriptBuf, Transaction, TxOut};
     use bdk_utils::constants::ONE_BTC_IN_SATOSHIS;
     use bdk_utils::error::BdkUtilError;
     use bdk_utils::{AttributableWallet, SpkWithDerivationPaths};
+    use http::StatusCode;
     use mobile_pay::daily_spend_record::entities::DailySpendingRecord;
     use mobile_pay::routes::MobilePaySetupResponse;
+    use time::{OffsetDateTime, UtcOffset};
+    use types::account::spend_limit::{Money, SpendingLimit};
     use types::currencies::CurrencyCode::{EUR, USD};
     use types::exchange_rate::local_rate_provider::LOCAL_ONE_BTC_IN_FIAT;
 

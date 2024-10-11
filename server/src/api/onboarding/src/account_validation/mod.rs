@@ -1,15 +1,13 @@
-use account::entities::{
-    Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
-    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
-};
 use account::service::Service as AccountService;
 use async_trait::async_trait;
-
+use errors::ApiError;
 use recovery::repository::RecoveryRepository;
 use tracing::instrument;
 use types::account::bitcoin::Network;
-
-use crate::routes::Config;
+use types::account::entities::{
+    Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload,
+    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
+};
 
 use self::no_recovery_with_hardware_auth_pubkey::NoRecoveryWithHardwareAuthPubkeyRule;
 use self::no_recovery_with_recovery_auth_pubkey::NoRecoveryWithRecoveryAuthPubkeyRule;
@@ -21,8 +19,7 @@ use self::{
     error::AccountValidationError,
     no_recovery_with_app_auth_pubkey::NoRecoveryWithAppAuthPubkeyRule,
 };
-
-use errors::ApiError;
+use crate::routes::Config;
 
 pub mod error;
 pub(crate) mod no_recovery_with_app_auth_pubkey;

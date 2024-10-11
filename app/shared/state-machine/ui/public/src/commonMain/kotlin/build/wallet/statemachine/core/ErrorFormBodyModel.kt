@@ -11,6 +11,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.core.form.formBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -93,7 +94,7 @@ fun ErrorFormBodyModelWithOptionalErrorData(
   errorData: ErrorData?,
   secondaryButtonIcon: Icon? = null,
 ): FormBodyModel {
-  return FormBodyModel(
+  return formBodyModel(
     onLoaded = { onLoaded() },
     id = eventTrackerScreenId,
     eventTrackerContext = eventTrackerContext,

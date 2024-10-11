@@ -9,7 +9,7 @@ final class AppFunctionalitySnapshotTests: XCTestCase {
 
     func test_f8eUnreachable() {
         let view = FormView(
-            viewModel: AppFunctionalityStatusBodyModelKt.AppFunctionalityStatusBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateAppFunctionalityStatusBodyModel(
                 status: .init(cause: F8eUnreachable(lastReachableTime: .companion.DISTANT_PAST)),
                 cause: F8eUnreachable(lastReachableTime: .companion.DISTANT_PAST),
                 dateFormatter: { _ in "9:14pm" },
@@ -23,7 +23,7 @@ final class AppFunctionalitySnapshotTests: XCTestCase {
 
     func test_internetUnreachable() {
         let view = FormView(
-            viewModel: AppFunctionalityStatusBodyModelKt.AppFunctionalityStatusBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateAppFunctionalityStatusBodyModel(
                 status: .init(cause: InternetUnreachable(
                     lastReachableTime: .companion.DISTANT_PAST,
                     lastElectrumSyncReachableTime: .companion.DISTANT_PAST
@@ -43,7 +43,7 @@ final class AppFunctionalitySnapshotTests: XCTestCase {
 
     func test_f8eUnreachable_RevampOn() {
         let view = FormView(
-            viewModel: AppFunctionalityStatusBodyModelKt.AppFunctionalityStatusBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateAppFunctionalityStatusBodyModel(
                 status: .init(cause: F8eUnreachable(lastReachableTime: .companion.DISTANT_PAST)),
                 cause: F8eUnreachable(lastReachableTime: .companion.DISTANT_PAST),
                 dateFormatter: { _ in "9:14pm" },
@@ -57,7 +57,7 @@ final class AppFunctionalitySnapshotTests: XCTestCase {
 
     func test_internetUnreachable_RevampOn() {
         let view = FormView(
-            viewModel: AppFunctionalityStatusBodyModelKt.AppFunctionalityStatusBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateAppFunctionalityStatusBodyModel(
                 status: .init(cause: InternetUnreachable(
                     lastReachableTime: .companion.DISTANT_PAST,
                     lastElectrumSyncReachableTime: .companion.DISTANT_PAST

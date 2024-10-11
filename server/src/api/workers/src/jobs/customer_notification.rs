@@ -1,6 +1,5 @@
 use std::env;
 
-use account::entities::Touchpoint;
 use account::service::FetchAccountInput;
 use account::service::Service as AccountService;
 use errors::ApiError;
@@ -11,8 +10,8 @@ use notification::{
     DeliveryStatus, NotificationMessage,
 };
 use notification::{EMAIL_QUEUE_ENV_VAR, PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR};
-
 use tracing::{event, instrument, Level};
+use types::account::entities::Touchpoint;
 use types::notification::NotificationChannel;
 
 use super::WorkerState;

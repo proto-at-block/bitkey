@@ -11,10 +11,12 @@ public extension UIImage {
   static let bitkeyDevice3D = UIImage(named: "BitkeyDevice3D", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaised = UIImage(named: "BitkeyDeviceRaised", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaisedSmall = UIImage(named: "BitkeyDeviceRaisedSmall", in: .main, compatibleWith: nil)!
+  static let bitkeyLogo = UIImage(named: "BitkeyLogo", in: .main, compatibleWith: nil)!
   static let buyOwnBitkeyHero = UIImage(named: "BuyOwnBitkeyHero", in: .main, compatibleWith: nil)!
   static let cloudBackupEmergencyAccessKit = UIImage(named: "CloudBackupEmergencyAccessKit", in: .main, compatibleWith: nil)!
   static let cloudBackupMobileKey = UIImage(named: "CloudBackupMobileKey", in: .main, compatibleWith: nil)!
   static let largeIconAdd = UIImage(named: "LargeIconAdd", in: .main, compatibleWith: nil)!
+  static let largeIconMinus = UIImage(named: "LargeIconMinus", in: .main, compatibleWith: nil)!
   static let largeIconCheckFilled = UIImage(named: "LargeIconCheckFilled", in: .main, compatibleWith: nil)!
   static let largeIconCheckStroked = UIImage(named: "LargeIconCheckStroked", in: .main, compatibleWith: nil)!
   static let largeIconEllipsisFilled = UIImage(named: "LargeIconEllipsisFilled", in: .main, compatibleWith: nil)!
@@ -60,6 +62,7 @@ public extension UIImage {
   static let smallIconDigitThree = UIImage(named: "SmallIconDigitThree", in: .main, compatibleWith: nil)!
   static let smallIconDigitTwo = UIImage(named: "SmallIconDigitTwo", in: .main, compatibleWith: nil)!
   static let smallIconDocument = UIImage(named: "SmallIconDocument", in: .main, compatibleWith: nil)!
+  static let smallIconDownload = UIImage(named: "SmallIconDownload", in: .main, compatibleWith: nil)!
   static let smallIconElectrum = UIImage(named: "SmallIconElectrum", in: .main, compatibleWith: nil)!
   static let smallIconEmail = UIImage(named: "SmallIconEmail", in: .main, compatibleWith: nil)!
   static let smallIconExternal = UIImage(named: "SmallIconExternal", in: .main, compatibleWith: nil)!
@@ -78,6 +81,7 @@ public extension UIImage {
   static let smallIconMobileKey = UIImage(named: "SmallIconMobileKey", in: .main, compatibleWith: nil)!
   static let smallIconMobileLimit = UIImage(named: "SmallIconMobileLimit", in: .main, compatibleWith: nil)!
   static let smallIconNotification = UIImage(named: "SmallIconNotification", in: .main, compatibleWith: nil)!
+  static let smallIconPaintBrush = UIImage(named: "SmallIconPaintBrush", in: .main, compatibleWith: nil)!
   static let smallIconPause = UIImage(named: "SmallIconPause", in: .main, compatibleWith: nil)!
   static let smallIconPauseFilled = UIImage(named: "SmallIconPauseFilled", in: .main, compatibleWith: nil)!
   static let smallIconPauseStroked = UIImage(named: "SmallIconPauseStroked", in: .main, compatibleWith: nil)!
@@ -99,6 +103,7 @@ public extension UIImage {
   static let smallIconShieldCheck = UIImage(named: "SmallIconShieldCheck", in: .main, compatibleWith: nil)!
   static let smallIconShieldPerson = UIImage(named: "SmallIconShieldPerson", in: .main, compatibleWith: nil)!
   static let smallIconSpeed = UIImage(named: "SmallIconSpeed", in: .main, compatibleWith: nil)!
+  static let smallIconStar = UIImage(named: "SmallIconStar", in: .main, compatibleWith: nil)!
   static let smallIconSwap = UIImage(named: "SmallIconSwap", in: .main, compatibleWith: nil)!
   static let smallIconSync = UIImage(named: "SmallIconSync", in: .main, compatibleWith: nil)!
   static let smallIconTicket = UIImage(named: "SmallIconTicket", in: .main, compatibleWith: nil)!
@@ -128,10 +133,12 @@ public extension Icon {
         case .bitkeydevice3d: return .bitkeyDevice3D
         case .bitkeydeviceraised: return .bitkeyDeviceRaised
         case .bitkeydeviceraisedsmall: return .bitkeyDeviceRaisedSmall
+        case .bitkeylogo: return .bitkeyLogo
         case .buyownbitkeyhero: return .buyOwnBitkeyHero
         case .cloudbackupemergencyaccesskit: return .cloudBackupEmergencyAccessKit
         case .cloudbackupmobilekey: return .cloudBackupMobileKey
         case .largeiconadd: return .largeIconAdd
+        case .largeiconminus: return .largeIconMinus
         case .largeiconcheckfilled: return .largeIconCheckFilled
         case .largeiconcheckstroked: return .largeIconCheckStroked
         case .largeiconellipsisfilled: return .largeIconEllipsisFilled
@@ -177,6 +184,7 @@ public extension Icon {
         case .smallicondigitthree: return .smallIconDigitThree
         case .smallicondigittwo: return .smallIconDigitTwo
         case .smallicondocument: return .smallIconDocument
+        case .smallicondownload: return .smallIconDownload
         case .smalliconelectrum: return .smallIconElectrum
         case .smalliconemail: return .smallIconEmail
         case .smalliconexternal: return .smallIconExternal
@@ -195,6 +203,7 @@ public extension Icon {
         case .smalliconmobilekey: return .smallIconMobileKey
         case .smalliconmobilelimit: return .smallIconMobileLimit
         case .smalliconnotification: return .smallIconNotification
+        case .smalliconpaintbrush: return .smallIconPaintBrush
         case .smalliconpause: return .smallIconPause
         case .smalliconpausefilled: return .smallIconPauseFilled
         case .smalliconpausestroked: return .smallIconPauseStroked
@@ -216,6 +225,7 @@ public extension Icon {
         case .smalliconshieldcheck: return .smallIconShieldCheck
         case .smalliconshieldperson: return .smallIconShieldPerson
         case .smalliconspeed: return .smallIconSpeed
+        case .smalliconstar: return .smallIconStar
         case .smalliconswap: return .smallIconSwap
         case .smalliconsync: return .smallIconSync
         case .smalliconticket: return .smallIconTicket

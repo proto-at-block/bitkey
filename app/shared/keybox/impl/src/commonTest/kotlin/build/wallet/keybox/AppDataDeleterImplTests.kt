@@ -42,9 +42,9 @@ import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.recovery.RecoveryDaoMock
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
+import build.wallet.relationships.RelationshipsKeysDaoFake
+import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeOk
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -77,9 +77,9 @@ class AppDataDeleterImplTests : FunSpec({
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(turbines::create)
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val cloudBackupDao = CloudBackupDaoFake()
-  val socRecKeysDaoFake = SocRecKeysDaoFake()
+  val relationshipsKeysDao = RelationshipsKeysDaoFake()
   val socRecStartedChallengeDao = SocRecStartedChallengeDaoFake()
-  val socRecService = SocRecServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create)
   val authKeyRotationAttemptMock = AuthKeyRotationAttemptDaoMock(turbines::create)
   val recoveryDaoMock = RecoveryDaoMock(turbines::create)
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderImpl()
@@ -107,8 +107,8 @@ class AppDataDeleterImplTests : FunSpec({
       bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
       appPrivateKeyDao = appPrivateKeyDao,
       cloudBackupDao = cloudBackupDao,
-      socRecKeysDao = socRecKeysDaoFake,
-      socRecService = socRecService,
+      relationshipsKeysDao = relationshipsKeysDao,
+      relationshipsService = relationshipsService,
       socRecStartedChallengeDao = socRecStartedChallengeDao,
       csekDao = CsekDaoFake(),
       authKeyRotationAttemptDao = authKeyRotationAttemptMock,

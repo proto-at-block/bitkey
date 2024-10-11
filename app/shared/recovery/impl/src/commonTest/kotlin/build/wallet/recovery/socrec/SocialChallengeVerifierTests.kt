@@ -1,6 +1,9 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.relationships.DelegatedDecryptionKeyFake
+import build.wallet.relationships.RelationshipsCodeBuilderFake
+import build.wallet.relationships.RelationshipsCryptoFake
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getError
 import io.kotest.core.spec.style.FunSpec
@@ -9,12 +12,12 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class SocialChallengeVerifierTests : FunSpec({
 
-  val socRecCrypto = SocRecCryptoFake()
+  val relationshipsCrypto = RelationshipsCryptoFake()
   val socialChallengeVerifier =
     SocialChallengeVerifierImpl(
       socRecChallengeRepository = SocRecChallengeRepositoryMock(),
-      socRecCrypto = socRecCrypto,
-      socialRecoveryCodeBuilder = SocialRecoveryCodeBuilderFake()
+      relationshipsCrypto = relationshipsCrypto,
+      relationshipsCodeBuilder = RelationshipsCodeBuilderFake()
     )
 
   test("verify challenge with correct code") {

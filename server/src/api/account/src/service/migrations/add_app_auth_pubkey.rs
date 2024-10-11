@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use migration::{Migration, MigrationError};
+use types::account::entities::{Account, FullAccount};
 
-use crate::entities::{Account, FullAccount};
 use crate::service::Service;
 
 pub(crate) struct AddAppAuthPubkey<'a> {

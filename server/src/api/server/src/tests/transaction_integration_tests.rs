@@ -2,8 +2,17 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::tests;
+use crate::tests::lib::{
+    build_sweep_transaction, build_transaction_with_amount,
+    create_default_account_with_predefined_wallet, create_inactive_spending_keyset_for_account,
+    gen_external_wallet_address,
+};
+use crate::tests::mobile_pay_tests::build_mobile_pay_request;
+use crate::tests::requests::axum::TestClient;
+use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
+use account::service::tests::default_electrum_rpc_uris;
 use account::service::FetchAccountInput;
-use account::spend_limit::{Money, SpendingLimit};
 use bdk_utils::bdk::bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey};
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
@@ -27,18 +36,9 @@ use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
 use types::account::bitcoin::Network;
 use types::account::identifiers::{AccountId, KeysetId};
+use types::account::spend_limit::{Money, SpendingLimit};
 use types::currencies::CurrencyCode::USD;
 use ulid::Ulid;
-
-use crate::tests;
-use crate::tests::lib::{
-    build_sweep_transaction, build_transaction_with_amount,
-    create_default_account_with_predefined_wallet, create_inactive_spending_keyset_for_account,
-    default_electrum_rpc_uris, gen_external_wallet_address,
-};
-use crate::tests::mobile_pay_tests::build_mobile_pay_request;
-use crate::tests::requests::axum::TestClient;
-use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
 
 #[derive(Debug)]
 struct SignTransactionTestVector {

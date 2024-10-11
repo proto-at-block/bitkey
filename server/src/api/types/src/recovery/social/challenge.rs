@@ -10,6 +10,7 @@ use std::{
 };
 use time::{serde::rfc3339, OffsetDateTime};
 use urn::Urn;
+use utoipa::ToSchema;
 
 use super::relationship::RecoveryRelationshipId;
 
@@ -63,7 +64,7 @@ pub struct SocialChallengeResponse {
     pub resealed_dek: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct TrustedContactChallengeRequest {
     pub protected_customer_recovery_pake_pubkey: String,
     pub sealed_dek: String,

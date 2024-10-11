@@ -15,26 +15,13 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
-import build.wallet.recovery.socrec.EndorseTrustedContactsService
-import build.wallet.recovery.socrec.SocRecService
-import build.wallet.recovery.socrec.syncAndVerifyRelationships
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import build.wallet.relationships.EndorseTrustedContactsService
+import build.wallet.relationships.RelationshipsService
+import build.wallet.relationships.syncAndVerifyRelationships
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMapEither
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.*
 
 class FullAccountAuthKeyRotationServiceImpl(
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
@@ -42,7 +29,7 @@ class FullAccountAuthKeyRotationServiceImpl(
   private val keyboxDao: KeyboxDao,
   private val accountAuthenticator: AccountAuthenticator,
   private val bestEffortFullAccountCloudBackupUploader: BestEffortFullAccountCloudBackupUploader,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
   private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : FullAccountAuthKeyRotationService {
   private val pendingRotationAttemptChangedSemaphore = MutableSharedFlow<Unit>(
@@ -335,7 +322,7 @@ class FullAccountAuthKeyRotationServiceImpl(
     newAppKeys: AppAuthPublicKeys,
   ): Result<Unit, Error> =
     coroutineBinding {
-      val relationships = socRecService.relationships
+      val relationships = relationshipsService.relationships
         .filterNotNull()
         .first()
       endorseTrustedContactsService.authenticateRegenerateAndEndorse(
@@ -348,7 +335,7 @@ class FullAccountAuthKeyRotationServiceImpl(
         newAppGlobalAuthKeyHwSignature = newAppKeys.appGlobalAuthKeyHwSignature
       ).bind()
 
-      socRecService.syncAndVerifyRelationships(newAccount).bind()
+      relationshipsService.syncAndVerifyRelationships(newAccount).bind()
     }
 
   private suspend fun trySynchronizingCloudBackup(account: FullAccount): Result<Unit, Error> {

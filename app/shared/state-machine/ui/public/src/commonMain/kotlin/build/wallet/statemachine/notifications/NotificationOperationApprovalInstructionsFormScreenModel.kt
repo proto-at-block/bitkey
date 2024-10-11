@@ -18,32 +18,17 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun NotificationOperationApprovalInstructionsFormScreenModel(
   onExit: () -> Unit,
-  operationDescriptiton: String,
+  operationDescription: String,
   onApprove: () -> Unit,
   isApproveButtonLoading: Boolean,
   errorBottomSheetState: ErrorBottomSheetState,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL,
-      onBack = onExit,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onExit)
-        ),
-      header =
-        FormHeaderModel(
-          headline = "Approve this change with your Bitkey device",
-          subline = operationDescriptiton
-        ),
-      primaryButton =
-        BitkeyInteractionButtonModel(
-          text = "Approve",
-          isLoading = isApproveButtonLoading,
-          size = Footer,
-          onClick = StandardClick(onApprove)
-        )
-    ),
+  body = NotificationOperationApprovalInstructionsBodyModel(
+    onExit = onExit,
+    operationDescription = operationDescription,
+    onApprove = onApprove,
+    isApproveButtonLoading = isApproveButtonLoading
+  ),
   presentationStyle = ScreenPresentationStyle.Modal,
   bottomSheetModel =
     when (errorBottomSheetState) {
@@ -70,3 +55,29 @@ fun NotificationOperationApprovalInstructionsFormScreenModel(
         )
     }
 )
+
+private data class NotificationOperationApprovalInstructionsBodyModel(
+  val onExit: () -> Unit,
+  val operationDescription: String,
+  val onApprove: () -> Unit,
+  val isApproveButtonLoading: Boolean,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL,
+    onBack = onExit,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onExit)
+      ),
+    header =
+      FormHeaderModel(
+        headline = "Approve this change with your Bitkey device",
+        subline = operationDescription
+      ),
+    primaryButton =
+      BitkeyInteractionButtonModel(
+        text = "Approve",
+        isLoading = isApproveButtonLoading,
+        size = Footer,
+        onClick = StandardClick(onApprove)
+      )
+  )

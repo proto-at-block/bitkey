@@ -6,8 +6,11 @@ use utoipa::ToSchema;
 use self::identifiers::AccountId;
 
 pub mod bitcoin;
+pub mod entities;
+pub mod errors;
 pub mod identifiers;
 pub mod keys;
+pub mod spend_limit;
 pub mod spending;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]

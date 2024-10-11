@@ -370,21 +370,30 @@ private fun loadingModel(
   context: PartnerEventTrackerScreenIdContext? = null,
   onExit: () -> Unit,
 ) = SheetModel(
-  body =
-    FormBodyModel(
-      id = id,
-      eventTrackerContext = context,
-      onBack = {},
-      toolbar = null,
-      header = null,
-      mainContentList = immutableListOf(Loader),
-      primaryButton = null,
-      renderContext = Sheet
-    ),
+  body = LoadingBodyModel(
+    id = id,
+    context = context,
+    onExit = onExit
+  ),
   onClosed = onExit,
   size = MIN40,
   dragIndicatorVisible = true
 )
+
+private data class LoadingBodyModel(
+  override val id: DepositEventTrackerScreenId,
+  val context: PartnerEventTrackerScreenIdContext? = null,
+  val onExit: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    eventTrackerContext = context,
+    onBack = {},
+    toolbar = null,
+    header = null,
+    mainContentList = immutableListOf(Loader),
+    primaryButton = null,
+    renderContext = Sheet
+  )
 
 /**
  * Describes state of the data used for the Partnerships purchase flow

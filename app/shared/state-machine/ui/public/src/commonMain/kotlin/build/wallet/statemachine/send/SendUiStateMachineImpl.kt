@@ -5,7 +5,6 @@ import build.wallet.availability.NetworkReachability
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
@@ -24,10 +23,7 @@ import build.wallet.platform.permissions.Permission.Camera
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
-import build.wallet.statemachine.send.SendEntryPoint.SendButton
-import build.wallet.statemachine.send.SendEntryPoint.SpeedUp
 import build.wallet.statemachine.send.SendUiState.*
-import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import com.ionspin.kotlin.bignum.integer.toBigInteger
@@ -54,35 +50,8 @@ class SendUiStateMachineImpl(
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: SendUiProps): ScreenModel {
-    var uiState by remember {
-      mutableStateOf(
-        when (val entryPoint = props.entryPoint) {
-          SendButton -> SelectingRecipientUiState(recipientAddress = null)
-          is SpeedUp ->
-            ConfirmingTransferUiState(
-              variant =
-                Variant.SpeedUp(
-                  txid = entryPoint.speedUpTransactionDetails.txid,
-                  oldFee = entryPoint.speedUpTransactionDetails.oldFee,
-                  // For test accounts, we manually choose a fee rate that is twice the previous
-                  // one. This is particularly useful for QA when testing.
-                  newFeeRate =
-                    if (props.account.config.isTestAccount) {
-                      FeeRate(
-                        satsPerVByte = entryPoint.speedUpTransactionDetails.oldFee.feeRate.satsPerVByte * 2
-                      )
-                    } else {
-                      entryPoint.newFeeRate
-                    }
-                ),
-              requiredSigner = SigningFactor.Hardware,
-              recipientAddress = entryPoint.speedUpTransactionDetails.recipientAddress,
-              sendAmount = ExactAmount(entryPoint.speedUpTransactionDetails.sendAmount),
-              spendingLimit = entryPoint.spendingLimit,
-              fees = entryPoint.fees
-            )
-        }
-      )
+    var uiState: SendUiState by remember {
+      mutableStateOf(SelectingRecipientUiState(recipientAddress = null))
     }
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
@@ -155,12 +124,7 @@ class SendUiStateMachineImpl(
           PermissionUiProps(
             permission = Camera,
             onExit = {
-              when (props.entryPoint) {
-                SendButton -> {
-                  uiState = SelectingRecipientUiState(recipientAddress = null)
-                }
-                is SpeedUp -> props.onExit()
-              }
+              uiState = SelectingRecipientUiState(recipientAddress = null)
             },
             onGranted = {
               uiState = ScanningQrCodeUiState
@@ -218,7 +182,7 @@ class SendUiStateMachineImpl(
       is ConfirmingTransferUiState ->
         transferConfirmationUiStateMachine.model(
           props = TransferConfirmationUiProps(
-            transferVariant = state.variant,
+            selectedPriority = state.selectedPriority,
             account = props.account,
             recipientAddress = state.recipientAddress,
             sendAmount = state.sendAmount,
@@ -246,39 +210,30 @@ class SendUiStateMachineImpl(
                 recipientAddress = state.recipientAddress,
                 transferMoney = BitcoinMoney.sats(psbt.amountSats.toBigInteger()),
                 feeBitcoinAmount = psbt.fee,
-                estimatedTransactionPriority = priority,
-                confirmationVariant = state.variant
+                estimatedTransactionPriority = priority
               )
-            }
+            },
+            variant = TransferConfirmationScreenVariant.Regular
           )
         )
 
       is TransferInitiatedUiState ->
         transferInitiatedUiStateMachine.model(
-          props =
-            TransferInitiatedUiProps(
-              recipientAddress = state.recipientAddress,
-              transactionDetails =
-                when (state.confirmationVariant) {
-                  is Variant.Regular -> TransactionDetails.Regular(
-                    transferAmount = state.transferMoney,
-                    feeAmount = state.feeBitcoinAmount,
-                    estimatedTransactionPriority = state.estimatedTransactionPriority
-                  )
-                  is Variant.SpeedUp -> TransactionDetails.SpeedUp(
-                    transferAmount = state.transferMoney,
-                    oldFeeAmount = state.confirmationVariant.oldFee.amount,
-                    feeAmount = state.feeBitcoinAmount
-                  )
-                },
-              exchangeRates = exchangeRates,
-              onBack = {
-                props.onExit()
-              },
-              onDone = {
-                props.onDone()
-              }
-            )
+          props = TransferInitiatedUiProps(
+            recipientAddress = state.recipientAddress,
+            transactionDetails = TransactionDetails.Regular(
+              transferAmount = state.transferMoney,
+              feeAmount = state.feeBitcoinAmount,
+              estimatedTransactionPriority = state.estimatedTransactionPriority
+            ),
+            exchangeRates = exchangeRates,
+            onBack = {
+              props.onExit()
+            },
+            onDone = {
+              props.onDone()
+            }
+          )
         ).asModalFullScreen()
 
       is SelectingTransactionPriorityUiState ->
@@ -302,7 +257,7 @@ class SendUiStateMachineImpl(
               onContinue = { priority, fees ->
                 uiState =
                   ConfirmingTransferUiState(
-                    variant = Variant.Regular(selectedPriority = priority),
+                    selectedPriority = priority,
                     recipientAddress = state.recipientAddress,
                     requiredSigner = state.requiredSigner,
                     spendingLimit = state.spendingLimit,
@@ -358,7 +313,7 @@ private sealed interface SendUiState {
    * Customer is confirming transfer (signing with hardware if needed).
    */
   data class ConfirmingTransferUiState(
-    val variant: Variant,
+    val selectedPriority: EstimatedTransactionPriority,
     val requiredSigner: SigningFactor,
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
@@ -370,7 +325,6 @@ private sealed interface SendUiState {
    * Customer successfully initiated transfer.
    */
   data class TransferInitiatedUiState(
-    val confirmationVariant: Variant,
     val recipientAddress: BitcoinAddress,
     val transferMoney: BitcoinMoney,
     val feeBitcoinAmount: BitcoinMoney,

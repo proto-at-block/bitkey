@@ -1,8 +1,8 @@
+use types::account::entities::Touchpoint;
 use types::consent::Consent;
 
-use crate::{entities::Touchpoint, error::AccountError};
-
 use super::{CompleteOnboardingInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn complete_onboarding(

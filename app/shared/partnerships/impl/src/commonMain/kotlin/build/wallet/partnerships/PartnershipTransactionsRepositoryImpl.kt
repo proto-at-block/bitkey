@@ -64,7 +64,8 @@ class PartnershipTransactionsRepositoryImpl(
       fiatCurrency = null,
       paymentMethod = null,
       created = timestamp,
-      updated = timestamp
+      updated = timestamp,
+      sellWalletAddress = null
     )
 
     return dao.save(transaction).map { transaction }
@@ -117,7 +118,8 @@ class PartnershipTransactionsRepositoryImpl(
         fullAccountId = fullAccountId,
         f8eEnvironment = f8eEnvironment,
         partner = transaction.partnerInfo.partnerId,
-        partnershipTransactionId = transaction.id
+        partnershipTransactionId = transaction.id,
+        transactionType = transaction.type
       ).bind()
 
       transaction.copy(
@@ -128,7 +130,8 @@ class PartnershipTransactionsRepositoryImpl(
         fiatAmount = new.fiatAmount,
         fiatCurrency = new.fiatCurrency,
         paymentMethod = new.paymentMethod,
-        updated = clock.now()
+        updated = clock.now(),
+        sellWalletAddress = new.sellWalletAddress
       ).also { updated ->
         dao.save(updated).bind()
       }

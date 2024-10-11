@@ -14,29 +14,33 @@ class ResettingDeviceSuccessUiStateMachineImpl : ResettingDeviceSuccessUiStateMa
   @Composable
   override fun model(props: ResettingDeviceSuccessProps): ScreenModel {
     return ScreenModel(
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_SUCCESS,
-        onBack = null,
-        onSwipeToDismiss = null,
-        header = null,
-        mainContentList = immutableListOf(
-          FormMainContentModel.Spacer(),
-          FormMainContentModel.Showcase(
-            content = FormMainContentModel.Showcase.Content.VideoContent(BITKEY_RESET),
-            title = "Bitkey device successfully reset",
-            body = LabelModel.StringModel("The device has been reset. You can now set it up as a new device, or safely discard, trade in, or give it away.")
-          ),
-          FormMainContentModel.Spacer()
-        ),
-        primaryButton = ButtonModel(
-          text = "Done",
-          requiresBitkeyInteraction = false,
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Primary,
-          onClick = props.onDone
-        ),
-        toolbar = null
-      )
+      body = ResettingDeviceSuccess(onDone = props.onDone)
     )
   }
 }
+
+private data class ResettingDeviceSuccess(
+  val onDone: () -> Unit,
+) : FormBodyModel(
+    id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_SUCCESS,
+    onBack = null,
+    onSwipeToDismiss = null,
+    header = null,
+    mainContentList = immutableListOf(
+      FormMainContentModel.Spacer(),
+      FormMainContentModel.Showcase(
+        content = FormMainContentModel.Showcase.Content.VideoContent(BITKEY_RESET),
+        title = "Bitkey device successfully reset",
+        body = LabelModel.StringModel("The device has been reset. You can now set it up as a new device, or safely discard, trade in, or give it away.")
+      ),
+      FormMainContentModel.Spacer()
+    ),
+    primaryButton = ButtonModel(
+      text = "Done",
+      requiresBitkeyInteraction = false,
+      size = ButtonModel.Size.Footer,
+      treatment = ButtonModel.Treatment.Primary,
+      onClick = onDone
+    ),
+    toolbar = null
+  )

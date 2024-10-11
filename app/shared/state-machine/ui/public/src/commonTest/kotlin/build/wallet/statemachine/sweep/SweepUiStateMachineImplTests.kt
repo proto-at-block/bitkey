@@ -38,6 +38,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -228,6 +229,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         session(NfcSessionFake(), nfcCommandsMock)
         needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.psbt }
         isHardwareFake shouldBe FullAccountConfigMock.isHardwareFake
+        shouldShowLongRunningOperation.shouldBeTrue()
         onSuccess(hwSignedPsbts)
       }
       addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)

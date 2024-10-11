@@ -1,10 +1,6 @@
 package build.wallet.bitcoin.bdk
 
-import build.wallet.bdk.bindings.BdkBlockchain
-import build.wallet.bdk.bindings.BdkBlockchainFactoryMock
-import build.wallet.bdk.bindings.BdkBlockchainMock
-import build.wallet.bdk.bindings.BdkResult
-import build.wallet.bdk.bindings.someBdkError
+import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.sync.DefaultServerSettingWithPreviousServerMock
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.bitcoin.sync.UserDefinedServerSettingMock
@@ -18,7 +14,8 @@ class BdkBlockchainProviderImplTests : FunSpec({
       blockHeightResult = BdkResult.Ok(1),
       blockHashResult = BdkResult.Ok("123"),
       broadcastResult = BdkResult.Ok(Unit),
-      feeRateResult = BdkResult.Ok(1f)
+      feeRateResult = BdkResult.Ok(1f),
+      getTxResult = BdkResult.Ok(BdkTransactionMock(output = listOf(BdkTxOutMock)))
     )
   val bdkBlockchainFactory = BdkBlockchainFactoryMock(BdkResult.Ok(bdkBlockchain))
   val electrumServerSettingProvider = ElectrumServerSettingProviderMock(turbines::create)

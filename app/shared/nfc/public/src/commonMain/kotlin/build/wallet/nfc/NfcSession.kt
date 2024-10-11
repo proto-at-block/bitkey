@@ -31,11 +31,12 @@ interface NfcSession : AutoCloseable {
     val skipFirmwareTelemetry: Boolean,
     val asyncNfcSigning: Boolean,
     val nfcFlowName: String,
-    onTagConnected: () -> Unit,
+    onTagConnected: (NfcSession?) -> Unit,
     onTagDisconnected: () -> Unit,
   ) {
     val onTagConnectedObservers = mutableListOf(onTagConnected)
-    val onTagConnected: () -> Unit = { onTagConnectedObservers.forEach { it() } }
+    val onTagConnected: (NfcSession?) -> Unit =
+      { session -> onTagConnectedObservers.forEach { it(session) } }
 
     val onTagDisconnectedObservers = mutableListOf(onTagDisconnected)
     val onTagDisconnected: () -> Unit = { onTagDisconnectedObservers.forEach { it() } }

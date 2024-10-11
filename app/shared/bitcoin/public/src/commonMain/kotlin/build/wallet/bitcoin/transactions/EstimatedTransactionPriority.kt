@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import kotlin.time.Duration
 import kotlin.time.DurationUnit.MINUTES
 import kotlin.time.toDuration
@@ -30,24 +31,35 @@ enum class EstimatedTransactionPriority : Comparable<EstimatedTransactionPriorit
   }
 }
 
-/*
+/**
  * Provides a [Duration] based on the variant of [EstimatedTransactionPriority]
  */
 fun EstimatedTransactionPriority.toDuration(): Duration {
   return when (this) {
-    EstimatedTransactionPriority.FASTEST -> 10.toDuration(MINUTES)
-    EstimatedTransactionPriority.THIRTY_MINUTES -> 30.toDuration(MINUTES)
-    EstimatedTransactionPriority.SIXTY_MINUTES -> 60.toDuration(MINUTES)
+    FASTEST -> 10.toDuration(MINUTES)
+    THIRTY_MINUTES -> 30.toDuration(MINUTES)
+    SIXTY_MINUTES -> 60.toDuration(MINUTES)
   }
 }
 
-/*
+/**
  * Provides a [ULong] based on how many target blocks
  */
 fun EstimatedTransactionPriority.targetBlocks(): ULong {
   return when (this) {
-    EstimatedTransactionPriority.FASTEST -> 1UL
-    EstimatedTransactionPriority.THIRTY_MINUTES -> 3UL
-    EstimatedTransactionPriority.SIXTY_MINUTES -> 6UL
+    FASTEST -> 1UL
+    THIRTY_MINUTES -> 3UL
+    SIXTY_MINUTES -> 6UL
+  }
+}
+
+/**
+ * Formats this [EstimatedTransactionPriority] to a human-readable time estimation string.
+ */
+fun EstimatedTransactionPriority.toFormattedString(): String {
+  return when (this) {
+    FASTEST -> "~10 minutes"
+    THIRTY_MINUTES -> "~30 minutes"
+    SIXTY_MINUTES -> "~60 minutes"
   }
 }

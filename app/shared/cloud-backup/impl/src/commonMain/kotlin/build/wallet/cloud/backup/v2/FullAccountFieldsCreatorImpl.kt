@@ -8,12 +8,9 @@ import build.wallet.cloud.backup.appKeys
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.AppAuthPrivateKeyRetrievalError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.AppSpendingPrivateKeyRetrievalError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.KeysInfoEncodingError
-import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError
+import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
 import build.wallet.encrypt.SymmetricKeyEncryptor
-import build.wallet.recovery.socrec.SocRecCrypto
+import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.serialization.json.encodeToStringResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -26,7 +23,7 @@ class FullAccountFieldsCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
-  private val socRecCrypto: SocRecCrypto,
+  private val relationshipsCrypto: RelationshipsCrypto,
 ) : FullAccountFieldsCreator {
   override suspend fun create(
     keybox: Keybox,
@@ -76,14 +73,14 @@ class FullAccountFieldsCreatorImpl(
           .seal(fullCustomerKeysInfoEncoded.encodeUtf8(), csek.key)
 
       val socRecPKMatOutput =
-        socRecCrypto.encryptPrivateKeyMaterial(fullCustomerKeysInfoEncoded.encodeUtf8())
+        relationshipsCrypto.encryptPrivateKeyMaterial(fullCustomerKeysInfoEncoded.encodeUtf8())
           .mapError { FullAccountFieldsCreationError.SocRecEncryptionError(it) }
           .bind()
 
       val socRecRelationshipsMap =
         endorsedTrustedContacts.associate {
           it.relationshipId to
-            socRecCrypto
+            relationshipsCrypto
               .encryptPrivateKeyEncryptionKey(
                 it.identityKey,
                 socRecPKMatOutput.privateKeyEncryptionKey

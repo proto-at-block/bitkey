@@ -171,4 +171,38 @@ class ExchangeRateServiceImplTests : FunSpec({
       exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
     }
   }
+
+  test("remote sync occurs when manually requesting sync") {
+    backgroundScope.launch {
+      exchangeRateService.executeWork()
+    }
+
+    exchangeRateService.exchangeRates.test {
+      awaitItem().shouldBeEmpty()
+
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+      exchangeRateService.requestSync()
+
+      awaitItem().shouldContainExactly(listOf(exchangeRate1))
+    }
+  }
+
+  test("remote sync occurs when entering foreground") {
+    backgroundScope.launch {
+      exchangeRateService.executeWork()
+    }
+
+    appSessionManager.appDidEnterBackground()
+
+    exchangeRateService.exchangeRates.test {
+      awaitItem().shouldBeEmpty()
+
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+      appSessionManager.appDidEnterForeground()
+
+      awaitItem().shouldContainExactly(exchangeRate1)
+    }
+  }
 })

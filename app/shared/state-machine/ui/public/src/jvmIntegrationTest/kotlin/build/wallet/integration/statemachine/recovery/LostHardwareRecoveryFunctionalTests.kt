@@ -17,7 +17,6 @@ import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.*
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.recovery.Recovery.Loading
@@ -47,7 +46,6 @@ import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
-import build.wallet.testing.tags.TestTag.FlakyTest
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
@@ -59,8 +57,6 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
-  tags(FlakyTest)
-
   data class Props(val fullAccountConfig: FullAccountConfig, val originalKeyboxId: String)
 
   class TestingStateMachine(
@@ -110,12 +106,10 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   lateinit var appTester: AppTester
   lateinit var app: ActivityComponentImpl
   lateinit var recoveryStateMachine: TestingStateMachine
-  lateinit var appSpendingWalletProvider: AppSpendingWalletProvider
 
   beforeTest {
     appTester = launchNewApp()
     app = appTester.app
-    appSpendingWalletProvider = appTester.app.appComponent.appSpendingWalletProvider
     appTester.onboardFullAccountWithFakeHardware()
     appTester.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveryStateMachine =
@@ -369,9 +363,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
   test("recover lost hardware - sweep real funds") {
     val account = appTester.getActiveFullAccount()
-    val wallet =
-      appSpendingWalletProvider.getSpendingWallet(account)
-        .getOrThrow()
+    val wallet = appTester.getActiveWallet()
     appTester.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000L))
 
     val props = Props(account.config, account.keybox.localId)
@@ -411,8 +403,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       }
     }
 
-    val activeAccount = appTester.getActiveFullAccount()
-    val activeWallet = appSpendingWalletProvider.getSpendingWallet(activeAccount).getOrThrow()
+    val activeWallet = appTester.getActiveWallet()
     eventually(
       eventuallyConfig {
         duration = 60.seconds
@@ -425,7 +416,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
       // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
     }
-    appTester.returnFundsToTreasury(activeAccount)
+    appTester.returnFundsToTreasury()
   }
 
   test("can Lost App from Cloud recovery then Lost Hardware recovery with funds") {

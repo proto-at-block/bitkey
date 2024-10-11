@@ -22,7 +22,10 @@ fun TransactionItemModel(
   isPending: Boolean,
   onClick: () -> Unit,
 ) = ListItemModel(
-  title = truncatedRecipientAddress,
+  title = when (transactionType) {
+    Incoming, Outgoing -> truncatedRecipientAddress
+    UtxoConsolidation -> "Consolidation"
+  },
   secondaryText = date,
   sideText = amount,
   secondarySideText = amountEquivalent,

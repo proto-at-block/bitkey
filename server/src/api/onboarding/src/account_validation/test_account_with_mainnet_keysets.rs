@@ -3,9 +3,8 @@ use async_trait::async_trait;
 use recovery::repository::RecoveryRepository;
 use types::account::bitcoin::Network;
 
-use crate::routes::Config;
-
 use super::{error::AccountValidationError, AccountValidationRequest, Rule};
+use crate::routes::Config;
 
 pub(crate) struct TestAccountsWithMainnetKeysetsRule;
 

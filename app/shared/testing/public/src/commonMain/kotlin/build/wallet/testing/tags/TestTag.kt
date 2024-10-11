@@ -23,4 +23,9 @@ sealed class TestTag : Tag() {
    * Corresponds to a known flaky test which will be automatically retried if it fails.
    */
   object FlakyTest : TestTag()
+
+  /**
+   * Corresponds to the set of tests that need to be run without concurrency
+   */
+  object IsolatedTest : TestTag()
 }

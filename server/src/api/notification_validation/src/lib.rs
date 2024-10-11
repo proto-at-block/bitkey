@@ -4,6 +4,9 @@ use notification::{
     entities::NotificationCompositeKey,
     payloads::{
         comms_verification::CommsVerificationPayload,
+        inheritance_claim_canceled::InheritanceClaimCanceledPayload,
+        inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload,
+        inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
         payment::{ConfirmedPaymentPayload, PendingPaymentPayload},
         privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
         privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
@@ -14,33 +17,46 @@ use notification::{
         recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
         recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
         recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
+        recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload,
         social_challenge_response_received::SocialChallengeResponseReceivedPayload,
         test_notification::TestNotificationPayload,
     },
     NotificationPayload, NotificationPayloadType,
 };
 use recovery::{entities::RecoveryStatus, repository::RecoveryRepository};
-use repository::privileged_action::PrivilegedActionRepository;
+use repository::{
+    privileged_action::PrivilegedActionRepository,
+    recovery::{inheritance::InheritanceRepository, social::SocialRecoveryRepository},
+};
 use serde_json::Value;
 use time::OffsetDateTime;
-use types::privileged_action::repository::{AuthorizationStrategyRecord, DelayAndNotifyStatus};
+use types::{
+    privileged_action::repository::{AuthorizationStrategyRecord, DelayAndNotifyStatus},
+    recovery::{inheritance::claim::InheritanceClaim, social::relationship::RecoveryRelationship},
+};
 
 mod error;
 
 #[derive(Clone)]
 pub struct NotificationValidationState {
-    recovery_service: RecoveryRepository,
+    recovery_repository: RecoveryRepository,
     privileged_action_repository: PrivilegedActionRepository,
+    inheritance_repository: InheritanceRepository,
+    social_recovery_repository: SocialRecoveryRepository,
 }
 
 impl NotificationValidationState {
     pub fn new(
-        recovery_service: RecoveryRepository,
+        recovery_repository: RecoveryRepository,
         privileged_action_repository: PrivilegedActionRepository,
+        inheritance_repository: InheritanceRepository,
+        social_recovery_repository: SocialRecoveryRepository,
     ) -> Self {
         Self {
-            recovery_service,
+            recovery_repository,
             privileged_action_repository,
+            inheritance_repository,
+            social_recovery_repository,
         }
     }
 }
@@ -116,6 +132,22 @@ pub fn to_validator(
                 .privileged_action_pending_delay_period_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::InheritanceClaimPeriodInitiated => payload
+                .inheritance_claim_period_initiated_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::InheritanceClaimCanceled => payload
+                .inheritance_claim_canceled_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::InheritanceClaimPeriodCompleted => payload
+                .inheritance_claim_period_completed_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::RecoveryRelationshipInvitationPending => payload
+                .recovery_relationship_invitation_pending_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
         };
     Ok(validator)
 }
@@ -129,7 +161,7 @@ impl ValidateNotificationDelivery for RecoveryCompletedDelayPeriodPayload {
     ) -> bool {
         let (account_id, _) = composite_key;
         let recovery_result = state
-            .recovery_service
+            .recovery_repository
             .fetch(account_id, self.initiation_time)
             .await;
 
@@ -149,7 +181,7 @@ impl ValidateNotificationDelivery for RecoveryCanceledDelayPeriodPayload {
     ) -> bool {
         let (account_id, _) = composite_key;
         let recovery_result = state
-            .recovery_service
+            .recovery_repository
             .fetch(account_id, self.initiation_time)
             .await;
 
@@ -170,7 +202,7 @@ impl ValidateNotificationDelivery for RecoveryPendingDelayPeriodPayload {
     ) -> bool {
         let (account_id, _) = composite_key;
         let recovery_result = state
-            .recovery_service
+            .recovery_repository
             .fetch(account_id, self.initiation_time)
             .await;
 
@@ -334,5 +366,80 @@ impl ValidateNotificationDelivery for PrivilegedActionPendingDelayPeriodPayload 
             }
         }
         false
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for InheritanceClaimPeriodInitiatedPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let claim_result = state
+            .inheritance_repository
+            .fetch_inheritance_claim(&self.inheritance_claim_id)
+            .await;
+
+        if let Ok(claim) = claim_result {
+            match claim {
+                InheritanceClaim::Pending(pending_claim) => {
+                    return OffsetDateTime::now_utc() < pending_claim.delay_end_time
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for InheritanceClaimCanceledPayload {
+    async fn validate_delivery(
+        &self,
+        _state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        true
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for InheritanceClaimPeriodCompletedPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let claim_result = state
+            .inheritance_repository
+            .fetch_inheritance_claim(&self.inheritance_claim_id)
+            .await;
+
+        if let Ok(claim) = claim_result {
+            match claim {
+                InheritanceClaim::Pending(pending_claim) => {
+                    return OffsetDateTime::now_utc() >= pending_claim.delay_end_time
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for RecoveryRelationshipInvitationPendingPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let relationship_result = state
+            .social_recovery_repository
+            .fetch_recovery_relationship(&self.recovery_relationship_id)
+            .await;
+
+        matches!(relationship_result, Ok(RecoveryRelationship::Invitation(_)))
     }
 }

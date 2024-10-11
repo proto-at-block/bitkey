@@ -1,12 +1,11 @@
-use types::account::keys::FullAccountAuthKeys;
-use types::account::spending::SpendingKeyset;
-
-use crate::{
+use types::account::{
     entities::{AccountProperties, FullAccount},
-    error::AccountError,
+    keys::FullAccountAuthKeys,
+    spending::SpendingKeyset,
 };
 
 use super::{CreateAccountAndKeysetsInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn create_account_and_keysets(

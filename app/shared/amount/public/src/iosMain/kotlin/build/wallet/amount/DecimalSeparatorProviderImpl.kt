@@ -20,5 +20,5 @@ actual class DecimalSeparatorProviderImpl(
     localeProvider = { NSLocale.autoupdatingCurrentLocale() }
   )
 
-  override fun decimalSeparator(): Char = localeProvider().decimalSeparator.first()
+  actual override fun decimalSeparator(): Char = localeProvider().decimalSeparator.first()
 }

@@ -20,11 +20,26 @@ import build.wallet.ui.theme.systemColorMode
 // These body models are sometimes presented as full screen, but they have toolbars,
 // so they need system bar padding to their toolbar.
 private val bodyModelsRequiringPadding = setOf(
-  FormBodyModel::class,
   AddressQrCodeBodyModel::class,
   TransferAmountBodyModel::class,
   CustomAmountBodyModel::class
 )
+
+private val presentationStylesWithoutPadding = setOf(
+  RootFullScreen,
+  FullScreen,
+  ModalFullScreen
+)
+
+private fun doesScreenRequirePadding(
+  bodyModel: BodyModel,
+  presentationStyle: ScreenPresentationStyle,
+): Boolean {
+  return bodyModel::class in bodyModelsRequiringPadding ||
+    // For all other body models, add / don't add padding based on the presentation style
+    presentationStyle !in presentationStylesWithoutPadding ||
+    FormBodyModel::class.isInstance(bodyModel)
+}
 
 /**
  * Describes style of the system UI components.
@@ -58,9 +73,6 @@ internal fun screenStyle(
 
   return ScreenStyle(
     useDarkSystemBarIcons = actualColorMode == LIGHT,
-    addSystemBarsPadding =
-      bodyModel::class in bodyModelsRequiringPadding ||
-        // For all other body models, add / don't add padding based on the presentation style
-        presentationStyle !in setOf(RootFullScreen, FullScreen, ModalFullScreen)
+    addSystemBarsPadding = doesScreenRequirePadding(bodyModel, presentationStyle)
   )
 }

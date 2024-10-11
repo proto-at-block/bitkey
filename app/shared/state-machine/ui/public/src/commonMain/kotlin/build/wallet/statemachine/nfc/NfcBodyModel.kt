@@ -28,6 +28,8 @@ data class NfcBodyModel(
 
     data class Connected(
       val onCancel: () -> Unit,
+      /** Whether we want to show an indeterminate progress spinner (on Android) during the NFC operation */
+      val showProgressSpinner: Boolean = false,
     ) : Status()
 
     data object Success : Status()

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use strum_macros::Display;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TrustedContactInfo {
@@ -29,7 +30,7 @@ impl TrustedContactInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Display, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Display, Debug, Clone, Copy, PartialEq, Eq, Hash, ToSchema)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TrustedContactRole {
     #[serde(alias = "Beneficiary")]

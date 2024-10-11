@@ -2,11 +2,11 @@
     "module-identifier": "org.bitcoindevkit:bdk-jvm",
     "components": [
         {
-            "version": "0.31.1",
+            "version": "0.31.2",
             "variants": [
                 {
                     "artifacts": {
-                        "bdk-jvm-0.31.1.jar": "a5bebfbd8bdc7a1fb30ebbb0de3e1019d43daefcf5856b117fdead290ce0306c"
+                        "bdk-jvm-0.31.2.jar": "7beffe3b3f1530fb900ee7eb2026c1fc549ef3381e0f51d89bf5e1e285391159"
                     }
                 }
             ],

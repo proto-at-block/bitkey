@@ -3,6 +3,9 @@ package build.wallet.bitcoin.transactions
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bdk.bindings.BdkWallet
+import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker.AllowShrinkingError
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
 
 class FeeBumpAllowShrinkingCheckerFake(
   var shrinkingOutput: BdkScript? = null,
@@ -24,8 +27,8 @@ class FeeBumpAllowShrinkingCheckerFake(
   override suspend fun allowShrinkingOutputScript(
     txid: String,
     bdkWallet: BdkWallet,
-  ): BdkScript? {
-    return shrinkingOutput
+  ): Result<BdkScript?, AllowShrinkingError> {
+    return Ok(shrinkingOutput)
   }
 
   fun reset() {

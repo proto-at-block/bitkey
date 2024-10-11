@@ -17,7 +17,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
 
@@ -94,7 +94,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
         recoveryDao.clearCallResult = Ok(Unit)
 
         val sheet = bottomSheetModel.shouldNotBeNull()
-        val body = sheet.body.shouldBeTypeOf<FormBodyModel>()
+        val body = sheet.body.shouldBeInstanceOf<FormBodyModel>()
         body.header.shouldNotBeNull().headline.shouldBe("We couldn’t clear the recovery")
         body.primaryButton.shouldHaveText("Retry")
         body.primaryButton.click()

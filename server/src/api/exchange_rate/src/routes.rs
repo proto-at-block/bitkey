@@ -3,6 +3,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use errors::ApiError;
 use feature_flags::service::Service as FeatureFlagsService;
+use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -20,8 +21,8 @@ use crate::service::Service as ExchangeRateService;
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub ExchangeRateService, pub FeatureFlagsService);
 
-impl RouteState {
-    pub fn unauthed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route("/api/exchange-rates", get(get_supported_price_data))
             .route(
@@ -31,7 +32,7 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn basic_validation_router(&self) -> Router {
+    fn basic_validation_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/exchange-rates/historical",

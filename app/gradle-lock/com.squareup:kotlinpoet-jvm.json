@@ -12,8 +12,20 @@
             ],
             "dependency-locking-groups": [
                 "SQLDelight-DialectClasspath",
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.18.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinpoet-jvm-1.18.1.jar": "b3ec7ef1c27346d188c113159bcf6477a236b340d3243e524f7c454e3922c564"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

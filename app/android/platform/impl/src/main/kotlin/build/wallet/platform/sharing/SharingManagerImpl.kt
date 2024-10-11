@@ -48,7 +48,7 @@ class SharingManagerImpl(
           MimeType.TEXT_PLAIN -> {
             putExtra(Intent.EXTRA_TEXT, data.utf8())
           }
-          MimeType.PDF -> {
+          MimeType.PDF, MimeType.CSV -> {
             val dataFile = File(activity.filesDir, "$title.${mimeType.ext}").apply {
               writeBytes(data.toByteArray())
             }

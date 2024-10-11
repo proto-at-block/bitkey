@@ -1,0 +1,10 @@
+import kotlinx.datetime.Instant;
+import kotlin.Int;
+
+CREATE TABLE inheritanceDataEntity(
+    rowId INTEGER NOT NULL PRIMARY KEY,
+    lastSyncHash INTEGER AS InheritanceMaterialHash NOT NULL,
+    lastSyncTimestamp INTEGER AS Instant NOT NULL
+);
+
+PRAGMA foreign_key_check;

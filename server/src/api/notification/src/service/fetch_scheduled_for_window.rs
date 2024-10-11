@@ -2,12 +2,11 @@ use errors::{ApiError, RouteError};
 use time::{macros::time, Duration, Time};
 use tracing::instrument;
 
+use super::{FetchScheduledForWindowInput, Service};
 use crate::{
     entities::{ScheduledNotification, EXECUTION_DATE_FORMAT, EXECUTION_TIME_FORMAT},
     DeliveryStatus,
 };
-
-use super::{FetchScheduledForWindowInput, Service};
 
 const WORKER_SHARD_IDENTIFIER: &str = "0";
 const EXECUTION_WINDOW_END_OF_DAY_TIME: Time = time!(23:59:59);

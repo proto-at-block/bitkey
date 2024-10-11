@@ -1,7 +1,8 @@
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, ToSchema)]
 pub struct FullAccountAuthKeys {
     // Keys
     pub app_pubkey: PublicKey,

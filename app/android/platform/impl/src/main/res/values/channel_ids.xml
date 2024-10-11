@@ -2,4 +2,5 @@
   <string name="general_channel_id" translatable="false">general</string>
   <string name="transactions_channel_id" translatable="false">transactions</string>
   <string name="recovery_account_security_channel_id" translatable="false">recovery_account_security</string>
+  <string name="urgent_security_channel_id" translatable="false">urgent_security</string>
 </resources>

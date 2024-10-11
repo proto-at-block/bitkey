@@ -48,7 +48,7 @@ interface BitcoinTransactionFeeEstimator {
     /**
      * There was an error getting the SpendingWallet
      */
-    data object CannotGetSpendingWalletError : FeeEstimationError()
+    data object NoSpendingWalletFoundError : FeeEstimationError()
 
     /**
      * The user is attempting to construct a PSBT where they do not have all the outputs for (including fees).

@@ -11,10 +11,11 @@ import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.withType
-import org.jetbrains.kotlin.gradle.dsl.KotlinCommonOptions
-import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinProjectExtension
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
 /**
  * Contains common Kotlin build configurations.
@@ -31,19 +32,19 @@ internal class KotlinBasePlugin : Plugin<Project> {
     }
 
   private fun Project.configureKotlinCompilerOptions() {
-    tasks.withType<KotlinCompile<*>>().configureEach {
-      kotlinOptions {
+    tasks.withType<KotlinCompilationTask<*>>().configureEach {
+      compilerOptions {
         // expect/actual classes are still in Beta: https://kotlinlang.org/docs/multiplatform-expect-actual.html#expected-and-actual-classes
         // We use expect/actual classes extensively, so let's opt-in to suppress warnings.
-        freeCompilerArgs += "-Xexpect-actual-classes"
+        freeCompilerArgs.add("-Xexpect-actual-classes")
 
         if (project.composeCompilerMetricsEnabled()) {
           project.configureComposeCompilerMetrics(this)
         }
 
         when (this) {
-          is KotlinJvmOptions -> {
-            jvmTarget = libs.versions.jvmTarget.get()
+          is KotlinJvmCompilerOptions -> {
+            jvmTarget.set(JvmTarget.fromTarget(libs.versions.jvmTarget.get()))
           }
         }
       }
@@ -70,18 +71,16 @@ internal class KotlinBasePlugin : Plugin<Project> {
    *
    * https://github.com/androidx/androidx/blob/androidx-main/compose/compiler/design/compiler-metrics.md
    */
-  private fun Project.configureComposeCompilerMetrics(kotlinOptions: KotlinCommonOptions) {
+  private fun Project.configureComposeCompilerMetrics(kotlinOptions: KotlinCommonCompilerOptions) {
     kotlinOptions.apply {
-      freeCompilerArgs = freeCompilerArgs +
-        listOf(
-          "-P",
-          "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=${composeCompilerMetricsDir()}"
-        )
-      freeCompilerArgs = freeCompilerArgs +
-        listOf(
-          "-P",
-          "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=${composeCompilerMetricsDir()}"
-        )
+      freeCompilerArgs.addAll(
+        "-P",
+        "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=${composeCompilerMetricsDir()}"
+      )
+      freeCompilerArgs.addAll(
+        "-P",
+        "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=${composeCompilerMetricsDir()}"
+      )
     }
   }
 

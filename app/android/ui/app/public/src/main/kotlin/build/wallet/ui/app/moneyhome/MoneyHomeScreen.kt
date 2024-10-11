@@ -14,6 +14,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
@@ -222,23 +223,25 @@ fun LiteMoneyHomeScreen(model: LiteMoneyHomeBodyModel) {
 @Composable
 private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
   when (model) {
-    is MoneyHomeButtonsModel.MoneyMovementButtonsModel ->
+    is MoneyHomeButtonsModel.MoneyMovementButtonsModel -> {
+      val buttonCount = model.buttons.size
+      val spacing = if (buttonCount > 3) 20.dp else 40.dp
+
       CircularActions(
-        modifier =
-          Modifier
-            .fillMaxWidth()
-            .padding(top = 16.dp)
-            .padding(horizontal = 20.dp),
-        buttonContentsList =
-          ButtonContentsList(
-            buttonContents =
-              model.buttons.map {
-                {
-                  IconButton(model = it)
-                }
-              }
-          )
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(top = 16.dp)
+          .padding(horizontal = 20.dp),
+        buttonContentsList = ButtonContentsList(
+          buttonContents = model.buttons.map {
+            {
+              IconButton(model = it)
+            }
+          }
+        ),
+        interButtonSpacing = spacing
       )
+    }
 
     is MoneyHomeButtonsModel.SingleButtonModel ->
       Button(
@@ -256,11 +259,12 @@ private fun MoneyHomeButtons(model: MoneyHomeButtonsModel) {
 private fun CircularActions(
   modifier: Modifier = Modifier,
   buttonContentsList: ButtonContentsList,
+  interButtonSpacing: Dp = 40.dp, // 20.dp of spacing on either side of each button
 ) {
   RowOfButtons(
     modifier = modifier,
     buttonContents = buttonContentsList,
-    interButtonSpacing = 40.dp // 20.dp of spacing on either side of each button
+    interButtonSpacing = interButtonSpacing
   )
 }
 
@@ -293,6 +297,7 @@ private fun Transactions(
 internal fun MoneyHomeScreenFull(
   hideBalance: Boolean = false,
   largeBalance: Boolean = false,
+  showSellButton: Boolean = false,
 ) {
   PreviewWalletTheme {
     MoneyHomeScreen(
@@ -364,6 +369,19 @@ internal fun MoneyHomeScreenFull(
           coachmark = null,
           buttonsModel =
             MoneyHomeButtonsModel.MoneyMovementButtonsModel(
+              addButton =
+                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+                  enabled = false,
+                  onClick = {}
+                ),
+              sellButton = if (showSellButton) {
+                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+                  enabled = false,
+                  onClick = {}
+                )
+              } else {
+                null
+              },
               sendButton =
                 MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
                   enabled = true,
@@ -372,11 +390,6 @@ internal fun MoneyHomeScreenFull(
               receiveButton =
                 MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
                   enabled = true,
-                  onClick = {}
-                ),
-              addButton =
-                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-                  enabled = false,
                   onClick = {}
                 )
             ),

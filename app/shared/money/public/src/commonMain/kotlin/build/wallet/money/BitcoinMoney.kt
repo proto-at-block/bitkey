@@ -48,6 +48,8 @@ data class BitcoinMoney(
     fun sats(amount: Long) = sats(amount = amount.toBigInteger())
 
     fun sats(amount: Int) = sats(amount = amount.toBigInteger())
+
+    fun sats(amount: ULong) = sats(amount = amount.toBigInteger())
   }
 }
 

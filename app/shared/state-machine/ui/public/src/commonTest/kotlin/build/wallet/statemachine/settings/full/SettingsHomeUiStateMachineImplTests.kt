@@ -27,8 +27,8 @@ import build.wallet.statemachine.export.ExportToolsUiProps
 import build.wallet.statemachine.export.ExportToolsUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
-import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.money.currency.AppearancePreferenceProps
+import build.wallet.statemachine.money.currency.AppearancePreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
@@ -87,8 +87,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<NotificationPreferencesProps>("notifications-preferences") {},
       recoveryChannelSettingsUiStateMachine = object : RecoveryChannelSettingsUiStateMachine,
         ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {},
-      currencyPreferenceUiStateMachine = object : CurrencyPreferenceUiStateMachine,
-        ScreenStateMachineMock<CurrencyPreferenceProps>("currency-preference") {},
+      appearancePreferenceUiStateMachine = object : AppearancePreferenceUiStateMachine,
+        ScreenStateMachineMock<AppearancePreferenceProps>("currency-preference") {},
       customElectrumServerSettingUiStateMachine = object :
         CustomElectrumServerSettingUiStateMachine,
         ScreenStateMachineMock<CustomElectrumServerProps>("custom-electrum-server") {},
@@ -146,7 +146,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
             setOf(
               SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
               SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
-              SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
+              SettingsListUiProps.SettingsListRow.AppearancePreference::class,
               SettingsListUiProps.SettingsListRow.HelpCenter::class,
               SettingsListUiProps.SettingsListRow.MobilePay::class,
               SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
@@ -172,7 +172,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
             setOf(
               SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
               SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
-              SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
+              SettingsListUiProps.SettingsListRow.AppearancePreference::class,
               SettingsListUiProps.SettingsListRow.HelpCenter::class,
               SettingsListUiProps.SettingsListRow.MobilePay::class,
               SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
@@ -232,10 +232,10 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   test("open and close currency preference") {
     stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.CurrencyPreference }
+        supportedRows.first { it is SettingsListUiProps.SettingsListRow.AppearancePreference }
           .onClick()
       }
-      awaitScreenWithBodyModelMock<CurrencyPreferenceProps> {
+      awaitScreenWithBodyModelMock<AppearancePreferenceProps> {
         onBack.shouldNotBeNull().invoke()
       }
       awaitScreenWithBodyModelMock<SettingsListUiProps>()

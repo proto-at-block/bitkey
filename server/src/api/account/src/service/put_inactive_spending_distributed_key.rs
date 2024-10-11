@@ -1,10 +1,11 @@
-use crate::{entities::SoftwareAccount, error::AccountError};
 use types::account::{
+    entities::SoftwareAccount,
     identifiers::KeyDefinitionId,
     spending::{SpendingDistributedKey, SpendingKeyDefinition},
 };
 
 use super::{FetchAccountInput, PutInactiveSpendingDistributedKeyInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn put_inactive_spending_distributed_key(

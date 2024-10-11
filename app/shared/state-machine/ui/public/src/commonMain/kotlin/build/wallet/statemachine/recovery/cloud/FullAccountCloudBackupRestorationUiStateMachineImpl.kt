@@ -10,11 +10,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
-import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthTokenDao
-import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.FullAccountAuthKeyRotationService
-import build.wallet.auth.logAuthFailure
+import build.wallet.auth.*
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -42,39 +38,21 @@ import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecChallengeRepository
-import build.wallet.recovery.socrec.SocRecService
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import build.wallet.recovery.socrec.toActions
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.relationships.RelationshipsService
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.CloudBackupFoundUiState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.CompletingCloudRecoveryUiState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.RecoveryAuthenticationState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.RestoringFromBackupFailureUiState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.RestoringFromBackupUiState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.SocRecChallengeState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.SocRecRestorationFailedState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.SocRecRestorationState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.SocialRecoveryExplanationState
-import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.UnsealingCsek
+import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
 import build.wallet.toByteString
 import build.wallet.toUByteList
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -97,7 +75,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val recoveryChallengeStateMachine: RecoveryChallengeUiStateMachine,
   private val recoverySyncer: RecoverySyncer,
   private val socRecChallengeRepository: SocRecChallengeRepository,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuidGenerator: UuidGenerator,
@@ -439,7 +417,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
       // Attempt to sync social relationships before completing the recovery to ensure that
       // the background refresh doesn't delete existing TCs. But don't bind any failures.
-      socRecService.syncAndVerifyRelationships(
+      relationshipsService.syncAndVerifyRelationships(
         accountId = accountId,
         f8eEnvironment = props.debugOptions.f8eEnvironment,
         appAuthKey = accountRestoration.activeAppKeyBundle.authKey,
@@ -511,7 +489,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         appAuthPublicKey = state.backupFeatures.appRecoveryAuthKeypair.publicKey,
         tokenScope = AuthTokenScope.Recovery
       ).flatMap { authData ->
-        socRecService
+        relationshipsService
           .getRelationshipsWithoutSyncing(
             accountId = FullAccountId(authData.accountId),
             f8eEnvironment = state.f8eEnvironment

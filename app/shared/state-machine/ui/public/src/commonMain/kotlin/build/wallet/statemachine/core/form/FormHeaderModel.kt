@@ -23,6 +23,7 @@ data class FormHeaderModel(
   @Redacted val sublineModel: LabelModel? = null,
   val sublineTreatment: SublineTreatment = REGULAR,
   val alignment: Alignment = LEADING,
+  val customContent: CustomContent? = null,
 ) {
   constructor(
     headline: String,
@@ -30,12 +31,14 @@ data class FormHeaderModel(
     iconModel: IconModel?,
     sublineTreatment: SublineTreatment = REGULAR,
     alignment: Alignment = LEADING,
+    customContent: CustomContent? = null,
   ) : this(
     iconModel = iconModel,
     headline = headline,
     sublineModel = subline?.let { StringModel(it) },
     sublineTreatment = sublineTreatment,
-    alignment = alignment
+    alignment = alignment,
+    customContent = customContent
   )
 
   constructor(
@@ -87,5 +90,17 @@ data class FormHeaderModel(
     REGULAR,
     SMALL,
     MONO,
+  }
+
+  sealed class CustomContent {
+    data class PartnershipTransferAnimation(
+      val bitkeyIcon: IconModel = IconModel(
+        icon = Icon.BitkeyLogo,
+        iconSize = IconSize.Avatar,
+        iconTint = IconTint.Foreground,
+        iconOpacity = null
+      ),
+      val partnerIcon: IconModel,
+    ) : CustomContent()
   }
 }

@@ -1,17 +1,14 @@
-use account::entities::FullAccount;
-
 use http::StatusCode;
 use onboarding::routes::RotateSpendingKeysetRequest;
-
 use time::OffsetDateTime;
+use types::account::entities::FullAccount;
 
+use super::lib::create_default_account_with_predefined_wallet;
+use super::TestContext;
 use crate::tests::gen_services;
 use crate::tests::lib::create_inactive_spending_keyset_for_account;
 use crate::tests::requests::axum::TestClient;
 use crate::Bootstrap;
-
-use super::lib::create_default_account_with_predefined_wallet;
-use super::TestContext;
 
 #[tokio::test]
 async fn test_get_account_descriptors_single() {

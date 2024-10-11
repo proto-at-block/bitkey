@@ -24,10 +24,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.core.form.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceEventTrackerScreenId
@@ -226,7 +223,24 @@ class ResettingDeviceIntroUiStateMachineImpl(
     onResetDevice: () -> Unit,
     bottomSheet: SheetModel? = null,
   ): ScreenModel {
-    val resettingDeviceModel = FormBodyModel(
+    val resettingDeviceModel = ResettingDeviceIntroBodyModel(
+      presentedModally = presentedModally,
+      onBack = onBack,
+      onResetDevice = onResetDevice
+    )
+
+    return ScreenModel(
+      body = resettingDeviceModel,
+      bottomSheetModel = bottomSheet,
+      presentationStyle = ScreenPresentationStyle.Root
+    )
+  }
+
+  private data class ResettingDeviceIntroBodyModel(
+    val presentedModally: Boolean,
+    override val onBack: () -> Unit,
+    val onResetDevice: () -> Unit,
+  ) : FormBodyModel(
       id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_INTRO,
       onBack = null,
       toolbar = ToolbarModel(
@@ -279,13 +293,6 @@ class ResettingDeviceIntroUiStateMachineImpl(
       )
     )
 
-    return ScreenModel(
-      body = resettingDeviceModel,
-      bottomSheetModel = bottomSheet,
-      presentationStyle = ScreenPresentationStyle.Root
-    )
-  }
-
   @Composable
   private fun ScanToContinueSheet(
     onScanToContinue: () -> Unit,
@@ -294,31 +301,39 @@ class ResettingDeviceIntroUiStateMachineImpl(
     return SheetModel(
       size = SheetSize.DEFAULT,
       onClosed = onClose,
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_SCAN_SHEET,
-        onBack = onClose,
-        toolbar = null,
-        header = FormHeaderModel(
-          headline = "Scan your Bitkey device",
-          subline = "This will not reset the device."
-        ),
-        primaryButton = ButtonModel(
-          text = "Scan to continue",
-          requiresBitkeyInteraction = true,
-          onClick = onScanToContinue,
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Primary
-        ),
-        secondaryButton = ButtonModel(
-          text = "Cancel",
-          treatment = ButtonModel.Treatment.Secondary,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick(onClose)
-        ),
-        renderContext = RenderContext.Sheet
+      body = ScanToContinueSheetModel(
+        onScanToContinue = onScanToContinue,
+        onClose = onClose
       )
     )
   }
+
+  private data class ScanToContinueSheetModel(
+    val onClose: () -> Unit,
+    val onScanToContinue: () -> Unit,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_SCAN_SHEET,
+      onBack = onClose,
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = "Scan your Bitkey device",
+        subline = "This will not reset the device."
+      ),
+      primaryButton = ButtonModel(
+        text = "Scan to continue",
+        requiresBitkeyInteraction = true,
+        onClick = onScanToContinue,
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Primary
+      ),
+      secondaryButton = ButtonModel(
+        text = "Cancel",
+        treatment = ButtonModel.Treatment.Secondary,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onClose)
+      ),
+      renderContext = RenderContext.Sheet
+    )
 
   @Composable
   private fun InitialDeviceTapModel(
@@ -398,63 +413,79 @@ class ResettingDeviceIntroUiStateMachineImpl(
     return SheetModel(
       size = SheetSize.DEFAULT,
       onClosed = onCancel,
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_TRANSFER_FUNDS,
-        onBack = onCancel,
-        toolbar = null,
-        header = FormHeaderModel(
-          headline = "Transfer funds before you reset the device",
-          subline = when (val limit = spendingLimit) {
-            null -> "Once reset, you won’t be able to transfer funds above your mobile limit."
-            else ->
-              "Once reset, you won’t be able to transfer funds above ${
-                moneyDisplayFormatter.format(
-                  limit.amount
-                )
-              } mobile limit."
-          }
-        ),
-        mainContentList = immutableListOf(
-          FormMainContentModel.ListGroup(
-            listGroupModel = ListGroupModel(
-              header = "Your funds",
-              headerTreatment = ListGroupModel.HeaderTreatment.PRIMARY,
-              items = immutableListOf(
-                ListItemModel(
-                  title = when (val fiatBal = fiatBalance) {
-                    null -> moneyDisplayFormatter.format(balance.total)
-                    else -> moneyDisplayFormatter.format(fiatBal)
-                  },
-                  titleAlignment = ListItemTitleAlignment.CENTER,
-                  treatment = ListItemTreatment.SECONDARY_DISPLAY,
-                  secondaryText = if (fiatBalance != null) {
-                    moneyDisplayFormatter.format(balance.total)
-                  } else {
-                    ""
-                  }
-                )
-              ),
-              style = ListGroupStyle.CARD_GROUP
-            )
-          )
-        ),
-        primaryButton = ButtonModel(
-          text = "Transfer funds",
-          requiresBitkeyInteraction = false,
-          onClick = onTransferFunds,
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Primary
-        ),
-        secondaryButton = ButtonModel(
-          text = "Cancel",
-          treatment = ButtonModel.Treatment.Secondary,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick(onCancel)
-        ),
-        renderContext = RenderContext.Sheet
+      body = TransferFundsBeforeResetSheetBodyModel(
+        balance = balance,
+        onTransferFunds = onTransferFunds,
+        onCancel = onCancel,
+        spendingLimit = spendingLimit,
+        fiatBalance = fiatBalance,
+        moneyDisplayFormatter = moneyDisplayFormatter
       )
     )
   }
+
+  private data class TransferFundsBeforeResetSheetBodyModel(
+    val balance: BitcoinBalance,
+    val fiatBalance: FiatMoney?,
+    val spendingLimit: SpendingLimit?,
+    val onTransferFunds: () -> Unit,
+    val onCancel: () -> Unit,
+    val moneyDisplayFormatter: MoneyDisplayFormatter,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_TRANSFER_FUNDS,
+      onBack = onCancel,
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = "Transfer funds before you reset the device",
+        subline = when (val limit = spendingLimit) {
+          null -> "Once reset, you won’t be able to transfer funds above your mobile limit."
+          else ->
+            "Once reset, you won’t be able to transfer funds above ${
+              moneyDisplayFormatter.format(
+                limit.amount
+              )
+            } mobile limit."
+        }
+      ),
+      mainContentList = immutableListOf(
+        FormMainContentModel.ListGroup(
+          listGroupModel = ListGroupModel(
+            header = "Your funds",
+            headerTreatment = ListGroupModel.HeaderTreatment.PRIMARY,
+            items = immutableListOf(
+              ListItemModel(
+                title = when (val fiatBal = fiatBalance) {
+                  null -> moneyDisplayFormatter.format(balance.total)
+                  else -> moneyDisplayFormatter.format(fiatBal)
+                },
+                titleAlignment = ListItemTitleAlignment.CENTER,
+                treatment = ListItemTreatment.SECONDARY_DISPLAY,
+                secondaryText = if (fiatBalance != null) {
+                  moneyDisplayFormatter.format(balance.total)
+                } else {
+                  ""
+                }
+              )
+            ),
+            style = ListGroupStyle.CARD_GROUP
+          )
+        )
+      ),
+      primaryButton = ButtonModel(
+        text = "Transfer funds",
+        requiresBitkeyInteraction = false,
+        onClick = onTransferFunds,
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Primary
+      ),
+      secondaryButton = ButtonModel(
+        text = "Cancel",
+        treatment = ButtonModel.Treatment.Secondary,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onCancel)
+      ),
+      renderContext = RenderContext.Sheet
+    )
 
   @Composable
   private fun SpendableBalanceCheckErrorModel(
@@ -462,33 +493,41 @@ class ResettingDeviceIntroUiStateMachineImpl(
     onCancel: () -> Unit,
   ): ScreenModel {
     return ScreenModel(
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_BALANCE_CHECK_ERROR,
-        onBack = onCancel,
-        toolbar = ToolbarModel(
-          leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onCancel)
-        ),
-        header = FormHeaderModel(
-          icon = Icon.LargeIconWarningFilled,
-          headline = "We’re having trouble loading your device details",
-          subline = "You can continue to reset your device or try again."
-        ),
-        primaryButton = ButtonModel(
-          text = "Try again",
-          onClick = StandardClick(onRetry),
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Primary
-        ),
-        secondaryButton = ButtonModel(
-          text = "Reset device",
-          onClick = StandardClick(onCancel),
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Secondary
-        )
+      body = SpendableBalanceCheckErrorBodyModel(
+        onRetry = onRetry,
+        onCancel = onCancel
       ),
       presentationStyle = ScreenPresentationStyle.ModalFullScreen
     )
   }
+
+  private data class SpendableBalanceCheckErrorBodyModel(
+    val onRetry: () -> Unit,
+    val onCancel: () -> Unit,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_BALANCE_CHECK_ERROR,
+      onBack = onCancel,
+      toolbar = ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onCancel)
+      ),
+      header = FormHeaderModel(
+        icon = Icon.LargeIconWarningFilled,
+        headline = "We’re having trouble loading your device details",
+        subline = "You can continue to reset your device or try again."
+      ),
+      primaryButton = ButtonModel(
+        text = "Try again",
+        onClick = StandardClick(onRetry),
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Primary
+      ),
+      secondaryButton = ButtonModel(
+        text = "Reset device",
+        onClick = StandardClick(onCancel),
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Secondary
+      )
+    )
 
   @Composable
   private fun UnpairedDeviceWarningSheet(
@@ -505,31 +544,41 @@ class ResettingDeviceIntroUiStateMachineImpl(
     return SheetModel(
       size = SheetSize.DEFAULT,
       onClosed = onCancel,
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
-        onBack = onCancel,
-        toolbar = null,
-        header = FormHeaderModel(
-          headline = "This Bitkey device isn’t paired to this app",
-          subline = subline
-        ),
-        primaryButton = ButtonModel(
-          text = "Reset device",
-          requiresBitkeyInteraction = false,
-          onClick = onResetDevice,
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.PrimaryDanger
-        ),
-        secondaryButton = ButtonModel(
-          text = "Cancel",
-          treatment = ButtonModel.Treatment.Secondary,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick(onCancel)
-        ),
-        renderContext = RenderContext.Sheet
+      body = UnpairedDeviceWarningSheetBodyModel(
+        subline = subline,
+        onResetDevice = onResetDevice,
+        onCancel = onCancel
       )
     )
   }
+
+  private data class UnpairedDeviceWarningSheetBodyModel(
+    val subline: String,
+    val onResetDevice: () -> Unit,
+    val onCancel: () -> Unit,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
+      onBack = onCancel,
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = "This Bitkey device isn’t paired to this app",
+        subline = subline
+      ),
+      primaryButton = ButtonModel(
+        text = "Reset device",
+        requiresBitkeyInteraction = false,
+        onClick = onResetDevice,
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.PrimaryDanger
+      ),
+      secondaryButton = ButtonModel(
+        text = "Cancel",
+        treatment = ButtonModel.Treatment.Secondary,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onCancel)
+      ),
+      renderContext = RenderContext.Sheet
+    )
 
   @Suppress("TooGenericExceptionCaught")
   private suspend fun isDeviceActive(

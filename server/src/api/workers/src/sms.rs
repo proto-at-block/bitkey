@@ -1,8 +1,8 @@
-use account::entities::Touchpoint;
 use isocountry::CountryCode;
 use notification::clients::twilio::{TwilioClient, TwilioMode};
 use notification::sms::SmsPayload;
 use tracing::instrument;
+use types::account::entities::Touchpoint;
 
 use crate::error::WorkerError;
 

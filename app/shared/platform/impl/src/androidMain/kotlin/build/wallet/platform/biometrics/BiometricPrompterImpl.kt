@@ -2,6 +2,7 @@ package build.wallet.platform.biometrics
 
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -18,7 +19,7 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
   }
 
   override fun biometricsAvailability(): BiometricsResult<Boolean> {
-    return when (biometricManager.canAuthenticate(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)) {
+    return when (biometricManager.canAuthenticate(BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL)) {
       BiometricManager.BIOMETRIC_SUCCESS -> BiometricsResult.Ok(true)
       BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> BiometricsResult.Err(BiometricError.NoHardware())
       BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> BiometricsResult.Err(BiometricError.HardwareUnavailable())
@@ -58,7 +59,7 @@ class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricP
         .setTitle("Biometric login for Bitkey")
         .setSubtitle("Log in using your biometric credential")
         .setConfirmationRequired(false)
-        .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+        .setAllowedAuthenticators(BIOMETRIC_STRONG or BIOMETRIC_WEAK or DEVICE_CREDENTIAL)
         .build()
 
       prompt.authenticate(promptInfo)

@@ -100,7 +100,7 @@ class MobilePayBalanceF8eClientImpl(
 
 @Serializable
 private data class MoneyDTO(
-  val amount: Int,
+  val amount: ULong,
   @SerialName("currency_code")
   val currencyCode: String,
 )

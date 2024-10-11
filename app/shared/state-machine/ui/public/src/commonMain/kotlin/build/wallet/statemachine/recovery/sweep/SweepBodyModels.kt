@@ -91,33 +91,42 @@ fun sweepInactiveHelpModel(
   onBack: () -> Unit,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onBack,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onBack)
-        ),
-      header =
-        FormHeaderModel(
-          headline = "Why did this happen?",
-          subline = "When you recovered your Bitkey, your wallet address was updated. This deposit was sent to the old address."
-        ),
-      mainContentList = immutableListOf(
-        FormMainContentModel.Explainer(
-          items = walletUpdateExplainers
-        )
-      ),
-      primaryButton = ButtonModel(
-        text = "Learn more",
-        treatment = ButtonModel.Treatment.Secondary,
-        leadingIcon = Icon.SmallIconArrowUpRight,
-        onClick = StandardClick { onLearnMore() },
-        size = Footer
-      )
-    )
+  body = SweepInactiveHelpBodyModel(
+    id = id,
+    onBack = onBack,
+    onLearnMore = onLearnMore
+  )
 )
+
+private data class SweepInactiveHelpBodyModel(
+  override val id: EventTrackerScreenId?,
+  val onLearnMore: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onBack)
+      ),
+    header =
+      FormHeaderModel(
+        headline = "Why did this happen?",
+        subline = "When you recovered your Bitkey, your wallet address was updated. This deposit was sent to the old address."
+      ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.Explainer(
+        items = walletUpdateExplainers
+      )
+    ),
+    primaryButton = ButtonModel(
+      text = "Learn more",
+      treatment = ButtonModel.Treatment.Secondary,
+      leadingIcon = Icon.SmallIconArrowUpRight,
+      onClick = StandardClick { onLearnMore() },
+      size = Footer
+    )
+  )
 
 fun sweepFundsPrompt(
   id: EventTrackerScreenId?,
@@ -137,96 +146,115 @@ fun sweepFundsPrompt(
     onClosed = onCloseNetworkFeesInfo
   ).takeIf { showNetworkFeesInfoSheet },
   presentationStyle = presentationStyle,
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onBack,
-      toolbar = ToolbarModel(
-        leadingAccessory = when (onBack) {
-          null -> null
-          else -> BackAccessory(onClick = onBack)
-        },
-        trailingAccessory = ToolbarAccessoryModel.IconAccessory(
-          model = IconButtonModel(
-            iconModel = IconModel(
-              icon = SmallIconQuestionNoOutline,
-              iconSize = Accessory,
-              iconBackgroundType = Circle(circleSize = Regular)
-            ),
-            onClick = StandardClick { onHelpClick() }
-          )
-        ).takeIf { recoveredFactor == null }
-      ),
-      header =
-        FormHeaderModel(
+  body = SweepFundsPromptBodyModel(
+    id = id,
+    recoveredFactor = recoveredFactor,
+    transferAmount = transferAmount,
+    fee = fee,
+    onShowNetworkFeesInfo = onShowNetworkFeesInfo,
+    onBack = onBack,
+    onHelpClick = onHelpClick,
+    onSubmit = onSubmit
+  )
+)
+
+private data class SweepFundsPromptBodyModel(
+  override val id: EventTrackerScreenId?,
+  val recoveredFactor: PhysicalFactor?,
+  val transferAmount: MoneyAmountModel,
+  val fee: MoneyAmountModel,
+  val onShowNetworkFeesInfo: () -> Unit,
+  override val onBack: (() -> Unit)?,
+  val onHelpClick: () -> Unit,
+  val onSubmit: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar = ToolbarModel(
+      leadingAccessory = when (onBack) {
+        null -> null
+        else -> BackAccessory(onClick = onBack)
+      },
+      trailingAccessory = ToolbarAccessoryModel.IconAccessory(
+        model = IconButtonModel(
           iconModel = IconModel(
-            icon = when (recoveredFactor) {
-              null -> LargeIconWarningFilled
-              else -> LargeIconCheckFilled
-            },
-            iconSize = IconSize.Avatar,
-            iconTint = when (recoveredFactor) {
-              null -> IconTint.On30
-              else -> IconTint.Primary
-            }
+            icon = SmallIconQuestionNoOutline,
+            iconSize = Accessory,
+            iconBackgroundType = Circle(circleSize = Regular)
           ),
-          headline = when (recoveredFactor) {
-            App, Hardware -> "Finalize recovery"
-            null -> "Transfer funds to active wallet"
+          onClick = StandardClick { onHelpClick() }
+        )
+      ).takeIf { recoveredFactor == null }
+    ),
+    header =
+      FormHeaderModel(
+        iconModel = IconModel(
+          icon = when (recoveredFactor) {
+            null -> LargeIconWarningFilled
+            else -> LargeIconCheckFilled
           },
-          subline = when (recoveredFactor) {
-            App, Hardware -> null
-            null -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+          iconSize = IconSize.Avatar,
+          iconTint = when (recoveredFactor) {
+            null -> IconTint.On30
+            else -> IconTint.Primary
           }
         ),
-      mainContentList = immutableListOf(
-        FormMainContentModel.DataList(
-          items = immutableListOf(
-            FormMainContentModel.DataList.Data(
-              title = "Sent From",
-              sideText = "Old wallet"
-            )
-          )
-        ),
-        FormMainContentModel.DataList(
-          items = immutableListOf(
-            FormMainContentModel.DataList.Data(
-              title = "Amount to Transfer",
-              sideText = transferAmount.secondaryAmount
-            ),
-            FormMainContentModel.DataList.Data(
-              title = "Network Fees",
-              onTitle = onShowNetworkFeesInfo,
-              titleIcon =
-                IconModel(
-                  icon = Icon.SmallIconInformationFilled,
-                  iconSize = IconSize.XSmall,
-                  iconTint = IconTint.On30
-                ),
-              sideText = fee.secondaryAmount
-            )
-          ),
-          total = FormMainContentModel.DataList.Data(
-            title = "Total",
-            sideText = transferAmount.secondaryAmount,
-            secondarySideText = transferAmount.primaryAmount
+        headline = when (recoveredFactor) {
+          App, Hardware -> "Finalize recovery"
+          null -> "Transfer funds to active wallet"
+        },
+        subline = when (recoveredFactor) {
+          App, Hardware -> null
+          null -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+        }
+      ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.DataList(
+        items = immutableListOf(
+          FormMainContentModel.DataList.Data(
+            title = "Sent From",
+            sideText = "Old wallet"
           )
         )
       ),
-      primaryButton =
-        ButtonModel(
-          text = when (recoveredFactor) {
-            App, Hardware -> "Complete Recovery"
-            null -> "Confirm Transfer"
-          },
-          requiresBitkeyInteraction = recoveredFactor == App,
-          treatment = Primary,
-          onClick = onSubmit,
-          size = Footer
+      FormMainContentModel.DataList(
+        items = immutableListOf(
+          FormMainContentModel.DataList.Data(
+            title = "Amount to Transfer",
+            sideText = transferAmount.secondaryAmount
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Network Fees",
+            onTitle = onShowNetworkFeesInfo,
+            titleIcon =
+              IconModel(
+                icon = Icon.SmallIconInformationFilled,
+                iconSize = IconSize.XSmall,
+                iconTint = IconTint.On30
+              ),
+            sideText = fee.secondaryAmount
+          )
         ),
-      eventTrackerShouldTrack = false
-    )
-)
+        total = FormMainContentModel.DataList.Data(
+          title = "Total",
+          sideText = transferAmount.secondaryAmount,
+          secondarySideText = transferAmount.primaryAmount
+        )
+      )
+    ),
+    primaryButton =
+      ButtonModel(
+        text = when (recoveredFactor) {
+          App, Hardware -> "Complete Recovery"
+          null -> "Confirm Transfer"
+        },
+        requiresBitkeyInteraction = recoveredFactor == App,
+        treatment = Primary,
+        onClick = onSubmit,
+        size = Footer
+      ),
+    eventTrackerShouldTrack = false
+  )
 
 fun zeroBalancePrompt(
   id: EventTrackerScreenId?,
@@ -234,28 +262,35 @@ fun zeroBalancePrompt(
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onDone,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onDone)
-        ),
-      header =
-        FormHeaderModel(
-          headline = "No funds found",
-          subline = "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
-        ),
-      primaryButton =
-        ButtonModel(
-          text = "OK",
-          onClick = StandardClick(onDone),
-          size = Footer
-        ),
-      eventTrackerShouldTrack = false
-    )
+  body = ZeroBalancePromptBodyModel(
+    id = id,
+    onDone = onDone
+  )
 )
+
+private data class ZeroBalancePromptBodyModel(
+  override val id: EventTrackerScreenId?,
+  val onDone: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onDone,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onDone)
+      ),
+    header =
+      FormHeaderModel(
+        headline = "No funds found",
+        subline = "We didn’t find any funds to move, or the amount of funds are lower than the network fees required to move them"
+      ),
+    primaryButton =
+      ButtonModel(
+        text = "OK",
+        onClick = StandardClick(onDone),
+        size = Footer
+      ),
+    eventTrackerShouldTrack = false
+  )
 
 fun broadcastingScreenModel(
   id: EventTrackerScreenId?,
@@ -279,43 +314,52 @@ fun sweepSuccessScreenModel(
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onDone,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onDone)
-        ),
-      header =
-        FormHeaderModel(
-          icon = LargeIconCheckFilled,
-          headline =
-            when (recoveredFactor) {
-              App -> "Your mobile key recovery is complete!"
-              Hardware -> "Success!"
-              null -> "Your transfer is complete!"
-            },
-          subline =
-            when (recoveredFactor) {
-              App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
-              Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
-            }
-        ),
-      mainContentList = immutableListOf(
-        FormMainContentModel.Explainer(
-          items = walletUpdateExplainers
-        )
-      ),
-      primaryButton =
-        ButtonModel(
-          text = "Got it",
-          onClick = StandardClick { onDone() },
-          size = Footer
-        ),
-      eventTrackerShouldTrack = false
-    )
+  body = SweepSuccessScreenBodyModel(
+    id = id,
+    recoveredFactor = recoveredFactor,
+    onDone = onDone
+  )
 )
+
+private data class SweepSuccessScreenBodyModel(
+  override val id: EventTrackerScreenId?,
+  val recoveredFactor: PhysicalFactor?,
+  val onDone: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onDone,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onDone)
+      ),
+    header =
+      FormHeaderModel(
+        icon = LargeIconCheckFilled,
+        headline =
+          when (recoveredFactor) {
+            App -> "Your mobile key recovery is complete!"
+            Hardware -> "Success!"
+            null -> "Your transfer is complete!"
+          },
+        subline =
+          when (recoveredFactor) {
+            App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
+            Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
+          }
+      ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.Explainer(
+        items = walletUpdateExplainers
+      )
+    ),
+    primaryButton =
+      ButtonModel(
+        text = "Got it",
+        onClick = StandardClick { onDone() },
+        size = Footer
+      ),
+    eventTrackerShouldTrack = false
+  )
 
 fun sweepFailedScreenModel(
   id: EventTrackerScreenId?,
@@ -325,31 +369,42 @@ fun sweepFailedScreenModel(
   onExit: () -> Unit,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onExit,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onExit)
-        ),
-      header =
-        FormHeaderModel(
-          headline = "The transactions failed to broadcast"
-        ),
-      primaryButton =
-        ButtonModel(
-          text = "Try again",
-          onClick = StandardClick { onRetry() },
-          size = Footer
-        ),
-      secondaryButton =
-        ButtonModel(
-          text = "Cancel",
-          onClick = StandardClick { onExit() },
-          size = Footer
-        ),
-      eventTrackerShouldTrack = false,
-      errorData = errorData
-    )
+  body = SweepFailedScreenBodyModel(
+    id = id,
+    errorData = errorData,
+    onRetry = onRetry,
+    onExit = onExit
+  )
 )
+
+private data class SweepFailedScreenBodyModel(
+  override val id: EventTrackerScreenId?,
+  override val errorData: ErrorData,
+  val onRetry: () -> Unit,
+  val onExit: () -> Unit,
+) : FormBodyModel(
+    id = id,
+    onBack = onExit,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onExit)
+      ),
+    header =
+      FormHeaderModel(
+        headline = "The transactions failed to broadcast"
+      ),
+    primaryButton =
+      ButtonModel(
+        text = "Try again",
+        onClick = StandardClick { onRetry() },
+        size = Footer
+      ),
+    secondaryButton =
+      ButtonModel(
+        text = "Cancel",
+        onClick = StandardClick { onExit() },
+        size = Footer
+      ),
+    eventTrackerShouldTrack = false,
+    errorData = errorData
+  )

@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
-use account::entities::Factor;
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, OffsetDateTime};
+use types::account::entities::Factor;
 
+use super::format_duration;
 use crate::{
     clients::iterable::IterableCampaignType, email::EmailPayload,
     entities::NotificationCompositeKey, push::AndroidChannelId, push::SNSPushPayload,
     sms::SmsPayload, NotificationError, NotificationMessage,
 };
-
-use super::format_duration;
 
 const LOST_FACTOR_FIELD: &str = "lostFactor";
 const DURATION_FIELD: &str = "duration";
@@ -69,7 +68,7 @@ impl TryFrom<(NotificationCompositeKey, RecoveryPendingDelayPeriodPayload)>
             }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
-                android_channel_id: AndroidChannelId::RecoveryAccountSecurity,
+                android_channel_id: AndroidChannelId::UrgentSecurity,
                 ..Default::default()
             }),
             sms_payload: Some(SmsPayload {
@@ -82,8 +81,8 @@ impl TryFrom<(NotificationCompositeKey, RecoveryPendingDelayPeriodPayload)>
 
 #[cfg(test)]
 mod tests {
-    use account::entities::Factor;
     use time::{Duration, OffsetDateTime};
+    use types::account::entities::Factor;
     use types::account::identifiers::AccountId;
 
     use crate::identifiers::NotificationId;

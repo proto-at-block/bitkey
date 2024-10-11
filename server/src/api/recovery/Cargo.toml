@@ -27,13 +27,19 @@ bdk_utils = { workspace = true }
 comms_verification = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
+experimentation = { workspace = true }
 external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 migration = { workspace = true }
+mockall = { workspace = true }
 notification = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
 types = { workspace = true, features = ["recovery"] }
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
+
+[dev-dependencies]
+bdk_utils = { workspace = true, features = ["test-helpers"] }
+rstest = { workspace = true }

@@ -23,8 +23,8 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.isClientError
 import build.wallet.ktor.result.isServerError
 import build.wallet.ktor.test.HttpResponseMock
-import build.wallet.recovery.socrec.EndorseTrustedContactsServiceMock
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.relationships.EndorseTrustedContactsServiceMock
+import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -47,7 +47,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val bestEffortFullAccountCloudBackupUploader =
     BestEffortFullAccountCloudBackupUploaderMock(turbines::create)
-  val socRecService = SocRecServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create)
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceImpl(
@@ -56,7 +56,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     keyboxDao = keyboxDao,
     accountAuthenticator = accountAuthenticator,
     bestEffortFullAccountCloudBackupUploader = bestEffortFullAccountCloudBackupUploader,
-    socRecService = socRecService,
+    relationshipsService = relationshipsService,
     endorseTrustedContactsService = trustedContactKeyAuthenticator
   )
 
@@ -123,7 +123,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
         backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
       }
 
-    socRecService.syncCalls.awaitItem()
+    relationshipsService.syncCalls.awaitItem()
   }
 
   test("resume auth key rotation") {
@@ -166,7 +166,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem() shouldBe request.newKeys.appRecoveryAuthPublicKey
     accountAuthenticator.authResults.shouldBeEmpty()
 
-    socRecService.syncCalls.awaitItem()
+    relationshipsService.syncCalls.awaitItem()
   }
 
   context("with successfully generated new keys") {
@@ -221,7 +221,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
           backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
         }
 
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
     }
 
     test("handle breaking cloud backup error") {
@@ -257,7 +257,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
       accountAuthenticator.authResults.shouldBeEmpty()
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
       bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackupCalls.awaitItem()
         .shouldBeTypeOf<FullAccount>()
         .should { backedUpAccount ->
@@ -305,7 +305,7 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
             backedUpAccount.keybox.appGlobalAuthKeyHwSignature shouldBe generatedGlobalAuthKeyHwSignature
           }
 
-        socRecService.syncCalls.awaitItem()
+        relationshipsService.syncCalls.awaitItem()
       }
     }
 

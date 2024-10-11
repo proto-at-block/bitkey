@@ -1,6 +1,7 @@
-use crate::{entities::Account, error::AccountError};
+use types::account::entities::Account;
 
 use super::{DeleteAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn delete_account(&self, input: DeleteAccountInput<'_>) -> Result<(), AccountError> {

@@ -11,7 +11,7 @@ import kotlinx.datetime.Instant
  */
 interface TrustedContactCloudBackupRefresher {
   /**
-   * Monitors locally stored cloud backups and synced SocRecRelationships to determine
+   * Monitors locally stored cloud backups and synced Relationships to determine
    * if the cloud backup should be refreshed and if so, uploads a new cloud backup.
    */
   suspend fun refreshCloudBackupsWhenNecessary(

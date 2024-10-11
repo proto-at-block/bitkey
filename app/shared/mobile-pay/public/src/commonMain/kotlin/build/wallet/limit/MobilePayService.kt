@@ -1,5 +1,6 @@
 package build.wallet.limit
 
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
@@ -37,4 +38,9 @@ interface MobilePayService {
    * Deletes local spending limits without disabling mobile pay on f8e.
    */
   suspend fun deleteLocal(): Result<Unit, Error>
+
+  /**
+   * Signs a PSBT with the mobile pay keyset from f8e.
+   */
+  suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error>
 }

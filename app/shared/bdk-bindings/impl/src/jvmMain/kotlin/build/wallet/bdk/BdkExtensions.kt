@@ -2,12 +2,9 @@ package build.wallet.bdk
 
 import build.wallet.bdk.bindings.*
 import kotlinx.datetime.Instant
+import org.bitcoindevkit.*
 import org.bitcoindevkit.AddressIndex.LastUnused
 import org.bitcoindevkit.AddressIndex.New
-import org.bitcoindevkit.LocalUtxo
-import org.bitcoindevkit.OutPoint
-import org.bitcoindevkit.TxIn
-import org.bitcoindevkit.TxOut
 
 /**
  * Convert BDK type to FFI type.
@@ -204,3 +201,10 @@ internal val OutPoint.bdkOutPoint: BdkOutPoint
     txid = txid,
     vout = vout
   )
+
+/**
+ * Convert FFI Transaction to KMP type.
+ */
+internal val Transaction.bdkTransaction: BdkTransaction
+  get() =
+    BdkTransactionImpl(ffiTransaction = this)

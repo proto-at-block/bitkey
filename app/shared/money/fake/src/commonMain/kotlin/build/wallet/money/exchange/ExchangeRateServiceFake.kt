@@ -16,6 +16,10 @@ class ExchangeRateServiceFake(clock: Clock = Clock.System) : ExchangeRateService
 
   override val exchangeRates = MutableStateFlow(initialRates)
 
+  override suspend fun requestSync() {
+    reset()
+  }
+
   fun reset() {
     exchangeRates.value = initialRates
   }

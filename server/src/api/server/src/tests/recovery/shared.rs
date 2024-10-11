@@ -1,14 +1,24 @@
+use crate::tests::lib::{create_default_account_with_predefined_wallet, create_lite_account};
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::TestContext;
+use crate::Bootstrap;
+use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::Wallet;
 use http::StatusCode;
-use recovery::routes::UpdateRecoveryRelationshipResponse;
-use recovery::routes::{CreateRecoveryRelationshipRequest, UpdateRecoveryRelationshipRequest};
-use recovery::routes::{CreateRelationshipRequest, OutboundInvitation};
-use recovery::routes::{
+use notification::service::FetchForAccountInput;
+use notification::NotificationPayloadType;
+use recovery::routes::relationship::UpdateRecoveryRelationshipResponse;
+use recovery::routes::relationship::{
+    CreateRecoveryRelationshipRequest, UpdateRecoveryRelationshipRequest,
+};
+use recovery::routes::relationship::{CreateRelationshipRequest, OutboundInvitation};
+use recovery::routes::relationship::{
     CreateRelationshipResponse, EndorseRecoveryRelationshipsRequest,
     EndorseRecoveryRelationshipsResponse,
 };
+use time::Duration;
+use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationshipEndorsement, RecoveryRelationshipId,
@@ -355,6 +365,17 @@ pub(super) async fn try_endorse_recovery_relationship(
 
     if expected_status_code == StatusCode::OK {
         let endorse_body: EndorseRecoveryRelationshipsResponse = endorse_response.body.unwrap();
+
+        assert!(endorse_body
+            .endorsed_trusted_contacts
+            .iter()
+            .map(|tc| tc
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .to_string())
+            .collect::<Vec<String>>()
+            .contains(&recovery_relationship_id.to_string()),);
+
         assert_relationship_counts(
             client,
             customer_account_id,
@@ -365,7 +386,86 @@ pub(super) async fn try_endorse_recovery_relationship(
             trusted_contact_role,
         )
         .await;
+
         return Some(endorse_body);
     }
     None
+}
+
+pub async fn create_beneficiary_account(
+    beneficiary_account_type: types::account::AccountType,
+    context: &mut TestContext,
+    bootstrap: &Bootstrap,
+    client: &TestClient,
+) -> (Account, Option<Wallet<AnyDatabase>>) {
+    let (acct, wallet) =
+        create_default_account_with_predefined_wallet(context, client, &bootstrap.services).await;
+    match beneficiary_account_type {
+        types::account::AccountType::Full { .. } => (Account::Full(acct), Some(wallet)),
+        types::account::AccountType::Lite => (
+            Account::Lite(create_lite_account(context, &bootstrap.services, None, true).await),
+            None,
+        ),
+        types::account::AccountType::Software => unimplemented!(),
+    }
+}
+
+pub async fn assert_notifications(
+    bootstrap: &Bootstrap,
+    account_id: &AccountId,
+    expected_customer_notifications_types: Vec<NotificationPayloadType>,
+    expected_scheduled_notifications_types: Vec<NotificationPayloadType>,
+) {
+    let scheduled_notifications_types = {
+        let mut notifications = bootstrap
+            .services
+            .notification_service
+            .fetch_scheduled_for_account(FetchForAccountInput {
+                account_id: account_id.clone(),
+            })
+            .await
+            .unwrap();
+
+        notifications.sort_by_key(|n| {
+            // Get rid of jitter
+            let jitter = n
+                .schedule
+                .as_ref()
+                .and_then(|s| s.jitter)
+                .unwrap_or(Duration::seconds(0));
+
+            n.execution_date_time - jitter
+        });
+        notifications
+            .iter()
+            .map(|n| n.payload_type)
+            .collect::<Vec<NotificationPayloadType>>()
+    };
+
+    let customer_notifications_types = {
+        let mut notifications = bootstrap
+            .services
+            .notification_service
+            .fetch_customer_for_account(FetchForAccountInput {
+                account_id: account_id.clone(),
+            })
+            .await
+            .unwrap();
+
+        notifications.sort_by_key(|n| n.created_at);
+        notifications
+            .iter()
+            .map(|n| n.payload_type)
+            .collect::<Vec<NotificationPayloadType>>()
+    };
+
+    assert_eq!(
+        customer_notifications_types,
+        expected_customer_notifications_types
+    );
+
+    assert_eq!(
+        scheduled_notifications_types,
+        expected_scheduled_notifications_types
+    );
 }

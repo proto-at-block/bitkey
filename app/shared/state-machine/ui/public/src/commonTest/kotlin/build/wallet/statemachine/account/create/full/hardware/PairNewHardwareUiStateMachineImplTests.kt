@@ -35,7 +35,6 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString.Companion.encodeUtf8
 
 class PairNewHardwareUiStateMachineImplTests : FunSpec({
@@ -273,7 +272,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
             PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
           )
         bottomSheetModel.shouldNotBeNull()
-          .body.shouldBeTypeOf<FormBodyModel>()
+          .body.shouldBeInstanceOf<FormBodyModel>()
           .clickPrimaryButton()
       }
 
@@ -399,7 +398,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
             PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
           )
         bottomSheetModel.shouldNotBeNull()
-          .body.shouldBeTypeOf<FormBodyModel>()
+          .body.shouldBeInstanceOf<FormBodyModel>()
           .clickPrimaryButton()
       }
 

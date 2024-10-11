@@ -284,10 +284,7 @@ class SpendingWalletFake(
         id = "fake-tx-$transactionIndex",
         recipientAddress = externalAddress,
         broadcastTime = previousBlockTime.timestamp,
-        estimatedConfirmationTime =
-          previousBlockTime.timestamp.plus(
-            10.toDuration(DurationUnit.MINUTES)
-          ),
+        estimatedConfirmationTime = previousBlockTime.timestamp + 10.minutes,
         confirmationStatus = Pending,
         fee = fee,
         weight = null,
@@ -295,6 +292,32 @@ class SpendingWalletFake(
         subtotal = amount,
         total = amount + fee,
         transactionType = Outgoing,
+        inputs = emptyImmutableList(),
+        outputs = emptyImmutableList()
+      )
+    )
+  }
+
+  /**
+   * Add a consolidation transaction to this wallet. Calling [mineBlock] will advance this
+   * transaction to confirmed status.
+   */
+  suspend fun consolidateFunds(fee: BitcoinMoney = defaultFee) {
+    require(!fee.isNegative)
+
+    addTransaction(
+      BitcoinTransaction(
+        id = "fake-tx-$transactionIndex",
+        recipientAddress = rotatedAddress(),
+        broadcastTime = previousBlockTime.timestamp,
+        estimatedConfirmationTime = previousBlockTime.timestamp + 10.minutes,
+        confirmationStatus = Pending,
+        fee = fee,
+        weight = null,
+        vsize = null,
+        subtotal = balance().first().total - fee,
+        total = balance().first().total,
+        transactionType = UtxoConsolidation,
         inputs = emptyImmutableList(),
         outputs = emptyImmutableList()
       )

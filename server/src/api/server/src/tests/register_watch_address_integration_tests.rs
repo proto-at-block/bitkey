@@ -1,4 +1,3 @@
-use crate::GenServiceOverrides;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
 use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
@@ -17,6 +16,7 @@ use types::account::identifiers::{AccountId, KeysetId};
 use crate::tests::gen_services_with_overrides;
 use crate::tests::lib::create_full_account;
 use crate::tests::requests::axum::TestClient;
+use crate::GenServiceOverrides;
 
 fn memory_repo() -> impl AddressWatchlistTrait + Clone {
     AddressRepoMemory::default()

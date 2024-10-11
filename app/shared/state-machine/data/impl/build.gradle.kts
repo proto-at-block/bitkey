@@ -41,6 +41,7 @@ kotlin {
         api(projects.shared.stateMachineFrameworkPublic)
         implementation(projects.shared.composeRuntimePublic)
         implementation(projects.shared.loggingPublic)
+        implementation(projects.shared.relationshipsPublic)
         implementation(libs.kmp.molecule.runtime)
       }
     }

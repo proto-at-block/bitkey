@@ -1,5 +1,5 @@
-use account::entities::CommonAccountFields;
 use tracing::instrument;
+use types::account::entities::CommonAccountFields;
 use types::{
     account::{identifiers::AccountId, AccountType},
     privileged_action::{

@@ -80,21 +80,32 @@ fun selectPartnerQuoteModel(
       style = CARD_ITEM
     )
   return SheetModel(
-    body =
-      FormBodyModel(
-        onBack = {},
-        header = FormHeaderModel(headline = title, subline = subTitle),
-        toolbar =
-          ToolbarModel(
-            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory { onClosed() }
-          ),
-        mainContentList = immutableListOf(ListGroup(listGroupModel)),
-        primaryButton = null,
-        id = PARTNER_QUOTES_LIST,
-        renderContext = Screen
-      ),
+    body = SelectPartnerQuoteBodyModel(
+      title = title,
+      subTitle = subTitle,
+      onClosed = onClosed,
+      listGroupModel = listGroupModel
+    ),
     size = FULL,
     dragIndicatorVisible = true,
     onClosed = onClosed
   )
 }
+
+private data class SelectPartnerQuoteBodyModel(
+  val title: String,
+  val subTitle: String,
+  val onClosed: () -> Unit,
+  val listGroupModel: ListGroupModel,
+) : FormBodyModel(
+    onBack = {},
+    header = FormHeaderModel(headline = title, subline = subTitle),
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClosed)
+      ),
+    mainContentList = immutableListOf(ListGroup(listGroupModel)),
+    primaryButton = null,
+    id = PARTNER_QUOTES_LIST,
+    renderContext = Screen
+  )

@@ -1,8 +1,12 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.wallet.SpendingWallet
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterIsInstance
 
 /**
  * Domain service working with transaction data associated with a given wallet.
@@ -33,4 +37,11 @@ interface TransactionsService {
     psbt: Psbt,
     estimatedTransactionPriority: EstimatedTransactionPriority,
   ): Result<BroadcastDetail, Error>
+}
+
+/**
+ * Returns a flow of [TransactionsLoadedData] from [transactionsData].
+ */
+fun TransactionsService.transactionsLoadedData(): Flow<TransactionsLoadedData> {
+  return transactionsData().filterIsInstance<TransactionsLoadedData>().distinctUntilChanged()
 }

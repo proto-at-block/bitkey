@@ -19,6 +19,8 @@ import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
+import build.wallet.bitcoin.export.ExportTransactionsService
+import build.wallet.bitcoin.export.ExportWatchingDescriptorService
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.sync.ElectrumReachability
@@ -41,7 +43,10 @@ import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
+import build.wallet.f8e.recovery.ListKeysetsF8eClient
+import build.wallet.f8e.relationships.RelationshipsF8eClient
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.*
@@ -51,6 +56,7 @@ import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.inappsecurity.BiometricPreference
+import build.wallet.inheritance.InheritanceService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
@@ -96,6 +102,7 @@ import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.*
+import build.wallet.relationships.*
 import build.wallet.sqldelight.DatabaseIntegrityChecker
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
@@ -154,7 +161,9 @@ interface AppComponent {
   val eventTracker: EventTracker
   val exchangeRateService: ExchangeRateService
   val exportToolsFeatureFlag: ExportToolsFeatureFlag
+  val exportWatchingDescriptorService: ExportWatchingDescriptorService
   val extendedKeyGenerator: ExtendedKeyGenerator
+  val exportTransactionsService: ExportTransactionsService
   val inviteCodeLoader: InviteCodeLoader
   val f8eHttpClient: F8eHttpClient
   val featureFlagService: FeatureFlagService
@@ -176,6 +185,7 @@ interface AppComponent {
   val keyboxDao: KeyboxDao
   val keyValueStoreFactory: KeyValueStoreFactory
   val ktorLogLevelPolicy: KtorLogLevelPolicy
+  val listKeysetsF8eClient: ListKeysetsF8eClient
   val localeCountryCodeProvider: LocaleCountryCodeProvider
   val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider
   val localeLanguageCodeProvider: LocaleLanguageCodeProvider
@@ -224,19 +234,23 @@ interface AppComponent {
   val analyticsTrackingPreference: AnalyticsTrackingPreference
   val exchangeRateF8eClient: ExchangeRateF8eClient
   val postSocRecTaskRepository: PostSocRecTaskRepository
-  val socialRecoveryCodeBuilder: SocialRecoveryCodeBuilder
+  val relationshipsCodeBuilder: RelationshipsCodeBuilder
   val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag
   val socRecChallengeRepository: SocRecChallengeRepository
-  val socRecCrypto: SocRecCrypto
-  val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao
+  val relationshipsCrypto: RelationshipsCrypto
+  val relationshipsEnrollmentAuthenticationDao: RelationshipsEnrollmentAuthenticationDao
   val socRecF8eClientProvider: SocRecF8eClientProvider
-  val socRecRelationshipsDao: SocRecRelationshipsDao
+  val relationshipsF8eClient: RelationshipsF8eClient
+  val relationshipsF8eClientProvider: RelationshipsF8eClientProvider
+  val relationshipsDao: RelationshipsDao
   val socRecService: SocRecService
+  val relationshipsService: RelationshipsService
   val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao
   val socRecStartedChallengeDao: SocRecStartedChallengeDao
   val socialChallengeVerifier: SocialChallengeVerifier
   val firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag
   val asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag
+  val progressSpinnerForLongNfcOpsFeatureFlag: ProgressSpinnerForLongNfcOpsFeatureFlag
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
   val inheritanceFeatureFlag: InheritanceFeatureFlag
@@ -247,10 +261,13 @@ interface AppComponent {
   val xChaCha20Poly1305: XChaCha20Poly1305
   val xNonceGenerator: XNonceGenerator
   val mobilePayService: MobilePayService
+  val inheritanceService: InheritanceService
   val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag
+  val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag
   val speedUpAllowShrinkingFeatureFlag: SpeedUpAllowShrinkingFeatureFlag
   val utxoConsolidationService: UtxoConsolidationService
   val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag
   val databaseIntegrityChecker: DatabaseIntegrityChecker
   val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag
+  val mobilePaySigningF8eClient: MobilePaySigningF8eClient
 }

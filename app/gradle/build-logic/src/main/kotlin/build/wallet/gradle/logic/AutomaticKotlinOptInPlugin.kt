@@ -8,7 +8,6 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.targets
 
 /**
  * Plugin that automatically adds opt-ins for experimental declarations based on detected registered dependencies.
@@ -153,10 +152,8 @@ internal class AutomaticKotlinOptInPlugin : Plugin<Project> {
     // Must run after Kotlin plugin configures the compilations correctly, but before it locks compiler options
     gradle.taskGraph.whenReady {
       extensions.configure(KotlinAndroidProjectExtension::class.java) {
-        targets.forEach {
-          it.compilations.configureEach {
-            action()
-          }
+        target.compilations.configureEach {
+          action()
         }
       }
     }

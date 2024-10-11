@@ -26,4 +26,5 @@ data class PartnershipTransaction(
   val paymentMethod: String?,
   val created: Instant,
   val updated: Instant,
+  val sellWalletAddress: String?,
 )

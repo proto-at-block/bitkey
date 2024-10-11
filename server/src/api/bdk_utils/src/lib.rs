@@ -7,6 +7,7 @@ use bdk::bitcoin::bip32::{ChildNumber, KeySource};
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::psbt::Psbt;
 use bdk::bitcoin::secp256k1::PublicKey;
+
 use bdk::bitcoin::ScriptBuf;
 use bdk::blockchain::{Blockchain, ElectrumBlockchain};
 use bdk::database::{AnyDatabase, BatchDatabase};
@@ -342,12 +343,29 @@ impl DescriptorKeyset {
     }
 }
 
+const CHECK_SCRIPT_NUM_CACHED_ADDRESSES: u32 = 1000;
+
+pub fn is_addressed_to_wallet(
+    wallet: &Wallet<AnyDatabase>,
+    script: &ScriptBuf,
+) -> Result<bool, BdkUtilError> {
+    wallet
+        .ensure_addresses_cached(CHECK_SCRIPT_NUM_CACHED_ADDRESSES)
+        .map_err(BdkUtilError::WalletCacheAddresses)?;
+
+    wallet
+        .is_mine(script)
+        .map_err(BdkUtilError::PsbtNotAddressedToAWallet)
+}
+
+const CHECK_PSBT_NUM_CACHED_ADDRESSES: u32 = 100;
+
 pub fn is_psbt_addressed_to_wallet(
     wallet: &Wallet<AnyDatabase>,
     psbt: &Psbt,
 ) -> Result<bool, BdkUtilError> {
     wallet
-        .ensure_addresses_cached(100)
+        .ensure_addresses_cached(CHECK_PSBT_NUM_CACHED_ADDRESSES)
         .map_err(BdkUtilError::WalletCacheAddresses)?;
 
     for tx_out in &psbt.unsigned_tx.output {
@@ -504,9 +522,7 @@ impl PsbtWithDerivation for Psbt {
 }
 
 #[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
+pub mod tests {
     use bdk::bitcoin::bip32::ExtendedPrivKey;
     use bdk::bitcoin::secp256k1::Secp256k1;
     use bdk::bitcoin::Network;
@@ -517,10 +533,10 @@ mod tests {
     use bdk::template::{Bip84, DescriptorTemplate};
     use bdk::wallet::tx_builder::TxOrdering;
     use bdk::wallet::AddressIndex;
-    use bdk::BlockTime;
     use bdk::Error::Electrum;
-    use bdk::{bitcoin, populate_test_db, testutils, KeychainKind, Wallet};
+    use bdk::{bitcoin, populate_test_db, testutils, BlockTime, KeychainKind, Wallet};
     use serde_json::json;
+    use std::str::FromStr;
 
     use crate::error::BdkUtilError;
     use crate::{
@@ -528,22 +544,21 @@ mod tests {
         PsbtWithDerivation,
     };
 
-    fn get_test_wallet() -> Wallet<AnyDatabase> {
+    pub fn get_fake_prefunded_wallet(total_funds: u64) -> Wallet<AnyDatabase> {
         let xprv = ExtendedPrivKey::generate(()).unwrap();
 
-        let funding_address_kix = 0;
         let external_descriptor = Bip84(xprv.clone(), KeychainKind::External)
             .build(Network::Signet)
             .unwrap()
             .into_wallet_descriptor(&Secp256k1::new(), Network::Signet)
             .unwrap()
-            .0
-            .to_string();
+            .0;
 
         // pre-populate the wallet database with a fake transaction
-        let descriptors = testutils!(@descriptors (&external_descriptor));
+        let funding_address_kix = 0;
+        let descriptors = testutils!(@descriptors (&external_descriptor.to_string()));
         let tx_meta = testutils! {
-                @tx ( (@external descriptors, funding_address_kix) => 50_000 ) (@confirmations 1)
+                @tx ( (@external descriptors, funding_address_kix) => total_funds ) (@confirmations 1)
         };
         let mut wallet_database = MemoryDatabase::new();
         wallet_database
@@ -572,7 +587,7 @@ mod tests {
 
     #[test]
     fn test_psbt_input_validation_works() {
-        let wallet = get_test_wallet();
+        let wallet = get_fake_prefunded_wallet(50_000);
         let mut builder = wallet.build_tx();
         builder.add_recipient(
             wallet
@@ -594,8 +609,8 @@ mod tests {
 
     #[test]
     fn test_psbt_output_validation_works() {
-        let wallet = get_test_wallet();
-        let recipient = get_test_wallet();
+        let wallet = get_fake_prefunded_wallet(50_000);
+        let recipient = get_fake_prefunded_wallet(50_000);
         let mut builder = wallet.build_tx();
         builder.ordering(TxOrdering::Untouched); // We are going to be looking at specific outputs, so don't reshuffle the ordering
                                                  // coins to self
@@ -630,7 +645,7 @@ mod tests {
 
     #[test]
     fn test_checking_self_spends_works() {
-        let wallet = get_test_wallet();
+        let wallet = get_fake_prefunded_wallet(50_0000);
         let mut builder = wallet.build_tx();
         // coins to self
         builder.add_recipient(

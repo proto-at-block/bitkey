@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
@@ -20,6 +21,7 @@ import build.wallet.statemachine.platform.permissions.NotificationRationale.Reco
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 actual class EnableNotificationsUiStateMachineImpl actual constructor(
@@ -54,22 +56,12 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       Recovery -> "You'll be notified with any updates to the status of your Bitkey recovery."
     }
 
-    return FormBodyModel(
-      id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
+    return EnableNotificationsBodyModel(
       eventTrackerContext = props.eventTrackerContext,
+      subline = sublineMessage,
+      onClick = { uiState = ShowingSystemPermissionUiState },
       onBack = props.retreat.onRetreat,
-      toolbar = ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory),
-      header =
-        FormHeaderModel(
-          headline = "Enable Push Notifications on this Phone.",
-          subline = sublineMessage
-        ),
-      primaryButton =
-        ButtonModel(
-          text = "Enable",
-          size = Footer,
-          onClick = StandardClick { uiState = ShowingSystemPermissionUiState }
-        )
+      leadingToolbarAccessory = props.retreat.leadingToolbarAccessory
     )
   }
 
@@ -79,3 +71,26 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
     data object ShowingSystemPermissionUiState : UiState
   }
 }
+
+private data class EnableNotificationsBodyModel(
+  val subline: String,
+  val onClick: () -> Unit,
+  val leadingToolbarAccessory: ToolbarAccessoryModel,
+  override val onBack: (() -> Unit)?,
+  override val eventTrackerContext: EventTrackerContext,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
+    eventTrackerContext = eventTrackerContext,
+    toolbar = ToolbarModel(leadingAccessory = leadingToolbarAccessory),
+    onBack = onBack,
+    header = FormHeaderModel(
+      headline = "Enable Push Notifications on this Phone.",
+      subline = subline
+    ),
+    primaryButton =
+      ButtonModel(
+        text = "Enable",
+        size = Footer,
+        onClick = StandardClick(onClick)
+      )
+  )

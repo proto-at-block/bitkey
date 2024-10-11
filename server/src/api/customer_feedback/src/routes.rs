@@ -11,7 +11,10 @@ use axum::{
     Json, Router,
 };
 use errors::ApiError;
-use http_server::swagger::{SwaggerEndpoint, Url};
+use http_server::{
+    router::RouterBuilder,
+    swagger::{SwaggerEndpoint, Url},
+};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::{OpenApi, ToSchema};
@@ -54,12 +57,12 @@ pub struct RouteState(
     pub TicketFormKnownFields,
 );
 
-impl RouteState {
-    pub fn unauthed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn unauthed_router(&self) -> Router {
         Router::new().with_state(self.to_owned())
     }
 
-    pub fn basic_validation_router(&self) -> Router {
+    fn basic_validation_router(&self) -> Router {
         Router::new()
             .route("/api/customer_feedback", post(create_task))
             .route("/api/support/ticket-form", get(load_form))

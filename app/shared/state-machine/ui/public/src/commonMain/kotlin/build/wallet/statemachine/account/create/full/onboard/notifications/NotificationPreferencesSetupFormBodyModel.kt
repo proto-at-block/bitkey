@@ -19,7 +19,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.icon.IconTint.On60
@@ -36,86 +35,95 @@ fun NotificationPreferencesSetupFormBodyModel(
   emailItem: NotificationPreferencesSetupFormItemModel,
   alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
-      onBack = null,
-      toolbar = null,
-      header =
-        FormHeaderModel(
-          headline = "Set up notifications to keep your wallet secure",
-          subline = "Stay informed with security alerts and verify your recovery attempts. "
-        ),
-      mainContentList =
-        immutableListOf(
-          ListGroup(
-            listGroupModel =
-              ListGroupModel(
-                items =
-                  immutableListOf(
-                    with(pushItem) {
-                      ListItemModel(
-                        leadingAccessory =
-                          IconAccessory(
-                            model =
-                              IconModel(
-                                iconImage = LocalImage(state.icon(SmallIconPushNotification)),
-                                iconTint = state.iconTint(),
-                                iconSize = Small
-                              )
-                          ),
-                        title = "Push Notifications",
-                        treatment = state.treatment(),
-                        trailingAccessory = state.trailingAccessory(),
-                        onClick = onClick
-                      )
-                    },
-                    with(smsItem) {
-                      ListItemModel(
-                        leadingAccessory =
-                          IconAccessory(
-                            model =
-                              IconModel(
-                                icon = state.icon(SmallIconMessage),
-                                iconTint = state.iconTint(),
-                                iconSize = Small
-                              )
-                          ),
-                        title = "Text Messages",
-                        treatment = state.treatment(),
-                        trailingAccessory = state.trailingAccessory(),
-                        onClick = onClick
-                      )
-                    },
-                    with(emailItem) {
-                      ListItemModel(
-                        leadingAccessory =
-                          IconAccessory(
-                            model =
-                              IconModel(
-                                iconImage = LocalImage(state.icon(SmallIconEmail)),
-                                iconTint = state.iconTint(),
-                                iconSize = Small
-                              )
-                          ),
-                        title = "Emails",
-                        treatment = state.treatment(),
-                        trailingAccessory = state.trailingAccessory(),
-                        onClick = onClick
-                      )
-                    }
-                  ),
-                style = CARD_GROUP_DIVIDER
-              )
-          )
-        ),
-      // No primary button, instead the screen auto-advances when all channels are either
-      // completed or skipped
-      primaryButton = null
-    ),
+  body = NotificationPreferencesSetupBodyModel(
+    pushItem = pushItem,
+    smsItem = smsItem,
+    emailItem = emailItem
+  ),
   presentationStyle = ScreenPresentationStyle.Root,
   alertModel = alertModel
 )
+
+private data class NotificationPreferencesSetupBodyModel(
+  val pushItem: NotificationPreferencesSetupFormItemModel,
+  val smsItem: NotificationPreferencesSetupFormItemModel,
+  val emailItem: NotificationPreferencesSetupFormItemModel,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP,
+    onBack = null,
+    toolbar = null,
+    header =
+      FormHeaderModel(
+        headline = "Set up notifications to keep your wallet secure",
+        subline = "Stay informed with security alerts and verify your recovery attempts. "
+      ),
+    mainContentList =
+      immutableListOf(
+        ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              items =
+                immutableListOf(
+                  with(pushItem) {
+                    ListItemModel(
+                      leadingAccessory =
+                        IconAccessory(
+                          model =
+                            IconModel(
+                              iconImage = LocalImage(state.icon(SmallIconPushNotification)),
+                              iconTint = state.iconTint(),
+                              iconSize = build.wallet.ui.model.icon.IconSize.Small
+                            )
+                        ),
+                      title = "Push Notifications",
+                      treatment = state.treatment(),
+                      trailingAccessory = state.trailingAccessory(),
+                      onClick = onClick
+                    )
+                  },
+                  with(smsItem) {
+                    ListItemModel(
+                      leadingAccessory =
+                        IconAccessory(
+                          model =
+                            IconModel(
+                              icon = state.icon(SmallIconMessage),
+                              iconTint = state.iconTint(),
+                              iconSize = build.wallet.ui.model.icon.IconSize.Small
+                            )
+                        ),
+                      title = "Text Messages",
+                      treatment = state.treatment(),
+                      trailingAccessory = state.trailingAccessory(),
+                      onClick = onClick
+                    )
+                  },
+                  with(emailItem) {
+                    ListItemModel(
+                      leadingAccessory =
+                        IconAccessory(
+                          model =
+                            IconModel(
+                              iconImage = LocalImage(state.icon(SmallIconEmail)),
+                              iconTint = state.iconTint(),
+                              iconSize = build.wallet.ui.model.icon.IconSize.Small
+                            )
+                        ),
+                      title = "Emails",
+                      treatment = state.treatment(),
+                      trailingAccessory = state.trailingAccessory(),
+                      onClick = onClick
+                    )
+                  }
+                ),
+              style = CARD_GROUP_DIVIDER
+            )
+        )
+      ),
+    // No primary button, instead the screen auto-advances when all channels are either
+    // completed or skipped
+    primaryButton = null
+  )
 
 private fun NotificationPreferencesSetupFormItemModel.State.icon(needsActionIcon: Icon) =
   when (this) {

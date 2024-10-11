@@ -1,65 +1,55 @@
 use std::str::FromStr;
 use std::sync::RwLock;
 
-use bdk_utils::flags::{
-    DEFAULT_MAINNET_ELECTRUM_RPC_URI, DEFAULT_SIGNET_ELECTRUM_RPC_URI,
-    DEFAULT_TESTNET_ELECTRUM_RPC_URI,
+use account::service::tests::{
+    create_bdk_wallet, create_descriptor_keys, create_full_account_for_test,
+    generate_test_authkeys, TestAuthenticationKeys,
 };
+use account::service::{
+    ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CreateLiteAccountInput,
+    CreateSoftwareAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
+    FetchOrCreatePhoneTouchpointInput,
+};
+
+use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
+use bdk_utils::bdk::bitcoin::OutPoint;
+use bdk_utils::bdk::keys::DescriptorSecretKey;
+use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
+use bdk_utils::bdk::{
+    bitcoin::psbt::PartiallySignedTransaction, database::AnyDatabase,
+    miniscript::DescriptorPublicKey, FeeRate,
+};
+use bdk_utils::bdk::{SignOptions, Wallet as BdkWallet};
+use external_identifier::ExternalIdentifier;
 use http::StatusCode;
 use isocountry::CountryCode;
 use notification::service::{
     FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
 };
-use rand::{thread_rng, Rng};
+use onboarding::routes::{CreateAccountRequest, CreateKeysetRequest};
+use rand::thread_rng;
+use recovery::entities::{
+    DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
+    RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
+};
 use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::spending::SpendingKeyset;
+use types::account::entities::{
+    Account, Factor, FullAccount, FullAccountAuthKeysPayload, LiteAccount, SoftwareAccount,
+    SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+};
+use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
 use types::account::AccountType;
 use types::notification::{NotificationCategory, NotificationChannel};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::time::Clock;
 use ulid::Ulid;
 
-use account::entities::{
-    Account, Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, LiteAccount, SoftwareAccount,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
-};
-use account::service::{
-    ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput,
-    CreateAccountAndKeysetsInput, CreateLiteAccountInput, CreateSoftwareAccountInput,
-    FetchAccountInput, FetchOrCreateEmailTouchpointInput, FetchOrCreatePhoneTouchpointInput,
-};
-use bdk_utils::bdk::bitcoin::bip32::{
-    DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
-};
-use bdk_utils::bdk::bitcoin::hashes::sha256;
-use bdk_utils::bdk::bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
-use bdk_utils::bdk::bitcoin::{Network as BitcoinNetwork, OutPoint};
-use bdk_utils::bdk::keys::{DescriptorSecretKey, KeyMap};
-use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
-use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
-use bdk_utils::bdk::{
-    bitcoin::psbt::PartiallySignedTransaction,
-    database::{AnyDatabase, MemoryDatabase},
-    miniscript::DescriptorPublicKey,
-    FeeRate,
-};
-use bdk_utils::bdk::{SignOptions, SyncOptions, Wallet as BdkWallet};
-use bdk_utils::{get_blockchain, DescriptorKeyset, ElectrumRpcUris};
-use external_identifier::ExternalIdentifier;
-use onboarding::routes::{CreateAccountRequest, CreateKeysetRequest};
-use recovery::entities::{
-    DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
-    RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
-};
-use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
-use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
-
-use crate::Services;
-
 use super::requests::axum::TestClient;
-use super::{TestAuthenticationKeys, TestContext, TestKeypair};
+use crate::tests::TestContext;
+use crate::Services;
 
 const RECEIVE_DERIVATION_PATH: &str = "m/0";
 const CHANGE_DERIVATION_PATH: &str = "m/1";
@@ -67,53 +57,6 @@ const CHANGE_DERIVATION_PATH: &str = "m/1";
 pub(crate) fn gen_external_wallet_address() -> AddressInfo {
     let external_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
     external_wallet.get_address(AddressIndex::New).unwrap()
-}
-
-const DEFAULT_DERIVATION_PATH_STR: &str = "m/84'/1'/0'";
-
-pub(crate) fn default_electrum_rpc_uris() -> ElectrumRpcUris {
-    ElectrumRpcUris {
-        mainnet: DEFAULT_MAINNET_ELECTRUM_RPC_URI.to_owned(),
-        testnet: DEFAULT_TESTNET_ELECTRUM_RPC_URI.to_owned(),
-        signet: DEFAULT_SIGNET_ELECTRUM_RPC_URI.to_owned(),
-    }
-}
-
-pub(crate) fn create_descriptor_keys(
-    network: Network,
-) -> (DescriptorSecretKey, DescriptorPublicKey) {
-    let derivation_path = DerivationPath::from_str(DEFAULT_DERIVATION_PATH_STR).unwrap();
-    let (parent_fingerprint, xprv, xpub) = create_keys(network);
-    let xpubkey = DescriptorXKey {
-        origin: Some((parent_fingerprint, derivation_path.clone())),
-        xkey: xpub,
-        derivation_path: DerivationPath::master(),
-        wildcard: Wildcard::Unhardened,
-    };
-    let xprvkey = DescriptorXKey {
-        origin: Some((parent_fingerprint, derivation_path)),
-        xkey: xprv,
-        derivation_path: DerivationPath::master(),
-        wildcard: Wildcard::Unhardened,
-    };
-    (
-        DescriptorSecretKey::XPrv(xprvkey),
-        DescriptorPublicKey::XPub(xpubkey),
-    )
-}
-
-pub(crate) fn create_keys(network: Network) -> (Fingerprint, ExtendedPrivKey, ExtendedPubKey) {
-    let secp = Secp256k1::new();
-    let mut rng = thread_rng();
-    let seed: [u8; 32] = rng.gen();
-    let derivation_path = DerivationPath::from_str(DEFAULT_DERIVATION_PATH_STR).unwrap();
-    let sk = ExtendedPrivKey::new_master(network.to_owned().into(), &seed).unwrap();
-    let derived_sk = sk.derive_priv(&secp, &derivation_path).unwrap();
-    (
-        sk.fingerprint(&secp),
-        derived_sk,
-        ExtendedPubKey::from_priv(&secp, &derived_sk),
-    )
 }
 
 pub(crate) fn create_keypair() -> (SecretKey, PublicKey) {
@@ -134,52 +77,9 @@ pub(crate) fn create_plain_keys() -> (SecretKey, PublicKey) {
 ///
 /// Use this when you want to sign auth challenges or do proof-of-possession
 pub(crate) fn create_new_authkeys(context: &mut TestContext) -> TestAuthenticationKeys {
-    let secp = Secp256k1::new();
-    let app_sk = SecretKey::new(&mut thread_rng());
-    let app_pk = app_sk.public_key(&secp);
-
-    let hw_sk = SecretKey::new(&mut thread_rng());
-    let hw_pk = hw_sk.public_key(&secp);
-
-    let recovery_sk = SecretKey::new(&mut thread_rng());
-    let recovery_pk = recovery_sk.public_key(&secp);
-
-    let auth_keys = TestAuthenticationKeys {
-        app: TestKeypair {
-            public_key: app_pk,
-            secret_key: app_sk,
-        },
-        hw: TestKeypair {
-            public_key: hw_pk,
-            secret_key: hw_sk,
-        },
-        recovery: TestKeypair {
-            public_key: recovery_pk,
-            secret_key: recovery_sk,
-        },
-    };
+    let auth_keys = generate_test_authkeys();
     context.add_authentication_keys(auth_keys.clone());
     auth_keys
-}
-
-pub(crate) fn create_spend_keyset(network: Network) -> (SpendingKeyset, BdkWallet<AnyDatabase>) {
-    let (app_xprv, app_xpub) = create_descriptor_keys(network);
-    let (_, hardware_xpub) = create_descriptor_keys(network);
-    let (_, server_xpub) = create_descriptor_keys(network);
-    let keyset = SpendingKeyset::new(
-        network.to_owned(),
-        app_xpub.clone(),
-        hardware_xpub.clone(),
-        server_xpub.clone(),
-    );
-    let wallet = create_bdk_wallet(
-        &app_xprv.to_string(),
-        &app_xpub.to_string(),
-        &hardware_xpub.to_string(),
-        &server_xpub.to_string(),
-        network.into(),
-    );
-    (keyset, wallet)
 }
 
 pub(crate) async fn create_default_account_with_predefined_wallet(
@@ -250,12 +150,7 @@ async fn create_default_account_with_predefined_wallet_internal(
 }
 
 pub(crate) fn create_auth_keyset_model(context: &mut TestContext) -> FullAccountAuthKeys {
-    let keys = create_new_authkeys(context);
-    FullAccountAuthKeys::new(
-        keys.app.public_key,
-        keys.hw.public_key,
-        Some(keys.recovery.public_key),
-    )
+    create_new_authkeys(context).into()
 }
 
 pub(crate) fn create_lite_auth_keyset_model(context: &mut TestContext) -> LiteAccountAuthKeys {
@@ -335,31 +230,7 @@ pub(crate) async fn create_full_account(
         create_auth_keyset_model(context)
     };
 
-    let (spend, _) = create_spend_keyset(network);
-    let account = services
-        .account_service
-        .create_account_and_keysets(CreateAccountAndKeysetsInput {
-            account_id: AccountId::gen().unwrap(),
-            network: spend.network,
-            keyset_id: KeysetId::new(Ulid::default()).unwrap(),
-            auth_key_id: AuthKeysId::new(Ulid::default()).unwrap(),
-            keyset: Keyset {
-                auth: FullAccountAuthKeys {
-                    app_pubkey: auth.app_pubkey,
-                    hardware_pubkey: auth.hardware_pubkey,
-                    recovery_pubkey: auth.recovery_pubkey,
-                },
-                spending: SpendingKeyset {
-                    network,
-                    app_dpub: spend.app_dpub,
-                    hardware_dpub: spend.hardware_dpub,
-                    server_dpub: spend.server_dpub,
-                },
-            },
-            is_test_account: network != Network::BitcoinMain,
-        })
-        .await
-        .unwrap();
+    let account = create_full_account_for_test(&services.account_service, network, &auth).await;
     services
         .userpool_service
         .create_or_update_account_users_if_necessary(
@@ -594,43 +465,6 @@ pub(crate) async fn create_email_touchpoint(
     .unwrap()
 }
 
-fn create_bdk_wallet(
-    app_xprv: &str,
-    app_xpub: &str,
-    hw_xpub: &str,
-    server_xpub: &str,
-    network: BitcoinNetwork,
-) -> BdkWallet<AnyDatabase> {
-    let app = DescriptorPublicKey::from_str(app_xpub).unwrap();
-    let hw = DescriptorPublicKey::from_str(hw_xpub).unwrap();
-    let server = DescriptorPublicKey::from_str(server_xpub).unwrap();
-
-    let keyset = DescriptorKeyset::new(network, app, hw, server);
-    let receive_keymap = gen_keymap_with_derivation_path(
-        &DescriptorSecretKey::from_str(app_xprv).unwrap(),
-        &DescriptorPublicKey::from_str(app_xpub).unwrap(),
-        DerivationPath::from_str(RECEIVE_DERIVATION_PATH).unwrap(),
-    );
-    let change_keymap = gen_keymap_with_derivation_path(
-        &DescriptorSecretKey::from_str(app_xprv).unwrap(),
-        &DescriptorPublicKey::from_str(app_xpub).unwrap(),
-        DerivationPath::from_str(CHANGE_DERIVATION_PATH).unwrap(),
-    );
-    let receive_descriptor = keyset.receiving().into_multisig_descriptor().unwrap();
-    let change_descriptor = keyset.change().into_multisig_descriptor().unwrap();
-    let wallet = BdkWallet::new(
-        (receive_descriptor, receive_keymap),
-        Some((change_descriptor, change_keymap)),
-        network,
-        AnyDatabase::Memory(MemoryDatabase::new()),
-    )
-    .unwrap();
-    let rpc_uris = default_electrum_rpc_uris();
-    let blockchain = get_blockchain(network, &rpc_uris).unwrap();
-    wallet.sync(&blockchain, SyncOptions::default()).unwrap();
-    wallet
-}
-
 pub(crate) fn build_transaction_with_amount(
     wallet: &BdkWallet<AnyDatabase>,
     recipient: AddressInfo,
@@ -673,36 +507,6 @@ pub(crate) fn build_sweep_transaction(
         },
     );
     tx
-}
-
-fn gen_keymap_with_derivation_path(
-    xprv: &DescriptorSecretKey,
-    xpub: &DescriptorPublicKey,
-    derivation_path: DerivationPath,
-) -> KeyMap {
-    let derived_xprv = match xprv {
-        DescriptorSecretKey::XPrv(xkey) => DescriptorSecretKey::XPrv(DescriptorXKey {
-            derivation_path: derivation_path.clone(),
-            origin: xkey.origin.clone(),
-            ..*xkey
-        }),
-        _ => panic!("Invalid Secret Key"),
-    };
-    let derived_xpub = match xpub {
-        DescriptorPublicKey::XPub(xkey) => DescriptorPublicKey::XPub(DescriptorXKey {
-            derivation_path,
-            origin: xkey.origin.clone(),
-            ..*xkey
-        }),
-        _ => panic!("Invalid Public Key"),
-    };
-    KeyMap::from([(derived_xpub, derived_xprv)])
-}
-
-pub fn gen_signature(message: &str, secret_key: &SecretKey) -> String {
-    let secp = Secp256k1::new();
-    let message = Message::from_hashed_data::<sha256::Hash>(message.as_bytes());
-    secp.sign_ecdsa(&message, secret_key).to_string()
 }
 
 pub(crate) fn generate_delay_and_notify_recovery(

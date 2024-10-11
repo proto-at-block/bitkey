@@ -11,7 +11,7 @@ import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.f8e.relationships.Relationships
 import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
@@ -56,11 +56,11 @@ class GettingStartedCardUiStateMachineImpl(
       }
     }
 
-    val socRecRelationships by remember { socRecService.relationships.filterNotNull() }
-      .collectAsState(SocRecRelationships.EMPTY)
-    val trustedContacts by remember(socRecRelationships) {
+    val relationships by remember { socRecService.socRecRelationships.filterNotNull() }
+      .collectAsState(Relationships.EMPTY)
+    val trustedContacts by remember(relationships) {
       derivedStateOf {
-        socRecRelationships.endorsedTrustedContacts + socRecRelationships.invitations
+        relationships.endorsedTrustedContacts + relationships.invitations
       }
     }
 

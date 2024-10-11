@@ -5,6 +5,7 @@ import build.wallet.account.AccountService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.toFormattedString
 import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
@@ -14,7 +15,6 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
-import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
 import build.wallet.statemachine.data.money.convertedOrZero
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -39,7 +39,7 @@ class UtxoConsolidationUiStateMachineImpl(
   private val nfcSessionUiStateMachine: NfcSessionUIStateMachine,
 ) : UtxoConsolidationUiStateMachine {
   private val consolidationTimeExplanation =
-    "We selected a 24-hour transfer target to get you the lowest network fees for consolidation."
+    "We selected a 60-minute transfer target to get you the lowest network fees for consolidation."
 
   private val consolidationCostExplanation =
     "The number of UTXOs being consolidated and the current network fees determine the total cost. Bitkey never charges or receives fees for transfers."
@@ -60,9 +60,14 @@ class UtxoConsolidationUiStateMachineImpl(
           }
 
           utxoConsolidationService.prepareUtxoConsolidation()
-            .onSuccess { consolidationParams ->
+            .onSuccess { consolidationParamsList ->
               // TODO(W-9710): implement support for different consolidation types
-              state = ViewingConfirmation(account, consolidationParams.single())
+              val consolidationParams = consolidationParamsList.single()
+              if (consolidationParams.walletExceedsMaxUtxoCount) {
+                state = ShowingExceedsMaxUtxoCount(account, consolidationParams)
+              } else {
+                state = ViewingConfirmation(account, consolidationParams)
+              }
             }
             .onFailure { error ->
               state = when (error) {
@@ -74,7 +79,7 @@ class UtxoConsolidationUiStateMachineImpl(
 
         return LoadingSuccessBodyModel(
           onBack = props.onBack,
-          state = Success,
+          state = Loading,
           id = UtxoConsolidationEventTrackerScreenId.LOADING_UTXO_CONSOLIDATION_DETAILS
         ).asRootScreen()
       }
@@ -104,17 +109,18 @@ class UtxoConsolidationUiStateMachineImpl(
         val consolidationCostFiatString = moneyDisplayFormatter.format(consolidationCostFiat)
 
         ScreenModel(
-          body = utxoConsolidationConfirmationModel(
+          body = UtxoConsolidationConfirmationModel(
             balanceFiat = balanceFiatString,
             balanceBitcoin = balanceBitcoinString,
-            utxoCount = currentState.consolidationParams.currentUtxoCount.toString(),
+            utxoCount = currentState.consolidationParams.eligibleUtxoCount.toString(),
             consolidationCostFiat = consolidationCostFiatString,
             consolidationCostBitcoin = consolidationCostBitcoinString,
+            estimatedConsolidationTime = currentState.consolidationParams.transactionPriority.toFormattedString(),
+            showUnconfirmedTransactionsCallout = currentState.consolidationParams.walletHasUnconfirmedUtxos,
             onBack = props.onBack,
-            onConfirmClick = {
-              state = SigningConsolidationWithHardware(
-                account = currentState.account,
-                consolidationParams = currentState.consolidationParams
+            onContinue = {
+              state = currentState.copy(
+                sheetState = TapAndHoldToConsolidateSheet
               )
             },
             onConsolidationTimeClick = {
@@ -125,9 +131,15 @@ class UtxoConsolidationUiStateMachineImpl(
             }
           ),
           presentationStyle = ScreenPresentationStyle.Root,
-          bottomSheetModel = currentState.sheetState.toBottomSheetModel {
-            state = currentState.copy(sheetState = Hidden)
-          }
+          bottomSheetModel = currentState.sheetState.toBottomSheetModel(
+            onBack = { state = currentState.copy(sheetState = Hidden) },
+            onConsolidate = {
+              state = SigningConsolidationWithHardware(
+                account = currentState.account,
+                consolidationParams = currentState.consolidationParams
+              )
+            }
+          )
         )
       }
       is SigningConsolidationWithHardware -> {
@@ -152,7 +164,8 @@ class UtxoConsolidationUiStateMachineImpl(
             },
             isHardwareFake = currentState.account.config.isHardwareFake,
             screenPresentationStyle = ScreenPresentationStyle.Root,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION
+            eventTrackerContext = NfcEventTrackerScreenIdContext.UTXO_CONSOLIDATION_SIGN_TRANSACTION,
+            shouldShowLongRunningOperation = true
           )
         )
       }
@@ -190,12 +203,12 @@ class UtxoConsolidationUiStateMachineImpl(
         )
         val consolidationCostFiatString = moneyDisplayFormatter.format(consolidationCostFiat)
 
-        utxoConsolidationTransactionSentModel(
+        UtxoConsolidationTransactionSentModel(
           targetAddress = currentState.consolidationParams.targetAddress.chunkedAddress(),
           arrivalTime = dateTimeFormatter.shortDateWithTime(
             localDateTime = currentState.arrivalTime.toLocalDateTime(timeZoneProvider.current())
           ),
-          utxosCountConsolidated = "${currentState.consolidationParams.currentUtxoCount} → 1",
+          utxosCountConsolidated = "${currentState.consolidationParams.eligibleUtxoCount} → 1",
           consolidationCostBitcoin = consolidationCostBitcoinString,
           consolidationCostFiat = consolidationCostFiatString,
           onBack = props.onConsolidationSuccess,
@@ -203,10 +216,10 @@ class UtxoConsolidationUiStateMachineImpl(
         ).asRootScreen()
       }
       is ShowingErrorLoadingUtxoConsolidation -> ErrorFormBodyModel(
-        title = "Error showing UTXO consolidation",
-        subline = "Something went wrong while loading UTXO consolidation feature",
+        title = "Let’s try that again",
+        subline = "It looks like something went wrong behind the scenes. Please try again.",
         primaryButton = ButtonDataModel(
-          text = "Go Back",
+          text = "Ok",
           onClick = props.onBack
         ),
         onBack = props.onBack,
@@ -214,9 +227,9 @@ class UtxoConsolidationUiStateMachineImpl(
       ).asRootScreen()
       is ShowingErrorBroadcastingConsolidation -> ErrorFormBodyModel(
         title = "Error completing consolidation",
-        subline = "Something went wrong while broadcasting the consolidation transaction. Please try again.",
+        subline = "It looks like something went wrong while consolidating. Please try again",
         primaryButton = ButtonDataModel(
-          text = "Go Back",
+          text = "Try again",
           onClick = {
             state = ViewingConfirmation(
               account = currentState.account,
@@ -227,10 +240,23 @@ class UtxoConsolidationUiStateMachineImpl(
         onBack = props.onBack,
         eventTrackerScreenId = null
       ).asRootScreen()
+      is ShowingExceedsMaxUtxoCount -> ExceedsMaxUtxoCountBodyModel(
+        onBack = props.onBack,
+        maxUtxoCount = currentState.consolidationParams.maxUtxoCount,
+        onContinue = {
+          state = ViewingConfirmation(
+            account = currentState.account,
+            consolidationParams = currentState.consolidationParams
+          )
+        }
+      ).asRootScreen()
     }
   }
 
-  private fun ViewingConfirmation.SheetState.toBottomSheetModel(onBack: () -> Unit): SheetModel? {
+  private fun ViewingConfirmation.SheetState.toBottomSheetModel(
+    onBack: () -> Unit,
+    onConsolidate: () -> Unit,
+  ): SheetModel? {
     return when (this) {
       ConsolidationCostInfoSheet -> consolidationInfoSheetModel(
         eventTrackerScreenId = UtxoConsolidationEventTrackerScreenId.UTXO_CONSOLIDATION_COST_INFO,
@@ -245,6 +271,10 @@ class UtxoConsolidationUiStateMachineImpl(
         onBack = onBack
       )
       Hidden -> null
+      TapAndHoldToConsolidateSheet -> TapAndHoldToConsolidateUtxosBodyModel(
+        onBack = onBack,
+        onConsolidate = onConsolidate
+      ).asSheetModalScreen(onBack)
     }
   }
 
@@ -273,6 +303,8 @@ class UtxoConsolidationUiStateMachineImpl(
         data object ConsolidationCostInfoSheet : SheetState
 
         data object ConsolidationTimeInfoSheet : SheetState
+
+        data object TapAndHoldToConsolidateSheet : SheetState
       }
     }
 
@@ -294,6 +326,11 @@ class UtxoConsolidationUiStateMachineImpl(
 
     data class ShowingErrorBroadcastingConsolidation(
       val error: Throwable,
+      val account: FullAccount,
+      val consolidationParams: UtxoConsolidationParams,
+    ) : State
+
+    data class ShowingExceedsMaxUtxoCount(
       val account: FullAccount,
       val consolidationParams: UtxoConsolidationParams,
     ) : State

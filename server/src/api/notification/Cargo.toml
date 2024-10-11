@@ -51,8 +51,9 @@ types = { workspace = true, features = [
   "account",
   "notification",
   "privileged_action",
+  "recovery",
 ] }
 userpool = { workspace = true }
 
 [dev-dependencies]
-rstest = "0.18.1"
+rstest = { workspace = true }

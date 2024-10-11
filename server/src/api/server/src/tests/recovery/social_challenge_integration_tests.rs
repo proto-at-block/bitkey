@@ -1,21 +1,8 @@
-use super::shared::{
-    try_accept_recovery_relationship_invitation, try_create_recovery_relationship,
-    try_endorse_recovery_relationship, AccountType, CodeOverride,
-};
-use crate::tests;
-use crate::tests::gen_services;
-use crate::tests::lib::{create_full_account, create_lite_account};
-use crate::tests::requests::axum::TestClient;
-use crate::tests::requests::CognitoAuthentication;
-use account::{
-    entities::Account,
-    spend_limit::{Money, SpendingLimit},
-};
 use http::StatusCode;
 use mobile_pay::routes::MobilePaySetupRequest;
 use rand::Rng;
 use recovery::{
-    routes::{
+    routes::social_challenge::{
         FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
         RespondToSocialChallengeResponse, StartChallengeTrustedContactRequest,
         StartSocialChallengeRequest, StartSocialChallengeResponse, VerifySocialChallengeRequest,
@@ -28,6 +15,10 @@ use recovery::{
 };
 use time::UtcOffset;
 use types::account::bitcoin::Network;
+use types::account::{
+    entities::Account,
+    spend_limit::{Money, SpendingLimit},
+};
 use types::recovery::trusted_contacts::TrustedContactRole;
 use types::{
     account::identifiers::AccountId,
@@ -37,6 +28,16 @@ use types::{
         relationship::RecoveryRelationshipId,
     },
 };
+
+use super::shared::{
+    try_accept_recovery_relationship_invitation, try_create_recovery_relationship,
+    try_endorse_recovery_relationship, AccountType, CodeOverride,
+};
+use crate::tests;
+use crate::tests::gen_services;
+use crate::tests::lib::{create_full_account, create_lite_account};
+use crate::tests::requests::axum::TestClient;
+use crate::tests::requests::CognitoAuthentication;
 
 const PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY: &str =
     "005abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f5";

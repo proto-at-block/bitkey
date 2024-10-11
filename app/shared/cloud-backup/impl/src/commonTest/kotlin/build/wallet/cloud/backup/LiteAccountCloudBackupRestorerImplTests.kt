@@ -2,13 +2,8 @@ package build.wallet.cloud.backup
 
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
-import build.wallet.auth.AccessToken
-import build.wallet.auth.AccountAuthTokens
-import build.wallet.auth.AccountAuthenticatorMock
-import build.wallet.auth.AuthStorageError
-import build.wallet.auth.AuthTokenDaoMock
+import build.wallet.auth.*
 import build.wallet.auth.AuthTokenScope.Recovery
-import build.wallet.auth.RefreshToken
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
@@ -18,7 +13,7 @@ import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestoration
 import build.wallet.cloud.backup.local.BackupStorageError
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
+import build.wallet.relationships.RelationshipsKeysDaoFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -36,7 +31,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
   val restorer =
     LiteAccountCloudBackupRestorerImpl(
       appPrivateKeyDao = appPrivateKeyDaoFake,
-      socRecKeysDao = SocRecKeysDaoFake(),
+      relationshipsKeysDao = RelationshipsKeysDaoFake(),
       accountAuthenticator = accountAuthenticator,
       authTokenDao = authTokenDao,
       cloudBackupDao = cloudBackupDao,

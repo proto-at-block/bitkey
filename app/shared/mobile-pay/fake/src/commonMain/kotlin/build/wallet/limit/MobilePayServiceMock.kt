@@ -2,6 +2,7 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Ok
@@ -14,7 +15,10 @@ class MobilePayServiceMock(
   override val mobilePayData = MutableStateFlow<MobilePayData?>(null)
 
   val disableCalls = turbine("disable mobile pay calls")
+  val signPsbtCalls = turbine("sign psbt with mobile pay calls")
   var disableResult: Result<Unit, Error> = Ok(Unit)
+  var signPsbtWithMobilePayResult: Result<Psbt, Error>? = null
+  var keysetId: String? = null
 
   override suspend fun disable(account: FullAccount): Result<Unit, Error> {
     disableCalls += Unit
@@ -26,6 +30,12 @@ class MobilePayServiceMock(
   override suspend fun deleteLocal(): Result<Unit, Error> {
     deleteLocalCalls += Unit
     return Ok(Unit)
+  }
+
+  override suspend fun signPsbtWithMobilePay(psbt: Psbt): Result<Psbt, Error> {
+    val signedPsbt = psbt.copy(base64 = "${psbt.base64} ${signature(keysetId ?: "")}")
+    signPsbtCalls += signedPsbt
+    return signPsbtWithMobilePayResult ?: Ok(signedPsbt)
   }
 
   val setLimitCalls = turbine("set mobile pay limit calls")
@@ -42,5 +52,9 @@ class MobilePayServiceMock(
   fun reset() {
     disableResult = Ok(Unit)
     mobilePayData.value = null
+    keysetId = null
+    signPsbtWithMobilePayResult = null
   }
+
+  private fun signature(keysetId: String) = "is_server_signed($keysetId)"
 }

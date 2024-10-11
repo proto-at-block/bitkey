@@ -2,11 +2,10 @@ use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use async_trait::async_trait;
 use recovery::repository::RecoveryRepository;
 
-use crate::routes::Config;
-
 use super::{
     error::AccountValidationError, is_repeat_account_creation, AccountValidationRequest, Rule,
 };
+use crate::routes::Config;
 
 pub(crate) struct UniqueAppAuthPubkeyForAccountRule;
 

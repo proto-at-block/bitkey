@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use account::repository::AccountRepository;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD as b64, Engine as _};
 use notification::service::Service as NotificationService;
+use repository::account::AccountRepository;
 use repository::privileged_action::PrivilegedActionRepository;
 use types::time::Clock;
 

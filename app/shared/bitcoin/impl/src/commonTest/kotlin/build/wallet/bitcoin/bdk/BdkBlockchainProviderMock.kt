@@ -2,9 +2,7 @@ package build.wallet.bitcoin.bdk
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bdk.bindings.BdkBlockchain
-import build.wallet.bdk.bindings.BdkBlockchainMock
-import build.wallet.bdk.bindings.BdkResult
+import build.wallet.bdk.bindings.*
 import build.wallet.bdk.bindings.BdkResult.Ok
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.sync.ElectrumServer
@@ -30,7 +28,8 @@ class BdkBlockchainProviderMock(
         blockHeightResult = Ok(1),
         blockHashResult = Ok(BitcoinNetworkType.BITCOIN.chainHash()),
         broadcastResult = Ok(Unit),
-        feeRateResult = Ok(1f)
+        feeRateResult = Ok(1f),
+        getTxResult = Ok(BdkTransactionMock(output = listOf(BdkTxOutMock)))
       )
 
     val ElectrumServerMock =

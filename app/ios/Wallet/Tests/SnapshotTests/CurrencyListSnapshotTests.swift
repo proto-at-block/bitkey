@@ -9,7 +9,7 @@ final class CurrencyListSnapshotTests: XCTestCase {
 
     func test_currency_list() {
         let view = FormView(
-            viewModel: FiatCurrencyListFormModelKt.FiatCurrencyListFormModel(
+            viewModel: SnapshotTestModels.shared.CreateFiatCurrencyListFormModel(
                 onClose: {},
                 selectedCurrency: .usd,
                 currencyList: [.usd, .gbp, .eur],

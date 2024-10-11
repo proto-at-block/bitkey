@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.auth.AuthTokenScope
@@ -19,19 +14,11 @@ import build.wallet.logging.logFailure
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.permissions.PermissionChecker
-import build.wallet.platform.permissions.PermissionStatus.Authorized
-import build.wallet.platform.permissions.PermissionStatus.Denied
-import build.wallet.platform.permissions.PermissionStatus.NotDetermined
-import build.wallet.recovery.socrec.DecryptPrivateKeyEncryptionKeyOutput
-import build.wallet.recovery.socrec.SocRecCrypto
+import build.wallet.platform.permissions.PermissionStatus.*
+import build.wallet.relationships.DecryptPrivateKeyEncryptionKeyOutput
+import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.serialization.json.decodeFromStringResult
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.Retreat
-import build.wallet.statemachine.core.RetreatStyle
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
@@ -48,7 +35,7 @@ import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
 class RecoveryChallengeUiStateMachineImpl(
-  private val crypto: SocRecCrypto,
+  private val crypto: RelationshipsCrypto,
   private val enableNotificationsUiStateMachine: EnableNotificationsUiStateMachine,
   private val deviceTokenManager: DeviceTokenManager,
   private val challengeCodeFormatter: ChallengeCodeFormatter,

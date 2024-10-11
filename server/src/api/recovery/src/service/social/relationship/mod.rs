@@ -1,11 +1,11 @@
-use account::entities::AccountProperties;
+use notification::service::Service as NotificationService;
 use rand::Rng;
 use repository::recovery::social::SocialRecoveryRepository;
 use time::{Duration, OffsetDateTime};
-
-use notification::service::Service as NotificationService;
+use types::account::entities::AccountProperties;
 
 pub mod accept_recovery_relationship_invitation;
+pub mod backups;
 pub mod create_recovery_relationship_invitation;
 pub mod delete_recovery_relationship;
 pub mod endorse_recovery_relationships;
@@ -13,6 +13,7 @@ pub mod error;
 pub mod get_recovery_relationship_invitation_for_code;
 pub mod get_recovery_relationships;
 pub mod reissue_recovery_relationship_invitation;
+pub mod tests;
 
 const TEST_EXPIRATION_SECS: i64 = 3000;
 const INVITATION_CODE_BIT_LENGTH: usize = 20;

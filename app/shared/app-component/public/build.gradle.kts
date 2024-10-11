@@ -21,6 +21,7 @@ kotlin {
         api(projects.shared.databasePublic)
         api(projects.shared.datadogPublic)
         api(projects.shared.f8eClientPublic)
+        api(projects.shared.inheritancePublic)
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.memfaultPublic)
@@ -34,6 +35,7 @@ kotlin {
         api(projects.shared.timePublic)
         api(projects.shared.fwupPublic)
         api(projects.shared.inAppSecurityPublic)
+        api(projects.shared.relationshipsPublic)
       }
     }
   }

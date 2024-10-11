@@ -16,7 +16,6 @@ import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccoun
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -30,7 +29,6 @@ import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
-import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
@@ -48,7 +46,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   lateinit var appTester: AppTester
   lateinit var app: ActivityComponentImpl
   lateinit var recoveryStateMachine: RecoveryTestingStateMachine
-  lateinit var appSpendingWalletProvider: AppSpendingWalletProvider
 
   suspend fun setup(initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero()) {
     appTester = launchNewApp()
@@ -57,7 +54,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
       val wallet = appTester.getActiveWallet()
       appTester.treasuryWallet.fund(wallet, initWithTreasuryFunds)
-      appSpendingWalletProvider = appTester.app.appComponent.appSpendingWalletProvider
     }
     app.appDataDeleter.deleteAll().getOrThrow()
     app.cloudBackupDeleter.delete(cloudServiceProvider())
@@ -367,13 +363,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           initialDelay = 1.seconds
         }
       ) {
-        val activeAccount = appTester.getActiveFullAccount()
-        val activeWallet = appSpendingWalletProvider.getSpendingWallet(activeAccount).getOrThrow()
+        val activeWallet = appTester.getActiveWallet()
         activeWallet.sync().shouldBeOk()
         val balance = activeWallet.balance().first()
         balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
         // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
-        appTester.returnFundsToTreasury(activeAccount)
+        appTester.returnFundsToTreasury()
       }
     }
   }

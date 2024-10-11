@@ -1,5 +1,6 @@
 use serde::{Deserialize, Deserializer, Serializer};
 
+use crate::currencies::CurrencyCode::XXX;
 use crate::currencies::{Currency, CurrencyCode};
 use time::OffsetDateTime;
 
@@ -38,10 +39,12 @@ where
 {
     let s = String::deserialize(d)?;
 
-    Currency::supported_currency_codes()
+    let currency_code = Currency::supported_currency_codes()
         .into_iter()
         .find(|c| c.to_string() == s.to_uppercase())
-        .ok_or(serde::de::Error::custom("Unsupported currency"))
+        .unwrap_or(XXX); // return no currency when it is unsupported
+
+    Ok(currency_code)
 }
 
 pub fn f64_from_str<'de, D>(deserializer: D) -> Result<f64, D::Error>

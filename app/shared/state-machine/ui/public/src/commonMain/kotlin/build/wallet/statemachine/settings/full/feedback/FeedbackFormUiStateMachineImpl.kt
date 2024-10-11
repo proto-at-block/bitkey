@@ -159,51 +159,36 @@ class FeedbackFormUiStateMachineImpl(
       mutableStateOf(false)
     }
 
+    val contentList = buildImmutableList {
+      add(EmailModel(formData.email, formData::email::set))
+      addAll(
+        structure.fields.mapNotNull { field ->
+          FieldModel(
+            field = field,
+            conditions = structure.conditions,
+            data = formData
+          )
+        }
+      )
+      add(
+        AttachmentsModel(
+          attachments = formData.attachments.toImmutableList(),
+          addAttachment = { isPickingMedia = true },
+          removeAttachment = { formData.removeAttachment(it) }
+        )
+      )
+      add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
+      add(PrivacyPolicyDisclaimer(onClick = onPrivacyPolicyClick))
+    }
+
     return ScreenModel(
-      body =
-        FormBodyModel(
-          id = FeedbackEventTrackerScreenId.FEEDBACK_FILLING_FORM,
-          onBack = { confirmLeaveIfNeeded() },
-          toolbar =
-            ToolbarModel(
-              leadingAccessory =
-                ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = {
-                  confirmLeaveIfNeeded()
-                }),
-              middleAccessory = ToolbarMiddleAccessoryModel(title = "Send feedback")
-            ),
-          header = null,
-          mainContentList = buildImmutableList {
-            add(EmailModel(formData.email, formData::email::set))
-            addAll(
-              structure.fields.mapNotNull { field ->
-                FieldModel(
-                  field = field,
-                  conditions = structure.conditions,
-                  data = formData
-                )
-              }
-            )
-            add(
-              AttachmentsModel(
-                attachments = formData.attachments.toImmutableList(),
-                addAttachment = { isPickingMedia = true },
-                removeAttachment = { formData.removeAttachment(it) }
-              )
-            )
-            add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
-            add(PrivacyPolicyDisclaimer(onClick = onPrivacyPolicyClick))
-          },
-          primaryButton =
-            ButtonModel(
-              text = "Submit",
-              isEnabled = isValid,
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick {
-                onSubmitData(formData.toImmutable())
-              }
-            )
-        ),
+      body = FillingFormBodyModel(
+        formData = formData,
+        onSubmitData = onSubmitData,
+        confirmLeaveIfNeeded = ::confirmLeaveIfNeeded,
+        isValid = isValid,
+        mainContentList = contentList
+      ),
       alertModel =
         when (alertUiState) {
           FeedbackAlertUiState.ViewingLeaveConfirmation ->
@@ -237,6 +222,34 @@ class FeedbackFormUiStateMachineImpl(
         }
     )
   }
+
+  private data class FillingFormBodyModel(
+    val formData: StateMapBackedSupportTicketData,
+    val onSubmitData: (SupportTicketData) -> Unit,
+    val confirmLeaveIfNeeded: () -> Unit,
+    val isValid: Boolean,
+    override val mainContentList: ImmutableList<FormMainContentModel>,
+  ) : FormBodyModel(
+      id = FeedbackEventTrackerScreenId.FEEDBACK_FILLING_FORM,
+      onBack = confirmLeaveIfNeeded,
+      toolbar =
+        ToolbarModel(
+          leadingAccessory =
+            ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = confirmLeaveIfNeeded),
+          middleAccessory = ToolbarMiddleAccessoryModel(title = "Send feedback")
+        ),
+      header = null,
+      mainContentList = mainContentList,
+      primaryButton =
+        ButtonModel(
+          text = "Submit",
+          isEnabled = isValid,
+          size = ButtonModel.Size.Footer,
+          onClick = StandardClick {
+            onSubmitData(formData.toImmutable())
+          }
+        )
+    )
 
   @Composable
   private fun <Value : Any> FieldModel(

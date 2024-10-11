@@ -1,5 +1,5 @@
-use account::entities::FullAccount;
 use tracing::instrument;
+use types::account::entities::FullAccount;
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 
 use super::{error::ServiceError, Service};

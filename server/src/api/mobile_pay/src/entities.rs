@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
+use types::account::spend_limit::SpendingLimit;
 use utoipa::ToSchema;
-
-use account::spend_limit::SpendingLimit;
 
 #[derive(Debug, Default)]
 pub struct Features {

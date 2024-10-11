@@ -24,7 +24,7 @@ public class NfcSessionImpl: NSObject, NfcSession {
         self.delegate = nil
         super.init()
         let delegate = NfcSessionDelegate(
-            { parameters.onTagConnected() },
+            { [weak self] in parameters.onTagConnected(self) },
             parameters.onTagDisconnected
         )
 

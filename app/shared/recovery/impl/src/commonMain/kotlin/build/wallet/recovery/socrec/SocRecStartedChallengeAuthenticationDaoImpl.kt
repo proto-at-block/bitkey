@@ -8,6 +8,7 @@ import build.wallet.crypto.PrivateKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
 import build.wallet.db.DbTransactionError
+import build.wallet.relationships.RelationshipsKeyError
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
@@ -43,7 +44,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
   override suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> =
-    coroutineBinding<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> {
+    coroutineBinding {
       val challengeAuth =
         database.awaitTransactionWithResult {
           database.socRecStartedChallengeAuthenticationQueries.getByRelationshipId(
@@ -58,7 +59,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
       val privateKey =
         appPrivateKeyDao.getAsymmetricPrivateKey(challengeAuth.protectedCustomerRecoveryPakeKey)
           .toErrorIfNull {
-            SocRecKeyError.NoPrivateKeyAvailable(
+            RelationshipsKeyError.NoPrivateKeyAvailable(
               message = "SocRec challenge authentication private key missing"
             )
           }.bind()
@@ -87,7 +88,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
         val privateKey =
           appPrivateKeyDao.getAsymmetricPrivateKey(it.protectedCustomerRecoveryPakeKey)
             .toErrorIfNull {
-              SocRecKeyError.NoPrivateKeyAvailable(
+              RelationshipsKeyError.NoPrivateKeyAvailable(
                 message = "SocRec challenge authentication private key missing"
               )
             }.bind()

@@ -22,7 +22,7 @@ actual class DoubleFormatterImpl(
     localeProvider = { NSLocale.autoupdatingCurrentLocale() }
   )
 
-  override fun format(
+  actual override fun format(
     double: Double,
     minimumFractionDigits: Int,
     maximumFractionDigits: Int,
@@ -37,7 +37,7 @@ actual class DoubleFormatterImpl(
     return formatter.stringFromNumber(NSNumber(double))!!
   }
 
-  override fun parse(string: String): Double? {
+  actual override fun parse(string: String): Double? {
     return formatter.numberFromString(string)?.doubleValue
   }
 

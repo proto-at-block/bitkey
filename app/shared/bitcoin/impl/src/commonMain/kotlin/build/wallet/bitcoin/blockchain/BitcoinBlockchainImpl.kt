@@ -1,11 +1,8 @@
 package build.wallet.bitcoin.blockchain
 
-import build.wallet.bdk.bindings.BdkError
-import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
-import build.wallet.bdk.bindings.broadcast
-import build.wallet.bdk.bindings.getBlockHash
-import build.wallet.bdk.bindings.getHeight
+import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
+import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.logging.LogLevel.Debug
@@ -52,5 +49,11 @@ class BitcoinBlockchainImpl(
       val blockchain = bdkBlockchainProvider.blockchain().result.bind()
       val blockHeight = blockchain.getHeight().result.bind()
       blockchain.getBlockHash(blockHeight).result.bind()
+    }
+
+  override suspend fun getTx(txid: BitcoinTransactionId): Result<BdkTransaction?, BdkError> =
+    coroutineBinding {
+      val blockchain = bdkBlockchainProvider.blockchain().result.bind()
+      blockchain.getTx(txid.value).result.bind()
     }
 }

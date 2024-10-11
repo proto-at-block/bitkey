@@ -4,7 +4,8 @@
     {
       "matchManagers": ["hermit"],
       "matchPackageNames": ["python3"],
-      "allowedVersions": "<= 3.10"
+      "allowedVersions": "<= 3.10",
+      "minimumReleaseAge": "120 days"
     },
     {
       "matchManagers": ["gradle"],
@@ -15,23 +16,23 @@
     {
       "matchManagers": ["gradle"],
       "matchPaths": ["app/"],
-      "enabled": true
+      "enabled": true,
+      "minimumReleaseAge": "120 days"
     },
     {
       "matchManagers": ["swift"],
-      "matchPaths": ["app/ios"]
+      "matchPaths": ["app/ios"],
+      "minimumReleaseAge": "120 days"
     },
     {
       "matchManagers": ["pip_requirements"],
-      "matchPaths": ["firmware"]
-    },
-    {
-      "matchManagers": ["docker"],
-      "matchPaths": ["server", "server/src/wsm/third-party"]
+      "matchPaths": ["firmware"],
+      "minimumReleaseAge": "120 days"
     },
     {
       "matchManagers": ["npm"],
-      "matchPaths": ["server", "app/style"]
+      "matchPaths": ["server", "app/style"],
+      "minimumReleaseAge": "120 days"
     },
     {
       "matchManagers": ["git-submodules"],
@@ -42,7 +43,8 @@
     {
       "matchManagers": ["git-submodules"],
       "matchPaths": ["/"],
-      "enabled": true
+      "enabled": true,
+      "minimumReleaseAge": "120 days"
     }
   ],
   "extends": [
@@ -61,7 +63,6 @@
     "nodes/**",
     "web/**"
   ],
-  "minimumReleaseAge": "120 days",
   "enabledManagers": [
     "cocoapods",
     "hermit",

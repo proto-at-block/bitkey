@@ -39,15 +39,17 @@ public struct CalloutView: View {
                 }
 
                 VStack {
-                    Text(model.title)
-                        .font(
-                            Font.custom("Inter", size: 16)
-                                .weight(.medium)
-                        )
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(theme.titleColor)
+                    if let title = model.title {
+                        Text(title)
+                            .font(
+                                Font.custom("Inter", size: 16)
+                                    .weight(.medium)
+                            )
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(theme.titleColor)
+                    }
 
                     if let subtitle = model.subtitle {
                         let fontTheme = FontTheme(

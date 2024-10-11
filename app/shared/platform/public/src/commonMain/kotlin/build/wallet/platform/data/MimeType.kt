@@ -10,6 +10,7 @@ data class MimeType(
     val PDF = MimeType("application/pdf")
     val PROTOBUF = MimeType("application/x-protobuf")
     val TEXT_PLAIN = MimeType("text/plain")
+    val CSV = MimeType("text/csv")
   }
 
   /**
@@ -23,6 +24,7 @@ data class MimeType(
       PDF.name -> "pdf"
       PROTOBUF.name -> "proto"
       TEXT_PLAIN.name -> "txt"
+      CSV.name -> "csv"
       else -> null
     }
 }

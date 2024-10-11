@@ -6,14 +6,14 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
-import build.wallet.recovery.socrec.SocRecKeysRepository
+import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
 class LiteAccountCloudBackupCreatorImpl(
-  private val socRecKeysRepository: SocRecKeysRepository,
+  private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val appPrivateKeyDao: AppPrivateKeyDao,
 ) : LiteAccountCloudBackupCreator {
   override suspend fun create(
@@ -21,7 +21,7 @@ class LiteAccountCloudBackupCreatorImpl(
   ): Result<CloudBackupV2, LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError> =
     coroutineBinding {
       val delegatedDecryptionKeypair =
-        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
+        relationshipsKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
           .mapError { SocRecKeysRetrievalError(it) }
           .bind()
 

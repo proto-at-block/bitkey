@@ -17,7 +17,6 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.FiatCurrency
@@ -42,6 +41,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
 import com.github.michaelbull.result.getOrElse
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -60,7 +60,6 @@ class TransactionDetailsUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val feeBumpConfirmationUiStateMachine: FeeBumpConfirmationUiStateMachine,
   private val feeRateEstimator: BitcoinFeeRateEstimator,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val transactionsService: TransactionsService,
 ) : TransactionDetailsUiStateMachine {
@@ -84,20 +83,17 @@ class TransactionDetailsUiStateMachineImpl(
       )
     val totalFiatString = moneyDisplayFormatter.format(totalFiatAmount)
 
-    val transactionsData = remember { transactionsService.transactionsData() }
-      .collectAsState().value
+    val transactionsData by remember { transactionsService.transactionsLoadedData() }
+      .collectAsState(null)
 
-    val unspentOutputs = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> immutableListOf()
-      is TransactionsData.TransactionsLoadedData -> transactionsData.unspentOutputs
-    }
+    val allUtxos = remember(transactionsData) { transactionsData?.utxos?.all.orEmpty() }
 
     val feeBumpEnabled by remember {
       mutableStateOf(
         feeBumpEnabled.isEnabled() &&
           bitcoinTransactionBumpabilityChecker.isBumpable(
             transaction = props.transaction,
-            walletUnspentOutputs = unspentOutputs
+            walletUnspentOutputs = allUtxos.toImmutableList()
           )
       )
     }
@@ -252,12 +248,13 @@ class TransactionDetailsUiStateMachineImpl(
               feeRate = newFeeRate
             )
 
-            val psbt = appSpendingWalletProvider
-              .getSpendingWallet(props.accountData.account)
-              .getOrElse {
-                onFailedToPrepareData()
-                return@LaunchedEffect
-              }.createSignedPsbt(constructionType = constructionMethod)
+            val wallet = transactionsService.spendingWallet().value
+            if (wallet == null) {
+              onFailedToPrepareData()
+              return@LaunchedEffect
+            }
+            val psbt = wallet
+              .createSignedPsbt(constructionType = constructionMethod)
               .logFailure { "Unable to build fee bump psbt" }
               .getOrElse {
                 when (it) {
@@ -346,7 +343,7 @@ class TransactionDetailsUiStateMachineImpl(
                   immutableListOf(
                     Data(
                       title = "UTXOs consolidated",
-                      sideText = "${props.transaction.inputs.size}"
+                      sideText = "${props.transaction.inputs.size} → 1"
                     ),
                     Data(
                       title = "Consolidation cost",
@@ -425,38 +422,46 @@ class TransactionDetailsUiStateMachineImpl(
     SheetModel(
       size = SheetSize.MIN40,
       onClosed = onClose,
-      body = FormBodyModel(
-        id = null,
-        onBack = onClose,
-        toolbar = null,
-        header = FormHeaderModel(
-          headline = "Speed up transactions",
-          subline = """
+      body = TransactionSpeedUpEducationBodyModel(
+        onSpeedUpTransaction = onSpeedUpTransaction,
+        onClose = onClose
+      )
+    )
+
+  private data class TransactionSpeedUpEducationBodyModel(
+    val onSpeedUpTransaction: () -> Unit,
+    val onClose: () -> Unit,
+  ) : FormBodyModel(
+      id = null,
+      onBack = onClose,
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = "Speed up transactions",
+        subline = """
             If your Bitcoin transaction is taking longer than expected, you can try speeding it up.
             
             A common problem that can occur is when someone sends a payment with a fee that isn't high enough to get confirmed, causing it to get stuck in the mempool.
             
             We’ll take the guess work out by providing a fee that should get your transfer confirmed quickly.
-          """.trimIndent(),
-          iconModel = IconModel(
-            icon = Icon.SmallIconSpeed,
-            iconSize = IconSize.Small,
-            iconTint = IconTint.Primary,
-            iconBackgroundType = IconBackgroundType.Circle(
-              circleSize = IconSize.Large,
-              color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
-            )
-          ),
-          sublineTreatment = FormHeaderModel.SublineTreatment.REGULAR
+        """.trimIndent(),
+        iconModel = IconModel(
+          icon = Icon.SmallIconSpeed,
+          iconSize = IconSize.Small,
+          iconTint = IconTint.Primary,
+          iconBackgroundType = IconBackgroundType.Circle(
+            circleSize = IconSize.Large,
+            color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
+          )
         ),
-        primaryButton = ButtonModel(
-          text = "Try speeding up",
-          treatment = ButtonModel.Treatment.Primary,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick(onSpeedUpTransaction)
-        ),
-        renderContext = RenderContext.Sheet
-      )
+        sublineTreatment = FormHeaderModel.SublineTreatment.REGULAR
+      ),
+      primaryButton = ButtonModel(
+        text = "Try speeding up",
+        treatment = ButtonModel.Treatment.Primary,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onSpeedUpTransaction)
+      ),
+      renderContext = RenderContext.Sheet
     )
 
   private fun pendingDataListItem(

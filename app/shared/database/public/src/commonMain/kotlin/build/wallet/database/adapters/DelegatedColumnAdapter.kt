@@ -5,11 +5,24 @@ import app.cash.sqldelight.ColumnAdapter
 /**
  * Delegate encoding and decoding to provided functions.
  */
-internal class DelegatedColumnAdapter<T : Any>(
-  private val decoder: (String) -> T,
-  private val encoder: (T) -> String,
-) : ColumnAdapter<T, String> {
-  override fun decode(databaseValue: String) = decoder(databaseValue)
+internal class DelegatedColumnAdapter<A : Any, B : Any>(
+  private val decoder: (B) -> A,
+  private val encoder: (A) -> B,
+) : ColumnAdapter<A, B> {
+  override fun decode(databaseValue: B) = decoder(databaseValue)
 
-  override fun encode(value: T) = encoder(value)
+  override fun encode(value: A) = encoder(value)
+}
+
+/**
+ * Chains two adapters together.
+ */
+internal fun <A : Any, B : Any, C : Any> ColumnAdapter<A, B>.then(
+  second: ColumnAdapter<B, C>,
+): ColumnAdapter<A, C> {
+  val first = this
+  return DelegatedColumnAdapter(
+    decoder = { first.decode(second.decode(it)) },
+    encoder = { second.encode(first.encode(it)) }
+  )
 }

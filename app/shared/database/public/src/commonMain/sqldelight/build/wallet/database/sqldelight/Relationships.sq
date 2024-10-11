@@ -45,34 +45,34 @@ CREATE TABLE unendorsedTrustedContactEntity(
   roles                        TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
 );
 
-insertSocRecTrustedContactInvitation:
+insertTrustedContactInvitation:
 INSERT OR REPLACE INTO trustedContactInvitationEntity(relationshipId, trustedContactAlias, token, tokenBitLength, expiresAt, roles)
 VALUES(?, ?, ?, ?, ?, ?);
 
-getSocRecTrustedContactInvitations:
-SELECT * FROM trustedContactInvitationEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
+getTrustedContactInvitations:
+SELECT * FROM trustedContactInvitationEntity
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
-insertSocRecTrustedContact:
+insertTrustedContact:
 INSERT OR REPLACE INTO trustedContactEntity(relationshipId, trustedContactAlias, authenticationState, certificate, roles)
 VALUES(:relationshipId, :trustedContactAlias, :authenticationState, :certificate, :roles);
 
-getSocRecTrustedContacts:
-SELECT * FROM trustedContactEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
+getTrustedContacts:
+SELECT * FROM trustedContactEntity
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
-insertSocRecProtectedCustomer:
+insertProtectedCustomer:
 INSERT OR REPLACE INTO protectedCustomerEntity(relationshipId, alias, roles)
 VALUES(?, ?, ?);
 
-getSocRecProtectedCustomers:
-SELECT * FROM protectedCustomerEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
+getProtectedCustomers:
+SELECT * FROM protectedCustomerEntity
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
-insertSocRecUnendorsedTrustedContact:
+insertUnendorsedTrustedContact:
 INSERT OR REPLACE INTO unendorsedTrustedContactEntity(
     relationshipId,
     trustedContactAlias,
@@ -84,31 +84,31 @@ INSERT OR REPLACE INTO unendorsedTrustedContactEntity(
 )
 VALUES(?, ?, ?, ?, ?, ?, ?);
 
-getSocRecUnendorsedTrustedContacts:
-SELECT * FROM unendorsedTrustedContactEntity WHERE roles LIKE '%SOCIAL_RECOVERY_CONTACT%'
+getUnendorsedTrustedContacts:
+SELECT * FROM unendorsedTrustedContactEntity
 -- Arbitrary but stable sort
 ORDER BY relationshipId;
 
-setSocRecUnendorsedTrustedContactAuthenticationState:
+setUnendorsedTrustedContactAuthenticationState:
 UPDATE unendorsedTrustedContactEntity
 SET authenticationState = ?
 WHERE relationshipId = ?;
 
-setSocRecTrustedContactAuthenticationState:
+setTrustedContactAuthenticationState:
 UPDATE trustedContactEntity
 SET authenticationState = ?
 WHERE relationshipId = ?;
 
-clearSocRecTrustedContactInvitations:
+clearTrustedContactInvitations:
 DELETE FROM trustedContactInvitationEntity;
 
-clearSocRecTrustedContacts:
+clearTrustedContacts:
 DELETE FROM trustedContactEntity;
 
-clearSocRecProtectedCustomers:
+clearProtectedCustomers:
 DELETE FROM protectedCustomerEntity;
 
-clearSocRecUnendorsedTrustedContacts:
+clearUnendorsedTrustedContacts:
 DELETE FROM unendorsedTrustedContactEntity;
 
 clear {

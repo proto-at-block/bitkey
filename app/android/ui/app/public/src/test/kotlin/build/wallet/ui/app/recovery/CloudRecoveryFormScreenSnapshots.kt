@@ -60,11 +60,10 @@ class CloudRecoveryFormScreenSnapshots : FunSpec({
   test("social recovery explaination screen") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          SocialRecoveryExplanationModel(
-            onBack = {},
-            onContinue = {}
-          )
+        model = SocialRecoveryExplanationModel(
+          onBack = {},
+          onContinue = {}
+        )
       )
     }
   }

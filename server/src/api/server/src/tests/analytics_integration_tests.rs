@@ -2,9 +2,8 @@ use analytics::routes::definitions::{Event, EventBundle};
 use http::StatusCode;
 use prost::Message;
 
-use crate::tests::gen_services;
-
 use super::requests::axum::TestClient;
+use crate::tests::gen_services;
 
 #[tokio::test]
 async fn event_tracking_request_succeeds_with_valid_request_empty_events() {

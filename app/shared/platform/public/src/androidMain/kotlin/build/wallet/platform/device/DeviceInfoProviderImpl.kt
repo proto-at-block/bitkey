@@ -3,7 +3,7 @@ package build.wallet.platform.device
 import android.os.Build
 
 actual class DeviceInfoProviderImpl : DeviceInfoProvider {
-  override fun getDeviceInfo() =
+  actual override fun getDeviceInfo() =
     DeviceInfo(
       deviceModel = Build.MODEL,
       devicePlatform = DevicePlatform.Android,

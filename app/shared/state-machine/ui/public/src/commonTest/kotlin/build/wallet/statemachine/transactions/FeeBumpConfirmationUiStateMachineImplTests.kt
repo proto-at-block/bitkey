@@ -4,6 +4,8 @@ import app.cash.turbine.test
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.UtxoConsolidation
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
@@ -25,8 +27,10 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
@@ -40,12 +44,19 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
           TransactionDetailsModel(
             transactionSpeedText = "transactionSpeedText",
             transactionDetailModelType =
-              TransactionDetailModelType.Regular(
-                transferAmountText = "transferFiatAmountText",
-                feeAmountText = "feeFiatAmountText",
+              TransactionDetailModelType.SpeedUp(
+                transferAmountText = "transferAmountText",
+                transferAmountSecondaryText = "transferAmountBtcText",
+                oldFeeAmountText = "oldFeeAmountText",
+                oldFeeAmountSecondaryText = "oldFeeAmountBtcText",
+                feeDifferenceText = "feeDifferenceText",
+                feeDifferenceSecondaryText = "feeDifferenceBtcText",
                 totalAmountPrimaryText = "totalFiatAmountText",
-                totalAmountSecondaryText = "totalBitcoinAmountText"
-              )
+                totalAmountSecondaryText = "totalBitcoinAmountText",
+                totalFeeText = "totalFeeText",
+                totalFeeSecondaryText = "totalFeeBtcText"
+              ),
+            amountLabel = "amountLabel"
           )
       ) {},
     exchangeRateService = ExchangeRateServiceFake(),
@@ -64,7 +75,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       txid = "1234",
       recipientAddress = BitcoinAddress("1234"),
       sendAmount = BitcoinMoney.sats(10000),
-      oldFee = Fee(BitcoinMoney.Companion.sats(2000), feeRate = FeeRate(1f))
+      oldFee = Fee(BitcoinMoney.sats(2000), feeRate = FeeRate(1f)),
+      transactionType = Outgoing
     ),
     onExit = {},
     newFeeRate = FeeRate(2f),
@@ -85,6 +97,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+        shouldShowLongRunningOperation.shouldBeTrue()
         onSuccess(PsbtMock)
       }
 
@@ -96,6 +109,40 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitScreenWithBodyModelMock<TransferInitiatedUiProps>("transfer-initiated") {
         onDone()
+      }
+    }
+  }
+
+  test("fee bump for utxo consolidation happy path") {
+    stateMachine.test(
+      props.copy(
+        speedUpTransactionDetails = props.speedUpTransactionDetails.copy(
+          transactionType = UtxoConsolidation
+        )
+      )
+    ) {
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Speed up your consolidation")
+        primaryButton
+          .shouldNotBeNull()
+          .onClick()
+      }
+
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+        onSuccess(PsbtMock)
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel>()
+
+      transactionsService.broadcastedPsbts.test {
+        awaitItem().shouldContainExactly(PsbtMock)
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Transaction sent")
+        primaryButton
+          .shouldNotBeNull()
+          .onClick()
       }
     }
   }

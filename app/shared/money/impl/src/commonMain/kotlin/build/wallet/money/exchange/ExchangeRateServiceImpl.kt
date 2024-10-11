@@ -3,15 +3,20 @@
 package build.wallet.money.exchange
 
 import build.wallet.analytics.events.AppSessionManager
+import build.wallet.analytics.events.AppSessionState
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
+import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
 class ExchangeRateServiceImpl(
@@ -21,7 +26,7 @@ class ExchangeRateServiceImpl(
   private val keyboxDao: KeyboxDao,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
   private val exchangeRatesCache = MutableStateFlow<List<ExchangeRate>>(emptyList())
-  override val exchangeRates: StateFlow<List<ExchangeRate>> = exchangeRatesCache
+
   private val activeF8eEnvironmentState = MutableStateFlow<F8eEnvironment?>(null)
 
   /**
@@ -37,6 +42,12 @@ class ExchangeRateServiceImpl(
    * Determines how frequently to sync exchange rates.
    */
   private val periodicSyncDelay = 1.minutes
+
+  override val exchangeRates: StateFlow<List<ExchangeRate>> = exchangeRatesCache
+
+  override suspend fun requestSync() {
+    activeF8eEnvironmentState.value?.let { syncRequests.emit(it) }
+  }
 
   /**
    * Executes the sync of exchange rates.
@@ -72,9 +83,13 @@ class ExchangeRateServiceImpl(
 
       // Send request for sync whenever active f8e environment changes
       launch {
-        activeF8eEnvironmentState.filterNotNull().collect { f8eEnvironment ->
-          syncRequests.emit(f8eEnvironment)
-        }
+        combine(
+          activeF8eEnvironmentState.filterNotNull(),
+          appSessionManager.appSessionState.filter { it == AppSessionState.FOREGROUND }
+        ) { f8eEnvironment, _ -> f8eEnvironment }
+          .collect { f8eEnvironment: F8eEnvironment ->
+            syncRequests.emit(f8eEnvironment)
+          }
       }
 
       // Send request for sync periodically

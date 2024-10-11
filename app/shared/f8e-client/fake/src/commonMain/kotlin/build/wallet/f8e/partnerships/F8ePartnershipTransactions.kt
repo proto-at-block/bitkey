@@ -20,5 +20,6 @@ val FakePartnershipTransfer = F8ePartnershipTransaction(
   txid = null,
   fiatAmount = null,
   fiatCurrency = null,
-  paymentMethod = null
+  paymentMethod = null,
+  sellWalletAddress = "tb1q9lzkpxafkn4fapete0wu8skkux4ccsw5tq8sf6"
 )

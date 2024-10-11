@@ -2,6 +2,7 @@ package build.wallet.database
 
 import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
+import build.wallet.bitkey.inheritance.InheritanceMaterialHash
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.database.adapters.*
 import build.wallet.database.adapters.bitkey.*
@@ -296,6 +297,11 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         accountIdAdapter = SoftwareAccountIdColumnAdapter,
         appGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
         appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter()
+      ),
+      inheritanceDataEntityAdapter = InheritanceDataEntity.Adapter(
+        lastSyncHashAdapter = DelegatedColumnAdapter(::InheritanceMaterialHash, InheritanceMaterialHash::value)
+          .then(DelegatedColumnAdapter(Long::toInt, Int::toLong)),
+        lastSyncTimestampAdapter = InstantColumnAdapter
       )
     )
   }

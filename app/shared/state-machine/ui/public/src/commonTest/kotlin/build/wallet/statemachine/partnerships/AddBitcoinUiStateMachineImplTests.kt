@@ -72,12 +72,17 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   fun props(purchaseAmount: FiatMoney? = null): AddBitcoinUiProps =
     AddBitcoinUiProps(
       account = FullAccountMock,
-      purchaseAmount = purchaseAmount,
+      sellBitcoinEnabled = false,
       onAnotherWalletOrExchange = {},
       onPartnerRedirected = { _, _ -> },
       onExit = {},
       keybox = KeyboxMock,
-      onSelectCustomAmount = { _, _ -> }
+      onSelectCustomAmount = { _, _ -> },
+      initialState = if (purchaseAmount != null) {
+        AddBitcoinBottomSheetDisplayState.PurchasingUiState(purchaseAmount)
+      } else {
+        AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
+      }
     )
 
   // tests

@@ -9,13 +9,14 @@ import build.wallet.configuration.MobilePayFiatConfigSyncWorker
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.feature.FeatureFlagSyncWorker
 import build.wallet.fwup.FirmwareDataSyncWorker
+import build.wallet.inheritance.InheritanceSyncWorker
 import build.wallet.limit.MobilePayBalanceSyncWorker
 import build.wallet.money.currency.FiatCurrenciesSyncWorker
 import build.wallet.money.exchange.ExchangeRateSyncWorker
 import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.queueprocessor.PeriodicProcessor
-import build.wallet.recovery.socrec.EndorseTrustedContactsWorker
-import build.wallet.recovery.socrec.SocRecSyncRelationshipsWorker
+import build.wallet.relationships.EndorseTrustedContactsWorker
+import build.wallet.relationships.SyncRelationshipsWorker
 
 fun interface AppWorkerProvider {
   /**
@@ -44,9 +45,10 @@ class AppWorkerProviderImpl(
   private val endorseTrustedContactsWorker: EndorseTrustedContactsWorker,
   private val transactionsSyncWorker: TransactionSyncWorker,
   private val fiatCurrenciesSyncWorker: FiatCurrenciesSyncWorker,
-  private val socRecSyncRelationshipsWorker: SocRecSyncRelationshipsWorker,
+  private val syncRelationshipsWorker: SyncRelationshipsWorker,
   private val mobilePayBalanceSyncWorker: MobilePayBalanceSyncWorker,
   private val appFunctionalitySyncWorker: AppFunctionalitySyncWorker,
+  private val inheritanceSyncWorker: InheritanceSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -60,6 +62,7 @@ class AppWorkerProviderImpl(
       mobilePayFiatConfigSyncWorker,
       featureFlagSyncWorker,
       firmwareDataSyncWorker,
+      inheritanceSyncWorker,
       notificationTouchpointSyncWorker,
       endorseTrustedContactsWorker,
       bitcoinAddressRegisterWatchAddressWorker,
@@ -67,7 +70,7 @@ class AppWorkerProviderImpl(
       fiatCurrenciesSyncWorker,
       mobilePayBalanceSyncWorker,
       fiatCurrenciesSyncWorker,
-      socRecSyncRelationshipsWorker,
+      syncRelationshipsWorker,
       appFunctionalitySyncWorker
     )
   }

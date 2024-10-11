@@ -2,6 +2,8 @@ package build.wallet.bitcoin.fees
 
 import build.wallet.bdk.bindings.BdkBlockchainMock
 import build.wallet.bdk.bindings.BdkResult
+import build.wallet.bdk.bindings.BdkTransactionMock
+import build.wallet.bdk.bindings.BdkTxOutMock
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.bdk.BdkBlockchainProviderMock
 import build.wallet.bitcoin.sync.chainHash
@@ -18,7 +20,8 @@ class BitcoinFeeRateEstimatorImplTests : FunSpec({
     blockHeightResult = BdkResult.Ok(1),
     blockHashResult = BdkResult.Ok(build.wallet.bitcoin.BitcoinNetworkType.BITCOIN.chainHash()),
     broadcastResult = BdkResult.Ok(Unit),
-    feeRateResult = BdkResult.Ok(22f)
+    feeRateResult = BdkResult.Ok(22f),
+    getTxResult = BdkResult.Ok(BdkTransactionMock(output = listOf(BdkTxOutMock)))
   )
   val bdkBlockchainProvider = BdkBlockchainProviderMock(
     turbines::create,

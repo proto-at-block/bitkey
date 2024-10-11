@@ -33,46 +33,67 @@ fun PhoneNumberInputScreenModel(
   onSkip: (() -> Unit)?,
   errorOverlayModel: SheetModel? = null,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_SMS,
-      onBack = onClose,
-      onSwipeToDismiss = onClose,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory = CloseAccessory(onClick = onClose),
-          trailingAccessory =
-            onSkip?.let {
-              ButtonAccessory(
-                model =
-                  ButtonModel(
-                    text = "Skip",
-                    treatment = TertiaryPrimaryNoUnderline,
-                    onClick = StandardClick(onSkip),
-                    size = Compact
-                  )
-              )
-            }
-        ),
-      header = FormHeaderModel(headline = title, subline = subline),
-      mainContentList =
-        immutableListOf(
-          TextInput(
-            fieldModel =
-              TextFieldModel(
-                value = textFieldValue,
-                placeholderText = textFieldPlaceholder,
-                selectionOverride = textFieldSelection,
-                onValueChange = onTextFieldValueChange,
-                keyboardType = Phone
-              )
-          )
-        ),
-      primaryButton = primaryButton
-    ),
+  body = PhoneNumberInputBodyModel(
+    title = title,
+    subline = subline,
+    textFieldValue = textFieldValue,
+    textFieldPlaceholder = textFieldPlaceholder,
+    textFieldSelection = textFieldSelection,
+    onTextFieldValueChange = onTextFieldValueChange,
+    primaryButton = primaryButton,
+    onClose = onClose,
+    onSkip = onSkip
+  ),
   presentationStyle = ScreenPresentationStyle.Modal,
   bottomSheetModel = errorOverlayModel
 )
+
+private data class PhoneNumberInputBodyModel(
+  val title: String,
+  val subline: String? = null,
+  val textFieldValue: String,
+  val textFieldPlaceholder: String,
+  val textFieldSelection: IntRange,
+  val onTextFieldValueChange: (String, IntRange) -> Unit,
+  override val primaryButton: ButtonModel,
+  val onClose: () -> Unit,
+  val onSkip: (() -> Unit)?,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_SMS,
+    onBack = onClose,
+    onSwipeToDismiss = onClose,
+    toolbar =
+      ToolbarModel(
+        leadingAccessory = CloseAccessory(onClick = onClose),
+        trailingAccessory =
+          onSkip?.let {
+            ButtonAccessory(
+              model =
+                ButtonModel(
+                  text = "Skip",
+                  treatment = TertiaryPrimaryNoUnderline,
+                  onClick = StandardClick(onSkip),
+                  size = Compact
+                )
+            )
+          }
+      ),
+    header = FormHeaderModel(headline = title, subline = subline),
+    mainContentList =
+      immutableListOf(
+        TextInput(
+          fieldModel =
+            TextFieldModel(
+              value = textFieldValue,
+              placeholderText = textFieldPlaceholder,
+              selectionOverride = textFieldSelection,
+              onValueChange = onTextFieldValueChange,
+              keyboardType = Phone
+            )
+        )
+      ),
+    primaryButton = primaryButton
+  )
 
 fun PhoneNumberInputErrorSheetModel(
   isConnectivityError: Boolean,

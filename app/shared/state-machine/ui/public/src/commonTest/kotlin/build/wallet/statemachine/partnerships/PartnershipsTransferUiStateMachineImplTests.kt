@@ -56,6 +56,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     PartnershipsTransferUiProps(
       account = FullAccountMock,
       keybox = KeyboxMock,
+      sellBitcoinEnabled = false,
       onBack = {
         onBack.add(Unit)
       },

@@ -10,7 +10,7 @@ import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.clipboard.plainTextItemAndroid
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -26,7 +26,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val sharingManager: SharingManager,
   private val clipboard: Clipboard,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
 ) : ReinviteTrustedContactUiStateMachine {
   @Composable
   override fun model(props: ReinviteTrustedContactUiProps): ScreenModel {
@@ -75,7 +75,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
 
       is State.SavingWithBitkeyState -> {
         LaunchedEffect("reinvite-tc-to-bitkey") {
-          socRecService.refreshInvitation(
+          relationshipsService.refreshInvitation(
             account = props.account,
             relationshipId = props.relationshipId,
             hardwareProofOfPossession = current.proofOfPossession

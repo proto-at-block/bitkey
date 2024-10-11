@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use account::entities::Factor;
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, OffsetDateTime};
+use types::account::entities::Factor;
 
 use crate::{
     clients::iterable::IterableCampaignType, email::EmailPayload,
@@ -50,7 +50,7 @@ impl TryFrom<(NotificationCompositeKey, RecoveryCanceledDelayPeriodPayload)>
             }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
-                android_channel_id: AndroidChannelId::RecoveryAccountSecurity,
+                android_channel_id: AndroidChannelId::UrgentSecurity,
                 ..Default::default()
             }),
             sms_payload: Some(SmsPayload {

@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use account::entities::{Touchpoint, TouchpointPlatform};
 use async_trait::async_trait;
 use migration::{Migration, MigrationError};
 use time::macros::datetime;
+use types::account::entities::{Touchpoint, TouchpointPlatform};
 
 use crate::{
     payloads::push_blast::PushBlastPayload,

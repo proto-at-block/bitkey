@@ -7,10 +7,12 @@ version = "0.1.0"
 [dependencies]
 base32 = { workspace = true }
 derive_builder = { workspace = true }
+isocountry = { workspace = true }
 once_cell = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 sha2 = "0.10.8"
 strum = { workspace = true }
 strum_macros = { workspace = true }
@@ -23,6 +25,7 @@ utoipa = { workspace = true }
 
 # path dependencies
 bdk_utils = { workspace = true }
+errors = { workspace = true }
 external_identifier = { workspace = true }
 
 [features]

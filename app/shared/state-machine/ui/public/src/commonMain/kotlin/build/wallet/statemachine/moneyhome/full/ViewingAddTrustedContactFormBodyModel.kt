@@ -12,16 +12,15 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 
-fun ViewingAddTrustedContactFormBodyModel(
-  onAddTrustedContact: () -> Unit,
-  onSkip: () -> Unit,
-  onClosed: () -> Unit,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_EXPLAINER,
-  onBack = onClosed,
-  toolbar = null,
-  header =
-    FormHeaderModel(
+data class ViewingAddTrustedContactFormBodyModel(
+  val onAddTrustedContact: () -> Unit,
+  val onSkip: () -> Unit,
+  val onClosed: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_EXPLAINER,
+    onBack = onClosed,
+    toolbar = null,
+    header = FormHeaderModel(
       iconModel = IconModel(
         icon = Icon.LargeIconShieldPerson,
         iconSize = IconSize.Large,
@@ -41,18 +40,16 @@ fun ViewingAddTrustedContactFormBodyModel(
             Trusted Contacts won’t have access to your wallet or funds. They’re only able to help you recover your wallet.
         """.trimIndent()
     ),
-  primaryButton =
-    ButtonModel(
+    primaryButton = ButtonModel(
       text = "Add Trusted Contact",
       size = ButtonModel.Size.Footer,
       onClick = SheetClosingClick(onAddTrustedContact)
     ),
-  secondaryButton =
-    ButtonModel(
+    secondaryButton = ButtonModel(
       text = "Skip",
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Secondary,
       onClick = SheetClosingClick(onSkip)
     ),
-  renderContext = RenderContext.Sheet
-)
+    renderContext = RenderContext.Sheet
+  )

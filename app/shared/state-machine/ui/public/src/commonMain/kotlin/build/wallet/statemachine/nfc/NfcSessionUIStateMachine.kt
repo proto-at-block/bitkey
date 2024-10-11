@@ -1,16 +1,12 @@
 package build.wallet.statemachine.nfc
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
+import build.wallet.feature.flags.ProgressSpinnerForLongNfcOpsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
@@ -22,17 +18,9 @@ import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.statemachine.core.AppSegment
-import build.wallet.statemachine.core.NfcErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly
-import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.EnableNFCInstructions
-import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.NavigateToEnableNFC
-import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.NoNFCMessage
-import build.wallet.statemachine.nfc.NfcSessionUIState.Error
-import build.wallet.statemachine.nfc.NfcSessionUIState.InSession
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.nfc.NfcSessionUIState.*
+import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Communicating
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Searching
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Success
@@ -51,7 +39,6 @@ class NfcSessionUIStateMachineProps<T>(
    */
   val session: suspend (NfcSession, NfcCommands) -> T,
   val onConnected: () -> Unit = {},
-  val onDisconnected: () -> Unit = {},
   val onSuccess: suspend (@UnsafeVariance T) -> Unit,
   val onCancel: () -> Unit,
   val onInauthenticHardware: () -> Unit = {},
@@ -63,6 +50,11 @@ class NfcSessionUIStateMachineProps<T>(
   val actionDescription: String? = null,
   val screenPresentationStyle: ScreenPresentationStyle,
   val eventTrackerContext: NfcEventTrackerScreenIdContext,
+  /**
+   *  Used to indicate that an operation may take awhile, by using an indeterminate spinner on Android and
+   *  add some flavor text on iOS.
+   */
+  val shouldShowLongRunningOperation: Boolean = false,
 ) {
   constructor(
     transaction: NfcTransaction<T>,
@@ -95,8 +87,16 @@ class NfcSessionUIStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcTransactor: NfcTransactor,
   private val asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
+  private val progressSpinnerForLongNfcOpsFeatureFlag: ProgressSpinnerForLongNfcOpsFeatureFlag,
 ) : NfcSessionUIStateMachine {
+  /**
+   * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
+   * a potentially long running operation, like UTXO Consolidation.
+   */
+  private val longRunningOperationText = "This can take up to 1 minute…"
+
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
     var newState by remember {
       mutableStateOf(
@@ -108,6 +108,9 @@ class NfcSessionUIStateMachineImpl(
       )
     }
 
+    val shouldShowLongRunningOperation =
+      props.shouldShowLongRunningOperation && progressSpinnerForLongNfcOpsFeatureFlag.isEnabled()
+
     if (newState is InSession) {
       LaunchedEffect("nfc-transaction") {
         nfcTransactor
@@ -118,9 +121,16 @@ class NfcSessionUIStateMachineImpl(
                 needsAuthentication = props.needsAuthentication,
                 shouldLock = props.shouldLock,
                 skipFirmwareTelemetry = false, // Only true for FWUP.
-                onTagConnected = { props.onConnected().also { newState = Communicating } },
+                onTagConnected = { session ->
+                  props.onConnected()
+                  if (shouldShowLongRunningOperation) {
+                    session?.message = longRunningOperationText
+                  }
+                  newState = Communicating
+                },
                 onTagDisconnected = {
-                  props.onDisconnected().also { if (newState !is Success) newState = Searching }
+                  // NB: This is only called on Android.
+                  if (newState !is Success) newState = Searching
                 },
                 asyncNfcSigning = asyncNfcSigningFeatureFlag.isEnabled(),
                 nfcFlowName = props.eventTrackerContext.name
@@ -165,9 +175,17 @@ class NfcSessionUIStateMachineImpl(
           }
 
           is Communicating -> {
+            val text = if (shouldShowLongRunningOperation) {
+              longRunningOperationText
+            } else {
+              "Connected"
+            }
             NfcBodyModel(
-              text = "Connected",
-              status = ConnectedState(props.onCancel),
+              text = text,
+              status = ConnectedState(
+                onCancel = props.onCancel,
+                showProgressSpinner = shouldShowLongRunningOperation
+              ),
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_DETECTED,

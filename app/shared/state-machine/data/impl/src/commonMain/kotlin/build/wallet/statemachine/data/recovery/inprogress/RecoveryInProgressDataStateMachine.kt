@@ -38,8 +38,8 @@ import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFaile
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
-import build.wallet.recovery.socrec.EndorseTrustedContactsService
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.EndorseTrustedContactsService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
@@ -105,7 +105,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private val recoveryDao: RecoveryDao,
   private val delayer: Delayer,
   private val deviceTokenManager: DeviceTokenManager,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
   private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
@@ -488,7 +488,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
     coroutineBinding {
       // 1. Get latest trusted contacts from f8e
-      val trustedContacts = socRecService
+      val trustedContacts = relationshipsService
         .getRelationshipsWithoutSyncing(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment
@@ -507,7 +507,7 @@ class RecoveryInProgressDataStateMachineImpl(
       ).bind()
 
       // 3. Re-sync relationships and store locally
-      socRecService
+      relationshipsService
         .syncAndVerifyRelationships(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
@@ -534,7 +534,7 @@ class RecoveryInProgressDataStateMachineImpl(
       localId = uuidGenerator.random(),
       fullAccountId = recovery.fullAccountId,
       activeSpendingKeyset = spendingKeyset,
-      // TODO(W-3070): persist inactive keysets
+      // TODO (W-9804): persist inactive keysets
       inactiveKeysets = emptyImmutableList(),
       appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
       activeAppKeyBundle =

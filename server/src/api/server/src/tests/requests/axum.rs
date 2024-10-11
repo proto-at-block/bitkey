@@ -1,8 +1,15 @@
-use async_trait::async_trait;
+use std::collections::HashMap;
+use std::str::FromStr;
 
+use async_trait::async_trait;
+use authn_authz::routes::{
+    AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
+    AuthenticateWithRecoveryAuthkeyRequest, AuthenticateWithRecoveryResponse,
+    AuthenticationRequest, AuthenticationResponse, GetTokensRequest, GetTokensResponse,
+};
 use axum::body::Body;
 use axum::Router;
-
+use exchange_rate::routes::SupportedFiatCurrenciesResponse;
 use experimentation::routes::{
     GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest, GetFeatureFlagsResponse,
 };
@@ -10,32 +17,6 @@ use export_tools::routes::GetAccountDescriptorResponse;
 use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
-use privileged_action::routes::{
-    CancelPendingDelayAndNotifyInstanceByTokenRequest,
-    CancelPendingDelayAndNotifyInstanceByTokenResponse,
-    ConfigurePrivilegedActionDelayDurationsRequest,
-    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
-    GetPrivilegedActionDefinitionsResponse,
-};
-use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
-use recovery::state_machine::rotated_keyset::RotatedKeysetResponse;
-use serde::{de::DeserializeOwned, Serialize};
-use std::collections::HashMap;
-use std::str::FromStr;
-use tokio::sync::Mutex;
-use tower::Service;
-use types::notification::NotificationsPreferences;
-use types::privileged_action::router::generic::{
-    PrivilegedActionRequest, PrivilegedActionResponse,
-};
-use types::recovery::trusted_contacts::TrustedContactRole;
-
-use authn_authz::routes::{
-    AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
-    AuthenticateWithRecoveryAuthkeyRequest, AuthenticateWithRecoveryResponse,
-    AuthenticationRequest, AuthenticationResponse, GetTokensRequest, GetTokensResponse,
-};
-use exchange_rate::routes::SupportedFiatCurrenciesResponse;
 use mobile_pay::routes::{
     GetMobilePayResponse, MobilePaySetupRequest, MobilePaySetupResponse, SignTransactionData,
     SignTransactionResponse,
@@ -56,30 +37,54 @@ use onboarding::routes::{
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
     RotateSpendingKeysetRequest, UpgradeAccountRequest,
 };
-use types::account::identifiers::{AccountId, KeysetId};
-
-use recovery::routes::{
-    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse, CompleteDelayNotifyRequest,
-    CreateAccountDelayNotifyRequest, CreateInheritanceClaimRequest, CreateInheritanceClaimResponse,
+use privileged_action::routes::{
+    CancelPendingDelayAndNotifyInstanceByTokenRequest,
+    CancelPendingDelayAndNotifyInstanceByTokenResponse,
+    ConfigurePrivilegedActionDelayDurationsRequest,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
+    GetPrivilegedActionDefinitionsResponse,
+};
+use recovery::routes::delay_notify::{
+    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, RotateAuthenticationKeysRequest,
+    RotateAuthenticationKeysResponse, SendAccountVerificationCodeRequest,
+    SendAccountVerificationCodeResponse, UpdateDelayForTestRecoveryRequest,
+    VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
+};
+use recovery::routes::inheritance::{
+    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse, CreateInheritanceClaimRequest,
+    CreateInheritanceClaimResponse, GetInheritanceClaimsResponse,
+    UpdateInheritanceProcessWithDestinationRequest,
+    UpdateInheritanceProcessWithDestinationResponse, UploadInheritancePackagesRequest,
+    UploadInheritancePackagesResponse,
+};
+use recovery::routes::relationship::{
     CreateRecoveryRelationshipRequest, CreateRelationshipRequest, CreateRelationshipResponse,
     EndorseRecoveryRelationshipsRequest, EndorseRecoveryRelationshipsResponse,
-    FetchSocialChallengeResponse, GetInheritanceClaimsResponse,
     GetRecoveryRelationshipInvitationForCodeResponse, GetRecoveryRelationshipsResponse,
-    RespondToSocialChallengeRequest, RespondToSocialChallengeResponse,
-    RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
-    SendAccountVerificationCodeRequest, SendAccountVerificationCodeResponse,
-    StartSocialChallengeRequest, StartSocialChallengeResponse, UpdateDelayForTestRecoveryRequest,
     UpdateRecoveryRelationshipRequest, UpdateRecoveryRelationshipResponse,
-    UploadInheritancePackagesRequest, UploadInheritancePackagesResponse,
-    VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
+    UploadRecoveryBackupRequest, UploadRecoveryBackupResponse,
+};
+use recovery::routes::social_challenge::{
+    FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
+    RespondToSocialChallengeResponse, StartSocialChallengeRequest, StartSocialChallengeResponse,
     VerifySocialChallengeRequest, VerifySocialChallengeResponse,
 };
+use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
+use recovery::state_machine::rotated_keyset::RotatedKeysetResponse;
 use recovery::state_machine::RecoveryResponse;
-
-use crate::test_utils::{AuthenticatedRequest, ExtendRequest};
-use crate::tests::{TestAuthenticationKeys, TestContext};
+use serde::{de::DeserializeOwned, Serialize};
+use tokio::sync::Mutex;
+use tower::Service;
+use types::account::identifiers::{AccountId, KeysetId};
+use types::notification::NotificationsPreferences;
+use types::privileged_action::router::generic::{
+    PrivilegedActionRequest, PrivilegedActionResponse,
+};
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::{AuthenticatedRequestExt, CognitoAuthentication, Response};
+use crate::test_utils::{AuthenticatedRequest, ExtendRequest};
+use crate::tests::{TestAuthenticationKeys, TestContext};
 
 pub struct TestClient {
     router: Mutex<Router>,
@@ -940,6 +945,22 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn make_request<T>(
+        &self,
+        uri: &str,
+        method: &Method,
+        request_body: Body,
+    ) -> Response<T>
+    where
+        T: DeserializeOwned + Serialize + Sync + Send,
+    {
+        Request::builder()
+            .uri(uri)
+            .json_request(request_body, method.to_owned())
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn update_recovery_relationship(
         &self,
         account_id: &str,
@@ -1482,6 +1503,56 @@ impl TestClient {
                 ),
             )
             .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn recovery_backup_upload(
+        &self,
+        account_id: &str,
+        request: &UploadRecoveryBackupRequest,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<UploadRecoveryBackupResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/recovery/backups"))
+            .with_authentication(
+                &CognitoAuthentication::Wallet {
+                    is_app_signed: false,
+                    is_hardware_signed: false,
+                },
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn update_inheritance_claim(
+        &self,
+        account_id: &str,
+        inheritance_id: &str,
+        request: &UpdateInheritanceProcessWithDestinationRequest,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<UpdateInheritanceProcessWithDestinationResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_id}"
+            ))
+            .with_authentication(
+                &CognitoAuthentication::Recovery,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .put(&request)
             .call(&self.router)
             .await
     }

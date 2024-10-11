@@ -2,7 +2,7 @@ package build.wallet.statemachine.home.lite
 
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -21,7 +21,7 @@ import io.kotest.core.spec.style.FunSpec
 
 class LiteHomeUiStateMachineImplTests : FunSpec({
 
-  val socRecService = SocRecServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create)
   val stateMachine =
     LiteHomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine =
@@ -51,7 +51,7 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    socRecService.clear()
+    relationshipsService.clear()
   }
 
   test("money home onSettings shows settings, settings onBack shows money home") {

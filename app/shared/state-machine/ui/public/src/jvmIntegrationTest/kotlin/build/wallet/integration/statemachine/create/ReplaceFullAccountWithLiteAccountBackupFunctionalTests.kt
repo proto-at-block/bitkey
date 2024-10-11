@@ -9,7 +9,7 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
-import build.wallet.recovery.socrec.syncAndVerifyRelationships
+import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -197,7 +197,7 @@ private suspend fun verifyAccountDataIsPreserved(
   // Expect the active full account ID and the lite account ID to match
   val onboardedAccount = onboardApp.getActiveFullAccount()
   onboardedAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
-  val socRecRelationships = onboardApp.app.appComponent.socRecService
+  val socRecRelationships = onboardApp.app.appComponent.relationshipsService
     .syncAndVerifyRelationships(onboardedAccount)
     .getOrThrow()
   // Expect the protected customer to have been preserved

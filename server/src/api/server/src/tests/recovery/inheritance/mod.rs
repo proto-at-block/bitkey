@@ -1,0 +1,1 @@
+mod inheritance_integration_tests;

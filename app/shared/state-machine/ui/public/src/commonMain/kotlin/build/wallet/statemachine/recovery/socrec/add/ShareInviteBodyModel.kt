@@ -13,25 +13,24 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  *
  * This should use the platform share sheet to share the invitation token.
  */
-fun ShareInviteBodyModel(
+data class ShareInviteBodyModel(
   /**
    * The name of the trusted contact to use in the invitation.
    */
-  trustedContactName: String,
+  val trustedContactName: String,
   /**
    * Invoked when the user has successfully invited their shared contact.
    */
-  onShareComplete: () -> Unit,
+  val onShareComplete: () -> Unit,
   /**
    * Invoked when the user navigates back.
    */
-  onBackPressed: () -> Unit,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SHARE_SCREEN,
-  onBack = onBackPressed,
-  toolbar = ToolbarModel(),
-  header =
-    FormHeaderModel(
+  val onBackPressed: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SHARE_SCREEN,
+    onBack = onBackPressed,
+    toolbar = ToolbarModel(),
+    header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
       headline = "Finally, invite $trustedContactName to be your Trusted Contact",
       subline =
@@ -39,12 +38,11 @@ fun ShareInviteBodyModel(
         To accept the invite, they’ll need to download the Bitkey app and enter your invite code.
         """.trimIndent()
     ),
-  primaryButton =
-    ButtonModel(
+    primaryButton = ButtonModel(
       text = "Share invite",
       treatment = ButtonModel.Treatment.Primary,
       leadingIcon = Icon.SmallIconShare,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onShareComplete)
     )
-)
+  )

@@ -3,6 +3,7 @@ use axum::extract::Path;
 use axum::routing::{get, post, put};
 use axum::Router;
 use axum::{extract::State, Json};
+use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use types::privileged_action::definition::ResolvedPrivilegedActionDefinition;
@@ -35,8 +36,8 @@ use crate::service::Service as PrivilegedActionService;
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub UserPoolService, pub PrivilegedActionService);
 
-impl RouteState {
-    pub fn authed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn account_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/privileged-actions/delays",
@@ -46,7 +47,7 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn account_or_recovery_authed_router(&self) -> Router {
+    fn account_or_recovery_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/privileged-actions/definitions",
@@ -60,7 +61,7 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn unauthed_router(&self) -> Router {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/privileged-actions/cancel",

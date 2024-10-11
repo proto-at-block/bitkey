@@ -63,40 +63,59 @@ fun selectPurchaseAmountModel(
   )
 
   return SheetModel(
-    body =
-      FormBodyModel(
-        id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
-        header = null,
-        onBack = {},
-        toolbar = ToolbarModel(
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
-        ),
-        mainContentList =
-          immutableListOf(
-            FormMainContentModel.ListGroup(
-              listGroupModel =
-                ListGroupModel(
-                  style = ListGroupStyle.THREE_COLUMN_CARD_ITEM,
-                  items = items.toImmutableList()
-                )
-            )
-          ),
-        primaryButton =
-          ButtonModel(
-            text = "Next",
-            isEnabled = selectedAmount != null,
-            size = Footer,
-            onClick = StandardClick {
-              selectedAmount?.let { onNext(selectedAmount) }
-            }
-          ),
-        secondaryButton = null,
-        keepScreenOn = false,
-        eventTrackerContext = null,
-        renderContext = RenderContext.Sheet
-      ),
+    body = SelectPurchaseAmountBodyModel(
+      items = items.toImmutableList(),
+      purchaseAmounts = purchaseAmounts,
+      selectedAmount = selectedAmount,
+      moneyDisplayFormatter = moneyDisplayFormatter,
+      onSelectAmount = onSelectAmount,
+      onSelectCustomAmount = onSelectCustomAmount,
+      onNext = onNext,
+      onExit = onExit
+    ),
     onClosed = onExit,
     size = SheetSize.MIN40,
     dragIndicatorVisible = true
   )
 }
+
+private data class SelectPurchaseAmountBodyModel(
+  val items: ImmutableList<ListItemModel>,
+  val purchaseAmounts: ImmutableList<FiatMoney>,
+  val selectedAmount: FiatMoney?,
+  val moneyDisplayFormatter: MoneyDisplayFormatter,
+  val onSelectAmount: (FiatMoney) -> Unit,
+  val onSelectCustomAmount: () -> Unit,
+  val onNext: (FiatMoney) -> Unit,
+  val onExit: () -> Unit,
+) : FormBodyModel(
+    id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
+    header = null,
+    onBack = {},
+    toolbar = ToolbarModel(
+      middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
+    ),
+    mainContentList =
+      immutableListOf(
+        FormMainContentModel.ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              style = ListGroupStyle.THREE_COLUMN_CARD_ITEM,
+              items = items
+            )
+        )
+      ),
+    primaryButton =
+      ButtonModel(
+        text = "Next",
+        isEnabled = selectedAmount != null,
+        size = Footer,
+        onClick = StandardClick {
+          selectedAmount?.let { onNext(selectedAmount) }
+        }
+      ),
+    secondaryButton = null,
+    keepScreenOn = false,
+    eventTrackerContext = null,
+    renderContext = RenderContext.Sheet
+  )

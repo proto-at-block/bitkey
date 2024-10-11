@@ -1,15 +1,13 @@
-use account::entities::FullAccountAuthKeysPayload;
 use async_trait::async_trait;
-
 use serde::{Deserialize, Serialize};
+use types::account::entities::FullAccountAuthKeysPayload;
 use utoipa::ToSchema;
-
-use crate::{entities::WalletRecovery, state_machine::PendingDelayNotifyRecovery};
 
 use super::{
     RecoveryError, RecoveryEvent, RecoveryServices, RecoveryStateResponse, Transition,
     TransitioningRecoveryState,
 };
+use crate::{entities::WalletRecovery, state_machine::PendingDelayNotifyRecovery};
 
 pub(crate) struct PendingRecoveryState {
     pub(crate) recovery: WalletRecovery,

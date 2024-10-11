@@ -31,6 +31,7 @@ import build.wallet.statemachine.core.Icon.MediumIconQrCode
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
@@ -52,6 +53,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.delay
 
 class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
@@ -115,14 +117,25 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.ChoosingPartnershipsTransfer -> {
         when {
           currentState.transferPartners.isEmpty() -> {
-            return TransferErrorModel(
-              id = TRANSFER_PARTNERS_NOT_AVAILABLE,
-              error = null,
-              title = "New Partners Coming Soon",
-              errorMessage = "Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin transfers. Until then, you can add bitcoin using the receive button.",
-              onBack = props.onBack,
-              onExit = props.onExit
-            )
+            if (props.sellBitcoinEnabled) {
+              LaunchedEffect("display-qr-code-delay") {
+                delay(500)
+                props.onAnotherWalletOrExchange()
+              }
+
+              return Loading(
+                onExit = props.onExit
+              )
+            } else {
+              return TransferErrorModel(
+                id = TRANSFER_PARTNERS_NOT_AVAILABLE,
+                error = null,
+                title = "New Partners Coming Soon",
+                errorMessage = "Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin transfers. Until then, you can add bitcoin using the receive button.",
+                onBack = props.onBack,
+                onExit = props.onExit
+              )
+            }
           }
           else -> {
             return ListTransferPartnersModel(
@@ -306,6 +319,7 @@ class PartnershipsTransferUiStateMachineImpl(
     return TransferPartnersModel(
       id = id,
       content = ListGroup(listGroupModel = partnersGroupModel),
+      sellBitcoinEnabled = props.sellBitcoinEnabled,
       onBack = props.onBack,
       onExit = props.onExit
     )
@@ -315,51 +329,86 @@ class PartnershipsTransferUiStateMachineImpl(
   private fun TransferPartnersModel(
     id: DepositEventTrackerScreenId,
     content: FormMainContentModel,
+    sellBitcoinEnabled: Boolean,
     onBack: () -> Unit,
     onExit: () -> Unit,
   ): SheetModel {
+    val toolbar = if (sellBitcoinEnabled) {
+      null
+    } else {
+      ToolbarModel(
+        middleAccessory = ToolbarMiddleAccessoryModel(title = "Select a partner")
+      )
+    }
+
+    val header = if (sellBitcoinEnabled) {
+      FormHeaderModel(
+        headline = "Receive bitcoin from",
+        subline = null
+      )
+    } else {
+      null
+    }
+
     return SheetModel(
-      body =
-        FormBodyModel(
-          onBack = onBack,
-          toolbar =
-            ToolbarModel(
-              middleAccessory = ToolbarMiddleAccessoryModel(title = "Select a partner")
-            ),
-          header = null,
-          mainContentList = immutableListOf(content),
-          primaryButton = null,
-          id = id,
-          renderContext = Sheet
-        ),
+      body = TransferPartnersBodyModel(
+        toolbar = toolbar,
+        header = header,
+        id = id,
+        content = content,
+        onBack = onBack
+      ),
       dragIndicatorVisible = true,
       onClosed = onExit
     )
   }
 
+  private data class TransferPartnersBodyModel(
+    override val toolbar: ToolbarModel?,
+    override val header: FormHeaderModel?,
+    override val id: DepositEventTrackerScreenId,
+    val content: FormMainContentModel,
+    override val onBack: () -> Unit,
+  ) : FormBodyModel(
+      onBack = onBack,
+      toolbar = toolbar,
+      header = header,
+      mainContentList = immutableListOf(content),
+      primaryButton = null,
+      id = id,
+      renderContext = Sheet
+    )
+
   @Composable
   private fun Loading(
-    id: DepositEventTrackerScreenId,
+    id: DepositEventTrackerScreenId? = null,
     context: PartnerEventTrackerScreenIdContext? = null,
     onExit: () -> Unit,
   ): SheetModel {
     return SheetModel(
-      body =
-        FormBodyModel(
-          id = id,
-          eventTrackerContext = context,
-          onBack = {},
-          toolbar = null,
-          header = null,
-          mainContentList = immutableListOf(Loader),
-          primaryButton = null,
-          renderContext = Sheet
-        ),
+      body = LoadingBodyModel(
+        id = id,
+        context = context
+      ),
       dragIndicatorVisible = false,
       size = MIN40,
       onClosed = onExit
     )
   }
+
+  private data class LoadingBodyModel(
+    override val id: DepositEventTrackerScreenId?,
+    val context: PartnerEventTrackerScreenIdContext?,
+  ) : FormBodyModel(
+      id = id,
+      eventTrackerContext = context,
+      onBack = {},
+      toolbar = null,
+      header = null,
+      mainContentList = immutableListOf(Loader),
+      primaryButton = null,
+      renderContext = Sheet
+    )
 }
 
 private sealed interface State {

@@ -4,10 +4,10 @@ import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.auth.AppRecoveryAuthKeypairMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
-import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
-import build.wallet.recovery.socrec.SocRecCryptoFake
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.SocRecKeysRepository
+import build.wallet.relationships.DelegatedDecryptionKeyFake
+import build.wallet.relationships.RelationshipsCryptoFake
+import build.wallet.relationships.RelationshipsKeysDaoFake
+import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -16,11 +16,11 @@ import io.kotest.matchers.shouldBe
 class LiteAccountCloudBackupCreatorImplTests : FunSpec({
 
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
-  val socRecCrypto = SocRecCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
-  val socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
+  val relationshipsCrypto = RelationshipsCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
+  val relationshipsKeysRepository = RelationshipsKeysRepository(relationshipsCrypto, RelationshipsKeysDaoFake())
   val backupCreator =
     LiteAccountCloudBackupCreatorImpl(
-      socRecKeysRepository = socRecKeysRepository,
+      relationshipsKeysRepository = relationshipsKeysRepository,
       appPrivateKeyDao = appPrivateKeyDao
     )
 

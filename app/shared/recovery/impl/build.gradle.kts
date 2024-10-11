@@ -15,6 +15,7 @@ kotlin {
         api(projects.shared.coroutinesPublic)
         api(projects.shared.serializationPublic)
         implementation(projects.shared.queueProcessorPublic)
+        implementation(projects.shared.relationshipsPublic)
       }
     }
 
@@ -38,13 +39,7 @@ kotlin {
         implementation(projects.shared.queueProcessorFake)
         implementation(projects.shared.encryptionFake)
         implementation(projects.shared.analyticsFake)
-      }
-    }
-
-    jvmTest {
-      dependencies {
-        implementation(projects.shared.authImpl)
-        implementation(projects.shared.encryptionFake)
+        implementation(projects.shared.relationshipsFake)
       }
     }
 

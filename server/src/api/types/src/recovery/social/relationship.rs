@@ -13,10 +13,11 @@ use ulid::Ulid;
 use urn::Urn;
 use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Default)]
 pub enum RecoveryRelationshipRole {
-    Beneficiary,
-    SocialRecoveryContact,
+    #[default]
+    ProtectedCustomer,
+    TrustedContact,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]

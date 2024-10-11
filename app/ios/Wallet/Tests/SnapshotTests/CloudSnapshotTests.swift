@@ -9,7 +9,7 @@ final class CloudSnapshotTests: XCTestCase {
 
     func test_cloud_sign_in_fail() {
         let view = FormView(
-            viewModel: CloudSignInFailedScreenModelKt.CloudSignInFailedScreenModel(
+            viewModel: SnapshotTestModels.shared.CreateCloudSignInFailedScreenModel(
                 onContactSupport: {},
                 onTryAgain: {},
                 onBack: {},
@@ -22,7 +22,7 @@ final class CloudSnapshotTests: XCTestCase {
 
     func test_cloud_save_instructions() {
         let view = FormView(
-            viewModel: SaveBackupInstructionsBodyModelKt.SaveBackupInstructionsBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateSaveBackupInstructionsBodyModel(
                 requiresHardware: false,
                 isLoading: false,
                 onBackupClick: {},
@@ -50,7 +50,7 @@ final class CloudSnapshotTests: XCTestCase {
 
     func test_cloud_backup_found() {
         let view = FormView(
-            viewModel: FormScreenModel_CloudRecoveryKt.CloudBackupFoundModel(
+            viewModel: SnapshotTestModels.shared.CreateCloudBackupFoundModel(
                 devicePlatform: .ios,
                 onBack: {},
                 onRestore: {},
@@ -78,7 +78,7 @@ final class CloudSnapshotTests: XCTestCase {
 
     func test_cloud_social_recovery_explaination() {
         let view = FormView(
-            viewModel: FormScreenModel_CloudRecoveryKt.SocialRecoveryExplanationModel(
+            viewModel: SnapshotTestModels.shared.CreateSocialRecoveryExplanationModel(
                 onBack: {},
                 onContinue: {}
             )

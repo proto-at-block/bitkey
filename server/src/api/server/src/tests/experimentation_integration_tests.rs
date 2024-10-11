@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 use experimentation::routes::{
@@ -6,6 +5,7 @@ use experimentation::routes::{
 };
 use feature_flags::flag::FeatureFlagValue;
 use http::{HeaderMap, HeaderValue, StatusCode};
+use once_cell::sync::Lazy;
 
 use crate::tests::gen_services_with_overrides;
 use crate::tests::lib::{create_default_account_with_predefined_wallet, create_lite_account};

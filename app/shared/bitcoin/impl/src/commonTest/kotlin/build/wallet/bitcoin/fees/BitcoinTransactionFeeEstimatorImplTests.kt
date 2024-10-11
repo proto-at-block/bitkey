@@ -3,15 +3,13 @@ package build.wallet.bitcoin.fees
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.datadog.DatadogRumMonitorFake
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.money.BitcoinMoney
 import build.wallet.testing.shouldBeErrOfType
@@ -25,16 +23,18 @@ import io.kotest.matchers.shouldBe
 class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
   val bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock()
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
+  val transactionsService = TransactionsServiceFake()
   val estimator =
     BitcoinTransactionFeeEstimatorImpl(
       bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
-      appSpendingWalletProvider = appSpendingWalletProvider,
+      transactionsService = transactionsService,
       datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
     )
 
-  afterTest {
+  beforeTest {
     spendingWallet.reset()
+    transactionsService.reset()
+    transactionsService.spendingWallet.value = spendingWallet
   }
 
   test("estimator returns a filled map of fees") {

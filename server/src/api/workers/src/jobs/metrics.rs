@@ -1,4 +1,11 @@
-use account::entities::Factor;
+use std::{
+    collections::HashMap,
+    env,
+    sync::{Arc, RwLock},
+};
+
+use bdk_utils::bdk::electrum_client::ElectrumApi;
+use bdk_utils::get_electrum_client;
 use bdk_utils::{
     metrics::{
         self as bdk_utils_metrics, MonitoredElectrumNode, ELECTRUM_NETWORK_KEY,
@@ -11,15 +18,8 @@ use notification::{
     metrics as notification_metrics, EMAIL_QUEUE_ENV_VAR, PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR,
 };
 use recovery::metrics as recovery_metrics;
-
-use bdk_utils::bdk::electrum_client::ElectrumApi;
-use bdk_utils::get_electrum_client;
-use std::{
-    collections::HashMap,
-    env,
-    sync::{Arc, RwLock},
-};
 use tracing::{event, instrument, Level};
+use types::account::entities::Factor;
 use types::notification::NotificationChannel;
 
 use super::WorkerState;

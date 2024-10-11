@@ -1,8 +1,7 @@
 package build.wallet.bdk
 
-import build.wallet.bdk.bindings.BdkBlockchain
-import build.wallet.bdk.bindings.BdkResult
-import build.wallet.bdk.bindings.BdkTransaction
+import build.wallet.bdk.bindings.*
+import com.github.michaelbull.result.map
 
 /**
  * Constructed by [BdkBlockchainFactoryImpl].
@@ -23,4 +22,20 @@ internal data class BdkBlockchainImpl(
 
   override fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float> =
     runCatchingBdkError { ffiBlockchain.estimateFee(targetBlocks).asSatPerVb() }
+
+  override fun getTx(txid: String): BdkResult<BdkTransaction> =
+    runCatchingBdkError { ffiBlockchain.getTx(txid) }
+      .result
+      .map { res ->
+        return when (res) {
+          null -> BdkResult.Err(
+            BdkError.TransactionNotFound(
+              cause = null,
+              message = "Transaction with $txid not found."
+            )
+          )
+          else -> BdkResult.Ok(res.bdkTransaction)
+        }
+      }
+      .toBdkResult()
 }

@@ -1,9 +1,7 @@
-use crate::{
-    entities::{CommonAccountFields, CommsVerificationClaim},
-    error::AccountError,
-};
+use types::account::entities::{CommonAccountFields, CommsVerificationClaim};
 
 use super::{FetchAccountInput, FetchOrCreateCommsVerificationClaimInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn fetch_or_create_comms_verification_claim(

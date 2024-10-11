@@ -1,7 +1,6 @@
 package build.wallet.keybox.wallet
 
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.spending.SpendingKeyset
 import com.github.michaelbull.result.Result
 
@@ -14,15 +13,10 @@ interface AppSpendingWalletProvider {
    *
    * Requires app private key for the keyset to be present in the app keystore, otherwise an error
    * is returned.
+   *
+   * Warn: If you need to a [SpendingWallet] for an active account, do not use [getSpendingWallet].
+   * Instead, use [TransactionsService.spendingWallet]. The service is responsible for creating
+   * and caching a [SpendingWallet] for the active account.
    */
   suspend fun getSpendingWallet(keyset: SpendingKeyset): Result<SpendingWallet, Throwable>
-
-  /**
-   * Creates [SpendingWallet] using the active spending keyset of the given [account].
-   *
-   * Requires app private key for the keyset to be present in the app keystore, otherwise an error
-   * is returned.
-   */
-  suspend fun getSpendingWallet(account: FullAccount): Result<SpendingWallet, Throwable> =
-    getSpendingWallet(account.keybox.activeSpendingKeyset)
 }

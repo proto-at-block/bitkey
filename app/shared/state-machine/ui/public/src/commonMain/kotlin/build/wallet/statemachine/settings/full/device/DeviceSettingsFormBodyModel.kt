@@ -36,77 +36,66 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onReplaceDevice - Invoked once the replace device button is clicked
  * @param onBack - Invoked once the back action is called
  */
-fun DeviceSettingsFormBodyModel(
-  trackerScreenId: EventTrackerScreenId,
-  emptyState: Boolean,
-  modelName: String,
-  currentVersion: String,
-  updateVersion: String?,
-  modelNumber: String,
-  serialNumber: String,
-  deviceCharge: String,
-  lastSyncDate: String,
-  replacementPending: String?,
-  replaceDeviceEnabled: Boolean,
-  onUpdateVersion: (() -> Unit)?,
-  onSyncDeviceInfo: () -> Unit,
-  onReplaceDevice: () -> Unit,
-  onManageReplacement: (() -> Unit)?,
-  onResetDevice: (() -> Unit)?,
-  onBack: () -> Unit,
-  onManageFingerprints: () -> Unit,
-  coachmark: CoachmarkModel?,
-) = FormBodyModel(
-  id = trackerScreenId,
-  onBack = onBack,
-  toolbar =
-    ToolbarModel(
+data class DeviceSettingsFormBodyModel(
+  val trackerScreenId: EventTrackerScreenId,
+  val emptyState: Boolean,
+  val modelName: String,
+  val currentVersion: String,
+  val updateVersion: String?,
+  val modelNumber: String,
+  val serialNumber: String,
+  val deviceCharge: String,
+  val lastSyncDate: String,
+  val replacementPending: String?,
+  val replaceDeviceEnabled: Boolean,
+  val onUpdateVersion: (() -> Unit)?,
+  val onSyncDeviceInfo: () -> Unit,
+  val onReplaceDevice: () -> Unit,
+  val onManageReplacement: (() -> Unit)?,
+  val onResetDevice: (() -> Unit)?,
+  override val onBack: () -> Unit,
+  val onManageFingerprints: () -> Unit,
+  val coachmark: CoachmarkModel?,
+) : FormBodyModel(
+    id = trackerScreenId,
+    onBack = onBack,
+    toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack),
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Bitkey Device")
     ),
-  header = null,
-  mainContentList =
-    immutableListOfNotNull(
+    header = null,
+    mainContentList = immutableListOfNotNull(
       DataList(
-        hero =
-          DataHero(
-            image =
-              IconModel(
-                iconImage =
-                  LocalImage(
-                    icon = BitkeyDevice3D
-                  ),
-                iconSize = XLarge,
-                iconOpacity = 0.3f.takeIf { emptyState }
-              ),
-            title =
-              (
-                if (replacementPending != null) {
-                  "Replacement pending..."
-                } else if (updateVersion != null) {
-                  "Update available"
-                } else {
-                  "Up to date"
-                }
-              ).takeUnless { emptyState },
-            subtitle = (replacementPending ?: currentVersion).takeUnless { emptyState },
-            button =
-              replacementPending?.let {
-                ButtonModel(
-                  text = "Manage",
-                  treatment = Secondary,
-                  size = Footer,
-                  onClick = StandardClick { onManageReplacement?.invoke() }
-                )
-              } ?: updateVersion?.let {
-                ButtonModel(
-                  text = "Update to $updateVersion",
-                  treatment = Primary,
-                  size = Footer,
-                  onClick = StandardClick { onUpdateVersion?.invoke() }
-                )
-              }
+        hero = DataHero(
+          image = IconModel(
+            iconImage = LocalImage(icon = BitkeyDevice3D),
+            iconSize = XLarge,
+            iconOpacity = 0.3f.takeIf { emptyState }
           ),
+          title = if (replacementPending != null) {
+            "Replacement pending..."
+          } else if (updateVersion != null) {
+            "Update available"
+          } else {
+            "Up to date"
+          }.takeUnless { emptyState },
+          subtitle = (replacementPending ?: currentVersion).takeUnless { emptyState },
+          button = replacementPending?.let {
+            ButtonModel(
+              text = "Manage",
+              treatment = Secondary,
+              size = Footer,
+              onClick = StandardClick { onManageReplacement?.invoke() }
+            )
+          } ?: updateVersion?.let {
+            ButtonModel(
+              text = "Update to $updateVersion",
+              treatment = Primary,
+              size = Footer,
+              onClick = StandardClick { onUpdateVersion?.invoke() }
+            )
+          }
+        ),
         items = run {
           val sideTextType = DataList.Data.SideTextType.REGULAR.takeIf { emptyState }
             ?: DataList.Data.SideTextType.MEDIUM
@@ -156,16 +145,15 @@ fun DeviceSettingsFormBodyModel(
             )
           )
         },
-        buttons =
-          immutableListOf(
-            ButtonModel(
-              text = "Sync device info",
-              treatment = TertiaryPrimaryNoUnderline,
-              leadingIcon = SmallIconSync,
-              size = Compact,
-              onClick = StandardClick { onSyncDeviceInfo() }
-            )
+        buttons = immutableListOf(
+          ButtonModel(
+            text = "Sync device info",
+            treatment = TertiaryPrimaryNoUnderline,
+            leadingIcon = SmallIconSync,
+            size = Compact,
+            onClick = StandardClick { onSyncDeviceInfo() }
           )
+        )
       ),
       ListGroup(
         listGroupModel = ListGroupModel(
@@ -189,18 +177,17 @@ fun DeviceSettingsFormBodyModel(
       ),
       if (replacementPending == null) {
         Button(
-          item =
-            ButtonModel(
-              text = "Replace device",
-              treatment = TertiaryDestructive,
-              size = Footer,
-              onClick = StandardClick { onReplaceDevice() },
-              isEnabled = replaceDeviceEnabled
-            )
+          item = ButtonModel(
+            text = "Replace device",
+            treatment = TertiaryDestructive,
+            size = Footer,
+            onClick = StandardClick { onReplaceDevice() },
+            isEnabled = replaceDeviceEnabled
+          )
         )
       } else {
         Spacer()
       }
     ),
-  primaryButton = null
-)
+    primaryButton = null
+  )

@@ -3,6 +3,7 @@ package build.wallet.bitcoin.transactions
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.bdk.BdkWalletMock
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
+import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker.AllowShrinkingError.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -10,6 +11,8 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.SpeedUpAllowShrinkingFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
+import build.wallet.testing.shouldBeErr
+import build.wallet.testing.shouldBeOk
 import build.wallet.toUByteList
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.kotest.core.spec.style.FunSpec
@@ -139,18 +142,10 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
 
   test("allowShrinkingOutput returns null if wallet unspent output does not equal transaction output") {
     val allowShrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
-      transaction = BitcoinTransactionMock(
-        total = BitcoinMoney.sats(100),
-        inputs = immutableListOf(),
-        outputs = immutableListOf(
-          BdkTxOut(value = 100u, scriptPubkey = BdkScriptMock("blah".encodeUtf8().toUByteList()))
-        ),
-        confirmationTime = null,
-        transactionType = Outgoing
-      ),
+      transaction = transaction,
       walletUnspentOutputs = immutableListOf(
         BdkUtxo(
-          outPoint = BdkOutPoint("abc", 0u),
+          outPoint = BdkOutPoint("not-my-txid", 0u),
           txOut = BdkTxOutMock,
           isSpent = false
         )
@@ -164,7 +159,7 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
       transaction = transaction,
       walletUnspentOutputs = immutableListOf(
         BdkUtxo(
-          outPoint = BdkOutPoint("abc", 0u),
+          outPoint = BdkOutPoint("my-txid", 0u),
           txOut = BdkTxOutMock,
           isSpent = false
         )
@@ -196,7 +191,7 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
       bdkWallet = wallet
     )
 
-    allowShrinkingScript.shouldNotBeNull().shouldBe(script)
+    allowShrinkingScript.shouldNotBeNull().shouldBeOk(script)
   }
 
   test("allowShrinkingOutput no matching transaction in wallet") {
@@ -214,14 +209,39 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
       confirmationTime = null
     )
 
-    wallet.listTransactionsResult = BdkResult.Ok(listOf(bdkTransactionDetails))
     wallet.listUnspentBlockingResult = BdkResult.Ok(listOf())
+    wallet.listTransactionsResult = BdkResult.Ok(listOf(bdkTransactionDetails))
 
     val allowShrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
       txid = "not-my-txid",
       bdkWallet = wallet
     )
 
-    allowShrinkingScript.shouldBeNull()
+    allowShrinkingScript.shouldBeErr(FailedToFindTransaction())
+  }
+
+  test("allowShrinkingOutput listUnspent failure") {
+    val error = BdkError.Generic(Throwable(), null)
+    wallet.listUnspentBlockingResult = BdkResult.Err(error)
+
+    val allowShrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
+      txid = "not-my-txid",
+      bdkWallet = wallet
+    )
+
+    allowShrinkingScript.shouldBeErr(FailedToListUnspentOutputs(cause = error))
+  }
+
+  test("allowShrinkingOutput listTransactions failure") {
+    val error = BdkError.Generic(Throwable(), null)
+    wallet.listUnspentBlockingResult = BdkResult.Ok(listOf())
+    wallet.listTransactionsResult = BdkResult.Err(error)
+
+    val allowShrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
+      txid = "not-my-txid",
+      bdkWallet = wallet
+    )
+
+    allowShrinkingScript.shouldBeErr(FailedToListTransactions(cause = error))
   }
 })

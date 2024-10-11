@@ -21,6 +21,15 @@ git config user.email "mobile-ci@squareup.com"
 
 # Append '-updated-ios-snapshots' to the current branch name
 new_branch=$GIT_BRANCH-updated-ios-snapshots
+# delete the snapshots branch if this is a re-run (it already exists)
+if gh api "repos/:owner/:repo/branches/$new_branch" --silent; then
+    echo "Snapshots branch already exists. Deleting..."
+    gh api -X DELETE repos/:owner/:repo/git/refs/heads/$new_branch
+    echo "Branch deleted."
+else
+    echo "Branch does not exist, creating..."
+fi
+
 # Create the new branch locally from head
 echo "🌲 Creating new branch: $new_branch"
 git checkout -b "$new_branch" "HEAD"

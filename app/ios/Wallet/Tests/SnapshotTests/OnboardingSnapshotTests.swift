@@ -21,13 +21,12 @@ final class OnboardingSnapshotTests: XCTestCase {
 
     func test_accountAccessMoreOptions() {
         let view = FormView(
-            viewModel: AccountAccessMoreOptionsFormBodyModelKt
-                .AccountAccessMoreOptionsFormBodyModel(
-                    onBack: {},
-                    onRestoreYourWalletClick: {},
-                    onBeTrustedContactClick: {},
-                    onResetExistingDevice: {}
-                )
+            viewModel: SnapshotTestModels.shared.CreateAccountAccessMoreOptionsFormBodyModel(
+                onBack: {},
+                onRestoreYourWalletClick: {},
+                onBeTrustedContactClick: {},
+                onResetExistingDevice: {}
+            )
         )
         assertBitkeySnapshots(view: view)
     }

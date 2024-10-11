@@ -6,7 +6,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.f8e.LiteAccountIdMock
 import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
+import build.wallet.relationships.DelegatedDecryptionKeyFake
 
 val CloudBackupV2WithFullAccountMock =
   CloudBackupV2(

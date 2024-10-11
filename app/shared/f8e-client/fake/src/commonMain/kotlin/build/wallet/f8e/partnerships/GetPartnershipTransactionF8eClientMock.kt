@@ -6,6 +6,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.PartnershipTransactionType
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -20,6 +21,7 @@ class GetPartnershipTransactionF8eClientMock(
     f8eEnvironment: F8eEnvironment,
     partner: PartnerId,
     partnershipTransactionId: PartnershipTransactionId,
+    transactionType: PartnershipTransactionType,
   ): Result<F8ePartnershipTransaction, NetworkingError> {
     getTransactionCalls.add(partner to partnershipTransactionId)
 

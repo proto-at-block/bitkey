@@ -14,35 +14,32 @@ import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Uri
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun SetElectrumServerModel(
-  onClose: () -> Unit,
-  host: String,
-  onHostStringChanged: (String) -> Unit,
-  port: String,
-  onPortStringChanged: (String) -> Unit,
-  setServerButtonEnabled: Boolean,
-  onSetServerClick: () -> Unit,
-) = FormBodyModel(
-  id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE,
-  onBack = onClose,
-  onSwipeToDismiss = onClose,
-  header =
-    FormHeaderModel(
+data class SetElectrumServerModel(
+  val onClose: () -> Unit,
+  val host: String,
+  val onHostStringChanged: (String) -> Unit,
+  val port: String,
+  val onPortStringChanged: (String) -> Unit,
+  val setServerButtonEnabled: Boolean,
+  val onSetServerClick: () -> Unit,
+) : FormBodyModel(
+    id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE,
+    onBack = onClose,
+    onSwipeToDismiss = onClose,
+    header = FormHeaderModel(
       headline = "Change Electrum Server",
       subline = "Provide details for a custom Electrum Server: "
     ),
-  mainContentList =
-    immutableListOf(
+    mainContentList = immutableListOf(
       TextInput(
         title = "Server:",
-        fieldModel =
-          TextFieldModel(
-            value = host,
-            placeholderText = "example.com",
-            onValueChange = { newValue, _ -> onHostStringChanged(newValue) },
-            keyboardType = Uri,
-            focusByDefault = true
-          )
+        fieldModel = TextFieldModel(
+          value = host,
+          placeholderText = "example.com",
+          onValueChange = { newValue, _ -> onHostStringChanged(newValue) },
+          keyboardType = Uri,
+          focusByDefault = true
+        )
       ),
       TextInput(
         title = "Port:",
@@ -55,12 +52,11 @@ fun SetElectrumServerModel(
         )
       )
     ),
-  primaryButton =
-    ButtonModel(
+    primaryButton = ButtonModel(
       text = "Save",
       isEnabled = setServerButtonEnabled,
       onClick = StandardClick(onSetServerClick),
       size = Footer
     ),
-  toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onClose))
-)
+    toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onClose))
+  )

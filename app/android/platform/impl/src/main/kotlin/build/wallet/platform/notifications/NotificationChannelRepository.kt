@@ -29,6 +29,12 @@ class NotificationChannelRepository(
           name = "Recovery & Account Security",
           description = "Notification related to account security and recovery",
           importance = NotificationManager.IMPORTANCE_DEFAULT
+        ),
+      context.getString(R.string.urgent_security_channel_id) to
+        NotificationChannel(
+          name = "Urgent Security Updates",
+          description = "Urgent security update notifications",
+          importance = NotificationManager.IMPORTANCE_HIGH
         )
     )
 

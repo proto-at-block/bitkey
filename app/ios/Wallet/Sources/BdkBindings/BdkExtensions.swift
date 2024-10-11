@@ -19,3 +19,9 @@ extension FfiScript {
         BdkScriptImpl(ffiScript: self)
     }
 }
+
+extension FfiTransaction {
+    func toBdkTransaction() -> BdkTransactionImpl {
+        BdkTransactionImpl(ffiTransaction: self)
+    }
+}

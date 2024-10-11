@@ -39,7 +39,7 @@ impl Service {
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
                 account_id: input.account_id,
-                trusted_contact_role: Some(TrustedContactRole::Beneficiary),
+                trusted_contact_role_filter: Some(TrustedContactRole::Beneficiary),
             })
             .await?;
 

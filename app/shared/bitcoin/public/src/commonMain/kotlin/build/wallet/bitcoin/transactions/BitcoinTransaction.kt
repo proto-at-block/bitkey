@@ -171,6 +171,7 @@ fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails?
     txid = this.id,
     recipientAddress = recipientAddress,
     oldFee = Fee(amount = fee, feeRate = feeRate),
-    sendAmount = this.subtotal
+    sendAmount = this.subtotal,
+    transactionType = this.transactionType
   )
 }

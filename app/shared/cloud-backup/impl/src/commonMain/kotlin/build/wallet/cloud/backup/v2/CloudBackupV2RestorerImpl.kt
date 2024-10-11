@@ -9,25 +9,16 @@ import build.wallet.catchingResult
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2Restorer
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecodingError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecryptionError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppAuthKeypairStorageError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppSpendingKeypairStorageError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.PkekMissingError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.SocRecTrustedContactIdentityKeyStorageError
+import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.*
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.platform.random.UuidGenerator
-import build.wallet.recovery.socrec.SocRecKeysDao
-import build.wallet.recovery.socrec.saveKey
+import build.wallet.relationships.RelationshipsKeysDao
+import build.wallet.relationships.saveKey
 import build.wallet.serialization.json.decodeFromStringResult
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.getOrElse
-import com.github.michaelbull.result.mapError
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
 
@@ -36,7 +27,7 @@ class CloudBackupV2RestorerImpl(
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val uuidGenerator: UuidGenerator,
-  private val socRecKeysDao: SocRecKeysDao,
+  private val relationshipsKeysDao: RelationshipsKeysDao,
 ) : CloudBackupV2Restorer {
   override suspend fun restore(
     cloudBackupV2: CloudBackupV2,
@@ -95,7 +86,7 @@ class CloudBackupV2RestorerImpl(
     }
 
     // Store trusted contact identity key
-    socRecKeysDao.saveKey(cloudBackupV2.delegatedDecryptionKeypair)
+    relationshipsKeysDao.saveKey(cloudBackupV2.delegatedDecryptionKeypair)
       .mapError(::SocRecTrustedContactIdentityKeyStorageError)
       .bind()
 

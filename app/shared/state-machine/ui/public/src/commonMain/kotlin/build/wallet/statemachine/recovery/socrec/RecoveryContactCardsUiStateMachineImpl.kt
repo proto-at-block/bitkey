@@ -20,7 +20,7 @@ class RecoveryContactCardsUiStateMachineImpl(
 ) : RecoveryContactCardsUiStateMachine {
   @Composable
   override fun model(props: RecoveryContactCardsUiProps): ImmutableList<CardModel> {
-    val relationships = remember { socRecService.relationships }
+    val relationships = remember { socRecService.socRecRelationships }
       .collectAsState().value ?: return immutableListOf()
 
     return listOf(

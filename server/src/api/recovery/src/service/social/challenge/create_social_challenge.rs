@@ -1,11 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use account::{
-    entities::FullAccount, service::FetchAndUpdateSpendingLimitInput, spend_limit::SpendingLimit,
-};
-
-use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
+use account::service::FetchAndUpdateSpendingLimitInput;
 use tracing::instrument;
+use types::account::{entities::FullAccount, spend_limit::SpendingLimit};
 use types::recovery::social::{
     challenge::{SocialChallenge, SocialChallengeId, TrustedContactChallengeRequest},
     relationship::RecoveryRelationshipId,
@@ -13,6 +10,7 @@ use types::recovery::social::{
 use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
 
 use super::{error::ServiceError, Service};
+use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
 
 pub struct CreateSocialChallengeInput<'a> {
     pub customer_account: &'a FullAccount,
@@ -30,7 +28,7 @@ impl Service {
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
                 account_id: &input.customer_account.id,
-                trusted_contact_role: Some(SocialRecoveryContact),
+                trusted_contact_role_filter: Some(SocialRecoveryContact),
             })
             .await?;
 

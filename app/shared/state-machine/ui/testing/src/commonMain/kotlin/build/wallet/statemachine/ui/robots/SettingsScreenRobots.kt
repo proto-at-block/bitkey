@@ -7,7 +7,11 @@ fun SettingsBodyModel.clickMobilePay() {
 }
 
 fun SettingsBodyModel.clickTransferSettings() {
-  clickRow("Transfer settings")
+  clickRow("Transfers")
+}
+
+fun SettingsBodyModel.clickExportTools() {
+  clickRow("Exports")
 }
 
 private fun SettingsBodyModel.clickRow(title: String) {

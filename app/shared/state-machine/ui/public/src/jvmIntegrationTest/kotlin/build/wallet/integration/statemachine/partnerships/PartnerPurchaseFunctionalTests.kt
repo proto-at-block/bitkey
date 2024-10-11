@@ -13,6 +13,7 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiPro
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -45,7 +46,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
 
-        val body = sheetModel.body.shouldBeTypeOf<FormBodyModel>()
+        val body = sheetModel.body.shouldBeInstanceOf<FormBodyModel>()
         assertEquals("Choose an amount", body.toolbar?.middleAccessory?.title)
 
         val items = body.mainContentList.first()
@@ -68,13 +69,13 @@ class PartnerPurchaseFunctionalTests : FunSpec({
         val amountsSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
-        amountsSheetModel.body.shouldBeTypeOf<FormBodyModel>().primaryButton?.onClick?.invoke()
+        amountsSheetModel.body.shouldBeInstanceOf<FormBodyModel>().primaryButton?.onClick?.invoke()
 
         val quotesSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
         }
 
-        val body = quotesSheetModel.body.shouldBeTypeOf<FormBodyModel>()
+        val body = quotesSheetModel.body.shouldBeInstanceOf<FormBodyModel>()
 
         val items = body.mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()
@@ -94,13 +95,13 @@ class PartnerPurchaseFunctionalTests : FunSpec({
         val amountsSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
-        amountsSheetModel.body.shouldBeTypeOf<FormBodyModel>().primaryButton?.onClick?.invoke()
+        amountsSheetModel.body.shouldBeInstanceOf<FormBodyModel>().primaryButton?.onClick?.invoke()
 
         val quotesSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
         }
 
-        val body = quotesSheetModel.body.shouldBeTypeOf<FormBodyModel>()
+        val body = quotesSheetModel.body.shouldBeInstanceOf<FormBodyModel>()
 
         val quoteItems = body.mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()

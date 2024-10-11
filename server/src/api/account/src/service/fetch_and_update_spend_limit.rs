@@ -1,5 +1,6 @@
+use types::account::entities::FullAccount;
+
 use super::{FetchAccountInput, FetchAndUpdateSpendingLimitInput, Service};
-use crate::entities::FullAccount;
 use crate::error::AccountError;
 
 impl Service {

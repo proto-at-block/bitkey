@@ -92,7 +92,10 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.kmp.okhttp,
       libs.kmp.okio,
       libs.kmp.test.kotlin.coroutines,
-      libs.jvm.asm
+      libs.jvm.asm,
+      libs.jvm.ksp,
+      libs.jvm.kotlinpoet.asProvider(),
+      libs.jvm.kotlinpoet.ksp
     )
 
     dependencyLockingExtension.commonDependencyLockingGroups.kotlinCompiler.pin(

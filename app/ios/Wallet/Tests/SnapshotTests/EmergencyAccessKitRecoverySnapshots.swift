@@ -9,7 +9,7 @@ final class EmergencyAccessKitRecoverySnapshots: XCTestCase {
 
     func test_import_select_method() {
         let view = FormView(
-            viewModel: FormScreenModel_EmergencyAccessKitKt.EmergencyAccessKitImportWalletModel(
+            viewModel: SnapshotTestModels.shared.CreateEmergencyAccessKitImportWalletBodyModel(
                 onBack: {},
                 onScanQRCode: {},
                 onEnterManually: {}
@@ -21,8 +21,8 @@ final class EmergencyAccessKitRecoverySnapshots: XCTestCase {
 
     func test_paste_mobile_key() {
         let view = FormView(
-            viewModel: FormScreenModel_EmergencyAccessKitKt
-                .EmergencyAccessKitImportPasteMobileKeyModel(
+            viewModel: SnapshotTestModels.shared
+                .CreateEmergencyAccessKitImportPasteMobileKeyBodyModel(
                     enteredText: "",
                     onBack: {},
                     onEnterTextChanged: { _ in },
@@ -36,7 +36,7 @@ final class EmergencyAccessKitRecoverySnapshots: XCTestCase {
 
     func test_code_not_recognized() {
         let view = FormView(
-            viewModel: FormScreenModel_EmergencyAccessKitKt.EmergencyAccessKitCodeNotRecognized(
+            viewModel: SnapshotTestModels.shared.CreateEmergencyAccessKitCodeNotRecognizedBodyModel(
                 arrivedFromManualEntry: false,
                 onBack: {},
                 onScanQRCode: {},
@@ -49,7 +49,7 @@ final class EmergencyAccessKitRecoverySnapshots: XCTestCase {
 
     func test_restore_your_wallet() {
         let view = FormView(
-            viewModel: FormScreenModel_EmergencyAccessKitKt.EmergencyAccessKitRestoreWallet(
+            viewModel: SnapshotTestModels.shared.CreateEmergencyAccessKitRestoreWalletBodyModel(
                 onBack: {},
                 onRestore: {}
             )

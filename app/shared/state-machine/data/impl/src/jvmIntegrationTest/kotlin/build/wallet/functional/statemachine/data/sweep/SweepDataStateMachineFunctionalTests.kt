@@ -19,11 +19,9 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.getHardwareFactorProofOfPossession
-import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.testing.ext.returnFundsToTreasury
-import build.wallet.testing.ext.setupMobilePay
+import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
+import build.wallet.testing.tags.TestTag.IsolatedTest
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
@@ -59,7 +57,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       stateMachine = app.app.run {
         SweepDataStateMachineImpl(
           sweepService = sweepService,
-          mobilePaySigningF8eClient = mobilePaySigningF8eClient,
+          mobilePaySigningF8eClient = appComponent.mobilePaySigningF8eClient,
           appSpendingWalletProvider = appSpendingWalletProvider,
           transactionsService = appComponent.transactionsService
         )
@@ -98,49 +96,50 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
      * - Checks that there's a balance in the active keybox
      * - Send the remaining money back to the treasury
      */
-    test("sweep funds for lost hw recovery") {
-      lateinit var lostKeyset: SpendingKeyset
-      runTest {
-        // There is a 15 second delay in this code path. Using the test dispatcher skips this delay.
-        lostKeyset = createLostHardwareKeyset()
-      }
-      val wallet = appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
-
-      val funding = app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000))
-      println("Funded ${funding.depositAddress.address}")
-
-      app.setupMobilePay(account, FiatMoney.usd(100.0))
-
-      stateMachine.test(
-        SweepDataProps(account.keybox) {},
-        useVirtualTime = false,
-        testTimeout = 60.seconds,
-        turbineTimeout = 10.seconds
-      ) {
-        awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
-        val psbtsGeneratedData = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
-        psbtsGeneratedData.startSweep()
-        awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
-        awaitItem().shouldBeTypeOf<SweepCompleteData>()
-
-        val activeWallet = appSpendingWalletProvider.getSpendingWallet(account).getOrThrow()
-
-        eventually(
-          eventuallyConfig {
-            duration = 20.seconds
-            interval = 1.seconds
-            initialDelay = 1.seconds
-          }
-        ) {
-          activeWallet.sync().shouldBeOk()
-          activeWallet.balance().first()
-            .total
-            .shouldBe(BitcoinMoney.sats(10_000) - psbtsGeneratedData.totalFeeAmount)
+    test("sweep funds for lost hw recovery")
+      .config(tags = setOf(IsolatedTest)) {
+        lateinit var lostKeyset: SpendingKeyset
+        runTest {
+          // There is a 15 second delay in this code path. Using the test dispatcher skips this delay.
+          lostKeyset = createLostHardwareKeyset()
         }
-      }
+        val wallet = appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
 
-      app.returnFundsToTreasury(account)
-    }
+        val funding = app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000))
+        println("Funded ${funding.depositAddress.address}")
+
+        app.setupMobilePay(FiatMoney.usd(100.0))
+
+        stateMachine.test(
+          SweepDataProps(account.keybox) {},
+          useVirtualTime = false,
+          testTimeout = 60.seconds,
+          turbineTimeout = 10.seconds
+        ) {
+          awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
+          val psbtsGeneratedData = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
+          psbtsGeneratedData.startSweep()
+          awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
+          awaitItem().shouldBeTypeOf<SweepCompleteData>()
+
+          val activeWallet = app.getActiveWallet()
+
+          eventually(
+            eventuallyConfig {
+              duration = 20.seconds
+              interval = 1.seconds
+              initialDelay = 1.seconds
+            }
+          ) {
+            activeWallet.sync().shouldBeOk()
+            activeWallet.balance().first()
+              .total
+              .shouldBe(BitcoinMoney.sats(10_000) - psbtsGeneratedData.totalFeeAmount)
+          }
+        }
+
+        app.returnFundsToTreasury()
+      }
   }
 
   private suspend fun createLostHardwareKeyset(): SpendingKeyset {
@@ -170,7 +169,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
           appSpendingKey = appKeyBundle.spendingKey,
           network = network,
           appAuthKey = account.keybox.activeAppKeyBundle.authKey,
-          hardwareProofOfPossession = app.getHardwareFactorProofOfPossession(account.keybox)
+          hardwareProofOfPossession = app.getHardwareFactorProofOfPossession()
         )
         .getOrThrow()
 

@@ -1,11 +1,9 @@
 package build.wallet.statemachine.send
 
 import build.wallet.availability.NetworkReachabilityProviderMock
-import build.wallet.bitcoin.address.bitcoinAddressP2TR
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
@@ -27,7 +25,6 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
-import build.wallet.statemachine.send.SendEntryPoint.SendButton
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.time.ClockFake
@@ -85,7 +82,6 @@ class SendUiStateMachineImplTests : FunSpec({
   val transactionsService = TransactionsServiceFake()
 
   val props = SendUiProps(
-    entryPoint = SendButton,
     account = FullAccountMock,
     validInvoiceInClipboard = null,
     onExit = {},
@@ -369,60 +365,6 @@ class SendUiStateMachineImplTests : FunSpec({
         // Step 4: Should have HW required signer
         awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
           requiredSigner.shouldBe(SigningFactor.Hardware)
-        }
-      }
-    }
-  }
-
-  context("Entering from speed up") {
-    val speedUpEntryProps =
-      SendUiProps(
-        entryPoint =
-          SendEntryPoint.SpeedUp(
-            speedUpTransactionDetails =
-              SpeedUpTransactionDetails(
-                txid = "",
-                recipientAddress = bitcoinAddressP2TR,
-                sendAmount = BitcoinMoney.sats(50_000),
-                oldFee = Fee(BitcoinMoney.sats(125), feeRate = FeeRate(satsPerVByte = 1f))
-              ),
-            spendingLimit = null,
-            newFeeRate = FeeRate(satsPerVByte = 2f),
-            fees = persistentMapOf()
-          ),
-        account = FullAccountMock,
-        validInvoiceInClipboard = null,
-        onExit = {},
-        onDone = {},
-        onGoToUtxoConsolidation = {}
-      )
-
-    test("Goes straight to transfer confirmation screen") {
-      stateMachine.test(speedUpEntryProps) {
-        val amountToSend = 50_000UL
-        // Step 1: User is shown transaction confirmation screen
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
-          transferVariant.shouldBeTypeOf<TransferConfirmationUiProps.Variant.SpeedUp>()
-
-          val psbtToBroadcast =
-            PsbtMock.copy(
-              amountSats = amountToSend,
-              fee = feeMap[FASTEST]!!.amount
-            )
-          onTransferInitiated(psbtToBroadcast, FASTEST)
-        }
-
-        // Step 2: User is shown the "Transfer Initiated" screen
-        awaitScreenWithBodyModelMock<TransferInitiatedUiProps> {
-          val intendedFee = feeMap[FASTEST]
-          val transferAmount = BitcoinMoney.sats(amountToSend.toBigInteger())
-
-          with(
-            transactionDetails.shouldBeTypeOf<TransactionDetails.SpeedUp>()
-          ) {
-            this.transferAmount.shouldBe(transferAmount)
-            feeAmount.shouldBe(intendedFee!!.amount)
-          }
         }
       }
     }

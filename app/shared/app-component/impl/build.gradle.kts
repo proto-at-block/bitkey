@@ -58,6 +58,7 @@ kotlin {
         api(projects.shared.inAppSecurityImpl)
         api(projects.shared.priceChartImpl)
         api(projects.shared.inheritanceImpl)
+        api(projects.shared.relationshipsImpl)
       }
     }
 
@@ -65,6 +66,12 @@ kotlin {
       dependencies {
         api(projects.android.nfcImpl)
         api(projects.shared.googleSignInImpl)
+      }
+    }
+
+    val jvmMain by getting {
+      dependencies {
+        implementation(projects.shared.f8eClientFake)
       }
     }
   }

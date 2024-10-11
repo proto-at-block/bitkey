@@ -107,6 +107,8 @@ async fn main() -> Result<(), Error> {
                 sqs: bootstrap.services.sqs,
                 feature_flags_service: bootstrap.services.feature_flags_service,
                 privileged_action_repository: bootstrap.services.privileged_action_repository,
+                inheritance_repository: bootstrap.services.inheritance_repository,
+                social_recovery_repository: bootstrap.services.social_recovery_repository,
             };
 
             match command {

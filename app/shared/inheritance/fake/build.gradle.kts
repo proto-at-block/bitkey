@@ -12,6 +12,7 @@ kotlin {
     val commonMain by getting {
       dependencies {
         implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

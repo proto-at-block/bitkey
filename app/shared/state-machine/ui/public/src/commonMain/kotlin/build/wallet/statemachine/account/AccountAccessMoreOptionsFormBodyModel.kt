@@ -21,67 +21,67 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 /**
  * Content for account access options for the regular, non-EAK app variant.
  */
-fun AccountAccessMoreOptionsFormBodyModel(
-  onBack: () -> Unit,
-  onRestoreYourWalletClick: (() -> Unit),
-  onBeTrustedContactClick: (() -> Unit),
-  onResetExistingDevice: (() -> Unit)?,
-) = FormBodyModel(
-  id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
-  onBack = onBack,
-  toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
-  header = FormHeaderModel(
-    headline = "Welcome to Bitkey",
-    subline = "How do you want to get started?"
-  ),
-  mainContentList = immutableListOf(
-    ListGroup(
-      listGroupModel = ListGroupModel(
-        items = immutableListOfNotNull(
-          ListItemModel(
-            leadingAccessory = IconAccessory(
-              iconPadding = 12,
-              model = IconModel(
-                icon = Icon.SmallIconShieldPerson,
-                iconSize = IconSize.Small
-              )
-            ),
-            title = "Be a Trusted Contact",
-            onClick = onBeTrustedContactClick,
-            trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
-          ),
-          ListItemModel(
-            leadingAccessory = IconAccessory(
-              iconPadding = 12,
-              model = IconModel(
-                icon = Icon.SmallIconWallet,
-                iconSize = IconSize.Small
-              )
-            ),
-            title = "Restore your wallet",
-            onClick = onRestoreYourWalletClick,
-            trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-            testTag = "restore-your-wallet"
-          ),
-          onResetExistingDevice?.let {
+data class AccountAccessMoreOptionsFormBodyModel(
+  override val onBack: () -> Unit,
+  val onRestoreYourWalletClick: (() -> Unit),
+  val onBeTrustedContactClick: (() -> Unit),
+  val onResetExistingDevice: (() -> Unit)?,
+) : FormBodyModel(
+    id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
+    header = FormHeaderModel(
+      headline = "Welcome to Bitkey",
+      subline = "How do you want to get started?"
+    ),
+    mainContentList = immutableListOf(
+      ListGroup(
+        listGroupModel = ListGroupModel(
+          items = immutableListOfNotNull(
             ListItemModel(
               leadingAccessory = IconAccessory(
                 iconPadding = 12,
                 model = IconModel(
-                  icon = Icon.SmallIconBitkey,
+                  icon = Icon.SmallIconShieldPerson,
                   iconSize = IconSize.Small
                 )
               ),
-              title = "Reset an existing device",
-              onClick = onResetExistingDevice,
+              title = "Be a Trusted Contact",
+              onClick = onBeTrustedContactClick,
+              trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
+            ),
+            ListItemModel(
+              leadingAccessory = IconAccessory(
+                iconPadding = 12,
+                model = IconModel(
+                  icon = Icon.SmallIconWallet,
+                  iconSize = IconSize.Small
+                )
+              ),
+              title = "Restore your wallet",
+              onClick = onRestoreYourWalletClick,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-              testTag = "reset-existing-device"
-            )
-          }
-        ),
-        style = ListGroupStyle.CARD_ITEM
+              testTag = "restore-your-wallet"
+            ),
+            onResetExistingDevice?.let {
+              ListItemModel(
+                leadingAccessory = IconAccessory(
+                  iconPadding = 12,
+                  model = IconModel(
+                    icon = Icon.SmallIconBitkey,
+                    iconSize = IconSize.Small
+                  )
+                ),
+                title = "Reset an existing device",
+                onClick = onResetExistingDevice,
+                trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
+                testTag = "reset-existing-device"
+              )
+            }
+          ),
+          style = ListGroupStyle.CARD_ITEM
+        )
       )
-    )
-  ),
-  primaryButton = null
-)
+    ),
+    primaryButton = null
+  )

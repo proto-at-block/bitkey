@@ -1,3 +1,5 @@
+#[cfg(feature = "account")]
+pub mod account;
 #[cfg(feature = "consent")]
 pub mod consent;
 #[cfg(feature = "privileged_action")]

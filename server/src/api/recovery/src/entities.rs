@@ -1,13 +1,12 @@
 use std::{fmt, str::FromStr};
 
-use serde::{Deserialize, Serialize};
-use time::{serde::rfc3339, Duration, OffsetDateTime};
-use utoipa::ToSchema;
-
-use account::entities::{Factor, FullAccount};
 use authn_authz::key_claims::KeyClaims;
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+use serde::{Deserialize, Serialize};
+use time::{serde::rfc3339, Duration, OffsetDateTime};
+use types::account::entities::{Factor, FullAccount};
 use types::account::identifiers::{AccountId, AuthKeysId};
+use utoipa::ToSchema;
 
 use crate::error::RecoveryError;
 

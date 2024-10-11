@@ -21,32 +21,30 @@ import kotlinx.collections.immutable.ImmutableList
  * @param transactionDetails [TransactionDetailsModel] - The data associated with the transaction
  * @param onDone - Handler invoked once the primary button is clicked
  */
-fun TransferInitiatedBodyModel(
-  onBack: () -> Unit,
-  recipientAddress: String,
-  transactionDetails: TransactionDetailsModel,
-  onDone: () -> Unit,
-) = FormBodyModel(
-  onBack = onBack,
-  header =
-    FormHeaderModel(
+data class TransferInitiatedBodyModel(
+  override val onBack: () -> Unit,
+  val recipientAddress: String,
+  val transactionDetails: TransactionDetailsModel,
+  val onDone: () -> Unit,
+) : FormBodyModel(
+    onBack = onBack,
+    header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
       headline = "Transfer sent",
       subline = recipientAddress,
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
       alignment = CENTER
     ),
-  toolbar = null,
-  mainContentList = transactionDetails.toDataList(),
-  primaryButton =
-    ButtonModel(
+    toolbar = null,
+    mainContentList = transactionDetails.toDataList(),
+    primaryButton = ButtonModel(
       text = "Done",
       onClick = StandardClick(onDone),
       size = Footer
     ),
-  id = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
-  eventTrackerShouldTrack = false
-)
+    id = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
+    eventTrackerShouldTrack = false
+  )
 
 private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
   val mainItems: ImmutableList<Data> =
@@ -55,26 +53,42 @@ private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
         immutableListOf(
           Data(
             title = "Recipient receives",
-            sideText = transactionDetailModelType.transferAmountText
+            sideText = transactionDetailModelType.transferAmountText,
+            secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           Data(
             title = "Network Fees",
-            sideText = transactionDetailModelType.feeAmountText
+            sideText = transactionDetailModelType.feeAmountText,
+            secondarySideText = transactionDetailModelType.feeAmountSecondaryText
           )
         )
       is TransactionDetailModelType.SpeedUp ->
         immutableListOf(
           Data(
             title = "Recipient receives",
-            sideText = transactionDetailModelType.transferAmountText
+            sideText = transactionDetailModelType.transferAmountText,
+            secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           Data(
             title = "Original network fee",
-            sideText = transactionDetailModelType.oldFeeAmountText
+            sideText = transactionDetailModelType.oldFeeAmountText,
+            secondarySideText = transactionDetailModelType.oldFeeAmountSecondaryText
           ),
           Data(
             title = "Speed up network fee",
-            sideText = transactionDetailModelType.feeDifferenceText
+            sideText = transactionDetailModelType.feeDifferenceText,
+            secondarySideText = transactionDetailModelType.feeDifferenceSecondaryText
+          )
+        )
+      is TransactionDetailModelType.Sell ->
+        immutableListOf(
+          Data(
+            title = "Amount selling",
+            sideText = transactionDetailModelType.transferAmountText
+          ),
+          Data(
+            title = "Network Fees",
+            sideText = transactionDetailModelType.feeAmountText
           )
         )
     }

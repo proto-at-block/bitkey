@@ -21,60 +21,67 @@ fun RecoveryConflictModel(
   onCancelRecovery: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id =
-        cancelingRecoveryLostFactor.getEventId(
-          LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT,
-          LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-        ),
-      onBack = null,
-      toolbar = null,
-      header =
-        FormHeaderModel(
-          icon = LargeIconWarningFilled,
-          headline = "Recovery Conflict",
-          subline =
-            when (cancelingRecoveryLostFactor) {
-              Hardware ->
-                buildString {
-                  appendLine(
-                    "We’ve detected an attempt to replace your Bitkey hardware device using the mobile phone currently active with your wallet."
-                  )
-                  appendLine()
-                  appendLine(
-                    "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your mobile key recovery on this phone."
-                  )
-                  appendLine()
-                  appendLine(
-                    "If you are attempting to replace your currently paired Bitkey hardware device, please proceed with the recovery process on your active phone."
-                  )
-                }
-
-              App ->
-                buildString {
-                  appendLine(
-                    "We’ve detected an attempt to recover your wallet to another phone using your paired Bitkey device."
-                  )
-                  appendLine()
-                  appendLine(
-                    "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery”."
-                  )
-                  appendLine()
-                  appendLine(
-                    "If you are attempting to recover with another phone, please wait and complete your recovery on your new phone."
-                  )
-                }
-            }
-        ),
-      primaryButton = null,
-      secondaryButton =
-        ButtonModel(
-          text = "Cancel conflicting recovery",
-          onClick = StandardClick { onCancelRecovery() },
-          size = Footer,
-          treatment = SecondaryDestructive
-        )
-    ),
+  body = RecoveryConflictBodyModel(
+    onCancelRecovery = onCancelRecovery,
+    cancelingRecoveryLostFactor = cancelingRecoveryLostFactor
+  ),
   presentationStyle = presentationStyle
 )
+
+private data class RecoveryConflictBodyModel(
+  val cancelingRecoveryLostFactor: PhysicalFactor,
+  val onCancelRecovery: () -> Unit,
+) : FormBodyModel(
+    id =
+      cancelingRecoveryLostFactor.getEventId(
+        LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT,
+        LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
+      ),
+    onBack = null,
+    toolbar = null,
+    header =
+      FormHeaderModel(
+        icon = LargeIconWarningFilled,
+        headline = "Recovery Conflict",
+        subline =
+          when (cancelingRecoveryLostFactor) {
+            Hardware ->
+              buildString {
+                appendLine(
+                  "We’ve detected an attempt to replace your Bitkey hardware device using the mobile phone currently active with your wallet."
+                )
+                appendLine()
+                appendLine(
+                  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your mobile key recovery on this phone."
+                )
+                appendLine()
+                appendLine(
+                  "If you are attempting to replace your currently paired Bitkey hardware device, please proceed with the recovery process on your active phone."
+                )
+              }
+
+            App ->
+              buildString {
+                appendLine(
+                  "We’ve detected an attempt to recover your wallet to another phone using your paired Bitkey device."
+                )
+                appendLine()
+                appendLine(
+                  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery”."
+                )
+                appendLine()
+                appendLine(
+                  "If you are attempting to recover with another phone, please wait and complete your recovery on your new phone."
+                )
+              }
+          }
+      ),
+    primaryButton = null,
+    secondaryButton =
+      ButtonModel(
+        text = "Cancel conflicting recovery",
+        onClick = StandardClick { onCancelRecovery() },
+        size = Footer,
+        treatment = SecondaryDestructive
+      )
+  )

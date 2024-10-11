@@ -12,10 +12,11 @@ interface AddBitcoinUiStateMachine : StateMachine<AddBitcoinUiProps, SheetModel>
 
 data class AddBitcoinUiProps(
   val account: FullAccount,
-  val purchaseAmount: FiatMoney?,
+  val sellBitcoinEnabled: Boolean,
   val onAnotherWalletOrExchange: () -> Unit,
   val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,
   val onExit: () -> Unit,
   val keybox: Keybox,
   val onSelectCustomAmount: (minAmount: FiatMoney, maxAmount: FiatMoney) -> Unit,
+  val initialState: AddBitcoinBottomSheetDisplayState,
 )

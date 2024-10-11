@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.70.0
-        PROJECT_BUNDLE_VERSION: 1
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.71.0
+        PROJECT_BUNDLE_VERSION: 3
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -273,7 +273,7 @@ packages:
     path: ../rust
   bdk-swift:
     url: https://github.com/bitcoindevkit/bdk-swift
-    exactVersion: 0.31.1
+    exactVersion: 0.31.2
   bugsnag-cocoa:
     url: https://github.com/bugsnag/bugsnag-cocoa
     exactVersion: 6.28.0

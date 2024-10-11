@@ -3,6 +3,8 @@ package build.wallet.bitcoin.blockchain
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bdk.bindings.BdkError
+import build.wallet.bdk.bindings.BdkTransaction
+import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
 import com.github.michaelbull.result.Ok
@@ -38,6 +40,10 @@ class BitcoinBlockchainMock(
 
   override suspend fun getLatestBlockHash(): Result<String, BdkError> {
     return latestBlockHash
+  }
+
+  override suspend fun getTx(txid: BitcoinTransactionId): Result<BdkTransaction?, BdkError> {
+    error("No op")
   }
 
   fun reset() {

@@ -2,6 +2,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::vec;
 
+use account::service::{
+    tests::{create_descriptor_keys, create_spend_keyset, TestAuthenticationKeys, TestKeypair},
+    FetchAccountInput,
+};
 use authn_authz::routes::{
     AuthRequestKey, AuthenticationRequest, ChallengeResponseParameters, GetTokensRequest,
 };
@@ -9,19 +13,31 @@ use axum::response::IntoResponse;
 use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::secp256k1::Message;
+use bdk_utils::bdk::bitcoin::Network;
+use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use comms_verification::TEST_CODE;
 use errors::ApiError;
+use external_identifier::ExternalIdentifier;
 use http::StatusCode;
 use http_body_util::BodyExt;
-
 use onboarding::account_validation::error::AccountValidationError;
+use onboarding::routes::{
+    AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
+    AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
+    CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
+    InititateDistributedKeygenRequest, UpgradeAccountRequest,
+};
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
-
 use types::account::bitcoin::Network as AccountNetwork;
+use types::account::entities::{
+    Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
+    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+};
+use types::account::identifiers::TouchpointId;
 use types::account::AccountType;
 use types::consent::Consent;
-
 use types::privileged_action::router::generic::{
     AuthorizationStrategyInput, AuthorizationStrategyOutput, ContinuePrivilegedActionRequest,
     DelayAndNotifyInput, PrivilegedActionInstanceInput, PrivilegedActionInstanceOutput,
@@ -30,36 +46,22 @@ use types::privileged_action::router::generic::{
 use types::privileged_action::shared::PrivilegedActionInstanceId;
 use ulid::Ulid;
 
-use account::entities::{
-    Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+use super::{
+    gen_services_with_overrides,
+    lib::{
+        create_account, create_keypair, create_lite_account, generate_delay_and_notify_recovery,
+        OffsetClock,
+    },
 };
-use account::service::FetchAccountInput;
-use bdk_utils::bdk::bitcoin::Network;
-use bdk_utils::bdk::miniscript::DescriptorPublicKey;
-use comms_verification::TEST_CODE;
-use external_identifier::ExternalIdentifier;
-use onboarding::routes::{
-    AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
-    AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
-    CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    InititateDistributedKeygenRequest, UpgradeAccountRequest,
+use crate::{
+    tests,
+    tests::{
+        gen_services,
+        lib::{create_full_account, create_new_authkeys, create_pubkey},
+        requests::{axum::TestClient, CognitoAuthentication, Response},
+    },
+    GenServiceOverrides,
 };
-use types::account::identifiers::TouchpointId;
-
-use crate::tests::gen_services;
-use crate::tests::lib::{
-    create_descriptor_keys, create_full_account, create_new_authkeys, create_pubkey,
-};
-use crate::tests::requests::axum::TestClient;
-use crate::tests::requests::{CognitoAuthentication, Response};
-use crate::{tests, GenServiceOverrides};
-
-use super::lib::{
-    create_account, create_keypair, create_lite_account, create_spend_keyset,
-    generate_delay_and_notify_recovery, OffsetClock,
-};
-use super::{gen_services_with_overrides, TestAuthenticationKeys, TestKeypair};
 
 struct OnboardingTestVector {
     include_recovery_auth_pubkey: bool,

@@ -14,43 +14,26 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
-import build.wallet.f8e.socrec.SocRecRelationshipsFake
+import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.ktor.result.HttpError
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
 import build.wallet.notifications.DeviceTokenManagerError.NoDeviceToken
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
 import build.wallet.platform.random.UuidGeneratorFake
+import build.wallet.recovery.*
 import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
 import build.wallet.recovery.Recovery.StillRecovering
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.BackedUpToCloud
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.CreatedSpendingKeys
-import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.RotatedAuthKeys
-import build.wallet.recovery.RecoveryAuthCompleterMock
+import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
 import build.wallet.recovery.RecoveryCanceler.RecoveryCancelerError.F8eCancelDelayNotifyError
-import build.wallet.recovery.RecoveryCancelerMock
-import build.wallet.recovery.RecoveryDaoMock
-import build.wallet.recovery.RecoverySyncerMock
-import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
-import build.wallet.recovery.socrec.EndorseTrustedContactsServiceMock
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.relationships.EndorseTrustedContactsServiceMock
+import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.FailedToCancelRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.VerifyingNotificationCommsForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
 import build.wallet.time.ClockFake
 import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
@@ -74,7 +57,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
-  val socRecService = SocRecServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create)
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
 
   val stateMachine =
@@ -91,7 +74,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryDao = recoveryDao,
       delayer = ControlledDelayer(),
       deviceTokenManager = deviceTokenManager,
-      socRecService = socRecService,
+      relationshipsService = relationshipsService,
       endorseTrustedContactsService = trustedContactKeyAuthenticator
     )
 
@@ -99,7 +82,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     clock.reset()
     csekDao.reset()
     deviceTokenManager.reset()
-    socRecService.relationshipsFlow.emit(SocRecRelationshipsFake)
+    relationshipsService.relationshipsFlow.emit(RelationshipsFake)
   }
 
   fun recovery(delayStartTime: Instant = clock.now) =
@@ -472,7 +455,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -582,7 +565,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -691,7 +674,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -813,7 +796,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -908,7 +891,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecService.syncCalls.awaitItem()
+      relationshipsService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {

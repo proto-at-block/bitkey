@@ -4,20 +4,20 @@ import build.wallet.account.AccountService
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitcoin.transactions.toDuration
+import build.wallet.bitcoin.transactions.transactionsLoadedData
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.ensure
 import build.wallet.ensureNotNull
+import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
 import build.wallet.logging.logFailure
+import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 
 class UtxoConsolidationServiceImpl(
@@ -25,6 +25,7 @@ class UtxoConsolidationServiceImpl(
   private val transactionsService: TransactionsService,
   private val bitcoinAddressService: BitcoinAddressService,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
+  private val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
 ) : UtxoConsolidationService {
   private val consolidationTransactionPriority = SIXTY_MINUTES
 
@@ -36,14 +37,37 @@ class UtxoConsolidationServiceImpl(
       val wallet = transactionsService.spendingWallet().first()
       ensureNotNull(wallet) { Error("SpendingWallet is null.") }
 
-      val utxoCount = wallet.unspentOutputs().first().count()
-      ensure(utxoCount > 1) { NotEnoughUtxosToConsolidateError(utxoCount = utxoCount) }
+      val transactionsData = transactionsService.transactionsLoadedData().first()
 
-      val transactionsData = transactionsService.transactionsData()
-        .filterIsInstance<TransactionsLoadedData>()
-        .first()
+      val utxos = transactionsData.utxos
 
-      val walletBalance = transactionsData.balance.spendable
+      // UTXO Consolidation requires UTXOs from confirmed transactions only.
+      val confirmedUtxosCount = utxos.confirmed.size
+      ensure(confirmedUtxosCount > 1) {
+        NotEnoughUtxosToConsolidateError(utxoCount = confirmedUtxosCount)
+      }
+
+      // After a certain number of UTXOs, the signing process can timeout on iOS. We enforce a
+      // maximum number in a single consolidation.
+      val maxUtxos = utxoMaxConsolidationCountFeatureFlag.flagValue().value.value.toInt()
+      val walletExceedsMaxUtxoCount = if (maxUtxos > 0) {
+        confirmedUtxosCount > maxUtxos
+      } else {
+        // If for some reason maxUtxos <= 0, don't do any filtering because that probably means we've
+        // turned off the max limit.
+        false
+      }
+
+      // Take the N lowest value to consolidate.
+      val selectedUtxos = if (walletExceedsMaxUtxoCount) {
+        utxos.confirmed.sortedBy { it.txOut.value }
+          .take(maxUtxos)
+          .toSet()
+      } else {
+        utxos.confirmed
+      }
+
+      val utxoBalance = BitcoinMoney.sats(selectedUtxos.sumOf { it.txOut.value })
 
       // An address belonging to this wallet to which the consolidated UTXOs will be sent.
       val targetAddress = bitcoinAddressService.generateAddress(account).bind()
@@ -55,10 +79,10 @@ class UtxoConsolidationServiceImpl(
 
       val psbt = wallet
         .createSignedPsbt(
-          PsbtConstructionMethod.Regular(
+          PsbtConstructionMethod.DrainAllFromUtxos(
             recipientAddress = targetAddress,
-            amount = SendAll,
-            feePolicy = FeePolicy.Rate(feeRate)
+            feePolicy = FeePolicy.Rate(feeRate),
+            utxos = selectedUtxos
           )
         )
         .bind()
@@ -69,10 +93,14 @@ class UtxoConsolidationServiceImpl(
         UtxoConsolidationParams(
           type = UtxoConsolidationType.ConsolidateAll,
           targetAddress = targetAddress,
-          currentUtxoCount = utxoCount,
-          balance = walletBalance,
+          eligibleUtxoCount = selectedUtxos.size,
+          balance = utxoBalance,
           consolidationCost = psbt.fee,
-          appSignedPsbt = psbt
+          appSignedPsbt = psbt,
+          transactionPriority = consolidationTransactionPriority,
+          walletHasUnconfirmedUtxos = utxos.unconfirmed.isNotEmpty(),
+          walletExceedsMaxUtxoCount = walletExceedsMaxUtxoCount,
+          maxUtxoCount = maxUtxos
         )
       )
     }

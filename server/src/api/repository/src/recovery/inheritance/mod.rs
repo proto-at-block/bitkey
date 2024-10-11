@@ -7,9 +7,10 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository, Upsertable},
 };
 use serde::{Deserialize, Serialize};
+
 use tracing::{event, Level};
 use types::recovery::inheritance::{
     claim::InheritanceClaim, package::Package as InheritancePackage,
@@ -29,6 +30,11 @@ const RECOVERY_RELATIONSHIP_ID_IDX_SORT_KEY: &str = "created_at";
 enum InheritanceRow {
     Claim(InheritanceClaim),
     Package(InheritancePackage),
+}
+
+impl Upsertable for InheritanceRow {
+    const KEY_PROPERTIES: &'static [&'static str] = &["partition_key"];
+    const IF_NOT_EXISTS_PROPERTIES: &'static [&'static str] = &["created_at"];
 }
 
 #[derive(Clone)]

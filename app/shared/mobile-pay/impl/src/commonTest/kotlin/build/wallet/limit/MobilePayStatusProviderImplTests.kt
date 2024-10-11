@@ -2,12 +2,12 @@ package build.wallet.limit
 
 import app.cash.turbine.test
 import build.wallet.bitcoin.balance.BitcoinBalance
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.mobilepay.MobilePayBalanceF8eClientMock
 import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
@@ -19,7 +19,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 
 class MobilePayStatusProviderImplTests : FunSpec({
   val spendingLimitDao = SpendingLimitDaoMock(turbines::create)
@@ -29,20 +29,21 @@ class MobilePayStatusProviderImplTests : FunSpec({
       mobilePayBalance = MobilePayBalanceMock
     )
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
-  val statusProvider =
-    MobilePayStatusRepositoryImpl(
-      spendingLimitDao = spendingLimitDao,
-      mobilePayBalanceF8eClient = mobilePayBalanceF8eClient,
-      uuidGenerator = UuidGeneratorFake(),
-      appSpendingWalletProvider = appSpendingWalletProvider
-    )
+  val transactionsService = TransactionsServiceFake()
+  val statusProvider = MobilePayStatusRepositoryImpl(
+    spendingLimitDao = spendingLimitDao,
+    mobilePayBalanceF8eClient = mobilePayBalanceF8eClient,
+    uuidGenerator = UuidGeneratorFake(),
+    transactionsService = transactionsService
+  )
 
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100.0))
 
   beforeTest {
     mobilePayBalanceF8eClient.reset(MobilePayBalanceMock)
     spendingWallet.reset()
+    transactionsService.reset()
+    transactionsService.spendingWallet.value = spendingWallet
   }
 
   context("mobile pay was enabled locally") {

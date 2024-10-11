@@ -7,7 +7,7 @@ import platform.Foundation.NSTimeZoneNameStyle.NSTimeZoneNameStyleShortDaylightS
 import platform.Foundation.localizedName
 
 actual class TimeZoneFormatterImpl : TimeZoneFormatter {
-  override fun timeZoneShortName(
+  actual override fun timeZoneShortName(
     timeZone: TimeZone,
     localeIdentifier: String,
   ): String {

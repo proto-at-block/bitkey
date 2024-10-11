@@ -8,6 +8,7 @@ import build.wallet.crypto.WsmVerifierImpl
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.FakeDatadogTracerImpl
 import build.wallet.encrypt.*
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClientFake
 import build.wallet.firmware.FirmwareCommsLogBufferMock
 import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.firmware.Teltra
@@ -54,6 +55,10 @@ fun makeAppComponent(
   val firmwareCommsLogBuffer = FirmwareCommsLogBufferMock()
   val wsmVerifier = WsmVerifierImpl()
 
+  // Use fake feature flags f8e client in tests to avoid syncing actual flag values from staging
+  // LaunchDarkly instance (which is effectively proxied through the f8e server).
+  val featureFlagsF8eClient = FeatureFlagsF8eClientFake()
+
   return AppComponentImpl(
     appId = appId,
     appVariant = appVariant,
@@ -71,6 +76,7 @@ fun makeAppComponent(
     datadogTracer = datadogTracer,
     delayer = delayer,
     deviceTokenConfigProvider = deviceTokenConfigProvider,
+    featureFlagsF8eClientOverride = featureFlagsF8eClient,
     fileDirectoryProvider = fileDirectoryProvider,
     fileManager = fileManager,
     logStore = LogStoreNoop,

@@ -73,6 +73,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyDevice3D,
     Icon.SmallIconCheckboxSelected,
     Icon.SmallIconSettingsBadged,
+    Icon.BitkeyLogo,
     -> false
 
     else -> true

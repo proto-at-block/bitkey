@@ -10,7 +10,7 @@ import build.wallet.feature.FeatureFlagValue.BooleanFlag
 class UtxoConsolidationFeatureFlag(
   featureFlagDao: FeatureFlagDao,
 ) : FeatureFlag<BooleanFlag>(
-    identifier = "utxo-consolidation-is-enabled",
+    identifier = "mobile-utxo-consolidation-is-enabled",
     title = "UTXO Consolidation",
     description = "Allows to consolidate UTXOs",
     defaultFlagValue = BooleanFlag(false),

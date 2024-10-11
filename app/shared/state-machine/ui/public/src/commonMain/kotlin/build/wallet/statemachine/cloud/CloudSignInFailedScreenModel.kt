@@ -3,9 +3,7 @@ package build.wallet.statemachine.cloud
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.platform.device.DevicePlatform
-import build.wallet.platform.device.DevicePlatform.Android
-import build.wallet.platform.device.DevicePlatform.IOS
-import build.wallet.platform.device.DevicePlatform.Jvm
+import build.wallet.platform.device.DevicePlatform.*
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -16,48 +14,42 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun CloudSignInFailedScreenModel(
-  onContactSupport: () -> Unit,
-  onTryAgain: () -> Unit,
-  onBack: () -> Unit,
-  devicePlatform: DevicePlatform,
-) = FormBodyModel(
-  id = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_NOT_SIGNED_IN,
-  onBack = onBack,
-  toolbar =
-    ToolbarModel(
+data class CloudSignInFailedScreenModel(
+  val onContactSupport: () -> Unit,
+  val onTryAgain: () -> Unit,
+  override val onBack: () -> Unit,
+  val devicePlatform: DevicePlatform,
+) : FormBodyModel(
+    id = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_NOT_SIGNED_IN,
+    onBack = onBack,
+    toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onBack).takeIf {
         devicePlatform == IOS
       } ?: BackAccessory(onBack)
     ),
-  header =
-    FormHeaderModel(
+    header = FormHeaderModel(
       icon = Icon.LargeIconWarningFilled.takeUnless { devicePlatform == IOS },
-      headline =
-        when (devicePlatform) {
-          Android, Jvm -> "You’re not signed in to Google"
-          IOS -> "Check your iCloud settings"
-        },
-      subline =
-        when (devicePlatform) {
-          Android, Jvm ->
-            "Sign in to Google in order to save a copy of the key from your phone to your " +
-              "personal cloud, so you can easily recover your wallet on a new phone."
-          IOS -> null
-        }
+      headline = when (devicePlatform) {
+        Android, Jvm -> "You’re not signed in to Google"
+        IOS -> "Check your iCloud settings"
+      },
+      subline = when (devicePlatform) {
+        Android, Jvm ->
+          "Sign in to Google in order to save a copy of the key from your phone to your " +
+            "personal cloud, so you can easily recover your wallet on a new phone."
+        IOS -> null
+      }
     ),
-  mainContentList =
-    when (devicePlatform) {
+    mainContentList = when (devicePlatform) {
       Android, Jvm -> immutableListOf()
       IOS -> iCloudTroubleshootingStepsMainContentList()
     },
-  primaryButton = RetryCloudSignInButton(
-    androidText = "Sign in to Google",
-    onTryAgain = onTryAgain,
-    devicePlatform = devicePlatform
-  ),
-  secondaryButton =
-    ButtonModel(
+    primaryButton = RetryCloudSignInButton(
+      androidText = "Sign in to Google",
+      onTryAgain = onTryAgain,
+      devicePlatform = devicePlatform
+    ),
+    secondaryButton = ButtonModel(
       leadingIcon = Icon.SmallIconArrowUpRight,
       text = "Customer support",
       treatment = ButtonModel.Treatment.Secondary,
@@ -65,7 +57,7 @@ fun CloudSignInFailedScreenModel(
       onClick =
         StandardClick { onContactSupport() }
     ).takeIf { devicePlatform == IOS }
-)
+  )
 
 fun RetryCloudSignInButton(
   androidText: String,

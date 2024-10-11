@@ -14,8 +14,8 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
-import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.transactionsLoadedData
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
@@ -31,7 +31,6 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.immutableMapOf
 import kotlinx.collections.immutable.toImmutableMap
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 
 class FeeSelectionUiStateMachineImpl(
@@ -71,9 +70,31 @@ class FeeSelectionUiStateMachineImpl(
               }
             },
             onFeesLoaded = { transactionBaseAmount, fees, defaultPriority ->
-              uiState = SelectingFeeUiState(transactionBaseAmount, fees, defaultPriority)
+              uiState = if (props.preselectedPriority != null) {
+                ProceedingWithPreselectedFeeUiState(
+                  transactionBaseAmount = transactionBaseAmount,
+                  fees = fees,
+                  selectedPriority = props.preselectedPriority
+                )
+              } else {
+                SelectingFeeUiState(transactionBaseAmount, fees, defaultPriority)
+              }
             }
           )
+
+        is ProceedingWithPreselectedFeeUiState -> {
+          // Directly proceed with the preselected fee
+          SideEffect {
+            props.onContinue(state.selectedPriority, state.fees)
+          }
+
+          LoadingBodyModel(
+            message = "Processing...",
+            onBack = props.onBack,
+            id = null,
+            eventTrackerShouldTrack = false
+          )
+        }
 
         is SelectingFeeUiState ->
           SelectingFeeModel(
@@ -129,7 +150,7 @@ class FeeSelectionUiStateMachineImpl(
       props = FeeOptionListProps(
         transactionBaseAmount = state.transactionBaseAmount,
         fees = state.fees,
-        defaultPriority = state.defaultPriority,
+        defaultPriority = state.selectedPriority,
         exchangeRates = props.exchangeRates,
         onOptionSelected = {
           onFeeSelected(it)
@@ -137,7 +158,7 @@ class FeeSelectionUiStateMachineImpl(
       )
     )
 
-    return FeeOptionsScreenModel(
+    return FeeOptionsBodyModel(
       title = "Select a transfer speed",
       feeOptions = options,
       primaryButton =
@@ -187,10 +208,7 @@ class FeeSelectionUiStateMachineImpl(
     ) -> Unit,
   ) {
     LaunchedEffect("fetching-fee-options") {
-      val bitcoinBalance = transactionsService.transactionsData()
-        .filterIsInstance<TransactionsLoadedData>()
-        .first()
-        .balance
+      val bitcoinBalance = transactionsService.transactionsLoadedData().first().balance
 
       val account = accountService.activeAccount().first()
       if (account !is FullAccount) {
@@ -202,7 +220,7 @@ class FeeSelectionUiStateMachineImpl(
       }
 
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
-        priorities = EstimatedTransactionPriority.entries,
+        priorities = props.preselectedPriority?.let { listOf(it) } ?: EstimatedTransactionPriority.entries,
         account = account,
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount
@@ -283,6 +301,12 @@ private sealed interface FeeOptionsUiState {
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
     val defaultPriority: EstimatedTransactionPriority,
     val selectedPriority: EstimatedTransactionPriority = defaultPriority,
+  ) : FeeOptionsUiState
+
+  data class ProceedingWithPreselectedFeeUiState(
+    val transactionBaseAmount: BitcoinMoney,
+    val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
+    val selectedPriority: EstimatedTransactionPriority,
   ) : FeeOptionsUiState
 
   /**

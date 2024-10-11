@@ -8,7 +8,7 @@ gradle-enterprise = "3.16.2"
 jvmTarget = "11"
 # JDK version for builds
 jvmToolchain = "17"
-bdk = "0.31.1"
+bdk = "0.31.2"
 datadog = "2.9.0"
 detekt = "1.23.6"
 kotlin = "2.0.0"
@@ -65,6 +65,9 @@ android-sqlite = "2.4.0"
 # JVM versions
 
 jvm-bytebuddy = "1.14.5"
+jvm-ksp = "2.0.0-1.0.24"
+jvm-kotlinpoet = "1.18.1"
+jvm-compileTesting = "0.5.1"
 
 # Native versions
 native-kotlin-coroutines = "1.0.0-ALPHA-31"
@@ -236,6 +239,11 @@ jvm-apache-httpclient = { module = "org.apache.httpcomponents:httpclient", versi
 jvm-bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "jvm-bytebuddy" }
 jvm-bytebuddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref = "jvm-bytebuddy" }
 jvm-commons-codec = { module = "commons-codec:commons-codec", version = "1.17.0" }
+jvm-ksp = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "jvm-ksp" }
+jvm-kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "jvm-kotlinpoet" }
+jvm-kotlinpoet-ksp = { module = "com.squareup:kotlinpoet-ksp", version.ref = "jvm-kotlinpoet" }
+jvm-compileTesting = { module = "dev.zacsweers.kctfork:core", version.ref = "jvm-compileTesting" }
+jvm-compileTesting-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "jvm-compileTesting" }
 
 # JVM testing libraries
 jvm-test-junit = { module = "junit:junit", version = "4.13.2" }
@@ -290,3 +298,4 @@ sqldelight = { id = "app.cash.sqldelight", version.ref = "kmp-sqldelight" }
 test-logger = { id = "com.adarshr.test-logger", version = "4.0.0" }
 wire = { id = "com.squareup.wire", version.ref = "kmp-wire" }
 google-services = { id = "com.google.gms.google-services", version = "4.4.1" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "jvm-ksp" }

@@ -23,7 +23,8 @@ class PartnershipTransactionEntityTest : FunSpec({
       fiatCurrency = IsoCurrencyTextCode("USD"),
       paymentMethod = "test-payment-method",
       created = Instant.fromEpochMilliseconds(248),
-      updated = Instant.fromEpochMilliseconds(842)
+      updated = Instant.fromEpochMilliseconds(842),
+      sellWalletAddress = "test-sell-wallet-address"
     )
 
     val model = entity.toModel()
@@ -42,6 +43,7 @@ class PartnershipTransactionEntityTest : FunSpec({
     model.paymentMethod.shouldBe("test-payment-method")
     model.created.toEpochMilliseconds().shouldBe(248)
     model.updated.toEpochMilliseconds().shouldBe(842)
+    model.sellWalletAddress.shouldBe("test-sell-wallet-address")
   }
 
   test("Entity Conversion") {
@@ -61,7 +63,8 @@ class PartnershipTransactionEntityTest : FunSpec({
       fiatCurrency = IsoCurrencyTextCode("USD"),
       paymentMethod = "test-payment-method",
       created = Instant.fromEpochMilliseconds(248),
-      updated = Instant.fromEpochMilliseconds(842)
+      updated = Instant.fromEpochMilliseconds(842),
+      sellWalletAddress = "test-sell-wallet-address"
     )
 
     val entity = model.toEntity()
@@ -80,5 +83,6 @@ class PartnershipTransactionEntityTest : FunSpec({
     entity.paymentMethod.shouldBe("test-payment-method")
     entity.created.toEpochMilliseconds().shouldBe(248)
     entity.updated.toEpochMilliseconds().shouldBe(842)
+    entity.sellWalletAddress.shouldBe("test-sell-wallet-address")
   }
 })

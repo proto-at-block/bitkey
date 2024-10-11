@@ -14,6 +14,8 @@ interface BdkBlockchain {
   fun getBlockHashBlocking(height: Long): BdkResult<String>
 
   fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float>
+
+  fun getTx(txid: String): BdkResult<BdkTransaction>
 }
 
 suspend fun BdkBlockchain.broadcast(transaction: BdkTransaction): BdkResult<Unit> {

@@ -1,11 +1,8 @@
 use time::OffsetDateTime;
-
-use crate::{
-    entities::{CommonAccountFields, CommsVerificationStatus},
-    error::AccountError,
-};
+use types::account::entities::{CommonAccountFields, CommsVerificationStatus};
 
 use super::{FetchAccountInput, PutCommsVerificationClaimInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn put_comms_verification_claim(

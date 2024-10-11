@@ -1,7 +1,8 @@
-use crate::test_utils::AuthenticatedRequest;
 use bdk_utils::bdk::bitcoin::secp256k1::SecretKey;
 use http::request::Builder;
 use types::account::identifiers::AccountId;
+
+use crate::test_utils::AuthenticatedRequest;
 
 pub mod axum;
 pub mod worker;

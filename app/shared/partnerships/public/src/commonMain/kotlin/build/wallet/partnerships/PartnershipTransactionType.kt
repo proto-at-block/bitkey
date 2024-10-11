@@ -6,4 +6,5 @@ package build.wallet.partnerships
 enum class PartnershipTransactionType {
   PURCHASE,
   TRANSFER,
+  SALE,
 }

@@ -1,6 +1,7 @@
 use database::ddb::{DatabaseError, DatabaseObject};
 use errors::{ApiError, ErrorCode};
 use thiserror::Error;
+use types::account::errors::AccountError as AccountErrorType;
 
 #[derive(Debug, Error)]
 pub enum AccountError {
@@ -38,6 +39,16 @@ pub enum AccountError {
     TouchpointAlreadyActive,
     #[error("Conflicting spending key definition state during rotation for account")]
     ConflictingSpendingKeyDefinitionStateForRotation,
+}
+
+impl From<AccountErrorType> for AccountError {
+    fn from(e: AccountErrorType) -> Self {
+        match e {
+            AccountErrorType::InvalidUpdateAccountProperties => {
+                AccountError::InvalidUpdateAccountProperties
+            }
+        }
+    }
 }
 
 impl From<AccountError> for ApiError {

@@ -13,36 +13,33 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 /**
  * Prompt the user to save their trusted contact with bitkey.
  */
-fun SaveContactBodyModel(
+data class SaveContactBodyModel(
   /**
    * Name of the trusted contact to be added.
    */
-  trustedContactName: String,
+  val trustedContactName: String,
   /**
    * Invoked when the user agrees to save with bitkey.
    */
-  onSave: () -> Unit,
+  val onSave: () -> Unit,
   /**
    * Invoked when the user navigates back.
    */
-  onBackPressed: () -> Unit,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ADD_TC_HARDWARE_CHECK,
-  onBack = onBackPressed,
-  toolbar =
-    ToolbarModel(
+  val onBackPressed: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ADD_TC_HARDWARE_CHECK,
+    onBack = onBackPressed,
+    toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBackPressed)
     ),
-  header =
-    FormHeaderModel(
+    header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
       headline = "Save $trustedContactName as a Trusted Contact",
       subline = "Adding a Trusted Contact requires your Bitkey device since it impacts the security of your wallet."
     ),
-  primaryButton =
-    BitkeyInteractionButtonModel(
+    primaryButton = BitkeyInteractionButtonModel(
       text = "Save Trusted Contact",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSave)
     )
-)
+  )

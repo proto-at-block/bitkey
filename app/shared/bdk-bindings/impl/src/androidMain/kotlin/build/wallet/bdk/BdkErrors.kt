@@ -57,7 +57,7 @@ import org.bitcoindevkit.BdkException.UnknownUtxo
  * encapsulated result if invocation was successful, catching any [BdkException] that was
  * thrown from the [block] function execution and encapsulating it as a [BdkError] failure.
  */
-internal inline infix fun <T, V : Any> T.runCatchingBdkError(block: T.() -> V): BdkResult<V> =
+internal inline infix fun <T, V : Any?> T.runCatchingBdkError(block: T.() -> V): BdkResult<V> =
   catchingResult { block() }
     .mapError {
       require(it is BdkException)

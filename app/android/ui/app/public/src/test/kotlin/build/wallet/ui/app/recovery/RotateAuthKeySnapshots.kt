@@ -1,6 +1,7 @@
 package build.wallet.ui.app.recovery
 
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
 import build.wallet.ui.app.core.LoadingSuccessScreen
@@ -143,7 +144,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation unexpected failure - proposed rotation") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.UnexpectedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
           onRetry = {},
           onContactSupport = {}
@@ -155,7 +157,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation unexpected failure - settings") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.UnexpectedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
           onRetry = {},
           onContactSupport = {}
@@ -167,7 +170,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation unexpected failure - failed attempt") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.UnexpectedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
           context = AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT,
           onRetry = {},
           onContactSupport = {}
@@ -179,7 +183,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation account locked failure - proposed rotation") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.AccountLockedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
           onRetry = {},
           onContactSupport = {}
@@ -191,7 +196,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation account locked failure - settings") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.AccountLockedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
           onRetry = {},
           onContactSupport = {}
@@ -203,7 +209,8 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation account locked failure - failed attempt") {
     paparazzi.snapshot {
       FormScreen(
-        RotateAuthKeyScreens.AccountLockedFailure(
+        RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+          id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
           context = AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT,
           onRetry = {},
           onContactSupport = {}

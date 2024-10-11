@@ -34,7 +34,7 @@ data class SettingsListUiProps(
 
     data class CustomElectrumServer(override val onClick: () -> Unit) : SettingsListRow
 
-    data class CurrencyPreference(override val onClick: () -> Unit) : SettingsListRow
+    data class AppearancePreference(override val onClick: () -> Unit) : SettingsListRow
 
     data class HelpCenter(override val onClick: () -> Unit) : SettingsListRow
 

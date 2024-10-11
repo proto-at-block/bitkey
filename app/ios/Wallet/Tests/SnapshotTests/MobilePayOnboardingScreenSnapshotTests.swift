@@ -9,7 +9,7 @@ final class MobilePayOnboardingScreenSnapshotTests: XCTestCase {
 
     func test_mobile_pay_onboarding() {
         let view = FormView(
-            viewModel: MobilePayOnboardingModelKt.MobilePayOnboardingScreenModel(
+            viewModel: SnapshotTestModels.shared.CreateMobilePayOnboardingScreenModel(
                 onContinue: {},
                 onSetUpLater: {},
                 onClosed: {},
@@ -27,7 +27,7 @@ final class MobilePayOnboardingScreenSnapshotTests: XCTestCase {
 
     func test_mobile_pay_onboarding_with_revamp() {
         let view = FormView(
-            viewModel: MobilePayOnboardingModelKt.MobilePayOnboardingScreenModel(
+            viewModel: SnapshotTestModels.shared.CreateMobilePayOnboardingScreenModel(
                 onContinue: {},
                 onSetUpLater: {},
                 onClosed: {},

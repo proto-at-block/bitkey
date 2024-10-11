@@ -1,10 +1,11 @@
-use crate::{
+use types::account::{
     entities::{Account, CommonAccountFields, FullAccount},
-    error::AccountError,
+    identifiers::AuthKeysId,
+    keys::FullAccountAuthKeys,
 };
-use types::account::{identifiers::AuthKeysId, keys::FullAccountAuthKeys};
 
 use super::{CreateAndRotateAuthKeysInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn create_and_rotate_auth_keys(

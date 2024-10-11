@@ -37,6 +37,7 @@ import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.sharing.SharingManager
+import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
 import build.wallet.statemachine.core.BodyModel

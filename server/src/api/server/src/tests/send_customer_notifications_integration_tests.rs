@@ -3,9 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use account::entities::{Factor, TouchpointPlatform};
 use aws_sdk_sqs::types::Message;
-
 use notification::{
     entities::{CustomerNotification, NotificationTouchpoint},
     identifiers::NotificationId,
@@ -20,6 +18,7 @@ use notification::{
     DeliveryStatus, NotificationMessage, NotificationPayloadBuilder, NotificationPayloadType,
 };
 use time::OffsetDateTime;
+use types::account::entities::{Factor, TouchpointPlatform};
 use types::{account::identifiers::TouchpointId, notification::NotificationChannel};
 
 use crate::tests;
@@ -53,6 +52,8 @@ async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVe
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
         privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
+        inheritance_repository: bootstrap.services.inheritance_repository.clone(),
+        social_recovery_repository: bootstrap.services.social_recovery_repository.clone(),
     };
     let worker = TestWorker::new(state.clone()).await;
 

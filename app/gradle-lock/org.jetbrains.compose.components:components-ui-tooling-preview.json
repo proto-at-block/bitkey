@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-ui-tooling-preview",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-metadata-1.6.11.jar": "b36d61f12f74318a717a9c9519d29050bf41b4e200889d6facfd3a1bcbe7554c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

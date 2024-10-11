@@ -8,11 +8,10 @@ import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
-import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.ensureNotNull
+import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
@@ -25,7 +24,6 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
 import build.wallet.statemachine.send.TransferConfirmationUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
@@ -46,13 +44,12 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 
 class TransferConfirmationUiStateMachineImpl(
-  private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionsService: TransactionsService,
+  private val mobilePayService: MobilePayService,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -61,17 +58,7 @@ class TransferConfirmationUiStateMachineImpl(
     }
 
     var selectedPriority: EstimatedTransactionPriority by remember {
-      mutableStateOf(
-        when (props.transferVariant) {
-          is Variant.Regular -> {
-            props.transferVariant.selectedPriority
-          }
-          is Variant.SpeedUp -> {
-            // By default, we prescribe the fastest priority in this flow.
-            EstimatedTransactionPriority.FASTEST
-          }
-        }
-      )
+      mutableStateOf(props.selectedPriority)
     }
 
     var appSignedPsbts: Map<EstimatedTransactionPriority, Psbt> by remember {
@@ -90,7 +77,6 @@ class TransferConfirmationUiStateMachineImpl(
         )
       is SigningWithServerUiState ->
         SigningWithServerEffect(
-          props = props,
           state = state,
           onSignSuccess = { appAndServerSignedPsbt ->
             uiState =
@@ -160,44 +146,14 @@ class TransferConfirmationUiStateMachineImpl(
           eventTrackerScreenId = null
         ).asModalScreen()
       is ReceivedServerSigningErrorUiState ->
-        FormBodyModel(
-          id = null,
-          toolbar =
-            ToolbarModel(
-              leadingAccessory =
-                ToolbarAccessoryModel.ButtonAccessory(
-                  model =
-                    ButtonModel(
-                      text = "Cancel",
-                      treatment = ButtonModel.Treatment.TertiaryDestructive,
-                      size = ButtonModel.Size.Compact,
-                      onClick = StandardClick(props.onExit)
-                    )
-                )
-            ),
-          eventTrackerContext = null,
-          onBack = props.onExit,
-          header =
-            FormHeaderModel(
-              icon = Icon.LargeIconWarningFilled,
-              headline = "We couldn’t send this as a mobile-only transaction",
-              subline = "Please use your hardware device to confirm this transaction.",
-              alignment = FormHeaderModel.Alignment.LEADING
-            ),
-          primaryButton =
-            BitkeyInteractionButtonModel(
-              text = "Continue",
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick
-                {
-                  uiState =
-                    SigningWithHardwareUiState(
-                      appSignedPsbt = state.appSignedPsbt
-                    )
-                }
-            ),
-          renderContext = RenderContext.Screen,
-          eventTrackerShouldTrack = false
+        ReceivedServerSigningErrorBodyModel(
+          onExit = props.onExit,
+          onContinue = {
+            uiState =
+              SigningWithHardwareUiState(
+                appSignedPsbt = state.appSignedPsbt
+              )
+          }
         ).asModalScreen()
       is SigningWithHardwareUiState ->
         nfcSessionUIStateMachine.model(
@@ -223,7 +179,8 @@ class TransferConfirmationUiStateMachineImpl(
             },
             isHardwareFake = props.account.config.isHardwareFake,
             screenPresentationStyle = Modal,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION
+            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_TRANSACTION,
+            shouldShowLongRunningOperation = true
           )
         )
       is ViewingTransferConfirmationUiState ->
@@ -269,6 +226,43 @@ class TransferConfirmationUiStateMachineImpl(
     }
   }
 
+  private data class ReceivedServerSigningErrorBodyModel(
+    val onExit: () -> Unit,
+    val onContinue: () -> Unit,
+  ) : FormBodyModel(
+      id = null,
+      toolbar =
+        ToolbarModel(
+          leadingAccessory =
+            ToolbarAccessoryModel.ButtonAccessory(
+              model =
+                ButtonModel(
+                  text = "Cancel",
+                  treatment = ButtonModel.Treatment.TertiaryDestructive,
+                  size = ButtonModel.Size.Compact,
+                  onClick = StandardClick(onExit)
+                )
+            )
+        ),
+      eventTrackerContext = null,
+      onBack = onExit,
+      header =
+        FormHeaderModel(
+          icon = Icon.LargeIconWarningFilled,
+          headline = "We couldn’t send this as a mobile-only transaction",
+          subline = "Please use your hardware device to confirm this transaction.",
+          alignment = FormHeaderModel.Alignment.LEADING
+        ),
+      primaryButton =
+        BitkeyInteractionButtonModel(
+          text = "Continue",
+          size = ButtonModel.Size.Footer,
+          onClick = StandardClick(onContinue)
+        ),
+      renderContext = RenderContext.Screen,
+      eventTrackerShouldTrack = false
+    )
+
   @Composable
   private fun BroadcastingTransactionEffect(
     props: TransferConfirmationUiProps,
@@ -295,12 +289,7 @@ class TransferConfirmationUiStateMachineImpl(
               // presented. This can happen due to user-configured server settings or network
               // that are unrelated to the broadcast done by the Server.
               transactionsService.syncTransactions()
-              when (val variant = props.transferVariant) {
-                is TransferConfirmationUiProps.Variant.Regular -> {
-                  transactionPriorityPreference.set(variant.selectedPriority)
-                }
-                else -> Unit
-              }
+              transactionPriorityPreference.set(props.selectedPriority)
               props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
             }
           }
@@ -321,23 +310,13 @@ class TransferConfirmationUiStateMachineImpl(
     LaunchedEffect("create-app-signed-psbt") {
       val psbts =
         props.fees.entries.associate { entry ->
-          val constructionMethod =
-            when (props.transferVariant) {
-              is Variant.Regular ->
-                SpendingWallet.PsbtConstructionMethod.Regular(
-                  recipientAddress = props.recipientAddress,
-                  amount = props.sendAmount,
-                  feePolicy = FeePolicy.Absolute(entry.value)
-                )
-              is Variant.SpeedUp ->
-                SpendingWallet.PsbtConstructionMethod.BumpFee(
-                  txid = props.transferVariant.txid,
-                  feeRate = props.transferVariant.newFeeRate
-                )
-            }
+          val constructionMethod = SpendingWallet.PsbtConstructionMethod.Regular(
+            recipientAddress = props.recipientAddress,
+            amount = props.sendAmount,
+            feePolicy = FeePolicy.Absolute(entry.value)
+          )
           val psbtResult =
             createAppSignedPsbt(
-              account = props.account,
               constructionMethod = constructionMethod
             )
 
@@ -367,17 +346,13 @@ class TransferConfirmationUiStateMachineImpl(
 
   @Composable
   private fun SigningWithServerEffect(
-    props: TransferConfirmationUiProps,
     state: SigningWithServerUiState,
     onSignSuccess: (Psbt) -> Unit,
     onSignError: () -> Unit,
   ) {
     LaunchedEffect("signing-with-server") {
-      mobilePaySigningF8eClient
-        .signWithSpecificKeyset(
-          f8eEnvironment = props.account.config.f8eEnvironment,
-          fullAccountId = props.account.accountId,
-          keysetId = props.account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+      mobilePayService
+        .signPsbtWithMobilePay(
           psbt = state.appSignedPsbt
         )
         .onSuccess { appAndServerSignedPsbt ->
@@ -403,43 +378,47 @@ class TransferConfirmationUiStateMachineImpl(
   ): ScreenModel {
     val transferBitcoinAmount = BitcoinMoney.sats(state.appSignedPsbt.amountSats.toBigInteger())
     val feeBitcoinAmount = state.appSignedPsbt.fee
-    val transactionDetails =
-      when (props.transferVariant) {
-        is Variant.Regular -> TransactionDetails.Regular(
-          transferAmount = transferBitcoinAmount,
-          feeAmount = feeBitcoinAmount,
-          estimatedTransactionPriority = selectedPriority
-        )
-        is Variant.SpeedUp -> TransactionDetails.SpeedUp(
-          transferAmount = transferBitcoinAmount,
-          feeAmount = feeBitcoinAmount,
-          oldFeeAmount = props.transferVariant.oldFee.amount
-        )
-      }
+
+    val transactionDetails = when (props.variant) {
+      TransferConfirmationScreenVariant.Regular,
+      TransferConfirmationScreenVariant.SpeedUp,
+      -> TransactionDetails.Regular(
+        transferAmount = transferBitcoinAmount,
+        feeAmount = feeBitcoinAmount,
+        estimatedTransactionPriority = selectedPriority
+      )
+      is TransferConfirmationScreenVariant.Sell -> TransactionDetails.Sell(
+        transferAmount = transferBitcoinAmount,
+        feeAmount = feeBitcoinAmount,
+        estimatedTransactionPriority = selectedPriority
+      )
+    }
 
     val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
         transactionDetails = transactionDetails,
-        exchangeRates = props.exchangeRates
+        exchangeRates = props.exchangeRates,
+        variant = props.variant
       )
     )
+
+    val variant = props.variant
 
     return TransferConfirmationScreenModel(
       onBack = props.onExit,
       onCancel = props.onExit,
-      variant = props.transferVariant,
+      variant = variant,
       recipientAddress = props.recipientAddress.chunkedAddress(),
       transactionDetails = transactionDetailsCard,
       requiresHardware = props.requiredSigner == Hardware,
       confirmButtonEnabled = true,
       onConfirmClick = onConfirm,
       onNetworkFeesClick = onNetworkFees,
-      // Only make arrival time tappable if customer is not fee bumping.
-      onArrivalTimeClick =
-        when (props.transferVariant) {
-          is Variant.Regular -> onArrivalTime
-          else -> null
-        },
+      onArrivalTimeClick = if (variant is TransferConfirmationScreenVariant.Sell) {
+        null
+      } else {
+        onArrivalTime
+      },
       errorOverlayModel = when (state.sheetState) {
         InfoSheet ->
           SheetModel(
@@ -456,10 +435,9 @@ class TransferConfirmationUiStateMachineImpl(
               onBack = onCloseSheet,
               feeOptionList = feeOptionListUiStateMachine.model(
                 props = FeeOptionListProps(
-                  transactionBaseAmount =
-                    BitcoinMoney.sats(
-                      state.appSignedPsbt.amountSats.toBigInteger()
-                    ),
+                  transactionBaseAmount = BitcoinMoney.sats(
+                    state.appSignedPsbt.amountSats.toBigInteger()
+                  ),
                   exchangeRates = props.exchangeRates,
                   fees = props.fees,
                   defaultPriority = selectedPriority,
@@ -475,14 +453,11 @@ class TransferConfirmationUiStateMachineImpl(
   }
 
   private suspend fun createAppSignedPsbt(
-    account: FullAccount,
     constructionMethod: SpendingWallet.PsbtConstructionMethod,
   ): Result<Psbt, Throwable> =
     coroutineBinding {
-      val wallet =
-        appSpendingWalletProvider
-          .getSpendingWallet(account)
-          .bind()
+      val wallet = transactionsService.spendingWallet().value
+      ensureNotNull(wallet) { Error("No spending wallet found.") }
 
       wallet
         .createSignedPsbt(constructionType = constructionMethod)

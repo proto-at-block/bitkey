@@ -12,6 +12,18 @@ kotlin {
     val commonMain by getting {
       dependencies {
         api(projects.shared.bitkeyPrimitivesPublic)
+        api(projects.shared.databasePublic)
+        implementation(projects.shared.coroutinesPublic)
+      }
+    }
+
+    val commonTest by getting {
+      dependencies {
+        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.featureFlagFake)
+        implementation(projects.shared.inheritanceFake)
+        implementation(projects.shared.keyboxFake)
+        api(projects.shared.f8eClientPublic)
       }
     }
   }

@@ -19,39 +19,35 @@ import build.wallet.ui.model.button.ButtonModel
  * @param onReinvite Invoke when the user wants to reinvite the trusted contact.
  * @param onBack Invoked when the user navigates back.
  */
-fun ViewingInvitationBodyModel(
-  invitation: Invitation,
-  isExpired: Boolean,
-  onRemove: () -> Unit,
-  onShare: () -> Unit,
-  onReinvite: () -> Unit,
-  onBack: () -> Unit,
-) = FormBodyModel(
-  id = null,
-  onBack = onBack,
-  toolbar = null,
-  header =
-    FormHeaderModel(
+data class ViewingInvitationBodyModel(
+  val invitation: Invitation,
+  val isExpired: Boolean,
+  val onRemove: () -> Unit,
+  val onShare: () -> Unit,
+  val onReinvite: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    id = null,
+    onBack = onBack,
+    toolbar = null,
+    header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
       headline = invitation.trustedContactAlias.alias,
-      subline =
-        if (isExpired) {
-          "Your Trusted Contact invite has expired."
-        } else {
-          "Your Trusted Contact invite is pending."
-        },
+      subline = if (isExpired) {
+        "Your Trusted Contact invite has expired."
+      } else {
+        "Your Trusted Contact invite is pending."
+      },
       alignment = FormHeaderModel.Alignment.CENTER
     ),
-  primaryButton =
-    if (isExpired) {
+    primaryButton = if (isExpired) {
       ButtonModel(
         text = "Reinvite",
         treatment = ButtonModel.Treatment.Primary,
         size = ButtonModel.Size.Footer,
-        onClick =
-          StandardClick {
-            onReinvite()
-          }
+        onClick = StandardClick {
+          onReinvite()
+        }
       )
     } else {
       ButtonModel(
@@ -59,17 +55,15 @@ fun ViewingInvitationBodyModel(
         leadingIcon = Icon.SmallIconShare,
         treatment = ButtonModel.Treatment.Primary,
         size = ButtonModel.Size.Footer,
-        onClick =
-          StandardClick {
-            onShare()
-          }
+        onClick = StandardClick {
+          onShare()
+        }
       )
     },
-  secondaryButton =
-    ButtonModel(
+    secondaryButton = ButtonModel(
       "Remove Trusted Contact", treatment = ButtonModel.Treatment.SecondaryDestructive,
       size = ButtonModel.Size.Footer,
       onClick = SheetClosingClick(onRemove)
     ),
-  renderContext = RenderContext.Sheet
-)
+    renderContext = RenderContext.Sheet
+  )

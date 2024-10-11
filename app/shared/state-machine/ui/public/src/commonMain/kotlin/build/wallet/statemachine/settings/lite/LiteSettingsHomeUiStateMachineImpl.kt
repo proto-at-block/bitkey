@@ -9,8 +9,8 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
-import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.money.currency.AppearancePreferenceProps
+import build.wallet.statemachine.money.currency.AppearancePreferenceUiStateMachine
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementProps
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.SettingsListUiProps
@@ -24,7 +24,7 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 
 class LiteSettingsHomeUiStateMachineImpl(
   private val appVariant: AppVariant,
-  private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
+  private val appearancePreferenceUiStateMachine: AppearancePreferenceUiStateMachine,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
   private val liteTrustedContactManagementUiStateMachine:
@@ -44,9 +44,9 @@ class LiteSettingsHomeUiStateMachineImpl(
         )
 
       is State.ShowingCurrencyPreferenceSettings ->
-        currencyPreferenceUiStateMachine.model(
+        appearancePreferenceUiStateMachine.model(
           props =
-            CurrencyPreferenceProps(
+            AppearancePreferenceProps(
               onBack = { uiState = State.ShowingAllSettingsList }
             )
         )
@@ -102,7 +102,7 @@ class LiteSettingsHomeUiStateMachineImpl(
               onBack = props.onBack,
               f8eEnvironment = props.accountData.account.config.f8eEnvironment,
               supportedRows = setOfNotNull(
-                SettingsListUiProps.SettingsListRow.CurrencyPreference {
+                SettingsListUiProps.SettingsListRow.AppearancePreference {
                   setState(State.ShowingCurrencyPreferenceSettings)
                 },
                 SettingsListUiProps.SettingsListRow.ContactUs {

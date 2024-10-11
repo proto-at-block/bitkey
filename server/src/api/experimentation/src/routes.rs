@@ -2,6 +2,7 @@ use axum::extract::Path;
 use axum::routing::post;
 use axum::Router;
 use axum::{extract::State, Json};
+use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
 
 use tracing::instrument;
@@ -25,8 +26,8 @@ pub struct Config {}
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub Config, pub AccountService, pub FeatureFlagsService);
 
-impl RouteState {
-    pub fn account_or_recovery_authed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn account_or_recovery_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/feature-flags",
@@ -35,7 +36,7 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn unauthed_router(&self) -> Router {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/feature-flags",

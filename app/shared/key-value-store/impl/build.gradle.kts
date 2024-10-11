@@ -9,6 +9,9 @@ kotlin {
 
   sourceSets {
     commonMain {
+      all {
+        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+      }
       dependencies {
         api(projects.shared.platformPublic)
         api(libs.kmp.settings)

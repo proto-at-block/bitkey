@@ -1,13 +1,7 @@
-use account::{
-    entities::{CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeysPayload},
-    service::FetchAndUpdateSpendingLimitInput,
-};
+use account::service::FetchAndUpdateSpendingLimitInput;
 use async_trait::async_trait;
-
-use instrumentation::metrics::KeyValue;
-
-use account::spend_limit::SpendingLimit;
 use comms_verification::ConsumeVerificationForScopeInput;
+use instrumentation::metrics::KeyValue;
 use notification::{
     payloads::{
         recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
@@ -19,7 +13,18 @@ use notification::{
     NotificationPayloadBuilder, NotificationPayloadType,
 };
 use time::{format_description::well_known::Rfc3339, Duration};
+use types::account::entities::{
+    CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeysPayload,
+};
+use types::account::spend_limit::SpendingLimit;
 
+use super::{
+    cancel_recovery::CanceledRecoveryState, completable_recovery::CompletableRecoveryState,
+    pending_recovery::PendingRecoveryState, rotated_keyset::RotatedKeysetState, RecoveryError,
+    RecoveryEvent, RecoveryServices, RecoveryStateResponse, Transition, TransitionTo,
+    TransitioningRecoveryState,
+};
+use crate::helpers::SignatureType::DelayNotify;
 use crate::{
     ensure_pubkeys_unique,
     entities::{
@@ -30,13 +35,6 @@ use crate::{
     helpers::validate_signatures,
     metrics,
     state_machine::{PendingDelayNotifyRecovery, RecoveryResponse},
-};
-
-use super::{
-    cancel_recovery::CanceledRecoveryState, completable_recovery::CompletableRecoveryState,
-    pending_recovery::PendingRecoveryState, rotated_keyset::RotatedKeysetState, RecoveryError,
-    RecoveryEvent, RecoveryServices, RecoveryStateResponse, Transition, TransitionTo,
-    TransitioningRecoveryState,
 };
 
 pub(crate) struct CurrentAccountRecoveryState {
@@ -276,6 +274,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 // If the signatures match up with active keys, we'll return a success
                 // Otherwise, we should return an error to indicate no such recovery
                 validate_signatures(
+                    &DelayNotify,
                     active_auth.app_pubkey,
                     active_auth.hardware_pubkey,
                     active_auth.recovery_pubkey,
@@ -305,13 +304,15 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 action.destination.recovery_auth_pubkey,
             );
             validate_signatures(
+                &DelayNotify,
                 app_auth_pubkey,
                 hardware_auth_pubkey,
                 recovery_auth_pubkey,
                 &challenge,
                 &app_signature,
                 &hardware_signature,
-            )?;
+            )
+            .map_err(|_| RecoveryError::InvalidInputForCompletion)?;
 
             let delay_end = requirements.delay_end_time;
             if services.recovery.cur_time() < delay_end {

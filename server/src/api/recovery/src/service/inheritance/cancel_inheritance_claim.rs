@@ -1,17 +1,17 @@
-use account::entities::Account;
-use tokio::join;
+use notification::payloads::inheritance_claim_canceled::InheritanceClaimCanceledPayload;
+use notification::service::SendNotificationInput;
+use notification::{NotificationPayloadBuilder, NotificationPayloadType};
+use tokio::try_join;
+
 use tracing::instrument;
-use types::account::identifiers::AccountId;
+use types::account::entities::Account;
+
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimCanceled, InheritanceClaimCanceledBy, InheritanceClaimId,
 };
-use types::recovery::social::relationship::RecoveryRelationship;
-use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
+use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipRole};
 
-use super::{error::ServiceError, Service};
-use crate::service::social::relationship::get_recovery_relationships::{
-    GetRecoveryRelationshipsInput, GetRecoveryRelationshipsOutput,
-};
+use super::{error::ServiceError, fetch_relationships_and_claim, Service};
 
 pub struct CancelInheritanceClaimInput<'a> {
     pub account: &'a Account,
@@ -49,30 +49,39 @@ impl Service {
         if !matches!(claim, InheritanceClaim::Pending(_))
             && !matches!(claim, InheritanceClaim::Canceled(_))
         {
-            return Err(ServiceError::InvalidClaimStateForCancelation);
+            return Err(ServiceError::InvalidClaimStateForCancellation);
         }
 
         // Determine the role of the account in the inheritance claim
         let recovery_relationship_id = claim.common_fields().recovery_relationship_id.to_owned();
-        let canceled_by = if relationships
-            .endorsed_trusted_contacts
-            .iter()
-            .any(|r| r.common_fields().id == recovery_relationship_id)
-        {
-            InheritanceClaimCanceledBy::Benefactor
-        } else if relationships.customers.iter().any(|r| {
-            r.common_fields().id == recovery_relationship_id
-                && matches!(r, RecoveryRelationship::Endorsed(_))
-        }) {
-            InheritanceClaimCanceledBy::Beneficiary
-        } else {
-            return Err(ServiceError::MismatchingRecoveryRelationship);
-        };
+        let (endorsed_relationship, canceled_by) =
+            if let Some(RecoveryRelationship::Endorsed(endorsed_relationship)) = relationships
+                .endorsed_trusted_contacts
+                .iter()
+                .find(|r| r.common_fields().id == recovery_relationship_id)
+            {
+                (
+                    endorsed_relationship,
+                    InheritanceClaimCanceledBy::Benefactor,
+                )
+            } else if let Some(RecoveryRelationship::Endorsed(endorsed_relationship)) =
+                relationships
+                    .customers
+                    .iter()
+                    .find(|r| r.common_fields().id == recovery_relationship_id)
+            {
+                (
+                    endorsed_relationship,
+                    InheritanceClaimCanceledBy::Beneficiary,
+                )
+            } else {
+                return Err(ServiceError::MismatchingRecoveryRelationship);
+            };
 
         let pending_claim = match claim {
             InheritanceClaim::Pending(pending_claim) => pending_claim,
             InheritanceClaim::Canceled(_) => return Ok((canceled_by, claim)), // If the recovery relationship is valid, return the existing canceled claim
-            _ => return Err(ServiceError::InvalidClaimStateForCancelation), // This should not happen due to the previous check
+            _ => return Err(ServiceError::InvalidClaimStateForCancellation), // This should not happen due to the previous check
         };
 
         // TODO[W-9712]: Add contestation scenario for Lite Accounts
@@ -86,34 +95,62 @@ impl Service {
             .persist_inheritance_claim(&updated_claim)
             .await?;
 
+        let (benefactor_payload, beneficiary_payload) = (
+            NotificationPayloadBuilder::default()
+                .inheritance_claim_canceled_payload(Some(InheritanceClaimCanceledPayload {
+                    inheritance_claim_id: pending_claim.common_fields.id.clone(),
+                    trusted_contact_alias: endorsed_relationship
+                        .common_fields
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    customer_alias: endorsed_relationship
+                        .connection_fields
+                        .customer_alias
+                        .clone(),
+                    acting_account_role: canceled_by.clone().into(),
+                    recipient_account_role: RecoveryRelationshipRole::ProtectedCustomer,
+                }))
+                .build()?,
+            NotificationPayloadBuilder::default()
+                .inheritance_claim_canceled_payload(Some(InheritanceClaimCanceledPayload {
+                    inheritance_claim_id: pending_claim.common_fields.id,
+                    trusted_contact_alias: endorsed_relationship
+                        .common_fields
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    customer_alias: endorsed_relationship
+                        .connection_fields
+                        .customer_alias
+                        .clone(),
+                    acting_account_role: canceled_by.clone().into(),
+                    recipient_account_role: RecoveryRelationshipRole::TrustedContact,
+                }))
+                .build()?,
+        );
+
+        try_join!(
+            // Send notification for the benefactor
+            self.notification_service
+                .send_notification(SendNotificationInput {
+                    account_id: &endorsed_relationship.common_fields.customer_account_id,
+                    payload: &benefactor_payload,
+                    payload_type: NotificationPayloadType::InheritanceClaimCanceled,
+                    only_touchpoints: None,
+                }),
+            // Send notification for the beneficiary
+            self.notification_service
+                .send_notification(SendNotificationInput {
+                    account_id: &endorsed_relationship
+                        .connection_fields
+                        .trusted_contact_account_id,
+                    payload: &beneficiary_payload,
+                    payload_type: NotificationPayloadType::InheritanceClaimCanceled,
+                    only_touchpoints: None,
+                })
+        )?;
+
         Ok((canceled_by, claim))
     }
-}
-
-/// This function fetches the recovery relationships and inheritance claim
-/// for a given beneficiary account and inheritance claim id
-///
-/// # Arguments
-///
-/// * `service` - The inheritance service object
-/// * `account_id` - The account id
-/// * `inheritance_claim_id` - The identifier for the inheritance claim
-///
-async fn fetch_relationships_and_claim(
-    service: &Service,
-    account_id: &AccountId,
-    inheritance_claim_id: &InheritanceClaimId,
-) -> Result<(GetRecoveryRelationshipsOutput, InheritanceClaim), ServiceError> {
-    let (relationships_result, claim_result) = join!(
-        service
-            .recovery_relationship_service
-            .get_recovery_relationships(GetRecoveryRelationshipsInput {
-                account_id,
-                trusted_contact_role: Some(Beneficiary),
-            }),
-        service
-            .repository
-            .fetch_inheritance_claim(inheritance_claim_id)
-    );
-    Ok((relationships_result?, claim_result?))
 }

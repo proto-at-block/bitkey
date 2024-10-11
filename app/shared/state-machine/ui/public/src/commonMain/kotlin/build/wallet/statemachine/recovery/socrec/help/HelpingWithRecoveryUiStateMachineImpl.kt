@@ -5,9 +5,9 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.logging.logFailure
-import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.recovery.socrec.SocialChallengeError
 import build.wallet.recovery.socrec.SocialChallengeVerifier
+import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
@@ -25,7 +25,7 @@ import kotlin.time.Duration.Companion.seconds
 class HelpingWithRecoveryUiStateMachineImpl(
   private val delayer: Delayer,
   private val socialChallengeVerifier: SocialChallengeVerifier,
-  private val socRecKeysRepository: SocRecKeysRepository,
+  private val relationshipsKeysRepository: RelationshipsKeysRepository,
 ) : HelpingWithRecoveryUiStateMachine {
   @Composable
   override fun model(props: HelpingWithRecoveryUiProps): ScreenModel {
@@ -126,7 +126,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
     goToFailure: (Error) -> Unit,
   ): BodyModel {
     LaunchedEffect("verifying-recovery-code") {
-      socRecKeysRepository
+      relationshipsKeysRepository
         .getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
         .flatMap { trustedContactIdentityKey ->
           socialChallengeVerifier.verifyChallenge(

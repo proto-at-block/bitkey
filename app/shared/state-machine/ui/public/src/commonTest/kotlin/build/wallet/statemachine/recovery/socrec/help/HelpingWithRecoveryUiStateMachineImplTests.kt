@@ -3,9 +3,13 @@ package build.wallet.statemachine.recovery.socrec.help
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.keybox.LiteAccountMock
-import build.wallet.bitkey.socrec.ProtectedCustomerFake
+import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.*
+import build.wallet.recovery.socrec.SocialChallengeError
+import build.wallet.recovery.socrec.SocialChallengeVerifierMock
+import build.wallet.relationships.RelationshipsCryptoFake
+import build.wallet.relationships.RelationshipsKeysDaoFake
+import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -25,12 +29,15 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
   val verifierMock = SocialChallengeVerifierMock()
-  val socRecCrypto = SocRecCryptoFake()
+  val relationshipsCrypto = RelationshipsCryptoFake()
   val stateMachine =
     HelpingWithRecoveryUiStateMachineImpl(
       delayer = ControlledDelayer(),
       socialChallengeVerifier = verifierMock,
-      socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
+      relationshipsKeysRepository = RelationshipsKeysRepository(
+        relationshipsCrypto,
+        RelationshipsKeysDaoFake()
+      )
     )
 
   val props =

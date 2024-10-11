@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.emergencyaccesskit
 
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.*
+import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
@@ -25,8 +25,6 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -37,11 +35,12 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.utils.io.core.toByteArray
+import io.kotest.matchers.string.shouldBeEmpty
+import io.ktor.utils.io.core.*
 import okio.ByteString
 import okio.ByteString.Companion.EMPTY
 import okio.ByteString.Companion.toByteString
@@ -137,8 +136,8 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("UI select input method - back exits flow") {
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.onBack.shouldNotBeNull().invoke()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onBack()
       }
       onExitCalls.awaitItem()
     }
@@ -147,111 +146,70 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI manual entry - Decoding failure - preserves entered text") {
     val invalidData = "Invalid payload!"
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-
-        fieldModel
-          .value
-          .shouldBe("")
-
-        fieldModel.onValueChange(invalidData, IntRange(0, invalidData.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBeEmpty()
+        onEnterTextChanged(invalidData)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(invalidData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(invalidData)
+        onContinue()
       }
-      awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED) {
-        this.secondaryButton.shouldNotBeNull().text.shouldBe("Try again")
-        this.onBack.shouldNotBeNull().invoke()
+      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+        arrivedFromManualEntry.shouldBeTrue()
+        onBack()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(invalidData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(invalidData)
+        onContinue()
       }
-      awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED) {
-        this
-          .secondaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+        onImport()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(invalidData)
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(invalidData)
       }
     }
   }
 
   test("UI manual entry - Successful Decoding") {
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(validData, IntRange(0, validData.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(validData)
+        onContinue()
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET)
+      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>()
     }
   }
 
   test("UI manual entry - Back until exit") {
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(validData, IntRange(0, validData.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(validData)
+        onContinue()
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
-        this.onBack.shouldNotBeNull().invoke()
+      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel> {
+        onBack()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.onBack.shouldNotBeNull().invoke()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onBack()
       }
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.onBack.shouldNotBeNull().invoke()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onBack()
       }
       onExitCalls.awaitItem()
     }
@@ -260,22 +218,14 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI Manual Entry - Paste") {
     clipboard.setItem(ClipItem.PlainText(validData))
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .trailingButtonModel
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onPasteButtonClick()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(validData)
       }
     }
   }
@@ -283,13 +233,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI QR Code - Successful Decoding") {
     stateMachine.test(props = props) {
       permissionMock.isImplemented = false
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.secondaryButton.shouldNotBeNull().onClick()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onScanQRCode()
       }
-      awaitScreenWithBody<QrCodeScanBodyModel>(SCAN_QR_CODE) {
+      awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validData)
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET)
+      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>()
     }
   }
 
@@ -297,47 +247,35 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     permissionMock.isImplemented = false
     val invalidData = "Invalid payload!"
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.secondaryButton.shouldNotBeNull().onClick()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onScanQRCode()
       }
-      awaitScreenWithBody<QrCodeScanBodyModel>(SCAN_QR_CODE) {
+      awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(invalidData)
       }
-      awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED) {
-        this
-          .secondaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+        onImport()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY)
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>()
     }
   }
 
-  test("Successful Restore") {
+  test("UI Manual Entry - Successful Restore") {
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(validData, IntRange(0, validData.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(validData)
+        onContinue()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
-        RESTORE_YOUR_WALLET,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        expectedBodyContentMatch = { it.onRestore != null }
       ) {
-        clickPrimaryButton()
+        onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -370,29 +308,20 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     symmetricKeyEncryptor.shouldFail = true
 
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+        onEnterManually()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(validData, IntRange(0, validData.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(validData)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(validData)
+        onContinue()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
-        RESTORE_YOUR_WALLET,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        expectedBodyContentMatch = { it.onRestore != null }
       ) {
-        clickPrimaryButton()
+        onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -404,7 +333,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED)
+      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
     }
   }
 
@@ -422,29 +351,20 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
         )
       )
     stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
+      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .onValueChange(invalidPayload, IntRange(0, invalidPayload.length))
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        onEnterTextChanged(invalidPayload)
       }
-      awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        this.mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-          .fieldModel
-          .value
-          .shouldBe(invalidPayload)
-
-        clickPrimaryButton()
+      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        enteredText.shouldBe(invalidPayload)
+        onContinue()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
-        RESTORE_YOUR_WALLET,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        expectedBodyContentMatch = { it.onRestore != null }
       ) {
-        clickPrimaryButton()
+        onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -456,7 +376,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED)
+      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
     }
   }
 })

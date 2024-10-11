@@ -1,10 +1,16 @@
 package build.wallet.ui.components.icon
 
+import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
 import io.kotest.core.spec.style.FunSpec
 
 class IconSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  val paparazzi = paparazziExtension(
+    deviceConfig = DeviceConfig(
+      screenHeight = 1500,
+      screenWidth = 1500
+    )
+  )
 
   test("small icons") {
     paparazzi.snapshot {

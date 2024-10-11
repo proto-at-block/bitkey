@@ -84,28 +84,41 @@ fun ViewingRecoveryContactSheetModel(
   onRemove: () -> Unit,
   onClosed: () -> Unit,
 ) = SheetModel(
-  body =
-    FormBodyModel(
-      id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_DETAIL_SHEET,
-      onBack = onClosed,
-      toolbar = null,
-      header =
-        FormHeaderModel(
-          icon = Icon.LargeIconShieldPerson,
-          headline = headline,
-          subline = subline,
-          alignment = FormHeaderModel.Alignment.CENTER
-        ),
-      primaryButton = null,
-      secondaryButton =
-        ButtonModel(
-          text = removeButtonText,
-          treatment = ButtonModel.Treatment.SecondaryDestructive,
-          size = ButtonModel.Size.Footer,
-          onClick = SheetClosingClick(onRemove)
-        ),
-      renderContext = RenderContext.Sheet
-    ),
+  body = ViewingRecoveryContactSheetBodyModel(
+    headline = headline,
+    subline = subline,
+    removeButtonText = removeButtonText,
+    onRemove = onRemove,
+    onClosed = onClosed
+  ),
   dragIndicatorVisible = true,
   onClosed = onClosed
 )
+
+private data class ViewingRecoveryContactSheetBodyModel(
+  val headline: String,
+  val subline: String?,
+  val removeButtonText: String,
+  val onRemove: () -> Unit,
+  val onClosed: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_DETAIL_SHEET,
+    onBack = onClosed,
+    toolbar = null,
+    header =
+      FormHeaderModel(
+        icon = Icon.LargeIconShieldPerson,
+        headline = headline,
+        subline = subline,
+        alignment = FormHeaderModel.Alignment.CENTER
+      ),
+    primaryButton = null,
+    secondaryButton =
+      ButtonModel(
+        text = removeButtonText,
+        treatment = ButtonModel.Treatment.SecondaryDestructive,
+        size = ButtonModel.Size.Footer,
+        onClick = SheetClosingClick(onRemove)
+      ),
+    renderContext = RenderContext.Sheet
+  )

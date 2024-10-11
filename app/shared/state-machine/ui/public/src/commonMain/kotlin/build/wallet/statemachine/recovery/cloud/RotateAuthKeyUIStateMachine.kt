@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.auth.AuthKeyRotationFailure
 import build.wallet.auth.AuthKeyRotationRequest
 import build.wallet.auth.FullAccountAuthKeyRotationService
@@ -165,7 +166,8 @@ class RotateAuthKeyUIStateMachineImpl(
           }
         }
       ).asRootScreen()
-      is State.PresentingUnexpectedFailure -> RotateAuthKeyScreens.UnexpectedFailure(
+      is State.PresentingUnexpectedFailure -> RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+        id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED,
         context = eventTrackerScreenIdContext,
         onRetry = {
           state = State.RotatingAuthKeys(uiState.retryRequest)
@@ -191,7 +193,8 @@ class RotateAuthKeyUIStateMachineImpl(
           }
         }
       ).asRootScreen()
-      is State.PresentingAccountLockedFailure -> RotateAuthKeyScreens.AccountLockedFailure(
+      is State.PresentingAccountLockedFailure -> RotateAuthKeyScreens.AccountOutOfSyncBodyModel(
+        id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCOUNT_LOCKED,
         context = eventTrackerScreenIdContext,
         onRetry = {
           state = State.RotatingAuthKeys(uiState.retryRequest)

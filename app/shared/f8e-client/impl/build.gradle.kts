@@ -34,6 +34,7 @@ kotlin {
         implementation(projects.shared.serializationPublic)
         // For SocialRecoveryServiceFake
         implementation(projects.shared.ktorClientFake)
+        implementation(projects.shared.relationshipsPublic)
       }
     }
 

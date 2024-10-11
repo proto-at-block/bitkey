@@ -16,4 +16,4 @@ tracing = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
-rstest = "0.18.2"
+rstest = { workspace = true }

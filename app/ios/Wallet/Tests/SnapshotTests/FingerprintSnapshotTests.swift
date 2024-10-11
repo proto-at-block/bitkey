@@ -20,7 +20,7 @@ final class FingerprintSnapshotTests: XCTestCase {
 
     func test_deleting_fingerprint_confirmation() {
         let view = FormView(
-            viewModel: ConfirmDeleteFingerprintBodyModelKt.ConfirmDeleteFingerprintBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateConfirmDeleteFingerprintBodyModel(
                 onDelete: {},
                 onCancel: {}
             )
@@ -39,7 +39,7 @@ final class FingerprintSnapshotTests: XCTestCase {
         )
 
         let view = FormView(
-            viewModel: ListingFingerprintsBodyModelKt.ListingFingerprintsBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateListingFingerprintsBodyModel(
                 enrolledFingerprints: enrolledFingerprints,
                 onBack: {},
                 onAddFingerprint: { _ in },
@@ -52,7 +52,7 @@ final class FingerprintSnapshotTests: XCTestCase {
 
     func test_adding_new_fingerprint() {
         let view = FormView(
-            viewModel: EditingFingerprintBodyModelKt.EditingFingerprintBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateEditingFingerprintBodyModel(
                 index: 1,
                 label: "",
                 textFieldValue: "",
@@ -70,7 +70,7 @@ final class FingerprintSnapshotTests: XCTestCase {
 
     func test_editing_existing_fingerprint() {
         let view = FormView(
-            viewModel: EditingFingerprintBodyModelKt.EditingFingerprintBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateEditingFingerprintBodyModel(
                 index: 0,
                 label: "Left thumb",
                 textFieldValue: "Right thumb",
@@ -88,7 +88,7 @@ final class FingerprintSnapshotTests: XCTestCase {
 
     func test_editing_existing_fingerprint_save_disabled() {
         let view = FormView(
-            viewModel: EditingFingerprintBodyModelKt.EditingFingerprintBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateEditingFingerprintBodyModel(
                 index: 0,
                 label: "Left thumb",
                 textFieldValue: "Left thumb",
@@ -106,7 +106,7 @@ final class FingerprintSnapshotTests: XCTestCase {
 
     func test_editing_attempt_to_remove_last_fingerprint() {
         let view = FormView(
-            viewModel: EditingFingerprintBodyModelKt.EditingFingerprintBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateEditingFingerprintBodyModel(
                 index: 0,
                 label: "Left thumb",
                 textFieldValue: "Left thumb",

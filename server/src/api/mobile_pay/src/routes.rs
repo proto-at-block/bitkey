@@ -1,25 +1,15 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use account::entities::FullAccount;
+use account::service::FetchAndUpdateSpendingLimitInput;
+use account::service::{FetchAccountInput, Service as AccountService};
+use authn_authz::key_claims::KeyClaims;
 use axum::routing::delete;
 use axum::{
     extract::{Path, State},
     routing::{get, post, put},
     Json, Router,
 };
-use experimentation::claims::ExperimentationClaims;
-use feature_flags::flag::ContextKey;
-use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
-use tracing::{error, event, instrument, Level};
-use userpool::userpool::UserPoolService;
-use utoipa::{OpenApi, ToSchema};
-
-use account::service::FetchAndUpdateSpendingLimitInput;
-use account::service::{FetchAccountInput, Service as AccountService};
-use account::spend_limit::{Money, SpendingLimit};
-use authn_authz::key_claims::KeyClaims;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
 use bdk_utils::bdk::SignOptions;
 use bdk_utils::generate_electrum_rpc_uris;
@@ -28,15 +18,25 @@ use errors::ErrorCode::NoSpendingLimitExists;
 use errors::{ApiError, RouteError};
 use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::service::Service as ExchangeRateService;
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
+use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use instrumentation::metrics::KeyValue;
 use screener::service::Service as ScreenerService;
+use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
+use tracing::{error, event, instrument, Level};
+use types::account::entities::FullAccount;
 use types::account::identifiers::{AccountId, KeysetId};
+use types::account::spend_limit::{Money, SpendingLimit};
 use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
 use types::exchange_rate::local_rate_provider::LocalRateProvider;
+use userpool::userpool::UserPoolService;
+use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::daily_spend_record::entities::{DailySpendingRecord, SpendingEntry};
@@ -66,8 +66,8 @@ pub struct RouteState(
     pub Arc<ScreenerService>,
 );
 
-impl From<RouteState> for Router {
-    fn from(value: RouteState) -> Self {
+impl RouterBuilder for RouteState {
+    fn account_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/sign-transaction",
@@ -93,7 +93,7 @@ impl From<RouteState> for Router {
                 mobile_pay_metrics::FACTORY
                     .route_layer(mobile_pay_metrics::FACTORY_NAME.to_owned()),
             )
-            .with_state(value)
+            .with_state(self.to_owned())
     }
 }
 

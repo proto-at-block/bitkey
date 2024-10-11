@@ -1,7 +1,7 @@
 package build.wallet.testing.ext
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.FakeHwAuthKeypair
 import build.wallet.nfc.TransactionFn
@@ -17,12 +17,11 @@ suspend fun AppTester.getActiveHwAuthKey(): FakeHwAuthKeypair {
   return fakeHardwareKeyStore.getAuthKeypair()
 }
 
-suspend fun AppTester.getHardwareFactorProofOfPossession(
-  keybox: Keybox,
-): HwFactorProofOfPossession {
+suspend fun AppTester.getHardwareFactorProofOfPossession(): HwFactorProofOfPossession {
+  val account = getActiveFullAccount()
   val accessToken =
     app.appComponent.authTokensRepository
-      .getAuthTokens(keybox.fullAccountId, AuthTokenScope.Global)
+      .getAuthTokens(account.accountId, AuthTokenScope.Global)
       .toErrorIfNull { IllegalStateException("Auth tokens missing.") }
       .getOrThrow()
       .accessToken
@@ -48,3 +47,16 @@ suspend fun AppTester.signChallengeWithHardware(challenge: String): String {
 
 suspend fun <T> AppTester.hardwareTransaction(transaction: TransactionFn<T>): T =
   app.nfcTransactor.fakeTransact(transaction).getOrThrow()
+
+/**
+ * Shortcut to sign a PSBT with the fake hardware. Returns the signed PSBT.
+ */
+suspend fun AppTester.signPsbtWithHardware(psbt: Psbt): Psbt {
+  return hardwareTransaction { session, commands ->
+    commands.signTransaction(
+      session = session,
+      psbt = psbt,
+      spendingKeyset = getActiveFullAccount().keybox.activeSpendingKeyset
+    )
+  }
+}

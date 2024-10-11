@@ -10,6 +10,7 @@ data class FunctionalityFeatureStates(
   val send: FeatureState,
   val receive: FeatureState,
   val deposit: FeatureState,
+  val sell: FeatureState,
   val customElectrumServer: FeatureState,
   val mobilePay: FeatureState,
   val securityAndRecovery: FeatureState,

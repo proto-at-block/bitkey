@@ -11,14 +11,14 @@ import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.local.CloudBackupDao
-import build.wallet.recovery.socrec.SocRecKeysDao
-import build.wallet.recovery.socrec.saveKey
+import build.wallet.relationships.RelationshipsKeysDao
+import build.wallet.relationships.saveKey
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LiteAccountCloudBackupRestorerImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  private val socRecKeysDao: SocRecKeysDao,
+  private val relationshipsKeysDao: RelationshipsKeysDao,
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,
   private val cloudBackupDao: CloudBackupDao,
@@ -35,7 +35,7 @@ class LiteAccountCloudBackupRestorerImpl(
         .bind()
 
       // Store trusted contact identity key
-      socRecKeysDao
+      relationshipsKeysDao
         .saveKey(liteAccountCloudBackup.delegatedDecryptionKeypair)
         .mapError(::AccountBackupRestorationError)
         .bind()

@@ -8,12 +8,15 @@
           "bitkeyDeviceRaised",
           "bitkeyDeviceRaisedSmall",
 
+          "bitkeyLogo",
+
           "buyOwnBitkeyHero",
 
           "cloudBackupEmergencyAccessKit",
           "cloudBackupMobileKey",
 
           "largeIconAdd",
+          "largeIconMinus",
           "largeIconCheckFilled",
           "largeIconCheckStroked",
           "largeIconEllipsisFilled",
@@ -62,6 +65,7 @@
           "smallIconDigitThree",
           "smallIconDigitTwo",
           "smallIconDocument",
+          "smallIconDownload",
           "smallIconElectrum",
           "smallIconEmail",
           "smallIconExternal",
@@ -80,6 +84,7 @@
           "smallIconMobileKey",
           "smallIconMobileLimit",
           "smallIconNotification",
+          "smallIconPaintBrush",
           "smallIconPause",
           "smallIconPauseFilled",
           "smallIconPauseStroked",
@@ -101,6 +106,7 @@
           "smallIconShieldCheck",
           "smallIconShieldPerson",
           "smallIconSpeed",
+          "smallIconStar",
           "smallIconSwap",
           "smallIconSync",
           "smallIconTicket",

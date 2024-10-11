@@ -36,38 +36,10 @@ class DemoModeCodeEntryUiStateMachineImpl(
 
     return when (uiState) {
       is DemoModeState.DemoCodeEntryIdleState ->
-        FormBodyModel(
-          id = DemoCodeTrackerScreenId.DEMO_MODE_CODE_ENTRY,
-          onBack = props.onBack,
-          onSwipeToDismiss = props.onBack,
-          header =
-            FormHeaderModel(
-              headline = "Enter demo mode code"
-            ),
-          mainContentList =
-            immutableListOf(
-              TextInput(
-                fieldModel =
-                  TextFieldModel(
-                    value = "",
-                    placeholderText = "",
-                    onValueChange = { newValue, _ -> demoModeCode = newValue },
-                    keyboardType = TextFieldModel.KeyboardType.Uri
-                  )
-              )
-            ),
-          primaryButton =
-            ButtonModel(
-              text = "Submit",
-              isEnabled = true,
-              onClick = StandardClick { uiState = DemoModeState.DemoCodeEntrySubmissionState },
-              size = ButtonModel.Size.Footer
-            ),
-          toolbar = ToolbarModel(
-            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
-              onClick = props.onBack
-            )
-          )
+        DemoCodeEntryIdleBodyModel(
+          onValueChange = { demoModeCode = it },
+          onSubmit = { uiState = DemoModeState.DemoCodeEntrySubmissionState },
+          onBack = props.onBack
         ).asModalScreen()
 
       is DemoModeState.DemoCodeEntrySubmissionState -> {
@@ -97,6 +69,44 @@ class DemoModeCodeEntryUiStateMachineImpl(
     }
   }
 }
+
+private data class DemoCodeEntryIdleBodyModel(
+  override val onBack: () -> Unit,
+  val onSubmit: () -> Unit,
+  val onValueChange: (String) -> Unit,
+) : FormBodyModel(
+    id = DemoCodeTrackerScreenId.DEMO_MODE_CODE_ENTRY,
+    onBack = onBack,
+    onSwipeToDismiss = onBack,
+    header =
+      FormHeaderModel(
+        headline = "Enter demo mode code"
+      ),
+    mainContentList =
+      immutableListOf(
+        TextInput(
+          fieldModel =
+            TextFieldModel(
+              value = "",
+              placeholderText = "",
+              onValueChange = { newValue, _ -> onValueChange(newValue) },
+              keyboardType = TextFieldModel.KeyboardType.Uri
+            )
+        )
+      ),
+    primaryButton =
+      ButtonModel(
+        text = "Submit",
+        isEnabled = true,
+        onClick = StandardClick(onSubmit),
+        size = ButtonModel.Size.Footer
+      ),
+    toolbar = ToolbarModel(
+      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
+        onClick = onBack
+      )
+    )
+  )
 
 sealed interface DemoModeState {
   data object DemoCodeEntryIdleState : DemoModeState

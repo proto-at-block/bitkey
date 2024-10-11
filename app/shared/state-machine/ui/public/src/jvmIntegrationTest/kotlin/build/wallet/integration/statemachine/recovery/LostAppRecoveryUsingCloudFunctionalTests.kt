@@ -82,10 +82,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
   }
 
   test("recover keybox with some funds from cloud backup") {
-    val account =
-      app.onboardFullAccountWithFakeHardware(
-        cloudStoreAccountForBackup = CloudStoreAccount1Fake
-      )
+    app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
     val treasury = app.treasuryWallet
     treasury.fund(app.getActiveWallet(), BitcoinMoney.sats(10_000))
 
@@ -130,7 +127,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       }
 
       // Spend sats
-      app.returnFundsToTreasury(account)
+      app.returnFundsToTreasury()
 
       cancelAndIgnoreRemainingEvents()
     }

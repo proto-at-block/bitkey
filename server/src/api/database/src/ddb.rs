@@ -9,11 +9,17 @@ use async_trait::async_trait;
 use aws_config::{retry::RetryConfig, timeout::TimeoutConfig, BehaviorVersion, SdkConfig};
 use aws_sdk_dynamodb::{
     config::Builder,
-    error::{ProvideErrorMetadata, SdkError},
-    operation::{batch_write_item::BatchWriteItemError, scan::ScanError},
-    types::{AttributeValue as AwsAttributeValue, KeysAndAttributes, WriteRequest},
+    error::{BuildError, ProvideErrorMetadata, SdkError},
+    operation::{
+        batch_write_item::BatchWriteItemError, scan::ScanError,
+        update_item::builders::UpdateItemFluentBuilder,
+    },
+    types::{
+        builders::UpdateBuilder, AttributeValue as AwsAttributeValue, KeysAndAttributes, Update,
+        WriteRequest,
+    },
+    Client,
 };
-use aws_sdk_dynamodb::{error::BuildError, Client};
 use aws_smithy_async::rt::sleep::default_async_sleep;
 use aws_types::region::Region;
 use errors::ApiError;
@@ -510,5 +516,94 @@ impl PersistBatchTrait for Vec<WriteRequest> {
         unprocessed
             .map(|m| m.get(table_name).map(|v| v.len()).unwrap_or_default())
             .unwrap_or_default()
+    }
+}
+
+pub struct UpdateItemOp(UpdateItemFluentBuilder);
+impl UpdateItemOp {
+    pub fn new(builder: UpdateItemFluentBuilder) -> Self {
+        Self(builder)
+    }
+}
+
+impl TryFrom<UpdateItemOp> for UpdateBuilder {
+    type Error = DatabaseError;
+
+    fn try_from(op: UpdateItemOp) -> Result<Self, Self::Error> {
+        let update =
+            op.0.as_input()
+                .clone()
+                .build()
+                .map_err(DatabaseError::RequestContruction)?;
+
+        let ret = Update::builder()
+            .set_key(update.key)
+            .set_table_name(update.table_name)
+            .set_update_expression(update.update_expression)
+            .set_condition_expression(update.condition_expression)
+            .set_expression_attribute_values(update.expression_attribute_values)
+            .set_expression_attribute_names(update.expression_attribute_names)
+            .set_return_values_on_condition_check_failure(
+                update.return_values_on_condition_check_failure,
+            );
+
+        Ok(ret)
+    }
+}
+
+pub trait Upsertable {
+    const KEY_PROPERTIES: &'static [&'static str];
+    const IF_NOT_EXISTS_PROPERTIES: &'static [&'static str];
+}
+
+pub trait Upsert {
+    fn try_upsert<T>(
+        &self,
+        item: T,
+        database_object: DatabaseObject,
+    ) -> Result<UpdateItemFluentBuilder, DatabaseError>
+    where
+        T: Serialize + Upsertable;
+}
+
+impl Upsert for Client {
+    fn try_upsert<T>(
+        &self,
+        input: T,
+        database_object: DatabaseObject,
+    ) -> Result<UpdateItemFluentBuilder, DatabaseError>
+    where
+        T: Serialize + Upsertable,
+    {
+        let item: Item = try_to_item(input, database_object)?;
+        let updates = item
+            .iter()
+            .filter(|(key, _)| !T::KEY_PROPERTIES.contains(&key.as_str()))
+            .map(
+                |(key, _)| match T::IF_NOT_EXISTS_PROPERTIES.contains(&key.as_str()) {
+                    true => format!("#{} = if_not_exists(#{}, :{})", key, key, key),
+                    false => format!("#{} = :{}", key, key),
+                },
+            )
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        let builder = item
+            .iter()
+            .fold(self.update_item(), |builder, (key, value)| {
+                if T::KEY_PROPERTIES.contains(&key.as_str()) {
+                    return builder.key(key.to_owned(), AwsAttributeValue::from(value.clone()));
+                }
+
+                builder
+                    .expression_attribute_names(format!("#{}", key), key)
+                    .expression_attribute_values(
+                        format!(":{}", key),
+                        AwsAttributeValue::from(value.clone()),
+                    )
+            })
+            .update_expression(format!("SET {}", updates));
+
+        Ok(builder)
     }
 }

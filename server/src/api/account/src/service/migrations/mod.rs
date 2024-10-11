@@ -1,8 +1,9 @@
-use crate::service::Service;
 use create_hardware_cognito_users::CreateHardwareCognitoUsers;
 use migrate_test_account_cognito_users::MigrateTestAccountCognitoUsers;
 use migration::{MigratableService, Migration};
 use oneoff_account_deletion::OneoffAccountDeletion;
+
+use crate::service::Service;
 
 mod add_app_auth_pubkey;
 mod create_hardware_cognito_users;

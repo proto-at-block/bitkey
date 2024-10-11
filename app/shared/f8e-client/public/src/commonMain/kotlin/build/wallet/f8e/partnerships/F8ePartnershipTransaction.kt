@@ -34,4 +34,6 @@ data class F8ePartnershipTransaction(
   val fiatCurrency: IsoCurrencyTextCode?,
   @SerialName("payment_method")
   val paymentMethod: String?,
+  @SerialName("sell_wallet_address")
+  val sellWalletAddress: String?,
 )

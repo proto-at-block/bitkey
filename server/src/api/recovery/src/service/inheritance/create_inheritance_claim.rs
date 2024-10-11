@@ -1,16 +1,22 @@
-use account::entities::Account;
-use tokio::join;
+use notification::payloads::inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload;
+use notification::payloads::inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload;
+use notification::schedule::ScheduleNotificationType;
+use notification::service::ScheduleNotificationsInput;
+use notification::{NotificationPayload, NotificationPayloadBuilder};
+use tokio::{join, try_join};
 use tracing::instrument;
+use types::account::entities::Account;
 use types::account::identifiers::AccountId;
-use types::recovery::inheritance::claim::InheritanceClaim;
-use types::recovery::social::relationship::RecoveryRelationship;
+use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimPending};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
 use types::recovery::{
     inheritance::claim::{InheritanceClaimAuthKeys, InheritanceClaimId},
-    social::relationship::RecoveryRelationshipId,
+    social::relationship::{
+        RecoveryRelationship, RecoveryRelationshipId, RecoveryRelationshipRole,
+    },
 };
 
-use super::{error::ServiceError, Service};
+use super::{error::ServiceError, filter_endorsed_relationship, Service};
 use crate::service::social::relationship::get_recovery_relationships::{
     GetRecoveryRelationshipsInput, GetRecoveryRelationshipsOutput,
 };
@@ -47,17 +53,8 @@ impl Service {
         )
         .await?;
 
-        // Ensure relationship still exists between benefactor and beneficiary
-        let relationship = relationships
-            .customers
-            .into_iter()
-            .find(|r| r.common_fields().id == input.recovery_relationship_id)
-            .ok_or(ServiceError::MismatchingRecoveryRelationship)?;
-
-        // Ensure the relationship is endorsed by the customer
-        if !matches!(relationship, RecoveryRelationship::Endorsed(_)) {
-            return Err(ServiceError::MismatchingRecoveryRelationship);
-        }
+        let relationship =
+            filter_endorsed_relationship(relationships.customers, &input.recovery_relationship_id)?;
 
         // TODO: Ensure that there is a package for this relationship after W-9369
 
@@ -67,14 +64,42 @@ impl Service {
         // TODO: Add contestation scenario for Lite Accounts
 
         let id = InheritanceClaimId::gen()?;
+        let pending_claim = InheritanceClaimPending::new(
+            id.clone(),
+            input.recovery_relationship_id,
+            input.auth_keys,
+        );
+
         let claim = self
             .repository
-            .persist_inheritance_claim(&InheritanceClaim::new_claim(
-                id,
-                input.recovery_relationship_id,
-                input.auth_keys,
-            ))
+            .persist_inheritance_claim(&InheritanceClaim::Pending(pending_claim.clone()))
             .await?;
+
+        let (benefactor_payload, beneficiary_payload) =
+            generate_notification_payloads(&id, &relationship, &pending_claim)?;
+
+        try_join!(
+            // Schedule notifications for the benefactor
+            self.notification_service
+                .schedule_notifications(ScheduleNotificationsInput {
+                    account_id: relationship.common_fields().customer_account_id.clone(),
+                    notification_type: ScheduleNotificationType::InheritanceClaimPeriodInitiated(
+                        pending_claim.delay_end_time,
+                        RecoveryRelationshipRole::ProtectedCustomer,
+                    ),
+                    payload: benefactor_payload,
+                }),
+            // Schedule notifications for the beneficiary
+            self.notification_service
+                .schedule_notifications(ScheduleNotificationsInput {
+                    account_id: input.beneficiary_account.get_id().clone(),
+                    notification_type: ScheduleNotificationType::InheritanceClaimPeriodInitiated(
+                        pending_claim.delay_end_time,
+                        RecoveryRelationshipRole::TrustedContact,
+                    ),
+                    payload: beneficiary_payload,
+                }),
+        )?;
 
         Ok(claim)
     }
@@ -99,7 +124,7 @@ async fn fetch_relationships_and_claims(
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
                 account_id: beneficiary_account_id,
-                trusted_contact_role: Some(Beneficiary),
+                trusted_contact_role_filter: Some(Beneficiary),
             }),
         service
             .repository
@@ -127,4 +152,75 @@ fn check_claims_status(claims: &[InheritanceClaim]) -> Result<(), ServiceError> 
     }
 
     Ok(())
+}
+
+/// This function generates the notification payloads for the benefactor and beneficiary
+///
+/// # Arguments
+///
+/// * `id` - The inheritance claim id
+/// * `relationship` - The recovery relationship
+/// * `pending_claim` - The pending inheritance claim
+///
+/// # Errors
+///
+/// * Propagation only
+///
+fn generate_notification_payloads(
+    id: &InheritanceClaimId,
+    relationship: &RecoveryRelationship,
+    pending_claim: &InheritanceClaimPending,
+) -> Result<(NotificationPayload, NotificationPayload), ServiceError> {
+    Ok((
+        NotificationPayloadBuilder::default()
+            .inheritance_claim_period_initiated_payload(Some(
+                InheritanceClaimPeriodInitiatedPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::ProtectedCustomer,
+                    delay_end_time: pending_claim.delay_end_time,
+                },
+            ))
+            .inheritance_claim_period_completed_payload(Some(
+                InheritanceClaimPeriodCompletedPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::ProtectedCustomer,
+                },
+            ))
+            .build()?,
+        NotificationPayloadBuilder::default()
+            .inheritance_claim_period_initiated_payload(Some(
+                InheritanceClaimPeriodInitiatedPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::TrustedContact,
+                    delay_end_time: pending_claim.delay_end_time,
+                },
+            ))
+            .inheritance_claim_period_completed_payload(Some(
+                InheritanceClaimPeriodCompletedPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::TrustedContact,
+                },
+            ))
+            .build()?,
+    ))
 }

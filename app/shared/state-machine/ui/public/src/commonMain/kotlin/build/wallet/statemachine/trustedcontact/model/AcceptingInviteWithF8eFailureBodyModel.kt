@@ -2,13 +2,9 @@ package build.wallet.statemachine.trustedcontact.model
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
 import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.ACCOUNT_ALREADY_TRUSTED_CONTACT
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.CUSTOMER_IS_TRUSTED_CONTACT
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.INVITATION_CODE_MISMATCH
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.INVITATION_EXPIRED
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.RELATIONSHIP_ALREADY_ESTABLISHED
+import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.*
 import build.wallet.platform.device.DevicePlatform
-import build.wallet.recovery.socrec.AcceptInvitationCodeError
+import build.wallet.relationships.AcceptInvitationCodeError
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel

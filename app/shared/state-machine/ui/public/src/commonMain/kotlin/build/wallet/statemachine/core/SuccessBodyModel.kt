@@ -14,25 +14,25 @@ import build.wallet.ui.model.button.ButtonModel
  * @property id: A unique identifier for this screen that will also be used to track screen
  * analytic events.
  */
-fun SuccessBodyModel(
-  title: String,
-  message: String? = null,
-  primaryButtonModel: ButtonDataModel?,
-  id: EventTrackerScreenId?,
-) = FormBodyModel(
-  id = id,
-  onBack = null,
-  toolbar = null,
-  header = FormHeaderModel(
-    icon = Icon.LargeIconCheckFilled,
-    headline = title,
-    subline = message
-  ),
-  primaryButton = primaryButtonModel?.let {
-    ButtonModel(
-      text = primaryButtonModel.text,
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick(primaryButtonModel.onClick)
-    )
-  }
-)
+data class SuccessBodyModel(
+  val title: String,
+  val message: String? = null,
+  val primaryButtonModel: ButtonDataModel?,
+  override val id: EventTrackerScreenId?,
+) : FormBodyModel(
+    id = id,
+    onBack = null,
+    toolbar = null,
+    header = FormHeaderModel(
+      icon = Icon.LargeIconCheckFilled,
+      headline = title,
+      subline = message
+    ),
+    primaryButton = primaryButtonModel?.let {
+      ButtonModel(
+        text = primaryButtonModel.text,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(primaryButtonModel.onClick)
+      )
+    }
+  )

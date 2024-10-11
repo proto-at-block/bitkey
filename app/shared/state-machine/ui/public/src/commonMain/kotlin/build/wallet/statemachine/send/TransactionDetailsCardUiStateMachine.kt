@@ -15,4 +15,5 @@ interface TransactionDetailsCardUiStateMachine :
 data class TransactionDetailsCardUiProps(
   val transactionDetails: TransactionDetails,
   val exchangeRates: ImmutableList<ExchangeRate>?,
+  val variant: TransferConfirmationScreenVariant,
 )

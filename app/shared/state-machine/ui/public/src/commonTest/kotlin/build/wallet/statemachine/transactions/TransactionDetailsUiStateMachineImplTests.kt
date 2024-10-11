@@ -15,7 +15,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
 import build.wallet.feature.setFlagValue
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -83,7 +82,9 @@ class TransactionDetailsUiStateMachineImplTests :
     val feeBumpConfirmationUiStateMachine = object : FeeBumpConfirmationUiStateMachine,
       ScreenStateMachineMock<FeeBumpConfirmationProps>("fee-bump-confirmation") {}
     val spendingWallet = SpendingWalletMock(turbines::create)
-    val transactionsService = TransactionsServiceFake()
+    val transactionsService = TransactionsServiceFake().apply {
+      this.spendingWallet.value = spendingWallet
+    }
 
     val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
@@ -106,7 +107,6 @@ class TransactionDetailsUiStateMachineImplTests :
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
         feeRateEstimator = BitcoinFeeRateEstimatorMock(),
-        appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
         inAppBrowserNavigator = inAppBrowserNavigator,
         transactionsService = transactionsService
       )
@@ -166,6 +166,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
     beforeTest {
       transactionsService.reset()
+      transactionsService.spendingWallet.value = spendingWallet
       bitcoinTransactionBumpabilityChecker.isBumpable = false
     }
 
@@ -650,7 +651,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
             // Amount Details
             with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
-              items[0].expect(title = "UTXOs consolidated", sideText = "2")
+              items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
               items[1].expect(
                 title = "Consolidation cost",
                 sideText = "10,000,000 sats",
@@ -694,7 +695,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
             // Amount Details
             with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
-              items[0].expect(title = "UTXOs consolidated", sideText = "2")
+              items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
               items[1].expect(
                 title = "Consolidation cost",
                 sideText = "10,000,000 sats",
@@ -767,7 +768,10 @@ private fun FormBodyModel.testButtonsAndHeader(
           if (isLate) {
             "Transaction delayed"
           } else {
-            "Transaction pending"
+            when (transactionType) {
+              Incoming, Outgoing -> "Transaction pending"
+              UtxoConsolidation -> "Consolidation pending"
+            }
           }
         } else {
           when (transactionType) {

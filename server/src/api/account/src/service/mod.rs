@@ -1,14 +1,14 @@
-use crate::entities::{
-    CommsVerificationClaim, CommsVerificationScope, LiteAccount, TouchpointPlatform,
-};
-use crate::spend_limit::SpendingLimit;
-use crate::{entities::Keyset, repository::AccountRepository};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use isocountry::CountryCode;
+use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use types::account::bitcoin::Network;
+use types::account::entities::{
+    CommsVerificationClaim, CommsVerificationScope, Keyset, LiteAccount, TouchpointPlatform,
+};
 use types::account::identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId};
 use types::account::keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys};
+use types::account::spend_limit::SpendingLimit;
 use types::account::spending::{SpendingDistributedKey, SpendingKeyset};
 use userpool::userpool::UserPoolService;
 
@@ -31,6 +31,7 @@ mod put_comms_verification_claim;
 mod put_inactive_spending_distributed_key;
 mod rotate_to_spending_key_definition;
 mod rotate_to_spending_keyset;
+pub mod tests;
 mod upgrade_lite_account_to_full_account;
 
 #[derive(Clone)]

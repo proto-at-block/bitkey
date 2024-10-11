@@ -26,43 +26,39 @@ const val LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE =
  * Different from [TrustedContactsListBodyModel] which is for a Full Account because Full
  * Accounts can both *be* a Trusted Contact and *have* Trusted Contacts.
  */
-fun LiteTrustedContactsListBodyModel(
-  id: SocialRecoveryEventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST_LITE,
-  protectedCustomers: ImmutableList<ProtectedCustomer>,
-  onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
-  onAcceptInvitePressed: () -> Unit,
-  onBackPressed: () -> Unit,
-  subline: String = LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE,
-) = FormBodyModel(
-  id = id,
-  toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
-  header =
-    FormHeaderModel(
+data class LiteTrustedContactsListBodyModel(
+  override val id: SocialRecoveryEventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST_LITE,
+  val protectedCustomers: ImmutableList<ProtectedCustomer>,
+  val onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
+  val onAcceptInvitePressed: () -> Unit,
+  val onBackPressed: () -> Unit,
+  val subline: String = LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE,
+) : FormBodyModel(
+    id = id,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
+    header = FormHeaderModel(
       headline = "Trusted Contacts",
       subline = subline
     ),
-  mainContentList =
-    immutableListOf(
+    mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         ListGroupModel(
           header = "Wallets You’re Protecting",
-          items =
-            protectedCustomers.map { protectedCustomer ->
-              protectedCustomer.listItemModel {
-                onProtectedCustomerPressed(it)
-              }
-            }.toImmutableList(),
+          items = protectedCustomers.map { protectedCustomer ->
+            protectedCustomer.listItemModel {
+              onProtectedCustomerPressed(it)
+            }
+          }.toImmutableList(),
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
-          footerButton =
-            ButtonModel(
-              text = if (protectedCustomers.isEmpty()) "Accept invite" else "Accept another invite",
-              treatment = ButtonModel.Treatment.Secondary,
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick(onAcceptInvitePressed)
-            )
+          footerButton = ButtonModel(
+            text = if (protectedCustomers.isEmpty()) "Accept invite" else "Accept another invite",
+            treatment = ButtonModel.Treatment.Secondary,
+            size = ButtonModel.Size.Footer,
+            onClick = StandardClick(onAcceptInvitePressed)
+          )
         )
       )
     ),
-  onBack = onBackPressed,
-  primaryButton = null
-)
+    onBack = onBackPressed,
+    primaryButton = null
+  )

@@ -1,11 +1,8 @@
+use types::account::entities::{Account, SoftwareAccount};
 use types::account::spending::SpendingKeyDefinition;
 
-use crate::{
-    entities::{Account, SoftwareAccount},
-    error::AccountError,
-};
-
 use super::{FetchAccountInput, RotateToSpendingKeyDefinitionInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn rotate_to_spending_key_definition(

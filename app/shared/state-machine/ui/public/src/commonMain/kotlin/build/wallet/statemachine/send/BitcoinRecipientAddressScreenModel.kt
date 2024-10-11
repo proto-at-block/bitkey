@@ -38,73 +38,65 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onScanQrCodeClick - Click handler for invoking the qr code scanning screen
  * @param onPasteButtonClick - click handler for paste button within the input field
  */
-fun BitcoinRecipientAddressScreenModel(
-  enteredText: String,
-  warningText: String?,
-  onEnteredTextChanged: (String) -> Unit,
-  showPasteButton: Boolean,
-  onContinueClick: (() -> Unit)?,
-  onBack: () -> Unit,
-  onScanQrCodeClick: () -> Unit,
-  onPasteButtonClick: () -> Unit,
-  showSelfSendWarningWithRedirect: Boolean,
-  onGoToUtxoConsolidation: () -> Unit,
-) = FormBodyModel(
-  onBack = onBack,
-  toolbar =
-    ToolbarModel(
+data class BitcoinRecipientAddressScreenModel(
+  val enteredText: String,
+  val warningText: String?,
+  val onEnteredTextChanged: (String) -> Unit,
+  val showPasteButton: Boolean,
+  val onContinueClick: (() -> Unit)?,
+  override val onBack: () -> Unit,
+  val onScanQrCodeClick: () -> Unit,
+  val onPasteButtonClick: () -> Unit,
+  val showSelfSendWarningWithRedirect: Boolean,
+  val onGoToUtxoConsolidation: () -> Unit,
+) : FormBodyModel(
+    onBack = onBack,
+    toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onBack),
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Recipient"),
-      trailingAccessory =
-        IconAccessory(
-          model =
-            IconButtonModel(
-              iconModel =
-                IconModel(
-                  icon = SmallIconScan,
-                  iconSize = IconSize.Accessory,
-                  iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
-                ),
-              onClick = StandardClick(onScanQrCodeClick)
-            )
-        )
-    ),
-  header = null,
-  mainContentList =
-    immutableListOfNotNull(
-      AddressInput(
-        fieldModel =
-          TextFieldModel(
-            value = enteredText,
-            placeholderText = "Bitcoin Address",
-            onValueChange = { newText, _ -> onEnteredTextChanged(newText) },
-            keyboardType = Default
+      trailingAccessory = IconAccessory(
+        model = IconButtonModel(
+          iconModel = IconModel(
+            icon = SmallIconScan,
+            iconSize = IconSize.Accessory,
+            iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
           ),
-        trailingButtonModel =
-          if (showPasteButton) {
-            ButtonModel(
-              text = "Paste",
-              leadingIcon = Icon.SmallIconClipboard,
-              treatment = Secondary,
-              size = Compact,
-              onClick = StandardClick { onPasteButtonClick() }
-            )
-          } else {
-            null
-          }
+          onClick = StandardClick(onScanQrCodeClick)
+        )
+      )
+    ),
+    header = null,
+    mainContentList = immutableListOfNotNull(
+      AddressInput(
+        fieldModel = TextFieldModel(
+          value = enteredText,
+          placeholderText = "Bitcoin Address",
+          onValueChange = { newText, _ -> onEnteredTextChanged(newText) },
+          keyboardType = Default
+        ),
+        trailingButtonModel = if (showPasteButton) {
+          ButtonModel(
+            text = "Paste",
+            leadingIcon = Icon.SmallIconClipboard,
+            treatment = Secondary,
+            size = Compact,
+            onClick = StandardClick { onPasteButtonClick() }
+          )
+        } else {
+          null
+        }
       ),
       warningText?.let {
         // TODO (W-4075): Make this tinted orange
         FormMainContentModel.Explainer(
-          items =
-            immutableListOf(
-              FormMainContentModel.Explainer.Statement(
-                leadingIcon = Icon.SmallIconWarning,
-                title = null,
-                body = warningText,
-                treatment = FormMainContentModel.Explainer.Statement.Treatment.WARNING
-              )
+          items = immutableListOf(
+            FormMainContentModel.Explainer.Statement(
+              leadingIcon = Icon.SmallIconWarning,
+              title = null,
+              body = warningText,
+              treatment = FormMainContentModel.Explainer.Statement.Treatment.WARNING
             )
+          )
         )
       },
       Callout(
@@ -124,14 +116,13 @@ fun BitcoinRecipientAddressScreenModel(
         )
       ).takeIf { showSelfSendWarningWithRedirect }
     ),
-  primaryButton =
-    ButtonModel(
+    primaryButton = ButtonModel(
       text = "Continue",
       size = Footer,
       onClick = StandardClick { onContinueClick?.invoke() },
       isEnabled = onContinueClick != null
     ),
-  secondaryButton = null,
-  id = SendEventTrackerScreenId.SEND_ADDRESS_ENTRY,
-  eventTrackerShouldTrack = false
-)
+    secondaryButton = null,
+    id = SendEventTrackerScreenId.SEND_ADDRESS_ENTRY,
+    eventTrackerShouldTrack = false
+  )

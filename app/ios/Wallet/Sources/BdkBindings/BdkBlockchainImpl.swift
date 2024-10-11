@@ -35,4 +35,16 @@ class BdkBlockchainImpl: BdkBlockchain {
         }
     }
 
+    func getTx(txid: String) -> BdkResult<any BdkTransaction> {
+        return BdkResult<BdkTransaction> {
+            switch try ffiBlockchain.getTx(txid: txid) {
+            case .none:
+                throw BdkError
+                    .TransactionNotFound(message: "Transaction with id \(txid) not found.")
+            case let .some(tx):
+                return tx.toBdkTransaction()
+            }
+        }
+    }
+
 }

@@ -245,7 +245,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
  */
 suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(formBodyModel: FormBodyModel): String {
   formBodyModel
-    .shouldBeTypeOf<FormBodyModel>()
+    .shouldBeInstanceOf<FormBodyModel>()
     .also {
       it.id.shouldBe(RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
     }
@@ -299,7 +299,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
       screenModel.bottomSheetModel != null
     }
   ).bottomSheetModel.shouldNotBeNull()
-    .body.shouldBeTypeOf<FormBodyModel>()
+    .body.shouldBeInstanceOf<FormBodyModel>()
     .clickPrimaryButton()
 
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -366,7 +366,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
       screenModel.bottomSheetModel != null
     }
   ).bottomSheetModel.shouldNotBeNull()
-    .body.shouldBeTypeOf<FormBodyModel>()
+    .body.shouldBeInstanceOf<FormBodyModel>()
     .clickPrimaryButton()
 
   awaitUntilScreenWithBody<FormBodyModel>(

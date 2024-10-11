@@ -8,6 +8,7 @@ version = "0.1.0"
 async-trait = { workspace = true }
 aws-config = { workspace = true }
 aws-sdk-sns = { workspace = true }
+http_server = { workspace = true }
 isocountry = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -24,7 +25,7 @@ database = { workspace = true }
 errors = { workspace = true }
 external_identifier = { workspace = true }
 migration = { workspace = true }
-repository = { workspace = true, features = ["consent"] }
+repository = { workspace = true, features = ["account", "consent"] }
 types = { workspace = true, features = [
   "account",
   "consent",
@@ -33,4 +34,5 @@ types = { workspace = true, features = [
   "notification",
   "privileged_action",
 ] }
+ulid = { workspace = true }
 userpool = { workspace = true }

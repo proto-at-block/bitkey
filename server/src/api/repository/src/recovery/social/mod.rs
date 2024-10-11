@@ -7,11 +7,14 @@ use database::{
             Projection, ProjectionType::All, ScalarAttributeType,
         },
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
+    ddb::{Connection, DatabaseError, DatabaseObject, Repository, Upsertable},
 };
 use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
-use types::recovery::social::{challenge::SocialChallenge, relationship::RecoveryRelationship};
+use types::recovery::{
+    backup::Backup,
+    social::{challenge::SocialChallenge, relationship::RecoveryRelationship},
+};
 
 pub mod delete;
 pub mod fetch;
@@ -35,6 +38,12 @@ pub(super) const CODE_IDX_PARTITION_KEY: &str = "code";
 enum SocialRecoveryRow {
     Relationship(RecoveryRelationship),
     Challenge(SocialChallenge),
+    Backup(Backup),
+}
+
+impl Upsertable for SocialRecoveryRow {
+    const KEY_PROPERTIES: &'static [&'static str] = &["partition_key"];
+    const IF_NOT_EXISTS_PROPERTIES: &'static [&'static str] = &["created_at"];
 }
 
 #[derive(Clone)]

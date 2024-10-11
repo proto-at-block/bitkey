@@ -19,6 +19,7 @@ data class FeeSelectionUiProps(
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
   val exchangeRates: ImmutableList<ExchangeRate>?,
+  val preselectedPriority: EstimatedTransactionPriority? = null,
   val onBack: () -> Unit,
   val onContinue: (
     EstimatedTransactionPriority,

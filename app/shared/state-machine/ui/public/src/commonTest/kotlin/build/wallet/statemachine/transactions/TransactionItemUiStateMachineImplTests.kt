@@ -114,7 +114,7 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
   test("pending utxo consolidation transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("100,000,000 sats")
@@ -131,7 +131,7 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
   test("confirmed utxo consolidation transaction model") {
     stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation)) {
       awaitItem().let { // before currency conversion
-        it.title.shouldBe("bc1z...xpcs")
+        it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("confirmed-time")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("100,000,000 sats")

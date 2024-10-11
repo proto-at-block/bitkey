@@ -3,11 +3,7 @@ package build.wallet.cloud.backup.v2
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
-import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
-import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
-import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
+import build.wallet.bitkey.auth.*
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.socrec.SocRecKeyPurpose
@@ -15,10 +11,7 @@ import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecodingError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppAuthKeypairStorageError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppSpendingKeypairStorageError
-import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.PkekMissingError
+import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.*
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.csek.CsekDaoFake
@@ -28,8 +21,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.random.UuidGeneratorFake
-import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
+import build.wallet.relationships.DelegatedDecryptionKeyFake
+import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -44,7 +37,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
   val csekDao = CsekDaoFake()
   val symmetricKeyEncryptor = SymmetricKeyEncryptorMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
-  val socRecKeysDao = SocRecKeysDaoFake()
+  val relationshipKeysDao = RelationshipsKeysDaoFake()
 
   val accountRestoration =
     AccountRestoration(
@@ -78,7 +71,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
       appPrivateKeyDao = appPrivateKeyDao,
-      socRecKeysDao = socRecKeysDao,
+      relationshipsKeysDao = relationshipKeysDao,
       uuidGenerator = UuidGeneratorFake()
     )
 
@@ -98,7 +91,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
         AppSpendingPublicKeyMock to AppSpendingPrivateKeyMock
       )
     )
-    socRecKeysDao.keys.shouldBeEqual(
+    relationshipKeysDao.keys.shouldBeEqual(
       mapOf(
         SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake
       )

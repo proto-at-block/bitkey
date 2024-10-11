@@ -1,7 +1,7 @@
-use crate::{entities::FullAccount, error::AccountError};
-use types::account::{identifiers::KeysetId, spending::SpendingKeyset};
+use types::account::{entities::FullAccount, identifiers::KeysetId, spending::SpendingKeyset};
 
 use super::{CreateInactiveSpendingKeysetInput, FetchAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn create_inactive_spending_keyset(

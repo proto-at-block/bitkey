@@ -1,6 +1,7 @@
-use crate::{entities::FullAccount, error::AccountError};
+use types::account::entities::FullAccount;
 
 use super::{Service, UpgradeLiteAccountToFullAccountInput};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn upgrade_lite_account_to_full_account(

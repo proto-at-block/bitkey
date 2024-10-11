@@ -10,43 +10,36 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun EnteringInviteCodeBodyModel(
-  value: String = "",
-  onValueChange: (String) -> Unit,
-  primaryButton: ButtonModel,
-  retreat: Retreat,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE,
-  onSwipeToDismiss = retreat.onRetreat,
-  onBack = retreat.onRetreat,
-  toolbar =
-    ToolbarModel(
-      leadingAccessory = retreat.leadingToolbarAccessory
-    ),
-  header =
-    FormHeaderModel(
+data class EnteringInviteCodeBodyModel(
+  val value: String = "",
+  val onValueChange: (String) -> Unit,
+  override val primaryButton: ButtonModel,
+  val retreat: Retreat,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE,
+    onSwipeToDismiss = retreat.onRetreat,
+    onBack = retreat.onRetreat,
+    toolbar = ToolbarModel(leadingAccessory = retreat.leadingToolbarAccessory),
+    header = FormHeaderModel(
       headline = "Enter invite code to accept",
       subline = "Use the code that your Trusted Contact sent you to help safeguard their wallet."
     ),
-  mainContentList =
-    immutableListOf(
+    mainContentList = immutableListOf(
       FormMainContentModel.TextInput(
-        fieldModel =
-          TextFieldModel(
-            value = value,
-            placeholderText = "Invite Code",
-            onValueChange = { newValue, _ ->
-              onValueChange(newValue.replace("-", "").chunked(4).joinToString("-"))
-            },
-            keyboardType = TextFieldModel.KeyboardType.Default,
-            onDone =
-              if (primaryButton.isEnabled) {
-                primaryButton.onClick::invoke
-              } else {
-                null
-              }
-          )
+        fieldModel = TextFieldModel(
+          value = value,
+          placeholderText = "Invite Code",
+          onValueChange = { newValue, _ ->
+            onValueChange(newValue.replace("-", "").chunked(4).joinToString("-"))
+          },
+          keyboardType = TextFieldModel.KeyboardType.Default,
+          onDone = if (primaryButton.isEnabled) {
+            primaryButton.onClick::invoke
+          } else {
+            null
+          }
+        )
       )
     ),
-  primaryButton = primaryButton
-)
+    primaryButton = primaryButton
+  )

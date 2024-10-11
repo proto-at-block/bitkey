@@ -20,37 +20,37 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 /**
  * Content for account access options for the EAK app variant.
  */
-fun EmergencyAccountAccessMoreOptionsFormBodyModel(
-  onBack: () -> Unit,
-  onRestoreEmergencyAccessKit: (() -> Unit),
-) = FormBodyModel(
-  id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
-  onBack = onBack,
-  toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
-  header = FormHeaderModel(
-    headline = "Welcome to Bitkey",
-    subline = "How do you want to get started?"
-  ),
-  mainContentList = immutableListOf(
-    ListGroup(
-      listGroupModel = ListGroupModel(
-        items = immutableListOf(
-          ListItemModel(
-            leadingAccessory = IconAccessory(
-              iconPadding = 12,
-              model = IconModel(
-                icon = Icon.SmallIconRecovery,
-                iconSize = IconSize.Small
-              )
-            ),
-            title = "Import using Emergency Access Kit",
-            onClick = onRestoreEmergencyAccessKit,
-            trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
-          )
-        ),
-        style = ListGroupStyle.CARD_ITEM
+data class EmergencyAccountAccessMoreOptionsFormBodyModel(
+  override val onBack: () -> Unit,
+  val onRestoreEmergencyAccessKit: (() -> Unit),
+) : FormBodyModel(
+    id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
+    header = FormHeaderModel(
+      headline = "Welcome to Bitkey",
+      subline = "How do you want to get started?"
+    ),
+    mainContentList = immutableListOf(
+      ListGroup(
+        listGroupModel = ListGroupModel(
+          items = immutableListOf(
+            ListItemModel(
+              leadingAccessory = IconAccessory(
+                iconPadding = 12,
+                model = IconModel(
+                  icon = Icon.SmallIconRecovery,
+                  iconSize = IconSize.Small
+                )
+              ),
+              title = "Import using Emergency Access Kit",
+              onClick = onRestoreEmergencyAccessKit,
+              trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
+            )
+          ),
+          style = ListGroupStyle.CARD_ITEM
+        )
       )
-    )
-  ),
-  primaryButton = null
-)
+    ),
+    primaryButton = null
+  )

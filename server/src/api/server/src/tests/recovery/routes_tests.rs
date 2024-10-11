@@ -1,20 +1,21 @@
+use axum::body::Body;
+use http::{Method, StatusCode};
+use recovery::routes::relationship::{CreateRelationshipRequest, GetRelationshipsRequest};
+use regex::Regex;
+use rstest::rstest;
+use serde_json::json;
+use types::account::bitcoin::Network;
+use types::account::entities::Account;
+use types::recovery::trusted_contacts::TrustedContactRole;
+use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
+use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
+
 use crate::tests::lib::{create_full_account, create_lite_account};
 use crate::tests::recovery::shared::AccountType;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 use crate::tests::{gen_services, TestContext};
 use crate::Bootstrap;
-use account::entities::Account;
-use axum::body::Body;
-use http::{Method, StatusCode};
-use recovery::routes::{CreateRelationshipRequest, GetRelationshipsRequest};
-use regex::Regex;
-use rstest::rstest;
-use serde_json::json;
-use types::account::bitcoin::Network;
-use types::recovery::trusted_contacts::TrustedContactRole;
-use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
-use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
 
 const VALID_CREATE_RESPONSE_PATTERN: &str = r#"\{"invitation":\{"recovery_relationship_id":"urn:wallet-recovery-relationship:[^"]+","trusted_contact_alias":"some_alias","trusted_contact_roles":__TC_ROLES__,"code":"[a-zA-Z0-9]+","code_bit_length":\d+,"expires_at":"[^"]+"\}\}"#;
 

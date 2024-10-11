@@ -14,10 +14,10 @@ kotlin {
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.cloudBackupPublic)
-        api(projects.shared.featureFlagPublic)
         api(projects.shared.dbResultPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.f8eClientPublic)
+        api(projects.shared.featureFlagPublic)
         api(projects.shared.ktorClientPublic)
         api(projects.shared.timePublic)
         implementation(projects.shared.serializationPublic)
@@ -28,13 +28,6 @@ kotlin {
       dependencies {
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
-      }
-    }
-
-    val commonJvmIntegrationTest by getting {
-      dependencies {
-        implementation(projects.shared.bitcoinFake)
-        implementation(projects.shared.encryptionImpl)
       }
     }
   }

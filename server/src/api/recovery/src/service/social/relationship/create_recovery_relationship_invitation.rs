@@ -1,9 +1,14 @@
-use super::{error::ServiceError, gen_code, gen_expiration, Service};
-use account::entities::FullAccount;
+use notification::payloads::recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload;
+use notification::schedule::ScheduleNotificationType;
+use notification::service::ScheduleNotificationsInput;
+use notification::NotificationPayloadBuilder;
 use tracing::instrument;
+use types::account::entities::FullAccount;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
+
+use super::{error::ServiceError, gen_code, gen_expiration, Service};
 
 mod trusted_contact_limits {
     pub const MAX_BENEFICIARIES: usize = 1;
@@ -63,6 +68,21 @@ impl Service {
         relationship = self
             .repository
             .persist_recovery_relationship(&relationship)
+            .await?;
+
+        self.notification_service
+            .schedule_notifications(ScheduleNotificationsInput {
+                account_id: input.customer_account.id.clone(),
+                notification_type: ScheduleNotificationType::RecoveryRelationshipInvitationPending,
+                payload: NotificationPayloadBuilder::default()
+                    .recovery_relationship_invitation_pending_payload(Some(
+                        RecoveryRelationshipInvitationPendingPayload {
+                            recovery_relationship_id: id,
+                            trusted_contact_alias: input.trusted_contact.alias.clone(),
+                        },
+                    ))
+                    .build()?,
+            })
             .await?;
 
         Ok(relationship)

@@ -1,12 +1,8 @@
 package build.wallet.recovery
 
-import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AccountCreationError
+import build.wallet.auth.*
 import build.wallet.auth.AccountCreationError.AccountCreationAuthError
 import build.wallet.auth.AccountCreationError.AccountCreationDatabaseError.FailedToSaveAuthTokens
-import build.wallet.auth.AppAuthKeyMessageSigner
-import build.wallet.auth.AuthTokenDao
-import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.f8e.FullAccountId
@@ -19,7 +15,7 @@ import build.wallet.f8e.recovery.CompleteDelayNotifyF8eClient
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.time.Delayer
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
@@ -34,7 +30,7 @@ class RecoveryAuthCompleterImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val recoverySyncer: RecoverySyncer,
   private val authTokenDao: AuthTokenDao,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
   private val delayer: Delayer,
 ) : RecoveryAuthCompleter {
   override suspend fun rotateAuthKeys(
@@ -96,7 +92,7 @@ class RecoveryAuthCompleterImpl(
         ).bind()
 
         if (removeProtectedCustomers) {
-          socRecService
+          relationshipsService
             .getRelationshipsWithoutSyncing(
               fullAccountId,
               f8eEnvironment
@@ -104,7 +100,7 @@ class RecoveryAuthCompleterImpl(
             .logFailure { "Error fetching relationships for removal" }
             .onSuccess { relationships ->
               relationships.protectedCustomers.onEach {
-                socRecService.removeRelationshipWithoutSyncing(
+                relationshipsService.removeRelationshipWithoutSyncing(
                   accountId = fullAccountId,
                   f8eEnvironment = f8eEnvironment,
                   hardwareProofOfPossession = null,

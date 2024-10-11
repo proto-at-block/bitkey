@@ -1,6 +1,7 @@
 package build.wallet.bitcoin.utxo
 
 import build.wallet.bitcoin.address.someBitcoinAddress
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.money.BitcoinMoney.Companion.sats
 import io.kotest.assertions.throwables.shouldThrow
@@ -12,10 +13,14 @@ class UtxoConsolidationParamsTests : FunSpec({
       UtxoConsolidationParams(
         type = UtxoConsolidationType.ConsolidateAll,
         targetAddress = someBitcoinAddress,
-        currentUtxoCount = -1,
+        eligibleUtxoCount = -1,
         balance = sats(100),
         consolidationCost = sats(5),
-        appSignedPsbt = PsbtMock
+        appSignedPsbt = PsbtMock,
+        transactionPriority = SIXTY_MINUTES,
+        walletHasUnconfirmedUtxos = false,
+        walletExceedsMaxUtxoCount = false,
+        maxUtxoCount = 150
       )
     }
   }
@@ -25,10 +30,14 @@ class UtxoConsolidationParamsTests : FunSpec({
       UtxoConsolidationParams(
         type = UtxoConsolidationType.ConsolidateAll,
         targetAddress = someBitcoinAddress,
-        currentUtxoCount = 0,
+        eligibleUtxoCount = 0,
         balance = sats(100),
         consolidationCost = sats(5),
-        appSignedPsbt = PsbtMock
+        appSignedPsbt = PsbtMock,
+        transactionPriority = SIXTY_MINUTES,
+        walletHasUnconfirmedUtxos = false,
+        walletExceedsMaxUtxoCount = false,
+        maxUtxoCount = 150
       )
     }
   }
@@ -38,10 +47,14 @@ class UtxoConsolidationParamsTests : FunSpec({
       UtxoConsolidationParams(
         type = UtxoConsolidationType.ConsolidateAll,
         targetAddress = someBitcoinAddress,
-        currentUtxoCount = 1,
+        eligibleUtxoCount = 1,
         balance = sats(100),
         consolidationCost = sats(5),
-        appSignedPsbt = PsbtMock
+        appSignedPsbt = PsbtMock,
+        transactionPriority = SIXTY_MINUTES,
+        walletHasUnconfirmedUtxos = false,
+        walletExceedsMaxUtxoCount = false,
+        maxUtxoCount = 150
       )
     }
   }
@@ -50,10 +63,14 @@ class UtxoConsolidationParamsTests : FunSpec({
     UtxoConsolidationParams(
       type = UtxoConsolidationType.ConsolidateAll,
       targetAddress = someBitcoinAddress,
-      currentUtxoCount = 2,
+      eligibleUtxoCount = 2,
       balance = sats(100),
       consolidationCost = sats(5),
-      appSignedPsbt = PsbtMock
+      appSignedPsbt = PsbtMock,
+      transactionPriority = SIXTY_MINUTES,
+      walletHasUnconfirmedUtxos = false,
+      walletExceedsMaxUtxoCount = false,
+      maxUtxoCount = 150
     )
   }
 })

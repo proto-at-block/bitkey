@@ -3,7 +3,7 @@ package build.wallet.statemachine.trustedcontact
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
 import build.wallet.bitkey.keybox.LiteAccountMock
-import build.wallet.bitkey.socrec.ProtectedCustomerFake
+import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.RELATIONSHIP_ALREADY_ESTABLISHED
@@ -12,7 +12,7 @@ import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.recovery.socrec.*
+import build.wallet.relationships.*
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -29,17 +29,17 @@ import io.ktor.http.HttpStatusCode
 
 class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
 
-  val socRecCrypto = SocRecCryptoFake()
-  val socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
+  val relationshipsCrypto = RelationshipsCryptoFake()
+  val relationshipsKeysRepository = RelationshipsKeysRepository(relationshipsCrypto, RelationshipsKeysDaoFake())
   val eventTracker = EventTrackerMock(turbines::create)
-  val socRecService = SocRecServiceMock(turbines::create)
+  val relationshipsService = RelationshipsServiceMock(turbines::create)
 
   val stateMachine =
     TrustedContactEnrollmentUiStateMachineImpl(
       deviceInfoProvider = DeviceInfoProviderMock(),
-      socRecKeysRepository = socRecKeysRepository,
+      relationshipsKeysRepository = relationshipsKeysRepository,
       eventTracker = eventTracker,
-      socRecService = socRecService
+      relationshipsService = relationshipsService
     )
 
   val propsOnRetreatCalls = turbines.create<Unit>("props onRetreat calls")
@@ -58,13 +58,13 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     )
 
   beforeEach {
-    socRecService.clear()
+    relationshipsService.clear()
 
-    socRecService.retrieveInvitationResult = Ok(IncomingInvitationFake)
-    socRecService.acceptInvitationResult = Ok(ProtectedCustomerFake)
+    relationshipsService.retrieveInvitationResult = Ok(IncomingInvitationFake)
+    relationshipsService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
-  test("happy path").config(invocations = 20) {
+  test("happy path") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
@@ -130,7 +130,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("invalid code") {
-      socRecService.retrieveInvitationResult =
+      relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
@@ -143,7 +143,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("version mismatch") {
-      socRecService.retrieveInvitationResult =
+      relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
@@ -157,7 +157,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("specific client error") {
-      socRecService.retrieveInvitationResult =
+      relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(NOT_FOUND)))
       stateMachine.test(props) {
         progressToRetrievingInvite()
@@ -170,7 +170,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("connectivity") {
-      socRecService.retrieveInvitationResult =
+      relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ConnectivityError()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
@@ -190,7 +190,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("unknown") {
-      socRecService.retrieveInvitationResult =
+      relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ServerError()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
@@ -231,7 +231,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("invalid code") {
-      socRecService.acceptInvitationResult = Err(AcceptInvitationCodeError.InvalidInvitationCode)
+      relationshipsService.acceptInvitationResult = Err(AcceptInvitationCodeError.InvalidInvitationCode)
       stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
@@ -243,7 +243,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("specific client error") {
-      socRecService.acceptInvitationResult = Err(
+      relationshipsService.acceptInvitationResult = Err(
         AcceptInvitationCodeError.F8ePropagatedError(
           SpecificClientErrorMock(RELATIONSHIP_ALREADY_ESTABLISHED)
         )
@@ -259,7 +259,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("connectivity") {
-      socRecService.acceptInvitationResult =
+      relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ConnectivityError()))
       stateMachine.test(props) {
         progressToAcceptingInvite()
@@ -279,7 +279,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("unknown") {
-      socRecService.acceptInvitationResult =
+      relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ServerError()))
       stateMachine.test(props) {
         progressToAcceptingInvite()

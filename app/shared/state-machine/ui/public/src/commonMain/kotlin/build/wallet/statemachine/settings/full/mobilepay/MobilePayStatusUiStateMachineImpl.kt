@@ -36,10 +36,12 @@ class MobilePayStatusUiStateMachineImpl(
     return when (mobilePayData) {
       null -> LoadingMobilePayModel(message = spendingLimitsCopy.loadingStatus)
       is MobilePayEnabledData -> MobilePayEnabledModel(
-        props,
-        mobilePayData,
-        spendingLimitsCopy.disableAlert.title,
-        spendingLimitsCopy.disableAlert.subline
+        props = props,
+        mobilePayData = mobilePayData,
+        disableTitle = spendingLimitsCopy.disableAlert.title,
+        disableSubline = spendingLimitsCopy.disableAlert.subline,
+        disablePrimaryButtonText = spendingLimitsCopy.disableAlert.primaryButtonText,
+        disableCancelText = spendingLimitsCopy.disableAlert.cancelText
       )
       is MobilePayDisabledData -> MobilePayDisabledModel(props, fiatCurrency, mobilePayData)
     }
@@ -58,6 +60,8 @@ class MobilePayStatusUiStateMachineImpl(
     mobilePayData: MobilePayEnabledData,
     disableTitle: String,
     disableSubline: String,
+    disablePrimaryButtonText: String,
+    disableCancelText: String,
   ): MobilePayStatusModel {
     var confirmingCancellation by remember { mutableStateOf(false) }
     val scope = rememberStableCoroutineScope()
@@ -84,6 +88,8 @@ class MobilePayStatusUiStateMachineImpl(
             disableMobilePayAlertModel(
               title = disableTitle,
               subline = disableSubline,
+              primaryButtonText = disablePrimaryButtonText,
+              cancelText = disableCancelText,
               onConfirm = {
                 scope.launch {
                   mobilePayService.disable(props.accountData.account)

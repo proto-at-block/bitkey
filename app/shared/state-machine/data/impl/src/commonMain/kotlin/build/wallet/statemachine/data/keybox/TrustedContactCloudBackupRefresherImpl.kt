@@ -20,19 +20,10 @@ import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.NeedsUpdate
 import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.UpToDate
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -57,7 +48,7 @@ class TrustedContactCloudBackupRefresherImpl(
   ) {
     scope.launch {
       combine(
-        socRecService.relationships
+        socRecService.socRecRelationships
           .filterNotNull()
           // Only endorsed and verified trusted contacts are interesting for cloud backups.
           .map {
@@ -68,7 +59,7 @@ class TrustedContactCloudBackupRefresherImpl(
           .backup(accountId = fullAccount.accountId.serverId)
           .distinctUntilChanged()
       ) { trustedContacts, cloudBackup ->
-        coroutineBinding<Unit, Error> {
+        coroutineBinding {
           val storedBackupState =
             cloudBackup.getStoredBackupState(trustedContacts)
               .bind()

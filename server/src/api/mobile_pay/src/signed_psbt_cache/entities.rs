@@ -38,22 +38,3 @@ impl CachedPsbt {
         })
     }
 }
-
-impl From<NonBase64CachedPsbt> for CachedPsbt {
-    fn from(non_base64_cached_psbt: NonBase64CachedPsbt) -> Self {
-        Self {
-            txid: non_base64_cached_psbt.txid,
-            psbt: non_base64_cached_psbt.psbt,
-            expiring_at: non_base64_cached_psbt.expiring_at,
-        }
-    }
-}
-
-/// For backwards compatibility, we need to support non-base64 encoded psbts
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NonBase64CachedPsbt {
-    pub txid: Txid,
-    pub psbt: Psbt,
-    #[serde(serialize_with = "serialize_ts", deserialize_with = "deserialize_ts")]
-    pub expiring_at: OffsetDateTime,
-}

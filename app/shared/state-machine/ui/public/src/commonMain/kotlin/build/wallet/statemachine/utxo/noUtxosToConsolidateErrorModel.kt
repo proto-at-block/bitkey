@@ -15,7 +15,7 @@ internal fun noUtxosToConsolidateErrorModel(onBack: () -> Unit): FormBodyModel {
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack)
     ),
-    title = "There are no UTXOs to consolidate in this wallet",
+    title = "There are no confirmed UTXOs to consolidate in this wallet",
     primaryButton = ButtonDataModel(
       text = "Got it",
       onClick = onBack

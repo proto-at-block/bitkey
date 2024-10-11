@@ -1,8 +1,5 @@
 use std::str::FromStr;
 
-use http::StatusCode;
-
-use account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use authn_authz::routes::{
     AuthRequestKey, AuthenticateWithHardwareRequest, AuthenticationRequest,
     ChallengeResponseParameters, GetTokensRequest,
@@ -11,8 +8,9 @@ use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::secp256k1::{Message, Secp256k1};
 use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
-
+use types::account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use types::account::identifiers::AccountId;
 
 use crate::tests;

@@ -6,6 +6,7 @@ use axum::{
 };
 use bdk_utils::bdk::descriptor::ExtendedDescriptor;
 use errors::ApiError;
+use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use types::account::identifiers::AccountId;
@@ -14,8 +15,8 @@ use utoipa::ToSchema;
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub AccountService);
 
-impl RouteState {
-    pub fn account_or_recovery_authed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn account_or_recovery_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/descriptors",

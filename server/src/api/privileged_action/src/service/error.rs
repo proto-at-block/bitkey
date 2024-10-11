@@ -1,6 +1,9 @@
 use errors::ApiError;
 use thiserror::Error;
-use types::{account::AccountType, privileged_action::shared::PrivilegedActionType};
+use types::{
+    account::{errors::AccountError, AccountType},
+    privileged_action::shared::PrivilegedActionType,
+};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -50,6 +53,12 @@ pub enum ServiceError {
 
     #[error("Cannot have multiple concurrent privileged action instances of type {0}")]
     MultipleConcurrentInstancesConflict(PrivilegedActionType),
+}
+
+impl From<AccountError> for ServiceError {
+    fn from(value: AccountError) -> Self {
+        ApiError::GenericInternalApplicationError(value.to_string()).into()
+    }
 }
 
 impl From<ServiceError> for ApiError {

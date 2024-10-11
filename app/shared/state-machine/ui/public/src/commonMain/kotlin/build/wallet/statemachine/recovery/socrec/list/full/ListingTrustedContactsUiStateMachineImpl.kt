@@ -24,7 +24,7 @@ class ListingTrustedContactsUiStateMachineImpl(
   override fun model(props: ListingTrustedContactsUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingListState) }
 
-    val socRecRelationships by remember { socRecService.relationships }
+    val socRecRelationships by remember { socRecService.socRecRelationships }
       .collectAsState()
 
     val screenBody =

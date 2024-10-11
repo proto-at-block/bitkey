@@ -104,7 +104,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
       is DisablingNotificationChannelProofOfHwPossessionUiState ->
         return NotificationOperationApprovalInstructionsFormScreenModel(
           onExit = { state = ShowingNotificationsSettingsUiState() },
-          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(
+          operationDescription = stateVal.notificationChannel.disableOperationDescription(
             notificationTouchpointData
           ),
           isApproveButtonLoading = false,
@@ -277,7 +277,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
             // but with the button in a loading state
             NotificationOperationApprovalInstructionsFormScreenModel(
               onExit = onBack,
-              operationDescriptiton = operationDescriptiton,
+              operationDescription = operationDescriptiton,
               isApproveButtonLoading = true,
               errorBottomSheetState = NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Hidden,
               onApprove = {
@@ -291,7 +291,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
             // but with the error bottom sheet showing
             NotificationOperationApprovalInstructionsFormScreenModel(
               onExit = onBack,
-              operationDescriptiton = operationDescriptiton,
+              operationDescription = operationDescriptiton,
               isApproveButtonLoading = false,
               errorBottomSheetState =
                 NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Showing(

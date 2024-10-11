@@ -9,7 +9,7 @@ final class DelayAndNotifyRecoverySnapshotTests: XCTestCase {
 
     func test_dn_new_key_ready_app() {
         let view = FormView(
-            viewModel: RecoverYourMobileKeyBodyModelKt.DelayAndNotifyNewKeyReady(
+            viewModel: SnapshotTestModels.shared.CreateDelayAndNotifyNewKeyReady(
                 factorToRecover: .app,
                 onStopRecovery: {},
                 onCompleteRecovery: {}
@@ -20,7 +20,7 @@ final class DelayAndNotifyRecoverySnapshotTests: XCTestCase {
 
     func test_dn_new_key_ready_hardware() {
         let view = FormView(
-            viewModel: RecoverYourMobileKeyBodyModelKt.DelayAndNotifyNewKeyReady(
+            viewModel: SnapshotTestModels.shared.CreateDelayAndNotifyNewKeyReady(
                 factorToRecover: .hardware,
                 onStopRecovery: {},
                 onCompleteRecovery: {}

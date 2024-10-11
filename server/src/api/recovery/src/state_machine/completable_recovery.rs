@@ -1,10 +1,8 @@
-use account::entities::Factor;
-use account::entities::FullAccount;
-use account::entities::FullAccountAuthKeysPayload;
 use account::service::ClearPushTouchpointsInput;
 use account::service::CreateAndRotateAuthKeysInput;
 use async_trait::async_trait;
 use instrumentation::metrics::KeyValue;
+use types::account::entities::{Factor, FullAccount, FullAccountAuthKeysPayload};
 
 use super::{
     rotated_keyset::RotatedKeysetState, RecoveryEvent, RecoveryServices, RecoveryStateResponse,

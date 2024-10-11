@@ -10,4 +10,9 @@ interface ExchangeRateService {
    * Emits latest local [ExchangeRate] value, periodically updated by [ExchangeRateSyncWorker].
    */
   val exchangeRates: StateFlow<List<ExchangeRate>>
+
+  /**
+   * Requests a sync of remote exchange rates.
+   */
+  suspend fun requestSync()
 }

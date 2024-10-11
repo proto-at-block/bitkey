@@ -39,20 +39,31 @@ fun BuyOrTransferModel(
       style = CARD_ITEM
     )
   return SheetModel(
-    body =
-      FormBodyModel(
-        onBack = onBack,
-        header = null,
-        toolbar =
-          ToolbarModel(
-            middleAccessory = ToolbarMiddleAccessoryModel(title = "Add bitcoin")
-          ),
-        mainContentList = immutableListOf(ListGroup(listGroupModel)),
-        primaryButton = null,
-        id = PARTNERS_DEPOSIT_OPTIONS,
-        renderContext = Sheet
-      ),
+    body = BuyOrTransferBodyModel(
+      listGroupModel = listGroupModel,
+      onPurchase = onPurchase,
+      onTransfer = onTransfer,
+      onBack = onBack
+    ),
     dragIndicatorVisible = true,
     onClosed = onBack
   )
 }
+
+private data class BuyOrTransferBodyModel(
+  val listGroupModel: ListGroupModel,
+  val onPurchase: () -> Unit,
+  val onTransfer: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    onBack = onBack,
+    header = null,
+    toolbar =
+      ToolbarModel(
+        middleAccessory = ToolbarMiddleAccessoryModel(title = "Add bitcoin")
+      ),
+    mainContentList = immutableListOf(ListGroup(listGroupModel)),
+    primaryButton = null,
+    id = PARTNERS_DEPOSIT_OPTIONS,
+    renderContext = Sheet
+  )

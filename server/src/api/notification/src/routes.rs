@@ -11,7 +11,10 @@ use axum::{
 };
 use axum_extra::TypedHeader;
 use errors::ApiError;
-use http_server::swagger::{SwaggerEndpoint, Url};
+use http_server::{
+    router::RouterBuilder,
+    swagger::{SwaggerEndpoint, Url},
+};
 use instrumentation::metrics::KeyValue;
 
 use serde::{Deserialize, Serialize};
@@ -48,14 +51,15 @@ pub struct RouteState(
     pub UserPoolService,
 );
 
-impl RouteState {
-    pub fn unauthed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route("/api/twilio/status-callback", post(twilio_status_callback))
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
-    pub fn authed_router(&self) -> Router {
+
+    fn account_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/notifications/test",

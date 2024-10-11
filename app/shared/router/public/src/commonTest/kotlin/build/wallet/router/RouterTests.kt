@@ -57,6 +57,25 @@ class RouterTests : DescribeSpec({
         val route = Route.fromUrl("https://bitkey.world/links/app?context=other_context")
         route.shouldBe(null)
       }
+
+      it("parses Sale link") {
+        val stagingRoute = Route.fromUrl("https://web-site.bitkeystaging.com/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
+        val prodRoute = Route.fromUrl("https://bitkey.world/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
+        stagingRoute.shouldNotBeNull().shouldBe(
+          Route.PartnerSaleDeeplink(
+            partner = "test_partner",
+            event = "test_event",
+            partnerTransactionId = "test_id"
+          )
+        )
+        prodRoute.shouldNotBeNull().shouldBe(
+          Route.PartnerSaleDeeplink(
+            partner = "test_partner",
+            event = "test_event",
+            partnerTransactionId = "test_id"
+          )
+        )
+      }
     }
   }
 

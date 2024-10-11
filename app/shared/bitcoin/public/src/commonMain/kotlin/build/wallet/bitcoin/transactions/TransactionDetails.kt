@@ -34,4 +34,10 @@ sealed interface TransactionDetails {
     override val feeAmount: BitcoinMoney,
     val oldFeeAmount: BitcoinMoney,
   ) : TransactionDetails
+
+  data class Sell(
+    override val transferAmount: BitcoinMoney,
+    override val feeAmount: BitcoinMoney,
+    val estimatedTransactionPriority: EstimatedTransactionPriority,
+  ) : TransactionDetails
 }

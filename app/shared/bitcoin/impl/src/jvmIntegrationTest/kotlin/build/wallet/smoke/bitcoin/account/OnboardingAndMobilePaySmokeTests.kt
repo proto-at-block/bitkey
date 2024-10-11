@@ -43,7 +43,7 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
       keyboxWallet.sync().shouldBeOk()
 
       println("Setting up Quickpay for $100")
-      appTester.setupMobilePay(account, FiatMoney.usd(100.0))
+      appTester.setupMobilePay(FiatMoney.usd(100.0))
 
       /**
        * Send the money back to the treasury
@@ -59,7 +59,7 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
             )
           ).getOrThrow()
 
-      val serverSignedPsbt = mobilePaySigningF8eClient.signWithSpecificKeyset(
+      val serverSignedPsbt = appComponent.mobilePaySigningF8eClient.signWithSpecificKeyset(
         account.config.f8eEnvironment,
         account.accountId,
         account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,

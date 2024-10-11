@@ -10,7 +10,6 @@ import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.f8e.socrec.SocRecF8eClientImpl
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeInstanceOf
-import kotlinx.coroutines.test.TestScope
 
 class SocialRecoveryF8eClientProviderImplTests : FunSpec({
   val accountService = AccountServiceFake()
@@ -20,8 +19,7 @@ class SocialRecoveryF8eClientProviderImplTests : FunSpec({
     f8eHttpClient = F8eHttpClientMock(WsmVerifierMock())
   )
   val socRecFake = SocRecF8eClientFake(
-    uuidGenerator = { "fake-uuid" },
-    backgroundScope = TestScope()
+    uuidGenerator = { "fake-uuid" }
   )
   val provider = SocRecF8eClientProviderImpl(
     accountService,

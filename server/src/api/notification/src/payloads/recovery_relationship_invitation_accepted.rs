@@ -39,11 +39,11 @@ impl
 
         let (email_payload, push_payload, sms_payload) = if payload
             .trusted_contact_roles
-            .contains(&TrustedContactRole::SocialRecoveryContact)
+            .contains(&TrustedContactRole::Beneficiary)
         {
-            payloads_for_social_recovery_contact(payload.trusted_contact_alias)
+            payloads_for_inheritance(payload.trusted_contact_alias)
         } else {
-            payloads_for_beneficiary(payload.trusted_contact_alias)
+            payloads_for_social_recovery(payload.trusted_contact_alias)
         };
 
         Ok(NotificationMessage {
@@ -56,7 +56,7 @@ impl
     }
 }
 
-fn payloads_for_social_recovery_contact(
+fn payloads_for_social_recovery(
     trusted_contact_alias: String,
 ) -> (
     Option<EmailPayload>,
@@ -90,7 +90,7 @@ fn payloads_for_social_recovery_contact(
     (email_payload, push_payload, sms_payload)
 }
 
-fn payloads_for_beneficiary(
+fn payloads_for_inheritance(
     trusted_contact_alias: String,
 ) -> (
     Option<EmailPayload>,

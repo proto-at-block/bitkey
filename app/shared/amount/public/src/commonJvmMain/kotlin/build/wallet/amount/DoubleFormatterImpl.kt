@@ -7,7 +7,7 @@ import java.util.Locale
 actual class DoubleFormatterImpl actual constructor(
   private val localeIdentifierProvider: LocaleIdentifierProvider,
 ) : DoubleFormatter {
-  override fun format(
+  actual override fun format(
     double: Double,
     minimumFractionDigits: Int,
     maximumFractionDigits: Int,
@@ -22,7 +22,7 @@ actual class DoubleFormatterImpl actual constructor(
     return formatter.format(double)
   }
 
-  override fun parse(string: String): Double? {
+  actual override fun parse(string: String): Double? {
     return DecimalFormat.getInstance(locale)
       .parse(string)?.toDouble()
   }

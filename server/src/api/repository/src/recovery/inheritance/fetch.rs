@@ -6,7 +6,6 @@ use database::{
     },
     ddb::{try_from_item, try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
-
 use serde::Serialize;
 use tracing::{event, instrument, Level};
 use types::recovery::{

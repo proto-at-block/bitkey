@@ -1,8 +1,8 @@
+use crate::recovery::social::relationship::RecoveryRelationshipId;
+use bdk_utils::bdk::descriptor::ExtendedDescriptor;
 use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, OffsetDateTime};
 use utoipa::ToSchema;
-
-use crate::recovery::social::relationship::RecoveryRelationshipId;
 
 use super::claim::{InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId};
 
@@ -40,6 +40,13 @@ pub struct BenefactorInheritanceClaimViewCanceled {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct BenefactorInheritanceClaimViewLocked {
+    #[serde(flatten)]
+    pub common_fields: InheritanceClaimViewCommonFields,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct BeneficiaryInheritanceClaimViewPending {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimViewCommonFields,
@@ -57,10 +64,21 @@ pub struct BeneficiaryInheritanceClaimViewCanceled {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct BeneficiaryInheritanceClaimViewLocked {
+    #[serde(flatten)]
+    pub common_fields: InheritanceClaimViewCommonFields,
+    pub sealed_dek: String,
+    pub sealed_mobile_key: String,
+    pub benefactor_descriptor_keyset: ExtendedDescriptor,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BenefactorInheritanceClaimView {
     Pending(BenefactorInheritanceClaimViewPending),
     Canceled(BenefactorInheritanceClaimViewCanceled),
+    Locked(BenefactorInheritanceClaimViewLocked),
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -68,6 +86,7 @@ pub enum BenefactorInheritanceClaimView {
 pub enum BeneficiaryInheritanceClaimView {
     Pending(BeneficiaryInheritanceClaimViewPending),
     Canceled(BeneficiaryInheritanceClaimViewCanceled),
+    Locked(BeneficiaryInheritanceClaimViewLocked),
 }
 
 impl From<InheritanceClaim> for BenefactorInheritanceClaimView {
@@ -90,6 +109,14 @@ impl From<InheritanceClaim> for BenefactorInheritanceClaimView {
                     common_fields: InheritanceClaimViewCommonFields {
                         id: canceled.common_fields.id,
                         recovery_relationship_id: canceled.common_fields.recovery_relationship_id,
+                    },
+                })
+            }
+            InheritanceClaim::Locked(locked) => {
+                BenefactorInheritanceClaimView::Locked(BenefactorInheritanceClaimViewLocked {
+                    common_fields: InheritanceClaimViewCommonFields {
+                        id: locked.common_fields.id,
+                        recovery_relationship_id: locked.common_fields.recovery_relationship_id,
                     },
                 })
             }
@@ -120,6 +147,17 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                         id: canceled.common_fields.id,
                         recovery_relationship_id: canceled.common_fields.recovery_relationship_id,
                     },
+                })
+            }
+            InheritanceClaim::Locked(locked) => {
+                BeneficiaryInheritanceClaimView::Locked(BeneficiaryInheritanceClaimViewLocked {
+                    common_fields: InheritanceClaimViewCommonFields {
+                        id: locked.common_fields.id,
+                        recovery_relationship_id: locked.common_fields.recovery_relationship_id,
+                    },
+                    sealed_dek: locked.sealed_dek,
+                    sealed_mobile_key: locked.sealed_mobile_key,
+                    benefactor_descriptor_keyset: locked.benefactor_descriptor_keyset,
                 })
             }
         }

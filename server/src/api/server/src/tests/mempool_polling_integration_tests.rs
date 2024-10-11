@@ -1,13 +1,9 @@
-use crate::{
-    tests::{
-        gen_services_with_overrides,
-        lib::{create_default_account_with_predefined_wallet, create_full_account},
-        requests::{axum::TestClient, worker::TestWorker},
-    },
-    GenServiceOverrides,
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
 };
-use account::entities::FullAccount;
-use account::{entities::TouchpointPlatform, service::AddPushTouchpointToAccountInput};
+
+use account::service::AddPushTouchpointToAccountInput;
 use bdk_utils::bdk::bitcoin::{Network, Txid};
 use httpmock::prelude::*;
 use mempool_indexer::{
@@ -19,14 +15,20 @@ use notification::service::FetchForAccountInput;
 use notification::service::Service as NotificationService;
 use notification::NotificationPayloadType;
 use serde_json::json;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
 use time::{Duration, OffsetDateTime};
+use types::account::entities::{FullAccount, TouchpointPlatform};
 use types::{
     account::identifiers::{AccountId, KeysetId},
     notification::{NotificationChannel, NotificationsPreferences},
+};
+
+use crate::{
+    tests::{
+        gen_services_with_overrides,
+        lib::{create_default_account_with_predefined_wallet, create_full_account},
+        requests::{axum::TestClient, worker::TestWorker},
+    },
+    GenServiceOverrides,
 };
 
 struct MempoolPollingMockData<'a> {
@@ -577,6 +579,8 @@ async fn setup_full_accounts_and_server(
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
         privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
+        inheritance_repository: bootstrap.services.inheritance_repository.clone(),
+        social_recovery_repository: bootstrap.services.social_recovery_repository.clone(),
     };
     state
         .account_service

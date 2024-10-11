@@ -35,48 +35,69 @@ fun VerificationCodeInputBodyModel(
   onBack: () -> Unit,
   id: EventTrackerScreenId?,
 ) = ScreenModel(
-  body =
-    FormBodyModel(
-      id = id,
-      onBack = onBack,
-      toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-      header = FormHeaderModel(headline = title, subline = subtitle),
-      mainContentList =
-        buildImmutableList {
-          add(
-            VerificationCodeInput(
-              fieldModel =
-                TextFieldModel(
-                  value = value,
-                  placeholderText = "Verification code",
-                  onValueChange = { newValue, _ -> onValueChange(newValue) },
-                  keyboardType = Number,
-                  masksText = false
-                ),
-              resendCodeContent = resendCodeContent,
-              skipForNowContent = skipForNowContent
-            )
-          )
-          explainerText?.let {
-            add(
-              Explainer(
-                items =
-                  immutableListOf(
-                    Statement(
-                      leadingIcon = Icon.SmallIconWarning,
-                      title = null,
-                      body = explainerText
-                    )
-                  )
-              )
-            )
-          }
-        },
-      primaryButton = null
-    ),
+  body = VerificationCodeInputFormBodyModel(
+    title = title,
+    subtitle = subtitle,
+    value = value,
+    resendCodeContent = resendCodeContent,
+    skipForNowContent = skipForNowContent,
+    explainerText = explainerText,
+    onValueChange = onValueChange,
+    onBack = onBack,
+    id = id
+  ),
   presentationStyle = ScreenPresentationStyle.Modal,
   bottomSheetModel = errorOverlay
 )
+
+private data class VerificationCodeInputFormBodyModel(
+  val title: String,
+  val subtitle: String,
+  val value: String,
+  val resendCodeContent: ResendCodeContent,
+  val skipForNowContent: SkipForNowContent,
+  val explainerText: String?,
+  val onValueChange: (String) -> Unit,
+  override val onBack: () -> Unit,
+  override val id: EventTrackerScreenId?,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
+    header = FormHeaderModel(headline = title, subline = subtitle),
+    mainContentList =
+      buildImmutableList {
+        add(
+          VerificationCodeInput(
+            fieldModel =
+              TextFieldModel(
+                value = value,
+                placeholderText = "Verification code",
+                onValueChange = { newValue, _ -> onValueChange(newValue) },
+                keyboardType = Number,
+                masksText = false
+              ),
+            resendCodeContent = resendCodeContent,
+            skipForNowContent = skipForNowContent
+          )
+        )
+        explainerText?.let {
+          add(
+            Explainer(
+              items =
+                immutableListOf(
+                  Statement(
+                    leadingIcon = Icon.SmallIconWarning,
+                    title = null,
+                    body = explainerText
+                  )
+                )
+            )
+          )
+        }
+      },
+    primaryButton = null
+  )
 
 fun ResendCodeErrorSheet(
   isConnectivityError: Boolean,

@@ -1,15 +1,12 @@
 use tracing::{event, Level};
+use types::account::entities::{CommonAccountFields, Touchpoint};
 use types::account::identifiers::TouchpointId;
-
-use crate::{
-    entities::{CommonAccountFields, Touchpoint},
-    error::AccountError,
-};
 
 use super::{
     FetchOrCreateEmailTouchpointInput, FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput,
     Service,
 };
+use crate::error::AccountError;
 
 impl Service {
     pub async fn fetch_touchpoint_by_id(

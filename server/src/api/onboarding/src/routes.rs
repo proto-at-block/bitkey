@@ -2,10 +2,20 @@ use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
+use account::service::CreateSoftwareAccountInput;
+use account::service::{
+    ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
+    CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
+    DeleteAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
+    FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput,
+    PutInactiveSpendingDistributedKeyInput, RotateToSpendingKeyDefinitionInput,
+    RotateToSpendingKeysetInput, Service as AccountService, UpgradeLiteAccountToFullAccountInput,
+};
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
 };
+use authn_authz::key_claims::KeyClaims;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{
@@ -18,41 +28,6 @@ use axum_extra::{
 };
 use bdk_utils::generate_electrum_rpc_uris;
 use bdk_utils::{bdk::miniscript::ToPublicKey, error::BdkUtilError};
-use crypto::frost::KeyCommitments;
-use experimentation::claims::ExperimentationClaims;
-use isocountry::CountryCode;
-use notification::entities::NotificationTouchpoint;
-use privileged_action::service::authorize_privileged_action::{
-    AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
-    PrivilegedActionRequestValidatorBuilder,
-};
-use regex::Regex;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use time::Duration;
-use tracing::{error, event, instrument, Level};
-use types::account::spending::SpendingKeyDefinition;
-use userpool::userpool::UserPoolService;
-use utoipa::{OpenApi, ToSchema};
-
-use account::service::{
-    ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
-    CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
-    DeleteAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
-    FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput,
-    PutInactiveSpendingDistributedKeyInput, RotateToSpendingKeyDefinitionInput,
-    RotateToSpendingKeysetInput, Service as AccountService, UpgradeLiteAccountToFullAccountInput,
-};
-use account::{
-    entities::{
-        Account, CommsVerificationScope, FullAccountAuthKeysPayload as FullAccountAuthKeysRequest,
-        Keyset, LiteAccount, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
-        SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
-        Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
-    },
-    service::CreateSoftwareAccountInput,
-};
-use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
     bdk::{
         bitcoin::{secp256k1::PublicKey, Network},
@@ -64,15 +39,36 @@ use comms_verification::{
     ConsumeVerificationForScopeInput, InitiateVerificationForScopeInput,
     Service as CommsVerificationService, VerifyForScopeInput,
 };
+use crypto::frost::KeyCommitments;
 use errors::{ApiError, ErrorCode, RouteError};
+use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
 use feature_flags::service::Service as FeatureFlagsService;
-use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::swagger::{SwaggerEndpoint, Url};
+use http_server::{middlewares::identifier_generator::IdentifierGenerator, router::RouterBuilder};
+use isocountry::CountryCode;
 use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
+use notification::entities::NotificationTouchpoint;
+use once_cell::sync::Lazy;
+use privileged_action::service::authorize_privileged_action::{
+    AuthorizePrivilegedActionInput, AuthorizePrivilegedActionOutput,
+    PrivilegedActionRequestValidatorBuilder,
+};
 use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::RecoveryRepository;
+use regex::Regex;
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use time::Duration;
+use tracing::{error, event, instrument, Level};
+use types::account::entities::{
+    Account, CommsVerificationScope, FullAccountAuthKeysPayload as FullAccountAuthKeysRequest,
+    Keyset, LiteAccount, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
+    SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest, SpendingKeysetRequest,
+    Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+};
+use types::account::spending::SpendingKeyDefinition;
 use types::{
     account::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
@@ -89,11 +85,12 @@ use types::{
         shared::PrivilegedActionType,
     },
 };
+use userpool::userpool::UserPoolService;
+use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
 use crate::{create_touchpoint_iterable_user, metrics, upsert_account_iterable_user};
-use once_cell::sync::Lazy;
 
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
@@ -126,8 +123,8 @@ pub struct RouteState(
     pub PrivilegedActionService,
 );
 
-impl RouteState {
-    pub fn unauthed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route("/api/accounts", post(create_account))
             .route("/api/bdk-configuration", get(get_bdk_config))
@@ -136,7 +133,7 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn authed_router(&self) -> Router {
+    fn account_authed_router(&self) -> Router {
         Router::new()
             .route("/api/accounts/:account_id", get(account_status))
             .route("/api/accounts/:account_id", delete(delete_account))
@@ -182,14 +179,14 @@ impl RouteState {
             .with_state(self.to_owned())
     }
 
-    pub fn recovery_authed_router(&self) -> Router {
+    fn recovery_authed_router(&self) -> Router {
         Router::new()
             .route("/api/accounts/:account_id/upgrade", post(upgrade_account))
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
 
-    pub fn account_or_recovery_authed_router(&self) -> Router {
+    fn account_or_recovery_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/device-token",
@@ -1982,13 +1979,13 @@ async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &String)
 mod tests {
     use std::str::FromStr;
 
-    use account::entities::{
-        FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
-        SpendingKeysetRequest,
-    };
     use bdk_utils::bdk::{
         bitcoin::{key::Secp256k1, secp256k1::rand::thread_rng, Network},
         keys::DescriptorPublicKey,
+    };
+    use types::account::entities::{
+        FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
+        SpendingKeysetRequest,
     };
 
     use super::CreateAccountRequest;

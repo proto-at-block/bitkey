@@ -16,20 +16,18 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onRemove Invoked when the user confirms they want to try and  remove the trusted contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
-fun RemoveTrustedContactBodyModel(
-  trustedContactAlias: TrustedContactAlias,
-  isExpiredInvitation: Boolean,
-  onRemove: () -> Unit,
-  onClosed: () -> Unit,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REMOVAL_CONFIRMATION,
-  onBack = onClosed,
-  toolbar =
-    ToolbarModel(
+data class RemoveTrustedContactBodyModel(
+  val trustedContactAlias: TrustedContactAlias,
+  val isExpiredInvitation: Boolean,
+  val onRemove: () -> Unit,
+  val onClosed: () -> Unit,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REMOVAL_CONFIRMATION,
+    onBack = onClosed,
+    toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onClosed)
     ),
-  header =
-    if (isExpiredInvitation) {
+    header = if (isExpiredInvitation) {
       FormHeaderModel(
         headline = "Your invitation to ${trustedContactAlias.alias} to be a Trusted Contact has expired.",
         alignment = FormHeaderModel.Alignment.LEADING
@@ -41,14 +39,13 @@ fun RemoveTrustedContactBodyModel(
         alignment = FormHeaderModel.Alignment.LEADING
       )
     },
-  primaryButton =
-    ButtonModel(
+    primaryButton = ButtonModel(
       text = "Remove Trusted Contact",
       requiresBitkeyInteraction = isExpiredInvitation,
       treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,
       onClick = onRemove
     ),
-  secondaryButton = null,
-  renderContext = RenderContext.Screen
-)
+    secondaryButton = null,
+    renderContext = RenderContext.Screen
+  )

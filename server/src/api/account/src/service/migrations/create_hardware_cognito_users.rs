@@ -1,13 +1,9 @@
 use async_trait::async_trait;
-
 use migration::{Migration, MigrationError};
-
+use types::account::entities::{Account, Touchpoint};
 use userpool::userpool::UserPoolService;
 
-use crate::{
-    entities::{Account, Touchpoint},
-    service::Service as AccountService,
-};
+use crate::service::Service as AccountService;
 
 pub(crate) struct CreateHardwareCognitoUsers<'a> {
     account_service: &'a AccountService,

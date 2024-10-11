@@ -1,0 +1,16 @@
+import build.wallet.bitkey.inheritance.InheritanceMaterialHash;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE inheritanceDataEntity(
+    rowId INTEGER NOT NULL PRIMARY KEY,
+    lastSyncHash INTEGER AS InheritanceMaterialHash NOT NULL,
+    lastSyncTimestamp INTEGER AS Instant NOT NULL
+);
+
+updateHash:
+INSERT OR REPLACE INTO inheritanceDataEntity(rowId, lastSyncHash, lastSyncTimestamp)
+VALUES(0, ?, ?);
+
+getSyncHash:
+SELECT lastSyncHash FROM inheritanceDataEntity
+WHERE rowId = 0;

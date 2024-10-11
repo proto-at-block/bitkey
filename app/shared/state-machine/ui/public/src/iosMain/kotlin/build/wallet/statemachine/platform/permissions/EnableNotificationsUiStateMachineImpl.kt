@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
@@ -24,6 +25,7 @@ import build.wallet.statemachine.platform.permissions.NotificationRationale.Reco
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
@@ -71,23 +73,18 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       Recovery -> "You'll be notified with any updates to the status of your Bitkey recovery."
     }
     val subline = if (uiState == OpenSettingsUiState) {
-      val sublineSuffix = "Open your settings to change notification permissions for the Bitkey app."
+      val sublineSuffix =
+        "Open your settings to change notification permissions for the Bitkey app."
       "$sublineMessage $sublineSuffix"
     } else {
       sublineMessage
     }
 
-    return FormBodyModel(
-      id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
+    return EnableNotificationsBodyModel(
       eventTrackerContext = props.eventTrackerContext,
       onBack = props.retreat.onRetreat,
-      toolbar =
-        ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory),
-      header =
-        FormHeaderModel(
-          headline = "Enable Push Notifications on this Phone.",
-          subline = subline
-        ),
+      subline = subline,
+      leadingToolbarAccessory = props.retreat.leadingToolbarAccessory,
       primaryButton =
         when (uiState) {
           LoadingUiState ->
@@ -157,3 +154,22 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
     data object ShowingSystemPermissionsUiState : UiState
   }
 }
+
+private data class EnableNotificationsBodyModel(
+  override val eventTrackerContext: EventTrackerContext,
+  override val onBack: () -> Unit,
+  override val primaryButton: ButtonModel,
+  val leadingToolbarAccessory: ToolbarAccessoryModel,
+  val subline: String,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
+    eventTrackerContext = eventTrackerContext,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = leadingToolbarAccessory),
+    header =
+      FormHeaderModel(
+        headline = "Enable Push Notifications on this Phone.",
+        subline = subline
+      ),
+    primaryButton = primaryButton
+  )

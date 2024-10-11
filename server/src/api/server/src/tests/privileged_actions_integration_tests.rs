@@ -1,7 +1,6 @@
 use std::panic;
 use std::sync::Arc;
 
-use account::entities::Account;
 use http::StatusCode;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
@@ -13,6 +12,7 @@ use privileged_action::routes::{
     GetPrivilegedActionDefinitionsResponse,
 };
 use time::OffsetDateTime;
+use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 use types::privileged_action::definition::AuthorizationStrategyDefinition;
 use types::privileged_action::router::generic::{
@@ -23,14 +23,13 @@ use types::privileged_action::router::generic::{
 use types::privileged_action::shared::{PrivilegedActionDelayDuration, PrivilegedActionInstanceId};
 use types::{account::AccountType, privileged_action::shared::PrivilegedActionType};
 
+use super::TestContext;
+use super::{lib::create_software_account, requests::CognitoAuthentication};
 use crate::tests;
 use crate::tests::gen_services_with_overrides;
 use crate::tests::lib::{create_account, create_phone_touchpoint, OffsetClock};
 use crate::tests::requests::axum::TestClient;
 use crate::GenServiceOverrides;
-
-use super::TestContext;
-use super::{lib::create_software_account, requests::CognitoAuthentication};
 
 async fn get_privileged_action_definitions(
     context: &mut TestContext,

@@ -2,10 +2,10 @@ package build.wallet.recovery.socrec
 
 import app.cash.turbine.test
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.f8e.socrec.shouldHaveAlias
-import build.wallet.f8e.socrec.shouldOnlyHaveSingleEndorsedTrustedContact
-import build.wallet.f8e.socrec.shouldOnlyHaveSingleInvitation
-import build.wallet.f8e.socrec.shouldOnlyHaveSingleProtectedCustomer
+import build.wallet.f8e.relationships.shouldHaveAlias
+import build.wallet.f8e.relationships.shouldOnlyHaveSingleEndorsedTrustedContact
+import build.wallet.f8e.relationships.shouldOnlyHaveSingleInvitation
+import build.wallet.f8e.relationships.shouldOnlyHaveSingleProtectedCustomer
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -35,7 +35,7 @@ class SocRecServiceFunctionalTests : FunSpec({
     }
 
     // Protected Customer sees pending TC invitation
-    customerApp.app.appComponent.socRecService.relationships.test {
+    customerApp.app.appComponent.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.invitations.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleInvitation {
@@ -54,7 +54,7 @@ class SocRecServiceFunctionalTests : FunSpec({
     }
 
     // Trusted Contact sees Protected Customer
-    tcApp.app.appComponent.socRecService.relationships.test {
+    tcApp.app.appComponent.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.protectedCustomers.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleProtectedCustomer {
@@ -69,7 +69,7 @@ class SocRecServiceFunctionalTests : FunSpec({
     @Suppress("UNREACHABLE_CODE")
 
     // Protected Customer sees Trusted Contact, no longer pending
-    customerApp.app.appComponent.socRecService.relationships.test {
+    customerApp.app.appComponent.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.endorsedTrustedContacts.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleEndorsedTrustedContact {

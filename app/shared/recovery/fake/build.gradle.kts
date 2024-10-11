@@ -14,6 +14,8 @@ kotlin {
         api(projects.shared.bitcoinPrimitivesFake)
         api(projects.shared.timeFake)
         api(projects.shared.f8eClientFake)
+        implementation(projects.shared.relationshipsFake)
+        implementation(projects.shared.relationshipsPublic)
       }
     }
   }

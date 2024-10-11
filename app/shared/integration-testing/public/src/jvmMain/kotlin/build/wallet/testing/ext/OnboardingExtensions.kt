@@ -177,13 +177,13 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
 
     // Accept TC invitation from Protected Customer
     val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)
-    val invitation = appComponent.socRecService
+    val invitation = appComponent.relationshipsService
       .retrieveInvitation(account, inviteCode)
       .unwrap()
     val delegatedDecryptionKey =
-      socRecKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
+      relationshipsKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
         .getOrThrow()
-    val protectedCustomer = appComponent.socRecService
+    val protectedCustomer = appComponent.relationshipsService
       .acceptInvitation(
         account,
         invitation,

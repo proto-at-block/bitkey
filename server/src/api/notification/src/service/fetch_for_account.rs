@@ -1,9 +1,8 @@
 use errors::ApiError;
 use tracing::instrument;
 
-use crate::entities::{CustomerNotification, ScheduledNotification};
-
 use super::{FetchForAccountInput, FetchForCompositeKeyInput, Service};
+use crate::entities::{CustomerNotification, ScheduledNotification};
 
 impl Service {
     #[instrument(skip(self))]

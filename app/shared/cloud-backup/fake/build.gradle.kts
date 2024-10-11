@@ -12,7 +12,7 @@ kotlin {
       dependencies {
         api(projects.shared.bitkeyPrimitivesFake)
         api(projects.shared.encryptionFake)
-        api(projects.shared.recoveryFake)
+        api(projects.shared.relationshipsFake)
         implementation(libs.bundles.kmp.test.kotest)
       }
     }

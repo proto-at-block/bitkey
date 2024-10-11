@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.sweep
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
@@ -161,7 +156,8 @@ class SweepUiStateMachineImpl(
             onCancel = props.onExit,
             isHardwareFake = sweepData.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS
+            eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS,
+            shouldShowLongRunningOperation = true
           )
         )
 

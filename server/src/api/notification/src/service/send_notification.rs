@@ -3,13 +3,12 @@ use time::OffsetDateTime;
 use tracing::instrument;
 use types::notification::{NotificationCategory, NotificationChannel};
 
+use super::{SendNotificationInput, Service};
 use crate::{
     entities::{CustomerNotification, Notification, NotificationTouchpoint},
     identifiers::NotificationId,
     DeliveryStatus, NotificationError, NotificationMessage,
 };
-
-use super::{SendNotificationInput, Service};
 
 impl Service {
     #[instrument(skip(self))]

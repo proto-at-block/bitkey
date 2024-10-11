@@ -1,8 +1,8 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
-import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
-import build.wallet.bitkey.socrec.TrustedContactFake2
+import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
+import build.wallet.bitkey.relationships.EndorsedTrustedContactFake2
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.encrypt.SealedDataMock
 import build.wallet.encrypt.XCiphertext
@@ -18,7 +18,7 @@ val FullAccountFieldsMock =
     socRecSealedDekMap =
       mapOf(
         EndorsedTrustedContactFake1.relationshipId to SocRecSealedPkek1,
-        TrustedContactFake2.relationshipId to SocRecSealedPkek2
+        EndorsedTrustedContactFake2.relationshipId to SocRecSealedPkek2
       ),
     isFakeHardware = false,
     hwFullAccountKeysCiphertext = SealedDataMock,

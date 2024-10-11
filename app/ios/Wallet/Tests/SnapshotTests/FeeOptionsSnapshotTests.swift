@@ -9,7 +9,7 @@ final class FeeOptionsSnapshotTests: XCTestCase {
 
     func test_fee_options() {
         let view = FormView(
-            viewModel: FeeSelectionScreenModelKt.FeeOptionsScreenModel(
+            viewModel: SnapshotTestModels.shared.CreateFeeOptionsBodyModel(
                 title: "Select a transfer speed",
                 feeOptions: .init(options: [
                     .init(

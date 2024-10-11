@@ -1,136 +1,42 @@
 package build.wallet.statemachine.send
 
+import app.cash.turbine.Turbine
 import app.cash.turbine.test
 import build.wallet.bdk.bindings.BdkError
-import build.wallet.bitcoin.address.someBitcoinAddress
-import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.FeeRate
-import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
-import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError.NetworkError
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.limit.SpendingLimitMock
-import build.wallet.money.BitcoinMoney
-import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList
-import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
-import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
-import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
-import io.kotest.matchers.collections.shouldContainOnly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.collections.immutable.immutableMapOf
-import kotlinx.collections.immutable.persistentMapOf
 
-class TransferConfirmationUiStateMachineImplTests : FunSpec({
-
-  val onTransferInitiatedCalls =
-    turbines.create<Psbt>(
-      "transfer initiated calls"
-    )
-  val onTransferFailedCalls = turbines.create<Unit>("transfer failed calls")
-  val onBackCalls = turbines.create<Unit>("back calls")
-  val onExitCalls = turbines.create<Unit>("exit calls")
-  val appSignedPsbt = PsbtMock.copy(id = "app-signed-psbt")
-  val appAndHwSignedPsbt =
-    PsbtMock.copy(
-      id = "app-and-hw-signed-psbt"
-    )
-  val appAndServerSignedPsbt =
-    PsbtMock.copy(
-      id = "app-and-server-signed-psbt"
-    )
-
-  val transactionDetailsCardUiStateMachine =
-    object : TransactionDetailsCardUiStateMachine,
-      StateMachineMock<TransactionDetailsCardUiProps, TransactionDetailsModel>(
-        initialModel =
-          TransactionDetailsModel(
-            transactionSpeedText = "transactionSpeedText",
-            transactionDetailModelType =
-              TransactionDetailModelType.Regular(
-                transferAmountText = "transferFiatAmountText",
-                feeAmountText = "feeFiatAmountText",
-                totalAmountPrimaryText = "totalFiatAmountText",
-                totalAmountSecondaryText = "totalBitcoinAmountText"
-              )
-          )
-      ) {}
-  val nfcSessionUIStateMachine =
-    object : NfcSessionUIStateMachine,
-      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc") {}
-
-  @Suppress("DEPRECATION")
-  val props =
-    TransferConfirmationUiProps(
-      transferVariant = Variant.Regular(THIRTY_MINUTES),
-      account = FullAccountMock,
-      recipientAddress = someBitcoinAddress,
-      sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
-      requiredSigner = SigningFactor.Hardware,
-      spendingLimit = null,
-      fees = immutableMapOf(
-        FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-        THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-        SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
-      ),
-      exchangeRates = emptyImmutableList(),
-      onTransferInitiated = { psbt, _ -> onTransferInitiatedCalls.add(psbt) },
-      onTransferFailed = { onTransferFailedCalls.add(Unit) },
-      onBack = { onBackCalls.add(Unit) },
-      onExit = { onExitCalls.add(Unit) }
-    )
-
-  val serverSigner = MobilePaySigningF8eClientMock(turbines::create)
-  val transactionPriorityPreference = TransactionPriorityPreferenceFake()
-  val spendingWallet = SpendingWalletMock(turbines::create)
-  val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
-  val transactionsService = TransactionsServiceFake()
-  val stateMachine =
-    TransferConfirmationUiStateMachineImpl(
-      mobilePaySigningF8eClient = serverSigner,
-      transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
-      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      transactionPriorityPreference = transactionPriorityPreference,
-      appSpendingWalletProvider = appSpendingWalletProvider,
-      feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
-      transactionsService = transactionsService
-    )
-
-  beforeTest {
-    serverSigner.reset()
-    spendingWallet.reset()
-    transactionPriorityPreference.reset()
-    transactionsService.reset()
-
-    transactionsService.spendingWallet.value = spendingWallet
-  }
-
+fun FunSpec.transferConfirmationUiStateMachineTests(
+  props: TransferConfirmationUiProps,
+  onTransferInitiatedCalls: Turbine<Psbt>,
+  onBackCalls: Turbine<Unit>,
+  onExitCalls: Turbine<Unit>,
+  spendingWallet: SpendingWalletMock,
+  transactionsService: TransactionsServiceFake,
+  transactionPriorityPreference: TransactionPriorityPreferenceFake,
+  mobilePayService: MobilePayServiceMock,
+  appSignedPsbt: Psbt,
+  appAndHwSignedPsbt: Psbt,
+  stateMachine: TransferConfirmationUiStateMachineImpl,
+  nfcSessionUIStateMachineId: String,
+) {
   test("create unsigned psbt error - insufficent funds") {
     spendingWallet.createSignedPsbtResult =
       Err(BdkError.InsufficientFunds(Exception(""), null))
@@ -189,67 +95,6 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     transactionPriorityPreference.preference.shouldBeNull()
   }
 
-  test("[app & hw] successful signing syncs, broadcasts, calls onTransferInitiated") {
-    val transactionPriority = FASTEST
-    spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-
-    stateMachine.test(
-      props.copy(
-        requiredSigner = SigningFactor.Hardware,
-        transferVariant = Variant.Regular(transactionPriority)
-      )
-    ) {
-      // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-
-      // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
-          IconImage.LocalImage(
-            Icon.Bitcoin
-          )
-        )
-        header.shouldNotBeNull().headline.shouldBe("Send your transfer")
-
-        // Correct title
-        mainContentList[0]
-          .shouldNotBeNull()
-          .shouldBeTypeOf<DataList>()
-          .items[0]
-          .title.shouldBe("Arrival time")
-
-        // Only show transfer amount and fee.
-        mainContentList[1]
-          .shouldNotBeNull()
-          .shouldBeTypeOf<DataList>()
-          .items.size.shouldBe(2)
-
-        clickPrimaryButton()
-      }
-
-      // SigningWithHardware
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachine.id
-      ) {
-        onSuccess(appAndHwSignedPsbt)
-      }
-
-      // FinalizingAndBroadcastingTransaction
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-
-      transactionsService.broadcastedPsbts.test {
-        awaitItem().shouldContainOnly(appAndHwSignedPsbt)
-      }
-    }
-
-    transactionPriorityPreference.preference.shouldBe(transactionPriority)
-    onTransferInitiatedCalls.awaitItem()
-  }
-
   test("[app & hw] successfully signing, but failing to broadcast presents error") {
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
@@ -258,7 +103,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     stateMachine.test(
       props.copy(
         requiredSigner = SigningFactor.Hardware,
-        transferVariant = Variant.Regular(transactionPriority)
+        selectedPriority = transactionPriority
       )
     ) {
       // CreatingAppSignedPsbt
@@ -273,7 +118,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
 
       // SigningWithHardware
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachine.id
+        id = nfcSessionUIStateMachineId
       ) {
         onSuccess(appAndHwSignedPsbt)
       }
@@ -300,7 +145,6 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("[app & server] successful signing syncs, broadcasts, calls onTransferInitiated") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    serverSigner.signWithSpecificKeysetResult = Ok(appAndServerSignedPsbt)
 
     transactionPriorityPreference.preference.shouldBeNull()
 
@@ -308,7 +152,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       props.copy(
         requiredSigner = SigningFactor.F8e,
         spendingLimit = SpendingLimitMock,
-        transferVariant = Variant.Regular(preferenceToSet)
+        selectedPriority = preferenceToSet
       )
     ) {
       // CreatingAppSignedPsbt
@@ -324,9 +168,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
       transactionsService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(appAndServerSignedPsbt)
+        awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }
 
@@ -337,13 +180,12 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("[app & server] failure to sign with app key presents error") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Err(BdkError.Generic(Exception(""), null))
-    serverSigner.signWithSpecificKeysetResult = Ok(appAndServerSignedPsbt)
 
     stateMachine.test(
       props.copy(
         requiredSigner = SigningFactor.F8e,
         spendingLimit = SpendingLimitMock,
-        transferVariant = Variant.Regular(preferenceToSet)
+        selectedPriority = preferenceToSet
       )
     ) {
       // CreatingAppSignedPsbt
@@ -365,14 +207,14 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("[app & server] successfully signing, but failing to broadcast succeeds") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    serverSigner.signWithSpecificKeysetResult = Ok(appAndServerSignedPsbt)
     transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
+    mobilePayService.keysetId = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
 
     stateMachine.test(
       props.copy(
         requiredSigner = SigningFactor.F8e,
         spendingLimit = SpendingLimitMock,
-        transferVariant = Variant.Regular(preferenceToSet)
+        selectedPriority = preferenceToSet
       )
     ) {
       // CreatingAppSignedPsbt
@@ -389,9 +231,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
       transactionsService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(appAndServerSignedPsbt)
+        awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }
 
@@ -403,13 +244,13 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("[app & server] failure to sign with server key presents error") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    serverSigner.signWithSpecificKeysetResult = Err(NetworkError(Throwable()))
+    mobilePayService.signPsbtWithMobilePayResult = Err(NetworkError(Error("oops")))
 
     stateMachine.test(
       props.copy(
         requiredSigner = SigningFactor.F8e,
         spendingLimit = SpendingLimitMock,
-        transferVariant = Variant.Regular(preferenceToSet)
+        selectedPriority = preferenceToSet
       )
     ) {
       // CreatingAppSignedPsbt
@@ -426,7 +267,6 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
 
       // ReceivedServerSigningError
       awaitScreenWithBody<FormBodyModel> {
@@ -444,126 +284,17 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
 
       // SigningWithHardware
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>(
-        id = nfcSessionUIStateMachine.id
+        id = nfcSessionUIStateMachineId
       )
     }
+
+    mobilePayService.signPsbtCalls.awaitItem()
 
     transactionPriorityPreference.preference.shouldBeNull()
   }
+}
 
-  test("Transaction details update after selecting a new fee from sheet") {
-    stateMachine.test(props) {
-      // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-
-      // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
-        transactionDetailsCardUiStateMachine.props
-          .transactionDetails
-          .feeAmount
-          .shouldBe(BitcoinMoney.btc(2.0))
-
-        with(mainContentList[0].shouldBeTypeOf<DataList>()) {
-          items[0].onClick.shouldNotBeNull().invoke()
-        }
-      }
-
-      with(awaitItem().bottomSheetModel.shouldNotBeNull()) {
-        with(body.shouldBeTypeOf<FormBodyModel>()) {
-          mainContentList[0].shouldBeTypeOf<FeeOptionList>()
-            .options[0]
-            .onClick
-            .shouldNotBeNull()
-            .invoke()
-        }
-      }
-
-      awaitScreenWithBody<FormBodyModel> {
-        transactionDetailsCardUiStateMachine.props
-          .transactionDetails
-          .feeAmount
-          .shouldBe(BitcoinMoney.btc(BigDecimal.TEN))
-      }
-
-      awaitScreenWithBody<FormBodyModel>()
-    }
-  }
-
-  context("Fee bump transactions") {
-    val feeBumpProps =
-      TransferConfirmationUiProps(
-        transferVariant =
-          Variant.SpeedUp(
-            txid = "abc",
-            oldFee = Fee(BitcoinMoney.sats(256), FeeRate(1f)),
-            newFeeRate = FeeRate(2f)
-          ),
-        account = FullAccountMock,
-        recipientAddress = someBitcoinAddress,
-        sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
-        requiredSigner = SigningFactor.Hardware,
-        spendingLimit = null,
-        fees = persistentMapOf(
-          FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
-        ),
-        exchangeRates = emptyImmutableList(),
-        onTransferInitiated = { psbt, _ -> onTransferInitiatedCalls.add(psbt) },
-        onTransferFailed = { onTransferFailedCalls.add(Unit) },
-        onBack = { onBackCalls.add(Unit) },
-        onExit = { onExitCalls.add(Unit) }
-      )
-
-    transactionDetailsCardUiStateMachine.emitModel(
-      TransactionDetailsModel(
-        transactionDetailModelType =
-          TransactionDetailModelType.SpeedUp(
-            transferAmountText = "transferAmountText",
-            oldFeeAmountText = "oldFeeAmountText",
-            feeDifferenceText = "feeDifferenceText",
-            totalAmountPrimaryText = "totalFiatAmountText",
-            totalAmountSecondaryText = "totalBitcoinAmountText"
-          ),
-        transactionSpeedText = "transactionSpeedText"
-      )
-    )
-
-    stateMachine.test(feeBumpProps) {
-      // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-
-      // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
-          IconImage.LocalImage(
-            Icon.LargeIconSpeedometer
-          )
-        )
-        header.shouldNotBeNull().headline.shouldBe("Speed up your transfer to")
-
-        // Correct title
-        mainContentList[0]
-          .shouldNotBeNull()
-          .shouldBeTypeOf<DataList>()
-          .items[0]
-          .title.shouldBe("New arrival time")
-
-        // Shows transfer amount, old fee, new fee delta.
-        mainContentList[1]
-          .shouldNotBeNull()
-          .shouldBeTypeOf<DataList>()
-          .items.size.shouldBe(3)
-      }
-    }
-  }
-})
-
-private fun FormBodyModel.expectGenericErrorMessage() {
+fun FormBodyModel.expectGenericErrorMessage() {
   with(header.shouldNotBeNull()) {
     headline.shouldBe("We couldn’t send this transaction")
     sublineModel.shouldNotBeNull().string.shouldBe(

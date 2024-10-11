@@ -1,11 +1,10 @@
-use account::entities::Touchpoint;
-
 use notification::clients::iterable::IterableUserId;
 use notification::clients::{iterable::IterableClient, iterable::IterableMode};
 use notification::email::EmailPayload;
 use tracing::event;
 use tracing::instrument;
 use tracing::Level;
+use types::account::entities::Touchpoint;
 use types::account::identifiers::AccountId;
 
 use crate::ses::SESMode;

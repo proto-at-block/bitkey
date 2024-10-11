@@ -1,14 +1,20 @@
+@file:OptIn(FlowPreview::class)
+
 package build.wallet.testing.ext
 
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.money.BitcoinMoney
 import build.wallet.testing.AppTester
 import build.wallet.testing.shouldBeOk
-import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.timeout
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -17,11 +23,8 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun AppTester.waitForFunds(
   balancePredicate: (BitcoinBalance) -> Boolean = { it.total.isPositive },
-) {
-  val activeAccount = getActiveFullAccount()
-  val activeWallet = app.appComponent.appSpendingWalletProvider
-    .getSpendingWallet(activeAccount)
-    .getOrThrow()
+): BitcoinBalance {
+  lateinit var balance: BitcoinBalance
   eventually(
     eventuallyConfig {
       duration = 60.seconds
@@ -29,20 +32,24 @@ suspend fun AppTester.waitForFunds(
       initialDelay = 1.seconds
     }
   ) {
+    val activeWallet = getActiveWallet()
     activeWallet.sync().shouldBeOk()
-    val balance = activeWallet.balance().first()
+    balance = activeWallet.balance().first()
     balancePredicate(balance).shouldBeTrue()
     // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
   }
+  return balance
 }
 
 /**
- * Returns the active
+ * Returns the active spending wallet.
  */
 suspend fun AppTester.getActiveWallet(): SpendingWallet {
-  return app.appComponent.appSpendingWalletProvider
-    .getSpendingWallet(getActiveFullAccount())
-    .getOrThrow()
+  getActiveAccount()
+  return app.appComponent.transactionsService.spendingWallet()
+    .filterNotNull()
+    .timeout(2.seconds)
+    .first()
 }
 
 /**
@@ -51,4 +58,11 @@ suspend fun AppTester.getActiveWallet(): SpendingWallet {
  */
 suspend fun AppTester.mineBlock() {
   blockchainControl.mineBlocks(1)
+}
+
+/**
+ * Validates that current wallet has total balance equal to [amount].
+ */
+suspend fun AppTester.shouldHaveTotalBalance(amount: BitcoinMoney) {
+  getActiveWallet().balance().first().total.shouldBe(amount)
 }

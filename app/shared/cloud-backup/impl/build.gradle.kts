@@ -20,6 +20,7 @@ kotlin {
         api(projects.shared.platformPublic)
         api(projects.shared.accountPublic)
         api(projects.shared.recoveryPublic)
+        api(projects.shared.relationshipsPublic)
         api(projects.shared.cloudStorePublic)
         api(projects.shared.authPublic)
         implementation(projects.shared.coroutinesPublic)

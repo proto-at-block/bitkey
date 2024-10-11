@@ -35,6 +35,7 @@ sealed interface AppFunctionalityStatus {
             send = Available,
             receive = Available,
             deposit = Available,
+            sell = Available,
             customElectrumServer = Available,
             mobilePay = Available,
             securityAndRecovery = Available,

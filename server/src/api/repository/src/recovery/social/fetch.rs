@@ -1,19 +1,22 @@
+use std::collections::HashMap;
+
+use database::aws_sdk_dynamodb::types::AttributeValue;
 use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, operation::get_item::GetItemOutput},
     ddb::{try_from_item, try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
-use std::collections::HashMap;
-use types::{
-    account::identifiers::AccountId,
-    recovery::social::challenge::{SocialChallenge, SocialChallengeId},
-};
-
-use database::aws_sdk_dynamodb::types::AttributeValue;
 use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracing::{event, instrument, Level};
-use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
+use types::{
+    account::identifiers::AccountId,
+    recovery::{
+        backup::{Backup, ToRecoveryBackupPk},
+        social::challenge::{SocialChallenge, SocialChallengeId},
+        social::relationship::{RecoveryRelationship, RecoveryRelationshipId},
+    },
+};
 
 use super::{
     SocialRecoveryRepository, SocialRecoveryRow, CODE_IDX, CODE_IDX_PARTITION_KEY, CUSTOMER_IDX,
@@ -516,5 +519,33 @@ impl SocialRecoveryRepository {
         }
 
         Ok(count)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn fetch_recovery_backup(
+        &self,
+        account_id: &AccountId,
+    ) -> Result<Backup, DatabaseError> {
+        let database_object = self.get_database_object();
+        let id = account_id.to_recovery_backup_pk();
+
+        let item_output = self.fetch(&id).await?;
+
+        let backup = item_output
+            .item
+            .and_then(|item| try_from_item::<_, SocialRecoveryRow>(item, database_object).ok())
+            .and_then(|row| match row {
+                SocialRecoveryRow::Backup(backup) => Some(backup),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                event!(
+                    Level::WARN,
+                    "Recovery backup {id} not found in the database"
+                );
+                DatabaseError::ObjectNotFound(database_object)
+            })?;
+
+        Ok(backup)
     }
 }

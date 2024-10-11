@@ -181,9 +181,10 @@ struct MoneyHomeView_Preview: PreviewProvider {
                     secondaryAmount: "435,228 sats"
                 ),
                 buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                    addButton: .init(enabled: false, onClick: {}),
+                    sellButton: .init(enabled: false, onClick: {}),
                     sendButton: .init(enabled: true, onClick: {}),
-                    receiveButton: .init(enabled: true, onClick: {}),
-                    addButton: .init(enabled: false, onClick: {})
+                    receiveButton: .init(enabled: true, onClick: {})
                 ),
                 cardsModel: .init(cards: []),
                 transactionsModel: ListModel(
@@ -265,9 +266,10 @@ struct MoneyHomeView_Preview: PreviewProvider {
                     secondaryAmount: "435,228 sats"
                 ),
                 buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                    addButton: .init(enabled: false, onClick: {}),
+                    sellButton: .init(enabled: false, onClick: {}),
                     sendButton: .init(enabled: true, onClick: {}),
-                    receiveButton: .init(enabled: true, onClick: {}),
-                    addButton: .init(enabled: false, onClick: {})
+                    receiveButton: .init(enabled: true, onClick: {})
                 ),
                 cardsModel: .init(cards: []),
                 transactionsModel: ListModel(

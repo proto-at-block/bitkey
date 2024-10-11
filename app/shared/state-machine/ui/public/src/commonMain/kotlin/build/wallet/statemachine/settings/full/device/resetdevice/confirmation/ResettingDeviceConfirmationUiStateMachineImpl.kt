@@ -8,10 +8,7 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.log
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LabelModel.StringModel
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.core.form.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceEventTrackerScreenId
@@ -163,29 +160,39 @@ class ResettingDeviceConfirmationUiStateMachineImpl(
     }
 
     return ScreenModel(
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
+      body = ResettingDeviceConfirmationBodyModel(
         onBack = onBack,
-        toolbar = ToolbarModel(
-          leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
-        ),
-        header = FormHeaderModel(
-          headline = "Confirm to continue",
-          subline = "Please read and agree to the following before you continue."
-        ),
-        mainContentList = mainContentList,
-        primaryButton = ButtonModel(
-          text = "Reset device",
-          isEnabled = true,
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Secondary,
-          onClick = StandardClick { onConfirmResetDevice() }
-        )
+        onConfirmResetDevice = onConfirmResetDevice,
+        mainContentList = mainContentList
       ),
       presentationStyle = ScreenPresentationStyle.FullScreen,
       bottomSheetModel = bottomSheetModel
     )
   }
+
+  private data class ResettingDeviceConfirmationBodyModel(
+    override val onBack: () -> Unit,
+    override val mainContentList: ImmutableList<FormMainContentModel>,
+    val onConfirmResetDevice: () -> Unit,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
+      onBack = onBack,
+      toolbar = ToolbarModel(
+        leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
+      ),
+      header = FormHeaderModel(
+        headline = "Confirm to continue",
+        subline = "Please read and agree to the following before you continue."
+      ),
+      mainContentList = mainContentList,
+      primaryButton = ButtonModel(
+        text = "Reset device",
+        isEnabled = true,
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Secondary,
+        onClick = StandardClick(onConfirmResetDevice)
+      )
+    )
 
   private fun createListItem(
     itemModel: ResettingDeviceConfirmationItemModel,
@@ -209,39 +216,47 @@ class ResettingDeviceConfirmationUiStateMachineImpl(
       size = SheetSize.DEFAULT,
       dragIndicatorVisible = false,
       onClosed = onBack,
-      body = FormBodyModel(
-        id = ResettingDeviceEventTrackerScreenId.SCAN_AND_RESET_SHEET,
+      body = ScanAndResetConfirmationSheetBodyModel(
         onBack = onBack,
-        toolbar = null,
-        header = FormHeaderModel(
-          headline = "Scan your device to reset it",
-          subline = "Hold your unlocked device behind your phone and start scanning to reset it."
-        ),
-        mainContentList = immutableListOf(
-          FormMainContentModel.Callout(
-            item = CalloutModel(
-              title = "Resetting cannot be undone",
-              subtitle = StringModel("This will reset the device to its blank, factory state"),
-              treatment = CalloutModel.Treatment.Danger
-            )
-          )
-        ),
-        primaryButton = BitkeyInteractionButtonModel(
-          text = "Scan and Reset",
-          treatment = ButtonModel.Treatment.PrimaryDestructive,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick { onConfirmResetDevice() }
-        ),
-        secondaryButton = ButtonModel(
-          text = "Cancel",
-          size = ButtonModel.Size.Footer,
-          treatment = ButtonModel.Treatment.Secondary,
-          onClick = StandardClick { onBack() }
-        ),
-        renderContext = RenderContext.Sheet
+        onConfirmResetDevice = onConfirmResetDevice
       )
     )
   }
+
+  private data class ScanAndResetConfirmationSheetBodyModel(
+    override val onBack: () -> Unit,
+    val onConfirmResetDevice: () -> Unit,
+  ) : FormBodyModel(
+      id = ResettingDeviceEventTrackerScreenId.SCAN_AND_RESET_SHEET,
+      onBack = onBack,
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = "Scan your device to reset it",
+        subline = "Hold your unlocked device behind your phone and start scanning to reset it."
+      ),
+      mainContentList = immutableListOf(
+        FormMainContentModel.Callout(
+          item = CalloutModel(
+            title = "Resetting cannot be undone",
+            subtitle = StringModel("This will reset the device to its blank, factory state"),
+            treatment = CalloutModel.Treatment.Danger
+          )
+        )
+      ),
+      primaryButton = BitkeyInteractionButtonModel(
+        text = "Scan and Reset",
+        treatment = ButtonModel.Treatment.PrimaryDestructive,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick { onConfirmResetDevice() }
+      ),
+      secondaryButton = ButtonModel(
+        text = "Cancel",
+        size = ButtonModel.Size.Footer,
+        treatment = ButtonModel.Treatment.Secondary,
+        onClick = StandardClick(onBack)
+      ),
+      renderContext = RenderContext.Sheet
+    )
 
   @Composable
   private fun ResetDeviceModel(

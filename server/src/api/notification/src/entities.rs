@@ -1,10 +1,10 @@
-use account::entities::{Touchpoint, TouchpointPlatform};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 use time::macros::format_description;
 use time::serde::rfc3339;
 use time::OffsetDateTime;
 use time::{format_description::FormatItem, Duration};
+use types::account::entities::{Touchpoint, TouchpointPlatform};
 use types::account::identifiers::{AccountId, TouchpointId};
 
 use crate::{

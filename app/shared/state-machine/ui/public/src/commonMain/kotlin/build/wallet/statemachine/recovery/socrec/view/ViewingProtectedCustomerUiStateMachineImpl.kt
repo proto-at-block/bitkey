@@ -3,7 +3,7 @@ package build.wallet.statemachine.recovery.socrec.view
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE
 import build.wallet.auth.AuthTokenScope
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
 import build.wallet.statemachine.core.ScreenModel
@@ -13,7 +13,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class ViewingProtectedCustomerUiStateMachineImpl(
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
 ) : ViewingProtectedCustomerUiStateMachine {
   @Composable
   override fun model(props: ViewingProtectedCustomerProps): ScreenModel {
@@ -25,7 +25,7 @@ class ViewingProtectedCustomerUiStateMachineImpl(
         is ViewingProtectedCustomer -> {
           if (state.isRemoving) {
             LaunchedEffect("remove-tc") {
-              socRecService.removeRelationship(
+              relationshipsService.removeRelationship(
                 account = props.account,
                 hardwareProofOfPossession = null,
                 authTokenScope = AuthTokenScope.Recovery,

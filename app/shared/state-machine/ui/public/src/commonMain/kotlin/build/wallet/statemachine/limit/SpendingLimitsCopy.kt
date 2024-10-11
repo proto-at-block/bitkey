@@ -35,7 +35,9 @@ sealed class SpendingLimitsCopy(
     ),
     disableAlert = DisableAlertCopy(
       title = "Disable mobile pay?",
-      subline = "Turning it back on will require your Bitkey device"
+      subline = "Turning it back on will require your Bitkey device",
+      primaryButtonText = "Disable",
+      cancelText = "Cancel"
     )
   ) {
     override fun reenableSpendingLimitBottomSheetCopy(
@@ -56,7 +58,7 @@ sealed class SpendingLimitsCopy(
     loadingStatus = "Loading transfer settings...",
     transferScreenUnavailableWarning = "Transfer without hardware unavailable",
     gettingStartedCardPair = Pair("Customize transfer settings", Icon.SmallIconMobileLimit),
-    settingsPair = Pair(Icon.SmallIconMobileLimit, "Transfer settings"),
+    settingsPair = Pair(Icon.SmallIconMobileLimit, "Transfers"),
     onboardingModal = OnboardingModalCopy(
       headline = "Transfer without hardware",
       subline = "Spend up to a set daily limit without your Bitkey device.",
@@ -64,7 +66,9 @@ sealed class SpendingLimitsCopy(
     ),
     disableAlert = DisableAlertCopy(
       title = "Always require hardware?",
-      subline = "You will be required to confirm all transfers using your Bitkey device."
+      subline = "You will be required to confirm all transfers using your Bitkey device.",
+      primaryButtonText = "Yes",
+      cancelText = "Nevermind"
     )
   ) {
     override fun reenableSpendingLimitBottomSheetCopy(
@@ -97,6 +101,8 @@ data class OnboardingModalCopy(
 data class DisableAlertCopy(
   val title: String,
   val subline: String,
+  val primaryButtonText: String,
+  val cancelText: String,
 )
 
 data class ReenableSpendingLimitBottomSheetCopy(

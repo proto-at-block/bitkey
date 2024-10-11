@@ -6,6 +6,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.PartnershipTransactionType
 import com.github.michaelbull.result.Result
 
 /**
@@ -22,5 +23,6 @@ interface GetPartnershipTransactionF8eClient {
     f8eEnvironment: F8eEnvironment,
     partner: PartnerId,
     partnershipTransactionId: PartnershipTransactionId,
+    transactionType: PartnershipTransactionType,
   ): Result<F8ePartnershipTransaction, NetworkingError>
 }

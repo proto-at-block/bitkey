@@ -8,19 +8,20 @@ import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.SocialChallengeResponse
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.FullAccountKeysMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.Spake2Impl
 import build.wallet.encrypt.*
+import build.wallet.f8e.relationships.RelationshipsF8eClientFake
 import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
-import build.wallet.recovery.socrec.SocRecCryptoImpl
 import build.wallet.recovery.socrec.toActions
+import build.wallet.relationships.RelationshipsCryptoImpl
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -54,17 +55,16 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   val relationshipIdToPkekMap: MutableMap<String, XCiphertext> = mutableMapOf()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val messageSigner = MessageSignerImpl()
-  val socRecCrypto =
-    SocRecCryptoImpl(
-      symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
-      xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
-      xNonceGenerator = XNonceGeneratorImpl(),
-      spake2 = Spake2Impl(),
-      appAuthKeyMessageSigner = AppAuthKeyMessageSignerImpl(appPrivateKeyDao, messageSigner),
-      signatureVerifier = SignatureVerifierImpl(),
-      cryptoBox = CryptoBoxImpl()
-    )
-  val delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow()
+  val relationshipsCrypto = RelationshipsCryptoImpl(
+    symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
+    xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
+    xNonceGenerator = XNonceGeneratorImpl(),
+    spake2 = Spake2Impl(),
+    appAuthKeyMessageSigner = AppAuthKeyMessageSignerImpl(appPrivateKeyDao, messageSigner),
+    signatureVerifier = SignatureVerifierImpl(),
+    cryptoBox = CryptoBoxImpl()
+  )
+  val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
   val endorsedTrustedContact =
     EndorsedTrustedContact(
       relationshipId = "someRelationshipId",
@@ -75,23 +75,25 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     )
   val pkMat = FullAccountKeysMock
   val (privateKeyEncryptionKey, sealedPrivateKeyMaterial) =
-    socRecCrypto.encryptPrivateKeyMaterial(
+    relationshipsCrypto.encryptPrivateKeyMaterial(
       Json.encodeToString(pkMat).encodeUtf8()
     ).getOrThrow()
 
+  lateinit var relationshipsF8eClientFake: RelationshipsF8eClientFake
   lateinit var socRecF8eClientFake: SocRecF8eClientFake
 
   beforeAny {
     appTester = launchNewApp(isUsingSocRecFakes = true)
-    socRecF8eClientFake =
-      (appTester.app.appComponent.socRecF8eClientProvider.get() as SocRecF8eClientFake)
+    relationshipsF8eClientFake =
+      (appTester.app.appComponent.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
         .apply {
           reset()
           endorsedTrustedContacts.add(endorsedTrustedContact)
         }
+    socRecF8eClientFake = appTester.app.appComponent.socRecF8eClientProvider.get() as SocRecF8eClientFake
     appTester.app.appComponent.socRecStartedChallengeDao.clear()
     relationshipIdToPkekMap[endorsedTrustedContact.relationshipId] =
-      socRecCrypto.encryptPrivateKeyEncryptionKey(
+      relationshipsCrypto.encryptPrivateKeyEncryptionKey(
         endorsedTrustedContact.identityKey,
         privateKeyEncryptionKey
       ).getOrThrow()
@@ -110,7 +112,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
         relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
         sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
       ),
@@ -171,7 +173,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
         relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
         sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
       ),
@@ -200,7 +202,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
         relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
         sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
       ),
@@ -240,7 +242,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getAll()
             .getOrThrow()
             .single()
-        val code = appTester.app.appComponent.socialRecoveryCodeBuilder.buildRecoveryCode(
+        val code = appTester.app.appComponent.relationshipsCodeBuilder.buildRecoveryCode(
           challenge.response.counter,
           challengeAuth.pakeCode
         ).getOrThrow()
@@ -274,7 +276,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
         relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
         sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
       ),
@@ -301,7 +303,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
         relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
         sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
       ),
@@ -327,7 +329,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
           recoveryRelationshipId = endorsedTrustedContact.relationshipId
         ).getOrThrow().shouldNotBeNull()
-      val decryptOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
+      val decryptOutput = relationshipsCrypto.decryptPrivateKeyEncryptionKey(
         password = recoveryAuth.pakeCode,
         protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey = delegatedDecryptionKey,
@@ -353,7 +355,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       ),
       relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
       sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-      endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+      endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
       onExit = { onExitCalls.add(Unit) },
       onKeyRecovered = { onRecoveryCalls.add(it) }
     )

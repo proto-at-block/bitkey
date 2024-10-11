@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
-use account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
-use account::service::FetchAccountInput;
+use account::service::{tests::create_descriptor_keys, FetchAccountInput};
 use bdk_utils::bdk::keys::DescriptorPublicKey;
 use http::StatusCode;
 use http_server::middlewares::wsm;
@@ -9,6 +8,7 @@ use onboarding::routes::{
     AccountKeyset, CreateAccountRequest, CreateKeysetRequest, RotateSpendingKeysetRequest,
 };
 use types::account::bitcoin::Network;
+use types::account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use types::account::identifiers::KeysetId;
 use types::account::keys::FullAccountAuthKeys;
 use types::account::spending::SpendingKeyset;
@@ -17,9 +17,7 @@ use wsm_rust_client::{TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN};
 
 use crate::tests;
 use crate::tests::gen_services;
-use crate::tests::lib::{
-    create_descriptor_keys, create_inactive_spending_keyset_for_account, create_new_authkeys,
-};
+use crate::tests::lib::{create_inactive_spending_keyset_for_account, create_new_authkeys};
 use crate::tests::requests::axum::TestClient;
 
 #[tokio::test]

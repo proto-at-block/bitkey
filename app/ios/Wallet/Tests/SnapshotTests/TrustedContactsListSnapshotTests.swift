@@ -9,7 +9,7 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
 
     func test_trusted_contacts_list() {
         let view = FormView(
-            viewModel: TrustedContactsListBodyModelKt.TrustedContactsListBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateTrustedContactsListBodyModel(
                 contacts: [
                     .init(
                         relationshipId: "",
@@ -48,7 +48,7 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
 
     func test_trusted_contacts_list_lite() {
         let view = FormView(
-            viewModel: LiteTrustedContactsListBodyModelKt.LiteTrustedContactsListBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateLiteTrustedContactsListBodyModel(
                 id: .tcManagementSettingsListLite,
                 protectedCustomers: [.init(
                     relationshipId: "",

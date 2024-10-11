@@ -10,8 +10,8 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.f8e.socrec.endorseTrustedContacts
-import build.wallet.f8e.socrec.getRelationships
+import build.wallet.f8e.relationships.endorseTrustedContacts
+import build.wallet.f8e.relationships.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -26,6 +26,8 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -165,23 +167,23 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // Attacker impersonating as PC: Endorse TC with a tampered key certificate
     val customerAccount = customerApp.getActiveFullAccount()
-    val socRecF8eClient = customerApp.app.appComponent.socRecF8eClientProvider.get()
-    val relationships = socRecF8eClient.getRelationships(
+    val relationshipsClient = customerApp.app.appComponent.relationshipsF8eClientProvider.get()
+    val relationships = relationshipsClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
     val unendorsedTc = relationships.unendorsedTrustedContacts
       .single()
-    val socRecCrypto = customerApp.app.appComponent.socRecCrypto
+    val relationshipsCrypto = customerApp.app.appComponent.relationshipsCrypto
     val badKeyCert = TrustedContactKeyCertificate(
       // This is a tampered key we are trying to get into the Protected Customer backup
-      delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow().publicKey,
+      delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow().publicKey,
       hwAuthPublicKey = customerApp.getActiveHwAuthKey().publicKey,
       appGlobalAuthPublicKey = customerApp.getActiveAppGlobalAuthKey().publicKey,
       appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature("tampered-app-auth-key-sig"),
       trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("tampered-tc-identity-key-sig")
     )
-    socRecF8eClient.endorseTrustedContacts(
+    relationshipsClient.endorseTrustedContacts(
       account = customerAccount,
       endorsements = listOf(
         TrustedContactEndorsement(
@@ -191,7 +193,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       )
     ).getOrThrow()
     // Sanity check that the TC has been successfully endorsed with the tampered key certificate
-    socRecF8eClient.getRelationships(
+    relationshipsClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
@@ -630,19 +632,27 @@ suspend fun shouldSucceedSocialRestore(
     props = Unit,
     useVirtualTime = false
   ) {
-    when (tcApp.getActiveAccount()) {
-      is LiteAccount -> advanceThroughSocialChallengeVerifyScreensAsLiteAccount(
-        protectedCustomerAlias,
-        challengeCode
-      )
-      is FullAccount -> advanceThroughSocialChallengeVerifyScreensAsFullAccount(
-        protectedCustomerAlias,
-        challengeCode
-      )
-      is SoftwareAccount -> fail("unexpected account type")
-      is OnboardingSoftwareAccount -> fail("unexpected account type")
+    eventually(
+      eventuallyConfig {
+        duration = 60.seconds
+        interval = 1.seconds
+        initialDelay = 1.seconds
+      }
+    ) {
+      when (tcApp.getActiveAccount()) {
+        is LiteAccount -> advanceThroughSocialChallengeVerifyScreensAsLiteAccount(
+          protectedCustomerAlias,
+          challengeCode
+        )
+        is FullAccount -> advanceThroughSocialChallengeVerifyScreensAsFullAccount(
+          protectedCustomerAlias,
+          challengeCode
+        )
+        is SoftwareAccount -> fail("unexpected account type")
+        is OnboardingSoftwareAccount -> fail("unexpected account type")
+      }
+      cancelAndIgnoreRemainingEvents()
     }
-    cancelAndIgnoreRemainingEvents()
   }
 
   // PC: Complete Social Restore, make
@@ -667,11 +677,11 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   val hwPubKey = account.keybox.activeHwKeyBundle.authKey.pubKey
   hwPubKey.shouldBeEqual(appTester.fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
 
-  val serverTcs = appTester.app.appComponent.socRecF8eClientProvider.get()
+  val serverTcs = appTester.app.appComponent.relationshipsF8eClientProvider.get()
     .getRelationships(account).getOrThrow()
     .endorsedTrustedContacts
-  val dbTcs = appTester.app.appComponent.socRecRelationshipsDao
-    .socRecRelationships().first().getOrThrow()
+  val dbTcs = appTester.app.appComponent.relationshipsDao
+    .relationships().first().getOrThrow()
     .endorsedTrustedContacts
 
   withClue("Server and DB Trusted Contacts should match") {

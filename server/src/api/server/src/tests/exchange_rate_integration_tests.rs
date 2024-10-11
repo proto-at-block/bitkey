@@ -1,7 +1,8 @@
-use crate::tests::gen_services;
-use crate::tests::requests::axum::TestClient;
 use http::StatusCode;
 use types::currencies::Currency;
+
+use crate::tests::gen_services;
+use crate::tests::requests::axum::TestClient;
 
 #[tokio::test]
 async fn test_get_currency_definitions() {

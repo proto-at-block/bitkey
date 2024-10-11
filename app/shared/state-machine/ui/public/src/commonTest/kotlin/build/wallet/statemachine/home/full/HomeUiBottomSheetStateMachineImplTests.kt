@@ -19,7 +19,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.flow.flowOf
 
 class HomeUiBottomSheetStateMachineImplTests : FunSpec({
@@ -54,7 +54,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
-      with(awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()) {
+      with(awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()) {
         header?.headline.shouldBe("Re-enable Mobile Pay")
         header?.sublineModel?.string.shouldBe(
           "We noticed that you changed your currency from USD to EUR. Please make sure your Mobile Pay amount is correct."
@@ -70,7 +70,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
-      awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>().onLoaded()
+      awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>().onLoaded()
       mobilePayService.disableCalls.awaitItem()
     }
   }
@@ -81,7 +81,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
-      val formModel = awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()
+      val formModel = awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()
       formModel.clickPrimaryButton()
       homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
       // Emits null while it's being cleared

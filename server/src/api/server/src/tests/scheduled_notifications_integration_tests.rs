@@ -1,7 +1,4 @@
-use account::{
-    entities::{Factor, TouchpointPlatform},
-    service::AddPushTouchpointToAccountInput,
-};
+use account::service::AddPushTouchpointToAccountInput;
 use notification::{
     entities::{NotificationTouchpoint, ScheduledNotification},
     identifiers::NotificationId,
@@ -19,6 +16,7 @@ use notification::{
 };
 use queue::sqs::SqsQueue;
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
+use types::account::entities::{Factor, TouchpointPlatform};
 use types::account::identifiers::AccountId;
 
 use crate::{
@@ -161,6 +159,8 @@ async fn test_scheduled_handler() {
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
         privileged_action_repository: bootstrap.services.privileged_action_repository.clone(),
+        inheritance_repository: bootstrap.services.inheritance_repository.clone(),
+        social_recovery_repository: bootstrap.services.social_recovery_repository.clone(),
     };
     let worker = TestWorker::new(state.clone()).await;
 

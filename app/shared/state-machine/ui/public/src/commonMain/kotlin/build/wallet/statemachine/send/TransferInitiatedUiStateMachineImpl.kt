@@ -11,7 +11,8 @@ class TransferInitiatedUiStateMachineImpl(
     val transactionDetails = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
         transactionDetails = props.transactionDetails,
-        exchangeRates = props.exchangeRates
+        exchangeRates = props.exchangeRates,
+        variant = TransferConfirmationScreenVariant.Regular
       )
     )
     return TransferInitiatedBodyModel(

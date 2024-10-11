@@ -2,7 +2,7 @@ package build.wallet.integration.statemachine.recovery.emergencyaccesskit
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.*
+import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
@@ -17,8 +17,10 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportPasteMobileKeyBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportWalletBodyModel
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRestoreWalletBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
@@ -96,31 +98,21 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
           .restoreEmergencyAccessButton.onClick.shouldNotBeNull().invoke()
 
         // Progress through the EAK flow with manual entry.
-        awaitUntilScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD)
-          .clickPrimaryButton()
-        awaitUntilScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(validData, IntRange(0, validData.length))
+        awaitUntilScreenWithBody<EmergencyAccessKitImportWalletBodyModel>()
+          .onEnterManually()
+        awaitUntilScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+          onEnterTextChanged(validData)
         }
-        awaitUntilScreenWithBody<FormBodyModel>(
-          IMPORT_TEXT_KEY,
+        awaitUntilScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>(
           expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
         ) {
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .value
-            .shouldBe(validData)
-
-          clickPrimaryButton()
+          enteredText.shouldBe(validData)
+          onContinue()
         }
-        awaitUntilScreenWithBody<FormBodyModel>(
-          RESTORE_YOUR_WALLET,
+        awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
           expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
         ) {
-          clickPrimaryButton()
+          onRestore.shouldNotBeNull().invoke()
         }
 
         awaitUntilScreenWithBody<NfcBodyModel>()

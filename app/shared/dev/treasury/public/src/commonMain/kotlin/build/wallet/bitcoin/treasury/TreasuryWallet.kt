@@ -26,9 +26,14 @@ class TreasuryWallet(
   private val blockchainControl: BlockchainControl,
   val spendingWallet: SpendingWallet,
 ) : SpendingWallet by spendingWallet {
+  /**
+   * @param waitForConfirmation if true (default), waits for the transaction to be confirmed in the
+   * blockchain.
+   */
   suspend fun fund(
     destinationWallet: WatchingWallet,
     amount: BitcoinMoney,
+    waitForConfirmation: Boolean = true,
   ): FundingResult {
     val address = destinationWallet.getNewAddress().unwrap()
     println("Using Treasury to fund $address with $amount")
@@ -53,10 +58,13 @@ class TreasuryWallet(
         fund(address, amount)
       }
 
-    // (Regtest only) Advance the blockchain
-    blockchainControl.mineBlocks(1)
-
-    println("Successfully broadcast funding transaction, waiting for tx to appear in mempool")
+    if (waitForConfirmation) {
+      // (Regtest only) Advance the blockchain
+      blockchainControl.mineBlocks(1)
+      println("Successfully broadcast funding transaction, waiting for tx to appear in mempool")
+    } else {
+      println("Successfully broadcast funding transaction, not waiting for confirmation")
+    }
 
     destinationWallet.balance().test {
       eventually(

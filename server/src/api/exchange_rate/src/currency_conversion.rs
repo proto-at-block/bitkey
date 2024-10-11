@@ -1,16 +1,8 @@
 use async_trait::async_trait;
+use bdk_utils::constants::ONE_BTC_IN_SATOSHIS;
 use time::OffsetDateTime;
 use tracing::instrument;
-
-use crate::chart::ExchangeRateChartProvider;
-use crate::error::ExchangeRateError::{
-    ProviderUnreachable, UnsupportedDestinationCurrency, UnsupportedSourceCurrency,
-};
-use crate::error::{ExchangeRateError, ProviderResponseError};
-use crate::service::Service;
-use crate::{ExchangeRateProvider, ExchangeRateProviderType};
-use account::spend_limit::Money;
-use bdk_utils::constants::ONE_BTC_IN_SATOSHIS;
+use types::account::spend_limit::Money;
 use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::bitstamp::{BitstampRate, BitstampRateProvider};
@@ -20,6 +12,14 @@ use types::exchange_rate::coingecko::{
 };
 use types::exchange_rate::local_rate_provider::{LocalRateProvider, LocalRateType};
 use types::exchange_rate::PriceAt;
+
+use crate::chart::ExchangeRateChartProvider;
+use crate::error::ExchangeRateError::{
+    ProviderUnreachable, UnsupportedDestinationCurrency, UnsupportedSourceCurrency,
+};
+use crate::error::{ExchangeRateError, ProviderResponseError};
+use crate::service::Service;
+use crate::{ExchangeRateProvider, ExchangeRateProviderType};
 
 #[instrument(err, skip(exchange_rate_service, rate_provider, money))]
 pub async fn sats_for<T>(
@@ -245,7 +245,7 @@ impl SpotExchangeRateProvider for LocalRateProvider {
 
 #[cfg(test)]
 mod sats_for_tests {
-    use account::spend_limit::Money;
+    use types::account::spend_limit::Money;
     use types::currencies::CurrencyCode::{AUD, USD};
     use types::exchange_rate::local_rate_provider::LocalRateProvider;
 

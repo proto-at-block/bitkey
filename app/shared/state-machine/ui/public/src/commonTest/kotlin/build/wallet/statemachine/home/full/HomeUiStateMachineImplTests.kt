@@ -5,13 +5,21 @@ import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.InactiveApp
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.SellBitcoinFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.partnerships.PartnerId
+import build.wallet.partnerships.PartnershipEvent
+import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.router.Route
+import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.SheetModel
@@ -40,6 +48,7 @@ import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 
 class HomeUiStateMachineImplTests : FunSpec({
 
@@ -70,6 +79,8 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val mobilePayService = MobilePayServiceMock(turbines::create)
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val sellBitcoinFeatureFlag = SellBitcoinFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
   val stateMachine =
     HomeUiStateMachineImpl(
@@ -106,11 +117,12 @@ class HomeUiStateMachineImplTests : FunSpec({
       appFunctionalityService = appFunctionalityService,
       expectedTransactionNoticeUiStateMachine = expectedTransactionNoticeUiStateMachine,
       deepLinkHandler = deepLinkHandler,
-      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
+      inAppBrowserNavigator = inAppBrowserNavigator,
       clock = ClockFake(),
       timeZoneProvider = TimeZoneProviderMock(),
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      mobilePayService = mobilePayService
+      mobilePayService = mobilePayService,
+      sellBitcoinFeatureFlag = sellBitcoinFeatureFlag
     )
 
   val props =
@@ -123,6 +135,8 @@ class HomeUiStateMachineImplTests : FunSpec({
     cloudBackupHealthRepository.reset()
     fiatCurrencyPreferenceRepository.reset()
     mobilePayService.reset()
+    sellBitcoinFeatureFlag.reset()
+    Router.reset()
   }
 
   suspend fun awaitSyncLoopCall() {
@@ -210,6 +224,45 @@ class HomeUiStateMachineImplTests : FunSpec({
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
       awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
+    }
+  }
+
+  test("partner sell app link does not invoke with feature flag disabled") {
+    sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+    Router.route = Route.fromUrl("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
+    stateMachine.test(props) {
+      awaitSyncLoopCall()
+      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+
+      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
+      }
+    }
+  }
+
+  test("partner sell app link invokes with feature flag enabled") {
+    sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    Router.route = Route.fromUrl("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
+
+    stateMachine.test(props) {
+      awaitSyncLoopCall()
+      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+
+      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
+      }
+
+      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+        inAppBrowserNavigator.onCloseCalls.awaitItem()
+
+        origin.shouldBe(
+          MoneyHomeUiProps.Origin.PartnershipsSell(
+            partnerId = PartnerId("MoonPay"),
+            event = PartnershipEvent("transaction_created"),
+            partnerTransactionId = PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4")
+          )
+        )
+      }
     }
   }
 })

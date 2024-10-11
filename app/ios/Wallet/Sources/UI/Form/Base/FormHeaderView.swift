@@ -53,6 +53,10 @@ public struct FormHeaderView: View {
                         .frame(height: viewModel.alignment == .leading ? 16 : 8)
                 }
             }
+            
+            viewModel.customContent.map { customContent in
+                CustomContentView(viewModel: customContent)
+            }
 
             viewModel.headline.map { headline in
                 ModeledText(
@@ -154,4 +158,94 @@ private extension FormHeaderModel.SublineTreatment {
         }
     }
 
+}
+
+// MARK: -
+
+private struct CustomContentView : View {
+    
+    private let viewModel: FormHeaderModel.CustomContent
+    
+    public init(
+        viewModel: FormHeaderModel.CustomContent
+    ) {
+        self.viewModel = viewModel
+    }
+    
+    // MARK: - View
+
+    public var body: some View {
+        if (viewModel is FormHeaderModel.CustomContentPartnershipTransferAnimation) {
+            PartnershipTransferAnimationView(viewModel: viewModel as! FormHeaderModel.CustomContentPartnershipTransferAnimation)
+        }
+    }
+}
+
+// MARK: -
+
+private struct PartnershipTransferAnimationView : View {
+    
+    private let viewModel: FormHeaderModel.CustomContentPartnershipTransferAnimation
+    
+    public init(
+        viewModel: FormHeaderModel.CustomContentPartnershipTransferAnimation
+    ) {
+        self.viewModel = viewModel
+    }
+    
+    // MARK: - View
+
+    public var body: some View {
+        HStack(spacing: 6) {
+            IconView(model: viewModel.bitkeyIcon)
+            DotsLoadingIndicator()
+            IconView(model: viewModel.partnerIcon)
+        }
+        .padding(.top, 24)
+    }
+}
+
+private struct DotsLoadingIndicator: View {
+    @SwiftUI.State private var dot1Alpha: Double = 0.1
+    @SwiftUI.State private var dot2Alpha: Double = 0.1
+    @SwiftUI.State private var dot3Alpha: Double = 0.1
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            DotView(alpha: dot1Alpha)
+            DotView(alpha: dot2Alpha)
+            DotView(alpha: dot3Alpha)
+        }
+        .onAppear {
+            animateDots()
+        }
+    }
+
+    private func animateDots() {
+        withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+            dot1Alpha = 1
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                dot2Alpha = 1
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            withAnimation(Animation.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {
+                dot3Alpha = 1
+            }
+        }
+    }
+}
+
+private struct DotView: View {
+    var alpha: Double
+    
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(Color.bitkeyPrimary.opacity(alpha))
+            .frame(width: 8, height: 8)
+    }
 }

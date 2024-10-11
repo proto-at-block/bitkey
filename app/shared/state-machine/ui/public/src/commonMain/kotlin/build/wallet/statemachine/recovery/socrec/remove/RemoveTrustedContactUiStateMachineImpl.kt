@@ -11,15 +11,11 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
-import build.wallet.recovery.socrec.SocRecService
+import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -28,7 +24,7 @@ import kotlinx.datetime.Clock
 class RemoveTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val clock: Clock,
-  private val socRecService: SocRecService,
+  private val relationshipsService: RelationshipsService,
 ) : RemoveTrustedContactUiStateMachine {
   @Composable
   override fun model(props: RemoveTrustedContactUiProps): ScreenModel {
@@ -78,7 +74,7 @@ class RemoveTrustedContactUiStateMachineImpl(
 
       is State.RemovingWithBitkeyState -> {
         LaunchedEffect("remove-tc-with-bitkey") {
-          socRecService.removeRelationship(
+          relationshipsService.removeRelationship(
             account = props.account,
             hardwareProofOfPossession = current.proofOfPossession,
             authTokenScope = AuthTokenScope.Global,

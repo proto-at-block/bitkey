@@ -31,6 +31,7 @@ plugins {
   alias(libs.plugins.sqldelight) apply false
   alias(libs.plugins.wire) apply false
   alias(libs.plugins.kotlinx.benchmark) apply false
+  alias(libs.plugins.ksp) apply false
 }
 
 tasks.wrapper {

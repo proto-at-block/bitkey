@@ -9,12 +9,11 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
 
     func test_someone_else_hw() {
         let view = FormView(
-            viewModel: ShowingSomeoneElseIsRecoveringBodyModelKt
-                .ShowingSomeoneElseIsRecoveringBodyModel(
-                    cancelingRecoveryLostFactor: .hardware,
-                    isLoading: false,
-                    onCancelRecovery: {}
-                )
+            viewModel: SnapshotTestModels.shared.CreateShowingSomeoneElseIsRecoveringBodyModel(
+                cancelingRecoveryLostFactor: .hardware,
+                isLoading: false,
+                onCancelRecovery: {}
+            )
         )
 
         assertBitkeySnapshots(view: view, precision: 0.99)
@@ -22,12 +21,11 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
 
     func test_someone_else_app() {
         let view = FormView(
-            viewModel: ShowingSomeoneElseIsRecoveringBodyModelKt
-                .ShowingSomeoneElseIsRecoveringBodyModel(
-                    cancelingRecoveryLostFactor: .app,
-                    isLoading: false,
-                    onCancelRecovery: {}
-                )
+            viewModel: SnapshotTestModels.shared.CreateShowingSomeoneElseIsRecoveringBodyModel(
+                cancelingRecoveryLostFactor: .app,
+                isLoading: false,
+                onCancelRecovery: {}
+            )
         )
 
         assertBitkeySnapshots(view: view, precision: 0.99)
@@ -35,7 +33,7 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
 
     func test_no_longer_hw() {
         let view = FormView(
-            viewModel: ShowingNoLongerRecoveringBodyModelKt.ShowingNoLongerRecoveringBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateShowingNoLongerRecoveringBodyModel(
                 canceledRecoveringFactor: .hardware,
                 isLoading: false,
                 errorData: nil,
@@ -48,7 +46,7 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
 
     func test_no_longer_app() {
         let view = FormView(
-            viewModel: ShowingNoLongerRecoveringBodyModelKt.ShowingNoLongerRecoveringBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateShowingNoLongerRecoveringBodyModel(
                 canceledRecoveringFactor: .app,
                 isLoading: false,
                 errorData: nil,

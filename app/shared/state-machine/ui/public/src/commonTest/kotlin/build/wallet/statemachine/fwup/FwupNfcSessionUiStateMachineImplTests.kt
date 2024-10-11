@@ -10,10 +10,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
-import build.wallet.nfc.NfcException
-import build.wallet.nfc.NfcReaderCapabilityProviderMock
-import build.wallet.nfc.NfcSession
-import build.wallet.nfc.NfcTransactorMock
+import build.wallet.nfc.*
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.test
@@ -136,7 +133,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
       onDoneCalls.awaitItem()
 
-      transactCalls.onTagConnected()
+      transactCalls.onTagConnected(NfcSessionFake())
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_SCREEN_IMPRESSION, NFC_DETECTED, FWUP)
       )

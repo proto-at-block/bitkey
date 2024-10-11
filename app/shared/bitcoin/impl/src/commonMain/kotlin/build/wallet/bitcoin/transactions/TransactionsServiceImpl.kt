@@ -9,11 +9,14 @@ import build.wallet.account.AccountStatus.*
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
 import build.wallet.asLoadableValue
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
+import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsServiceImpl.Balances.LoadedBalance
+import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
@@ -27,13 +30,11 @@ import build.wallet.money.exchange.ExchangeRateService
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 class TransactionsServiceImpl(
@@ -116,17 +117,56 @@ class TransactionsServiceImpl(
       unspentOutputs().asLoadableValue()
     ) { balance, transactions, unspentOutputs ->
       if (balance is LoadedBalance && transactions is LoadedValue && unspentOutputs is LoadedValue) {
-        TransactionsLoadedData(
-          balance = balance.bitcoinBalance,
-          transactions = transactions.value.toImmutableList(),
-          unspentOutputs = unspentOutputs.value.toImmutableList(),
-          fiatBalance = balance.fiatBalance
+        val utxos = groupUtxos(
+          allUtxos = unspentOutputs.value,
+          transactions = transactions.value
+        )
+
+        utxos.fold(
+          success = {
+            TransactionsLoadedData(
+              balance = balance.bitcoinBalance,
+              transactions = transactions.value.toImmutableList(),
+              utxos = it,
+              fiatBalance = balance.fiatBalance
+            )
+          },
+          failure = {
+            LoadingTransactionsData
+          }
         )
       } else {
         LoadingTransactionsData
       }
     }
   }
+
+  /**
+   * Returns wallet's UTXOs, grouped by confirmation status.
+   */
+  private suspend fun groupUtxos(
+    allUtxos: List<BdkUtxo>,
+    transactions: List<BitcoinTransaction>,
+  ): Result<Utxos, Error> =
+    coroutineBinding<Utxos, Error> {
+      // Use Default dispatcher for filtering and grouping UTXOs.
+      withContext(Dispatchers.Default) {
+        // IDs of wallet's confirmed transactions.
+        val confirmedTransactionIds = transactions
+          .filter { it.confirmationStatus is Confirmed }
+          .map { tx -> tx.id }
+          .toSet()
+
+        // Group UTXOs by confirmation status.
+        val (confirmedUtxos, unconfirmedUtxos) = allUtxos
+          .partition { utxo -> utxo.outPoint.txid in confirmedTransactionIds }
+
+        Utxos(
+          confirmed = confirmedUtxos.toSet(),
+          unconfirmed = unconfirmedUtxos.toSet()
+        )
+      }
+    }.logFailure { "Error loading wallet UTXOs." }
 
   private fun AccountStatus?.toSpendingKeyset() =
     when (this) {

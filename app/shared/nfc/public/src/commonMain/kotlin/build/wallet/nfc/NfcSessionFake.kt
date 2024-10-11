@@ -6,7 +6,7 @@ class NfcSessionFake(
   override val parameters: NfcSession.Parameters,
 ) : NfcSession {
   init {
-    parameters.onTagConnected()
+    parameters.onTagConnected(this)
   }
 
   override suspend fun transceive(buffer: List<UByte>) = emptyList<UByte>()

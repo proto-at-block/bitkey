@@ -67,9 +67,7 @@ data class FullAccountKeys(
   @Serializable(with = AppKeyKeyPairSerializer::class)
   val appGlobalAuthKeypair: AppKey<AppGlobalAuthKey>,
   val appSpendingKeys: Map<
-    @Serializable(with = AppSpendingPublicKeySerializer::class)
     AppSpendingPublicKey,
-    @Serializable(with = AppSpendingPrivateKeySerializer::class)
     AppSpendingPrivateKey
   >,
   @Serializable(with = HwSpendingPublicKeySerializer::class)

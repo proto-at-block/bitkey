@@ -1,6 +1,8 @@
 package build.wallet.bitcoin.blockchain
 
 import build.wallet.bdk.bindings.BdkError
+import build.wallet.bdk.bindings.BdkTransaction
+import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
 import com.github.michaelbull.result.Result
@@ -22,4 +24,9 @@ interface BitcoinBlockchain {
    * Returns the latest block hash.
    */
   suspend fun getLatestBlockHash(): Result<String, BdkError>
+
+  /**
+   * Returns transaction information given a txid.
+   */
+  suspend fun getTx(txid: BitcoinTransactionId): Result<BdkTransaction?, BdkError>
 }

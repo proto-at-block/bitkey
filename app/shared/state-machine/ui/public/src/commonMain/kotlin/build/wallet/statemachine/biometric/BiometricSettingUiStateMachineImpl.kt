@@ -19,10 +19,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.core.form.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.ui.model.SheetClosingClick
@@ -268,41 +265,57 @@ private fun biometricSettingScreen(
   sheetModel: SheetModel?,
 ): ScreenModel {
   return ScreenModel(
-    body = FormBodyModel(
-      toolbar = ToolbarModel(
-        leadingAccessory = BackAccessory(props.onBack)
-      ),
-      header = FormHeaderModel(
-        headline = "App Security",
-        subline = "Unlock the app using fingerprint or facial recognition."
-      ),
-      mainContentList = immutableListOf(
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            items = immutableListOf(
-              ListItemModel(
-                title = biometricSettingTitleText,
-                secondaryText = biometricSettingSecondaryText,
-                trailingAccessory = ListItemAccessory.SwitchAccessory(
-                  model = SwitchModel(
-                    checked = isEnabled,
-                    onCheckedChange = onEnableCheckedChange
-                  )
-                ),
-                coachmark = coachmark
-              )
-            ),
-            style = ListGroupStyle.DIVIDER
-          )
-        )
-      ),
-      primaryButton = null,
-      onBack = props.onBack,
-      id = SettingsEventTrackerScreenId.SETTING_BIOMETRICS
+    body = BiometricSettingsScreenBodyModel(
+      props = props,
+      biometricSettingTitleText = biometricSettingTitleText,
+      biometricSettingSecondaryText = biometricSettingSecondaryText,
+      coachmark = coachmark,
+      isEnabled = isEnabled,
+      onEnableCheckedChange = onEnableCheckedChange
     ),
     bottomSheetModel = sheetModel
   )
 }
+
+private class BiometricSettingsScreenBodyModel(
+  props: BiometricSettingUiProps,
+  biometricSettingTitleText: String,
+  biometricSettingSecondaryText: String,
+  coachmark: CoachmarkModel?,
+  isEnabled: Boolean,
+  onEnableCheckedChange: (Boolean) -> Unit,
+) : FormBodyModel(
+    toolbar = ToolbarModel(
+      leadingAccessory = BackAccessory(props.onBack)
+    ),
+    header = FormHeaderModel(
+      headline = "App Security",
+      subline = "Unlock the app using fingerprint or facial recognition."
+    ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          items = immutableListOf(
+            ListItemModel(
+              title = biometricSettingTitleText,
+              secondaryText = biometricSettingSecondaryText,
+              trailingAccessory = ListItemAccessory.SwitchAccessory(
+                model = SwitchModel(
+                  checked = isEnabled,
+                  onCheckedChange = onEnableCheckedChange
+                )
+              ),
+              coachmark = coachmark
+            )
+          ),
+          style = ListGroupStyle.DIVIDER
+        )
+      )
+    ),
+    primaryButton = null,
+    onBack = props.onBack,
+    id = SettingsEventTrackerScreenId.SETTING_BIOMETRICS
+  )
 
 private fun nfcPromptSheetModel(
   biometricText: String,
@@ -314,32 +327,44 @@ private fun nfcPromptSheetModel(
   val biometricActionText = if (isDisabling) "disable $biometricText" else "enable $biometricText"
   return SheetModel(
     onClosed = onCancel,
-    body = FormBodyModel(
-      toolbar = null,
-      header = FormHeaderModel(
-        headline = "Scan your Bitkey device to $biometricActionText",
-        subline = "To keep your bitcoin secure, your Bitkey device is required for any security changes."
-      ),
-      renderContext = RenderContext.Sheet,
-      primaryButton = ButtonModel(
-        text = "Scan Bitkey Device",
-        size = ButtonModel.Size.Footer,
-        leadingIcon = Icon.SmallIconBitkey,
-        treatment = ButtonModel.Treatment.Black,
-        onClick = SheetClosingClick { onScanBitkeyDevice() }
-      ),
-      secondaryButton = ButtonModel(
-        text = "Cancel",
-        size = ButtonModel.Size.Footer,
-        isEnabled = true,
-        treatment = ButtonModel.Treatment.Secondary,
-        onClick = SheetClosingClick { onCancel() }
-      ),
-      onBack = onBack,
-      id = null
+    body = NfcPromptSheetBodyModel(
+      biometricActionText = biometricActionText,
+      onScanBitkeyDevice = onScanBitkeyDevice,
+      onCancel = onCancel,
+      onBack = onBack
     )
   )
 }
+
+private data class NfcPromptSheetBodyModel(
+  val biometricActionText: String,
+  val onScanBitkeyDevice: () -> Unit,
+  val onCancel: () -> Unit,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    toolbar = null,
+    header = FormHeaderModel(
+      headline = "Scan your Bitkey device to $biometricActionText",
+      subline = "To keep your bitcoin secure, your Bitkey device is required for any security changes."
+    ),
+    renderContext = RenderContext.Sheet,
+    primaryButton = ButtonModel(
+      text = "Scan Bitkey Device",
+      size = ButtonModel.Size.Footer,
+      leadingIcon = Icon.SmallIconBitkey,
+      treatment = ButtonModel.Treatment.Black,
+      onClick = SheetClosingClick { onScanBitkeyDevice() }
+    ),
+    secondaryButton = ButtonModel(
+      text = "Cancel",
+      size = ButtonModel.Size.Footer,
+      isEnabled = true,
+      treatment = ButtonModel.Treatment.Secondary,
+      onClick = SheetClosingClick { onCancel() }
+    ),
+    onBack = onBack,
+    id = null
+  )
 
 private fun errorSheetModel(
   headline: String,
@@ -349,23 +374,33 @@ private fun errorSheetModel(
 ): SheetModel {
   return SheetModel(
     onClosed = onCancel,
-    body = FormBodyModel(
-      toolbar = null,
-      header = FormHeaderModel(
-        headline = headline,
-        subline = subline
-      ),
-      renderContext = RenderContext.Sheet,
-      primaryButton = ButtonModel(
-        text = "Ok",
-        size = ButtonModel.Size.Footer,
-        onClick = SheetClosingClick { onBack() }
-      ),
-      onBack = onBack,
-      id = null
+    body = ErrorSheetBodyModel(
+      headline = headline,
+      subline = subline,
+      onBack = onBack
     )
   )
 }
+
+private class ErrorSheetBodyModel(
+  headline: String,
+  subline: String,
+  onBack: () -> Unit,
+) : FormBodyModel(
+    toolbar = null,
+    header = FormHeaderModel(
+      headline = headline,
+      subline = subline
+    ),
+    renderContext = RenderContext.Sheet,
+    primaryButton = ButtonModel(
+      text = "Ok",
+      size = ButtonModel.Size.Footer,
+      onClick = SheetClosingClick { onBack() }
+    ),
+    onBack = onBack,
+    id = null
+  )
 
 private fun notEnrolledErrorSheetModel(
   headline: String,
@@ -376,29 +411,43 @@ private fun notEnrolledErrorSheetModel(
 ): SheetModel {
   return SheetModel(
     onClosed = onCancel,
-    body = FormBodyModel(
-      toolbar = null,
-      header = FormHeaderModel(
-        headline = headline,
-        subline = subline
-      ),
-      renderContext = RenderContext.Sheet,
-      primaryButton = ButtonModel(
-        text = "Go to Settings",
-        size = ButtonModel.Size.Footer,
-        onClick = SheetClosingClick { onGoToSettings() }
-      ),
-      secondaryButton = ButtonModel(
-        text = "Cancel",
-        treatment = ButtonModel.Treatment.Secondary,
-        size = ButtonModel.Size.Footer,
-        onClick = SheetClosingClick { onCancel() }
-      ),
+    body = NotEnrolledErrorSheetBodyModel(
+      headline = headline,
+      subline = subline,
+      onCancel = onCancel,
       onBack = onBack,
-      id = null
+      onGoToSettings = onGoToSettings
     )
   )
 }
+
+private data class NotEnrolledErrorSheetBodyModel(
+  val headline: String,
+  val subline: String,
+  val onCancel: () -> Unit,
+  override val onBack: () -> Unit,
+  val onGoToSettings: () -> Unit,
+) : FormBodyModel(
+    toolbar = null,
+    header = FormHeaderModel(
+      headline = headline,
+      subline = subline
+    ),
+    renderContext = RenderContext.Sheet,
+    primaryButton = ButtonModel(
+      text = "Go to Settings",
+      size = ButtonModel.Size.Footer,
+      onClick = SheetClosingClick { onGoToSettings() }
+    ),
+    secondaryButton = ButtonModel(
+      text = "Cancel",
+      treatment = ButtonModel.Treatment.Secondary,
+      size = ButtonModel.Size.Footer,
+      onClick = SheetClosingClick { onCancel() }
+    ),
+    onBack = onBack,
+    id = null
+  )
 
 private sealed interface State {
   /**

@@ -10,6 +10,9 @@ kotlin {
   targets(ios = true, jvm = true)
 
   sourceSets {
+    all {
+      languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+    }
     commonMain {
       dependencies {
         api(libs.kmp.okio)

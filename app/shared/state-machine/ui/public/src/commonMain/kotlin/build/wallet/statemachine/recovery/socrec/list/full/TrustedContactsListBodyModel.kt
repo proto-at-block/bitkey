@@ -1,23 +1,22 @@
 package build.wallet.statemachine.recovery.socrec.list.full
 
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.recovery.socrec.list.lite.LiteTrustedContactsListBodyModel
+import build.wallet.statemachine.recovery.socrec.list.listItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.Companion.drillIcon
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemSideTextTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.toImmutableList
 
 private const val TRUSTED_CONTACT_COUNT_LIMIT = 3
@@ -25,79 +24,88 @@ private const val TRUSTED_CONTACT_COUNT_LIMIT = 3
 /**
  * Data used in the TC Management screen.
  */
-fun TrustedContactsListBodyModel(
+data class TrustedContactsListBodyModel(
   /**
    * List of the current user's trusted contacts to be displayed.
    */
-  contacts: List<EndorsedTrustedContact>,
+  val contacts: List<EndorsedTrustedContact>,
   /**
    * List of the current user's trusted contacts to be displayed.
    */
-  invitations: List<Invitation>,
+  val invitations: List<Invitation>,
   /**
    * List of the current user's protected customers
    * (i.e. customers they are serving as Trusted Contact for) to be displayed.
    */
-  protectedCustomers: List<ProtectedCustomer>,
+  val protectedCustomers: List<ProtectedCustomer>,
   /**
    * Current time, used to determine if an invitation is expired.
    */
-  now: Long,
+  val now: Long,
   /**
    * Invoked when the user clicks an add action to the list of contacts.
    */
-  onAddPressed: () -> Unit,
+  val onAddPressed: () -> Unit,
   /**
    * Invoked when the user clicks on a trusted contact or invitation in the list of contacts.
    */
-  onContactPressed: (TrustedContact) -> Unit,
+  val onContactPressed: (TrustedContact) -> Unit,
   /**
    * Invoked when the user clicks on a customer in the list of protected customers.
    */
-  onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
+  val onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
   /**
    * Invoked when the user clicks the accept invite action to become a Trusted Contact.
    */
-  onAcceptInvitePressed: () -> Unit,
-  onBackPressed: () -> Unit,
-): FormBodyModel {
-  val lite =
-    LiteTrustedContactsListBodyModel(
-      id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST,
-      protectedCustomers = protectedCustomers.toImmutableList(),
-      onProtectedCustomerPressed = onProtectedCustomerPressed,
-      onAcceptInvitePressed = onAcceptInvitePressed,
-      onBackPressed = onBackPressed,
+  val onAcceptInvitePressed: () -> Unit,
+  val onBackPressed: () -> Unit,
+) : FormBodyModel(
+    id = TC_MANAGEMENT_SETTINGS_LIST,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
+    header = FormHeaderModel(
+      headline = "Trusted Contacts",
       subline = "Add people you trust to securely recover your wallet in case of lost access."
-    )
-
-  // Determine if the user can invite more trusted contacts.
-  val relationships = contacts.plus(invitations)
-
-  return lite.copy(
-    mainContentList =
-      immutableListOf(
-        FormMainContentModel.ListGroup(
-          ListGroupModel(
-            header = "Your Trusted Contacts",
-            items =
-              relationships
-                .toListItems(now, onContactPressed)
-                .toImmutableList(),
-            style = ListGroupStyle.CARD_GROUP_DIVIDER,
-            footerButton =
-              ButtonModel(
-                text = "Invite",
-                treatment = ButtonModel.Treatment.Secondary,
-                size = ButtonModel.Size.Footer,
-                onClick = StandardClick { onAddPressed() }
-              ).takeIf { relationships.size < TRUSTED_CONTACT_COUNT_LIMIT }
+    ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.ListGroup(
+        ListGroupModel(
+          header = "Your Trusted Contacts",
+          items = (contacts + invitations)
+            .toListItems(now, onContactPressed)
+            .toImmutableList(),
+          style = ListGroupStyle.CARD_GROUP_DIVIDER,
+          footerButton = ButtonModel(
+            text = "Invite",
+            treatment = ButtonModel.Treatment.Secondary,
+            size = ButtonModel.Size.Footer,
+            onClick = StandardClick(onAddPressed)
+          ).takeIf {
+            // Determine if the user can invite more trusted contacts.
+            (invitations + contacts).size < TRUSTED_CONTACT_COUNT_LIMIT
+          }
+        )
+      ),
+      FormMainContentModel.ListGroup(
+        ListGroupModel(
+          header = "Wallets You’re Protecting",
+          items = protectedCustomers.map { protectedCustomer ->
+            protectedCustomer.listItemModel {
+              onProtectedCustomerPressed(it)
+            }
+          }.toImmutableList(),
+          style = ListGroupStyle.CARD_GROUP_DIVIDER,
+          footerButton = ButtonModel(
+            text = if (protectedCustomers.isEmpty()) "Accept invite" else "Accept another invite",
+            treatment = ButtonModel.Treatment.Secondary,
+            size = ButtonModel.Size.Footer,
+            onClick = StandardClick(onAcceptInvitePressed)
           )
-        ),
-        lite.mainContentList[0]
+        )
       )
+    ),
+    onBack = onBackPressed,
+    primaryButton = null
   )
-}
 
 /**
  * Convert a list of recovery contacts to row items for a ListGroup.

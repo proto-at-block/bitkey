@@ -9,7 +9,7 @@ final class HelpingWithRecoverySnapshotTests: XCTestCase {
 
     func test_verifying_contact_method() {
         let view = FormView(
-            viewModel: HelpingWithRecoveryModelsKt.VerifyingContactMethodFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateVerifyingContactMethodFormBodyModel(
                 onBack: {},
                 onTextMessageClick: {},
                 onEmailClick: {},
@@ -24,7 +24,7 @@ final class HelpingWithRecoverySnapshotTests: XCTestCase {
 
     func test_confirming_identity() {
         let view = FormView(
-            viewModel: HelpingWithRecoveryModelsKt.ConfirmingIdentityFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateConfirmingIdentityFormBodyModel(
                 protectedCustomer: .init(
                     relationshipId: "id",
                     alias: "Customer Name",

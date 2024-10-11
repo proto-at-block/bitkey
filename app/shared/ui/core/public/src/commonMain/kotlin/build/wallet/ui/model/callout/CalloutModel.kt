@@ -14,7 +14,7 @@ import build.wallet.ui.model.Click
  * @property onClick - the action to be performed when the trailing icon is clicked
  */
 data class CalloutModel(
-  val title: String,
+  val title: String? = null,
   val subtitle: LabelModel? = null,
   val treatment: Treatment = Treatment.Default,
   val leadingIcon: Icon? = null,

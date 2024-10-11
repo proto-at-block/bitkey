@@ -12,6 +12,11 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
+    func test_money_home_with_sell_button() {
+        let view = MoneyHomeView(viewModel: .snapshotTestFull(showSellButton: true))
+        assertBitkeySnapshots(view: view)
+    }
+
     func test_money_home_with_status_banner() {
         let view = MoneyHomeView(viewModel: .snapshotTestFull())
         assertBitkeySnapshots(
@@ -136,9 +141,10 @@ final class MoneyHomeSnapshotTests: XCTestCase {
                 secondaryAmount: "435,228 sats"
             ),
             buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                addButton: .init(enabled: false, onClick: {}),
+                sellButton: nil,
                 sendButton: .init(enabled: true, onClick: {}),
-                receiveButton: .init(enabled: true, onClick: {}),
-                addButton: .init(enabled: false, onClick: {})
+                receiveButton: .init(enabled: true, onClick: {})
             ),
             cardsModel: .init(cards: []),
             transactionsModel: ListModel.transactionsSnapshotTest,
@@ -182,9 +188,10 @@ final class MoneyHomeSnapshotTests: XCTestCase {
                 secondaryAmount: "153,984,147,317 sats"
             ),
             buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                addButton: .init(enabled: false, onClick: {}),
+                sellButton: nil,
                 sendButton: .init(enabled: true, onClick: {}),
-                receiveButton: .init(enabled: true, onClick: {}),
-                addButton: .init(enabled: false, onClick: {})
+                receiveButton: .init(enabled: true, onClick: {})
             ),
             cardsModel: .init(cards: []),
             transactionsModel: ListModel.transactionsSnapshotTest,
@@ -230,7 +237,8 @@ private extension MoneyHomeBodyModel {
     static func snapshotTestFull(
         cards: [CardModel] = [],
         hideBalance: Bool = false,
-        badgedSettingsIcon: Bool = false
+        badgedSettingsIcon: Bool = false,
+        showSellButton: Bool = false
     ) -> MoneyHomeBodyModel {
         return MoneyHomeBodyModel(
             hideBalance: hideBalance,
@@ -240,9 +248,10 @@ private extension MoneyHomeBodyModel {
                 secondaryAmount: "435,228 sats"
             ),
             buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                addButton: .init(enabled: false, onClick: {}),
+                sellButton: showSellButton ? .init(enabled: false, onClick: {}) : nil,
                 sendButton: .init(enabled: true, onClick: {}),
-                receiveButton: .init(enabled: true, onClick: {}),
-                addButton: .init(enabled: false, onClick: {})
+                receiveButton: .init(enabled: true, onClick: {})
             ),
             cardsModel: .init(cards: cards),
             transactionsModel: ListModel.transactionsSnapshotTest,

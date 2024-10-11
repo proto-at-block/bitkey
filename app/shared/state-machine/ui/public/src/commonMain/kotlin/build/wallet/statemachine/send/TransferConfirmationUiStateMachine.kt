@@ -2,7 +2,6 @@ package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
@@ -27,7 +26,8 @@ interface TransferConfirmationUiStateMachine :
  * @property onExit callback when we want to exit the send flow
  */
 data class TransferConfirmationUiProps(
-  val transferVariant: Variant,
+  val variant: TransferConfirmationScreenVariant,
+  val selectedPriority: EstimatedTransactionPriority,
   val account: FullAccount,
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
@@ -39,18 +39,4 @@ data class TransferConfirmationUiProps(
   val onTransferFailed: () -> Unit,
   val onBack: () -> Unit,
   val onExit: () -> Unit,
-) {
-  sealed interface Variant {
-    /**
-     * Transaction confirmation for the regular send flow.
-     */
-    data class Regular(
-      val selectedPriority: EstimatedTransactionPriority,
-    ) : Variant
-
-    /**
-     * Transaction confirmation when trying to speed up a transaction.
-     */
-    data class SpeedUp(val txid: String, val oldFee: Fee, val newFeeRate: FeeRate) : Variant
-  }
-}
+)

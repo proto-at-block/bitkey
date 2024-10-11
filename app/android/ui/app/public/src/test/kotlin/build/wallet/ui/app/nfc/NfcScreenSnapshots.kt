@@ -23,4 +23,10 @@ class NfcScreenSnapshots : FunSpec({
       NfcScreenSuccessPreview()
     }
   }
+
+  test("NFC connected with spinner") {
+    paparazzi.snapshot {
+      NfcScreenConnectedWithSpinnerPreview()
+    }
+  }
 })

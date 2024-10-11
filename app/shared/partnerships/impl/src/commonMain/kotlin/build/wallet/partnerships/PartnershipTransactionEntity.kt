@@ -20,7 +20,8 @@ internal fun PartnershipTransaction.toEntity(): PartnershipTransactionEntity {
     fiatCurrency = fiatCurrency,
     paymentMethod = paymentMethod,
     created = created,
-    updated = updated
+    updated = updated,
+    sellWalletAddress = sellWalletAddress
   )
 }
 
@@ -44,6 +45,7 @@ internal fun PartnershipTransactionEntity.toModel(): PartnershipTransaction {
     fiatCurrency = fiatCurrency,
     paymentMethod = paymentMethod,
     created = created,
-    updated = updated
+    updated = updated,
+    sellWalletAddress = sellWalletAddress
   )
 }

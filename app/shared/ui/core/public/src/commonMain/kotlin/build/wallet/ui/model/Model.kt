@@ -10,5 +10,5 @@ abstract class Model {
    machine output to render individually (e.g. push/pop to on a stack, replace an existing view,
    render as a card, etc) should maintain a stable key as their content changes.
    */
-  open val key: String = this::class.qualifiedName!!
+  open val key: String get() = this::class.qualifiedName!!
 }

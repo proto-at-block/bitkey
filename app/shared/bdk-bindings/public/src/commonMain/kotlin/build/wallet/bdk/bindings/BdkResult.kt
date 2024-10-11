@@ -14,13 +14,13 @@ import com.github.michaelbull.result.Ok as ResultOk
  * Primary used for easier Swift interop. With Kotlin/Native, most of the generics get erased
  * in generated ObjC code, which makes consuming code with generics in Swift hard and tedious.
  */
-sealed class BdkResult<out V : Any> {
+sealed class BdkResult<out V : Any?> {
   abstract val result: Result<V, BdkError>
 
   /**
    * Wraps [ResultOk] with [BdkError] as an error type.
    */
-  data class Ok<V : Any>(val value: V) : BdkResult<V>() {
+  data class Ok<V : Any?>(val value: V) : BdkResult<V>() {
     override val result: Result<V, BdkError> = ResultOk(value)
   }
 
@@ -54,7 +54,7 @@ sealed class BdkResult<out V : Any> {
 /**
  * Wraps [Result] into [BdkResult].
  */
-fun <V : Any> Result<V, BdkError>.toBdkResult(): BdkResult<V> {
+fun <V : Any?> Result<V, BdkError>.toBdkResult(): BdkResult<V> {
   return mapBoth(
     success = { BdkResult.Ok(it) },
     failure = { BdkResult.Err(it) }

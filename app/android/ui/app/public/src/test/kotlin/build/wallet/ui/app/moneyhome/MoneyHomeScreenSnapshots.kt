@@ -12,6 +12,12 @@ class MoneyHomeScreenSnapshots : FunSpec({
     }
   }
 
+  test("MoneyHome Screen Full with Sell Button") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(showSellButton = true)
+    }
+  }
+
   test("MoneyHome Screen Full with large balance") {
     paparazzi.snapshot {
       MoneyHomeScreenFull(largeBalance = true)

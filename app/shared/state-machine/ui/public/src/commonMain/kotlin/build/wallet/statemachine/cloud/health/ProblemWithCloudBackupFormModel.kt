@@ -9,20 +9,20 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-internal fun ProblemWithCloudBackupFormModel(
-  onClose: () -> Unit,
-  onContinue: () -> Unit,
-) = FormBodyModel(
-  id = null,
-  onBack = onClose,
-  toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
-  header = FormHeaderModel(
-    headline = "There’s an problem with your ${cloudServiceProvider().name} backup",
-    subline = "Tap your Bitkey device to create a new Mobile Key backup and save it to your ${cloudServiceProvider().name} account"
-  ),
-  primaryButton = ButtonModel.BitkeyInteractionButtonModel(
-    text = "Continue",
-    size = Footer,
-    onClick = StandardClick(onContinue)
+data class ProblemWithCloudBackupFormModel(
+  val onClose: () -> Unit,
+  val onContinue: () -> Unit,
+) : FormBodyModel(
+    id = null,
+    onBack = onClose,
+    toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
+    header = FormHeaderModel(
+      headline = "There’s an problem with your ${cloudServiceProvider().name} backup",
+      subline = "Tap your Bitkey device to create a new Mobile Key backup and save it to your ${cloudServiceProvider().name} account"
+    ),
+    primaryButton = ButtonModel.BitkeyInteractionButtonModel(
+      text = "Continue",
+      size = Footer,
+      onClick = StandardClick(onContinue)
+    )
   )
-)

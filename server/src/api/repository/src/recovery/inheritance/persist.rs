@@ -1,22 +1,25 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 use database::{
     aws_sdk_dynamodb::{
         error::ProvideErrorMetadata,
-        types::{AttributeValue, ConditionCheck, Put, TransactWriteItem},
+        types::{builders::UpdateBuilder, AttributeValue, ConditionCheck, TransactWriteItem},
     },
-    ddb::{try_to_attribute_val, try_to_item, DatabaseError, DatabaseObject, Repository},
+    ddb::{
+        try_to_attribute_val, try_to_item, DatabaseError, DatabaseObject, Repository, UpdateItemOp,
+        Upsert as _,
+    },
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tracing::{event, instrument, Level};
-
-use crate::recovery::social::PARTITION_KEY as RELATIONSHIP_PARTITION_KEY;
 use types::recovery::{
     inheritance::{claim::InheritanceClaim, package::Package},
     trusted_contacts::TrustedContactRole,
 };
 
 use super::{InheritanceRepository, InheritanceRow};
+use crate::recovery::social::PARTITION_KEY as RELATIONSHIP_PARTITION_KEY;
 
 const ENDORSED_TYPE: &str = "Endorsed";
 const RECOVERY_TYPE_NAME: &str = "_RecoveryRelationship_type";
@@ -88,22 +91,26 @@ impl InheritanceRepository {
         packages: Vec<Package>,
     ) -> Result<Vec<Package>, DatabaseError> {
         let database_object = self.get_database_object();
-        let table_name = self.get_table_name().await?;
         let recovery_table_name = self
             .connection
             .get_table_name(DatabaseObject::SocialRecovery)?;
+        let table_name = self.get_table_name().await?;
 
         let mut transact_items: Vec<TransactWriteItem> = Vec::new();
 
         for package in packages.clone().iter() {
-            let item = try_to_item(InheritanceRow::Package(package.clone()), database_object)?;
+            let update_builder: UpdateBuilder = UpdateItemOp::new(
+                self.connection
+                    .client
+                    .try_upsert(InheritanceRow::Package(package.clone()), database_object)?,
+            )
+            .try_into()?;
 
             transact_items.push(
                 TransactWriteItem::builder()
-                    .put(
-                        Put::builder()
-                            .table_name(&table_name)
-                            .set_item(Some(item))
+                    .update(
+                        update_builder
+                            .set_table_name(Some(table_name.clone()))
                             .build()?,
                     )
                     .build(),

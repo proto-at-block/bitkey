@@ -1,8 +1,8 @@
 package build.wallet.bitcoin.transactions
 
 import androidx.compose.runtime.Immutable
-import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.balance.BitcoinBalance
+import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.money.FiatMoney
 import kotlinx.collections.immutable.ImmutableList
 
@@ -26,6 +26,6 @@ sealed interface TransactionsData {
     val balance: BitcoinBalance,
     val fiatBalance: FiatMoney?,
     val transactions: ImmutableList<BitcoinTransaction>,
-    val unspentOutputs: ImmutableList<BdkUtxo>,
+    val utxos: Utxos,
   ) : TransactionsData
 }

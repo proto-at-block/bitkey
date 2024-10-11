@@ -4,14 +4,17 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.encrypt.XCiphertext
+import build.wallet.relationships.RelationshipsCodeBuilder
+import build.wallet.relationships.RelationshipsCodeVersionError
+import build.wallet.relationships.RelationshipsCrypto
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class SocialChallengeVerifierImpl(
   private val socRecChallengeRepository: SocRecChallengeRepository,
-  private val socRecCrypto: SocRecCrypto,
-  private val socialRecoveryCodeBuilder: SocialRecoveryCodeBuilder,
+  private val relationshipsCrypto: RelationshipsCrypto,
+  private val relationshipsCodeBuilder: RelationshipsCodeBuilder,
 ) : SocialChallengeVerifier {
   override suspend fun verifyChallenge(
     account: Account,
@@ -20,10 +23,10 @@ class SocialChallengeVerifierImpl(
     recoveryCode: String,
   ): Result<Unit, SocialChallengeError> =
     coroutineBinding {
-      val (serverPart, pakePart) = socialRecoveryCodeBuilder.parseRecoveryCode(recoveryCode)
+      val (serverPart, pakePart) = relationshipsCodeBuilder.parseRecoveryCode(recoveryCode)
         .mapError {
           when (it) {
-            is SocialRecoveryCodeVersionError -> SocialChallengeError.ChallengeCodeVersionMismatch(cause = it)
+            is RelationshipsCodeVersionError -> SocialChallengeError.ChallengeCodeVersionMismatch(cause = it)
             else -> SocialChallengeError.UnableToVerifyChallengeError(cause = it)
           }
         }.bind()
@@ -36,7 +39,7 @@ class SocialChallengeVerifierImpl(
           SocialChallengeError.UnableToVerifyChallengeError(cause = it)
         }.bind()
 
-      val decryptPkekOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
+      val decryptPkekOutput = relationshipsCrypto.decryptPrivateKeyEncryptionKey(
         password = pakePart,
         protectedCustomerRecoveryPakeKey = challengeResponse.protectedCustomerRecoveryPakePubkey,
         delegatedDecryptionKey = delegatedDecryptionKey,

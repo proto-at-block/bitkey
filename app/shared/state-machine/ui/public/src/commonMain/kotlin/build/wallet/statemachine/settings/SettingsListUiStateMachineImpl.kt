@@ -48,7 +48,7 @@ class SettingsListUiStateMachineImpl(
               immutableListOf(
                 MobilePay::class,
                 BitkeyDevice::class,
-                CurrencyPreference::class,
+                AppearancePreference::class,
                 NotificationPreferences::class
               )
           ),
@@ -141,7 +141,7 @@ class SettingsListUiStateMachineImpl(
       when (this) {
         is MobilePay -> SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()).settingsPair
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
-        is CurrencyPreference -> Pair(SmallIconCurrency, "Currency Display")
+        is AppearancePreference -> Pair(SmallIconPaintBrush, "Appearance")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
         is RecoveryChannels -> Pair(SmallIconRecovery, "Recovery Methods")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
@@ -154,7 +154,7 @@ class SettingsListUiStateMachineImpl(
         is Biometric -> Pair(SmallIconLock, "App Security")
         is UtxoConsolidation -> Pair(SmallIconConsolidation, "UTXO Consolidation")
         is InheritanceManagement -> Pair(SmallIconInheritance, "Inheritance")
-        is ExportTools -> Pair(SmallIconDocument, "Export")
+        is ExportTools -> Pair(SmallIconDocument, "Exports")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(
@@ -216,7 +216,7 @@ class SettingsListUiStateMachineImpl(
 
       is MobilePay ->
         appFunctionalityStatus.featureStates.mobilePay == Available
-      is CurrencyPreference ->
+      is AppearancePreference ->
         appFunctionalityStatus.featureStates.fiatExchangeRates == Available
       is NotificationPreferences, is RecoveryChannels ->
         appFunctionalityStatus.featureStates.notifications == Available

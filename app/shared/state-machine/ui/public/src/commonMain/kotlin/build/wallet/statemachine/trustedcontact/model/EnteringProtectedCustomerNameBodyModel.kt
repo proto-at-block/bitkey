@@ -11,42 +11,35 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun EnteringProtectedCustomerNameBodyModel(
-  value: String = "",
-  onValueChange: (String) -> Unit,
-  primaryButton: ButtonModel,
-  retreat: Retreat,
-) = FormBodyModel(
-  id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME,
-  onSwipeToDismiss = retreat.onRetreat,
-  onBack = retreat.onRetreat,
-  toolbar =
-    ToolbarModel(
-      leadingAccessory = retreat.leadingToolbarAccessory
-    ),
-  header =
-    FormHeaderModel(
+data class EnteringProtectedCustomerNameBodyModel(
+  val value: String = "",
+  val onValueChange: (String) -> Unit,
+  override val primaryButton: ButtonModel,
+  val retreat: Retreat,
+) : FormBodyModel(
+    id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME,
+    onSwipeToDismiss = retreat.onRetreat,
+    onBack = retreat.onRetreat,
+    toolbar = ToolbarModel(leadingAccessory = retreat.leadingToolbarAccessory),
+    header = FormHeaderModel(
       headline = "Save their name",
       subline = "So you can remember who you’re helping protect."
     ),
-  mainContentList =
-    immutableListOf(
+    mainContentList = immutableListOf(
       FormMainContentModel.TextInput(
-        fieldModel =
-          TextFieldModel(
-            value = value,
-            placeholderText = "Name",
-            onValueChange = { newValue, _ -> onValueChange(newValue) },
-            keyboardType = TextFieldModel.KeyboardType.Default,
-            capitalization = Capitalization.Words,
-            onDone =
-              if (primaryButton.isEnabled) {
-                { primaryButton.onClick() }
-              } else {
-                null
-              }
-          )
+        fieldModel = TextFieldModel(
+          value = value,
+          placeholderText = "Name",
+          onValueChange = { newValue, _ -> onValueChange(newValue) },
+          keyboardType = TextFieldModel.KeyboardType.Default,
+          capitalization = Capitalization.Words,
+          onDone = if (primaryButton.isEnabled) {
+            { primaryButton.onClick() }
+          } else {
+            null
+          }
+        )
       )
     ),
-  primaryButton = primaryButton
-)
+    primaryButton = primaryButton
+  )

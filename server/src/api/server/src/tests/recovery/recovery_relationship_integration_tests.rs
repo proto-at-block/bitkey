@@ -1,11 +1,13 @@
-use account::entities::Account;
 use http::StatusCode;
-use recovery::routes::UpdateRecoveryRelationshipRequest;
-use recovery::routes::UpdateRecoveryRelationshipResponse;
+use notification::NotificationPayloadType;
+use recovery::routes::relationship::UpdateRecoveryRelationshipRequest;
+use recovery::routes::relationship::UpdateRecoveryRelationshipResponse;
 use time::OffsetDateTime;
 use types::account::bitcoin::Network;
+use types::account::entities::Account;
 use types::recovery::trusted_contacts::TrustedContactRole;
 
+use super::shared::assert_notifications;
 use super::shared::AccountType;
 use crate::tests;
 use crate::tests::gen_services;
@@ -27,7 +29,7 @@ struct CreateRecoveryRelationshipTestVector {
 
 async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTestVector) {
     let (mut context, bootstrap) = gen_services().await;
-    let client = TestClient::new(bootstrap.router).await;
+    let client = TestClient::new(bootstrap.clone().router).await;
 
     let customer_account = match vector.customer_account_type {
         AccountType::Full { .. } => Account::Full(
@@ -54,6 +56,22 @@ async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTes
         0,
     )
     .await;
+
+    // Check whether the notifications were created
+    let expected_scheduled_notifications_types =
+        vec![NotificationPayloadType::RecoveryRelationshipInvitationPending];
+
+    let expected_customer_notifications_types = vec![];
+
+    if vector.expected_status_code.is_success() {
+        assert_notifications(
+            &bootstrap,
+            customer_account.get_id(),
+            expected_customer_notifications_types,
+            expected_scheduled_notifications_types,
+        )
+        .await;
+    }
 }
 
 tests! {

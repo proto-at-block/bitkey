@@ -18,71 +18,61 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-fun ChooseRecoveryNotificationVerificationMethodModel(
-  onBack: () -> Unit,
-  onSmsClick: (() -> Unit)?,
-  onEmailClick: (() -> Unit)?,
-): FormBodyModel {
-  val baseSubline = "To ensure the safety of your wallet, a verification code is required."
-  val selectInstructionsSubline = "Select your preferred method to receive the code."
-
-  return FormBodyModel(
+data class ChooseRecoveryNotificationVerificationMethodModel(
+  override val onBack: () -> Unit,
+  val onSmsClick: (() -> Unit)?,
+  val onEmailClick: (() -> Unit)?,
+) : FormBodyModel(
     id = CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
-    header =
-      FormHeaderModel(
-        headline = "Verification Required",
-        subline =
-          if (onSmsClick != null && onEmailClick != null) {
-            "$baseSubline $selectInstructionsSubline"
-          } else {
-            baseSubline
-          }
-      ),
-    mainContentList =
-      immutableListOf(
-        FormMainContentModel.ListGroup(
-          listGroupModel =
-            ListGroupModel(
-              items =
-                immutableListOfNotNull(
-                  onSmsClick?.let {
-                    ListItemModel(
-                      leadingAccessory =
-                        ListItemAccessory.IconAccessory(
-                          model =
-                            IconModel(
-                              iconImage = IconImage.LocalImage(Icon.SmallIconMessage),
-                              iconSize = IconSize.Small
-                            )
-                        ),
-                      title = "SMS",
-                      trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-                      onClick = it
-                    )
-                  },
-                  onEmailClick?.let {
-                    ListItemModel(
-                      leadingAccessory =
-                        ListItemAccessory.IconAccessory(
-                          model =
-                            IconModel(
-                              iconImage = IconImage.LocalImage(Icon.SmallIconEmail),
-                              iconSize = IconSize.Small
-                            )
-                        ),
-                      title = "Email",
-                      trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-                      onClick = it
-                    )
-                  }
+    header = FormHeaderModel(
+      headline = "Verification Required",
+      subline = if (onSmsClick != null && onEmailClick != null) {
+        "$BASE_SUBLINE $SELECT_INSTRUCTIONS_SUBLINE"
+      } else {
+        BASE_SUBLINE
+      }
+    ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          items = immutableListOfNotNull(
+            onSmsClick?.let {
+              ListItemModel(
+                leadingAccessory = ListItemAccessory.IconAccessory(
+                  model = IconModel(
+                    iconImage = IconImage.LocalImage(Icon.SmallIconMessage),
+                    iconSize = IconSize.Small
+                  )
                 ),
-              style = ListGroupStyle.CARD_GROUP_DIVIDER
-            )
+                title = "SMS",
+                trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+                onClick = it
+              )
+            },
+            onEmailClick?.let {
+              ListItemModel(
+                leadingAccessory = ListItemAccessory.IconAccessory(
+                  model = IconModel(
+                    iconImage = IconImage.LocalImage(Icon.SmallIconEmail),
+                    iconSize = IconSize.Small
+                  )
+                ),
+                title = "Email",
+                trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+                onClick = it
+              )
+            }
+          ),
+          style = ListGroupStyle.CARD_GROUP_DIVIDER
         )
-      ),
+      )
+    ),
     // No primary button, instead the screen advances when a list item is tapped.
     primaryButton = null
   )
-}
+
+private const val BASE_SUBLINE =
+  "To ensure the safety of your wallet, a verification code is required."
+private const val SELECT_INSTRUCTIONS_SUBLINE = "Select your preferred method to receive the code."

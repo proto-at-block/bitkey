@@ -36,6 +36,7 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
+import build.wallet.ui.components.progress.IndeterminateCircularProgressIndicator
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
@@ -93,7 +94,8 @@ private fun NfcScreenInternal(
 
       // Fade animation between status text changes
       AnimatedContent(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth()
+          .padding(top = 8.dp),
         targetState = model.text,
         transitionSpec = {
           fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
@@ -139,7 +141,7 @@ private fun NfcStatusIcon(status: NfcBodyModel.Status) {
   val density = LocalDensity.current.density
 
   Box(
-    contentAlignment = Alignment.Center,
+    contentAlignment = Center,
     modifier =
       Modifier
         .padding(4.dp)
@@ -148,19 +150,36 @@ private fun NfcStatusIcon(status: NfcBodyModel.Status) {
         // background blur can extend beyond the bounds
         .wrapContentSize(unbounded = true)
   ) {
-    val circleAlpha: Float by animateFloatAsState(
-      targetValue =
-        when (status) {
-          is Searching -> 0.2f
-          is Connected, Success -> 1f
-        },
-      label = "circleAlphaAnimation"
-    )
+    // Blue blurred background, shown in Connected status
+    // Only add the background blurs in versions that support [blur]
+    if (Build.VERSION.SDK_INT > 30) {
+      val blueBackgroundAlpha: Float by animateFloatAsState(
+        targetValue =
+          when (status) {
+            is Connected -> 1f
+            is Searching, Success -> 0f
+          },
+        label = "blueBackgroundAlphaAnimation"
+      )
+
+      Box(
+        modifier =
+          Modifier
+            .size(50.dp * density)
+            .blur(radius = 45.dp * density, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+            .background(
+              color =
+                Color(0xff1f60B8)
+                  .copy(alpha = blueBackgroundAlpha),
+              shape = RoundedCornerShape(size = 50.dp * density)
+            )
+      )
+    }
 
     val circleStrokeWidth: Float by animateFloatAsState(
       targetValue =
         when (status) {
-          is Connected -> 5f * density
+          is Connected -> if (status.showProgressSpinner) 1.5f * density else 5f * density
           is Searching, Success -> 4f * density
         },
       label = "circleStrokeWidthAnimation"
@@ -184,76 +203,97 @@ private fun NfcStatusIcon(status: NfcBodyModel.Status) {
       label = "imageSizeAnimation"
     )
 
-    val blueBackgroundAlpha: Float by animateFloatAsState(
+    val circleAlpha: Float by animateFloatAsState(
       targetValue =
         when (status) {
-          is Connected -> 1f
-          is Searching, Success -> 0f
+          is Searching -> 0.2f
+          Success -> 1f
+          is Connected -> if (status.showProgressSpinner) .2f else 1f
         },
-      label = "blueBackgroundAlphaAnimation"
+      label = "circleAlphaAnimation"
     )
 
     val successAnimationComposition by rememberLottieComposition(
       LottieCompositionSpec.RawRes(R.raw.success)
     )
 
-    // Blue blurred background, shown in Connected status
-    // Only add the background blurs in versions that support [blur]
-    if (Build.VERSION.SDK_INT > 30) {
-      Box(
+    if (status is Connected && status.showProgressSpinner) {
+      val circleSize: Float by animateFloatAsState(
+        targetValue = 37f * density,
+        label = "circleSizeAnimation"
+      )
+
+      IndeterminateCircularProgress(
+        indicatorColor = WalletTheme.colors.nfcBlue,
+        backgroundColor = Color.White.copy(circleAlpha),
+        strokeWidth = circleStrokeWidth,
+        size = circleSize
+      )
+    } else {
+      // Circle stroke
+      Canvas(
         modifier =
           Modifier
-            .size(50.dp * density)
-            .blur(radius = 45.dp * density, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            .background(
-              color =
-                Color(0xff1f60B8)
-                  .copy(alpha = blueBackgroundAlpha),
-              shape = RoundedCornerShape(size = 50.dp * density)
-            )
+            .size(100.dp),
+        onDraw = {
+          drawCircle(
+            color = Color.White,
+            radius = circleRadius,
+            alpha = circleAlpha,
+            style = Stroke(circleStrokeWidth)
+          )
+        }
       )
-    }
 
-    // Circle stroke
-    Canvas(
-      modifier =
-        Modifier
-          .size(100.dp),
-      onDraw = {
-        drawCircle(
-          color = Color.White,
-          radius = circleRadius,
-          alpha = circleAlpha,
-          style = Stroke(circleStrokeWidth)
+      // NFC icon
+      AnimatedVisibility(
+        visible = status !is Success,
+        enter = fadeIn(),
+        exit = fadeOut()
+      ) {
+        Image(
+          alignment = Center,
+          modifier = Modifier.size(imageSize),
+          painter = painterResource(Res.drawable.android_nfc_tap),
+          contentDescription = ""
         )
       }
+
+      // Success animation
+      AnimatedVisibility(
+        visible = status is Success,
+        enter = fadeIn(),
+        exit = fadeOut()
+      ) {
+        LottieAnimation(
+          composition = successAnimationComposition,
+          iterations = 1
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun IndeterminateCircularProgress(
+  modifier: Modifier = Modifier,
+  indicatorModifier: Modifier = Modifier,
+  indicatorColor: Color,
+  backgroundColor: Color,
+  strokeWidth: Float,
+  size: Float,
+) {
+  Box(
+    modifier = modifier,
+    contentAlignment = Center
+  ) {
+    IndeterminateCircularProgressIndicator(
+      modifier = indicatorModifier,
+      indicatorColor = indicatorColor,
+      trackColor = backgroundColor,
+      strokeWidth = strokeWidth.dp,
+      size = size.dp
     )
-
-    // NFC icon
-    AnimatedVisibility(
-      visible = status !is Success,
-      enter = fadeIn(),
-      exit = fadeOut()
-    ) {
-      Image(
-        alignment = Alignment.Center,
-        modifier = Modifier.size(imageSize),
-        painter = painterResource(Res.drawable.android_nfc_tap),
-        contentDescription = ""
-      )
-    }
-
-    // Success animation
-    AnimatedVisibility(
-      visible = status is Success,
-      enter = fadeIn(),
-      exit = fadeOut()
-    ) {
-      LottieAnimation(
-        composition = successAnimationComposition,
-        iterations = 1
-      )
-    }
   }
 }
 
@@ -297,7 +337,22 @@ internal fun NfcScreenConnectedPreview() {
       model =
         NfcBodyModel(
           text = "Hold device here behind phone",
-          status = Connected { },
+          status = Connected(onCancel = {}),
+          eventTrackerScreenInfo = null
+        )
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun NfcScreenConnectedWithSpinnerPreview() {
+  PreviewWalletTheme {
+    NfcScreenInternal(
+      model =
+        NfcBodyModel(
+          text = "This can take up to 1 minute…",
+          status = Connected(onCancel = {}, showProgressSpinner = true),
           eventTrackerScreenInfo = null
         )
     )

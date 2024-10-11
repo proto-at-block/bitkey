@@ -1,5 +1,6 @@
-use crate::service::{migrations::ext_beta_push_blast::ExtBetaPushBlast, Service};
 use migration::{MigratableService, Migration};
+
+use crate::service::{migrations::ext_beta_push_blast::ExtBetaPushBlast, Service};
 
 mod ext_beta_push_blast;
 

@@ -65,7 +65,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
             }
           }
         }
-        EmergencyAccessKitImportWalletModel(
+        EmergencyAccessKitImportWalletBodyModel(
           onBack = onBack,
           onEnterManually = onEnterManually,
           onScanQRCode = onScanQrCode
@@ -82,7 +82,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
 
       is State.ManualEntry ->
-        EmergencyAccessKitImportPasteMobileKeyModel(
+        EmergencyAccessKitImportPasteMobileKeyBodyModel(
           enteredText = currentState.enteredText,
           onEnterTextChanged = { newText ->
             state = currentState.onManualEntryTextChanged(newText)
@@ -117,7 +117,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asFullScreen()
 
       is State.CodeNotRecognized -> {
-        EmergencyAccessKitCodeNotRecognized(
+        EmergencyAccessKitCodeNotRecognizedBodyModel(
           arrivedFromManualEntry = currentState.arrivedFromManualEntry(),
           onBack = { state = currentState.onBack(props) },
           onScanQRCode = { state = currentState.onScanQrCode() },
@@ -134,7 +134,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
             }
           }
         }
-        EmergencyAccessKitRestoreWallet(
+        EmergencyAccessKitRestoreWalletBodyModel(
           onBack = { state = currentState.onBack(props) },
           onRestore = onRestore
         ).asRootScreen()
@@ -193,7 +193,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       }
 
       is State.RestoreFailed ->
-        EmergencyAccessKitCodeNotRecognized(
+        EmergencyAccessKitCodeNotRecognizedBodyModel(
           arrivedFromManualEntry = false,
           onBack = { state = currentState.onBack(props) },
           onScanQRCode = { state = currentState.onScanQRCode() },

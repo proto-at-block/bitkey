@@ -3,6 +3,7 @@ use std::str::FromStr;
 use axum::routing::{get, post};
 use axum::Router;
 use axum::{extract::State, Json};
+use http_server::router::RouterBuilder;
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
@@ -22,8 +23,8 @@ use crate::metrics::{FACTORY, FACTORY_NAME};
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub UserPoolService, pub AccountService, pub WsmClient);
 
-impl RouteState {
-    pub fn unauthed_router(&self) -> Router {
+impl RouterBuilder for RouteState {
+    fn unauthed_router(&self) -> Router {
         Router::new()
             .route("/api/recovery-auth", post(authenticate_with_recovery))
             .route("/api/hw-auth", post(authenticate_with_hardware))

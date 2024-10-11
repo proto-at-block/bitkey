@@ -37,15 +37,17 @@ data class InputAlertModel(
 fun DisableAlertModel(
   title: String,
   subline: String,
+  primaryButtonText: String = "Disable",
+  secondaryButtonText: String? = "Cancel",
   onConfirm: () -> Unit,
   onCancel: () -> Unit,
 ) = ButtonAlertModel(
   title = title,
   subline = subline,
-  primaryButtonText = "Disable",
+  primaryButtonText = primaryButtonText,
   onPrimaryButtonClick = onConfirm,
   primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
-  secondaryButtonText = "Cancel",
+  secondaryButtonText = secondaryButtonText,
   onSecondaryButtonClick = onCancel,
   onDismiss = onCancel
 )

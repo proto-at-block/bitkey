@@ -15,4 +15,5 @@ data class SpeedUpTransactionDetails(
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinMoney,
   val oldFee: Fee,
+  val transactionType: BitcoinTransaction.TransactionType,
 )

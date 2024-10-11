@@ -3,16 +3,12 @@
 package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitcoin.fees.Fee
-import build.wallet.bitcoin.fees.FeeRate
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.send.TransactionDetailModelType
 import build.wallet.statemachine.send.TransactionDetailsModel
 import build.wallet.statemachine.send.TransferConfirmationScreenModel
-import build.wallet.statemachine.send.TransferConfirmationUiProps
+import build.wallet.statemachine.send.TransferConfirmationScreenVariant
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
 
@@ -22,10 +18,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
   test("transfer confirmation screen - required hardware, confirmation enabled") {
     paparazzi.snapshot {
       TransferConfirmationScreen(
-        variant =
-          TransferConfirmationUiProps.Variant.Regular(
-            selectedPriority = EstimatedTransactionPriority.FASTEST
-          ),
+        variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = true,
         confirmButtonEnabled = true
       )
@@ -35,10 +28,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
   test("transfer confirmation screen - hardware not required, confirmation enabled") {
     paparazzi.snapshot {
       TransferConfirmationScreen(
-        variant =
-          TransferConfirmationUiProps.Variant.Regular(
-            selectedPriority = EstimatedTransactionPriority.FASTEST
-          ),
+        variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = false,
         confirmButtonEnabled = true
       )
@@ -48,10 +38,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
   test("transfer confirmation screen - hardware required, confirmation disabled") {
     paparazzi.snapshot {
       TransferConfirmationScreen(
-        variant =
-          TransferConfirmationUiProps.Variant.Regular(
-            selectedPriority = EstimatedTransactionPriority.FASTEST
-          ),
+        variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = true,
         confirmButtonEnabled = false
       )
@@ -61,10 +48,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
   test("transfer confirmation screen - hardware not required, confirmation disabled") {
     paparazzi.snapshot {
       TransferConfirmationScreen(
-        variant =
-          TransferConfirmationUiProps.Variant.Regular(
-            selectedPriority = EstimatedTransactionPriority.FASTEST
-          ),
+        variant = TransferConfirmationScreenVariant.Regular,
         requiresHardware = false,
         confirmButtonEnabled = false
       )
@@ -74,12 +58,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
   test("transfer confirmation screen - pending fee bump") {
     paparazzi.snapshot {
       TransferConfirmationScreen(
-        variant =
-          TransferConfirmationUiProps.Variant.SpeedUp(
-            txid = "abc",
-            oldFee = Fee(amount = BitcoinMoney.sats(125), feeRate = FeeRate(satsPerVByte = 1f)),
-            newFeeRate = FeeRate(2f)
-          ),
+        variant = TransferConfirmationScreenVariant.SpeedUp,
         requiresHardware = false,
         confirmButtonEnabled = false
       )
@@ -89,7 +68,7 @@ class TransferConfirmationScreenSnapshots : FunSpec({
 
 @Composable
 private fun TransferConfirmationScreen(
-  variant: TransferConfirmationUiProps.Variant,
+  variant: TransferConfirmationScreenVariant,
   requiresHardware: Boolean,
   confirmButtonEnabled: Boolean,
 ) {
@@ -105,22 +84,39 @@ private fun TransferConfirmationScreen(
             transactionSpeedText = "~30 minutes",
             transactionDetailModelType =
               when (variant) {
-                is TransferConfirmationUiProps.Variant.SpeedUp ->
+                TransferConfirmationScreenVariant.SpeedUp ->
                   TransactionDetailModelType.SpeedUp(
                     transferAmountText = "$20.00",
+                    transferAmountSecondaryText = "0.0003 BTC",
                     oldFeeAmountText = "$1.36",
+                    oldFeeAmountSecondaryText = "0.00002 BTC",
                     feeDifferenceText = "+$1.00",
+                    feeDifferenceSecondaryText = "0.00001 BTC",
                     totalAmountPrimaryText = "$22.36",
-                    totalAmountSecondaryText = "(0.0010 BTC)"
+                    totalAmountSecondaryText = "0.0010 BTC",
+                    totalFeeText = "$2.36",
+                    totalFeeSecondaryText = "0.00003 BTC"
                   )
-                is TransferConfirmationUiProps.Variant.Regular ->
+                TransferConfirmationScreenVariant.Regular ->
                   TransactionDetailModelType.Regular(
                     transferAmountText = "$20.00",
+                    transferAmountSecondaryText = "0.0003 BTC",
                     feeAmountText = "$1.36",
+                    feeAmountSecondaryText = "0.00002 BTC",
                     totalAmountPrimaryText = "$21.36",
-                    totalAmountSecondaryText = "(0.0010 BTC)"
+                    totalAmountSecondaryText = "0.0010 BTC"
                   )
-              }
+                is TransferConfirmationScreenVariant.Sell ->
+                  TransactionDetailModelType.Sell(
+                    transferAmountText = "$20.00",
+                    feeAmountText = "$1.36",
+                    feeAmountSecondaryText = "234 sats",
+                    totalAmountPrimaryText = "$21.36",
+                    totalAmountSecondaryText = "(0.0010 BTC)",
+                    transferAmountSecondaryText = "1,234 sats"
+                  )
+              },
+            amountLabel = "amountLabel"
           ),
         requiresHardware = requiresHardware,
         confirmButtonEnabled = confirmButtonEnabled,
@@ -128,7 +124,7 @@ private fun TransferConfirmationScreen(
         onNetworkFeesClick = {},
         onArrivalTimeClick =
           when (variant) {
-            is TransferConfirmationUiProps.Variant.Regular -> { -> }
+            TransferConfirmationScreenVariant.Regular -> { -> }
             else -> null
           }
       ).body as FormBodyModel

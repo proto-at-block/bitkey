@@ -1,6 +1,6 @@
+use account::service::tests::TestAuthenticationKeys;
+use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use std::collections::HashMap;
-
-use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, SecretKey};
 use types::account::identifiers::AccountId;
 
 use crate::{create_bootstrap_with_overrides, Bootstrap, GenServiceOverrides};
@@ -38,19 +38,6 @@ macro_rules! tests {
         }
         )*
     };
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct TestKeypair {
-    pub(crate) public_key: PublicKey,
-    pub(crate) secret_key: SecretKey,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct TestAuthenticationKeys {
-    pub(crate) app: TestKeypair,
-    pub(crate) hw: TestKeypair,
-    pub(crate) recovery: TestKeypair,
 }
 
 #[derive(Debug, Default)]

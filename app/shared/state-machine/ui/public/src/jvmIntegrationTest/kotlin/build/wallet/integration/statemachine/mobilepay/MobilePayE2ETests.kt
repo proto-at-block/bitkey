@@ -29,6 +29,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class MobilePayE2ETests : FunSpec({
+  coroutineTestScope = true
+
   context("mobile pay amount entry") {
     test("set mobile pay") {
       val app = launchNewApp()
@@ -83,12 +85,9 @@ class MobilePayE2ETests : FunSpec({
 
     test("entry should be pre-populated") {
       val app = launchNewApp()
-      val account = app.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
       app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(false)
-      app.setupMobilePay(
-        account = account,
-        limit = FiatMoney.usd(100.0)
-      )
+      app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
       app.app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
@@ -181,12 +180,9 @@ class MobilePayE2ETests : FunSpec({
 
     test("entry should be pre-populated") {
       val app = launchNewApp()
-      val account = app.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
       app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(true)
-      app.setupMobilePay(
-        account = account,
-        limit = FiatMoney.usd(100.0)
-      )
+      app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
       app.app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {

@@ -1,7 +1,8 @@
-use account::{entities::Account, error::AccountError};
+use account::error::AccountError;
 use database::ddb::DatabaseError;
 use errors::{ApiError, ErrorCode};
 use thiserror::Error;
+use types::account::entities::Account;
 
 #[derive(Debug, Error)]
 pub enum AccountValidationError {

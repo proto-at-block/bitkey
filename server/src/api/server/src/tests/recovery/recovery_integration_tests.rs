@@ -1,37 +1,40 @@
 use std::collections::HashSet;
 
-use account::entities::{Factor, FullAccountAuthKeysPayload};
-use account::service::FetchAccountInput;
-use http_body_util::BodyExt;
-use types::account::bitcoin::Network;
-use types::account::identifiers::AccountId;
-
+use account::service::{
+    tests::{TestAuthenticationKeys, TestKeypair},
+    FetchAccountInput,
+};
 use axum::response::IntoResponse;
+use bdk_utils::bdk::bitcoin::key::Secp256k1;
+use bdk_utils::signature::sign_message;
 use comms_verification::TEST_CODE;
 use errors::ApiError;
 use http::StatusCode;
+use http_body_util::BodyExt;
 use notification::service::FetchForAccountInput;
 use notification::NotificationPayloadType;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::error::RecoveryError;
-use recovery::routes::{
+use recovery::routes::delay_notify::{
     CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest,
     SendAccountVerificationCodeRequest, UpdateDelayForTestRecoveryRequest,
     VerifyAccountVerificationCodeRequest,
 };
-
 use time::{Duration, OffsetDateTime};
+use types::account::bitcoin::Network;
+use types::account::entities::{Factor, FullAccountAuthKeysPayload};
+use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 
 use crate::tests;
+use crate::tests::gen_services;
 use crate::tests::lib::{
     create_auth_keyset_model, create_default_account_with_predefined_wallet, create_full_account,
     create_keypair, create_new_authkeys, create_phone_touchpoint, create_plain_keys, create_pubkey,
-    create_push_touchpoint, gen_signature, generate_delay_and_notify_recovery,
+    create_push_touchpoint, generate_delay_and_notify_recovery,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::Response;
-use crate::tests::{gen_services, TestAuthenticationKeys, TestKeypair};
 
 #[derive(Debug)]
 struct CreateDelayNotifyTestVector {
@@ -736,8 +739,8 @@ async fn complete_delay_notify_test(vector: CompleteDelayNotifyTestVector) {
             "".to_string()
         }
         .as_str();
-    let app_signature = gen_signature(&challenge, &app_auth_seckey);
-    let hardware_signature = gen_signature(&challenge, &hardware_auth_seckey);
+    let app_signature = sign_message(&Secp256k1::new(), &challenge, &app_auth_seckey);
+    let hardware_signature = sign_message(&Secp256k1::new(), &challenge, &hardware_auth_seckey);
     let data = CompleteDelayNotifyRequest {
         challenge,
         app_signature,
@@ -867,8 +870,8 @@ async fn complete_delay_notify_invalid_account_id() {
     let challenge = "CompleteDelayNotify".to_string()
         + &hardware_auth_pubkey.to_string()
         + &app_auth_pubkey.to_string();
-    let app_signature = gen_signature(&challenge, &app_auth_seckey);
-    let hardware_signature = gen_signature(&challenge, &hardware_auth_seckey);
+    let app_signature = sign_message(&Secp256k1::new(), &challenge, &app_auth_seckey);
+    let hardware_signature = sign_message(&Secp256k1::new(), &challenge, &hardware_auth_seckey);
     let data: CompleteDelayNotifyRequest = CompleteDelayNotifyRequest {
         challenge,
         app_signature,
@@ -934,8 +937,8 @@ async fn complete_delay_notify_idempotency_test(vector: CompleteDelayNotifyIdemp
         + &hardware_auth_pubkey.to_string()
         + &app_auth_pubkey.to_string()
         + &recovery_auth_pubkey.to_string();
-    let app_signature = gen_signature(&challenge, &app_auth_seckey);
-    let hardware_signature = gen_signature(&challenge, &hardware_auth_seckey);
+    let app_signature = sign_message(&Secp256k1::new(), &challenge, &app_auth_seckey);
+    let hardware_signature = sign_message(&Secp256k1::new(), &challenge, &hardware_auth_seckey);
     let data = CompleteDelayNotifyRequest {
         challenge: challenge.clone(),
         app_signature,
@@ -965,12 +968,16 @@ async fn complete_delay_notify_idempotency_test(vector: CompleteDelayNotifyIdemp
 
     // Complete again (this should still work if the request is correct)
     let challenge = vector.override_challenge.unwrap_or(challenge);
-    let app_signature = vector
-        .override_app_signature
-        .unwrap_or(gen_signature(&challenge, &app_auth_seckey));
-    let hardware_signature = vector
-        .override_hw_signature
-        .unwrap_or(gen_signature(&challenge, &hardware_auth_seckey));
+    let app_signature = vector.override_app_signature.unwrap_or(sign_message(
+        &Secp256k1::new(),
+        &challenge,
+        &app_auth_seckey,
+    ));
+    let hardware_signature = vector.override_hw_signature.unwrap_or(sign_message(
+        &Secp256k1::new(),
+        &challenge,
+        &hardware_auth_seckey,
+    ));
     let data = CompleteDelayNotifyRequest {
         challenge,
         app_signature,

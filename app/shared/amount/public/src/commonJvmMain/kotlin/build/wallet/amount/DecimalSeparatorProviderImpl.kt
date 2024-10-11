@@ -7,7 +7,7 @@ import java.util.Locale
 actual class DecimalSeparatorProviderImpl actual constructor(
   private val localeIdentifierProvider: LocaleIdentifierProvider,
 ) : DecimalSeparatorProvider {
-  override fun decimalSeparator(): Char =
+  actual override fun decimalSeparator(): Char =
     DecimalFormatSymbols
       .getInstance(Locale.forLanguageTag(localeIdentifierProvider.localeIdentifier()))
       .decimalSeparator

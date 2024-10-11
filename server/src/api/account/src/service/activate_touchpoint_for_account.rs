@@ -1,11 +1,8 @@
 use tracing::{event, Level};
-
-use crate::{
-    entities::{Account, Touchpoint},
-    error::AccountError,
-};
+use types::account::entities::{Account, Touchpoint};
 
 use super::{ActivateTouchpointForAccountInput, Service};
+use crate::error::AccountError;
 
 impl Service {
     pub async fn activate_touchpoint_for_account(

@@ -1,11 +1,11 @@
 package build.wallet.statemachine.moneyhome.lite
 
-import build.wallet.bitkey.socrec.ProtectedCustomerFake
+import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.f8e.relationships.Relationships
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -27,7 +27,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
-  val socRecService = SocRecServiceMock(turbines::create)
+  val socRecService = SocRecServiceFake()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
   val stateMachine = LiteMoneyHomeUiStateMachineImpl(
     socRecService = socRecService,
@@ -59,7 +59,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     inAppBrowserNavigator.reset()
-    socRecService.clear()
+    socRecService.reset()
   }
 
   test("initially shows Money Home screen") {
@@ -82,7 +82,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
 
   test("protected customer tap shows bottom sheet") {
     val protectedCustomer = ProtectedCustomerFake
-    socRecService.relationships.value = SocRecRelationships.EMPTY.copy(
+    socRecService.socRecRelationships.value = Relationships.EMPTY.copy(
       protectedCustomers = immutableListOf(protectedCustomer)
     )
     stateMachine.test(props) {

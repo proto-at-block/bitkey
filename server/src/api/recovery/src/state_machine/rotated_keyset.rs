@@ -2,11 +2,10 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use types::account::identifiers::KeysetId;
 
-use crate::error::RecoveryError;
-
 use super::{
     RecoveryEvent, RecoveryServices, RecoveryStateResponse, Transition, TransitioningRecoveryState,
 };
+use crate::error::RecoveryError;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "snake_case")]

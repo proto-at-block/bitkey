@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.auth.AppRecoveryAuthKeypairMock
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError
-import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
+import build.wallet.relationships.DelegatedDecryptionKeyFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 

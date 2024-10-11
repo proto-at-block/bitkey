@@ -8,6 +8,9 @@ kotlin {
   allTargets()
 
   sourceSets {
+    all {
+      languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
+    }
     commonMain {
       dependencies {
         api(projects.shared.resultPublic)

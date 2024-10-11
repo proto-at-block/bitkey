@@ -1,0 +1,7 @@
+-- Adds sellWalletAddress column to partnershipTransactionEntity
+
+-- 1. Add the new sellWalletAddress column to the existing partnershipTransactionEntity table
+ALTER TABLE partnershipTransactionEntity ADD COLUMN sellWalletAddress TEXT;
+
+-- 2. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

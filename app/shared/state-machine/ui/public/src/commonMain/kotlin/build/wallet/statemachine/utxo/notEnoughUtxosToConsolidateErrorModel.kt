@@ -17,7 +17,7 @@ internal fun notEnoughUtxosToConsolidateErrorModel(onBack: () -> Unit): FormBody
       leadingAccessory = BackAccessory(onClick = onBack)
     ),
     title = "You're fully consolidated",
-    subline = "There’s only 1 UTXO in your wallet, so you’re already fully consolidated. Nice.",
+    subline = "There’s only 1 confirmed UTXO in your wallet, so you’re already fully consolidated.",
     primaryButton = ButtonDataModel(
       text = "Got it",
       onClick = onBack

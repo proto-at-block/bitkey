@@ -17,6 +17,7 @@ import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
@@ -66,7 +67,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
   // Tap the secondary button to remove the relationship
   awaitItem()
     .bottomSheetModel.shouldNotBeNull()
-    .body.shouldBeTypeOf<FormBodyModel>()
+    .body.shouldBeInstanceOf<FormBodyModel>()
     .secondaryButton.shouldNotBeNull()
     .onClick()
 

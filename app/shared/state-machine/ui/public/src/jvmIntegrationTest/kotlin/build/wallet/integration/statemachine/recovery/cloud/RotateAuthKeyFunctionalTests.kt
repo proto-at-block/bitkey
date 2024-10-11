@@ -5,7 +5,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.syncAndVerifyRelationships
+import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -15,7 +15,6 @@ import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.formScreen
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -78,7 +77,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.appComponent.socRecService.syncAndVerifyRelationships(account)
+    app.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
 
     app.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
@@ -110,7 +109,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.appComponent.socRecService.syncAndVerifyRelationships(account)
+    app.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
 
     val onBackCalls = turbines.create<Unit>("onBackCalls")
 
@@ -147,7 +146,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    firstAppRun.app.appComponent.socRecService.syncAndVerifyRelationships(account)
+    firstAppRun.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
 
     firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
@@ -280,11 +279,13 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 suspend fun ReceiveTurbine<ScreenModel>.screenDecideIfShouldRotate(
   validate: FormBodyModel.() -> Unit,
 ) {
-  formScreen(
+  awaitUntilScreenWithBody<FormBodyModel>(
     id = InactiveAppEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH,
     // There are two "Rotate if should rotate" screens, one with two buttons and one with one button,
     // both have initial loading state. We need to wait for the loading state to clear.
-    match = { primaryButton?.isEnabled ?: true && secondaryButton?.isEnabled ?: true },
-    validate = validate
+    expectedBodyContentMatch = {
+      it.primaryButton?.isEnabled ?: true && it.secondaryButton?.isEnabled ?: true
+    },
+    block = validate
   )
 }

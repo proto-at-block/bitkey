@@ -24,7 +24,7 @@ class LiteMoneyHomeUiStateMachineImpl(
     var state: State by remember { mutableStateOf(State.ViewingMoneyHome) }
 
     val protectedCustomers =
-      socRecService.relationships.collectAsState().value?.protectedCustomers.orEmpty()
+      socRecService.socRecRelationships.collectAsState().value?.protectedCustomers.orEmpty()
 
     val viewingMoneyHomeScreenModel =
       ScreenModel(

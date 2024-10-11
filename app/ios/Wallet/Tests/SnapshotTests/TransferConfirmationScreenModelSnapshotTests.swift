@@ -74,20 +74,10 @@ private extension FormBodyModel {
         confirmButtonEnabled: Bool,
         isSpeedUp: Bool = false
     ) -> FormBodyModel {
-        let displayVariant: TransferConfirmationUiPropsVariant = if isSpeedUp {
-            TransferConfirmationUiPropsVariantSpeedUp(
-                txid: "abc",
-                oldFee: Fee(
-                    amount: BitcoinMoney(fractionalUnitAmount: BignumBigInteger(int: 50000)),
-                    feeRate: FeeRate(satsPerVByte: 1)
-                ),
-                newFeeRate: FeeRate(satsPerVByte: 2)
-            )
+        let displayVariant: TransferConfirmationScreenVariant = if isSpeedUp {
+            TransferConfirmationScreenVariantSpeedUp()
         } else {
-            TransferConfirmationUiPropsVariantRegular(
-                selectedPriority: EstimatedTransactionPriority
-                    .fastest
-            )
+            TransferConfirmationScreenVariantRegular()
         }
 
         return TransferConfirmationScreenModelKt.TransferConfirmationScreenModel(
@@ -98,11 +88,14 @@ private extension FormBodyModel {
             transactionDetails: .init(
                 transactionDetailModelType: TransactionDetailModelTypeRegular(
                     transferAmountText: "$20.00",
+                    transferAmountSecondaryText: "0.0003 BTC",
                     totalAmountPrimaryText: "$21.36",
-                    totalAmountSecondaryText: "(0.0010 BTC)",
-                    feeAmountText: "$1.36"
+                    totalAmountSecondaryText: "0.0010 BTC",
+                    feeAmountText: "$1.36",
+                    feeAmountSecondaryText: "0.00002 BTC"
                 ),
-                transactionSpeedText: "~30 minutes"
+                transactionSpeedText: "~30 minutes",
+                amountLabel: "amountLabel"
             ),
             requiresHardware: requiresHardware,
             confirmButtonEnabled: confirmButtonEnabled,

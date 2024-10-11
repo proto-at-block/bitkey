@@ -11,16 +11,15 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 
-fun AddAdditionalFingerprintGettingStartedModel(
-  onClosed: () -> Unit,
-  onContinue: () -> Unit,
-  onSetUpLater: () -> Unit,
-) = FormBodyModel(
-  id = ManagingFingerprintsEventTrackerScreenId.ADD_ADDITIONAL_FINGERPRINT_EXPLAINER,
-  onBack = onClosed,
-  toolbar = null,
-  header =
-    FormHeaderModel(
+data class AddAdditionalFingerprintGettingStartedModel(
+  val onClosed: () -> Unit,
+  val onContinue: () -> Unit,
+  val onSetUpLater: () -> Unit,
+) : FormBodyModel(
+    id = ManagingFingerprintsEventTrackerScreenId.ADD_ADDITIONAL_FINGERPRINT_EXPLAINER,
+    onBack = onClosed,
+    toolbar = null,
+    header = FormHeaderModel(
       iconModel = IconModel(
         icon = Icon.SmallIconFingerprint,
         iconSize = IconSize.Large,
@@ -35,20 +34,19 @@ fun AddAdditionalFingerprintGettingStartedModel(
       alignment = FormHeaderModel.Alignment.LEADING,
       subline = "Enable additional fingers to unlock your Bitkey hardware."
     ),
-  primaryButton =
-    ButtonModel(
-      text = "Add additional fingerprint",
-      leadingIcon = Icon.SmallIconBitkey,
-      onClick = SheetClosingClick(onContinue),
-      treatment = ButtonModel.Treatment.Black,
-      size = ButtonModel.Size.Footer
-    ),
-  secondaryButton =
-    ButtonModel(
+    primaryButton =
+      ButtonModel(
+        text = "Add additional fingerprint",
+        leadingIcon = Icon.SmallIconBitkey,
+        onClick = SheetClosingClick(onContinue),
+        treatment = ButtonModel.Treatment.Black,
+        size = ButtonModel.Size.Footer
+      ),
+    secondaryButton = ButtonModel(
       text = "Set up later",
       size = ButtonModel.Size.Footer,
       treatment = ButtonModel.Treatment.Secondary,
       onClick = SheetClosingClick(onSetUpLater)
     ),
-  renderContext = RenderContext.Sheet
-)
+    renderContext = RenderContext.Sheet
+  )

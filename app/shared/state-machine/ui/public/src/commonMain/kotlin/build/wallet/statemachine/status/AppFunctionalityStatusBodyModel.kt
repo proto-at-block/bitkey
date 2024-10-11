@@ -30,50 +30,42 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.Instant
 
-fun AppFunctionalityStatusBodyModel(
-  status: AppFunctionalityStatus.LimitedFunctionality,
-  cause: ConnectivityCause,
-  dateFormatter: (Instant) -> String,
-  isRevampOn: Boolean,
-  onClose: () -> Unit,
-): FormBodyModel {
-  return FormBodyModel(
+data class AppFunctionalityStatusBodyModel(
+  val status: AppFunctionalityStatus.LimitedFunctionality,
+  val cause: ConnectivityCause,
+  val dateFormatter: (Instant) -> String,
+  val isRevampOn: Boolean,
+  val onClose: () -> Unit,
+) : FormBodyModel(
     id = AppFunctionalityEventTrackerScreenId.APP_FUNCTIONALITY_STATUS,
     onBack = onClose,
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
-    header =
-      FormHeaderModel(
-        icon = Icon.LargeIconNetworkError,
-        headline =
-          when (cause) {
-            is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
-            is InternetUnreachable -> "It looks like you’re offline."
-            EmergencyAccessMode -> "You're using the Emergency Access Kit."
-          },
-        subline =
-          when (cause) {
-            is F8eUnreachable -> "Some features may not be available:"
-            is InternetUnreachable -> "Some functionality may not be available until you’re connected to the internet:"
-            EmergencyAccessMode -> "Some features may not be available."
-          }
-      ),
-    mainContentList =
-      immutableListOf(
-        FormMainContentModel.ListGroup(
-          listGroupModel =
-            ListGroupModel(
-              style = ListGroupStyle.CARD_GROUP,
-              items =
-                status.featureStates.listItemModels(
-                  dateFormatter = dateFormatter,
-                  isRevampOn = isRevampOn
-                )
-            )
+    header = FormHeaderModel(
+      icon = Icon.LargeIconNetworkError,
+      headline = when (cause) {
+        is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
+        is InternetUnreachable -> "It looks like you’re offline."
+        EmergencyAccessMode -> "You're using the Emergency Access Kit."
+      },
+      subline = when (cause) {
+        is F8eUnreachable -> "Some features may not be available:"
+        is InternetUnreachable -> "Some functionality may not be available until you’re connected to the internet:"
+        EmergencyAccessMode -> "Some features may not be available."
+      }
+    ),
+    mainContentList = immutableListOf(
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          style = ListGroupStyle.CARD_GROUP,
+          items = status.featureStates.listItemModels(
+            dateFormatter = dateFormatter,
+            isRevampOn = isRevampOn
+          )
         )
-      ),
+      )
+    ),
     primaryButton = null
   )
-}
 
 fun FunctionalityFeatureStates.listItemModels(
   dateFormatter: (Instant) -> String,

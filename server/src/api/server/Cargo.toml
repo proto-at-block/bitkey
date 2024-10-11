@@ -37,7 +37,7 @@ utoipa-swagger-ui = { workspace = true }
 account = { workspace = true }
 analytics = { workspace = true }
 authn_authz = { workspace = true }
-bdk_utils = { workspace = true }
+bdk_utils = { workspace = true, features = ["test-helpers"] }
 chain_indexer = { workspace = true }
 comms_verification = { workspace = true }
 customer_feedback = { workspace = true }
@@ -81,10 +81,10 @@ env_logger = "0.11.3"
 http-body-util = "0.1.0"
 httpmock = "0.7"
 launchdarkly-server-sdk = { workspace = true }
-mockall = "0.12.1"
+mockall = { workspace = true }
 once_cell = { workspace = true }
 regex = { version = "1.10.6", features = [] }
-rstest = "0.18.1"
+rstest = { workspace = true }
 
 [features]
 partnerships = ["dep:partnerships"]

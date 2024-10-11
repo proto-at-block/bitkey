@@ -5,7 +5,11 @@ use database::ddb::DatabaseError;
 use derive_builder::Builder;
 use errors::ApiError;
 use payloads::{
-    comms_verification::CommsVerificationPayload, payment::PendingPaymentPayload,
+    comms_verification::CommsVerificationPayload,
+    inheritance_claim_canceled::InheritanceClaimCanceledPayload,
+    inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload,
+    inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
+    payment::PendingPaymentPayload,
     privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
     privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
     privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
@@ -13,6 +17,7 @@ use payloads::{
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
+    recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload,
     social_challenge_response_received::SocialChallengeResponseReceivedPayload,
 };
 use queue::sqs::QueueError;
@@ -117,6 +122,10 @@ pub enum NotificationPayloadType {
     PrivilegedActionCanceledDelayPeriod,
     PrivilegedActionCompletedDelayPeriod,
     PrivilegedActionPendingDelayPeriod,
+    InheritanceClaimPeriodInitiated,
+    InheritanceClaimCanceled,
+    InheritanceClaimPeriodCompleted,
+    RecoveryRelationshipInvitationPending,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -133,7 +142,11 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::TestPushNotification
             | NotificationPayloadType::PrivilegedActionCanceledDelayPeriod
             | NotificationPayloadType::PrivilegedActionCompletedDelayPeriod
-            | NotificationPayloadType::PrivilegedActionPendingDelayPeriod => {
+            | NotificationPayloadType::PrivilegedActionPendingDelayPeriod
+            | NotificationPayloadType::InheritanceClaimPeriodInitiated
+            | NotificationPayloadType::InheritanceClaimCanceled
+            | NotificationPayloadType::InheritanceClaimPeriodCompleted
+            | NotificationPayloadType::RecoveryRelationshipInvitationPending => {
                 NotificationCategory::AccountSecurity
             }
             NotificationPayloadType::ConfirmedPaymentNotification
@@ -239,6 +252,34 @@ impl NotificationPayloadType {
                 );
                 payload
                     .privileged_action_pending_delay_period_payload
+                    .is_some()
+            }
+            NotificationPayloadType::InheritanceClaimPeriodInitiated => {
+                builder.inheritance_claim_period_initiated_payload(
+                    payload.inheritance_claim_period_initiated_payload.clone(),
+                );
+                payload.inheritance_claim_period_initiated_payload.is_some()
+            }
+            NotificationPayloadType::InheritanceClaimCanceled => {
+                builder.inheritance_claim_canceled_payload(
+                    payload.inheritance_claim_canceled_payload.clone(),
+                );
+                payload.inheritance_claim_canceled_payload.is_some()
+            }
+            NotificationPayloadType::InheritanceClaimPeriodCompleted => {
+                builder.inheritance_claim_period_completed_payload(
+                    payload.inheritance_claim_period_completed_payload.clone(),
+                );
+                payload.inheritance_claim_period_completed_payload.is_some()
+            }
+            NotificationPayloadType::RecoveryRelationshipInvitationPending => {
+                builder.recovery_relationship_invitation_pending_payload(
+                    payload
+                        .recovery_relationship_invitation_pending_payload
+                        .clone(),
+                );
+                payload
+                    .recovery_relationship_invitation_pending_payload
                     .is_some()
             }
         };
@@ -402,6 +443,36 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
+            NotificationPayloadType::InheritanceClaimPeriodInitiated => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .inheritance_claim_period_initiated_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
+            NotificationPayloadType::InheritanceClaimCanceled => NotificationMessage::try_from((
+                composite_key,
+                payload
+                    .inheritance_claim_canceled_payload
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
+            )),
+            NotificationPayloadType::InheritanceClaimPeriodCompleted => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .inheritance_claim_period_completed_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
+            NotificationPayloadType::RecoveryRelationshipInvitationPending => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .recovery_relationship_invitation_pending_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
         }
     }
 }
@@ -457,4 +528,13 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub privileged_action_pending_delay_period_payload:
         Option<PrivilegedActionPendingDelayPeriodPayload>,
+    #[serde(default)]
+    pub inheritance_claim_period_initiated_payload: Option<InheritanceClaimPeriodInitiatedPayload>,
+    #[serde(default)]
+    pub inheritance_claim_canceled_payload: Option<InheritanceClaimCanceledPayload>,
+    #[serde(default)]
+    pub inheritance_claim_period_completed_payload: Option<InheritanceClaimPeriodCompletedPayload>,
+    #[serde(default)]
+    pub recovery_relationship_invitation_pending_payload:
+        Option<RecoveryRelationshipInvitationPendingPayload>,
 }

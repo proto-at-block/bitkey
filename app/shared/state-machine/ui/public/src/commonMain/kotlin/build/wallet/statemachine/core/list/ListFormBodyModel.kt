@@ -13,23 +13,21 @@ import kotlinx.collections.immutable.toImmutableList
 /**
  * Model for a screen that shows a long list of items
  */
-fun ListFormBodyModel(
-  onBack: () -> Unit,
-  toolbarTitle: String,
-  listGroups: ImmutableList<ListGroupModel>,
-  id: EventTrackerScreenId?,
-) = FormBodyModel(
-  id = id,
-  onBack = onBack,
-  toolbar =
-    ToolbarModel(
+data class ListFormBodyModel(
+  override val onBack: () -> Unit,
+  val toolbarTitle: String,
+  val listGroups: ImmutableList<ListGroupModel>,
+  override val id: EventTrackerScreenId?,
+) : FormBodyModel(
+    id = id,
+    onBack = onBack,
+    toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onBack),
       middleAccessory = ToolbarMiddleAccessoryModel(title = toolbarTitle)
     ),
-  header = null,
-  mainContentList =
-    listGroups.map {
+    header = null,
+    mainContentList = listGroups.map {
       FormMainContentModel.ListGroup(it)
     }.toImmutableList(),
-  primaryButton = null
-)
+    primaryButton = null
+  )

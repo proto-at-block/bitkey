@@ -9,7 +9,7 @@ final class ActivitySnapshotTests: XCTestCase {
 
     func test_activity() {
         let view = FormView(
-            viewModel: ListFormBodyModelKt.ListFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateListFormBodyModel(
                 onBack: {},
                 toolbarTitle: "Activity",
                 listGroups: ListModel.transactionsSnapshotTest.sections,

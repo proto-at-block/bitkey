@@ -58,140 +58,165 @@ fun NotificationPreferencesFormBodyModel(
       networkingError = networkingError
     )
   },
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SELECTION,
-      onBack = onBack,
-      toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
-      header =
-        FormHeaderModel(
-          headline = "Notifications and updates",
-          subline = "Customize the notifications you receive for transactions and product updates."
-        ),
-      mainContentList =
-        immutableListOfNotNull(
-          Explainer(
-            immutableListOf(
-              Statement(
-                title = "Transactions",
-                body = "Get notified when you receive sats."
-              )
-            )
-          ),
-          ListGroup(
-            listGroupModel =
-              ListGroupModel(
-                items =
-                  immutableListOf(
-                    createListItem(
-                      title = "Push",
-                      icon = SmallIconPushNotification,
-                      checked = transactionPush,
-                      onCheckedChanged = onTransactionPushToggle,
-                      enabled = formEditingState == Editing
-                    )
-                  ),
-                style = ListGroupStyle.DIVIDER
-              )
-          ),
-          Explainer(
-            immutableListOf(
-              Statement(
-                title = "Bitkey updates",
-                body = "Learn about new Bitkey features and easily send us customer feedback."
-              )
-            )
-          ),
-          ListGroup(
-            listGroupModel =
-              ListGroupModel(
-                items =
-                  immutableListOf(
-                    createListItem(
-                      title = "Push",
-                      icon = SmallIconPushNotification,
-                      checked = updatesPush,
-                      onCheckedChanged = onUpdatesPushToggle,
-                      enabled = formEditingState == Editing
-                    ),
-                    createListItem(
-                      title = "Email",
-                      icon = SmallIconEmail,
-                      checked = updatesEmail,
-                      onCheckedChanged = onUpdatesEmailToggle,
-                      enabled = formEditingState == Editing
-                    )
-                  ),
-                style = ListGroupStyle.DIVIDER
-              )
-          ),
-          tosInfo?.let { ti ->
-            ListGroup(
-              listGroupModel =
-                ListGroupModel(
-                  items =
-                    immutableListOf(
-                      ListItemModel(
-                        leadingAccessory = null,
-                        title = "TOS",
-                        titleLabel = LabelModel.LinkSubstringModel.from(
-                          substringToOnClick = mapOf(
-                            Pair(
-                              first = "Terms of Service",
-                              second = {
-                                if (formEditingState == Editing) {
-                                  ti.tosLink()
-                                }
-                              }
-                            ),
-                            Pair(
-                              first = "Privacy Notice",
-                              second = {
-                                if (formEditingState == Editing) {
-                                  ti.privacyLink()
-                                }
-                              }
-                            )
-                          ),
-                          string = "I agree to Bitkey’s Terms of Service and Privacy Notice",
-                          underline = false,
-                          bold = false
-                        ),
-                        treatment = ListItemTreatment.PRIMARY,
-                        trailingAccessory = IconAccessory(
-                          onClick = { ti.onTermsAgreeToggle(!ti.termsAgree) },
-                          model = IconModel(
-                            icon = if (ti.termsAgree) {
-                              Icon.SmallIconCheckFilled
-                            } else {
-                              Icon.SmallIconCircleStroked
-                            },
-                            iconSize = IconSize.Regular,
-                            iconTint = if (ti.termsAgree) {
-                              Primary
-                            } else {
-                              On30
-                            }
-                          )
-                        )
-                      )
-                    ),
-                  style = ListGroupStyle.DIVIDER
-                )
-            )
-          }
-        ),
-      ctaWarning = ctaModel,
-      primaryButton = ButtonModel(
-        text = "Continue",
-        isLoading = formEditingState == Loading,
-        treatment = ButtonModel.Treatment.Primary,
-        size = ButtonModel.Size.Footer,
-        onClick = StandardClick(continueOnClick)
-      )
-    ),
+  body = NotificationPreferenceBodyModel(
+    transactionPush = transactionPush,
+    updatesPush = updatesPush,
+    updatesEmail = updatesEmail,
+    tosInfo = tosInfo,
+    onTransactionPushToggle = onTransactionPushToggle,
+    onUpdatesPushToggle = onUpdatesPushToggle,
+    onUpdatesEmailToggle = onUpdatesEmailToggle,
+    formEditingState = formEditingState,
+    ctaModel = ctaModel,
+    onBack = onBack,
+    continueOnClick = continueOnClick
+  ),
   presentationStyle = ScreenPresentationStyle.Root
 )
+
+private data class NotificationPreferenceBodyModel(
+  val transactionPush: Boolean,
+  val updatesPush: Boolean,
+  val updatesEmail: Boolean,
+  val tosInfo: TosInfo?,
+  val onTransactionPushToggle: (Boolean) -> Unit,
+  val onUpdatesPushToggle: (Boolean) -> Unit,
+  val onUpdatesEmailToggle: (Boolean) -> Unit,
+  val formEditingState: NotificationPreferencesFormEditingState,
+  val ctaModel: CallToActionModel?,
+  override val onBack: () -> Unit,
+  val continueOnClick: (() -> Unit),
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SELECTION,
+    onBack = onBack,
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
+    header =
+      FormHeaderModel(
+        headline = "Notifications and updates",
+        subline = "Customize the notifications you receive for transactions and product updates."
+      ),
+    mainContentList =
+      immutableListOfNotNull(
+        Explainer(
+          immutableListOf(
+            Statement(
+              title = "Transactions",
+              body = "Get notified when you receive sats."
+            )
+          )
+        ),
+        ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              items =
+                immutableListOf(
+                  createListItem(
+                    title = "Push",
+                    icon = SmallIconPushNotification,
+                    checked = transactionPush,
+                    onCheckedChanged = onTransactionPushToggle,
+                    enabled = formEditingState == Editing
+                  )
+                ),
+              style = ListGroupStyle.DIVIDER
+            )
+        ),
+        Explainer(
+          immutableListOf(
+            Statement(
+              title = "Bitkey updates",
+              body = "Learn about new Bitkey features and easily send us customer feedback."
+            )
+          )
+        ),
+        ListGroup(
+          listGroupModel =
+            ListGroupModel(
+              items =
+                immutableListOf(
+                  createListItem(
+                    title = "Push",
+                    icon = SmallIconPushNotification,
+                    checked = updatesPush,
+                    onCheckedChanged = onUpdatesPushToggle,
+                    enabled = formEditingState == Editing
+                  ),
+                  createListItem(
+                    title = "Email",
+                    icon = SmallIconEmail,
+                    checked = updatesEmail,
+                    onCheckedChanged = onUpdatesEmailToggle,
+                    enabled = formEditingState == Editing
+                  )
+                ),
+              style = ListGroupStyle.DIVIDER
+            )
+        ),
+        tosInfo?.let { ti ->
+          ListGroup(
+            listGroupModel =
+              ListGroupModel(
+                items =
+                  immutableListOf(
+                    ListItemModel(
+                      leadingAccessory = null,
+                      title = "TOS",
+                      titleLabel = LabelModel.LinkSubstringModel.from(
+                        substringToOnClick = mapOf(
+                          Pair(
+                            first = "Terms of Service",
+                            second = {
+                              if (formEditingState == Editing) {
+                                ti.tosLink()
+                              }
+                            }
+                          ),
+                          Pair(
+                            first = "Privacy Notice",
+                            second = {
+                              if (formEditingState == Editing) {
+                                ti.privacyLink()
+                              }
+                            }
+                          )
+                        ),
+                        string = "I agree to Bitkey’s Terms of Service and Privacy Notice",
+                        underline = false,
+                        bold = false
+                      ),
+                      treatment = ListItemTreatment.PRIMARY,
+                      trailingAccessory = IconAccessory(
+                        onClick = { ti.onTermsAgreeToggle(!ti.termsAgree) },
+                        model = IconModel(
+                          icon = if (ti.termsAgree) {
+                            Icon.SmallIconCheckFilled
+                          } else {
+                            Icon.SmallIconCircleStroked
+                          },
+                          iconSize = IconSize.Regular,
+                          iconTint = if (ti.termsAgree) {
+                            Primary
+                          } else {
+                            On30
+                          }
+                        )
+                      )
+                    )
+                  ),
+                style = ListGroupStyle.DIVIDER
+              )
+          )
+        }
+      ),
+    ctaWarning = ctaModel,
+    primaryButton = ButtonModel(
+      text = "Continue",
+      isLoading = formEditingState == Loading,
+      treatment = ButtonModel.Treatment.Primary,
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(continueOnClick)
+    )
+  )
 
 enum class NotificationPreferencesFormEditingState {
   Loading,
@@ -245,23 +270,30 @@ fun NetworkingErrorSheetModel(
   networkingError: NetworkingError,
 ) = SheetModel(
   size = SheetSize.MIN40,
-  body =
-    FormBodyModel(
-      id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
-      header = FormHeaderModel(
-        icon = Icon.LargeIconNetworkError,
-        headline = "A networking error has occurred. Please try again.",
-        subline = networkingError.message,
-        alignment = FormHeaderModel.Alignment.LEADING
-      ),
-      onBack = onClose,
-      toolbar = null,
-      primaryButton =
-        ButtonModel(
-          text = "Close",
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick(onClose)
-        )
-    ),
+  body = NetworkingErrorSheetBodyModel(
+    onClose = onClose,
+    networkingError = networkingError
+  ),
   onClosed = onClose
 )
+
+private data class NetworkingErrorSheetBodyModel(
+  val onClose: () -> Unit,
+  val networkingError: NetworkingError,
+) : FormBodyModel(
+    id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
+    header = FormHeaderModel(
+      icon = Icon.LargeIconNetworkError,
+      headline = "A networking error has occurred. Please try again.",
+      subline = networkingError.message,
+      alignment = FormHeaderModel.Alignment.LEADING
+    ),
+    onBack = onClose,
+    toolbar = null,
+    primaryButton =
+      ButtonModel(
+        text = "Close",
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick(onClose)
+      )
+  )

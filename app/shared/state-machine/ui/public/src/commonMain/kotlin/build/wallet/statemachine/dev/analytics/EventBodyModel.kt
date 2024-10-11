@@ -12,65 +12,61 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 /**
  * Model for showing screen with singular event info.
  */
-fun EventBodyModel(
-  onBack: () -> Unit,
-  event: Event,
-) = FormBodyModel(
-  onBack = onBack,
-  toolbar =
-    ToolbarModel(
+data class EventBodyModel(
+  override val onBack: () -> Unit,
+  val event: Event,
+) : FormBodyModel(
+    onBack = onBack,
+    toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack),
       middleAccessory = ToolbarMiddleAccessoryModel(title = "Event Detail")
     ),
-  header = null,
-  mainContentList =
-    immutableListOfNotNull(
+    header = null,
+    mainContentList = immutableListOfNotNull(
       FormMainContentModel.DataList(
-        items =
-          immutableListOfNotNull(
+        items = immutableListOfNotNull(
+          FormMainContentModel.DataList.Data(
+            title = "Event Time",
+            sideText = event.event_time,
+            showBottomDivider = true
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Action",
+            sideText = event.action.name,
+            showBottomDivider = event.screen_id.isNotEmpty()
+          ),
+          if (event.screen_id.isNotEmpty()) {
             FormMainContentModel.DataList.Data(
-              title = "Event Time",
-              sideText = event.event_time,
-              showBottomDivider = true
-            ),
-            FormMainContentModel.DataList.Data(
-              title = "Action",
-              sideText = event.action.name,
-              showBottomDivider = event.screen_id.isNotEmpty()
-            ),
-            if (event.screen_id.isNotEmpty()) {
-              FormMainContentModel.DataList.Data(
-                title = "Screen ID",
-                sideText = event.screen_id
-              )
-            } else {
-              null
-            }
-          )
+              title = "Screen ID",
+              sideText = event.screen_id
+            )
+          } else {
+            null
+          }
+        )
       ),
       FormMainContentModel.DataList(
-        items =
-          immutableListOf(
-            FormMainContentModel.DataList.Data(
-              title = "Country",
-              sideText = event.country,
-              showBottomDivider = true
-            ),
-            FormMainContentModel.DataList.Data(
-              title = "Locale Currency",
-              sideText = event.locale_currency,
-              showBottomDivider = true
-            ),
-            FormMainContentModel.DataList.Data(
-              title = "Fiat Currency Preference",
-              sideText = event.fiat_currency_preference,
-              showBottomDivider = true
-            ),
-            FormMainContentModel.DataList.Data(
-              title = "Bitcoin Display Preference",
-              sideText = event.bitcoin_display_preference
-            )
+        items = immutableListOf(
+          FormMainContentModel.DataList.Data(
+            title = "Country",
+            sideText = event.country,
+            showBottomDivider = true
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Locale Currency",
+            sideText = event.locale_currency,
+            showBottomDivider = true
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Fiat Currency Preference",
+            sideText = event.fiat_currency_preference,
+            showBottomDivider = true
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Bitcoin Display Preference",
+            sideText = event.bitcoin_display_preference
           )
+        )
       ),
       FormMainContentModel.DataList(
         items =
@@ -134,66 +130,64 @@ fun EventBodyModel(
       },
       event.platform_info?.let { platformInfo ->
         FormMainContentModel.DataList(
-          items =
-            immutableListOf(
-              FormMainContentModel.DataList.Data(
-                title = "App ID",
-                sideText = platformInfo.app_id,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "Application Version",
-                sideText = platformInfo.application_version,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "Client Type",
-                sideText = platformInfo.client_type.name,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "OS Type",
-                sideText = platformInfo.os_type.name,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "OS Version",
-                sideText = platformInfo.os_version,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "Device ID",
-                sideText = platformInfo.device_id,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "Device Make",
-                sideText = platformInfo.device_make,
-                showBottomDivider = true
-              ),
-              FormMainContentModel.DataList.Data(
-                title = "Device Model",
-                sideText = platformInfo.device_model
-              )
-            )
-        )
-      },
-      FormMainContentModel.DataList(
-        items =
-          immutableListOf(
+          items = immutableListOf(
             FormMainContentModel.DataList.Data(
-              title = "Counter ID",
-              sideText = event.counter_id,
+              title = "App ID",
+              sideText = platformInfo.app_id,
               showBottomDivider = true
             ),
             FormMainContentModel.DataList.Data(
-              title = "Counter Count",
-              sideText = event.counter_count.toString()
+              title = "Application Version",
+              sideText = platformInfo.application_version,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Client Type",
+              sideText = platformInfo.client_type.name,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "OS Type",
+              sideText = platformInfo.os_type.name,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "OS Version",
+              sideText = platformInfo.os_version,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Device ID",
+              sideText = platformInfo.device_id,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Device Make",
+              sideText = platformInfo.device_make,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Device Model",
+              sideText = platformInfo.device_model
             )
           )
+        )
+      },
+      FormMainContentModel.DataList(
+        items = immutableListOf(
+          FormMainContentModel.DataList.Data(
+            title = "Counter ID",
+            sideText = event.counter_id,
+            showBottomDivider = true
+          ),
+          FormMainContentModel.DataList.Data(
+            title = "Counter Count",
+            sideText = event.counter_count.toString()
+          )
+        )
       ).takeIf { event.counter_id.isNotBlank() }
     ),
-  primaryButton = null,
-  // This is only used by the debug menu, it doesn't need a screen ID
-  id = null
-)
+    primaryButton = null,
+    // This is only used by the debug menu, it doesn't need a screen ID
+    id = null
+  )

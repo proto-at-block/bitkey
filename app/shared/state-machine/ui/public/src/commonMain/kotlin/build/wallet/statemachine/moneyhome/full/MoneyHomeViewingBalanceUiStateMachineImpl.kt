@@ -16,6 +16,7 @@ import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.feature.flags.MobilePayRevampFeatureFlag
+import build.wallet.feature.flags.SellBitcoinFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
@@ -25,6 +26,7 @@ import build.wallet.inappsecurity.MoneyHomeHiddenStatus
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProvider
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
@@ -54,6 +56,7 @@ import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
+import build.wallet.statemachine.partnerships.AddBitcoinBottomSheetDisplayState
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
@@ -63,7 +66,6 @@ import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachine
-import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
@@ -98,7 +100,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val haptics: Haptics,
   private val firmwareDataService: FirmwareDataService,
   private val transactionsService: TransactionsService,
+  private val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag,
   private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
+  private val exchangeRateService: ExchangeRateService,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -107,6 +111,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       LaunchedEffect("refresh-transactions") {
         transactionsService.syncTransactions()
         sweepService.checkForSweeps()
+        exchangeRateService.requestSync()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
@@ -192,6 +197,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               MoneyHomeButtonsModel(
                 props = props,
                 appFunctionalityStatus = appFunctionalityStatus,
+                sellBitcoinEnabled = sellBitcoinFeatureFlag.isEnabled(),
                 onShowAlert = { alertModel = it },
                 onDismissAlert = { alertModel = null }
               ),
@@ -312,7 +318,13 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             GettingStartedCardUiProps(
               accountData = props.accountData,
               onAddBitcoin = {
-                props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners()))
+                props.setState(
+                  ViewingBalanceUiState(
+                    bottomSheetDisplayState = Partners(
+                      initialState = AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
+                    )
+                  )
+                )
               },
               onEnableSpendingLimit = {
                 props.setState(
@@ -373,6 +385,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private fun MoneyHomeButtonsModel(
     props: MoneyHomeViewingBalanceUiProps,
     appFunctionalityStatus: AppFunctionalityStatus,
+    sellBitcoinEnabled: Boolean,
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): MoneyHomeButtonsModel {
@@ -390,39 +403,66 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     }
 
     return MoneyHomeButtonsModel.MoneyMovementButtonsModel(
+      addButton = MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+        enabled = appFunctionalityStatus.featureStates.deposit == Available,
+        onClick = {
+          if (appFunctionalityStatus.featureStates.deposit == Available) {
+            val initialState = if (sellBitcoinEnabled) {
+              AddBitcoinBottomSheetDisplayState.PurchasingUiState(selectedAmount = null)
+            } else {
+              AddBitcoinBottomSheetDisplayState.ShowingPurchaseOrTransferUiState
+            }
+            props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners(initialState)))
+          } else {
+            showAlertForLimitedStatus()
+          }
+        }
+      ),
+      sellButton =
+        if (sellBitcoinEnabled) {
+          MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+            enabled = appFunctionalityStatus.featureStates.sell == Available,
+            onClick = {
+              if (appFunctionalityStatus.featureStates.sell == Available) {
+                props.setState(SellFlowUiState)
+              } else {
+                showAlertForLimitedStatus()
+              }
+            }
+          )
+        } else {
+          null
+        },
       sendButton =
         MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
           enabled = appFunctionalityStatus.featureStates.send == Available,
           onClick = {
             if (appFunctionalityStatus.featureStates.send == Available) {
-              props.setState(SendFlowUiState(entryPoint = SendEntryPoint.SendButton))
+              props.setState(SendFlowUiState)
             } else {
               showAlertForLimitedStatus()
             }
           }
         ),
-      receiveButton =
-        MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-          enabled = appFunctionalityStatus.featureStates.receive == Available,
-          onClick = {
-            if (appFunctionalityStatus.featureStates.receive == Available) {
+      receiveButton = MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
+        enabled = appFunctionalityStatus.featureStates.receive == Available,
+        onClick = {
+          if (appFunctionalityStatus.featureStates.receive == Available) {
+            if (sellBitcoinEnabled) {
+              val initialState = AddBitcoinBottomSheetDisplayState.TransferringUiState
+              props.setState(
+                ViewingBalanceUiState(
+                  bottomSheetDisplayState = Partners(initialState)
+                )
+              )
+            } else {
               props.setState(ReceiveFlowUiState)
-            } else {
-              showAlertForLimitedStatus()
             }
+          } else {
+            showAlertForLimitedStatus()
           }
-        ),
-      addButton =
-        MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-          enabled = appFunctionalityStatus.featureStates.deposit == Available,
-          onClick = {
-            if (appFunctionalityStatus.featureStates.deposit == Available) {
-              props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners()))
-            } else {
-              showAlertForLimitedStatus()
-            }
-          }
-        )
+        }
+      )
     )
   }
 
@@ -471,8 +511,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               props =
                 AddBitcoinUiProps(
                   account = props.accountData.account,
+                  initialState = currentState.initialState,
                   keybox = props.accountData.account.keybox,
-                  purchaseAmount = currentState.purchaseAmount,
+                  sellBitcoinEnabled = sellBitcoinFeatureFlag.isEnabled(),
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
                   onPartnerRedirected = { redirectMethod, transaction ->
                     handlePartnerRedirected(
@@ -649,7 +690,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
 
       is PartnerRedirectionMethod.Web -> {
         props.setState(
-          MoneyHomeUiState.ShowingInAppBrowserUiState(
+          ShowingInAppBrowserUiState(
             urlString = method.urlString,
             onClose = {
               props.onPartnershipsWebFlowCompleted(method.partnerInfo, transaction)

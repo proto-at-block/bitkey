@@ -1,13 +1,13 @@
 use std::{collections::HashSet, env};
 
-use account::{repository::AccountRepository, service::Service as AccountService};
+use account::service::Service as AccountService;
 use authn_authz::key_claims::KeyClaims;
 use queue::sqs::SqsQueue;
+use repository::account::AccountRepository;
 use repository::consent::ConsentRepository;
 use serde::Deserialize;
-use types::{account::identifiers::AccountId, notification::NotificationsPreferences};
-
 use time::{Duration, OffsetDateTime};
+use types::{account::identifiers::AccountId, notification::NotificationsPreferences};
 
 use crate::{
     clients::iterable::{IterableClient, IterableMode},
@@ -28,6 +28,7 @@ pub mod notifications_preferences;
 mod persist_notifications;
 mod schedule_notifications;
 mod send_notification;
+pub mod tests;
 mod update_delivery_status;
 
 #[derive(Deserialize)]
