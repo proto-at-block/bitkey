@@ -1,36 +1,15 @@
 package build.wallet.statemachine.settings.full.feedback
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.core.SystemUIModel
-import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.support.ConditionEvaluationResult
-import build.wallet.support.MutableSupportTicketData
-import build.wallet.support.OptimizedSupportTicketFieldConditions
-import build.wallet.support.SupportTicketAttachment
-import build.wallet.support.SupportTicketData
-import build.wallet.support.SupportTicketField
-import build.wallet.support.SupportTicketForm
-import build.wallet.support.SupportTicketFormValidator
-import build.wallet.support.SupportTicketRepository
+import build.wallet.support.*
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.Delayer
 import build.wallet.ui.model.StandardClick
@@ -41,16 +20,9 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.picker.ItemPickerModel
 import build.wallet.ui.model.switch.SwitchModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.ImmutableSet
-import kotlinx.collections.immutable.persistentSetOf
-import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
+import kotlinx.collections.immutable.*
 import kotlinx.datetime.LocalDate
 import kotlin.time.Duration.Companion.seconds
 
@@ -141,7 +113,7 @@ class FeedbackFormUiStateMachineImpl(
       mutableStateOf(null)
     }
 
-    fun confirmLeaveIfNeeded() {
+    val confirmLeaveIfNeeded = {
       if (formData.hasPendingChanges()) {
         alertUiState = FeedbackAlertUiState.ViewingLeaveConfirmation
       } else {
@@ -185,7 +157,7 @@ class FeedbackFormUiStateMachineImpl(
       body = FillingFormBodyModel(
         formData = formData,
         onSubmitData = onSubmitData,
-        confirmLeaveIfNeeded = ::confirmLeaveIfNeeded,
+        confirmLeaveIfNeeded = confirmLeaveIfNeeded,
         isValid = isValid,
         mainContentList = contentList
       ),
@@ -222,34 +194,6 @@ class FeedbackFormUiStateMachineImpl(
         }
     )
   }
-
-  private data class FillingFormBodyModel(
-    val formData: StateMapBackedSupportTicketData,
-    val onSubmitData: (SupportTicketData) -> Unit,
-    val confirmLeaveIfNeeded: () -> Unit,
-    val isValid: Boolean,
-    override val mainContentList: ImmutableList<FormMainContentModel>,
-  ) : FormBodyModel(
-      id = FeedbackEventTrackerScreenId.FEEDBACK_FILLING_FORM,
-      onBack = confirmLeaveIfNeeded,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory =
-            ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = confirmLeaveIfNeeded),
-          middleAccessory = ToolbarMiddleAccessoryModel(title = "Send feedback")
-        ),
-      header = null,
-      mainContentList = mainContentList,
-      primaryButton =
-        ButtonModel(
-          text = "Submit",
-          isEnabled = isValid,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick {
-            onSubmitData(formData.toImmutable())
-          }
-        )
-    )
 
   @Composable
   private fun <Value : Any> FieldModel(

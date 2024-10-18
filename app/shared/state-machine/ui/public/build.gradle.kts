@@ -122,6 +122,7 @@ kotlin {
         implementation(projects.shared.stateMachineFrameworkFake)
         implementation(projects.shared.stateMachineFrameworkTesting)
         implementation(projects.shared.stateMachineUiTesting)
+        implementation(projects.shared.supportFake)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.uiCoreTesting)
         implementation(projects.shared.workerFake)
