@@ -39,6 +39,7 @@ public struct CardView: View {
     private var mainContent: some View {
         if viewModel.content is CardModelCardContentBitcoinPrice {
             CardContentViewBitcoinPriceCard(viewModel: viewModel)
+                .frame(minWidth: 0)
         } else {
             CardContentView(
                 viewModel: viewModel,

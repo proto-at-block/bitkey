@@ -70,8 +70,9 @@ public struct MoneyHomeView: View {
                         .padding(.top, 40)
 
                         // Balance Hero
-                        MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
-                            .animation(.none, value: viewModel)
+                            MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
+                                .frame(minWidth: 0)
+                                .animation(.none, value: viewModel)
 
                         // No UI between the action buttons and the tx list so show a divider
                         if viewModel.cardsModel.cards.isEmpty, viewModel.transactionsModel != nil {
@@ -83,11 +84,12 @@ public struct MoneyHomeView: View {
 
                         // Cards
                         if viewModel.cardsModel.cards.count > 0, moneyHomeCardsHeight != 0 {
-                            MoneyHomeCardsView(
-                                viewModel: viewModel.cardsModel,
-                                height: $moneyHomeCardsHeight
-                            )
-                            .animation(.none, value: viewModel)
+                                MoneyHomeCardsView(
+                                    viewModel: viewModel.cardsModel,
+                                    height: $moneyHomeCardsHeight
+                                )
+                                .frame(minWidth: 0)
+                                .animation(.none, value: viewModel)
                         }
 
                         // Transactions

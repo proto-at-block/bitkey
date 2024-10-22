@@ -57,7 +57,7 @@ module "approve_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -70,7 +70,7 @@ module "get_pubkey_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -83,7 +83,7 @@ module "get_key_names_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -96,7 +96,7 @@ module "sign_request_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -109,7 +109,7 @@ module "get_signing_request_upload_url_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = merge(local.common_lambda_env_vars, {
     BUCKET_NAME = aws_s3_bucket.firmware.id
   })
@@ -124,7 +124,7 @@ module "get_signed_artifact_download_url_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = merge(local.common_lambda_env_vars, {
     BUCKET_NAME = aws_s3_bucket.signed_artifacts.id
   })
@@ -139,7 +139,7 @@ module "kickoff_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "0742ffbe" : "0742ffbe"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -152,7 +152,7 @@ module "revoke_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }
 
@@ -165,6 +165,6 @@ module "status_docker" {
   app_name      = var.app_name
   environment   = var.env
   is_localstack = var.is_localstack
-  tag           = var.env != "production" ? "5a088fbd" : "5a088fbd"
+  tag           = var.env != "production" ? "ac22240f" : "ac22240f"
   env_variables = local.common_lambda_env_vars
 }

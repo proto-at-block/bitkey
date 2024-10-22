@@ -9,12 +9,12 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 
     func test_money_home() {
         let view = MoneyHomeView(viewModel: .snapshotTestFull())
-        assertBitkeySnapshots(view: view)
+        assertBitkeySnapshotsAllDevices(view: view)
     }
 
     func test_money_home_with_sell_button() {
         let view = MoneyHomeView(viewModel: .snapshotTestFull(showSellButton: true))
-        assertBitkeySnapshots(view: view)
+        assertBitkeySnapshotsAllDevices(view: view)
     }
 
     func test_money_home_with_status_banner() {

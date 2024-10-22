@@ -21,7 +21,6 @@ struct CardContentBitcoinPrice: View {
                 font: .body3Bold,
                 textColor: Color.bitcoinPrimary
             ))
-            .fixedSize(horizontal: true, vertical: false)
 
             Spacer()
 
@@ -32,7 +31,6 @@ struct CardContentBitcoinPrice: View {
                         font: .body4Regular,
                         textColor: Color.clear
                     ))
-                    .fixedSize(horizontal: true, vertical: false)
                     .loadingBackground()
                 } else {
                     ModeledText(model: .standard(
@@ -40,7 +38,6 @@ struct CardContentBitcoinPrice: View {
                         font: .body4Regular,
                         textColor: Color.foreground30
                     ))
-                    .fixedSize(horizontal: true, vertical: false)
                 }
             }.animation(.spring, value: viewModel)
 

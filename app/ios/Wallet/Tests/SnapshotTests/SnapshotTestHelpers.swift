@@ -62,6 +62,47 @@ extension XCTestCase {
         XCTAssertNil(iPhone15ProMax)
     }
 
+    func assertBitkeySnapshotsAllDevices(
+        view: some View,
+        screenModel: ScreenModel? = nil,
+        usesVisualEffect: Bool = false,
+        fileName: String = #function,
+        precision: Float = 0.9992,
+        perceptualPrecision: Float = 0.98
+    ) {
+        let viewController: UIViewController = if let screenModel {
+            SwiftUIWrapperViewController(view, screenModel: screenModel)
+        } else {
+            UIHostingController(rootView: view)
+        }
+
+        let deviceConfigs = [
+            ViewImageConfig.iPhone8, .iPhone8Plus, .iPhoneSe, .iPhoneX, .iPhoneXr, .iPhoneXsMax,
+                .iPhone12, .iPhone12Pro, .iPhone12ProMax,
+                .iPhone13, .iPhone13Mini, .iPhone13Pro, .iPhone13ProMax,
+                .iPhone14(.portrait), .iPhone14Plus(.portrait), .iPhone14Pro(.portrait), .iPhone14ProMax(.portrait),
+                .iPhone15(.portrait), .iPhone15Plus(.portrait), .iPhone15Pro(.portrait), .iPhone15ProMax(.portrait)
+        ]
+        
+        for config in deviceConfigs {
+            let snapshot = verifySnapshot(
+                of: viewController,
+                as: .image(
+                    drawHierarchyInKeyWindow: usesVisualEffect,
+                    precision: precision,
+                    perceptualPrecision: perceptualPrecision,
+                    size: config.size,
+                    traits: config.traits
+                ),
+                named: config.description!,
+                record: isRecording,
+                testName: fileName
+            )
+
+            XCTAssertNil(snapshot)
+        }
+    }
+
     func assertBitkeySnapshot(
         image: UIImage,
         fileName: String = #function,

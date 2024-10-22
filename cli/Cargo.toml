@@ -2,7 +2,7 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2024.71.1"
+version = "2024.71.2"
 
 default-run = "bk"
 
