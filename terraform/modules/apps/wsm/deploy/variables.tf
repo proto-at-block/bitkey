@@ -27,6 +27,12 @@ variable "customer_server_keys_table_name" {
   default     = null
 }
 
+variable "customer_server_key_shares_table_name" {
+  description = "Name of the customer server key shares table"
+  type        = string
+  default     = null
+}
+
 variable "key_arn" {
   description = "ARN to the master KMS key for the enclave"
   type        = string

@@ -3,16 +3,21 @@ package build.wallet.statemachine.send
 import app.cash.turbine.Turbine
 import app.cash.turbine.test
 import build.wallet.bdk.bindings.BdkError
-import build.wallet.bitcoin.transactions.*
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.ktor.result.HttpError.NetworkError
+import build.wallet.limit.DailySpendingLimitStatus
+import build.wallet.limit.MobilePayEnabledDataMock
 import build.wallet.limit.MobilePayServiceMock
-import build.wallet.limit.SpendingLimitMock
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.awaitScreenWithBody
+import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
@@ -45,6 +50,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
       // Error screen
       awaitScreenWithBody<FormBodyModel> {
         with(header.shouldNotBeNull()) {
@@ -81,7 +87,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     spendingWallet.createSignedPsbtResult = Err(BdkError.Generic(Exception(""), null))
     transactionPriorityPreference.preference.shouldBeNull()
 
-    stateMachine.test(props.copy(requiredSigner = SigningFactor.Hardware)) {
+    stateMachine.test(props) {
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -102,7 +108,6 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.Hardware,
         selectedPriority = transactionPriority
       )
     ) {
@@ -110,6 +115,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
@@ -147,11 +154,11 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
 
     transactionPriorityPreference.preference.shouldBeNull()
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.F8e,
-        spendingLimit = SpendingLimitMock,
         selectedPriority = preferenceToSet
       )
     ) {
@@ -159,6 +166,9 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
+
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
         clickPrimaryButton()
@@ -168,6 +178,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
       transactionsService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
@@ -180,11 +191,10 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   test("[app & server] failure to sign with app key presents error") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Err(BdkError.Generic(Exception(""), null))
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.F8e,
-        spendingLimit = SpendingLimitMock,
         selectedPriority = preferenceToSet
       )
     ) {
@@ -198,6 +208,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
         expectGenericErrorMessage()
         clickPrimaryButton()
       }
+
       onExitCalls.awaitItem()
     }
 
@@ -209,11 +220,11 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
     transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
     mobilePayService.keysetId = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.F8e,
-        spendingLimit = SpendingLimitMock,
         selectedPriority = preferenceToSet
       )
     ) {
@@ -221,6 +232,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
@@ -245,11 +258,11 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
     mobilePayService.signPsbtWithMobilePayResult = Err(NetworkError(Error("oops")))
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
+    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.F8e,
-        spendingLimit = SpendingLimitMock,
         selectedPriority = preferenceToSet
       )
     ) {
@@ -257,6 +270,8 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {

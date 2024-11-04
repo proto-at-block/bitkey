@@ -4,6 +4,7 @@ from pathlib import Path
 
 from Crypto.PublicKey import ECC
 
+from .constants import SECURITY_PROD, SIGNER_PRODUCTION
 from .fwut import FirmwareUnderTest, keys_parent_path
 
 
@@ -23,6 +24,9 @@ def get_key_latest_version(key_fmt: str, product: str, security: str) -> Path:
         signer_env = FirmwareUnderTest.signer_env
         if signer_env is None:
             signer_env = ""
+            if security == SECURITY_PROD:
+                # building locally for production requires a set signer_env
+                signer_env = "-" + SIGNER_PRODUCTION
         else:
             signer_env = "-" + signer_env
 

@@ -9,7 +9,8 @@ import build.wallet.configuration.MobilePayFiatConfigSyncWorker
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.feature.FeatureFlagSyncWorker
 import build.wallet.fwup.FirmwareDataSyncWorker
-import build.wallet.inheritance.InheritanceSyncWorker
+import build.wallet.inheritance.InheritanceClaimsSyncWorker
+import build.wallet.inheritance.InheritanceMaterialSyncWorker
 import build.wallet.limit.MobilePayBalanceSyncWorker
 import build.wallet.money.currency.FiatCurrenciesSyncWorker
 import build.wallet.money.exchange.ExchangeRateSyncWorker
@@ -48,7 +49,8 @@ class AppWorkerProviderImpl(
   private val syncRelationshipsWorker: SyncRelationshipsWorker,
   private val mobilePayBalanceSyncWorker: MobilePayBalanceSyncWorker,
   private val appFunctionalitySyncWorker: AppFunctionalitySyncWorker,
-  private val inheritanceSyncWorker: InheritanceSyncWorker,
+  private val inheritanceMaterialSyncWorker: InheritanceMaterialSyncWorker,
+  private val inheritanceClaimsSyncWorker: InheritanceClaimsSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -62,7 +64,7 @@ class AppWorkerProviderImpl(
       mobilePayFiatConfigSyncWorker,
       featureFlagSyncWorker,
       firmwareDataSyncWorker,
-      inheritanceSyncWorker,
+      inheritanceMaterialSyncWorker,
       notificationTouchpointSyncWorker,
       endorseTrustedContactsWorker,
       bitcoinAddressRegisterWatchAddressWorker,
@@ -71,7 +73,8 @@ class AppWorkerProviderImpl(
       mobilePayBalanceSyncWorker,
       fiatCurrenciesSyncWorker,
       syncRelationshipsWorker,
-      appFunctionalitySyncWorker
+      appFunctionalitySyncWorker,
+      inheritanceClaimsSyncWorker
     )
   }
 }

@@ -20,7 +20,7 @@ suspend fun AppTester.consolidateAllUtxos(): Pair<UtxoConsolidationParams, UtxoC
   val consolidationTransactionDetail = utxoConsolidationService
     .broadcastConsolidation(appAndHardwareSignedPsbt)
     .shouldBeOk()
-  mineBlock()
+  mineBlock(txid = consolidationTransactionDetail.broadcastDetail.transactionId)
 
   val totalBalanceAfterConsolidation =
     totalBalanceBeforeConsolidation - consolidationParams.consolidationCost

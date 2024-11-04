@@ -138,13 +138,10 @@ static void do_sync_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_r
     .indices = cmd->derivation_path.child,
     .num_indices = cmd->derivation_path.child_count,
   };
+
   extended_key_t key_priv CLEANUP(bip32_zero_key);
-  fingerprint_t key_priv_master_fingerprint;
-  fingerprint_t key_priv_childs_parent_fingerprint;
-  if (seed_derive_bip32(derivation_path, &key_priv, &key_priv_master_fingerprint,
-                        &key_priv_childs_parent_fingerprint) != SEED_RES_OK) {
+  if (!wallet_derive_key_priv_using_cache(&key_priv, derivation_path)) {
     rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_DERIVATION_FAILED;
-    LOGE("seed_derive failed");
     return;
   }
 
@@ -490,10 +487,10 @@ static void handle_derive_public_key_and_sign(ipc_ref_t* message) {
 
   rsp->msg.derive_public_key_rsp.pubkey.size = pubkey_out.key.size;
 
-  if (crypto_ecc_sign_hash(
-        &privkey, &pubkey_out, cmd->msg.derive_public_key_and_sign_cmd.hash.bytes,
-        sizeof(cmd->msg.derive_public_key_and_sign_cmd.hash.bytes),
-        rsp->msg.derive_public_key_and_sign_rsp.signature.bytes) != SECURE_TRUE) {
+  if (crypto_ecc_sign_hash(&privkey, cmd->msg.derive_public_key_and_sign_cmd.hash.bytes,
+                           sizeof(cmd->msg.derive_public_key_and_sign_cmd.hash.bytes),
+                           rsp->msg.derive_public_key_and_sign_rsp.signature.bytes) !=
+      SECURE_TRUE) {
     rsp->status = fwpb_status_SIGNING_FAILED;
     goto out;
   }
@@ -555,6 +552,9 @@ void key_manager_thread(void* UNUSED(args)) {
       case IPC_PROTO_DERIVE_PUBLIC_KEY_AND_SIGN_CMD:
         handle_derive_public_key_and_sign(&message);
         break;
+      case IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE:
+        wallet_clear_derived_key_cache();
+        break;
       default:
         LOGE("unknown message %ld", message.tag);
     }
@@ -575,7 +575,8 @@ void key_manager_task_create(void) {
 
 #define REGIONS(X)                                                           \
   X(wallet_cmd_pool, extended_keys, WALLET_POOL_R0_SIZE, WALLET_POOL_R0_NUM) \
-  X(wallet_cmd_pool, r1, WALLET_POOL_R1_SIZE, WALLET_POOL_R1_NUM)
+  X(wallet_cmd_pool, r1, WALLET_POOL_R1_SIZE, WALLET_POOL_R1_NUM)            \
+  X(wallet_cmd_pool, r2, WALLET_POOL_R2_SIZE, WALLET_POOL_R2_NUM)
   key_manager_priv.mempool = mempool_create(wallet_cmd_pool);
 #undef REGIONS
   wallet_init(key_manager_priv.mempool);

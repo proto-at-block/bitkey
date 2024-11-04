@@ -1,5 +1,6 @@
 use crate::routes::RouteState;
 use crate::service::{cache_ttl, ChartCacheKey, Service as ExchangeRateService};
+use account::service::tests::construct_test_account_service;
 use axum::body::Body;
 use axum::http::Request;
 use feature_flags::config::Config;
@@ -59,7 +60,12 @@ async fn test_get_chart_data() {
     // cheating a bit here by short-circuiting via the cache
     // but we just need to know that the route is hooked up properly
     let exchange_rate_service = create_exchange_rate_service_with_caches().await;
-    let route_state = RouteState(exchange_rate_service, feature_flags_service);
+    let account_service = construct_test_account_service().await;
+    let route_state = RouteState(
+        exchange_rate_service,
+        feature_flags_service,
+        account_service,
+    );
     let app = route_state.basic_validation_router();
     let body = Body::from(r#"{"currency_code":"USD","days":1,"max_price_points":1}"#);
     let request = Request::builder()

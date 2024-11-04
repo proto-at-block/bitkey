@@ -4,8 +4,6 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -32,30 +30,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onSkip - invoked once the user chooses to skip email input
  * @param errorOverlayModel - model for the current sheet error
  */
-fun EmailInputScreenModel(
-  title: String,
-  subline: String? = null,
-  value: String = "",
-  primaryButton: ButtonModel,
-  onValueChange: (String) -> Unit,
-  onClose: () -> Unit,
-  onSkip: (() -> Unit)?,
-  errorOverlayModel: SheetModel? = null,
-) = ScreenModel(
-  body = EmailInputScreenModel(
-    title = title,
-    subline = subline,
-    value = value,
-    primaryButton = primaryButton,
-    onValueChange = onValueChange,
-    onClose = onClose,
-    onSkip = onSkip
-  ),
-  presentationStyle = ScreenPresentationStyle.Modal,
-  bottomSheetModel = errorOverlayModel
-)
-
-private data class EmailInputScreenModel(
+data class EmailInputScreenModel(
   val title: String,
   val subline: String? = null,
   val value: String = "",

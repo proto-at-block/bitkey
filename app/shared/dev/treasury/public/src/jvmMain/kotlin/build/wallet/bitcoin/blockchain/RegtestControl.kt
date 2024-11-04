@@ -6,6 +6,7 @@ import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.*
+import kotlinx.serialization.json.Json
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -39,6 +40,38 @@ class RegtestControl(
       }
     waitForIndexing(blocks.last())
     println("Mined $numBlock blocks to ${mineToAddress.address}")
+  }
+
+  override suspend fun mineBlock(
+    txid: String,
+    mineToAddress: BitcoinAddress,
+  ) {
+    waitForTxInMempool(txid)
+    println("Found tx $txid in Mempool. Mining block to ${mineToAddress.address}")
+    val blocks = withContext(Dispatchers.IO) {
+      client.generateToAddress(1, mineToAddress.address)
+    }
+    waitForIndexing(blocks.last())
+    println("Mined blocks to ${mineToAddress.address}")
+  }
+
+  private suspend fun waitForTxInMempool(txid: String) {
+    val url = "$electrumHttpApiUrl/mempool/txids"
+    withContext(Dispatchers.Default) {
+      withTimeout(5.seconds) {
+        while (isActive) {
+          val resp = HttpClient().get(url)
+          // Response is just an array of txid strings.
+          val txids = Json.decodeFromString<List<String>>(resp.bodyAsText())
+
+          if (txids.contains(txid)) {
+            return@withTimeout
+          } else {
+            delay(500.milliseconds)
+          }
+        }
+      }
+    }
   }
 
   private suspend fun waitForIndexing(blockHash: String) {

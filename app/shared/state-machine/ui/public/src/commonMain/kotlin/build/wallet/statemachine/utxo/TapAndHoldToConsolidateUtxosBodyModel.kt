@@ -20,7 +20,7 @@ data class TapAndHoldToConsolidateUtxosBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       headline = "Tap and hold to consolidate",
-      subline = "Consolidation takes a bit longer than a single transaction. You’ll need to hold your Bitkey to your device until the consolidation completes",
+      subline = "Consolidation takes a bit longer than a single transaction. You’ll need to hold your Bitkey to your device until the consolidation completes.",
       alignment = LEADING
     ),
     primaryButton = ButtonModel(

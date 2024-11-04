@@ -12,6 +12,8 @@ import UserNotifications
 
 // MARK: -
 
+private let COMPOSE_RENDERING = false
+
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -61,7 +63,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
-        window?.rootViewController = appContext.appUiStateMachineManager.appViewController
+        if COMPOSE_RENDERING {
+            window?.rootViewController = ComposeIosAppUIController(
+                activityComponent: appContext.activityComponent
+            ).viewController
+        } else {
+            window?.rootViewController = appContext.appUiStateMachineManager.appViewController
+        }
 
         window?.makeKeyAndVisible()
 
@@ -69,6 +77,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         FwupNfcMaskOverlayViewController.mainWindow = window
 
         UNUserNotificationCenter.current().delegate = appContext.notificationManager
+        appContext.notificationManager.delegate = self
 
         // We have videos in our app which, even though they don't have audio, means when they play
         // they
@@ -158,12 +167,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return false
         }
 
-        if let route = Route.companion.fromUrl(url: incomingURL.absoluteString) {
+        if let route = Route.companion.from(url: incomingURL.absoluteString) {
             Router.shared.route = route
             return true
         }
 
         return false
+    }
+}
+
+extension AppDelegate: NotificationManagerDelegate {
+    func receivedNotificationWithInfo(_ info: [AnyHashable: Any]) {
+        if let screenId = info[Route.DeepLink.shared.NAVIGATE_TO_SCREEN_ID] as? Int {
+            Router.shared.route = Route.companion.from(screenId: Int32(screenId))
+        }
     }
 }
 

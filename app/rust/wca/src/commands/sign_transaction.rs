@@ -1,5 +1,5 @@
-use bitcoin::{bip32::DerivationPath, psbt::PartiallySignedTransaction, secp256k1::Secp256k1};
-use miniscript::{psbt::PsbtExt, DescriptorPublicKey};
+use bitcoin::{bip32::Fingerprint, psbt::PartiallySignedTransaction, secp256k1::Secp256k1};
+use miniscript::psbt::PsbtExt;
 use next_gen::prelude::*;
 use std::result::Result;
 
@@ -11,39 +11,25 @@ use crate::{
     yield_from_,
 };
 
-use super::generate_keys::derive;
 use super::sign_sighash::derive_and_sign_sighash;
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn sign_transaction(
     mut psbt: PartiallySignedTransaction,
+    origin_fingerprint: Fingerprint,
     async_sign: bool,
 ) -> Result<PartiallySignedTransaction, CommandError> {
-    let default_path = DerivationPath::default();
-    let derived_signables = match yield_from_!(derive(Default::default(), &default_path)) {
-        Ok(master_dpub) => {
-            let xpub = match master_dpub {
-                DescriptorPublicKey::XPub(xpub) => xpub,
-                _ => return Err(CommandError::KeyGenerationFailed),
-            };
-
-            DerivedKeySigner::new(xpub).signables_for(&mut psbt)?
-        }
-        Err(err @ CommandError::Unauthenticated) => return Err(err),
-        _ => vec![],
-    };
-
+    let derived_signables = DerivedKeySigner::new(origin_fingerprint).signables_for(&mut psbt)?;
     if derived_signables.is_empty() {
         return Err(CommandError::InvalidArguments);
     }
 
-    for signable in derived_signables {
+    for (public_key, signable) in derived_signables {
         let path = &signable.path;
-        let descriptor = yield_from_!(derive(Default::default(), path))?;
         let signature = yield_from_!(derive_and_sign_sighash(signable.sighash, path, async_sign))?;
         let signed_sighash = SignedSighash {
             signature,
-            descriptor,
+            public_key,
         };
         sign(&mut psbt, signable.input_index, signed_sighash)?
     }
@@ -55,5 +41,6 @@ fn sign_transaction(
 
 command!(SignTransaction = sign_transaction -> PartiallySignedTransaction,
     psbt: PartiallySignedTransaction,
+    origin_fingerprint: Fingerprint,
     async_sign: bool
 );

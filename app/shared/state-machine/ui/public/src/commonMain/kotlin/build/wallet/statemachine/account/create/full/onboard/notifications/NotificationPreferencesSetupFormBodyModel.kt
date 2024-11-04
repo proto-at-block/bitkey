@@ -2,21 +2,12 @@ package build.wallet.statemachine.account.create.full.onboard.notifications
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupFormItemModel.State.Completed
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupFormItemModel.State.NeedsAction
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupFormItemModel.State.Skipped
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupFormItemModel.State.*
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
-import build.wallet.statemachine.core.Icon.SmallIconEmail
-import build.wallet.statemachine.core.Icon.SmallIconMessage
-import build.wallet.statemachine.core.Icon.SmallIconPushNotification
-import build.wallet.statemachine.core.Icon.SmallIconXFilled
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconTint
@@ -29,22 +20,7 @@ import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
 
-fun NotificationPreferencesSetupFormBodyModel(
-  pushItem: NotificationPreferencesSetupFormItemModel,
-  smsItem: NotificationPreferencesSetupFormItemModel,
-  emailItem: NotificationPreferencesSetupFormItemModel,
-  alertModel: ButtonAlertModel? = null,
-) = ScreenModel(
-  body = NotificationPreferencesSetupBodyModel(
-    pushItem = pushItem,
-    smsItem = smsItem,
-    emailItem = emailItem
-  ),
-  presentationStyle = ScreenPresentationStyle.Root,
-  alertModel = alertModel
-)
-
-private data class NotificationPreferencesSetupBodyModel(
+data class NotificationPreferencesSetupFormBodyModel(
   val pushItem: NotificationPreferencesSetupFormItemModel,
   val smsItem: NotificationPreferencesSetupFormItemModel,
   val emailItem: NotificationPreferencesSetupFormItemModel,

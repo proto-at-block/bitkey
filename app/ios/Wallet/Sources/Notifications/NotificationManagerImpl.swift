@@ -7,6 +7,10 @@ import UserNotifications
 
 public class NotificationManagerImpl: NSObject, NotificationManager {
 
+    // MARK: - Delegate
+
+    public weak var delegate: NotificationManagerDelegate?
+
     // MARK: - Private Properties
 
     private let appVariant: AppVariant
@@ -100,6 +104,12 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         _: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        // We include navigation deeplinks in some of our notifications
+        let userInfo = response.notification.request.content.userInfo
+        if !userInfo.isEmpty {
+            delegate?.receivedNotificationWithInfo(userInfo)
+        }
+
         switch response.actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
             eventTracker.track(action: .actionAppPushNotificationOpen, context: nil)

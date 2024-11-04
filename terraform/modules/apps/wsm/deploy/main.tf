@@ -33,8 +33,9 @@ resource "aws_ssm_parameter" "artifact_bucket" {
 }
 
 locals {
-  dek_table                  = coalesce(var.dek_table_name, "${module.this.id_dot}.dek")
-  customer_server_keys_table = coalesce(var.customer_server_keys_table_name, "${module.this.id_dot}.customer_server_keys")
+  dek_table                        = coalesce(var.dek_table_name, "${module.this.id_dot}.dek")
+  customer_server_keys_table       = coalesce(var.customer_server_keys_table_name, "${module.this.id_dot}.customer_server_keys")
+  customer_server_key_shares_table = coalesce(var.customer_server_key_shares_table_name, "${module.this.id_dot}.customer_server_key_shares")
 }
 
 resource "aws_ssm_parameter" "dek_table" {
@@ -47,6 +48,12 @@ resource "aws_ssm_parameter" "customer_server_keys_table" {
   name  = "/${module.this.id_slash}/customer_server_keys_table"
   type  = "String"
   value = local.customer_server_keys_table
+}
+
+resource "aws_ssm_parameter" "customer_server_key_shares_table" {
+  name  = "/${module.this.id_slash}/customer_server_key_shares_table"
+  type  = "String"
+  value = local.customer_server_key_shares_table
 }
 
 resource "aws_ssm_parameter" "key" {
@@ -83,7 +90,7 @@ module "table_policy" {
   source = "../../../pieces/dynamodb-iam-policy"
 
   role        = "${module.this.id}-instance"
-  table_names = [local.dek_table, local.customer_server_keys_table]
+  table_names = [local.dek_table, local.customer_server_keys_table, local.customer_server_key_shares_table]
 }
 
 data "aws_caller_identity" "current" {}

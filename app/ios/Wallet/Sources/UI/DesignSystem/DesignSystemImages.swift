@@ -22,4 +22,9 @@ public extension UIImage {
         in: .main,
         compatibleWith: nil
     )!
+    static let sparklinePlaceholder = UIImage(
+        named: "SparklinePlaceholder",
+        in: .main,
+        compatibleWith: nil
+    )!
 }

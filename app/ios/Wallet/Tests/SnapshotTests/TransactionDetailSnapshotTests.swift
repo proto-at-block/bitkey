@@ -36,26 +36,27 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 withTitle: "Recipient received",
                                 titleIcon: nil,
                                 onTitle: {},
-                                sideText: "35,584 sats",
-                                secondarySideText: nil,
+                                sideText: "$9.00",
+                                secondarySideText: "35,584 sats",
                                 showBottomDivider: false
                             ),
                             .init(
                                 withTitle: "Network fees",
                                 titleIcon: nil,
                                 onTitle: {},
-                                sideText: "5,526 sats",
-                                secondarySideText: nil,
+                                sideText: "$1.00",
+                                secondarySideText: "5,526 sats",
                                 showBottomDivider: false
                             ),
                         ],
                         total: .init(
                             withTitle: "Total",
+                            secondaryTitle: "At time sent",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "41,110 sats",
+                            sideText: "$10.00",
                             sideTextType: .body2bold,
-                            secondarySideText: "$10.00 at time sent",
+                            secondarySideText: "41,110 sats",
                             showBottomDivider: false
                         ),
                         buttons: []
@@ -89,23 +90,15 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                     ),
                     FormMainContentModel.DataList(
                         hero: nil,
-                        items: [
-                            .init(
-                                withTitle: "Amount received",
-                                titleIcon: nil,
-                                onTitle: {},
-                                sideText: "35,584 sats",
-                                secondarySideText: nil,
-                                showBottomDivider: false
-                            ),
-                        ],
+                        items: [],
                         total: .init(
-                            withTitle: "Total",
+                            withTitle: "Amount received",
+                            secondaryTitle: "At time confirmed",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "35,584 sats",
+                            sideText: "$10.00",
                             sideTextType: .body2bold,
-                            secondarySideText: "$10.00 at time confirmed",
+                            secondarySideText: "35,584 sats",
                             showBottomDivider: false
                         ),
                         buttons: []
@@ -150,10 +143,12 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                             ),
                             .init(
                                 withTitle: "Consolidation cost",
+                                secondaryTitle: "At time confirmed",
+                                titleTextType: .bold,
                                 titleIcon: nil,
                                 onTitle: {},
-                                sideText: "2000 sats",
-                                secondarySideText: "$3.07 at time confirmed",
+                                sideText: "$3.07",
+                                secondarySideText: "2000 sats",
                                 showBottomDivider: false
                             ),
                         ],
@@ -177,42 +172,12 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                 content: [
                     FormMainContentModel.DataList(
                         hero: nil,
-                        items: [
-                            .init(
-                                withTitle: "Should arrive by",
-                                titleIcon: nil,
-                                onTitle: nil,
-                                sideText: "Feb 1 at 5:44pm"
-                            ),
-                        ],
-                        total: nil,
-                        buttons: []
-                    ),
-                    FormMainContentModel.DataList(
-                        hero: nil,
-                        items: [
-                            .init(
-                                withTitle: "Recipient receives",
-                                titleIcon: nil,
-                                onTitle: {},
-                                sideText: "$200.00",
-                                secondarySideText: nil,
-                                showBottomDivider: false
-                            ),
-                            .init(
-                                withTitle: "Network fees",
-                                titleIcon: nil,
-                                onTitle: {},
-                                sideText: "$1.36",
-                                secondarySideText: nil,
-                                showBottomDivider: false
-                            ),
-                        ],
+                        items: [],
                         total: .init(
-                            withTitle: "Total",
+                            withTitle: "Amount receiving",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "$201.36",
+                            sideText: "~$201.36",
                             sideTextType: .body2bold,
                             secondarySideText: "1,312,150 sats",
                             showBottomDivider: false
@@ -282,7 +247,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "$200.00",
-                                secondarySideText: nil,
+                                secondarySideText: "328,666 sats",
                                 showBottomDivider: false
                             ),
                             .init(
@@ -290,7 +255,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "$1.36",
-                                secondarySideText: nil,
+                                secondarySideText: "2,235 sats",
                                 showBottomDivider: false
                             ),
                         ],
@@ -298,9 +263,9 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                             withTitle: "Total",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "$201.36",
+                            sideText: "~$201.36",
                             sideTextType: .body2bold,
-                            secondarySideText: "1,312,150 sats",
+                            secondarySideText: "330,901 sats",
                             showBottomDivider: false
                         ),
                         buttons: []

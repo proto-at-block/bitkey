@@ -13,4 +13,10 @@ public protocol NotificationManager: AnyObject, UNUserNotificationCenterDelegate
         _: Application,
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     )
+
+    var delegate: NotificationManagerDelegate? { get set }
+}
+
+public protocol NotificationManagerDelegate: AnyObject {
+    func receivedNotificationWithInfo(_ info: [AnyHashable: Any])
 }

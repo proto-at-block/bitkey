@@ -50,7 +50,7 @@ fun VerificationCodeInputBodyModel(
   bottomSheetModel = errorOverlay
 )
 
-private data class VerificationCodeInputFormBodyModel(
+internal data class VerificationCodeInputFormBodyModel(
   val title: String,
   val subtitle: String,
   val value: String,

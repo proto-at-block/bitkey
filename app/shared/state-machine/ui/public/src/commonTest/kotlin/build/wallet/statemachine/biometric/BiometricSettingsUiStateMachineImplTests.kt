@@ -15,14 +15,9 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.awaitScreenWithSheetModelBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import build.wallet.ui.model.coachmark.CoachmarkModel
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.switch.SwitchModel
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -30,7 +25,6 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
@@ -69,18 +63,14 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
   test("enable biometric security authentication") {
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
-      awaitItem().bottomSheetModel
-        .shouldNotBeNull()
-        .body
-        .shouldBeInstanceOf<FormBodyModel>()
-        .primaryButton
-        .shouldNotBeNull()
-        .onClick()
+      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+        onScanBitkeyDevice()
+      }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
@@ -101,15 +91,13 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     signatureVerifier.isValid = false
 
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+        onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
@@ -123,11 +111,8 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       awaitItem().bottomSheetModel.shouldBeNull()
 
       // show the error sheet on the biometrics screen
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        header
-          .shouldNotBeNull()
-          .headline
-          .shouldBe("Unable to verify your Bitkey device")
+      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+        headline.shouldBe("Unable to verify your Bitkey device")
       }
     }
   }
@@ -136,22 +121,17 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     biometricPrompter.availabilityError = BiometricError.NoHardware()
 
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+        onBack()
       }
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        header
-          .shouldNotBeNull()
-          .headline
-          .shouldBe("Biometric authentication is not available on this device.")
+      awaitScreenWithSheetModelBody<NotEnrolledErrorSheetBodyModel> {
+        headline.shouldBe("Biometric authentication is not available on this device.")
       }
     }
   }
@@ -160,15 +140,13 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     biometricPrompter.enrollError = BiometricError.NoBiometricEnrolled()
 
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+        onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
@@ -180,11 +158,8 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        header
-          .shouldNotBeNull()
-          .headline
-          .shouldBe("Unable to enable biometrics.")
+      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+        headline.shouldBe("Unable to enable biometrics.")
       }
     }
   }
@@ -193,15 +168,13 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     biometricPrompter.enrollError = BiometricError.AuthenticationFailed()
 
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+        onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
@@ -213,13 +186,8 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithSheetModelBody<FormBodyModel> {
-        header
-          .shouldNotBeNull()
-          .sublineModel
-          .shouldNotBeNull()
-          .string
-          .shouldBe("We were unable to verify your biometric authentication. Please try again.")
+      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+        subline.shouldBe("We were unable to verify your biometric authentication. Please try again.")
       }
     }
   }
@@ -227,22 +195,18 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   test("disable biometric security authentication") {
     biometricPreference.set(true)
     biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeFalse()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeTrue()
-        enableAuthSwitch().onCheckedChange(false)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        isEnabled.shouldBeTrue()
+        onEnableCheckedChange(false)
       }
 
-      awaitItem().bottomSheetModel
-        .shouldNotBeNull()
-        .body
-        .shouldBeInstanceOf<FormBodyModel>()
-        .primaryButton
-        .shouldNotBeNull()
-        .onClick()
+      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+        onScanBitkeyDevice()
+      }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
@@ -266,44 +230,25 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
     biometricSettingsUiStateMachine.test(props) {
       // initial render, not checked
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthSwitch().checked.shouldBeFalse()
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        coachmark.shouldBeNull()
+        isEnabled.shouldBeFalse()
       }
 
       // showing coachmark after fetch, enabling the preference
-      awaitScreenWithBody<FormBodyModel> {
-        enableAuthCoachmark().shouldNotBeNull()
-        enableAuthSwitch().onCheckedChange(true)
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+        coachmark.shouldNotBeNull()
+        isEnabled.shouldBeFalse()
+        onEnableCheckedChange(true)
       }
 
       // coachmark is being hidden
-      awaitScreenWithBody<FormBodyModel> {
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
         coachmarkService.turbine.awaitItem().shouldBe(CoachmarkIdentifier.BiometricUnlockCoachmark)
       }
 
       // coachmark is now hidden and marked
-      awaitScreenWithBody<FormBodyModel>()
+      awaitScreenWithBody<BiometricSettingsScreenBodyModel>()
     }
   }
 })
-
-private fun FormBodyModel.enableAuthSwitch(): SwitchModel {
-  return mainContentList[0]
-    .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-    .listGroupModel
-    .items[0]
-    .shouldBeInstanceOf<ListItemModel>()
-    .trailingAccessory
-    .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>()
-    .model
-    .shouldBeInstanceOf<SwitchModel>()
-}
-
-fun FormBodyModel.enableAuthCoachmark(): CoachmarkModel? {
-  return mainContentList[0]
-    .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
-    .listGroupModel
-    .items[0]
-    .shouldBeInstanceOf<ListItemModel>()
-    .coachmark
-}

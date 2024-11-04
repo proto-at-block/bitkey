@@ -13,7 +13,7 @@ bl_deps = [
   mcu_efr32xg24_bl_dep,
   secure_engine_bl_dep,
   secutils_bl_dep,
-  crypto_dep,
+  crypto_bl_dep,
   bootloader_dep,
   canary_dep,
   clock_dep,

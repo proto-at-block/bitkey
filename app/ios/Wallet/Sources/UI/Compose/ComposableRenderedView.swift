@@ -1,24 +1,24 @@
 import Shared
 import SwiftUI
 
-struct ComposableRenderedView: View {
+struct ComposableRenderedScreenView: View {
 
     @SwiftUI.ObservedObject
-    public var viewModelHolder: ObservableObjectHolder<ComposableRenderedModel>
+    public var viewModelHolder: ObservableObjectHolder<ScreenModel>
 
-    private let bodyUiController: ComposableRenderedModelUiController
+    private let bodyUiController: ComposableRenderedScreenModelUiController
 
-    init(bodyModel: ComposableRenderedModel) {
-        self.viewModelHolder = .init(value: bodyModel)
-        self.bodyUiController = ComposableRenderedModelUiController(initialModel: bodyModel)
+    init(screenModel: ScreenModel) {
+        self.viewModelHolder = .init(value: screenModel)
+        self.bodyUiController = ComposableRenderedScreenModelUiController(initialModel: screenModel)
     }
 
-    func update(bodyModel: ComposableRenderedModel) {
+    func update(bodyModel: ScreenModel) {
         self.viewModelHolder.value = bodyModel
     }
 
     var body: some View {
-        ComposableRenderedModelViewAdapter(
+        ComposableRenderedScreenModelViewAdapter(
             bodyUiController: bodyUiController
         )
         .onReceive(viewModelHolder.$value, perform: { vm in
@@ -27,10 +27,10 @@ struct ComposableRenderedView: View {
     }
 }
 
-struct ComposableRenderedModelViewAdapter: UIViewControllerRepresentable {
-    private let bodyUiController: ComposableRenderedModelUiController
+private struct ComposableRenderedScreenModelViewAdapter: UIViewControllerRepresentable {
+    private let bodyUiController: ComposableRenderedScreenModelUiController
 
-    init(bodyUiController: ComposableRenderedModelUiController) {
+    init(bodyUiController: ComposableRenderedScreenModelUiController) {
         self.bodyUiController = bodyUiController
     }
 

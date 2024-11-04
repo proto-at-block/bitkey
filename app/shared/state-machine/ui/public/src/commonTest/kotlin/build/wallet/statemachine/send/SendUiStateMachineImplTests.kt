@@ -1,15 +1,16 @@
 package build.wallet.statemachine.send
 
-import build.wallet.availability.NetworkReachabilityProviderMock
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
-import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
-import build.wallet.bitkey.factor.SigningFactor
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.transactions.TransactionDetails
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -41,7 +42,6 @@ class SendUiStateMachineImplTests : FunSpec({
   val permissionUiStateMachine = PermissionUiStateMachineMock()
   val clock = ClockFake()
   val rateSyncer = ExchangeRateServiceFake()
-  val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
     SendUiStateMachineImpl(
@@ -75,7 +75,6 @@ class SendUiStateMachineImplTests : FunSpec({
         ) {},
       exchangeRateService = rateSyncer,
       clock = clock,
-      networkReachabilityProvider = networkReachabilityProvider,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
@@ -121,9 +120,7 @@ class SendUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
-              sendAmount = ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger())),
-              requiredSigner = SigningFactor.Hardware,
-              spendingLimit = null
+              sendAmount = ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger()))
             )
           )
         }
@@ -166,9 +163,7 @@ class SendUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
-              ExactAmount(BitcoinMoney.zero()),
-              SigningFactor.Hardware,
-              null
+              ExactAmount(BitcoinMoney.zero())
             )
           )
         }
@@ -195,9 +190,7 @@ class SendUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
-              ExactAmount(moneyToSend),
-              SigningFactor.Hardware,
-              null
+              ExactAmount(moneyToSend)
             )
           )
         }
@@ -238,9 +231,7 @@ class SendUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
-              SendAll,
-              SigningFactor.Hardware,
-              null
+              SendAll
             )
           )
         }
@@ -286,9 +277,7 @@ class SendUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
-              SendAll,
-              SigningFactor.Hardware,
-              null
+              SendAll
             )
           )
         }
@@ -334,37 +323,6 @@ class SendUiStateMachineImplTests : FunSpec({
 
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
           exchangeRates.shouldBeNull()
-        }
-      }
-    }
-
-    test("given f8e network is not reachable, the required signed is HW") {
-      stateMachine.test(props) {
-
-        // Step 1: User enters some address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
-          onRecipientEntered(someBitcoinAddress)
-        }
-
-        // Step 2: User enters some amount they want to send
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
-          onContinueClick(
-            ContinueTransferParams(
-              SendAll,
-              SigningFactor.Hardware,
-              null
-            )
-          )
-        }
-
-        // Step 3: User selects intended fee rate
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
-          onContinue(FASTEST, feeMap)
-        }
-
-        // Step 4: Should have HW required signer
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
-          requiredSigner.shouldBe(SigningFactor.Hardware)
         }
       }
     }

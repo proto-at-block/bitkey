@@ -81,9 +81,8 @@ class FeeBumpConfirmationUiStateMachineImpl(
               uiState = State.SigningWithHardware(currentState.appSignedPsbt)
             },
             onNetworkFeesClick = {},
-            onArrivalTimeClick = null,
-            errorOverlayModel = null
-          )
+            onArrivalTimeClick = null
+          ).asModalFullScreen()
           UtxoConsolidation -> UtxoConsolidationSpeedUpConfirmationModel(
             onBack = props.onExit,
             onCancel = props.onExit,

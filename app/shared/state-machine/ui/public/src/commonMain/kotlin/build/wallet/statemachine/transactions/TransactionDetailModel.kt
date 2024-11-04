@@ -18,8 +18,6 @@ import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Avatar
-import build.wallet.ui.model.icon.IconSize.Large
-import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -147,8 +145,7 @@ internal val IncomingTransactionIconModel = IconModel(
 )
 
 internal val UtxoConsolidationTransactionIconModel = IconModel(
-  icon = SmallIconConsolidation,
-  iconSize = Large,
-  iconBackgroundType = Circle(circleSize = Avatar),
-  iconTint = Foreground
+  icon = LargeIconConsolidationFilled,
+  iconSize = Avatar,
+  iconTint = Primary
 )

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.1.0-alpha04",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-core-iossimulatorarm64-1.1.0-alpha04-metadata.jar": "52734a0f2cf1605f6a174b307c0acca500934ec5f4cb09737a760d637ba0fcd2"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "voyager-core.klib": "328ccfb2c14ce380917939918de3024a9653c962290a734388827e001cd3fc78"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -33,12 +33,25 @@ if system == 'efr32mg24'
   crypto_lib = library('crypto',
     srcs,
     include_directories : [crypto_includes, 'src', '.'],
+    c_args : ['-DIMAGE_TYPE_APPLICATION=1'],
     dependencies : deps,
   )
   crypto_dep = declare_dependency(
     link_with : crypto_lib,
     include_directories : crypto_includes,
   )
+
+  crypto_bl_lib = library('crypto-bl',
+    srcs,
+    include_directories : [crypto_includes, 'src', '.'],
+    c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
+    dependencies : deps,
+  )
+  crypto_bl_dep = declare_dependency(
+    link_with : crypto_bl_lib,
+    include_directories : crypto_includes,
+  )
+
 elif system == 'darwin' or system == 'linux'
   srcs += [
     'src/posix/aes.c',
@@ -80,6 +93,16 @@ elif system == 'darwin' or system == 'linux'
     link_with : crypto_lib,
     include_directories : crypto_includes,
     dependencies : deps,
+  )
+  crypto_bl_lib = library('crypto-bl',
+    srcs,
+    include_directories : [crypto_includes, 'src', '.'],
+    c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
+    dependencies : deps,
+  )
+  crypto_bl_dep = declare_dependency(
+    link_with : crypto_bl_lib,
+    include_directories : crypto_includes,
   )
 
 endif

@@ -1,0 +1,48 @@
+import build.wallet.bitkey.inheritance.InheritanceClaimId;
+import build.wallet.bitkey.inheritance.InheritanceMaterialHash;
+import build.wallet.bitkey.relationships.RelationshipId;
+import build.wallet.encrypt.XCiphertext;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE pendingBeneficiaryClaimEntity(
+    claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+    relationshipId TEXT AS RelationshipId NOT NULL,
+    delayEndTime INTEGER AS Instant NOT NULL,
+    delayStartTime INTEGER AS Instant NOT NULL,
+    appPubkey TEXT NOT NULL,
+    hardwarePubkey TEXT NOT NULL
+);
+
+CREATE TABLE pendingBenefactorClaimEntity(
+    claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+    relationshipId TEXT AS RelationshipId NOT NULL,
+    delayEndTime INTEGER AS Instant NOT NULL,
+    delayStartTime INTEGER AS Instant NOT NULL
+);
+
+insertPendingBeneficiaryClaim:
+INSERT OR REPLACE INTO pendingBeneficiaryClaimEntity (
+    claimId, relationshipId, delayEndTime, delayStartTime, appPubkey, hardwarePubkey
+) VALUES (
+    ?, ?, ?, ?, ?, ?
+);
+
+getPendingBeneficiaryClaims:
+SELECT * FROM pendingBeneficiaryClaimEntity
+ORDER BY claimId;
+
+insertPendingBenefactorClaim:
+INSERT OR REPLACE INTO pendingBenefactorClaimEntity (
+    claimId, relationshipId, delayEndTime, delayStartTime
+) VALUES (
+    ?, ?, ?, ?
+);
+
+getPendingBenefactorClaims:
+SELECT * FROM pendingBenefactorClaimEntity
+ORDER BY claimId;
+
+clearInheritanceClaims {
+  DELETE FROM pendingBeneficiaryClaimEntity;
+  DELETE FROM pendingBenefactorClaimEntity;
+}

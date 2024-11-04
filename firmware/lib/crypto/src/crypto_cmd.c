@@ -90,8 +90,6 @@ void ecc_test(key_algorithm_t alg) {
 
   hash_alg_t hash_alg = (alg == ALG_ECC_ED25519) ? ALG_SHA512 : ALG_SHA256;
   uint32_t hash_size = (alg == ALG_ECC_ED25519) ? SHA512_DIGEST_SIZE : SHA256_DIGEST_SIZE;
-  uint32_t pubkey_size =
-    (alg == ALG_ECC_ED25519) ? ECC_PUBKEY_SIZE_ED25519 : ECC_PUBKEY_SIZE_ECDSA_UNCOMPRESSED;
 
   uint8_t hash[SHA512_DIGEST_SIZE] = {0};
   if (!crypto_hash(message, sizeof(message), hash, hash_size, hash_alg)) {
@@ -100,7 +98,7 @@ void ecc_test(key_algorithm_t alg) {
 
   uint8_t signature[ECC_SIG_SIZE] = {0};
 
-  uint8_t key_buf[32] = {0};
+  uint8_t key_buf[32 * SECP256K1_CUSTOM_DOMAIN_OVERHEAD] = {0};
   // Note: you can set both SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY and
   // SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY to get the keypair when generating a key.
   key_handle_t key = {
@@ -111,21 +109,8 @@ void ecc_test(key_algorithm_t alg) {
     .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY | SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,
   };
 
-  uint8_t pubkey_buf[ECC_PUBKEY_SIZE_ECDSA_UNCOMPRESSED] = {0};
-  key_handle_t pubkey = {
-    .alg = alg,
-    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
-    .key.bytes = pubkey_buf,
-    .key.size = pubkey_size,
-    .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PUBLIC_KEY | SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,
-  };
-
   if (!generate_key(&key)) {
     printf("Couldn't generate key\n");
-    return;
-  }
-  if (!export_pubkey(&key, &pubkey)) {
-    printf("Failed to export pubkey\n");
     return;
   }
 
@@ -134,29 +119,21 @@ void ecc_test(key_algorithm_t alg) {
     return;
   }
 
-  if (crypto_ecc_sign_hash(&key, &pubkey, hash, hash_size, signature) != SECURE_TRUE) {
+  if (crypto_ecc_sign_hash(&key, hash, hash_size, signature) != SECURE_TRUE) {
     printf("Failed to sign\n");
     return;
   }
-  if (crypto_ecc_verify_hash(&pubkey, hash, hash_size, signature) != SECURE_TRUE) {
-    printf("Failed to verify\n");
-  }
 
-  printf("Privkey: ");
-  dumphex(key_buf, sizeof(key_buf));
-  printf("Pubkey: ");
-  dumphex(pubkey_buf, pubkey_size);
-  printf("Hash: ");
-  dumphex(hash, hash_size);
   printf("Signature: ");
   dumphex(signature, sizeof(signature));
 
-  if (crypto_ecc_sign_hash(&key, &pubkey, hash, hash_size, signature) != SECURE_TRUE) {
+  if (crypto_ecc_sign_hash(&key, hash, hash_size, signature) != SECURE_TRUE) {
     printf("Failed to sign\n");
     return;
   }
-  if (crypto_ecc_verify_hash(&pubkey, hash, hash_size, signature) != SECURE_TRUE) {
+  if (crypto_ecc_verify_hash(&key, hash, hash_size, signature) != SECURE_TRUE) {
     printf("Failed to verify\n");
+    return;
   }
 
   printf("Signature 2: ");

@@ -1,7 +1,10 @@
 use crate::historical::HistoricalExchangeRateProvider;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use types::currencies::CurrencyCode::USD;
-use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
+use types::exchange_rate::coingecko::{
+    RateProvider as CoingeckoRateProvider, HISTORICAL_RATE_INTERVAL,
+    HISTORICAL_RATE_REQUEST_WINDOW_DURATION,
+};
 use wiremock::matchers::{method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
@@ -33,22 +36,26 @@ async fn test_historical_rate_success() {
             ]
         }"#;
 
+    let from_epoch = Duration::seconds(1706619600);
+    let to_epoch = from_epoch + HISTORICAL_RATE_REQUEST_WINDOW_DURATION;
+
     Mock::given(method("GET"))
         .and(path("/api/v3/coins/bitcoin/market_chart/range"))
         .and(query_param("vs_currency", "USD"))
-        .and(query_param("from", "1706619600"))
-        .and(query_param("to", "1706619900"))
+        .and(query_param("from", from_epoch.as_seconds_f32().to_string()))
+        .and(query_param("to", to_epoch.as_seconds_f32().to_string()))
         .and(query_param("x_cg_pro_api_key", "abc123"))
+        .and(query_param(
+            "interval",
+            HISTORICAL_RATE_INTERVAL.to_string(),
+        ))
         .respond_with(ResponseTemplate::new(200).set_body_raw(response_body, "application/json"))
         .mount(&mock_server)
         .await;
 
     // Act
     let response = coingecko_provider
-        .rate(
-            &vec![USD],
-            OffsetDateTime::from_unix_timestamp(1706619900).unwrap(),
-        )
+        .rate(&vec![USD], OffsetDateTime::UNIX_EPOCH + to_epoch)
         .await;
 
     // Assert

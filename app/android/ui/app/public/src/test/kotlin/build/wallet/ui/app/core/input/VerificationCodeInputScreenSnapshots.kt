@@ -8,9 +8,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCode
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputBodyModel
 import build.wallet.ui.app.core.form.FormScreen
-import com.airbnb.lottie.LottieTask
 import io.kotest.core.spec.style.FunSpec
-import java.util.concurrent.Executor
 
 class VerificationCodeInputScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
@@ -57,8 +55,6 @@ class VerificationCodeInputScreenSnapshots : FunSpec({
   }
 
   test("verification input screen with loading resend button") {
-    // Needed for snapshotting the loading lottie animation
-    LottieTask.EXECUTOR = Executor(Runnable::run)
     paparazzi.snapshot {
       FormScreen(
         model =

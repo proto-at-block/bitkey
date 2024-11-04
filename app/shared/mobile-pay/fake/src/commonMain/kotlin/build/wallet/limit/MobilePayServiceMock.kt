@@ -2,9 +2,11 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
+import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,9 +18,11 @@ class MobilePayServiceMock(
 
   val disableCalls = turbine("disable mobile pay calls")
   val signPsbtCalls = turbine("sign psbt with mobile pay calls")
+  val getDailySpendingLimitStatusCalls = turbine("get daily spending limit calls")
   var disableResult: Result<Unit, Error> = Ok(Unit)
   var signPsbtWithMobilePayResult: Result<Psbt, Error>? = null
   var keysetId: String? = null
+  var status: DailySpendingLimitStatus = DailySpendingLimitStatus.RequiresHardware
 
   override suspend fun disable(account: FullAccount): Result<Unit, Error> {
     disableCalls += Unit
@@ -38,6 +42,20 @@ class MobilePayServiceMock(
     return signPsbtWithMobilePayResult ?: Ok(signedPsbt)
   }
 
+  override fun getDailySpendingLimitStatus(
+    transactionAmount: BitcoinMoney,
+  ): DailySpendingLimitStatus {
+    getDailySpendingLimitStatusCalls += transactionAmount
+    return status
+  }
+
+  override fun getDailySpendingLimitStatus(
+    transactionAmount: BitcoinTransactionSendAmount,
+  ): DailySpendingLimitStatus {
+    getDailySpendingLimitStatusCalls += transactionAmount
+    return status
+  }
+
   val setLimitCalls = turbine("set mobile pay limit calls")
 
   override suspend fun setLimit(
@@ -54,6 +72,7 @@ class MobilePayServiceMock(
     mobilePayData.value = null
     keysetId = null
     signPsbtWithMobilePayResult = null
+    status = DailySpendingLimitStatus.RequiresHardware
   }
 
   private fun signature(keysetId: String) = "is_server_signed($keysetId)"

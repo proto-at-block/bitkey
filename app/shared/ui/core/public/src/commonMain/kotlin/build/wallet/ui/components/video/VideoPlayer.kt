@@ -24,5 +24,7 @@ expect fun VideoPlayer(
 abstract class VideoPlayerHandler {
   abstract fun play()
 
+  abstract fun seekTo(position: Int)
+
   abstract fun pause()
 }

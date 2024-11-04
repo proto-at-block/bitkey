@@ -17,10 +17,12 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Displays the fee details for speeding up a utxo consolidation
  */
+@Redacted
 data class UtxoConsolidationSpeedUpConfirmationModel(
   override val onBack: () -> Unit,
   val onCancel: () -> Unit,

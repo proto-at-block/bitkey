@@ -4,6 +4,8 @@ import Shared
 extension FormMainContentModel.DataListData {
     convenience init(
         withTitle title: String,
+        secondaryTitle: String? = nil,
+        titleTextType: FormMainContentModel.DataListDataTitleTextType = .regular,
         titleIcon: IconModel? = nil,
         onTitle: (() -> Void)? = nil,
         sideText: String,
@@ -20,6 +22,8 @@ extension FormMainContentModel.DataListData {
             title: title,
             titleIcon: titleIcon,
             onTitle: onTitle,
+            titleTextType: titleTextType,
+            secondaryTitle: secondaryTitle,
             sideText: sideText,
             sideTextType: sideTextType,
             sideTextTreatment: sideTextTreatment,

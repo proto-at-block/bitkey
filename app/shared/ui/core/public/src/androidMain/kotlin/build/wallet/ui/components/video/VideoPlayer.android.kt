@@ -79,6 +79,10 @@ actual fun VideoPlayer(
               videoView?.start()
             }
 
+            override fun seekTo(position: Int) {
+              videoView?.seekTo(position)
+            }
+
             override fun pause() {
               videoView?.pause()
             }

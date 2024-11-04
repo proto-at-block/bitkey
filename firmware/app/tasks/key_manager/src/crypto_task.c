@@ -5,6 +5,7 @@
 #include "log.h"
 #include "rtos.h"
 #include "seed.h"
+#include "wallet.h"
 
 #include <stdatomic.h>
 
@@ -92,18 +93,11 @@ static crypto_task_status_t crypto_derive_and_sign(void) {
   rtos_thread_sleep(1000);
 #endif
 
-  extended_key_t key_priv CLEANUP(bip32_zero_key);
-  fingerprint_t key_priv_master_fingerprint;
-  fingerprint_t key_priv_childs_parent_fingerprint;
-
   crypto_task_status_t rsp = CRYPTO_TASK_ERROR;
 
-  seed_res_t seed_res =
-    seed_derive_bip32(crypto_thread_priv.derivation_path, &key_priv, &key_priv_master_fingerprint,
-                      &key_priv_childs_parent_fingerprint);
-  if (seed_res != SEED_RES_OK) {
+  extended_key_t key_priv CLEANUP(bip32_zero_key);
+  if (!wallet_derive_key_priv_using_cache(&key_priv, crypto_thread_priv.derivation_path)) {
     rsp = CRYPTO_TASK_DERIVATION_FAILED;
-    LOGE("seed_derive failed: %d", seed_res);
     goto out;
   }
 

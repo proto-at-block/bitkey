@@ -1,7 +1,7 @@
 package build.wallet.inheritance
 
 import build.wallet.bitkey.inheritance.InheritanceMaterial
-import build.wallet.bitkey.inheritance.InheritanceMaterialHash
+import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
 import build.wallet.bitkey.keybox.Keybox
 import com.github.michaelbull.result.Result
 
@@ -15,7 +15,9 @@ interface InheritanceMaterialCreator {
    * This information is considered stable, and is used as a cache key
    * to determine when backups should be made.
    */
-  suspend fun getInheritanceMaterialHash(keybox: Keybox): Result<InheritanceMaterialHash, Error>
+  suspend fun getInheritanceMaterialHashData(
+    keybox: Keybox,
+  ): Result<InheritanceMaterialHashData, Error>
 
   /**
    * Create a new inheritance material payload to be uploaded for backup.
@@ -25,7 +27,7 @@ interface InheritanceMaterialCreator {
    * contains this key encrypted with the contact's DEK. Because this
    * key is generated upon creation, this data is not considered stable.
    * To determine the state of a backup, use the hash received in
-   * [getInheritanceMaterialHash] as a cache key for this data.
+   * [getInheritanceMaterialHashData] as a cache key for this data.
    */
   suspend fun createInheritanceMaterial(keybox: Keybox): Result<InheritanceMaterial, Error>
 }

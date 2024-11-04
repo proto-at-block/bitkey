@@ -81,6 +81,25 @@ class BitcoinTransactionBumpabilityCheckerImplTests : FunSpec({
         walletUnspentOutputs = emptyImmutableList()
       ).shouldBeFalse()
     }
+
+    test("not bumpable if incoming even if it matches sweep characteristics") {
+      feeBumpAllowShrinkingChecker.shrinkingOutput = BdkScriptMock()
+      val transaction = BitcoinTransactionMock(
+        total = BitcoinMoney.sats(100),
+        inputs = immutableListOf(),
+        outputs = immutableListOf(
+          // One output + no walletUnspentOutputs == a sweep
+          BdkTxOut(value = 100u, scriptPubkey = BdkScriptMock())
+        ),
+        confirmationTime = null,
+        transactionType = Incoming
+      )
+
+      bumpabilityChecker.isBumpable(
+        transaction = transaction,
+        walletUnspentOutputs = emptyImmutableList()
+      ).shouldBeFalse()
+    }
   }
 
   context("sweep") {

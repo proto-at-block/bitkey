@@ -3,7 +3,6 @@ package build.wallet.inheritance
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.inheritance.InheritanceKeyset
 import build.wallet.bitkey.inheritance.InheritanceMaterial
-import build.wallet.bitkey.inheritance.InheritanceMaterialHash
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
 import build.wallet.bitkey.inheritance.InheritanceMaterialPackage
 import build.wallet.bitkey.keybox.Keybox
@@ -25,19 +24,17 @@ class InheritanceMaterialCreatorImpl(
   private val relationships: InheritanceRelationshipsProvider,
   private val crypto: RelationshipsCrypto,
 ) : InheritanceMaterialCreator {
-  override suspend fun getInheritanceMaterialHash(
+  override suspend fun getInheritanceMaterialHashData(
     keybox: Keybox,
-  ): Result<InheritanceMaterialHash, Error> {
+  ): Result<InheritanceMaterialHashData, Error> {
     val contacts = relationships.getEndorsedInheritanceContacts()
       ?: return Err(Error("Inheritance Contacts unavailable."))
     return coroutineBinding {
-      val data = InheritanceMaterialHashData(
+      InheritanceMaterialHashData(
         networkType = keybox.config.bitcoinNetworkType,
         spendingKey = keybox.activeAppKeyBundle.spendingKey,
         contacts = contacts
       )
-
-      data.inheritanceMaterialHash
     }
   }
 
@@ -60,8 +57,8 @@ class InheritanceMaterialCreatorImpl(
           sealedDek = crypto.encryptPrivateKeyEncryptionKey(
             it.identityKey,
             pKMatOutput.privateKeyEncryptionKey
-          ).bind().value,
-          sealedMobileKey = pKMatOutput.sealedPrivateKeyMaterial.value
+          ).bind(),
+          sealedMobileKey = pKMatOutput.sealedPrivateKeyMaterial
         )
       }
 

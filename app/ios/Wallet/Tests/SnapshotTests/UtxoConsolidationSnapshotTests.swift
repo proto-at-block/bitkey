@@ -10,11 +10,10 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
     func test_utxo_consolidation_confirmation_without_unconfirmed_transactions_callout() {
         let view = FormView(
             viewModel: SnapshotTestModels.shared.CreateUtxoConsolidationConfirmationModel(
-                balanceFiat: "$15,000",
-                balanceBitcoin: "26,259,461 sats",
+                balanceTitle: "Wallet balance",
+                balanceAmountDisplayText: .init(primaryAmountText: "$15,000", secondaryAmountText: "26,259,461 sats"),
                 utxoCount: "20",
-                consolidationCostFiat: "$37.42",
-                consolidationCostBitcoin: "65,000 sats",
+                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,000 sats"),
                 estimatedConsolidationTime: "~24 hours",
                 showUnconfirmedTransactionsCallout: false,
                 onBack: {},
@@ -30,11 +29,10 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
     func test_utxo_consolidation_confirmation_with_unconfirmed_transactions_callout() {
         let view = FormView(
             viewModel: SnapshotTestModels.shared.CreateUtxoConsolidationConfirmationModel(
-                balanceFiat: "$15,000",
-                balanceBitcoin: "26,259,461 sats",
+                balanceTitle: "Wallet balance",
+                balanceAmountDisplayText: .init(primaryAmountText: "$15,000", secondaryAmountText: "26,259,461 sats"),
                 utxoCount: "20",
-                consolidationCostFiat: "$37.42",
-                consolidationCostBitcoin: "65,000 sats",
+                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,000 sats"),
                 estimatedConsolidationTime: "~24 hours",
                 showUnconfirmedTransactionsCallout: true,
                 onBack: {},
@@ -53,8 +51,7 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
                 targetAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
                 arrivalTime: "Aug 7, 12:24 pm",
                 utxosCountConsolidated: "20 → 1",
-                consolidationCostBitcoin: "65,509 sats",
-                consolidationCostFiat: "$37.42",
+                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,509 sats"),
                 onBack: {},
                 onDone: {}
             )

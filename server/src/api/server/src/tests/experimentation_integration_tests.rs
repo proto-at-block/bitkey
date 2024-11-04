@@ -19,7 +19,7 @@ struct GetFeatureFlagsTestVector {
     expected_feature_flags: Vec<(String, FeatureFlagValue)>,
 }
 
-static DEFAULT_EXPERIMENTATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
+pub static DEFAULT_EXPERIMENTATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
     let mut headers = HeaderMap::new();
     headers.insert(
         "Bitkey-App-Installation-ID",

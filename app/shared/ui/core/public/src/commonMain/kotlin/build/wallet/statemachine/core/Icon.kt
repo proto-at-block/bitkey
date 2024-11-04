@@ -22,6 +22,7 @@ enum class Icon {
   CloudBackupEmergencyAccessKit,
   CloudBackupMobileKey,
   LargeIconAdd,
+  LargeIconConsolidationFilled,
   LargeIconMinus,
   LargeIconCheckFilled,
   LargeIconCheckStroked,

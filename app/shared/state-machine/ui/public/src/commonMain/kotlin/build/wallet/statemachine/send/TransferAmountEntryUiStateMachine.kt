@@ -1,9 +1,7 @@
 package build.wallet.statemachine.send
 
-import build.wallet.availability.NetworkReachability
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitkey.factor.SigningFactor
-import build.wallet.limit.SpendingLimit
 import build.wallet.money.Money
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
@@ -17,8 +15,6 @@ interface TransferAmountEntryUiStateMachine : StateMachine<TransferAmountEntryUi
 
 data class ContinueTransferParams(
   val sendAmount: BitcoinTransactionSendAmount,
-  val requiredSigner: SigningFactor,
-  val spendingLimit: SpendingLimit?,
 )
 
 /**
@@ -34,6 +30,24 @@ data class TransferAmountEntryUiProps(
   val onBack: () -> Unit,
   val initialAmount: Money,
   val exchangeRates: ImmutableList<ExchangeRate>?,
-  val f8eReachability: NetworkReachability,
   val onContinueClick: (ContinueTransferParams) -> Unit,
 )
+
+sealed interface TransferAmountUiState {
+  sealed interface ValidAmountEnteredUiState : TransferAmountUiState {
+    /** Amount is within limits and does not require hardware signing. */
+    data object AmountBelowBalanceUiState : ValidAmountEnteredUiState
+
+    /** Amount equal or above available funds. This is valid because we will send all. */
+    data object AmountEqualOrAboveBalanceUiState : ValidAmountEnteredUiState
+  }
+
+  /** Invalid amount entered with Send Max feature flag turned on, not able to proceed. */
+  sealed interface InvalidAmountEnteredUiState : TransferAmountUiState {
+    /** User entered an amount while having a zero balance */
+    data object AmountWithZeroBalanceUiState : InvalidAmountEnteredUiState
+
+    /** Amount is too small to send. */
+    data object AmountBelowDustLimitUiState : InvalidAmountEnteredUiState
+  }
+}

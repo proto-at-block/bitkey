@@ -18,6 +18,7 @@ kotlin {
    */
   val runtimeDependencies =
     listOf(
+      projects.shared.appIosPublic,
       projects.shared.accountImpl,
       projects.shared.accountPublic,
       projects.shared.amountImpl,
@@ -100,6 +101,7 @@ kotlin {
    */
   val exposedDependencies =
     listOf(
+      projects.shared.appIosPublic,
       projects.shared.accountPublic,
       projects.shared.amountPublic,
       projects.shared.analyticsPublic,

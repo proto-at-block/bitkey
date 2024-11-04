@@ -15,8 +15,8 @@ buildLogic {
   app {
     version(
       yyyy = 2024,
-      version = 71,
-      patch = 2,
+      version = 72,
+      patch = 1,
       build = 1
     )
   }

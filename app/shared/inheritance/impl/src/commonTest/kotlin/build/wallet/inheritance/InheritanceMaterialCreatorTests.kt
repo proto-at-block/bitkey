@@ -37,8 +37,8 @@ class InheritanceMaterialCreatorTests : FunSpec({
   test("Changing Spending Key should give a new hash") {
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(EndorsedTrustedContactFake1)
 
-    val result1 = creator.getInheritanceMaterialHash(KeyboxMock)
-    val result2 = creator.getInheritanceMaterialHash(
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
+    val result2 = creator.getInheritanceMaterialHashData(
       KeyboxMock.copy(
         activeAppKeyBundle = AppKeyBundleMock.copy(
           spendingKey = AppSpendingPublicKey(
@@ -55,14 +55,14 @@ class InheritanceMaterialCreatorTests : FunSpec({
 
   test("Changing Contacts should result in different hash") {
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(EndorsedTrustedContactFake1)
-    val result1 = creator.getInheritanceMaterialHash(KeyboxMock)
+    val result1 = creator.getInheritanceMaterialHashData(KeyboxMock)
 
     inheritanceRelationshipsProvider.endorsedInheritanceContactsResult = listOf(
       EndorsedTrustedContactFake1.copy(
         relationshipId = "test-modified-contact"
       )
     )
-    val result2 = creator.getInheritanceMaterialHash(KeyboxMock)
+    val result2 = creator.getInheritanceMaterialHashData(KeyboxMock)
 
     result1.isOk.shouldBeTrue()
     result2.isOk.shouldBeTrue()

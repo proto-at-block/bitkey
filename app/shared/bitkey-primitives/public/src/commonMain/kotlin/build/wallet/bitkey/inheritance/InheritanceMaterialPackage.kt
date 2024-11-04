@@ -1,6 +1,7 @@
 package build.wallet.bitkey.inheritance
 
 import build.wallet.bitkey.relationships.RelationshipId
+import build.wallet.encrypt.XCiphertext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -24,10 +25,10 @@ data class InheritanceMaterialPackage(
    * contact's public key.
    */
   @SerialName("sealed_dek")
-  val sealedDek: String,
+  val sealedDek: XCiphertext,
   /**
    * The customer's mobile key, encrypted with [sealedDek].
    */
   @SerialName("sealed_mobile_key")
-  val sealedMobileKey: String,
+  val sealedMobileKey: XCiphertext,
 )

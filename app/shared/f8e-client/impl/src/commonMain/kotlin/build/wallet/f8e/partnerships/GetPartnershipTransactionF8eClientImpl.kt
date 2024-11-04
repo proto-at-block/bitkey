@@ -30,10 +30,7 @@ class GetPartnershipTransactionF8eClientImpl(
       )
       .bodyResult<PartnershipTransactionResponse> {
         get("/api/partnerships/partners/${partner.value}/transactions/${partnershipTransactionId.value}") {
-          // TODO: determine if we should set this parameter for all transaction types
-          if (transactionType == PartnershipTransactionType.SALE) {
-            parameter("type", transactionType.name)
-          }
+          parameter("type", transactionType.name)
           withDescription("Get partnership transaction")
         }
       }

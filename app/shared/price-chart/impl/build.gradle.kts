@@ -10,9 +10,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.priceChartPublic)
-        implementation(projects.shared.databasePublic)
-        implementation(projects.shared.moneyPublic)
+        api(projects.shared.databasePublic)
+        api(projects.shared.moneyPublic)
       }
     }
 
@@ -22,7 +21,6 @@ kotlin {
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.coroutinesTesting)
-        // implementation(projects.shared.priceChartFake)
       }
     }
   }

@@ -9,8 +9,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_editing() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: false,
                 updatesEmail: false,
@@ -24,12 +23,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .editing,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -37,8 +34,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_editing_tos_agreed() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: false,
                 updatesEmail: false,
@@ -52,12 +48,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .editing,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -65,8 +59,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_editing_no_tos() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: false,
                 updatesEmail: false,
@@ -75,12 +68,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .editing,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -88,8 +79,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_loading() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: false,
                 updatesEmail: false,
@@ -103,12 +93,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .loading,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -116,8 +104,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_overlay() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: false,
                 updatesEmail: false,
@@ -131,12 +118,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .overlay,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -144,8 +129,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_editing_updatesPush() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: true,
                 updatesEmail: false,
@@ -159,12 +143,10 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .overlay,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: nil,
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -172,8 +154,7 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
 
     func test_notifications_preferences_showTosWarning() {
         let view = FormView(
-            viewModel:
-            NotificationPreferencesFormBodyModelKt.NotificationPreferencesFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferenceFormBodyModel(
                 transactionPush: false,
                 updatesPush: true,
                 updatesEmail: false,
@@ -187,15 +168,13 @@ final class NotificationPreferencesSnapshotTests: XCTestCase {
                 onUpdatesPushToggle: { _ in },
                 onUpdatesEmailToggle: { _ in },
                 formEditingState: .overlay,
-                alertModel: nil,
-                networkingErrorState: nil,
                 ctaModel: CallToActionModel(
                     text: "Agree to our Terms and Privacy Policy to continue.",
                     treatment: CallToActionModel.Treatment.warning
                 ),
                 onBack: {},
                 continueOnClick: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)

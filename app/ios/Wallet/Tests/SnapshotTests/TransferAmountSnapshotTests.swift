@@ -19,15 +19,27 @@ final class TransferAmountSnapshotTests: XCTestCase {
                     eventTrackerScreenInfo: nil
                 ),
                 keypadModel: .init(showDecimal: true, onButtonPress: { _ in }),
-                bannerModel: .HardwareRequiredBannerModel(),
+                cardModel: CardModel(
+                    heroImage: nil,
+                    title: Shared.LabelModelStringWithStyledSubstringModel.companion.from(
+                        string: "Bitkey approval required",
+                        boldedSubstrings: []
+                    ),
+                    subtitle: nil,
+                    leadingImage: CardModelCardImageStaticImage(
+                        icon: .smalliconbitkey,
+                        iconTint: nil
+                    ),
+                    trailingButton: nil,
+                    content: nil,
+                    style: CardModel.CardStyleOutline(),
+                    onClick: nil,
+                    animation: nil
+                ),
                 continueButtonEnabled: false,
                 amountDisabled: false,
-                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
-                    .transferScreenUnavailableWarning,
-                onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {},
-                onHardwareRequiredClick: {}
+                onSwapCurrencyClick: {}
             )
         )
 
@@ -46,15 +58,26 @@ final class TransferAmountSnapshotTests: XCTestCase {
                     eventTrackerScreenInfo: nil
                 ),
                 keypadModel: .init(showDecimal: true, onButtonPress: { _ in }),
-                bannerModel: .AmountEqualOrAboveBalanceBannerModel(),
+                cardModel: CardModel(
+                    heroImage: nil,
+                    title: Shared.LabelModelStringWithStyledSubstringModel.companion.from(
+                        string: "Send Max (balance minus fees)",
+                        substringToColor: [
+                            "(balance minus fees)": .on60,
+                        ]
+                    ),
+                    subtitle: nil,
+                    leadingImage: nil,
+                    trailingButton: nil,
+                    content: nil,
+                    style: CardModel.CardStyleOutline(),
+                    onClick: nil,
+                    animation: nil
+                ),
                 continueButtonEnabled: false,
                 amountDisabled: false,
-                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
-                    .transferScreenUnavailableWarning,
-                onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {},
-                onHardwareRequiredClick: {}
+                onSwapCurrencyClick: {}
             )
         )
 
@@ -73,15 +96,11 @@ final class TransferAmountSnapshotTests: XCTestCase {
                     eventTrackerScreenInfo: nil
                 ),
                 keypadModel: .init(showDecimal: false, onButtonPress: { _ in }),
-                bannerModel: nil,
+                cardModel: nil,
                 continueButtonEnabled: true,
                 amountDisabled: false,
-                f8eUnavailableWarningString: SpendingLimitsCopy.Companion().get(isRevampOn: false)
-                    .transferScreenUnavailableWarning,
-                onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {},
-                onHardwareRequiredClick: {}
+                onSwapCurrencyClick: {}
             )
         )
 

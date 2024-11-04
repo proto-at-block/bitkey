@@ -16,7 +16,7 @@ final class ExportToolsSnapshotTests: XCTestCase {
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_export_descriptor() {
         let view = createExportSheetBodyModel(
             headline: "Export wallet descriptor",
@@ -26,7 +26,8 @@ final class ExportToolsSnapshotTests: XCTestCase {
             calloutModel: CalloutModel(
                 title: nil,
                 subtitle: LabelModelStringModel(
-                    string: "XPUB bundles contain sensitive privacy data. For tax reporting, use your transaction history."),
+                    string: "XPUB bundles contain sensitive privacy data. For tax reporting, use your transaction history."
+                ),
                 treatment: .warning,
                 leadingIcon: nil,
                 trailingIcon: nil,
@@ -35,7 +36,7 @@ final class ExportToolsSnapshotTests: XCTestCase {
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_export_transaction_history() {
         let view = createExportSheetBodyModel(
             headline: "Export transaction history",
@@ -45,7 +46,7 @@ final class ExportToolsSnapshotTests: XCTestCase {
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     private func createExportSheetBodyModel(
         headline: String,
         subline: String,

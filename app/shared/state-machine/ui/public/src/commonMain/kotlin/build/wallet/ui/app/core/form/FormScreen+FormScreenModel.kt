@@ -49,6 +49,7 @@ import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.loading.FormLoader
 import build.wallet.ui.components.progress.StepperIndicator
+import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.components.timer.Timer
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.components.video.VideoPlayer
@@ -140,6 +141,7 @@ fun FormScreen(model: FormBodyModel) {
             is StepperIndicator -> StepperIndicator(model = mainContent)
             is Callout -> Callout(model = mainContent.item)
             is Showcase -> Showcase(model = mainContent)
+            is CircularTabRow -> CircularTabRow(model = mainContent.item)
           }
           if (index < model.mainContentList.lastIndex) {
             Spacer(modifier = Modifier.height(16.dp))

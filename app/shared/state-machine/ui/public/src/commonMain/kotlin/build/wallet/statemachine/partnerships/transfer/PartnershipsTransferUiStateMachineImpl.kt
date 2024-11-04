@@ -26,12 +26,12 @@ import build.wallet.partnerships.PartnerRedirectionMethod.Web
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.MediumIconQrCode
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
@@ -106,14 +106,38 @@ class PartnershipsTransferUiStateMachineImpl(
           onExit = props.onExit
         )
       }
-      is State.LoadingPartnershipsTransferFailure ->
-        return TransferErrorModel(
+      is State.LoadingPartnershipsTransferFailure -> {
+        val anotherWalletOrExchange =
+          ListItemModel(
+            leadingAccessory =
+              IconAccessory(
+                model =
+                  IconModel(
+                    iconImage = LocalImage(MediumIconQrCode),
+                    iconSize = IconSize.Regular
+                  )
+              ),
+            title = "Another exchange or wallet",
+            onClick = { props.onAnotherWalletOrExchange() },
+            treatment = PRIMARY
+          )
+
+        val partnersGroupModel =
+          ListGroupModel(
+            items = immutableListOf(anotherWalletOrExchange),
+            style = CARD_ITEM
+          )
+
+        return TransferPartnersErrorModel(
           id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
           error = currentState.error,
-          errorMessage = "Could not load partners at this time.",
+          content = ListGroup(partnersGroupModel),
+          sellBitcoinEnabled = props.sellBitcoinEnabled,
           onBack = props.onBack,
           onExit = props.onExit
         )
+      }
+
       is State.ChoosingPartnershipsTransfer -> {
         when {
           currentState.transferPartners.isEmpty() -> {
@@ -361,6 +385,42 @@ class PartnershipsTransferUiStateMachineImpl(
       dragIndicatorVisible = true,
       onClosed = onExit
     )
+  }
+
+  @Composable
+  private fun TransferPartnersErrorModel(
+    id: DepositEventTrackerScreenId,
+    error: Error,
+    content: FormMainContentModel,
+    sellBitcoinEnabled: Boolean,
+    onBack: () -> Unit,
+    onExit: () -> Unit,
+  ): SheetModel {
+    return if (sellBitcoinEnabled) {
+      SheetModel(
+        body = TransferPartnersBodyModel(
+          toolbar = null,
+          header = FormHeaderModel(
+            icon = LargeIconWarningFilled,
+            headline = "Could not load partners at this time.",
+            alignment = CENTER
+          ),
+          id = id,
+          content = content,
+          onBack = onBack
+        ),
+        dragIndicatorVisible = true,
+        onClosed = onExit
+      )
+    } else {
+      TransferErrorModel(
+        id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
+        error = error,
+        errorMessage = "Could not load partners at this time.",
+        onBack = onBack,
+        onExit = onExit
+      )
+    }
   }
 
   private data class TransferPartnersBodyModel(

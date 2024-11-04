@@ -75,6 +75,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       // Emits twice due to currency conversion.
       awaitScreenWithBody<UtxoConsolidationConfirmationModel>()
       awaitScreenWithBody<UtxoConsolidationConfirmationModel> {
+        balanceTitle.shouldBe("Wallet balance")
         // tap continue
         onContinue.invoke()
       }
@@ -132,7 +133,9 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       // Continuing should proceed to confirmation screen
       // Emits twice due to currency conversion.
       awaitScreenWithBody<UtxoConsolidationConfirmationModel>()
-      awaitScreenWithBody<UtxoConsolidationConfirmationModel>()
+      awaitScreenWithBody<UtxoConsolidationConfirmationModel> {
+        balanceTitle.shouldBe("Value of UTXOs")
+      }
     }
   }
 })

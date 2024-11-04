@@ -3,9 +3,6 @@ package build.wallet.statemachine.send
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon.*
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
@@ -48,36 +45,7 @@ import kotlinx.collections.immutable.toImmutableList
  * @param onNetworkFeesClick - Handler for network fees click (null when disabled)
  * @param onArrivalTimeClick - Handler for arrival time click (null when disabled)
  */
-fun TransferConfirmationScreenModel(
-  onBack: () -> Unit,
-  onCancel: () -> Unit,
-  variant: TransferConfirmationScreenVariant,
-  recipientAddress: String,
-  transactionDetails: TransactionDetailsModel,
-  requiresHardware: Boolean,
-  confirmButtonEnabled: Boolean,
-  errorOverlayModel: SheetModel? = null,
-  onConfirmClick: () -> Unit,
-  onNetworkFeesClick: () -> Unit,
-  onArrivalTimeClick: (() -> Unit)?,
-) = ScreenModel(
-  body = TransferConfirmationScreenBodyModel(
-    onBack = onBack,
-    onCancel = onCancel,
-    variant = variant,
-    recipientAddress = recipientAddress,
-    transactionDetails = transactionDetails,
-    requiresHardware = requiresHardware,
-    confirmButtonEnabled = confirmButtonEnabled,
-    onConfirmClick = onConfirmClick,
-    onNetworkFeesClick = onNetworkFeesClick,
-    onArrivalTimeClick = onArrivalTimeClick
-  ),
-  presentationStyle = ScreenPresentationStyle.ModalFullScreen,
-  bottomSheetModel = errorOverlayModel
-)
-
-private data class TransferConfirmationScreenBodyModel(
+data class TransferConfirmationScreenModel(
   override val onBack: () -> Unit,
   val onCancel: () -> Unit,
   val variant: TransferConfirmationScreenVariant,
@@ -270,7 +238,8 @@ private fun TransactionDetailsModel.toDataList(
                 iconSize = IconSize.XSmall,
                 iconTint = IconTint.On30
               ),
-            sideText = transactionDetailModelType.feeAmountText
+            sideText = transactionDetailModelType.feeAmountText,
+            secondarySideText = transactionDetailModelType.feeAmountSecondaryText
           )
         )
     }

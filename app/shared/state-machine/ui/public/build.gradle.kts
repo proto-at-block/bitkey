@@ -16,6 +16,13 @@ kotlin {
   allTargets()
 
   sourceSets {
+    all {
+      languageSettings {
+        optIn("androidx.compose.material.ExperimentalMaterialApi")
+        optIn("androidx.compose.material3.ExperimentalMaterial3Api")
+        optIn("org.jetbrains.compose.resources.ExperimentalResourceApi")
+      }
+    }
     commonMain {
       dependencies {
         implementation(compose.runtime)
@@ -25,6 +32,10 @@ kotlin {
         implementation(projects.shared.stdlibPublic)
         implementation(libs.kmp.settings)
         implementation(compose.components.uiToolingPreview)
+        implementation(libs.android.voyager.navigator)
+        implementation(libs.android.voyager.transitions)
+        implementation(libs.kmp.compottie)
+        implementation(libs.kmp.compottie.resources)
 
         api(libs.kmp.test.kotest.framework.api)
 
@@ -76,8 +87,12 @@ kotlin {
     val androidMain by getting {
       dependencies {
         api(projects.shared.googleSignInPublic)
+        implementation(libs.android.camera.view)
+        implementation(libs.android.camera.lifecycle)
+        implementation(libs.android.camera.camera2)
         implementation(libs.android.compose.ui.activity)
         implementation(libs.android.compose.ui.core)
+        implementation(libs.android.accompanist.system.ui.controller)
       }
     }
 
@@ -116,6 +131,7 @@ kotlin {
         implementation(projects.shared.mobilePayFake)
         implementation(projects.shared.timeFake)
         implementation(projects.shared.platformFake)
+        implementation(projects.shared.priceChartFake)
         implementation(projects.shared.recoveryFake)
         implementation(projects.shared.relationshipsFake)
         implementation(projects.shared.stateMachineDataFake)
@@ -131,6 +147,12 @@ kotlin {
         implementation(projects.shared.platformFake)
         implementation(projects.shared.coachmarkFake)
         implementation(projects.shared.inheritanceFake)
+      }
+    }
+
+    val commonJvmMain by getting {
+      dependencies {
+        implementation(libs.jvm.zxing)
       }
     }
 

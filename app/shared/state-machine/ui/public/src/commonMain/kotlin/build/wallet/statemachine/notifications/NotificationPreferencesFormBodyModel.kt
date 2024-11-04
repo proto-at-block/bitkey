@@ -15,7 +15,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Editing
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Loading
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -36,45 +35,7 @@ data class TosInfo(
   val privacyLink: () -> Unit,
 )
 
-fun NotificationPreferencesFormBodyModel(
-  transactionPush: Boolean,
-  updatesPush: Boolean,
-  updatesEmail: Boolean,
-  tosInfo: TosInfo?,
-  onTransactionPushToggle: (Boolean) -> Unit,
-  onUpdatesPushToggle: (Boolean) -> Unit,
-  onUpdatesEmailToggle: (Boolean) -> Unit,
-  formEditingState: NotificationPreferencesFormEditingState,
-  alertModel: ButtonAlertModel?,
-  networkingErrorState: NetworkingErrorState?,
-  ctaModel: CallToActionModel?,
-  onBack: () -> Unit,
-  continueOnClick: (() -> Unit),
-) = ScreenModel(
-  alertModel = alertModel,
-  bottomSheetModel = networkingErrorState?.run {
-    NetworkingErrorSheetModel(
-      onClose = onClose,
-      networkingError = networkingError
-    )
-  },
-  body = NotificationPreferenceBodyModel(
-    transactionPush = transactionPush,
-    updatesPush = updatesPush,
-    updatesEmail = updatesEmail,
-    tosInfo = tosInfo,
-    onTransactionPushToggle = onTransactionPushToggle,
-    onUpdatesPushToggle = onUpdatesPushToggle,
-    onUpdatesEmailToggle = onUpdatesEmailToggle,
-    formEditingState = formEditingState,
-    ctaModel = ctaModel,
-    onBack = onBack,
-    continueOnClick = continueOnClick
-  ),
-  presentationStyle = ScreenPresentationStyle.Root
-)
-
-private data class NotificationPreferenceBodyModel(
+data class NotificationPreferenceFormBodyModel(
   val transactionPush: Boolean,
   val updatesPush: Boolean,
   val updatesEmail: Boolean,

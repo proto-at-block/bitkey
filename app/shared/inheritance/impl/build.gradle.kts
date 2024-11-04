@@ -22,6 +22,7 @@ kotlin {
     val commonTest by getting {
       dependencies {
         implementation(projects.shared.accountFake)
+        implementation(projects.shared.analyticsFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.f8eFake)
@@ -34,6 +35,7 @@ kotlin {
         implementation(projects.shared.databasePublic)
         implementation(projects.shared.relationshipsFake)
         implementation(projects.shared.relationshipsImpl)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

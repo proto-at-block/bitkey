@@ -8,6 +8,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
+import build.wallet.ktor.result.HttpError
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -16,6 +17,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -70,6 +72,10 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
         onExitCalls.add(Unit)
       }
     )
+
+  beforeEach {
+    getTransferPartnerListF8eClient.reset()
+  }
 
   // tests
 
@@ -153,6 +159,33 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
       }
       repeat(2) {
         eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER)
+      }
+    }
+  }
+
+  test("unable to load partners renders error sheet with another exchange option") {
+    getTransferPartnerListF8eClient.partnersResult = Err(HttpError.NetworkError(Error("Network error")))
+    stateMachine.test(props().copy(sellBitcoinEnabled = true)) {
+      getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
+      awaitSheetWithBody<FormBodyModel> {
+        mainContentList[0].shouldBeTypeOf<Loader>()
+      }
+      awaitSheetWithBody<FormBodyModel> {
+        header.shouldNotBeNull()
+          .headline
+          .shouldNotBeNull()
+          .shouldBe("Could not load partners at this time.")
+
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()
+          .listGroupModel
+          .apply {
+            items
+              .size
+              .shouldBe(1)
+            items[0].onClick.shouldNotBeNull().invoke()
+          }
+
+        onAnotherWalletOrExchange.awaitItem()
       }
     }
   }

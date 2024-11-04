@@ -1,25 +1,32 @@
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{Json, Router};
-use errors::ApiError;
-use feature_flags::service::Service as FeatureFlagsService;
-use http_server::router::RouterBuilder;
-use http_server::swagger::{SwaggerEndpoint, Url};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::instrument;
+use utoipa::{OpenApi, ToSchema};
+
+use account::service::Service as AccountService;
+use errors::ApiError;
+
+use feature_flags::service::Service as FeatureFlagsService;
+use http_server::router::RouterBuilder;
+use http_server::swagger::{SwaggerEndpoint, Url};
 use types::currencies::{
     Currency, CurrencyCode, CurrencyData, FiatCurrency, FiatDisplayConfiguration,
 };
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
 use types::exchange_rate::{ExchangeRate, ExchangeRateChartData};
 use types::serde::{deserialize_iso_4217, deserialize_ts_vec};
-use utoipa::{OpenApi, ToSchema};
 
 use crate::service::Service as ExchangeRateService;
 
 #[derive(Clone, axum_macros::FromRef)]
-pub struct RouteState(pub ExchangeRateService, pub FeatureFlagsService);
+pub struct RouteState(
+    pub ExchangeRateService,
+    pub FeatureFlagsService,
+    pub AccountService,
+);
 
 impl RouterBuilder for RouteState {
     fn unauthed_router(&self) -> Router {
@@ -67,6 +74,9 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
+const ADD_AUD_AND_CAD_CURRENCIES_FLAG_KEY: &str = "f8e-add-aud-and-cad-currencies";
+
+#[instrument(err)]
 #[utoipa::path(
     get,
     path = "/api/exchange-rates/currencies",

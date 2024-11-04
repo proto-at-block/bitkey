@@ -117,9 +117,12 @@ impl TransactionSigner for HardwareBDKSigner {
         _: &SignOptions,
         _: &Secp256k1<All>,
     ) -> Result<(), SignerError> {
+        let SignerId::Fingerprint(fingerprint) = &self.fingerprint else {
+            return Err(SignerError::MissingKey);
+        };
         let signed = self
             .transactor
-            .sign_transaction(psbt.to_owned())
+            .sign_transaction(psbt.to_owned(), *fingerprint)
             .map_err(|_| SignerError::UserCanceled)?; // TODO: Handle other errors; perhaps enabling the hardware-signer feature of the BDK?
         psbt.combine(signed).expect("psbts didn't combine");
         Ok(())

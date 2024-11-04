@@ -1,8 +1,6 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
-import build.wallet.availability.NetworkReachability
-import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
@@ -10,8 +8,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.TransactionDetails
-import build.wallet.bitkey.factor.SigningFactor
-import build.wallet.limit.SpendingLimit
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -44,7 +40,6 @@ class SendUiStateMachineImpl(
   private val feeSelectionUiStateMachine: FeeSelectionUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
   private val clock: Clock,
-  private val networkReachabilityProvider: NetworkReachabilityProvider,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : SendUiStateMachine {
   @Composable
@@ -83,12 +78,6 @@ class SendUiStateMachineImpl(
         }
       )
     }
-
-    val f8eReachabilityState by remember {
-      networkReachabilityProvider.f8eReachabilityFlow(
-        props.account.config.f8eEnvironment
-      )
-    }.collectAsState()
 
     return when (val state = uiState) {
       is SelectingRecipientUiState ->
@@ -167,14 +156,11 @@ class SendUiStateMachineImpl(
               uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
             },
             initialAmount = state.transferMoney,
-            exchangeRates = exchangeRates,
-            f8eReachability = f8eReachabilityState
+            exchangeRates = exchangeRates
           ) { continueParams ->
             uiState = SelectingTransactionPriorityUiState(
               recipientAddress = state.recipientAddress,
-              sendAmount = continueParams.sendAmount,
-              requiredSigner = continueParams.requiredSigner,
-              spendingLimit = continueParams.spendingLimit
+              sendAmount = continueParams.sendAmount
             )
           }
         )
@@ -197,11 +183,6 @@ class SendUiStateMachineImpl(
                   }
               )
             },
-            requiredSigner = when (f8eReachabilityState) {
-              NetworkReachability.REACHABLE -> state.requiredSigner
-              NetworkReachability.UNREACHABLE -> SigningFactor.Hardware
-            },
-            spendingLimit = state.spendingLimit,
             fees = state.fees,
             onTransferFailed = props.onExit,
             exchangeRates = exchangeRates,
@@ -259,8 +240,6 @@ class SendUiStateMachineImpl(
                   ConfirmingTransferUiState(
                     selectedPriority = priority,
                     recipientAddress = state.recipientAddress,
-                    requiredSigner = state.requiredSigner,
-                    spendingLimit = state.spendingLimit,
                     sendAmount = state.sendAmount,
                     fees = fees
                   )
@@ -295,10 +274,8 @@ private sealed interface SendUiState {
   data object RequestingCameraUiState : SendUiState
 
   data class SelectingTransactionPriorityUiState(
-    val requiredSigner: SigningFactor,
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
-    val spendingLimit: SpendingLimit?,
   ) : SendUiState
 
   /**
@@ -314,10 +291,8 @@ private sealed interface SendUiState {
    */
   data class ConfirmingTransferUiState(
     val selectedPriority: EstimatedTransactionPriority,
-    val requiredSigner: SigningFactor,
     val recipientAddress: BitcoinAddress,
     val sendAmount: BitcoinTransactionSendAmount,
-    val spendingLimit: SpendingLimit?,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
   ) : SendUiState
 

@@ -58,24 +58,6 @@ public struct TransferAmountView: View {
 
 // MARK: -
 
-private struct BannerView: View {
-    let viewModel: TransferScreenBannerModel
-    var body: some View {
-        switch viewModel {
-        case is TransferScreenBannerModel.HardwareRequiredBannerModel:
-            BannerContentView(
-                backgroundColor: .foreground10,
-                text: "Bitkey Device required",
-                textColor: .foreground,
-                leadingIcon: .smalliconbitkey
-            )
-
-        default:
-            fatalError("Unexpected transfer screen banner")
-        }
-    }
-}
-
 private struct SmartBarView: View {
     let cardModel: CardModel
 

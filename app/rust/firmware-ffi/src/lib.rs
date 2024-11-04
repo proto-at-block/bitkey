@@ -2,7 +2,7 @@ mod csek;
 mod types;
 
 use crate::csek::{SealKey, UnsealKey};
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::{bip32::Fingerprint, secp256k1::PublicKey};
 use teltra::{TelemetryIdentifiers, Teltra, TeltraError};
 use wca::attestation::{Attestation, AttestationError};
 use wca::command_interface::{Command, State};

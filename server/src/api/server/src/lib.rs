@@ -532,6 +532,7 @@ impl BootstrapBuilder {
         let exchange_rate_state = exchange_rate::routes::RouteState(
             self.services.exchange_rate_service.clone(),
             self.services.feature_flags_service.clone(),
+            self.services.account_service.clone(),
         );
 
         let export_tools_state =

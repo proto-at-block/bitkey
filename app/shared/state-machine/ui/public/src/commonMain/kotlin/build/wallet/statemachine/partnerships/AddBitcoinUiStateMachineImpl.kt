@@ -46,7 +46,13 @@ class AddBitcoinUiStateMachineImpl(
               account = props.account,
               keybox = props.keybox,
               sellBitcoinEnabled = props.sellBitcoinEnabled,
-              onBack = { uiState = ShowingBuyOrTransferUiState },
+              onBack = {
+                if (props.sellBitcoinEnabled) {
+                  props.onExit()
+                } else {
+                  uiState = ShowingBuyOrTransferUiState
+                }
+              },
               onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
               onPartnerRedirected = props.onPartnerRedirected,
               onExit = props.onExit

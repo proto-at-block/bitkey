@@ -29,7 +29,7 @@ interface GetFingerprintEnrollmentStatus {
 };
 
 interface SignTransaction {
-  constructor(PartiallySignedTransaction serialized_psbt, boolean async_sign);
+  constructor(PartiallySignedTransaction serialized_psbt, Fingerprint origin_fingerprint, boolean async_sign);
   [Throws=CommandError]
   PartiallySignedTransactionState next(sequence<u8> response);
 };
@@ -409,6 +409,7 @@ enum FirmwareFeatureFlag {
   "MultipleFingerprints",
   "ImprovedFingerprintEnrollment",
   "AsyncSigning",
+  "SigningOptimizations",
 };
 
 enum SecureBootConfig {
@@ -599,6 +600,9 @@ dictionary FingerprintEnrollmentResult {
 
 [Custom]
 typedef string PartiallySignedTransaction;
+
+[Custom]
+typedef string Fingerprint;
 
 [Custom]
 typedef string DescriptorPublicKey;

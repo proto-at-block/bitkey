@@ -38,7 +38,7 @@ suspend fun AppTester.returnFundsToTreasury() {
         }
       ).getOrThrow()
     appComponent.bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
-    mineBlock()
+    mineBlock(appAndHwSignedPsbt.id)
   }
 }
 

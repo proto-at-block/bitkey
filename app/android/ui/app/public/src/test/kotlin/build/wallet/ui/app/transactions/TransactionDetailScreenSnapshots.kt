@@ -6,6 +6,7 @@ import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
+import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.TitleTextType
 import build.wallet.statemachine.transactions.TransactionDetailModel
 import build.wallet.statemachine.transactions.TxStatusModel
 import build.wallet.ui.app.core.form.FormScreen
@@ -35,32 +36,13 @@ class TransactionDetailScreenSnapshots :
               content =
                 immutableListOf(
                   DataList(
-                    items =
-                      immutableListOf(
-                        Data(
-                          title = "Should arrive by",
-                          sideText = "Feb 1 at 5:25pm"
-                        )
-                      )
-                  ),
-                  DataList(
-                    items =
-                      immutableListOf(
-                        Data(
-                          title = "Recipient receives",
-                          sideText = "50,000 sats"
-                        ),
-                        Data(
-                          title = "Network fees",
-                          sideText = "189 sats"
-                        )
-                      ),
+                    items = immutableListOf(),
                     total =
                       Data(
-                        title = "Total",
-                        sideText = "12,759 sats",
+                        title = "Amount receiving",
+                        sideText = "~$5.08",
                         sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "~$5.08"
+                        secondarySideText = "12,759 sats"
                       )
                   )
                 )
@@ -122,19 +104,21 @@ class TransactionDetailScreenSnapshots :
                       immutableListOf(
                         Data(
                           title = "Recipient receives",
-                          sideText = "50,000 sats"
+                          sideText = "$30.82",
+                          secondarySideText = "50,000 sats"
                         ),
                         Data(
                           title = "Network fees",
-                          sideText = "189 sats"
+                          sideText = "$0.12",
+                          secondarySideText = "189 sats"
                         )
                       ),
                     total =
                       Data(
                         title = "Total",
-                        sideText = "12,759 sats",
+                        sideText = "~$5.08",
                         sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "~$5.08"
+                        secondarySideText = "12,759 sats"
                       )
                   )
                 )
@@ -173,21 +157,22 @@ class TransactionDetailScreenSnapshots :
                       immutableListOf(
                         Data(
                           title = "Recipient received",
-                          sideText = "35,584 sats",
-                          secondarySideText = "$9.00 at time sent"
+                          sideText = "$9.00",
+                          secondarySideText = "35,584 sats"
                         ),
                         Data(
                           title = "Network fees",
-                          sideText = "5,526 sats",
-                          secondarySideText = "$1.00 at time sent"
+                          sideText = "$1.00",
+                          secondarySideText = "5,526 sats"
                         )
                       ),
                     total =
                       Data(
                         title = "Total",
-                        sideText = "41,110 sats",
+                        secondaryTitle = "At time sent",
+                        sideText = "$10.00",
                         sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "$10.00 at time sent"
+                        secondarySideText = "41,110 sats"
                       )
                   )
                 )
@@ -222,19 +207,14 @@ class TransactionDetailScreenSnapshots :
                       )
                   ),
                   DataList(
-                    items =
-                      immutableListOf(
-                        Data(
-                          title = "Amount received",
-                          sideText = "35,584 sats"
-                        )
-                      ),
+                    items = immutableListOf(),
                     total =
                       Data(
-                        title = "Total",
-                        sideText = "41,110 sats",
+                        title = "Amount received",
+                        secondaryTitle = "At time confirmed",
+                        sideText = "$10.00",
                         sideTextType = Data.SideTextType.BODY2BOLD,
-                        secondarySideText = "($100)"
+                        secondarySideText = "41,110 sats"
                       )
                   )
                 )
@@ -277,8 +257,10 @@ class TransactionDetailScreenSnapshots :
                         ),
                         Data(
                           title = "Consolidation cost",
-                          sideText = "2000 sats",
-                          secondarySideText = "$3.07 at time confirmed"
+                          titleTextType = TitleTextType.BOLD,
+                          secondaryTitle = "At time confirmed",
+                          sideText = "$1.23",
+                          secondarySideText = "2000 sats"
                         )
                       ),
                     total = null

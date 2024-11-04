@@ -97,7 +97,14 @@ impl Default for RateProvider {
 
 const ROOT_URL: &str = "https://pro-api.coingecko.com";
 const HISTORICAL_RATE_REQUEST_COIN: &str = "bitcoin";
-const HISTORICAL_RATE_REQUEST_GRANULARITY: Duration = Duration::minutes(5);
+
+// We currently set the request window to be 120 minutes, which is 2X the currently-set rate
+// interval. We do this to basically ensure that clock skew doesn't cause us to miss the rate we
+// want.
+// TODO [W-9851]: Make this more granular, once Coingecko fixes their API (should be done by end of
+// Q4 2024)
+pub const HISTORICAL_RATE_REQUEST_WINDOW_DURATION: Duration = Duration::minutes(120);
+pub const HISTORICAL_RATE_INTERVAL: &str = "hourly";
 
 impl RateProvider {
     pub fn new() -> Self {
@@ -118,7 +125,7 @@ impl RateProvider {
             HISTORICAL_RATE_REQUEST_COIN
         );
         let from_timestamp = at_time
-            .sub(HISTORICAL_RATE_REQUEST_GRANULARITY)
+            .sub(HISTORICAL_RATE_REQUEST_WINDOW_DURATION)
             .unix_timestamp();
         let to_timestamp = at_time.unix_timestamp();
 
@@ -128,6 +135,7 @@ impl RateProvider {
                 ("vs_currency", currency.to_string()),
                 ("from", from_timestamp.to_string()),
                 ("to", to_timestamp.to_string()),
+                ("interval", HISTORICAL_RATE_INTERVAL.to_string()),
                 ("x_cg_pro_api_key", self.api_key.clone()),
             ])
     }

@@ -123,6 +123,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
         // Then, try to either create a new view controller for the body model or
         // just apply the model to the current view controller
         let action = apply(screenModel: model)
+        let isComposeUi = (model.body as? FormBodyModel)?.enableComposeRendering == true
 
         if !(model.body is FwupNfcBodyModel) {
             FwupNfcMaskOverlayViewController.hide()
@@ -140,7 +141,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                     .presentedViewController as? BottomSheetViewController
                 {
                     bottomSheet.update(viewModel: bottomSheetModel)
-                } else {
+                } else if !isComposeUi {
                     let bottomSheet = BottomSheetViewController(viewModel: bottomSheetModel)
                     stateChangeHandlerStack.topViewController?.present(bottomSheet, animated: true)
                 }
@@ -219,11 +220,14 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
         }
 
         // See if we need to keep the screen on (or reset `isIdleTimerDisabled`)
-        switch model.body {
-        case let viewModel as FormBodyModel:
-            UIApplication.shared.isIdleTimerDisabled = viewModel.keepScreenOn
-        default:
-            UIApplication.shared.isIdleTimerDisabled = false
+        // Handled by the Compose UI screen when necessary.
+        if !isComposeUi {
+            switch model.body {
+            case let viewModel as FormBodyModel:
+                UIApplication.shared.isIdleTimerDisabled = viewModel.keepScreenOn
+            default:
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
         }
 
         // Get the topmost presented view controller by iterating through the presented view
@@ -248,8 +252,10 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             // We've got an alert model, so present it on the topmost view controller (including
             // presented ones),
             // assuming that view controller is not an UIAlertController.
-            let alert = UIAlertController(alertModel: alertModel)
-            theTopmostViewController.present(alert, animated: true)
+            if !isComposeUi {
+                let alert = UIAlertController(alertModel: alertModel)
+                theTopmostViewController.present(alert, animated: true)
+            }
         }
 
         // See if we need to clear the back stack
@@ -372,15 +378,15 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
         case let viewModel as FormBodyModel:
             if viewModel.enableComposeRendering {
                 if let vc =
-                    topViewController as? SwiftUIWrapperViewController<ComposableRenderedView>
+                    topViewController as? SwiftUIWrapperViewController<ComposableRenderedScreenView>
                 {
                     vc.updateWrappedView { view in
-                        view.update(bodyModel: viewModel)
+                        view.update(bodyModel: screenModel)
                     }
                     return .none
                 } else {
                     let vc = SwiftUIWrapperViewController(
-                        ComposableRenderedView(bodyModel: viewModel),
+                        ComposableRenderedScreenView(screenModel: screenModel),
                         screenModel: screenModel
                     )
                     return .showNewView(
@@ -778,14 +784,16 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             }
 
         case let viewModel as ComposableRenderedModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<ComposableRenderedView> {
+            if let vc =
+                topViewController as? SwiftUIWrapperViewController<ComposableRenderedScreenView>
+            {
                 vc.updateWrappedView { view in
-                    view.update(bodyModel: viewModel)
+                    view.update(bodyModel: screenModel)
                 }
                 return .none
             } else {
                 let vc = SwiftUIWrapperViewController(
-                    ComposableRenderedView(bodyModel: viewModel),
+                    ComposableRenderedScreenView(screenModel: screenModel),
                     screenModel: screenModel
                 )
                 return .showNewView(vc: vc, key: viewModel.key, animation: .pushPop)

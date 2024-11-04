@@ -1,19 +1,27 @@
 package build.wallet.inheritance
 
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.inheritance.InheritanceMaterial
-import build.wallet.bitkey.inheritance.InheritanceMaterialHash
+import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.spending.SpendingKeysetMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class InheritanceMaterialCreatorFake(
   var inheritanceMaterial: Result<InheritanceMaterial, Error>,
-  var inheritanceMaterialHash: Result<InheritanceMaterialHash, Error> =
-    Ok(InheritanceMaterialHash(-1)),
+  var inheritanceMaterialHash: Result<InheritanceMaterialHashData, Error> =
+    Ok(
+      InheritanceMaterialHashData(
+        networkType = BitcoinNetworkType.BITCOIN,
+        spendingKey = SpendingKeysetMock.appKey,
+        contacts = emptyList()
+      )
+    ),
 ) : InheritanceMaterialCreator {
-  override suspend fun getInheritanceMaterialHash(
+  override suspend fun getInheritanceMaterialHashData(
     keybox: Keybox,
-  ): Result<InheritanceMaterialHash, Error> {
+  ): Result<InheritanceMaterialHashData, Error> {
     return inheritanceMaterialHash
   }
 

@@ -13,14 +13,16 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        implementation(projects.shared.uiCorePublic)
-        implementation(projects.shared.analyticsPublic)
-        implementation(compose.runtime)
+        api(compose.runtime)
+        api(projects.shared.bitkeyPrimitivesPublic)
+        api(projects.shared.dbResultPublic)
+        api(projects.shared.uiCorePublic)
+        implementation(compose.components.resources)
         implementation(compose.foundation)
         implementation(compose.material)
-        implementation(compose.components.resources)
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
+        implementation(projects.shared.analyticsPublic)
       }
     }
 

@@ -369,7 +369,9 @@ class NfcCommandsImpl(
     spendingKeyset: SpendingKeyset,
   ) = executeCommand(
     session = session,
-    generateCommand = { SignTransaction(psbt.base64, session.parameters.asyncNfcSigning) },
+    generateCommand = {
+      SignTransaction(psbt.base64, spendingKeyset.hardwareKey.key.origin.fingerprint, session.parameters.asyncNfcSigning)
+    },
     getNext = { command, data -> command.next(data) },
     getResponse = { state: PartiallySignedTransactionState.Data -> state.response },
     generateResult = { state: PartiallySignedTransactionState.Result ->
@@ -612,6 +614,7 @@ private fun CoreFirmwareFeatureFlag.toFeatureFlag() =
     CoreFirmwareFeatureFlag.MULTIPLE_FINGERPRINTS -> FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS
     CoreFirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT -> FirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT
     CoreFirmwareFeatureFlag.ASYNC_SIGNING -> FirmwareFeatureFlag.ASYNC_SIGNING
+    CoreFirmwareFeatureFlag.SIGNING_OPTIMIZATIONS -> FirmwareFeatureFlag.SIGNING_OPTIMIZATIONS
   }
 
 private fun convertFirmwareFeatureFlags(firmwareFeatureFlags: List<CoreFirmwareFeatureFlagCfg>) =

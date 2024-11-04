@@ -56,6 +56,7 @@ import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.inappsecurity.BiometricPreference
+import build.wallet.inheritance.InheritanceClaimsDao
 import build.wallet.inheritance.InheritanceService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -254,13 +255,13 @@ interface AppComponent {
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
   val inheritanceFeatureFlag: InheritanceFeatureFlag
-  val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag
   val biometricPreference: BiometricPreference
   val bitcoinPriceCardPreference: BitcoinPriceCardPreference
   val transactionsService: TransactionsService
   val xChaCha20Poly1305: XChaCha20Poly1305
   val xNonceGenerator: XNonceGenerator
   val mobilePayService: MobilePayService
+  val inheritanceClaimsDao: InheritanceClaimsDao
   val inheritanceService: InheritanceService
   val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag
   val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag

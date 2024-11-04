@@ -2,6 +2,7 @@
 
 #include "aes.h"
 #include "assert.h"
+#include "attributes.h"
 #include "secure_rng.h"
 
 #include <stdlib.h>
@@ -75,4 +76,9 @@ bool generate_key(key_handle_t* key) {
   }
 
   return true;
+}
+
+uint32_t key_management_custom_domain_prepare(key_algorithm_t UNUSED(alg), uint8_t* UNUSED(buffer),
+                                              uint32_t UNUSED(size)) {
+  return 0;
 }

@@ -84,7 +84,7 @@ fn filter_accounts_by_flag(
             if let Some(flag_key) = flag_key.as_ref() {
                 if let Ok(boolean) = evaluate_flag_value(
                     &state.feature_flags_service,
-                    flag_key.clone(),
+                    flag_key,
                     &ContextKey::Account(v.account_id.to_string(), HashMap::new()),
                 ) {
                     return boolean;

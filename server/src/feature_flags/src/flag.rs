@@ -286,13 +286,13 @@ impl TryFrom<&ContextKey> for Context {
 
 pub fn evaluate_flag_value<T: FlagValueConvertible>(
     service: &Service,
-    flag_key: String,
+    flag_key: &str,
     context_key: &ContextKey,
 ) -> Result<T, Error> {
     let context = context_key.try_into()?;
-    match resolve_flag_value(service, &flag_key, &context) {
-        Err(EvalError::FlagNotFound) => Err(Error::NotFound(flag_key)),
-        Err(_) => Err(Error::Resolve(flag_key)),
+    match resolve_flag_value(service, flag_key, &context) {
+        Err(EvalError::FlagNotFound) => Err(Error::NotFound(flag_key.to_owned())),
+        Err(_) => Err(Error::Resolve(flag_key.to_owned())),
         Ok(flag_value) => T::from_flag_value(flag_value.into()),
     }
 }

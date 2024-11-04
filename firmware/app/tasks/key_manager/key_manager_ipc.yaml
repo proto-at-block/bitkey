@@ -20,3 +20,4 @@ messages:
       auth: always
   structs:
     - name: key_manager_remove_wallet_state_t
+    - name: key_manager_clear_derived_key_cache_t

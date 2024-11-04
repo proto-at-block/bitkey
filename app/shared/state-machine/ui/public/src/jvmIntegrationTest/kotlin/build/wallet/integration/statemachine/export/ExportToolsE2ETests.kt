@@ -9,10 +9,11 @@ import build.wallet.statemachine.export.ExportToolsSelectionModel
 import build.wallet.statemachine.export.view.ExportSheetBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.statemachine.ui.*
+import build.wallet.statemachine.ui.awaitScreenWithSheetModelBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickExportTools
 import build.wallet.statemachine.ui.robots.clickSettings
-import build.wallet.statemachine.ui.robots.clickTrailingIconAccessoryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -43,8 +44,7 @@ class ExportToolsE2ETests : FunSpec({
       }
 
       awaitUntilScreenWithBody<ExportToolsSelectionModel> {
-        val exportXpubBundleRow = getMainContentListItemAtIndex(1)
-        exportXpubBundleRow.clickTrailingIconAccessoryButton()
+        onExportDescriptorClick()
       }
 
       awaitScreenWithSheetModelBody<ExportSheetBodyModel> {

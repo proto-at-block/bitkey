@@ -7,6 +7,7 @@ trait Stringable: Display + FromStr {}
 
 impl Stringable for bitcoin::secp256k1::PublicKey {}
 impl Stringable for wca::commands::PartiallySignedTransaction {}
+impl Stringable for bitcoin::bip32::Fingerprint {}
 impl Stringable for wca::commands::DescriptorPublicKey {}
 impl Stringable for Signature {}
 

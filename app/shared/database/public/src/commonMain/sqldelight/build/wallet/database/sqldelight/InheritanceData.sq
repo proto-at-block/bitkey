@@ -1,4 +1,7 @@
+import build.wallet.bitkey.inheritance.InheritanceClaimId;
 import build.wallet.bitkey.inheritance.InheritanceMaterialHash;
+import build.wallet.bitkey.relationships.RelationshipId;
+import build.wallet.encrypt.XCiphertext;
 import kotlinx.datetime.Instant;
 
 CREATE TABLE inheritanceDataEntity(
@@ -14,3 +17,7 @@ VALUES(0, ?, ?);
 getSyncHash:
 SELECT lastSyncHash FROM inheritanceDataEntity
 WHERE rowId = 0;
+
+clearInheritanceData {
+  DELETE FROM inheritanceDataEntity;
+}

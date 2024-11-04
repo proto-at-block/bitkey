@@ -9,6 +9,7 @@ import build.wallet.feature.flags.SellBitcoinFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.limit.MobilePayService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.navigation.v1.NavigationScreenId
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipEvent
@@ -118,6 +119,19 @@ class HomeUiStateMachineImpl(
               return@onRouteChange true
             } else {
               return@onRouteChange false
+            }
+          }
+          is Route.NavigationDeeplink -> {
+            return@onRouteChange when (route.screen) {
+              NavigationScreenId.NAVIGATION_SCREEN_ID_MONEY_HOME -> {
+                uiState = uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Launch))
+                true
+              }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS -> {
+                uiState = uiState.copy(rootScreen = Settings)
+                true
+              }
+              else -> false
             }
           }
           else -> false

@@ -1,23 +1,18 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
-import build.wallet.availability.NetworkReachability
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsService
-import build.wallet.bitkey.factor.SigningFactor
-import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
-import build.wallet.feature.isEnabled
-import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
-import build.wallet.limit.MobilePayData.MobilePayEnabledData
-import build.wallet.limit.MobilePayService
-import build.wallet.limit.MobilePaySpendingPolicy
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.Money
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.Currency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -25,38 +20,39 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.data.money.convertedOrZeroWithRates
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
-import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowDustLimitUiState
-import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.InvalidAmountEnteredUiState.AmountWithZeroBalanceUiState
-import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState
-import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
-import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
-import build.wallet.statemachine.send.TransferScreenBannerModel.*
+import build.wallet.statemachine.send.amountentry.TransferCardUiProps
+import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
 
 class TransferAmountEntryUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,
-  private val mobilePaySpendingPolicy: MobilePaySpendingPolicy,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val transactionsService: TransactionsService,
-  private val mobilePayService: MobilePayService,
-  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
+  private val transferCardUiStateMachine: TransferCardUiStateMachine,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : TransferAmountEntryUiStateMachine {
+  // TODO(W-703): derive from BDK
+  private val dustLimit = BitcoinMoney.sats(546)
+
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransferAmountEntryUiProps): ScreenModel {
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+    val scope = rememberStableCoroutineScope()
+
+    val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
+      .collectAsState()
+
     // Always start with the currency of the given amount as the primary currency
     // and the given fiat or BTC as secondary, whichever the amount isn't
     var currencyState by remember {
       mutableStateOf(
         CurrencyState(
-          primaryCurrency = props.initialAmount.currency,
-          secondaryCurrency = if (props.initialAmount is BitcoinMoney) fiatCurrency else BTC
+          inputAmountCurrency = props.initialAmount.currency,
+          secondaryDisplayAmountCurrency = if (props.initialAmount is BitcoinMoney) fiatCurrency else BTC,
+          initialAmountInInputCurrency = props.initialAmount
         )
       )
     }
@@ -65,92 +61,72 @@ class TransferAmountEntryUiStateMachineImpl(
       mutableStateOf<SheetState>(SheetState.Hidden)
     }
 
-    var initialPrimaryAmount by remember {
-      mutableStateOf(props.initialAmount)
+    val mobilePayAvailability by remember {
+      appFunctionalityService.status
+        .mapAsStateFlow(scope) { it.featureStates.mobilePay }
+    }.collectAsState()
+
+    val bitcoinBalance by remember {
+      transactionsService.transactionsData()
+        .mapAsStateFlow(scope) {
+          when (it) {
+            TransactionsData.LoadingTransactionsData -> ZeroBalance
+            is TransactionsData.TransactionsLoadedData -> it.balance
+          }
+        }
+    }.collectAsState()
+
+    // We convert the bitcoin balance to fiat if we have exchange rates, we don't grab the fiat balance
+    // from the transactions data because we want to use the same exchange rates for the entire send flow.
+    val fiatBalance: FiatMoney? = remember(props.exchangeRates, bitcoinBalance) {
+      props.exchangeRates?.let {
+        currencyConverter.convert(
+          bitcoinBalance.total,
+          fiatCurrency,
+          props.exchangeRates
+        )?.rounded() as? FiatMoney
+      }
     }
 
-    val transactionsData = remember { transactionsService.transactionsData() }
-      .collectAsState()
-      .value
-
-    val transactions = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> immutableListOf()
-      is TransactionsData.TransactionsLoadedData -> transactionsData.transactions
+    val balancedFormatted = remember(currencyState, bitcoinBalance, fiatBalance) {
+      when (currencyState.inputAmountCurrency) {
+        BTC -> moneyDisplayFormatter.format(bitcoinBalance.total)
+        else -> fiatBalance?.let { moneyDisplayFormatter.format(it) }.orEmpty()
+      }
     }
 
-    val bitcoinBalance = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> ZeroBalance
-      is TransactionsData.TransactionsLoadedData -> transactionsData.balance
-    }
-
-    val calculatorModel =
-      moneyCalculatorUiStateMachine.model(
-        props =
-          MoneyCalculatorUiProps(
-            inputAmountCurrency = currencyState.primaryCurrency,
-            secondaryDisplayAmountCurrency = currencyState.secondaryCurrency,
-            initialAmountInInputCurrency = initialPrimaryAmount,
-            exchangeRates = props.exchangeRates
-          )
+    val calculatorModel = moneyCalculatorUiStateMachine.model(
+      props = MoneyCalculatorUiProps(
+        inputAmountCurrency = currencyState.inputAmountCurrency,
+        secondaryDisplayAmountCurrency = currencyState.secondaryDisplayAmountCurrency,
+        initialAmountInInputCurrency = currencyState.initialAmountInInputCurrency,
+        exchangeRates = props.exchangeRates
       )
+    )
 
-    val enteredBitcoinMoney: BitcoinMoney =
+    val enteredBitcoinMoney: BitcoinMoney = remember(calculatorModel) {
       if (calculatorModel.primaryAmount is BitcoinMoney) {
         calculatorModel.primaryAmount
       } else if (calculatorModel.secondaryAmount is BitcoinMoney) {
         calculatorModel.secondaryAmount
       } else {
-        // We make a separate conversion call as fallback.
-        convertedOrZeroWithRates(
-          currencyConverter,
-          calculatorModel.primaryAmount,
-          BTC,
-          props.exchangeRates ?: emptyImmutableList()
-        ) as BitcoinMoney
+        error("Entered bitcoin money is neither primary or secondary. This should never happen.")
       }
+    }
 
-    // We don't have exchange rates, so we can't convert.
-    val enteredFiatMoney: FiatMoney? =
+    val enteredFiatMoney: FiatMoney? = remember(props.exchangeRates, calculatorModel) {
+      // We don't have exchange rates, so we can't convert.
       props.exchangeRates?.let {
         if (calculatorModel.primaryAmount is FiatMoney) {
           calculatorModel.primaryAmount
         } else if (calculatorModel.secondaryAmount is FiatMoney) {
           calculatorModel.secondaryAmount
         } else {
-          // We make a separate conversion call as fallback.
-          convertedOrZeroWithRates(
-            currencyConverter,
-            calculatorModel.primaryAmount,
-            fiatCurrency,
-            props.exchangeRates
-          ) as FiatMoney
+          // If neither primary or secondary is fiat, assume fiat is unavailable
+          null
         }
       }
-
-    val fiatBalance: FiatMoney? = when (props.exchangeRates) {
-      null -> null
-      else ->
-        convertedOrZeroWithRates(
-          currencyConverter,
-          bitcoinBalance.total,
-          fiatCurrency,
-          props.exchangeRates
-        ).rounded() as? FiatMoney
     }
-
-    val fiatBalanceFormatted = fiatBalance?.let { moneyDisplayFormatter.format(it) }.orEmpty()
-    val bitcoinBalanceFormatted =
-      moneyDisplayFormatter.format(bitcoinBalance.total)
-    val balancedFormatted =
-      remember(fiatBalanceFormatted, bitcoinBalanceFormatted, currencyState) {
-        when (currencyState.primaryCurrency) {
-          BTC -> bitcoinBalanceFormatted
-          else -> fiatBalanceFormatted
-        }
-      }
-
-    // TODO(W-703): derive from BDK
-    val dustLimit = BitcoinMoney.sats(546)
 
     // Base the determination of the entered amount being above the balance
     // based on the currency it's entered in.
@@ -163,7 +139,7 @@ class TransferAmountEntryUiStateMachineImpl(
         when (fiatBalance) {
           null -> enteredBitcoinMoney >= bitcoinBalance.total
           else ->
-            when (currencyState.primaryCurrency) {
+            when (currencyState.inputAmountCurrency) {
               BTC -> enteredBitcoinMoney >= bitcoinBalance.total
               else ->
                 enteredFiatMoney?.let {
@@ -184,169 +160,94 @@ class TransferAmountEntryUiStateMachineImpl(
         when {
           // Check for invalid cases first
           // User entered an amount while having a zero balance
-          bitcoinBalance.total.isZero ->
-            AmountWithZeroBalanceUiState(
-              disableAmount = !(enteredBitcoinMoney.isZero || (enteredFiatMoney?.isZero == true))
-            )
+          bitcoinBalance.total.isZero -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountWithZeroBalanceUiState
           // Amount entered is above balance
-          enteredAmountAboveBalance -> AmountEqualOrAboveBalanceUiState
+          enteredAmountAboveBalance -> TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
           // Amount entered is below dust limit
-          enteredBitcoinMoney < dustLimit -> AmountBelowDustLimitUiState
+          enteredBitcoinMoney < dustLimit -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowDustLimitUiState
 
           // Transfer amount is within bounds of balance
-          else -> AmountBelowBalanceUiState
+          else -> TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
         }
       }
     }
 
-    val mobilePayData = remember { mobilePayService.mobilePayData }
-      .collectAsState()
-      .value
-
-    val spendingLimitStatus by remember(
-      transferAmountState,
-      enteredBitcoinMoney,
-      transactions,
-      mobilePayData
-    ) {
-      derivedStateOf {
-        val transactionAmount = when (transferAmountState) {
-          AmountEqualOrAboveBalanceUiState -> bitcoinBalance.spendable
-          else -> enteredBitcoinMoney
-        }
-
-        mobilePaySpendingPolicy.getDailySpendingLimitStatus(
-          transactionAmount = transactionAmount,
-          mobilePayBalance =
-            when (mobilePayData) {
-              is MobilePayEnabledData -> mobilePayData.balance
-              else -> null
-            }
-        )
-      }
-    }
-
-    val requiresHardware by remember(enteredBitcoinMoney, spendingLimitStatus) {
-      mutableStateOf(
-        !enteredBitcoinMoney.isZero && spendingLimitStatus is RequiresHardware
-      )
-    }
-
-    val bannerModel by remember(
-      transferAmountState,
-      spendingLimitStatus.spendingLimit,
-      fiatBalanceFormatted,
-      requiresHardware
-    ) {
+    val disableTransferAmount by remember(enteredAmountAboveBalance, enteredBitcoinMoney, enteredFiatMoney) {
       derivedStateOf {
         when {
-          transferAmountState is AmountWithZeroBalanceUiState -> null
-          transferAmountState is AmountEqualOrAboveBalanceUiState -> AmountEqualOrAboveBalanceBannerModel
-          transferAmountState is AmountBelowBalanceUiState && requiresHardware -> HardwareRequiredBannerModel
-          transferAmountState is AmountBelowBalanceUiState &&
-            props.f8eReachability == NetworkReachability.UNREACHABLE ->
-            F8eUnavailableBannerModel
-          else -> null
-        }
-      }
-    }
-
-    val requiredSigner by remember(transferAmountState, requiresHardware) {
-      derivedStateOf {
-        when (transferAmountState) {
-          is ValidAmountEnteredUiState -> {
-            if (requiresHardware) {
-              SigningFactor.Hardware
-            } else {
-              SigningFactor.F8e
-            }
-          }
-
-          else -> SigningFactor.F8e
-        }
-      }
-    }
-    val disableTransferAmount by remember(transferAmountState) {
-      derivedStateOf {
-        when (val state = transferAmountState) {
-          is AmountWithZeroBalanceUiState -> state.disableAmount
-          is AmountEqualOrAboveBalanceUiState -> true
+          bitcoinBalance.total.isZero -> !(enteredBitcoinMoney.isZero || (enteredFiatMoney?.isZero == true))
+          enteredAmountAboveBalance -> true
           else -> false
         }
       }
     }
 
-    val bodyModel =
-      TransferAmountBodyModel(
-        onBack = props.onBack,
-        balanceTitle = "$balancedFormatted available",
-        amountModel = calculatorModel.amountModel,
-        keypadModel = calculatorModel.keypadModel,
-        bannerModel = bannerModel,
-        continueButtonEnabled = transferAmountState is AmountBelowBalanceUiState,
-        amountDisabled = disableTransferAmount,
-        f8eUnavailableWarningString = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()).transferScreenUnavailableWarning,
-        onContinueClick = {
-          if (transferAmountState is ValidAmountEnteredUiState) {
-            props.onContinueClick(
-              ContinueTransferParams(
-                ExactAmount(enteredBitcoinMoney),
-                requiredSigner,
-                spendingLimitStatus.spendingLimit
-              )
-            )
-          }
-        },
+    val cardModel = transferCardUiStateMachine.model(
+      props = TransferCardUiProps(
+        bitcoinBalance = bitcoinBalance,
+        enteredBitcoinMoney = enteredBitcoinMoney,
+        transferAmountState = transferAmountState,
         onSendMaxClick = {
           props.onContinueClick(
             ContinueTransferParams(
-              SendAll,
-              requiredSigner,
-              spendingLimitStatus.spendingLimit
+              SendAll
             )
           )
         },
-        onSwapCurrencyClick = {
-          if (calculatorModel.secondaryAmount != null) {
-            initialPrimaryAmount = calculatorModel.secondaryAmount
-
-            currencyState =
-              currencyState.copy(
-                primaryCurrency = currencyState.secondaryCurrency,
-                secondaryCurrency = currencyState.primaryCurrency
-              )
-          }
-        },
         onHardwareRequiredClick = {
-          sheetState =
-            if (props.f8eReachability == NetworkReachability.UNREACHABLE) {
-              SheetState.HardwareRequiredSheetState
-            } else {
-              SheetState.Hidden
-            }
+          sheetState = if (mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable) {
+            SheetState.HardwareRequiredSheetState
+          } else {
+            SheetState.Hidden
+          }
         }
       )
+    )
 
-    val bottomSheetModel =
-      when (sheetState) {
-        is SheetState.Hidden -> null
-        is SheetState.HardwareRequiredSheetState ->
-          SheetModel(
-            onClosed = { sheetState = SheetState.Hidden },
-            body =
-              ErrorFormBodyModel(
-                title = "Bitkey Services Unavailable",
-                subline = "Fiat exchange rates are unavailable and your Bitkey device is required for all transactions.",
-                primaryButton =
-                  ButtonDataModel(
-                    text = "Got it",
-                    onClick = { sheetState = SheetState.Hidden }
-                  ),
-                renderContext = RenderContext.Sheet,
-                eventTrackerScreenId = null
-              )
+    val bodyModel = TransferAmountBodyModel(
+      onBack = props.onBack,
+      balanceTitle = "$balancedFormatted available",
+      amountModel = calculatorModel.amountModel,
+      keypadModel = calculatorModel.keypadModel,
+      cardModel = cardModel,
+      continueButtonEnabled = transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState,
+      amountDisabled = disableTransferAmount,
+      onContinueClick = {
+        if (transferAmountState is TransferAmountUiState.ValidAmountEnteredUiState) {
+          props.onContinueClick(
+            ContinueTransferParams(
+              ExactAmount(enteredBitcoinMoney)
+            )
           )
+        }
+      },
+      onSwapCurrencyClick = {
+        if (calculatorModel.secondaryAmount != null) {
+          currencyState = currencyState.swapCurrency(
+            amountInSecondaryCurrency = calculatorModel.secondaryAmount
+          )
+        }
       }
+    )
+
+    val bottomSheetModel = when (sheetState) {
+      is SheetState.Hidden -> null
+      is SheetState.HardwareRequiredSheetState ->
+        SheetModel(
+          onClosed = { sheetState = SheetState.Hidden },
+          body = ErrorFormBodyModel(
+            title = "Bitkey Services Unavailable",
+            subline = "Fiat exchange rates are unavailable and your Bitkey device is required for all transactions.",
+            primaryButton =
+              ButtonDataModel(
+                text = "Got it",
+                onClick = { sheetState = SheetState.Hidden }
+              ),
+            renderContext = RenderContext.Sheet,
+            eventTrackerScreenId = null
+          )
+        )
+    }
 
     return ScreenModel(
       body = bodyModel,
@@ -355,31 +256,19 @@ class TransferAmountEntryUiStateMachineImpl(
     )
   }
 
-  private sealed interface TransferAmountUiState {
-    sealed interface ValidAmountEnteredUiState : TransferAmountUiState {
-      /** Amount is within limits and does not require hardware signing. */
-      data object AmountBelowBalanceUiState : ValidAmountEnteredUiState
-
-      /** Amount equal or above available funds. This is valid because we will send all. */
-      data object AmountEqualOrAboveBalanceUiState : ValidAmountEnteredUiState
-    }
-
-    /** Invalid amount entered with Send Max feature flag turned on, not able to proceed. */
-    sealed interface InvalidAmountEnteredUiState : TransferAmountUiState {
-      /** User entered an amount while having a zero balance */
-      data class AmountWithZeroBalanceUiState(
-        val disableAmount: Boolean,
-      ) : InvalidAmountEnteredUiState
-
-      /** Amount is too small to send. */
-      data object AmountBelowDustLimitUiState : InvalidAmountEnteredUiState
+  private data class CurrencyState(
+    val inputAmountCurrency: Currency,
+    val secondaryDisplayAmountCurrency: Currency,
+    val initialAmountInInputCurrency: Money,
+  ) {
+    fun swapCurrency(amountInSecondaryCurrency: Money): CurrencyState {
+      return copy(
+        inputAmountCurrency = secondaryDisplayAmountCurrency,
+        secondaryDisplayAmountCurrency = inputAmountCurrency,
+        initialAmountInInputCurrency = amountInSecondaryCurrency
+      )
     }
   }
-
-  private data class CurrencyState(
-    val primaryCurrency: Currency,
-    val secondaryCurrency: Currency,
-  )
 
   private sealed interface SheetState {
     /**

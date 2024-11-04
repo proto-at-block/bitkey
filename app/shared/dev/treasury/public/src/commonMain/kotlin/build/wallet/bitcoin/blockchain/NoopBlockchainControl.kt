@@ -7,4 +7,9 @@ class NoopBlockchainControl : BlockchainControl {
     numBlock: Int,
     mineToAddress: BitcoinAddress,
   ) = Unit
+
+  override suspend fun mineBlock(
+    txid: String,
+    mineToAddress: BitcoinAddress,
+  ) = Unit
 }

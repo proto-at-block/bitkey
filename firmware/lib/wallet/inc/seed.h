@@ -14,6 +14,8 @@ typedef enum {
 
 #define SEED_DERIVE_HKDF_PRIVKEY_SIZE (32)
 
+seed_res_t seed_as_extended_key(extended_key_t* key);
+
 seed_res_t seed_derive_bip32(const derivation_path_t path, extended_key_t* key,
                              fingerprint_t* master_fingerprint,
                              fingerprint_t* childs_parent_fingerprint);

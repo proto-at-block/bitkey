@@ -9,13 +9,11 @@ final class NotificationSnapshotTests: XCTestCase {
 
     func test_notification_preferences_setup_all_needs_action() {
         let view = FormView(
-            viewModel: NotificationPreferencesSetupFormBodyModelKt
-                .NotificationPreferencesSetupFormBodyModel(
-                    pushItem: .init(state: .needsaction, onClick: {}),
-                    smsItem: .init(state: .needsaction, onClick: {}),
-                    emailItem: .init(state: .needsaction, onClick: {}),
-                    alertModel: nil
-                ).body as! FormBodyModel
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferencesSetupFormBodyModel(
+                pushItem: .init(state: .needsaction, onClick: {}),
+                smsItem: .init(state: .needsaction, onClick: {}),
+                emailItem: .init(state: .needsaction, onClick: {})
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -23,26 +21,22 @@ final class NotificationSnapshotTests: XCTestCase {
 
     func test_notification_preferences_setup_all_skipped() {
         let view = FormView(
-            viewModel: NotificationPreferencesSetupFormBodyModelKt
-                .NotificationPreferencesSetupFormBodyModel(
-                    pushItem: .init(state: .skipped, onClick: {}),
-                    smsItem: .init(state: .skipped, onClick: {}),
-                    emailItem: .init(state: .skipped, onClick: {}),
-                    alertModel: nil
-                ).body as! FormBodyModel
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferencesSetupFormBodyModel(
+                pushItem: .init(state: .skipped, onClick: {}),
+                smsItem: .init(state: .skipped, onClick: {}),
+                emailItem: .init(state: .skipped, onClick: {})
+            )
         )
         assertBitkeySnapshots(view: view)
     }
 
     func test_notification_preferences_setup_all_needs_action_v2() {
         let view = FormView(
-            viewModel: NotificationPreferencesSetupFormBodyModelKt
-                .NotificationPreferencesSetupFormBodyModel(
-                    pushItem: .init(state: .needsaction, onClick: {}),
-                    smsItem: .init(state: .needsaction, onClick: {}),
-                    emailItem: .init(state: .needsaction, onClick: {}),
-                    alertModel: nil
-                ).body as! FormBodyModel
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferencesSetupFormBodyModel(
+                pushItem: .init(state: .needsaction, onClick: {}),
+                smsItem: .init(state: .needsaction, onClick: {}),
+                emailItem: .init(state: .needsaction, onClick: {})
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -50,7 +44,7 @@ final class NotificationSnapshotTests: XCTestCase {
 
     func test_recovery_channel_setup_all_needs_action() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .notcompleted,
                     displayValue: "Recommended",
@@ -71,10 +65,8 @@ final class NotificationSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -82,20 +74,18 @@ final class NotificationSnapshotTests: XCTestCase {
 
     func test_notification_preferences_setup_all_completed() {
         let view = FormView(
-            viewModel: NotificationPreferencesSetupFormBodyModelKt
-                .NotificationPreferencesSetupFormBodyModel(
-                    pushItem: .init(state: .completed, onClick: {}),
-                    smsItem: .init(state: .completed, onClick: {}),
-                    emailItem: .init(state: .completed, onClick: {}),
-                    alertModel: nil
-                ).body as! FormBodyModel
+            viewModel: SnapshotTestModels.shared.CreateNotificationPreferencesSetupFormBodyModel(
+                pushItem: .init(state: .completed, onClick: {}),
+                smsItem: .init(state: .completed, onClick: {}),
+                emailItem: .init(state: .completed, onClick: {})
+            )
         )
         assertBitkeySnapshots(view: view)
     }
 
     func test_notification_preferences_setup_all_completed_v2() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .completed,
                     displayValue: nil,
@@ -116,10 +106,8 @@ final class NotificationSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)

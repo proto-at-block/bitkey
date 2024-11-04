@@ -12,7 +12,7 @@ import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.account.create.full.onboard.notifications.OpenSettingsForPushAlertModel
+import build.wallet.statemachine.account.create.full.onboard.notifications.openSettingsForPushAlertModel
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
@@ -156,7 +156,7 @@ class NotificationPreferencesUiStateMachineImpl(
             -> NotificationPreferencesFormEditingState.Overlay
           }
 
-        NotificationPreferencesFormBodyModel(
+        NotificationPreferenceFormBodyModel(
           transactionPush = transactionPush,
           updatesPush = updatesPush,
           updatesEmail = updatesEmail,
@@ -181,25 +181,12 @@ class NotificationPreferencesUiStateMachineImpl(
           onUpdatesEmailToggle = { updatesEmail = it },
           formEditingState = formEditingState,
           onBack = props.onBack,
-          networkingErrorState = (uiState as? UiState.MainViewState.NetworkError)?.run {
-            NetworkingErrorState(networkingError, onClose)
-          },
           ctaModel = when (uiState) {
             is UiState.MainViewState.DidNotSelectToS -> CallToActionModel(
               text = "Agree to our Terms and Privacy Policy to continue.",
               treatment = CallToActionModel.Treatment.WARNING
             )
             else -> null
-          },
-          alertModel = OpenSettingsForPushAlertModel(
-            pushEnabled = false,
-            settingsOpenAction = {
-              systemSettingsLauncher.launchAppSettings()
-              uiState = UiState.MainViewState.Editing
-            },
-            onClose = { uiState = UiState.MainViewState.Editing }
-          ).takeIf {
-            uiState is UiState.MainViewState.EditingWithOverlay.OpenSettings
           },
           continueOnClick = {
             if (!termsAgree) {
@@ -222,6 +209,23 @@ class NotificationPreferencesUiStateMachineImpl(
                 )
               }
             }
+          }
+        ).asRootScreen(
+          alertModel = openSettingsForPushAlertModel(
+            pushEnabled = false,
+            settingsOpenAction = {
+              systemSettingsLauncher.launchAppSettings()
+              uiState = UiState.MainViewState.Editing
+            },
+            onClose = { uiState = UiState.MainViewState.Editing }
+          ).takeIf {
+            uiState is UiState.MainViewState.EditingWithOverlay.OpenSettings
+          },
+          bottomSheetModel = (uiState as? UiState.MainViewState.NetworkError)?.let { errorState ->
+            NetworkingErrorSheetModel(
+              onClose = errorState.onClose,
+              networkingError = errorState.networkingError
+            )
           }
         )
       }

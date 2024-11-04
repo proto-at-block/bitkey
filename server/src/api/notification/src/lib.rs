@@ -42,6 +42,11 @@ use self::{
 use entities::NotificationCompositeKey;
 use types::{account::identifiers::AccountId, notification::NotificationChannel};
 
+#[allow(clippy::all)]
+pub mod definitions {
+    include!("definitions/build.wallet.navigation.v1.rs");
+}
+
 pub mod address_repo;
 pub mod clients;
 pub mod email;

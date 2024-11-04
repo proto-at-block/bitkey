@@ -190,14 +190,19 @@ static void reset_auth_state(void) {
   auth_state.fingerprint_index = BIO_TEMPLATE_ID_INVALID;
 }
 
+NO_OPTIMIZE static void internal_deauthenticate(void) {
+  reset_auth_state();
+  ipc_send_empty(key_manager_port, IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE);
+}
+
 NO_OPTIMIZE void deauthenticate(void) {
   set_authenticated_with_animation(SECURE_FALSE);
-  reset_auth_state();
+  internal_deauthenticate();
 }
 
 void deauthenticate_without_animation(void) {
   auth_state.authenticated = SECURE_FALSE;
-  reset_auth_state();
+  internal_deauthenticate();
   rtos_timer_stop(&auth_priv.unlock_timer);
 }
 

@@ -1,7 +1,9 @@
 package build.wallet.inheritance
 
+import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
@@ -22,6 +24,11 @@ interface InheritanceService {
   val inheritanceRelationships: StateFlow<Relationships?>
 
   /**
+   * Emits a collection of relationships with currently pending claims.
+   */
+  val pendingClaims: StateFlow<Result<List<RelationshipId>, Error>?>
+
+  /**
    * Creates an invitation for a trusted contact to become a beneficiary
    *
    * @param hardwareProofOfPossession the hardware proof of possession for creating the invitation
@@ -40,4 +47,13 @@ interface InheritanceService {
    * This will only sync if the material is not already uploaded.
    */
   suspend fun syncInheritanceMaterial(keybox: Keybox): Result<Unit, Error>
+
+  /**
+   * Start an inheritance claim for a beneficiary.
+   *
+   * @param relationshipId the ID indicating the benefactor to start a claim for.
+   */
+  suspend fun startInheritanceClaim(
+    relationshipId: RelationshipId,
+  ): Result<BeneficiaryClaim.PendingClaim, Throwable>
 }

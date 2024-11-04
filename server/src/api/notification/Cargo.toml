@@ -19,6 +19,7 @@ http = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }
+prost = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true }
 reqwest-middleware = { workspace = true }
@@ -57,3 +58,7 @@ userpool = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }
+
+[build-dependencies]
+prost-build-config = "0.6.3"
+serde_yaml = "0.9.32"

@@ -19,7 +19,6 @@ data class AppearancePreferenceFormModel(
   val onFiatCurrencyPreferenceClick: () -> Unit,
   val bitcoinDisplayPreferenceString: String,
   val bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
-  val shouldShowBitcoinPriceCardToggle: Boolean = false,
   val isBitcoinPriceCardEnabled: Boolean = false,
   val isHideBalanceEnabled: Boolean = false,
   val onEnableHideBalanceChanged: (Boolean) -> Unit,
@@ -61,24 +60,22 @@ data class AppearancePreferenceFormModel(
         )
       ).apply { add(this) }
 
-      if (shouldShowBitcoinPriceCardToggle) {
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            style = ListGroupStyle.CARD_GROUP_DIVIDER,
-            items = immutableListOf(
-              ListItemModel(
-                title = "Show Bitcoin Performance",
-                trailingAccessory = ListItemAccessory.SwitchAccessory(
-                  model = SwitchModel(
-                    checked = isBitcoinPriceCardEnabled,
-                    onCheckedChange = onBitcoinPriceCardPreferenceClick
-                  )
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          style = ListGroupStyle.CARD_GROUP_DIVIDER,
+          items = immutableListOf(
+            ListItemModel(
+              title = "Show Bitcoin Performance",
+              trailingAccessory = ListItemAccessory.SwitchAccessory(
+                model = SwitchModel(
+                  checked = isBitcoinPriceCardEnabled,
+                  onCheckedChange = onBitcoinPriceCardPreferenceClick
                 )
               )
             )
           )
-        ).apply { add(this) }
-      }
+        )
+      ).apply { add(this) }
       FormMainContentModel.ListGroup(
         listGroupModel = ListGroupModel(
           header = "Privacy",

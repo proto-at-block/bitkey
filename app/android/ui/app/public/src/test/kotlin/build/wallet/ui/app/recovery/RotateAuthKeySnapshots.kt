@@ -6,17 +6,10 @@ import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
 import build.wallet.ui.app.core.LoadingSuccessScreen
 import build.wallet.ui.app.core.form.FormScreen
-import com.airbnb.lottie.LottieTask
 import io.kotest.core.spec.style.FunSpec
-import java.util.concurrent.Executor
 
 class RotateAuthKeySnapshots : FunSpec({
   val paparazzi = paparazziExtension()
-
-  beforeTest {
-    // Needed for snapshotting the loading lottie animation
-    LottieTask.EXECUTOR = Executor(Runnable::run)
-  }
 
   test("auth key rotation choice - proposed rotation") {
     paparazzi.snapshot {
@@ -45,7 +38,7 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation loading - proposed rotation") {
     paparazzi.snapshot {
       LoadingSuccessScreen(
-        RotateAuthKeyScreens.RotatingKeys(
+        model = RotateAuthKeyScreens.RotatingKeys(
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         )
       )
@@ -55,7 +48,7 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation loading - settings") {
     paparazzi.snapshot {
       LoadingSuccessScreen(
-        RotateAuthKeyScreens.RotatingKeys(
+        model = RotateAuthKeyScreens.RotatingKeys(
           context = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         )
       )
@@ -65,7 +58,7 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation loading - failed attempt") {
     paparazzi.snapshot {
       LoadingSuccessScreen(
-        RotateAuthKeyScreens.RotatingKeys(
+        model = RotateAuthKeyScreens.RotatingKeys(
           context = AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT
         )
       )
@@ -222,7 +215,7 @@ class RotateAuthKeySnapshots : FunSpec({
   test("auth key rotation dismissing proposal") {
     paparazzi.snapshot {
       LoadingSuccessScreen(
-        RotateAuthKeyScreens.DismissingProposal(
+        model = RotateAuthKeyScreens.DismissingProposal(
           context = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         )
       )

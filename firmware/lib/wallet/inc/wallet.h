@@ -53,10 +53,27 @@ typedef struct {
 #define UUID_LENGTH (36)
 #define CSEK_LENGTH (AES_256_LENGTH_BYTES)
 
+typedef struct PACKED {
+  uint8_t version;
+  extended_key_t bip84_external_key;
+  extended_key_t bip84_internal_key;
+  extended_key_t w1_auth_key;
+} derived_key_cache_t;
+
+#define DERIVED_KEY_CACHE_PATH            "derived-keys.bin"
+#define DERIVED_KEY_CACHE_VERSION         (0)
+#define DERIVED_KEY_CACHE_CIPHERTEXT_SIZE (sizeof(derived_key_cache_t) + AES_GCM_OVERHEAD)
+
 #define WALLET_POOL_R0_SIZE (70)
 #define WALLET_POOL_R0_NUM  (6)
 #define WALLET_POOL_R1_SIZE (128)
 #define WALLET_POOL_R1_NUM  (2)
+#define WALLET_POOL_R2_SIZE (DERIVED_KEY_CACHE_CIPHERTEXT_SIZE)
+#define WALLET_POOL_R2_NUM  (1)
+
+_Static_assert(
+  WALLET_POOL_R2_SIZE >= DERIVED_KEY_CACHE_CIPHERTEXT_SIZE,
+  "There must a pool large enough to fully serialize an encrypted derived_key_cache_t");
 
 #define BITCOIN fwpb_btc_network_BITCOIN
 #define TESTNET fwpb_btc_network_TESTNET
@@ -70,6 +87,10 @@ bool wallet_keybundle_exists(wallet_key_bundle_type_t type);
 wallet_res_t wallet_keybundle_id(const wallet_key_bundle_type_t type, uint8_t* id_digest);
 wallet_res_t wallet_get_pubkey(const wallet_key_bundle_type_t type,
                                const wallet_key_domain_t domain, extended_key_t* key_pub);
+
+void wallet_clear_derived_key_cache(void);
+bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
+                                        derivation_path_t derivation_path);
 
 wallet_res_t wallet_csek_encrypt(uint8_t* unwrapped_csek, uint8_t* wrapped_csek_out,
                                  uint32_t length, uint8_t iv_out[AES_GCM_IV_LENGTH],

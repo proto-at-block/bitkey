@@ -79,13 +79,20 @@ Test(mempool, alloc_gets_right_sized_region) {
   cr_assert(region);
   cr_assert(buf == mempool_region_start_addr(region));
   cr_assert(buf == pool->regions[3].buffer);
+}
 
-  // Check invalid size.
-  size = 1025;
-  buf = mempool_alloc(pool, size);
+Test(mempool, invalid_region_size, .exit_code = 1) {
+#define REGIONS(X)     \
+  X(my_pool, r0, 1, 2) \
+  X(my_pool, r1, 2, 2) \
+  X(my_pool, r2, 3, 2) \
+  X(my_pool, r3, 4, 2)
+  mempool_t* pool = mempool_create(my_pool);
+#undef REGIONS
+  uint32_t size = 1025;
+  uint8_t* buf = mempool_alloc(pool, size);
   cr_assert(buf == NULL);
-  region = mempool_region_for_size(pool, size);
-  cr_assert(region == NULL);
+  (void)mempool_region_for_size(pool, size);
 }
 
 Test(mempool, free_buffer) {
@@ -247,7 +254,7 @@ Test(mempool, fpc_usage_pattern) {
   mempool_free(pool, c);
 }
 
-Test(mempool, oom, .exit_code = 1) {
+Test(mempool, oom, .exit_code = 2) {
 #define REGIONS(X) X(my_pool, r0, 1, 1)
   mempool_t* pool = mempool_create(my_pool);
 #undef REGIONS

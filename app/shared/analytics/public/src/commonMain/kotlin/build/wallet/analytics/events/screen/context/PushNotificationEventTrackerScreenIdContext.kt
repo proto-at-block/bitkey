@@ -15,4 +15,7 @@ enum class PushNotificationEventTrackerScreenIdContext : EventTrackerContext {
 
   /** Events for setting up push notification permissions during social recovery challenge */
   SOCIAL_RECOVERY_CHALLENGE,
+
+  /** Events for setting up push notification permissions when starting an inheritance claim */
+  INHERITANCE_CLAIM,
 }

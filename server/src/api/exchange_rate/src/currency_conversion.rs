@@ -246,7 +246,7 @@ impl SpotExchangeRateProvider for LocalRateProvider {
 #[cfg(test)]
 mod sats_for_tests {
     use types::account::spend_limit::Money;
-    use types::currencies::CurrencyCode::{AUD, USD};
+    use types::currencies::CurrencyCode::{JPY, USD};
     use types::exchange_rate::local_rate_provider::LocalRateProvider;
 
     use crate::currency_conversion::sats_for;
@@ -272,14 +272,14 @@ mod sats_for_tests {
     }
 
     #[tokio::test]
-    async fn test_aud_should_fail_test() {
+    async fn test_jpy_should_fail_test() {
         let rate_provider = LocalRateProvider::new();
         let rate_result = sats_for(
             &Service::new(),
             rate_provider,
             &Money {
                 amount: 1,
-                currency_code: AUD,
+                currency_code: JPY,
             },
         )
         .await;

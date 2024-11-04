@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-core-desktop",
+    "components": [
+        {
+            "version": "1.1.0-alpha04",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-core-desktop-1.1.0-alpha04.jar": "2ba98e296dcd980baf5f60f154e32af3c91c70ba1c755098eda8f8419a25674b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

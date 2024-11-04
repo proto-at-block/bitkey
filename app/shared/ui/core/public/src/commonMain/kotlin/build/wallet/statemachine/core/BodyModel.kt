@@ -1,10 +1,7 @@
 package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
-import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -31,12 +28,15 @@ abstract class BodyModel : Model() {
   /**
    * Convenience method to wrap this body model into a Root screen model.
    */
-  fun asRootScreen(alertModel: ButtonAlertModel? = null) =
-    ScreenModel(
-      body = this,
-      presentationStyle = Root,
-      alertModel = alertModel
-    )
+  fun asRootScreen(
+    alertModel: ButtonAlertModel? = null,
+    bottomSheetModel: SheetModel? = null,
+  ) = ScreenModel(
+    body = this,
+    presentationStyle = Root,
+    alertModel = alertModel,
+    bottomSheetModel = bottomSheetModel
+  )
 
   /**
    * Convenience method to wrap this body model into a Sheet Modal screen model.
@@ -51,20 +51,24 @@ abstract class BodyModel : Model() {
   /**
    * Convenience method to wrap this body model into a Modal screen model.
    */
-  fun asModalScreen(alertModel: AlertModel? = null) =
-    ScreenModel(
-      body = this,
-      presentationStyle = Modal,
-      alertModel = alertModel
-    )
+  fun asModalScreen(
+    alertModel: AlertModel? = null,
+    bottomSheetModel: SheetModel? = null,
+  ) = ScreenModel(
+    body = this,
+    presentationStyle = Modal,
+    alertModel = alertModel,
+    bottomSheetModel = bottomSheetModel
+  )
 
   /**
    * Convenience method to wrap this body model into a Modal full screen model.
    */
-  fun asModalFullScreen() =
+  fun asModalFullScreen(bottomSheetModel: SheetModel? = null) =
     ScreenModel(
       body = this,
-      presentationStyle = ModalFullScreen
+      presentationStyle = ModalFullScreen,
+      bottomSheetModel = bottomSheetModel
     )
 
   fun asScreen(

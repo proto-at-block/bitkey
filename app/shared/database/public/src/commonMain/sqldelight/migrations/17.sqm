@@ -1,0 +1,45 @@
+import build.wallet.bitkey.inheritance.InheritanceClaimId;
+import build.wallet.bitkey.inheritance.InheritanceMaterialHash;
+import build.wallet.bitkey.relationships.RelationshipId;
+import build.wallet.encrypt.XCiphertext;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE pendingBeneficiaryClaimEntity(
+    claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+    relationshipId TEXT AS RelationshipId NOT NULL,
+    delayEndTime INTEGER AS Instant NOT NULL,
+    delayStartTime INTEGER AS Instant NOT NULL,
+    appPubkey TEXT NOT NULL,
+    hardwarePubkey TEXT NOT NULL
+);
+
+CREATE TABLE canceledBeneficiaryClaimEntity(
+   claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+   relationshipId TEXT AS RelationshipId NOT NULL
+);
+
+CREATE TABLE lockedBeneficiaryClaimEntity(
+   claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+   relationshipId TEXT AS RelationshipId NOT NULL,
+   sealedDek TEXT AS XCiphertext NOT NULL,
+   sealedMobileKey TEXT AS XCiphertext NOT NULL
+);
+
+CREATE TABLE pendingBenefactorClaimEntity(
+    claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+    relationshipId TEXT AS RelationshipId NOT NULL,
+    delayEndTime INTEGER AS Instant NOT NULL,
+    delayStartTime INTEGER AS Instant NOT NULL
+);
+
+CREATE TABLE canceledBenefactorClaimEntity(
+   claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+   relationshipId TEXT AS RelationshipId NOT NULL
+);
+
+CREATE TABLE lockedBenefactorClaimEntity(
+   claimId TEXT AS InheritanceClaimId NOT NULL PRIMARY KEY,
+   relationshipId TEXT AS RelationshipId NOT NULL
+);
+
+PRAGMA foreign_key_check;

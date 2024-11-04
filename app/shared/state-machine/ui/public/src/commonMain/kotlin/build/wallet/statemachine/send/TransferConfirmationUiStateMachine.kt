@@ -6,8 +6,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.factor.SigningFactor
-import build.wallet.limit.SpendingLimit
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -31,8 +29,6 @@ data class TransferConfirmationUiProps(
   val account: FullAccount,
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
-  val requiredSigner: SigningFactor,
-  val spendingLimit: SpendingLimit?,
   val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val onTransferInitiated: (psbt: Psbt, priority: EstimatedTransactionPriority) -> Unit,

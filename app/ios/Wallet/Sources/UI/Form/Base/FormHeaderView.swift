@@ -53,7 +53,7 @@ public struct FormHeaderView: View {
                         .frame(height: viewModel.alignment == .leading ? 16 : 8)
                 }
             }
-            
+
             viewModel.customContent.map { customContent in
                 CustomContentView(viewModel: customContent)
             }
@@ -162,37 +162,40 @@ private extension FormHeaderModel.SublineTreatment {
 
 // MARK: -
 
-private struct CustomContentView : View {
-    
+private struct CustomContentView: View {
+
     private let viewModel: FormHeaderModel.CustomContent
-    
+
     public init(
         viewModel: FormHeaderModel.CustomContent
     ) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - View
 
     public var body: some View {
-        if (viewModel is FormHeaderModel.CustomContentPartnershipTransferAnimation) {
-            PartnershipTransferAnimationView(viewModel: viewModel as! FormHeaderModel.CustomContentPartnershipTransferAnimation)
+        if viewModel is FormHeaderModel.CustomContentPartnershipTransferAnimation {
+            PartnershipTransferAnimationView(
+                viewModel: viewModel as! FormHeaderModel
+                    .CustomContentPartnershipTransferAnimation
+            )
         }
     }
 }
 
 // MARK: -
 
-private struct PartnershipTransferAnimationView : View {
-    
+private struct PartnershipTransferAnimationView: View {
+
     private let viewModel: FormHeaderModel.CustomContentPartnershipTransferAnimation
-    
+
     public init(
         viewModel: FormHeaderModel.CustomContentPartnershipTransferAnimation
     ) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - View
 
     public var body: some View {
@@ -209,7 +212,7 @@ private struct DotsLoadingIndicator: View {
     @SwiftUI.State private var dot1Alpha: Double = 0.1
     @SwiftUI.State private var dot2Alpha: Double = 0.1
     @SwiftUI.State private var dot3Alpha: Double = 0.1
-    
+
     var body: some View {
         HStack(spacing: 8) {
             DotView(alpha: dot1Alpha)
@@ -242,7 +245,7 @@ private struct DotsLoadingIndicator: View {
 
 private struct DotView: View {
     var alpha: Double
-    
+
     var body: some View {
         RoundedRectangle(cornerRadius: 3)
             .fill(Color.bitkeyPrimary.opacity(alpha))

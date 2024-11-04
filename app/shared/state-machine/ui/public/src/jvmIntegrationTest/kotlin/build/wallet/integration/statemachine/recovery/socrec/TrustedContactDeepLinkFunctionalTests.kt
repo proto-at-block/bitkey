@@ -44,7 +44,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // onboarded tester uses the invite
     val appTester = launchNewApp()
     appTester.onboardFullAccountWithFakeHardware()
-    Router.route = Route.fromUrl("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
+    Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     appTester.app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
@@ -77,7 +77,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val inviteCode = secondInviter.getSharedInviteCode()
 
     // onboarded tester uses the invite
-    Router.route = Route.fromUrl("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
+    Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     appTester.app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
@@ -102,7 +102,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
 
     // lite account onboards
     val appTester = launchNewApp()
-    Router.route = Route.fromUrl("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
+    Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     appTester.app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
@@ -137,7 +137,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val appTester = launchNewApp()
     (appTester.app.cloudStoreAccountRepository as WritableCloudStoreAccountRepository)
       .set(CloudStoreAccountFake.TrustedContactFake)
-    Router.route = Route.fromUrl("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
+    Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     appTester.app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false

@@ -3,9 +3,10 @@ pub(crate) mod derived;
 
 use bitcoin::sighash::{LegacySighash, SegwitV0Sighash};
 use bitcoin::{
-    bip32::{ChildNumber, DerivationPath, ExtendedPubKey},
+    bip32::{ChildNumber, DerivationPath},
     ecdsa::Signature as EcdsaSig,
     psbt::{Input, PartiallySignedTransaction},
+    secp256k1::PublicKey,
     sighash::NonStandardSighashType,
     sighash::SighashCache,
     Transaction,
@@ -17,8 +18,6 @@ use miniscript::{
 };
 
 use crate::commands::SignedSighash;
-
-type DescriptorExtendedKey = DescriptorXKey<ExtendedPubKey>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -41,7 +40,10 @@ pub(crate) struct Signable {
 }
 
 pub(crate) trait Signer {
-    fn signables_for(&self, psbt: &PartiallySignedTransaction) -> Result<Vec<Signable>, Error>;
+    fn signables_for(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<Vec<(PublicKey, Signable)>, Error>;
 }
 
 fn is_finalised(input: &Input) -> bool {
@@ -55,14 +57,12 @@ pub(crate) fn sign(
 ) -> Result<(), Error> {
     let input = &mut psbt.inputs[input_index];
 
-    let public_key = match signed_sighash.descriptor {
-        DescriptorPublicKey::XPub(xpub) => xpub.xkey.public_key,
-        _ => return Err(Error::InvalidDescriptor),
-    };
-    assert!(input.bip32_derivation.contains_key(&public_key));
+    assert!(input
+        .bip32_derivation
+        .contains_key(&signed_sighash.public_key));
 
     input.partial_sigs.insert(
-        bitcoin::PublicKey::new(public_key),
+        bitcoin::PublicKey::new(signed_sighash.public_key),
         EcdsaSig {
             sig: signed_sighash.signature,
             hash_ty: input.ecdsa_hash_ty()?,

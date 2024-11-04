@@ -1,11 +1,10 @@
 package build.wallet.inheritance
 
 import app.cash.turbine.Turbine
+import build.wallet.bitkey.inheritance.BeneficiaryClaim.PendingClaim
+import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.*
-import build.wallet.bitkey.relationships.InvitationFake
-import build.wallet.bitkey.relationships.OutgoingInvitation
-import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
@@ -16,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class InheritanceServiceMock(
   val syncCalls: Turbine<Keybox>,
   var syncResult: Result<Unit, Error> = Ok(Unit),
+  var startClaimResult: Result<PendingClaim, Error> = Ok(BeneficiaryPendingClaimFake),
 ) : InheritanceService {
   private val defaultRelationships = Relationships(
     invitations = listOf(),
@@ -25,8 +25,9 @@ class InheritanceServiceMock(
   )
 
   var invitation = InvitationFake
-  val relationships = MutableStateFlow(defaultRelationships)
 
+  override val pendingClaims = MutableStateFlow<Result<List<RelationshipId>, Error>?>(Ok(emptyList()))
+  val relationships = MutableStateFlow(defaultRelationships)
   override val inheritanceRelationships = relationships
 
   override suspend fun createInheritanceInvitation(
@@ -47,8 +48,15 @@ class InheritanceServiceMock(
     return syncResult
   }
 
+  override suspend fun startInheritanceClaim(
+    relationshipId: RelationshipId,
+  ): Result<PendingClaim, Throwable> {
+    return startClaimResult
+  }
+
   fun reset() {
     invitation = InvitationFake
     relationships.value = defaultRelationships
+    pendingClaims.value = null
   }
 }

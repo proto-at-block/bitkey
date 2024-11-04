@@ -8,7 +8,7 @@ import XCTest
 final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
     func test_recovery_channels_setup_screen() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .notcompleted,
                     displayValue: "",
@@ -29,10 +29,8 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -40,7 +38,7 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
 
     func test_recovery_channels_setup_screen_non_us_sim_us_number() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .notcompleted,
                     displayValue: "",
@@ -61,10 +59,8 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -72,7 +68,7 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
 
     func test_recovery_channels_setup_screen_us_user() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .notcompleted,
                     displayValue: "",
@@ -88,10 +84,8 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)
@@ -99,7 +93,7 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
 
     func test_recovery_channels_setup_screen_all_complete() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.RecoveryChannelsSetupFormBodyModel(
+            viewModel: SnapshotTestModels.shared.CreateRecoveryChannelsSetupFormBodyModel(
                 pushItem: .init(
                     state: .completed,
                     displayValue: "",
@@ -120,10 +114,8 @@ final class RecoveryChannelsSetupFormScreenSnapshotTests: XCTestCase {
                 ),
                 onBack: {},
                 learnOnClick: {},
-                continueOnClick: {},
-                bottomSheetModel: nil,
-                alertModel: nil
-            ).body as! FormBodyModel
+                continueOnClick: {}
+            )
         )
 
         assertBitkeySnapshots(view: view)

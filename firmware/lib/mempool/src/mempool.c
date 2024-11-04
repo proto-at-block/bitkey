@@ -21,16 +21,13 @@ void* mempool_alloc(mempool_t* pool, uint32_t size) {
 
   uint8_t* buf = NULL;
   mempool_region_t* region = mempool_region_for_size(pool, size);
-  if (!region) {
-    goto out;
-  }
+  ASSERT_E(region, 1);
   buf = get_first_free_buffer(region);
 
   // We don't handle OOM at all -- it shouldn't happen -- so assert here
   // instead of requiring all callers to do so.
-  ASSERT_E(buf, 1);
+  ASSERT_E(buf, 2);
 
-out:
   rtos_mutex_unlock(&pool->mutex);
   return buf;
 }

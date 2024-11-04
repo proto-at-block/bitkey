@@ -9,7 +9,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
@@ -119,8 +118,6 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
             account = currentState.fullAccount,
             recipientAddress = BitcoinAddress(currentState.sellWalletAddress),
             sendAmount = ExactAmount(BitcoinMoney.btc(currentState.cryptoAmount)),
-            requiredSigner = SigningFactor.Hardware,
-            spendingLimit = null,
             fees = currentState.fees,
             exchangeRates = exchangeRates,
             onTransferInitiated = { _, _ ->

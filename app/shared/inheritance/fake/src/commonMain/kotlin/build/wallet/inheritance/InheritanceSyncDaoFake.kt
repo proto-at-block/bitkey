@@ -7,11 +7,11 @@ import com.github.michaelbull.result.Result
 
 class InheritanceSyncDaoFake(
   val updateCalls: Turbine<InheritanceMaterialHash>,
-  var hashResult: Result<InheritanceMaterialHash?, Error> = Ok(null),
+  var hashData: Result<InheritanceMaterialHash?, Error> = Ok(null),
   var updateHashResult: Result<Unit, Error> = Ok(Unit),
 ) : InheritanceSyncDao {
   override suspend fun getSyncedInheritanceMaterialHash(): Result<InheritanceMaterialHash?, Error> {
-    return hashResult
+    return hashData
   }
 
   override suspend fun updateSyncedInheritanceMaterialHash(

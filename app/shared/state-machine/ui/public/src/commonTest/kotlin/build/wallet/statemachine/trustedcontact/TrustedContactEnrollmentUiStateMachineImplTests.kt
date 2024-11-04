@@ -16,6 +16,7 @@ import build.wallet.relationships.*
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
@@ -25,7 +26,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 
 class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
 
@@ -76,9 +77,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("Some Name", 0..0)
+      awaitScreenWithBody<EnteringProtectedCustomerNameBodyModel> {
+        onValueChange("Some Name")
       }
       awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
         clickPrimaryButton()

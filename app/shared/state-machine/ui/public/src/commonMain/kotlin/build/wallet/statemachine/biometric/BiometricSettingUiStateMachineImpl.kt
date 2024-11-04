@@ -19,7 +19,10 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.form.*
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.ui.model.SheetClosingClick
@@ -76,8 +79,8 @@ class BiometricSettingUiStateMachineImpl(
     var sheetModel: SheetModel? by remember { mutableStateOf(null) }
     val biometricTitle = biometricTextProvider.getSettingsTitleText()
     return when (uiState) {
-      is State.EnablingBiometricSetting -> biometricSettingScreen(
-        props = props,
+      is State.EnablingBiometricSetting -> BiometricSettingsScreenBodyModel(
+        onBack = props.onBack,
         isEnabled = isEnabled,
         biometricSettingTitleText = biometricTitle,
         biometricSettingSecondaryText = biometricTextProvider.getSettingsSecondaryText(),
@@ -134,13 +137,12 @@ class BiometricSettingUiStateMachineImpl(
               }
               .onFailure { error ->
                 sheetModel = when (error) {
-                  is BiometricError.BiometricsLocked -> errorSheetModel(
+                  is BiometricError.BiometricsLocked -> ErrorSheetBodyModel(
                     headline = "Unable to enable biometrics",
                     subline = "Your biometrics are locked. Please unlock your device and try again.",
-                    onCancel = { sheetModel = null },
                     onBack = { sheetModel = null }
-                  )
-                  is BiometricError.NoBiometricEnrolled -> notEnrolledErrorSheetModel(
+                  ).asSheetModalScreen(onClosed = { sheetModel = null })
+                  is BiometricError.NoBiometricEnrolled -> NotEnrolledErrorSheetBodyModel(
                     headline = "No Biometric is enrolled",
                     subline = "Please visit system settings to enable biometrics.",
                     onCancel = { sheetModel = null },
@@ -149,19 +151,21 @@ class BiometricSettingUiStateMachineImpl(
                       sheetModel = null
                       settingsLauncher.launchSecuritySettings()
                     }
+                  ).asSheetModalScreen(
+                    onClosed = {
+                      sheetModel = null
+                    }
                   )
-                  is BiometricError.NoHardware -> errorSheetModel(
+                  is BiometricError.NoHardware -> ErrorSheetBodyModel(
                     headline = "No Biometric hardware found",
                     subline = "Please verify your phone has biometric hardware.",
-                    onCancel = { sheetModel = null },
                     onBack = { sheetModel = null }
-                  )
-                  else -> errorSheetModel(
+                  ).asSheetModalScreen(onClosed = { sheetModel = null })
+                  else -> ErrorSheetBodyModel(
                     headline = "Unable to enable biometrics.",
                     subline = "Please try again later.",
-                    onCancel = { sheetModel = null },
                     onBack = { sheetModel = null }
-                  )
+                  ).asSheetModalScreen(onClosed = { sheetModel = null })
                 }
               }
           } else {
@@ -180,8 +184,9 @@ class BiometricSettingUiStateMachineImpl(
               }
             )
           }
-        },
-        sheetModel = sheetModel
+        }
+      ).asRootScreen(
+        bottomSheetModel = sheetModel
       )
 
       is State.Verifying -> nfcSessionUIStateMachine.model(
@@ -209,24 +214,21 @@ class BiometricSettingUiStateMachineImpl(
                   .onFailure { error ->
                     uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
                     sheetModel = when (error) {
-                      is BiometricError.AuthenticationFailed -> errorSheetModel(
+                      is BiometricError.AuthenticationFailed -> ErrorSheetBodyModel(
                         headline = "Unable to verify",
                         subline = "We were unable to verify your biometric authentication. Please try again.",
-                        onCancel = { sheetModel = null },
                         onBack = { sheetModel = null }
-                      )
-                      is BiometricError.BiometricsLocked -> errorSheetModel(
+                      ).asSheetModalScreen(onClosed = { sheetModel = null })
+                      is BiometricError.BiometricsLocked -> ErrorSheetBodyModel(
                         headline = "Unable to verify",
                         subline = "We were unable to due to your biometrics being locked. Please try again later.",
-                        onCancel = { sheetModel = null },
                         onBack = { sheetModel = null }
-                      )
-                      else -> errorSheetModel(
+                      ).asSheetModalScreen(onClosed = { sheetModel = null })
+                      else -> ErrorSheetBodyModel(
                         headline = "Unable to enable biometrics.",
                         subline = "Please try again later.",
-                        onCancel = { sheetModel = null },
                         onBack = { sheetModel = null }
-                      )
+                      ).asSheetModalScreen(onClosed = { sheetModel = null })
                     }
                   }
               } else {
@@ -236,12 +238,11 @@ class BiometricSettingUiStateMachineImpl(
             } else {
               // we were unable to verify the signature from the hardware so we show an error
               uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
-              sheetModel = errorSheetModel(
+              sheetModel = ErrorSheetBodyModel(
                 headline = "Unable to verify your Bitkey device",
                 subline = "Verify you are using the hardware for this wallet and it is unlocked.",
-                onCancel = { sheetModel = null },
                 onBack = { sheetModel = null }
-              )
+              ).asSheetModalScreen(onClosed = { sheetModel = null })
             }
           },
           onCancel = { uiState = State.EnablingBiometricSetting() },
@@ -255,38 +256,16 @@ class BiometricSettingUiStateMachineImpl(
   }
 }
 
-private fun biometricSettingScreen(
-  props: BiometricSettingUiProps,
-  biometricSettingTitleText: String,
-  biometricSettingSecondaryText: String,
-  coachmark: CoachmarkModel?,
-  isEnabled: Boolean,
-  onEnableCheckedChange: (Boolean) -> Unit,
-  sheetModel: SheetModel?,
-): ScreenModel {
-  return ScreenModel(
-    body = BiometricSettingsScreenBodyModel(
-      props = props,
-      biometricSettingTitleText = biometricSettingTitleText,
-      biometricSettingSecondaryText = biometricSettingSecondaryText,
-      coachmark = coachmark,
-      isEnabled = isEnabled,
-      onEnableCheckedChange = onEnableCheckedChange
-    ),
-    bottomSheetModel = sheetModel
-  )
-}
-
-private class BiometricSettingsScreenBodyModel(
-  props: BiometricSettingUiProps,
-  biometricSettingTitleText: String,
-  biometricSettingSecondaryText: String,
-  coachmark: CoachmarkModel?,
-  isEnabled: Boolean,
-  onEnableCheckedChange: (Boolean) -> Unit,
+internal data class BiometricSettingsScreenBodyModel(
+  override val onBack: () -> Unit,
+  val biometricSettingTitleText: String,
+  val biometricSettingSecondaryText: String,
+  val coachmark: CoachmarkModel?,
+  val isEnabled: Boolean,
+  val onEnableCheckedChange: (Boolean) -> Unit,
 ) : FormBodyModel(
     toolbar = ToolbarModel(
-      leadingAccessory = BackAccessory(props.onBack)
+      leadingAccessory = BackAccessory(onBack)
     ),
     header = FormHeaderModel(
       headline = "App Security",
@@ -313,7 +292,7 @@ private class BiometricSettingsScreenBodyModel(
       )
     ),
     primaryButton = null,
-    onBack = props.onBack,
+    onBack = onBack,
     id = SettingsEventTrackerScreenId.SETTING_BIOMETRICS
   )
 
@@ -336,7 +315,7 @@ private fun nfcPromptSheetModel(
   )
 }
 
-private data class NfcPromptSheetBodyModel(
+internal data class NfcPromptSheetBodyModel(
   val biometricActionText: String,
   val onScanBitkeyDevice: () -> Unit,
   val onCancel: () -> Unit,
@@ -366,26 +345,10 @@ private data class NfcPromptSheetBodyModel(
     id = null
   )
 
-private fun errorSheetModel(
-  headline: String,
-  subline: String,
-  onCancel: () -> Unit,
-  onBack: () -> Unit,
-): SheetModel {
-  return SheetModel(
-    onClosed = onCancel,
-    body = ErrorSheetBodyModel(
-      headline = headline,
-      subline = subline,
-      onBack = onBack
-    )
-  )
-}
-
-private class ErrorSheetBodyModel(
-  headline: String,
-  subline: String,
-  onBack: () -> Unit,
+internal data class ErrorSheetBodyModel(
+  val headline: String,
+  val subline: String,
+  override val onBack: () -> Unit,
 ) : FormBodyModel(
     toolbar = null,
     header = FormHeaderModel(
@@ -402,26 +365,7 @@ private class ErrorSheetBodyModel(
     id = null
   )
 
-private fun notEnrolledErrorSheetModel(
-  headline: String,
-  subline: String,
-  onCancel: () -> Unit,
-  onBack: () -> Unit,
-  onGoToSettings: () -> Unit,
-): SheetModel {
-  return SheetModel(
-    onClosed = onCancel,
-    body = NotEnrolledErrorSheetBodyModel(
-      headline = headline,
-      subline = subline,
-      onCancel = onCancel,
-      onBack = onBack,
-      onGoToSettings = onGoToSettings
-    )
-  )
-}
-
-private data class NotEnrolledErrorSheetBodyModel(
+internal data class NotEnrolledErrorSheetBodyModel(
   val headline: String,
   val subline: String,
   val onCancel: () -> Unit,

@@ -131,6 +131,7 @@ void wallet_remove_files(void) {
   fs_remove(WALLET_INACTIVE_CONFIG_KEY_PATH);
   fs_remove(WALLET_INACTIVE_SPEND_KEY_PATH);
   fs_remove(BTC_NETWORK_PATH);
+  fs_remove(DERIVED_KEY_CACHE_PATH);
   seed_remove_files();
 }
 

@@ -60,7 +60,7 @@ class TreasuryWallet(
 
     if (waitForConfirmation) {
       // (Regtest only) Advance the blockchain
-      blockchainControl.mineBlocks(1)
+      blockchainControl.mineBlock(txid = fundingResult.tx.id)
       println("Successfully broadcast funding transaction, waiting for tx to appear in mempool")
     } else {
       println("Successfully broadcast funding transaction, not waiting for confirmation")

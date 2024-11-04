@@ -14,12 +14,11 @@ fun ExceedsMaxUtxoCountBodyModel(
   toolbar = ToolbarModel(
     leadingAccessory = BackAccessory(onBack)
   ),
-  title = "You have more than $maxUtxoCount UTXOs.",
-  subline = "You can only consolidate a maximum of $maxUtxoCount UTXOs" +
-    " at one time. To consolidate all of your UTXOs you’ll have to do multiple consolidations." +
-    " Continue to complete the first and you can return to do the rest.",
+  title = "Multiple consolidations required",
+  subline = "Due to NFC constraints, the maximum number of UTXOs that can be consolidated in a single transaction is $maxUtxoCount.\n\n" +
+    "To consolidate all of your UTXOs, repeat this process as many times as necessary.",
   primaryButton = ButtonDataModel(
-    text = "Continue",
+    text = "Got it",
     onClick = onContinue
   ),
   onBack = onBack,

@@ -2,7 +2,6 @@ package build.wallet.statemachine.account.create.full
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.DELETING_FULL_ACCOUNT
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.FAILURE_DELETING_FULL_ACCOUNT
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING
 import build.wallet.auth.OnboardingFullAccountDeleterMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
@@ -17,7 +16,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData.OverwriteFullAccountCloudBackupData
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
@@ -57,8 +55,8 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
   test("cancel") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickSecondaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onCancel()
       }
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
@@ -71,21 +69,21 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
   test("cancel - pop on back") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickSecondaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onCancel()
       }
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         onBack()
       }
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING)
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel>()
     }
   }
 
   test("cancel - delete account error - retry") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       onboardingFullAccountDeleter.returnError = Error("foo")
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickSecondaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onCancel()
       }
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
@@ -102,8 +100,8 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   test("cancel - delete account error - back") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       onboardingFullAccountDeleter.returnError = Error("foo")
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickSecondaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onCancel()
       }
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
@@ -113,14 +111,14 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
       }
       onboardingFullAccountDeleter.deleteAccountCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING)
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel>()
     }
   }
 
   test("overwrite") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickPrimaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onOverwriteExistingBackup()
       }
       awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
       onOverwriteCalls.awaitItem()
@@ -129,8 +127,8 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
 
   test("overwrite - cancel dialog") {
     overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
-        clickPrimaryButton()
+      awaitScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+        onOverwriteExistingBackup()
       }
       awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onSecondaryButtonClick?.invoke()
       awaitItem().alertModel.shouldBeNull()

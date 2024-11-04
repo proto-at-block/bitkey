@@ -10,12 +10,15 @@ import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.money.formatter.amountDisplayText
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Loading
-import build.wallet.statemachine.data.money.convertedOrZero
+import build.wallet.statemachine.data.money.convertedOrNull
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachineImpl.State.*
@@ -90,31 +93,37 @@ class UtxoConsolidationUiStateMachineImpl(
       }
 
       is ViewingConfirmation -> {
-        val balanceBitcoinString =
-          moneyDisplayFormatter.format(currentState.consolidationParams.balance)
-        val balanceFiat = convertedOrZero(
-          converter = currencyConverter,
-          fromAmount = currentState.consolidationParams.balance,
-          toCurrency = fiatCurrency
-        )
-        val balanceFiatString = moneyDisplayFormatter.format(balanceFiat)
+        val balanceTitle = if (currentState.consolidationParams.walletExceedsMaxUtxoCount) {
+          // If we're only consolidating a portion of the user's UTXOs, change the data row to reflect that.
+          "Value of UTXOs"
+        } else {
+          "Wallet balance"
+        }
 
-        val consolidationCostBitcoinString =
-          moneyDisplayFormatter.format(currentState.consolidationParams.consolidationCost)
-        val consolidationCostFiat = convertedOrZero(
-          converter = currencyConverter,
-          fromAmount = currentState.consolidationParams.consolidationCost,
-          toCurrency = fiatCurrency
+        val balanceAmountDisplayText = moneyDisplayFormatter.amountDisplayText(
+          bitcoinAmount = currentState.consolidationParams.balance,
+          fiatAmount = convertedOrNull(
+            converter = currencyConverter,
+            fromAmount = currentState.consolidationParams.balance,
+            toCurrency = fiatCurrency
+          ) as FiatMoney?
         )
-        val consolidationCostFiatString = moneyDisplayFormatter.format(consolidationCostFiat)
+
+        val consolidationCostDisplayText = moneyDisplayFormatter.amountDisplayText(
+          bitcoinAmount = currentState.consolidationParams.consolidationCost,
+          fiatAmount = convertedOrNull(
+            converter = currencyConverter,
+            fromAmount = currentState.consolidationParams.consolidationCost,
+            toCurrency = fiatCurrency
+          ) as FiatMoney?
+        )
 
         ScreenModel(
           body = UtxoConsolidationConfirmationModel(
-            balanceFiat = balanceFiatString,
-            balanceBitcoin = balanceBitcoinString,
+            balanceTitle = balanceTitle,
+            balanceAmountDisplayText = balanceAmountDisplayText,
             utxoCount = currentState.consolidationParams.eligibleUtxoCount.toString(),
-            consolidationCostFiat = consolidationCostFiatString,
-            consolidationCostBitcoin = consolidationCostBitcoinString,
+            consolidationCostDisplayText = consolidationCostDisplayText,
             estimatedConsolidationTime = currentState.consolidationParams.transactionPriority.toFormattedString(),
             showUnconfirmedTransactionsCallout = currentState.consolidationParams.walletHasUnconfirmedUtxos,
             onBack = props.onBack,
@@ -136,7 +145,8 @@ class UtxoConsolidationUiStateMachineImpl(
             onConsolidate = {
               state = SigningConsolidationWithHardware(
                 account = currentState.account,
-                consolidationParams = currentState.consolidationParams
+                consolidationParams = currentState.consolidationParams,
+                consolidationCostDisplayText = consolidationCostDisplayText
               )
             }
           )
@@ -156,7 +166,8 @@ class UtxoConsolidationUiStateMachineImpl(
               state = BroadcastingConsolidationTransaction(
                 account = currentState.account,
                 consolidationParams = currentState.consolidationParams,
-                appAndHardwareSignedPsbt = appAndHardwareSignedPsbt
+                appAndHardwareSignedPsbt = appAndHardwareSignedPsbt,
+                consolidationCostDisplayText = currentState.consolidationCostDisplayText
               )
             },
             onCancel = {
@@ -176,7 +187,8 @@ class UtxoConsolidationUiStateMachineImpl(
             .onSuccess { broadcastDetail ->
               state = ShowingSuccessScreen(
                 consolidationParams = currentState.consolidationParams,
-                arrivalTime = broadcastDetail.estimatedConfirmationTime
+                arrivalTime = broadcastDetail.estimatedConfirmationTime,
+                consolidationCostDisplayText = currentState.consolidationCostDisplayText
               )
             }
             .onFailure {
@@ -194,23 +206,13 @@ class UtxoConsolidationUiStateMachineImpl(
         ).asRootScreen()
       }
       is ShowingSuccessScreen -> {
-        val consolidationCostBitcoinString =
-          moneyDisplayFormatter.format(currentState.consolidationParams.consolidationCost)
-        val consolidationCostFiat = convertedOrZero(
-          converter = currencyConverter,
-          fromAmount = currentState.consolidationParams.consolidationCost,
-          toCurrency = fiatCurrency
-        )
-        val consolidationCostFiatString = moneyDisplayFormatter.format(consolidationCostFiat)
-
         UtxoConsolidationTransactionSentModel(
           targetAddress = currentState.consolidationParams.targetAddress.chunkedAddress(),
           arrivalTime = dateTimeFormatter.shortDateWithTime(
             localDateTime = currentState.arrivalTime.toLocalDateTime(timeZoneProvider.current())
           ),
           utxosCountConsolidated = "${currentState.consolidationParams.eligibleUtxoCount} → 1",
-          consolidationCostBitcoin = consolidationCostBitcoinString,
-          consolidationCostFiat = consolidationCostFiatString,
+          consolidationCostDisplayText = currentState.consolidationCostDisplayText,
           onBack = props.onConsolidationSuccess,
           onDone = props.onConsolidationSuccess
         ).asRootScreen()
@@ -311,17 +313,20 @@ class UtxoConsolidationUiStateMachineImpl(
     data class SigningConsolidationWithHardware(
       val account: FullAccount,
       val consolidationParams: UtxoConsolidationParams,
+      val consolidationCostDisplayText: AmountDisplayText,
     ) : State
 
     data class BroadcastingConsolidationTransaction(
       val account: FullAccount,
       val consolidationParams: UtxoConsolidationParams,
       val appAndHardwareSignedPsbt: Psbt,
+      val consolidationCostDisplayText: AmountDisplayText,
     ) : State
 
     data class ShowingSuccessScreen(
       val consolidationParams: UtxoConsolidationParams,
       val arrivalTime: Instant,
+      val consolidationCostDisplayText: AmountDisplayText,
     ) : State
 
     data class ShowingErrorBroadcastingConsolidation(

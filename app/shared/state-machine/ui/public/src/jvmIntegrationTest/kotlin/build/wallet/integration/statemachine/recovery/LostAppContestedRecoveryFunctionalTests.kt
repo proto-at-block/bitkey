@@ -9,6 +9,7 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -20,11 +21,11 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.testIn
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
-import build.wallet.statemachine.ui.clickTrailingAccessoryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
@@ -34,6 +35,7 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Duration.Companion.seconds
@@ -119,9 +121,9 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         lostAppAppTester.initiateLostAppRecovery(
           isContested = isContested,
           cancelOtherRecovery = false
-        )
-          .clickTrailingAccessoryButton()
-        lostAppAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
+        ).onStopRecovery()
+        lostAppAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
+          .onPrimaryButtonClick()
         lostAppAppTester.awaitUntilScreenWithBody<ChooseAccountAccessModel>()
       }
     }
@@ -131,8 +133,9 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         resetLostHwAppHardware()
         lostHwAppTester.initiateLostHardwareRecovery(
           isContested = isContested
-        ).clickTrailingAccessoryButton()
-        lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
+        ).onStopRecovery()
+        lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
+          .onPrimaryButtonClick()
         lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>(SETTINGS_DEVICE_INFO)
       }
     }
@@ -142,7 +145,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
 private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRecovery(
   cancelOtherRecovery: Boolean = false,
   isContested: Boolean,
-): FormBodyModel {
+): DelayAndNotifyNewKeyReady {
   awaitUntilScreenWithBody<MoneyHomeBodyModel>()
     .trailingToolbarAccessoryModel
     .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
@@ -190,7 +193,9 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
   if (isContested) {
     verifyCommsForLostHardware()
   }
-  return awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
+  return awaitUntilScreenWithBody<DelayAndNotifyNewKeyReady>().also {
+    it.factorToRecover.shouldBe(PhysicalFactor.Hardware)
+  }
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.initiateAndCompleteLostHardwareRecovery(
@@ -268,7 +273,7 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.cancelThroughLostAppRe
 private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostAppRecovery(
   cancelOtherRecovery: Boolean = false,
   isContested: Boolean = false,
-): FormBodyModel {
+): DelayAndNotifyNewKeyReady {
   navigateToLostAppRecovery()
   if (cancelOtherRecovery) {
     awaitUntilScreenWithBody<FormBodyModel>(
@@ -282,16 +287,16 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostAppRecover
   if (isContested) {
     verifyCommsForLostApp()
   }
-  return awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
+  return awaitUntilScreenWithBody<DelayAndNotifyNewKeyReady>().also {
+    it.factorToRecover.shouldBe(PhysicalFactor.App)
+  }
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.initiateAndCompleteLostAppRecovery(
   isConflicted: Boolean,
 ) {
   initiateLostAppRecovery(isContested = isConflicted)
-    .primaryButton
-    .shouldNotBeNull()
-    .onClick()
+    .onCompleteRecovery()
 
   // Start onboarding.
   awaitUntilScreenWithBody<FormBodyModel>()

@@ -6,6 +6,7 @@ use std::{
 
 use bdk::{
     bitcoin::{
+        bip32::Fingerprint,
         psbt::PartiallySignedTransaction,
         secp256k1::{ecdsa::Signature, PublicKey},
     },
@@ -67,6 +68,7 @@ pub trait NFCTransactions {
     fn sign_transaction(
         &self,
         psbt: PartiallySignedTransaction,
+        fingerprint: Fingerprint,
     ) -> Result<PartiallySignedTransaction, TransactorError>;
     fn device_info(&self) -> Result<DeviceInfo, TransactorError>;
     fn metadata(&self) -> Result<FirmwareMetadata, TransactorError>;
@@ -113,8 +115,9 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
     fn sign_transaction(
         &self,
         psbt: PartiallySignedTransaction,
+        fingerprint: Fingerprint,
     ) -> Result<PartiallySignedTransaction, TransactorError> {
-        self.perform(SignTransaction::new(psbt, false))
+        self.perform(SignTransaction::new(psbt, fingerprint, false))
     }
 
     fn device_info(&self) -> Result<DeviceInfo, TransactorError> {

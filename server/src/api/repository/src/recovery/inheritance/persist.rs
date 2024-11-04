@@ -142,6 +142,10 @@ impl InheritanceRepository {
                     .build());
         }
 
+        if transact_items.is_empty() {
+            return Ok(vec![]);
+        }
+
         self.connection
             .client
             .transact_write_items()

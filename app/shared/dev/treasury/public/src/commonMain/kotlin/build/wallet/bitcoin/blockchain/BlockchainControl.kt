@@ -17,6 +17,14 @@ interface BlockchainControl {
     mineToAddress: BitcoinAddress = blackHoleAddress,
   )
 
+  /**
+   * Only mines a block **after** the transaction is observed in the mempool.
+   */
+  suspend fun mineBlock(
+    txid: String,
+    mineToAddress: BitcoinAddress = blackHoleAddress,
+  )
+
   companion object {
     val blackHoleAddress = BitcoinAddress("bcrt1qrt37mr0kf2th5dgsqq6k87tl8k220e7nj4ts5u")
   }

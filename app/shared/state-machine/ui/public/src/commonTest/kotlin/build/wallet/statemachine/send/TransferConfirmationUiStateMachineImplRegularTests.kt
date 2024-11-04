@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import app.cash.turbine.test
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
@@ -11,7 +12,6 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
@@ -83,8 +83,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     account = FullAccountMock,
     recipientAddress = someBitcoinAddress,
     sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
-    requiredSigner = SigningFactor.Hardware,
-    spendingLimit = null,
     fees = immutableMapOf(
       FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
       THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
@@ -103,6 +101,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   val transactionsService = TransactionsServiceFake()
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
+  val appFunctionalityService = AppFunctionalityServiceFake()
 
   // Initialize the TransferConfirmationUiStateMachineImpl with all dependencies
   val stateMachine = TransferConfirmationUiStateMachineImpl(
@@ -111,7 +110,8 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     transactionPriorityPreference = transactionPriorityPreference,
     feeOptionListUiStateMachine = feeOptionListUiStateMachine,
     transactionsService = transactionsService,
-    mobilePayService = mobilePayService
+    mobilePayService = mobilePayService,
+    appFunctionalityService = appFunctionalityService
   )
 
   // Reset mocks before each test
@@ -121,6 +121,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     transactionsService.reset()
     transactionsService.spendingWallet.value = spendingWallet
     mobilePayService.reset()
+    appFunctionalityService.reset()
   }
 
   // Invoke the shared test function, passing in all necessary parameters
@@ -145,7 +146,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
 
     stateMachine.test(
       props.copy(
-        requiredSigner = SigningFactor.Hardware,
         selectedPriority = transactionPriority
       )
     ) {
@@ -153,6 +153,8 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
@@ -207,6 +209,8 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {

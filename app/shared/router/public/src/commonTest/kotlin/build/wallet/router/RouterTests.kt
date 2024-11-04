@@ -1,5 +1,6 @@
 package build.wallet.router
 
+import build.wallet.navigation.v1.NavigationScreenId
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -8,19 +9,24 @@ import io.kotest.matchers.shouldBe
 
 class RouterTests : DescribeSpec({
 
-  describe("Route.fromUrl") {
+  describe("Route.from") {
     it(" fails for http routes") {
-      Route.fromUrl(
+      Route.from(
         "http://web-site.bitkeystaging.com/links/downloads/trusted-contact#1234"
       ).shouldBeNull()
     }
 
     it("fails for incorrect host") {
-      Route.fromUrl("http://google.com/links/downloads/trusted-contact#1234").shouldBeNull()
+      Route.from("http://google.com/links/downloads/trusted-contact#1234").shouldBeNull()
     }
 
     it("fails for incorrect path") {
-      Route.fromUrl("http://google.com/links/dowoads/trusted-contact#1234").shouldBeNull()
+      Route.from("http://google.com/links/dowoads/trusted-contact#1234").shouldBeNull()
+    }
+
+    it("deeplink") {
+      Route.from(1)
+        .shouldBe(Route.NavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_MONEY_HOME))
     }
 
     describe("trusted contact routing") {
@@ -28,15 +34,15 @@ class RouterTests : DescribeSpec({
       val prodRoute = "https://bitkey.world/links/downloads/trusted-contact#1234"
 
       it("works for invite trusted contact route") {
-        Route.fromUrl(stagingRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
-        Route.fromUrl(prodRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
+        Route.from(stagingRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
+        Route.from(prodRoute).shouldNotBeNull().shouldBe(Route.TrustedContactInvite("1234"))
       }
     }
 
     describe("app deeplink routing") {
       it("matches APP_DEEPLINK path and has correct CONTEXT") {
-        val stagingRoute = Route.fromUrl("https://web-site.bitkeystaging.com/links/app?context=partner_transfer&source=test_partner&event=test_event&event_id=test_id")
-        val prodRoute = Route.fromUrl("https://bitkey.world/links/app?context=partner_transfer&source=test_partner&event=test_event&event_id=test_id")
+        val stagingRoute = Route.from("https://web-site.bitkeystaging.com/links/app?context=partner_transfer&source=test_partner&event=test_event&event_id=test_id")
+        val prodRoute = Route.from("https://bitkey.world/links/app?context=partner_transfer&source=test_partner&event=test_event&event_id=test_id")
         stagingRoute.shouldNotBeNull().shouldBe(
           Route.PartnerTransferDeeplink(
             partner = "test_partner",
@@ -54,13 +60,13 @@ class RouterTests : DescribeSpec({
       }
 
       it("matches APP_DEEPLINK path but has unknown CONTEXT") {
-        val route = Route.fromUrl("https://bitkey.world/links/app?context=other_context")
+        val route = Route.from("https://bitkey.world/links/app?context=other_context")
         route.shouldBe(null)
       }
 
       it("parses Sale link") {
-        val stagingRoute = Route.fromUrl("https://web-site.bitkeystaging.com/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
-        val prodRoute = Route.fromUrl("https://bitkey.world/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
+        val stagingRoute = Route.from("https://web-site.bitkeystaging.com/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
+        val prodRoute = Route.from("https://bitkey.world/links/app?context=partner_sale&source=test_partner&event=test_event&event_id=test_id")
         stagingRoute.shouldNotBeNull().shouldBe(
           Route.PartnerSaleDeeplink(
             partner = "test_partner",
@@ -86,7 +92,7 @@ class RouterTests : DescribeSpec({
         it.shouldBeEqual(Route.TrustedContactInvite("1234"))
         return@onRouteChange true
       }
-      Router.route = Route.fromUrl(route)
+      Router.route = Route.from(route)
       Router.route.shouldBeNull()
     }
 
@@ -95,7 +101,7 @@ class RouterTests : DescribeSpec({
         it.shouldBeEqual(Route.TrustedContactInvite("1234"))
         return@onRouteChange false
       }
-      Router.route = Route.fromUrl(route)
+      Router.route = Route.from(route)
       Router.route.shouldNotBeNull()
     }
   }

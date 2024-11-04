@@ -13,6 +13,9 @@
 
 #define SE_SECURE_BOOT_PUBKEY_SLOT (0xFC)
 
+#define SECP256K1_DOMAIN_SIZE            (32)
+#define SECP256K1_CUSTOM_DOMAIN_OVERHEAD (6 * SECP256K1_DOMAIN_SIZE)
+
 typedef enum {
   ALG_AES_128 = 0,
   ALG_AES_256 = 1,
@@ -54,3 +57,9 @@ bool import_key(key_handle_t* key_in, key_handle_t* key_out);
 bool export_key(key_handle_t* key_in, key_handle_t* key_out);
 bool export_pubkey(key_handle_t* key_in, key_handle_t* key_out);
 void zeroize_key(key_handle_t* const key);
+
+// Place domain parameters in buffer, and return the size of them.
+//
+// For the EFR32, the domain parameters must be placed at the start of a buffer, followed
+// immediately by the private key.
+uint32_t key_management_custom_domain_prepare(key_algorithm_t alg, uint8_t* buffer, uint32_t size);

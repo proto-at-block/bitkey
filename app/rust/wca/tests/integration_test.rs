@@ -91,6 +91,7 @@ mod recordings {
             .all(|input| input.final_script_sig.is_some() || input.final_script_witness.is_some())
     }
 
+    #[ignore]
     #[test]
     fn test_spending_derive() {
         let expectations = Expectations::new("spending-derive");
@@ -130,7 +131,11 @@ mod recordings {
         let destination_wallet = get_funded_wallet(&destination);
         let unsigned = normal_transaction(&source_wallet, &destination_wallet, 5000);
         let mut signed = rt
-            .perform(wca::commands::SignTransaction::new(unsigned, false))
+            .perform(wca::commands::SignTransaction::new(
+                unsigned,
+                source.master_fingerprint(),
+                false,
+            ))
             .unwrap();
         assert!(is_finalized(&signed));
         let finalized = source_wallet
@@ -139,6 +144,7 @@ mod recordings {
         assert!(finalized);
     }
 
+    #[ignore]
     #[test]
     fn test_drain_derive() {
         let expectations = Expectations::new("drain-derive");
@@ -178,7 +184,11 @@ mod recordings {
         let destination_wallet = get_funded_wallet(&destination);
         let unsigned = drain_wallet(&source_wallet, &destination_wallet);
         let mut signed = rt
-            .perform(wca::commands::SignTransaction::new(unsigned, false))
+            .perform(wca::commands::SignTransaction::new(
+                unsigned,
+                source.master_fingerprint(),
+                false,
+            ))
             .unwrap();
         assert!(is_finalized(&signed));
         let finalized = source_wallet

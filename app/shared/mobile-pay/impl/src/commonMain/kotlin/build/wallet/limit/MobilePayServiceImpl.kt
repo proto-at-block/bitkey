@@ -8,7 +8,9 @@ import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
+import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
@@ -16,12 +18,15 @@ import build.wallet.ensure
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClient
+import build.wallet.limit.DailySpendingLimitStatus.MobilePayAvailable
+import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
 import build.wallet.limit.MobilePayData.MobilePayDisabledData
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
 import build.wallet.limit.MobilePayStatus.MobilePayEnabled
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -112,6 +117,41 @@ class MobilePayServiceImpl(
         psbt = psbt
       ).bind()
     }
+
+  override fun getDailySpendingLimitStatus(
+    transactionAmount: BitcoinMoney,
+  ): DailySpendingLimitStatus {
+    // If F8e did not return a current balance, we fall back to requiring hardware
+    return when (val data = mobilePayData.value) {
+      null -> RequiresHardware
+      else -> when (data) {
+        is MobilePayDisabledData -> RequiresHardware
+        is MobilePayEnabledData -> {
+          if (data.balance != null && transactionAmount <= data.balance!!.available) {
+            MobilePayAvailable
+          } else {
+            RequiresHardware
+          }
+        }
+      }
+    }
+  }
+
+  override fun getDailySpendingLimitStatus(
+    transactionAmount: BitcoinTransactionSendAmount,
+  ): DailySpendingLimitStatus {
+    val balance = when (val data = transactionsService.transactionsData().value) {
+      TransactionsData.LoadingTransactionsData -> return RequiresHardware
+      is TransactionsLoadedData -> data.balance
+    }
+
+    val amount = when (transactionAmount) {
+      is BitcoinTransactionSendAmount.ExactAmount -> transactionAmount.money
+      BitcoinTransactionSendAmount.SendAll -> balance.total
+    }
+
+    return getDailySpendingLimitStatus(amount)
+  }
 
   override suspend fun disable(account: FullAccount): Result<Unit, Error> =
     coroutineBinding {

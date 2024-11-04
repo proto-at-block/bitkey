@@ -3,12 +3,7 @@ srcs = [
 ]
 
 includes = ['.', gecko_sdk_bootloader_includes]
-
-if embedded_build
-deps = [crypto_dep, secutils_bl_dep, log_dep]
-else
-deps = [crypto_dep]
-endif
+deps = [crypto_bl_dep, secutils_bl_dep, log_dep]
 
 bootloader_lib = library('bootloader',
   srcs,

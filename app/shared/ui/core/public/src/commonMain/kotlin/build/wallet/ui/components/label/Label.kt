@@ -63,6 +63,7 @@ fun Label(
   model: LabelModel,
   modifier: Modifier = Modifier,
   style: TextStyle,
+  onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
   Label(
     modifier = modifier,
@@ -76,7 +77,8 @@ fun Label(
         }
       }
     },
-    style = style
+    style = style,
+    onTextLayout = onTextLayout
   )
 }
 

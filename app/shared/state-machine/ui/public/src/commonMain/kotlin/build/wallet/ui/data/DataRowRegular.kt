@@ -4,14 +4,7 @@ package build.wallet.ui.data
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,12 +24,8 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.icon.IconSize.Small
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -70,20 +59,30 @@ internal fun DataRowRegular(
     showBottomDivider = model.showBottomDivider,
     leadingContent = {
       Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-          Modifier.thenIf(model.onTitle != null) {
-            Modifier.clickable {
-              model.onTitle?.invoke()
-            }
+        modifier = Modifier.thenIf(model.onTitle != null) {
+          Modifier.clickable {
+            model.onTitle?.invoke()
           }
+        },
+        verticalAlignment = Alignment.CenterVertically
       ) {
-        Label(
-          text = model.title,
-          type = LabelType.Body3Regular,
-          alignment = TextAlign.Start,
-          treatment = LabelTreatment.Secondary
-        )
+        Column {
+          Label(
+            text = model.title,
+            type = model.titleTextType.toLabelType(),
+            alignment = TextAlign.Start,
+            treatment = LabelTreatment.Secondary
+          )
+          model.secondaryTitle?.let { secondaryTitle ->
+            Label(
+              text = secondaryTitle,
+              type = LabelType.Body3Regular,
+              alignment = TextAlign.Start,
+              treatment = LabelTreatment.Secondary
+            )
+          }
+        }
+
         model.titleIcon?.let { titleIcon ->
           IconImage(
             modifier = Modifier.padding(start = 4.dp),
@@ -184,6 +183,13 @@ private fun SideTextTreatment.toLabelTreatment(): LabelTreatment {
     SideTextTreatment.SECONDARY -> LabelTreatment.Secondary
     SideTextTreatment.WARNING -> LabelTreatment.Warning
     SideTextTreatment.STRIKETHROUGH -> LabelTreatment.Strikethrough
+  }
+}
+
+private fun Data.TitleTextType.toLabelType(): LabelType {
+  return when (this) {
+    Data.TitleTextType.REGULAR -> LabelType.Body3Regular
+    Data.TitleTextType.BOLD -> LabelType.Body3Bold
   }
 }
 

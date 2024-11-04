@@ -223,12 +223,13 @@ public final class NfcCommandsImpl: NfcCommands {
     public func signTransaction(
         session: NfcSession,
         psbt: Psbt,
-        spendingKeyset _: SpendingKeyset
+        spendingKeyset: SpendingKeyset
     ) async throws -> Psbt {
         return try await .init(
             id: psbt.id,
             base64: SignTransaction(
                 serializedPsbt: psbt.base64,
+                originFingerprint: spendingKeyset.hardwareKey.key.origin.fingerprint,
                 asyncSign: session.parameters.asyncNfcSigning
             ).transceive(session: session),
             fee: psbt.fee,
@@ -349,6 +350,10 @@ private extension firmware.FirmwareFeatureFlagCfg {
             )
         case .asyncSigning: return Shared.FirmwareFeatureFlagCfg(
                 flag: Shared.FirmwareFeatureFlag.asyncSigning,
+                enabled: self.enabled
+            )
+        case .signingOptimizations: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.signingOptimizations,
                 enabled: self.enabled
             )
         }

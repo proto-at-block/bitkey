@@ -1,0 +1,19 @@
+---
+includes: [../../proto]
+files: [../../proto/build/wallet/navigation/v1/navigation.proto]
+output: src/definitions
+messages:
+  - paths: [DeepLinkNotification]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+enums:
+  - paths: [NavigationScreenId]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+fields:
+btree_map: [.]
+bytes: [.]

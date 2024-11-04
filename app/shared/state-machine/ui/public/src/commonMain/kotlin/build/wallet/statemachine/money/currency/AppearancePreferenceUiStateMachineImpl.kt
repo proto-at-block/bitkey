@@ -6,8 +6,6 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.feature.flags.BitcoinPriceChartFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -36,7 +34,6 @@ class AppearancePreferenceUiStateMachineImpl(
   private val fiatCurrenciesService: FiatCurrenciesService,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val hideBalancePreference: HideBalancePreference,
-  private val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
   private val transactionsService: TransactionsService,
 ) : AppearancePreferenceUiStateMachine {
@@ -71,20 +68,22 @@ class AppearancePreferenceUiStateMachineImpl(
 
       is ShowingCurrencyFiatSelectionUiState -> {
         val scope = rememberStableCoroutineScope()
-        FiatCurrencyListFormModel(
-          onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
-          selectedCurrency = selectedFiatCurrency,
-          currencyList = fiatCurrenciesService.allFiatCurrencies.value,
-          onCurrencySelection = { selectedCurrency ->
+        val onCurrencySelection: (FiatCurrency) -> Unit = remember(scope, isHideBalanceEnabled) {
+          { selectedCurrency ->
             scope.launch {
               fiatCurrencyPreferenceRepository.setFiatCurrencyPreference(selectedCurrency)
                 .onSuccess {
                   eventTracker.track(Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
                 }
-              // Once a selection is made, we auto-close the list screen.
               state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
             }
           }
+        }
+        FiatCurrencyListFormModel(
+          onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
+          selectedCurrency = selectedFiatCurrency,
+          currencyList = fiatCurrenciesService.allFiatCurrencies.value,
+          onCurrencySelection = onCurrencySelection
         ).asModalScreen()
       }
     }
@@ -156,6 +155,18 @@ class AppearancePreferenceUiStateMachineImpl(
         )
       }
 
+    val onEnableHideBalanceChanged: (Boolean) -> Unit = remember(scope) {
+      { isEnabled ->
+        scope.launch { hideBalancePreference.set(isEnabled) }
+      }
+    }
+
+    val onBitcoinPriceCardPreferenceClick: (Boolean) -> Unit = remember(scope) {
+      { isEnabled ->
+        scope.launch { bitcoinPriceCardPreference.set(isEnabled) }
+      }
+    }
+
     return AppearancePreferenceFormModel(
       onBack = props.onBack,
       moneyHomeHero =
@@ -168,22 +179,13 @@ class AppearancePreferenceUiStateMachineImpl(
       onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
       bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
       bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
-      shouldShowBitcoinPriceCardToggle = bitcoinPriceChartFeatureFlag.isEnabled(),
       isHideBalanceEnabled = isHideBalanceEnabled,
       isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
-      onEnableHideBalanceChanged = { isEnabled ->
-        scope.launch {
-          hideBalancePreference.set(isEnabled)
-        }
-      },
+      onEnableHideBalanceChanged = onEnableHideBalanceChanged,
       onBitcoinDisplayPreferenceClick = {
         isShowingBitcoinUnitPicker = true
       },
-      onBitcoinPriceCardPreferenceClick = { isEnabled ->
-        scope.launch {
-          bitcoinPriceCardPreference.set(isEnabled)
-        }
-      }
+      onBitcoinPriceCardPreferenceClick = onBitcoinPriceCardPreferenceClick
     ).asRootScreen()
   }
 }

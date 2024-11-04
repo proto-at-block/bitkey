@@ -1,0 +1,20 @@
+syntax = "proto3";
+package build.wallet.navigation.v1;
+
+message DeepLinkNotification {
+    NavigationScreenId id = 1;
+}
+
+/** Screen Ids used to navigate to a specific screen in the app via server-sent push notifications. **/
+enum NavigationScreenId {
+    /** Default value **/
+    NAVIGATION_SCREEN_ID_UNSPECIFIED = 0;
+
+    /** The root money home screen. **/
+    NAVIGATION_SCREEN_ID_MONEY_HOME = 1;
+
+    /** The root settings screen. **/
+    NAVIGATION_SCREEN_ID_SETTINGS = 2;
+
+    // Next tag is 3
+}

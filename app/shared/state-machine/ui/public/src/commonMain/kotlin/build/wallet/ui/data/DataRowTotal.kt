@@ -27,11 +27,21 @@ internal fun DataRowTotal(
   DataRowTotal(
     modifier = modifier,
     leadingContent = {
-      Label(
-        text = model.title,
-        type = LabelType.Body2Bold,
-        alignment = TextAlign.Start
-      )
+      Column {
+        Label(
+          text = model.title,
+          type = LabelType.Body2Bold,
+          alignment = TextAlign.Start
+        )
+        model.secondaryTitle?.let { secondaryTitle ->
+          Label(
+            text = secondaryTitle,
+            type = LabelType.Body3Regular,
+            alignment = TextAlign.Start,
+            treatment = Secondary
+          )
+        }
+      }
     },
     trailingContent = {
       Column(

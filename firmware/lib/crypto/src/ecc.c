@@ -156,10 +156,10 @@ out:
 }
 
 // TODO: Factor out common code with Schnorr / ECDSA.
-NO_OPTIMIZE bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* key, uint8_t* hash,
+NO_OPTIMIZE bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* privkey, uint8_t* hash,
                                                         uint8_t* signature,
                                                         uint32_t signature_size) {
-  ASSERT(key && hash && signature && (signature_size == ECC_SIG_SIZE));
+  ASSERT(privkey && hash && signature && (signature_size == ECC_SIG_SIZE));
   ENSURE_CTX();
 
   rtos_mutex_lock(&ctx_lock);
@@ -174,39 +174,15 @@ NO_OPTIMIZE bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* key, uint8
     goto out;
   }
 
-  secp256k1_keypair* keypair = (secp256k1_keypair*)key->key.bytes;
-  uint8_t seckey[SECP256K1_KEY_SIZE];
-  if (!secp256k1_keypair_sec(ctx, seckey, keypair)) {
-    goto out;
-  }
-
   secp256k1_ecdsa_signature sig;
-
   SECURE_DO_ONCE({
-    if (secp256k1_ecdsa_sign(ctx, &sig, hash, seckey, NULL, NULL)) {
+    if (secp256k1_ecdsa_sign(ctx, &sig, hash, privkey->key.bytes, NULL, NULL)) {
       sign_ok = SECURE_TRUE;
     }
   });
 
   // Warning: Compiler may optimize the redundancy away.
   SECURE_IF_FAILIN(sign_ok != SECURE_TRUE) { goto out; }
-
-  // Verify after signing to prevent using a corrupted signature, which can leak the private key.
-  // https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki#cite_note-14
-  secp256k1_pubkey pubkey;
-  if (!secp256k1_keypair_pub(ctx, &pubkey, keypair)) {
-    goto out;
-  }
-
-  volatile secure_bool_t verify_ok = SECURE_FALSE;
-  SECURE_DO_ONCE({
-    if (secp256k1_ecdsa_verify(ctx, &sig, hash, &pubkey)) {
-      verify_ok = SECURE_TRUE;
-    }
-  });
-
-  // Warning: Compiler may optimize the redundancy away.
-  SECURE_IF_FAILIN(verify_ok != SECURE_TRUE) { goto out; }
 
   secp256k1_ecdsa_signature_serialize_compact(ctx, signature, &sig);
 
@@ -217,15 +193,14 @@ out:
 
   if (!status) {
     memzero(signature, signature_size);
-    memzero(key->key.bytes, key->key.size);
+    memzero(privkey->key.bytes, privkey->key.size);
   }
 
-  SECURE_IF_FAILIN((sign_ok != SECURE_TRUE) || (verify_ok != SECURE_TRUE)) {
+  SECURE_IF_FAILIN((sign_ok != SECURE_TRUE)) {
     memzero(signature, signature_size);
-    memzero(key->key.bytes, key->key.size);
+    memzero(privkey->key.bytes, privkey->key.size);
   }
 
-  memzero(seckey, SECP256K1_KEY_SIZE);
   return status;
 }
 
@@ -344,12 +319,36 @@ out:
   return status;
 }
 
-static inline bool all_zeroes(uint8_t* buf, uint32_t size) {
-  for (size_t i = 0; i < size; i++) {
-    if (buf[i] != 0)
-      return false;
+bool crypto_ecc_secp256k1_normalize_signature(uint8_t signature[ECC_SIG_SIZE]) {
+  ASSERT(signature);
+  ENSURE_CTX();
+
+  secp256k1_ecdsa_signature sig;
+  if (!secp256k1_ecdsa_signature_parse_compact(ctx, &sig, signature)) {
+    return false;
   }
+
+  // Normalize the signature to have low s value
+  if (secp256k1_ecdsa_signature_normalize(ctx, &sig /* populate output */, &sig) == 1) {
+    // The signature was normalized (s value was high)
+    // Re-serialize the signature back to compact format
+    if (!secp256k1_ecdsa_signature_serialize_compact(ctx, signature, &sig)) {
+      return false;
+    }
+  } else {
+    // The signature was already normalized (s value was low)
+    // No need to re-serialize since signature remains the same
+  }
+
   return true;
+}
+
+static inline bool all_zeroes(uint8_t* buf, uint32_t size) {
+  volatile uint8_t v = 0;
+  for (size_t i = 0; i < size; i++) {
+    v |= buf[i];
+  }
+  return v == 0;
 }
 
 static void clamp_ed25519_private_key(uint8_t* privkey) {

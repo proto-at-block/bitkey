@@ -28,7 +28,6 @@ dependencies {
   implementation(libs.android.compose.ui.material3)
   implementation(libs.android.io.coil.compose)
   implementation(libs.android.io.coil.svg)
-  implementation(libs.android.lottie.compose)
   implementation(libs.jvm.zxing)
 
   testImplementation(projects.shared.bitkeyPrimitivesFake)

@@ -3,14 +3,21 @@ package build.wallet.statemachine.send
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.ensureNotNull
+import build.wallet.limit.DailySpendingLimitStatus
+import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
 import build.wallet.logging.LogLevel.Error
@@ -50,9 +57,12 @@ class TransferConfirmationUiStateMachineImpl(
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionsService: TransactionsService,
   private val mobilePayService: MobilePayService,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
+    val scope = rememberStableCoroutineScope()
+
     var uiState: TransferConfirmationUiState by remember {
       mutableStateOf(CreatingAppSignedPsbtUiState)
     }
@@ -65,12 +75,44 @@ class TransferConfirmationUiStateMachineImpl(
       mutableStateOf(persistentMapOf())
     }
 
+    val mobilePayAvailability by remember {
+      appFunctionalityService.status
+        .mapAsStateFlow(scope) { it.featureStates.mobilePay }
+    }.collectAsState()
+
+    val spendingLimit by remember {
+      mobilePayService.mobilePayData
+        .mapAsStateFlow(scope) {
+          when (it) {
+            is MobilePayData.MobilePayEnabledData -> it.activeSpendingLimit
+            else -> null
+          }
+        }
+    }.collectAsState()
+
+    val requiredSigner by remember(mobilePayAvailability) {
+      derivedStateOf {
+        val status = mobilePayService.getDailySpendingLimitStatus(
+          transactionAmount = props.sendAmount
+        )
+
+        when (mobilePayAvailability) {
+          FunctionalityFeatureStates.FeatureState.Available -> when (status) {
+            DailySpendingLimitStatus.RequiresHardware -> Hardware
+            DailySpendingLimitStatus.MobilePayAvailable -> F8e
+          }
+          else -> Hardware
+        }
+      }
+    }
+
     when (val state = uiState) {
       is BroadcastingTransactionUiState ->
         BroadcastingTransactionEffect(
           props = props,
           state = state,
           selectedPriority = selectedPriority,
+          requiredSigner = requiredSigner,
           onBdkError = {
             uiState = ReceivedBdkErrorUiState
           }
@@ -188,12 +230,13 @@ class TransferConfirmationUiStateMachineImpl(
           props = props,
           state = state,
           selectedPriority = selectedPriority,
+          requiredSigner = requiredSigner,
           onConfirm = {
             uiState =
-              if (props.requiredSigner == F8e && props.spendingLimit != null) {
+              if (requiredSigner == F8e && spendingLimit != null) {
                 SigningWithServerUiState(
                   appSignedPsbt = state.appSignedPsbt,
-                  spendingLimit = props.spendingLimit
+                  spendingLimit = spendingLimit!!
                 )
               } else {
                 SigningWithHardwareUiState(
@@ -268,6 +311,7 @@ class TransferConfirmationUiStateMachineImpl(
     props: TransferConfirmationUiProps,
     state: BroadcastingTransactionUiState,
     selectedPriority: EstimatedTransactionPriority,
+    requiredSigner: SigningFactor,
     onBdkError: () -> Unit,
   ) {
     LaunchedEffect("broadcasting-txn") {
@@ -282,7 +326,7 @@ class TransferConfirmationUiStateMachineImpl(
         }
         .logFailure { "Error broadcasting regular transaction." }
         .onFailure {
-          when (props.requiredSigner) {
+          when (requiredSigner) {
             Hardware -> onBdkError()
             F8e -> {
               // On failure, the Server already published the transaction, so no user error is
@@ -370,6 +414,7 @@ class TransferConfirmationUiStateMachineImpl(
     props: TransferConfirmationUiProps,
     state: ViewingTransferConfirmationUiState,
     selectedPriority: EstimatedTransactionPriority,
+    requiredSigner: SigningFactor,
     onConfirm: () -> Unit,
     onNetworkFees: () -> Unit,
     onArrivalTime: (() -> Unit)?,
@@ -410,7 +455,7 @@ class TransferConfirmationUiStateMachineImpl(
       variant = variant,
       recipientAddress = props.recipientAddress.chunkedAddress(),
       transactionDetails = transactionDetailsCard,
-      requiresHardware = props.requiredSigner == Hardware,
+      requiresHardware = requiredSigner == Hardware,
       confirmButtonEnabled = true,
       onConfirmClick = onConfirm,
       onNetworkFeesClick = onNetworkFees,
@@ -418,35 +463,30 @@ class TransferConfirmationUiStateMachineImpl(
         null
       } else {
         onArrivalTime
-      },
-      errorOverlayModel = when (state.sheetState) {
-        InfoSheet ->
-          SheetModel(
-            onClosed = onCloseSheet,
-            body =
-              NetworkFeesInfoSheetModel(
-                onBack = onCloseSheet
-              )
-          )
-        FeeSelectionSheet ->
-          SheetModel(
-            onClosed = onCloseSheet,
-            body = FeeSelectionSheetModel(
-              onBack = onCloseSheet,
-              feeOptionList = feeOptionListUiStateMachine.model(
-                props = FeeOptionListProps(
-                  transactionBaseAmount = BitcoinMoney.sats(
-                    state.appSignedPsbt.amountSats.toBigInteger()
-                  ),
-                  exchangeRates = props.exchangeRates,
-                  fees = props.fees,
-                  defaultPriority = selectedPriority,
-                  onOptionSelected = onFeeOptionSelected
-                )
+      }
+    ).asModalFullScreen(
+      bottomSheetModel = when (state.sheetState) {
+        InfoSheet -> SheetModel(
+          onClosed = onCloseSheet,
+          body = NetworkFeesInfoSheetModel(onBack = onCloseSheet)
+        )
+        FeeSelectionSheet -> SheetModel(
+          onClosed = onCloseSheet,
+          body = FeeSelectionSheetModel(
+            onBack = onCloseSheet,
+            feeOptionList = feeOptionListUiStateMachine.model(
+              props = FeeOptionListProps(
+                transactionBaseAmount = BitcoinMoney.sats(
+                  state.appSignedPsbt.amountSats.toBigInteger()
+                ),
+                exchangeRates = props.exchangeRates,
+                fees = props.fees,
+                defaultPriority = selectedPriority,
+                onOptionSelected = onFeeOptionSelected
               )
             )
           )
-
+        )
         Hidden -> null
       }
     )

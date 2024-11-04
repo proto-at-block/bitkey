@@ -20,7 +20,6 @@ final class AppearancePreferenceSnapshotTests: XCTestCase {
                 onFiatCurrencyPreferenceClick: {},
                 bitcoinDisplayPreferenceString: "Sats",
                 bitcoinDisplayPreferencePickerModel: .snapshot,
-                shouldShowBitcoinPriceCardToggle: false,
                 isBitcoinPriceCardEnabled: false,
                 isHideBalanceEnabled: false,
                 onEnableHideBalanceChanged: { _ in },

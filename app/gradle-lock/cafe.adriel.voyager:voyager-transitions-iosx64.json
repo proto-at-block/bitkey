@@ -1,0 +1,23 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-transitions-iosx64",
+    "components": [
+        {
+            "version": "1.1.0-alpha04",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-transitions-iosx64-1.1.0-alpha04-metadata.jar": "2ea2f7089371c7b31832112d065566999de5b44d307e590379bb28926ab3fbcc"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "voyager-transitions.klib": "3d37b23703e574c0344fcb7d353fe2ead6a7c1db016381a5e64aba02367df00c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

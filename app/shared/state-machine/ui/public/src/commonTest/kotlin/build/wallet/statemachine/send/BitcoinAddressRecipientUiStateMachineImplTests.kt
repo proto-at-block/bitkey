@@ -14,16 +14,8 @@ import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.keybox.wallet.KeysetWalletProviderMock
-import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
 import build.wallet.statemachine.core.awaitBody
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
-import build.wallet.statemachine.core.input.onValueChange
 import build.wallet.statemachine.core.test
-import build.wallet.ui.model.callout.CalloutModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -31,8 +23,6 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
-import io.kotest.matchers.types.shouldBeInstanceOf
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   val validAddress: BitcoinAddress = someBitcoinAddress
@@ -93,35 +83,26 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("initial state without default address") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBeEmpty()
-        }
-
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBeEmpty()
+        onContinueClick.shouldBeNull()
       }
     }
   }
 
   test("initial state with default address") {
     stateMachine.test(props.copy(address = validAddress)) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(validAddress.address)
-        }
-
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(validAddress.address)
+        onContinueClick.shouldNotBeNull()
       }
     }
   }
 
   test("click scan qr code") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(toolbar?.trailingAccessory.shouldNotBeNull()) {
-          shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
-          model.onClick.shouldNotBeNull().invoke()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onScanQrCodeClick()
       }
 
       onScanQrCodeClickCalls.awaitItem().shouldBe(Unit)
@@ -131,50 +112,38 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("enter valid address") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validAddress.address)
       }
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(validAddress.address)
-        }
-
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(validAddress.address)
+        onContinueClick.shouldNotBeNull()
       }
     }
   }
 
   test("enter valid invoice url") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validInvoiceUrl)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validInvoiceUrl)
       }
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(validInvoiceUrl)
-        }
-
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(validInvoiceUrl)
+        onContinueClick.shouldNotBeNull()
       }
     }
   }
 
   test("enter valid address and continue") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validAddress.address)
       }
 
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onContinueClick.shouldNotBeNull().invoke()
       }
 
       onRecipientEnteredCalls.awaitItem().shouldBe(validAddress)
@@ -183,14 +152,12 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("enter valid invoice and continue") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validInvoiceUrl)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validInvoice.address.address)
       }
 
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onContinueClick.shouldNotBeNull().invoke()
       }
 
       onRecipientEnteredCalls.awaitItem().shouldBe(validAddress)
@@ -199,75 +166,56 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("enter valid address and remove character to make entry invalid") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validInvoiceUrl)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validAddress.address)
       }
 
       val invalidAddress = validAddress.address.dropLast(1)
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(invalidAddress)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(invalidAddress)
       }
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(invalidAddress)
-        }
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(invalidAddress)
+        onContinueClick.shouldBeNull()
       }
     }
   }
 
   test("fix invalid address") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(invalidAddressText)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(invalidAddressText)
       }
 
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
-          fieldModel.onValueChange(validAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(invalidAddressText)
+        onEnteredTextChanged(validAddress.address)
       }
 
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(validAddress.address)
-        }
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(validAddress.address)
+        onContinueClick.shouldNotBeNull()
       }
     }
   }
 
   test("cannot continue when invalid address is entered") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(invalidAddressText)
       }
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(invalidAddressText)
-        }
-      }
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel>() // intermittent model
-
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(invalidAddressText)
+        onContinueClick.shouldBeNull()
       }
       onRecipientEnteredCalls.expectNoEvents()
     }
@@ -275,15 +223,13 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("cannot continue when address from a different bitcoin network is entered") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validSignetAddress)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validSignetAddress)
 
-        awaitBody<FormBodyModel>() // intermittent model
+        awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-        awaitBody<FormBodyModel> {
-          primaryButton.shouldNotBeNull().onClick()
+        awaitBody<BitcoinRecipientAddressScreenModel> {
+          onContinueClick.shouldBeNull()
         }
         onRecipientEnteredCalls.expectNoEvents()
       }
@@ -292,15 +238,13 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("cannot continue when bip21 uri from a different bitcoin network is entered") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(validSignetBIP21URI)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(validSignetBIP21URI)
 
-        awaitBody<FormBodyModel>() // intermittent model
+        awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-        awaitBody<FormBodyModel> {
-          primaryButton.shouldNotBeNull().onClick()
+        awaitBody<BitcoinRecipientAddressScreenModel> {
+          onContinueClick.shouldBeNull()
         }
         onRecipientEnteredCalls.expectNoEvents()
       }
@@ -309,20 +253,15 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("cannot continue when self address is entered") {
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(selfAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(selfAddress.address)
       }
 
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.Explainer>()) {
-          items.first().body.shouldBeInstanceOf<LabelModel.StringModel>()
-            .string.shouldBe("You can’t send to your own address")
-        }
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        warningText.shouldBe("You can’t send to your own address")
+        onContinueClick.shouldBeNull()
       }
     }
   }
@@ -331,61 +270,48 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     utxoConsolidationFeatureFlag.setFlagValue(true)
 
     stateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.onValueChange(selfAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onEnteredTextChanged(selfAddress.address)
       }
 
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        onContinueClick.shouldBeNull()
 
-        with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.Callout>()) {
-          item.title.shouldBe("This is your Bitkey wallet address")
-          item.treatment.shouldBe(CalloutModel.Treatment.Information)
-
-          // Click on the utxo consolidation sublink
-          item.subtitle.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
-          onGoToUtxoConsolidationCalls.awaitItem()
-        }
+        showSelfSendWarningWithRedirect.shouldBeTrue()
+        onGoToUtxoConsolidation()
+        onGoToUtxoConsolidationCalls.awaitItem()
       }
     }
   }
 
   test("paste button fills text field") {
     stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldNotBeNull().onClick()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeTrue()
+        onPasteButtonClick()
       }
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          fieldModel.value.shouldBe(someBitcoinAddress.address)
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(someBitcoinAddress.address)
+        showPasteButton.shouldBeFalse()
       }
     }
   }
 
   test("paste button does not show with contents in address field") {
     stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(validAddress))) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldNotBeNull()
-          // Now, user manually enters some text
-          fieldModel.onValueChange("t")
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeTrue()
+        // Now, user manually enters some text
+        onEnteredTextChanged("t")
       }
 
-      awaitBody<FormBodyModel>() // intermittent model
+      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldBeNull()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeFalse()
       }
     }
   }
@@ -398,20 +324,16 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
       )
     invalidAddressInClipboardStateMachine.test(props) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldBeNull()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeFalse()
       }
     }
   }
 
   test("paste button does not show with Lightning address in clipboard") {
     stateMachine.test(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldBeNull()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeFalse()
       }
     }
   }
@@ -423,10 +345,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(validAddressProps) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldNotBeNull()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeTrue()
       }
     }
   }
@@ -445,10 +365,8 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(validBIP21URIProps) {
-      awaitBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<AddressInput>()) {
-          trailingButtonModel.shouldNotBeNull()
-        }
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        showPasteButton.shouldBeTrue()
       }
     }
   }

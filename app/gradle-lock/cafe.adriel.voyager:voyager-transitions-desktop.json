@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-transitions-desktop",
+    "components": [
+        {
+            "version": "1.1.0-alpha04",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-transitions-desktop-1.1.0-alpha04.jar": "b8f7a34f9f73674b60b2fcf7f1b7026dd4affe15c7499e66897e5c95eb05b37b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

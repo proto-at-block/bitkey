@@ -1,11 +1,11 @@
 use crate::currencies::Currency::{Bitcoin, Fiat};
-use crate::currencies::CurrencyCode::{AUD, BTC, EUR, GBP, USD, XXX};
+use crate::currencies::CurrencyCode::{AUD, BTC, CAD, EUR, GBP, JPY, USD, XXX};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use utoipa::ToSchema;
 
-static SUPPORTED_CURRENCIES: Lazy<Vec<CurrencyCode>> = Lazy::new(|| vec![EUR, GBP, USD]);
+static SUPPORTED_CURRENCIES: Lazy<Vec<CurrencyCode>> = Lazy::new(|| vec![AUD, CAD, EUR, GBP, USD]);
 
 pub enum Currency {
     Fiat(FiatCurrency),
@@ -62,7 +62,9 @@ pub struct CurrencyData {
 // ISO 4217 currency codes
 pub enum CurrencyCode {
     AUD = 36,
+    CAD = 124,
     GBP = 826,
+    JPY = 392,
     USD = 840,
     EUR = 978,
     XXX = 999,  // Defined as "no currency" by ISO-4217.
@@ -83,6 +85,17 @@ impl From<CurrencyCode> for Currency {
                     display_country_code: "AU".to_string(),
                 },
             }),
+            CAD => Fiat(FiatCurrency {
+                currency: CurrencyData {
+                    text_code: "CAD".to_string(),
+                    unit_symbol: "$".to_string(),
+                    fractional_digits: 2,
+                },
+                fiat_display_configuration: FiatDisplayConfiguration {
+                    name: "Canadian Dollar".to_string(),
+                    display_country_code: "CA".to_string(),
+                },
+            }),
             GBP => Fiat(FiatCurrency {
                 currency: CurrencyData {
                     text_code: "GBP".to_string(),
@@ -92,6 +105,17 @@ impl From<CurrencyCode> for Currency {
                 fiat_display_configuration: FiatDisplayConfiguration {
                     name: "Pound Sterling".to_string(),
                     display_country_code: "GB".to_string(),
+                },
+            }),
+            JPY => Fiat(FiatCurrency {
+                currency: CurrencyData {
+                    text_code: "JPY".to_string(),
+                    unit_symbol: "¥".to_string(),
+                    fractional_digits: 0,
+                },
+                fiat_display_configuration: FiatDisplayConfiguration {
+                    name: "Japanese Yen".to_string(),
+                    display_country_code: "JP".to_string(),
                 },
             }),
             USD => Fiat(FiatCurrency {

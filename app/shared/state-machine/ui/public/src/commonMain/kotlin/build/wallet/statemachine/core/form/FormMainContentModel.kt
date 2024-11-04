@@ -15,6 +15,7 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.picker.ItemPickerModel
+import build.wallet.ui.model.tab.CircularTabRowModel
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
 
@@ -93,7 +94,7 @@ sealed class FormMainContentModel {
     val buttons: ImmutableList<ButtonModel> = emptyImmutableList(),
   ) : FormMainContentModel() {
     init {
-      require(items.isNotEmpty())
+      require(items.isNotEmpty() || total != null)
     }
 
     /**
@@ -115,6 +116,8 @@ sealed class FormMainContentModel {
       val title: String,
       val titleIcon: IconModel? = null,
       val onTitle: (() -> Unit)? = null,
+      val titleTextType: TitleTextType = TitleTextType.REGULAR,
+      val secondaryTitle: String? = null,
       val sideText: String,
       val sideTextType: SideTextType = SideTextType.MEDIUM,
       val sideTextTreatment: SideTextTreatment = SideTextTreatment.PRIMARY,
@@ -125,6 +128,8 @@ sealed class FormMainContentModel {
       val explainer: Explainer? = null,
       val onClick: (() -> Unit)? = null,
     ) {
+      enum class TitleTextType { REGULAR, BOLD }
+
       enum class SideTextType { REGULAR, MEDIUM, BOLD, BODY2BOLD }
 
       enum class SideTextTreatment { PRIMARY, SECONDARY, WARNING, STRIKETHROUGH }
@@ -331,5 +336,12 @@ sealed class FormMainContentModel {
     val primaryAmount: String,
     val secondaryAmount: String,
     val isHidden: Boolean = false,
+  ) : FormMainContentModel()
+
+  /**
+   * A circular tab row that allows the user to select between different tabs.
+   */
+  data class CircularTabRow(
+    val item: CircularTabRowModel,
   ) : FormMainContentModel()
 }

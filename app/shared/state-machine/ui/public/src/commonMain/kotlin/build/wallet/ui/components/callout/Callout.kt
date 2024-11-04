@@ -6,8 +6,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -43,6 +42,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Composable
 fun Callout(model: CalloutModel) {
   val style = model.calloutStyle()
+
+  // Track the alignment of the leading icon, which varies based on the number of text lines in the
+  // subtitle.
+  var iconVerticalAlignment by remember { mutableStateOf(Alignment.CenterVertically) }
+
   Box(
     modifier = Modifier
       .fillMaxWidth()
@@ -56,7 +60,7 @@ fun Callout(model: CalloutModel) {
       modifier = Modifier
         .fillMaxWidth()
         .padding(16.dp),
-      verticalAlignment = Alignment.CenterVertically,
+      verticalAlignment = iconVerticalAlignment,
       horizontalArrangement = Arrangement.Start
     ) {
       model.leadingIcon?.let { icon ->
@@ -101,7 +105,16 @@ fun Callout(model: CalloutModel) {
               fontFamily = FontFamily(Font(Res.font.inter_regular)),
               fontWeight = FontWeight(400),
               color = style.subtitleColor
-            )
+            ),
+            onTextLayout = { textLayoutResult ->
+              val isSubtitleMultiline = textLayoutResult.lineCount > 1
+              iconVerticalAlignment = when {
+                // If the subtitle is multiline, align the icon to the top of the row
+                isSubtitleMultiline -> Alignment.Top
+                // If the subtitle is single line, align the icon to the center of the row
+                else -> Alignment.CenterVertically
+              }
+            }
           )
         }
       }

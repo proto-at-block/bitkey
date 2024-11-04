@@ -1,0 +1,7 @@
+-- Drop Claim states that we don't need to store offline.
+DROP TABLE canceledBeneficiaryClaimEntity;
+DROP TABLE lockedBeneficiaryClaimEntity;
+DROP TABLE canceledBenefactorClaimEntity;
+DROP TABLE lockedBenefactorClaimEntity;
+
+PRAGMA foreign_key_check;

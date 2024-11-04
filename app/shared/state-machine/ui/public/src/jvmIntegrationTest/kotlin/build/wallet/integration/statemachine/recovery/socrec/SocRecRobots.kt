@@ -18,10 +18,22 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
+import build.wallet.statemachine.recovery.cloud.CloudBackupFoundModel
+import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeCodeBodyModel
+import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeContactListBodyModel
+import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
+import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
+import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
+import build.wallet.statemachine.recovery.socrec.list.full.TrustedContactsListBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.statemachine.ui.*
+import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
+import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
+import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.matchers.hasProtectedCustomers
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.statemachine.ui.matchers.shouldHaveMessage
@@ -43,18 +55,14 @@ import io.kotest.matchers.types.shouldBeTypeOf
  * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreens(tcName: String) {
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST
-  )
-    .clickMainContentListFooterButton()
-  awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME) {
-    inputTextToMainContentTextInputItem(tcName)
+  awaitUntilScreenWithBody<TrustedContactsListBodyModel>()
+    .onAddPressed()
+  awaitUntilScreenWithBody<NameInputBodyModel> {
+    onValueChange(tcName)
   }
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
-    expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+  awaitUntilScreenWithBody<NameInputBodyModel>(
+    expectedBodyContentMatch = { it.primaryButton.isEnabled }
   ) {
-    inputTextToMainContentTextInputItem(tcName)
     clickPrimaryButton()
   }
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -84,10 +92,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
     .clickPrimaryButton()
   awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
     .signInSuccess(cloudStoreAccount)
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
-  )
-    .inputTextToMainContentTextInputItem(inviteCode)
+  awaitUntilScreenWithBody<EnteringInviteCodeBodyModel>()
+    .onValueChange(inviteCode)
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE,
     expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
@@ -132,8 +138,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
       .onClick()
   }
 
-  awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE) {
-    inputTextToMainContentTextInputItem(inviteCode)
+  awaitUntilScreenWithBody<EnteringInviteCodeBodyModel> {
+    onValueChange(inviteCode)
   }
 
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -143,8 +149,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
     clickPrimaryButton()
   }
 
-  awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
-    inputTextToMainContentTextInputItem(protectedCustomerAlias)
+  awaitUntilScreenWithBody<EnteringProtectedCustomerNameBodyModel> {
+    onValueChange(protectedCustomerAlias)
   }
 
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -169,12 +175,10 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
   }
 
   // Enter name
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME
-  )
-    .inputTextToMainContentTextInputItem(protectedCustomerName)
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME
+  awaitUntilScreenWithBody<EnteringProtectedCustomerNameBodyModel>()
+    .onValueChange(protectedCustomerName)
+  awaitUntilScreenWithBody<EnteringProtectedCustomerNameBodyModel>(
+    expectedBodyContentMatch = { it.primaryButton.isEnabled }
   )
     .clickPrimaryButton()
 
@@ -198,16 +202,14 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceToCloudRecovery(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
-): FormBodyModel {
+): CloudBackupFoundModel {
   awaitUntilScreenWithBody<ChooseAccountAccessModel>()
     .clickMoreOptionsButton()
   awaitUntilScreenWithBody<FormBodyModel>()
     .restoreButton.onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
     .signInSuccess(cloudStoreAccount)
-  return awaitUntilScreenWithBody<FormBodyModel>(
-    CloudEventTrackerScreenId.CLOUD_BACKUP_FOUND
-  )
+  return awaitUntilScreenWithBody<CloudBackupFoundModel>()
 }
 
 /**
@@ -215,13 +217,10 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToCloudRecovery(
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactList(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
-): FormBodyModel {
+): RecoveryChallengeContactListBodyModel {
   advanceToCloudRecovery(cloudStoreAccount)
-    .toolbar.shouldNotBeNull()
-    .trailingAccessory.shouldNotBeNull()
-    .shouldBeTypeOf<ToolbarAccessoryModel.ButtonAccessory>()
-    .model
-    .onClick()
+    .also { it.showSocRecButton.shouldBeTrue() }
+    .onLostBitkeyClick()
   awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.SOCIAL_RECOVERY_EXPLANATION)
     .clickPrimaryButton()
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
@@ -233,9 +232,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
     NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
   )
     .clickPrimaryButton()
-  return awaitUntilScreenWithBody<FormBodyModel>(
-    id = RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
-  )
+  return awaitUntilScreenWithBody<RecoveryChallengeContactListBodyModel>()
 }
 
 /**
@@ -243,20 +240,13 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
  * @param formBodyModel the trusted contact list form
  * @return the challenge code
  */
-suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(formBodyModel: FormBodyModel): String {
-  formBodyModel
-    .shouldBeInstanceOf<FormBodyModel>()
-    .also {
-      it.id.shouldBe(RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
-    }
-    .clickMainContentListItemTrailingButtonAtIndex(0)
-  val codeScreen =
-    awaitUntilScreenWithBody<FormBodyModel>(
-      SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TC_VERIFICATION_CODE
-    )
+suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(
+  formBodyModel: RecoveryChallengeContactListBodyModel,
+): String {
+  formBodyModel.onVerifyClick(formBodyModel.endorsedTrustedContacts[0])
+  val codeScreen = awaitUntilScreenWithBody<RecoveryChallengeCodeBodyModel>()
   return codeScreen
-    .getMainContentListItemAtIndex(0)
-    .title
+    .recoveryChallengeCode
     .replace("-", "")
 }
 
@@ -302,25 +292,14 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
     .body.shouldBeInstanceOf<FormBodyModel>()
     .clickPrimaryButton()
 
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
-  )
-    .findMainContentListItem { it.title == "Video Chat" }
-    .onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CONTACT_CONFIRMATION
-  )
-    .findMainContentListItem { it.title.contains("Yes") }
-    .onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
-  )
-    .inputTextToMainContentTextInputItem(code)
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION,
-    expectedBodyContentMatch = {
-      it.primaryButton?.isEnabled == true
-    }
+  awaitUntilScreenWithBody<VerifyingContactMethodFormBodyModel>()
+    .onVideoChatClick()
+  awaitUntilScreenWithBody<ConfirmingIdentityFormBodyModel>()
+    .onVerifiedClick()
+  awaitUntilScreenWithBody<EnterRecoveryCodeFormBodyModel>()
+    .onInputChange(code)
+  awaitUntilScreenWithBody<EnterRecoveryCodeFormBodyModel>(
+    expectedBodyContentMatch = { it.primaryButton.isEnabled }
   )
     .clickPrimaryButton()
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
@@ -369,22 +348,14 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
     .body.shouldBeInstanceOf<FormBodyModel>()
     .clickPrimaryButton()
 
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
-  )
-    .findMainContentListItem { it.title == "Video Chat" }
-    .onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CONTACT_CONFIRMATION
-  )
-    .findMainContentListItem { it.title.contains("Yes") }
-    .onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
-  )
-    .inputTextToMainContentTextInputItem(code)
-  awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
+  awaitUntilScreenWithBody<VerifyingContactMethodFormBodyModel>()
+    .onVideoChatClick()
+  awaitUntilScreenWithBody<ConfirmingIdentityFormBodyModel>()
+    .onVerifiedClick()
+  awaitUntilScreenWithBody<EnterRecoveryCodeFormBodyModel>()
+    .onInputChange(code)
+  awaitUntilScreenWithBody<EnterRecoveryCodeFormBodyModel>(
+    expectedBodyContentMatch = { it.primaryButton.isEnabled }
   )
     .clickPrimaryButton()
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(

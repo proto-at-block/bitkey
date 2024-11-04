@@ -15,21 +15,27 @@ import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormBodyModel
+import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
+import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.input.EmailInputScreenModel
+import build.wallet.statemachine.core.input.VerificationCodeInputFormBodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.ui.*
+import build.wallet.statemachine.notifications.NotificationPreferenceFormBodyModel
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec() {
@@ -130,8 +136,8 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
             state.shouldBe(LoadingSuccessBodyModel.State.Loading)
           }
         } else {
-          awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
-            .clickPrimaryButton()
+          awaitUntilScreenWithBody<SaveBackupInstructionsBodyModel>()
+            .onBackupClick()
           awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
             .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
         }
@@ -143,51 +149,40 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
 }
 
 internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardingNotificationSetupScreens() {
-  awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SETUP)
-    .clickMainContentListItemAtIndex(0) // Tap email row item
+  awaitUntilScreenWithBody<RecoveryChannelsSetupFormBodyModel>()
+    .emailItem.onClick.shouldNotBeNull().invoke()
   advanceThroughEmailScreensEnterAndVerify()
 
   // Check that the email touchpoint has propagated back to the state machine
   // It propagates through the [notificationTouchpointDao], but if it hasn't been
   // received before returning to this screen, will cause a recomposition and the
   // continue button won't progress forward.
-  awaitUntilScreenWithBody<FormBodyModel>(
-    id = NOTIFICATION_PREFERENCES_SETUP,
+  awaitUntilScreenWithBody<RecoveryChannelsSetupFormBodyModel>(
     expectedBodyContentMatch = {
-      it.mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()
-        .listGroupModel.items[0].trailingAccessory.shouldNotBeNull()
-        .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
-        .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon == Icon.SmallIconCheckFilled
+      it.emailItem.state == RecoveryChannelsSetupFormItemModel.State.Completed
     }
-  )
-    .clickPrimaryButton()
+  ) {
+    continueOnClick()
+  }
 
   // Accept the TOS
-  awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SELECTION)
-    .mainContentList[4].shouldBeTypeOf<FormMainContentModel.ListGroup>()
-    .listGroupModel.items[0].trailingAccessory.shouldNotBeNull()
-    .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
-    .onClick.shouldNotBeNull().invoke()
+  awaitUntilScreenWithBody<NotificationPreferenceFormBodyModel>()
+    .tosInfo.shouldNotBeNull().onTermsAgreeToggle(true)
 
-  awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SELECTION)
-    .clickPrimaryButton()
+  awaitUntilScreenWithBody<NotificationPreferenceFormBodyModel>()
+    .continueOnClick()
 }
 
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughEmailScreensEnterAndVerify() {
-  awaitUntilScreenWithBody<FormBodyModel>(EMAIL_INPUT_ENTERING_EMAIL)
-    .inputTextToMainContentTextInputItem("integration-test@wallet.build") // Fake email
-  awaitUntilScreenWithBody<FormBodyModel>(
-    EMAIL_INPUT_ENTERING_EMAIL,
-    expectedBodyContentMatch = {
-      it.primaryButton?.isEnabled == true
-    }
+  awaitUntilScreenWithBody<EmailInputScreenModel>()
+    .onValueChange("integration-test@wallet.build") // Fake email
+  awaitUntilScreenWithBody<EmailInputScreenModel>(
+    expectedBodyContentMatch = { it.primaryButton.isEnabled }
   ) {
     clickPrimaryButton()
   }
-  awaitUntilScreenWithBody<FormBodyModel>(EMAIL_INPUT_ENTERING_CODE)
-    .inputTextToMainContentVerificationCodeInputItem(
-      "123456"
-    ) // This code always works for Test Accounts
+  awaitUntilScreenWithBody<VerificationCodeInputFormBodyModel>()
+    .onValueChange("123456") // This code always works for Test Accounts
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(EMAIL_INPUT_SENDING_CODE_TO_SERVER)
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER)
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(NOTIFICATIONS_HW_APPROVAL_SUCCESS_EMAIL)

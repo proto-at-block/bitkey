@@ -62,7 +62,6 @@ class MainActivity : FragmentActivity() {
     drawContentBehindSystemBars()
 
     activityComponent = initializeActivityComponent()
-    Router.route = Route.fromUrl(intent.dataString)
 
     maybeHideAppInLauncher(appComponent)
 
@@ -81,6 +80,15 @@ class MainActivity : FragmentActivity() {
     }
     createNotificationChannel()
     logEventIfFromNotification()
+
+    // From a backend notification
+    intent?.extras?.getInt(Route.DeepLink.NAVIGATE_TO_SCREEN_ID)?.let {
+      Router.route = Route.from(it)
+    }
+    // From a deeplink
+    intent?.dataString?.let {
+      Router.route = Route.from(it)
+    }
   }
 
   override fun onResume() {
@@ -91,8 +99,13 @@ class MainActivity : FragmentActivity() {
   // Handle deep links when the app is already open
   override fun onNewIntent(intent: Intent?) {
     super.onNewIntent(intent)
-    intent?.let {
-      Router.route = Route.fromUrl(intent.dataString)
+    // From a backend notification
+    intent?.extras?.getInt(Route.DeepLink.NAVIGATE_TO_SCREEN_ID)?.let {
+      Router.route = Route.from(it)
+    }
+    // From a deeplink
+    intent?.dataString?.let {
+      Router.route = Route.from(it)
     }
   }
 

@@ -31,6 +31,7 @@ import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.inappsecurity.HideBalancePreferenceFake
+import build.wallet.inheritance.InheritanceClaimsDaoFake
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreFake
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
@@ -115,7 +116,8 @@ class AppDataDeleterImplTests : FunSpec({
       recoveryDao = recoveryDaoMock,
       authSignatureStatusProvider = authSignatureStatusProvider,
       hideBalancePreference = HideBalancePreferenceFake(),
-      biometricPreference = BiometricPreferenceFake()
+      biometricPreference = BiometricPreferenceFake(),
+      inheritanceClaimsDao = InheritanceClaimsDaoFake()
     )
 
   beforeTest {

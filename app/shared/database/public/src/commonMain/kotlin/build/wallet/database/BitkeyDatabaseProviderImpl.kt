@@ -218,19 +218,34 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       protectedCustomerEntityAdapter =
         ProtectedCustomerEntity.Adapter(
           aliasAdapter = ProtectedCustomerAliasColumnAdapter,
-          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
+          rolesAdapter = StringSetAdapter(
+            DelegatedColumnAdapter(
+              ::TrustedContactRole,
+              TrustedContactRole::key
+            )
+          )
         ),
       trustedContactInvitationEntityAdapter =
         TrustedContactInvitationEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
           expiresAtAdapter = InstantColumnAdapter,
-          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
+          rolesAdapter = StringSetAdapter(
+            DelegatedColumnAdapter(
+              ::TrustedContactRole,
+              TrustedContactRole::key
+            )
+          )
         ),
       trustedContactEntityAdapter =
         TrustedContactEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
           authenticationStateAdapter = EnumColumnAdapter(),
-          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
+          rolesAdapter = StringSetAdapter(
+            DelegatedColumnAdapter(
+              ::TrustedContactRole,
+              TrustedContactRole::key
+            )
+          )
         ),
       socRecEnrollmentAuthenticationAdapter =
         SocRecEnrollmentAuthentication.Adapter(
@@ -250,7 +265,12 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           enrollmentPakeKeyAdapter = PublicKeyColumnAdapter(),
           enrollmentKeyConfirmationAdapter = ByteStringColumnAdapter,
           authenticationStateAdapter = EnumColumnAdapter(),
-          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
+          rolesAdapter = StringSetAdapter(
+            DelegatedColumnAdapter(
+              ::TrustedContactRole,
+              TrustedContactRole::key
+            )
+          )
         ),
       socRecKeysAdapter =
         SocRecKeys.Adapter(
@@ -299,9 +319,24 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter()
       ),
       inheritanceDataEntityAdapter = InheritanceDataEntity.Adapter(
-        lastSyncHashAdapter = DelegatedColumnAdapter(::InheritanceMaterialHash, InheritanceMaterialHash::value)
+        lastSyncHashAdapter = DelegatedColumnAdapter(
+          ::InheritanceMaterialHash,
+          InheritanceMaterialHash::value
+        )
           .then(DelegatedColumnAdapter(Long::toInt, Int::toLong)),
         lastSyncTimestampAdapter = InstantColumnAdapter
+      ),
+      pendingBenefactorClaimEntityAdapter = PendingBenefactorClaimEntity.Adapter(
+        claimIdAdapter = InheritanceClaimIdColumnAdapter,
+        relationshipIdAdapter = RelationshipIdColumnAdapter,
+        delayEndTimeAdapter = InstantColumnAdapter,
+        delayStartTimeAdapter = InstantColumnAdapter
+      ),
+      pendingBeneficiaryClaimEntityAdapter = PendingBeneficiaryClaimEntity.Adapter(
+        claimIdAdapter = InheritanceClaimIdColumnAdapter,
+        relationshipIdAdapter = RelationshipIdColumnAdapter,
+        delayEndTimeAdapter = InstantColumnAdapter,
+        delayStartTimeAdapter = InstantColumnAdapter
       )
     )
   }

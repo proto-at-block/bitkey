@@ -26,7 +26,6 @@ dependencies {
   implementation(libs.jvm.zxing)
   implementation(libs.android.io.coil.compose)
   implementation(libs.android.io.coil.svg)
-  implementation(libs.android.lottie.compose)
   implementation(libs.android.voyager.navigator)
   implementation(libs.android.voyager.transitions)
   implementation(projects.shared.stateMachineUiPublic)

@@ -15,6 +15,12 @@ variable "customer_server_keys_table_override" {
   default     = null
 }
 
+variable "customer_server_key_shares_table_override" {
+  type        = string
+  description = "Name of the customer server key shares table"
+  default     = null
+}
+
 variable "deletion_protection_enabled" {
   type        = bool
   description = "Enable deletion protection on the tables"

@@ -4,14 +4,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -25,16 +23,15 @@ import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.progress.CircularProgressIndicator
-import build.wallet.ui.model.icon.IconSize.*
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
 
 @Composable
 fun CardContent(
-  model: CardModel,
   modifier: Modifier = Modifier,
+  model: CardModel,
 ) {
   Column {
     // Hero image

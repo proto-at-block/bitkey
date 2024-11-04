@@ -5,17 +5,10 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.conflict.model.ShowingSomeoneElseIsRecoveringBodyModel
 import build.wallet.ui.app.core.form.FormScreen
-import com.airbnb.lottie.LottieTask
 import io.kotest.core.spec.style.FunSpec
-import java.util.concurrent.Executor
 
 class ShowingSomeoneElseIsRecoveringModelSnapshotTests : FunSpec({
   val paparazzi = paparazziExtension()
-
-  beforeTest {
-    // Needed for snapshotting the loading lottie animation
-    LottieTask.EXECUTOR = Executor(Runnable::run)
-  }
 
   test("showing someone else is recovering and customer canceling lost app - not loading") {
     paparazzi.snapshot {

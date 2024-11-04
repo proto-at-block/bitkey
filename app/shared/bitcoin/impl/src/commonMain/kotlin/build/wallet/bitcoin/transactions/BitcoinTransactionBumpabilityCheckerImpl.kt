@@ -18,6 +18,12 @@ class BitcoinTransactionBumpabilityCheckerImpl(
       return false
     }
 
+    // We currently do not support bumping on any incoming transaction. See W-8153. Explicitly checked
+    // here as the sweep checker logic doesn't distinguish by transaction type.
+    if (transaction.transactionType == Incoming) {
+      return false
+    }
+
     // A sweep is only bumpable if allow_shrinking is enabled, since there are no other inputs
     // we can pull in to pay the fees.
     if (sweepChecker.isSweep(transaction, walletUnspentOutputs)) {

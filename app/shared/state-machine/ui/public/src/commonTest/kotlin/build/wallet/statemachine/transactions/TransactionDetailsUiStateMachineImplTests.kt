@@ -20,12 +20,10 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
@@ -34,15 +32,11 @@ import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size
-import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.button.ButtonModel.Treatment
-import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.icon.*
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -149,7 +143,9 @@ class TransactionDetailsUiStateMachineImplTests :
     val pendingUtxoConsolidationProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
-        transaction = BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending),
+        transaction = BitcoinTransactionUtxoConsolidation.copy(
+          confirmationStatus = Pending
+        ),
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
@@ -172,38 +168,35 @@ class TransactionDetailsUiStateMachineImplTests :
 
     test("pending receive transaction returns correct model") {
       stateMachine.test(pendingReceiveProps) {
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(isPending = true, transactionType = Incoming, isLate = false)
 
-          mainContentList[0]
-            .shouldBeInstanceOf<DataList>()
-            .items[0]
-            .expect(title = "Confirmed at", sideText = "Unconfirmed")
-
           // Amount Details
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Amount received", sideText = "100,000,000 sats")
-
+          with(content[0].shouldBeInstanceOf<DataList>()) {
             total
               .shouldNotBeNull()
               .expect(
-                title = "Total",
-                sideText = "100,000,000 sats",
-                secondarySideText = "~$0.00"
+                title = "Amount receiving",
+                sideText = "~$0.00",
+                secondarySideText = "100,000,000 sats"
               )
           }
         }
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+
+          with(content[0].shouldBeInstanceOf<DataList>()) {
             total
               .shouldNotBeNull()
-              .secondarySideText
-              .shouldBe("~$3.00")
+              .expect(
+                title = "Amount receiving",
+                sideText = "~$3.00",
+                secondarySideText = "100,000,000 sats"
+              )
           }
         }
       }
@@ -211,38 +204,42 @@ class TransactionDetailsUiStateMachineImplTests :
 
     test("received transactions returns correct model") {
       stateMachine.test(receivedProps) {
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(isPending = false, transactionType = Incoming, isLate = false)
 
           // Time Details
-          mainContentList[0]
+          content[0]
             .shouldBeInstanceOf<DataList>()
             .items[0]
             .expect(title = "Confirmed at", sideText = "confirmed-time")
 
           // Amount Details
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Amount received", sideText = "100,000,000 sats")
+          with(content[1].shouldBeInstanceOf<DataList>()) {
             total
               .shouldNotBeNull()
               .expect(
-                title = "Total",
-                sideText = "100,000,000 sats",
-                secondarySideText = "$0.00 at time confirmed"
+                title = "Amount received",
+                secondaryTitle = "At time confirmed",
+                sideText = "$0.00",
+                secondarySideText = "100,000,000 sats"
               )
           }
         }
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+          with(content[1].shouldBeInstanceOf<DataList>()) {
             total
               .shouldNotBeNull()
-              .secondarySideText
-              .shouldBe("$3.00 at time confirmed")
+              .expect(
+                title = "Amount received",
+                secondaryTitle = "At time confirmed",
+                sideText = "$3.00",
+                secondarySideText = "100,000,000 sats"
+              )
           }
         }
       }
@@ -250,18 +247,18 @@ class TransactionDetailsUiStateMachineImplTests :
 
     test("pending sent transaction returns correct model") {
       stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(isPending = true, transactionType = Outgoing, isLate = false)
 
           // Time Details
-          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+          with(content[0].shouldBeInstanceOf<DataList>()) {
             items[0].expect(title = "Should arrive by", sideText = "estimated-confirmation-time")
           }
 
           // Amount Details
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+          with(content[1].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Recipient receives",
               sideText = "100,000,000 sats"
@@ -274,57 +271,72 @@ class TransactionDetailsUiStateMachineImplTests :
               .shouldNotBeNull()
               .expect(
                 title = "Total",
-                sideText = "101,000,000 sats",
-                secondarySideText = "$0.00 at time sent"
+                secondaryTitle = "At time sent",
+                sideText = "$0.00",
+                secondarySideText = "101,000,000 sats"
               )
           }
         }
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate for broadcast time
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+          with(content[1].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(
+              title = "Recipient receives",
+              sideText = "$4.00",
+              secondarySideText = "100,000,000 sats"
+            )
+            items[1].expect(
+              title = "Network fees",
+              sideText = "$0.04",
+              secondarySideText = "1,000,000 sats"
+            )
             total
               .shouldNotBeNull()
-              .secondarySideText
-              .shouldBe("$4.04 at time sent")
+              .expect(
+                title = "Total",
+                secondaryTitle = "At time sent",
+                sideText = "$4.04",
+                secondarySideText = "101,000,000 sats"
+              )
           }
         }
       }
     }
 
-    test("pending send transaction without estimate should just show unconfirmed") {
+    test("pending send transaction without estimate does not show confirmation row") {
       stateMachine.test(pendingSentPropsNoEstimatedConfirmationTime) {
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(isPending = true, transactionType = Outgoing, isLate = false)
 
           // Time Details
-          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Confirmed at", sideText = "Unconfirmed")
+          with(content[0].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(title = "Recipient receives", sideText = "100,000,000 sats")
           }
         }
 
         // after currency conversion
-        awaitScreenWithBody<FormBodyModel>()
+        awaitScreenWithBody<TransactionDetailModel>()
       }
     }
 
     test("sent transactions returns correct model") {
       stateMachine.test(sentProps) {
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(isPending = false, transactionType = Outgoing, isLate = false)
 
           // Time Details
-          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+          with(content[0].shouldBeInstanceOf<DataList>()) {
             items[0].expect(title = "Confirmed at", sideText = "confirmed-time")
           }
 
           // Amount Details
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+          with(content[1].shouldBeInstanceOf<DataList>()) {
             items[0].expect(
               title = "Recipient received",
               sideText = "100,000,000 sats"
@@ -337,20 +349,35 @@ class TransactionDetailsUiStateMachineImplTests :
               .shouldNotBeNull()
               .expect(
                 title = "Total",
-                sideText = "101,000,000 sats",
-                secondarySideText = "$0.00 at time sent"
+                secondaryTitle = "At time confirmed",
+                sideText = "$0.00",
+                secondarySideText = "101,000,000 sats"
               )
           }
         }
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitScreenWithBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate
-          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+          with(content[1].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(
+              title = "Recipient received",
+              sideText = "$4.00",
+              secondarySideText = "100,000,000 sats"
+            )
+            items[1].expect(
+              title = "Network fees",
+              sideText = "$0.03",
+              secondarySideText = "1,000,000 sats"
+            )
             total
               .shouldNotBeNull()
-              .secondarySideText
-              .shouldBe("$4.04 at time sent")
+              .expect(
+                title = "Total",
+                secondaryTitle = "At time confirmed",
+                sideText = "$4.04",
+                secondarySideText = "101,000,000 sats"
+              )
           }
         }
       }
@@ -391,7 +418,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
       test("pending sent transaction returns correct model") {
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // before currency conversion
 
             testButtonsAndHeader(
@@ -402,12 +429,12 @@ class TransactionDetailsUiStateMachineImplTests :
             )
 
             // Time Details
-            with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+            with(content[0].shouldBeInstanceOf<DataList>()) {
               items[0].expect(title = "Should arrive by", sideText = "estimated-confirmation-time")
             }
 
             // Amount Details
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[1].shouldBeInstanceOf<DataList>()) {
               items[0].expect(
                 title = "Recipient receives",
                 sideText = "100,000,000 sats"
@@ -420,20 +447,35 @@ class TransactionDetailsUiStateMachineImplTests :
                 .shouldNotBeNull()
                 .expect(
                   title = "Total",
-                  sideText = "101,000,000 sats",
-                  secondarySideText = "$0.00 at time sent"
+                  secondaryTitle = "At time sent",
+                  sideText = "$0.00",
+                  secondarySideText = "101,000,000 sats"
                 )
             }
           }
 
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // after currency conversion
             // Should use the historical exchange rate for broadcast time
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[1].shouldBeInstanceOf<DataList>()) {
+              items[0].expect(
+                title = "Recipient receives",
+                sideText = "$4.00",
+                secondarySideText = "100,000,000 sats"
+              )
+              items[1].expect(
+                title = "Network fees",
+                sideText = "$0.04",
+                secondarySideText = "1,000,000 sats"
+              )
               total
                 .shouldNotBeNull()
-                .secondarySideText
-                .shouldBe("$4.04 at time sent")
+                .expect(
+                  title = "Total",
+                  secondaryTitle = "At time sent",
+                  sideText = "$4.04",
+                  secondarySideText = "101,000,000 sats"
+                )
             }
           }
         }
@@ -444,7 +486,7 @@ class TransactionDetailsUiStateMachineImplTests :
         clock.now = pendingSentProps.transaction.estimatedConfirmationTime!!.plus(10.minutes)
 
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             testButtonsAndHeader(
               isSpeedUpOn = true,
               isPending = true,
@@ -452,7 +494,7 @@ class TransactionDetailsUiStateMachineImplTests :
               isLate = true
             )
 
-            with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+            with(content[0].shouldBeInstanceOf<DataList>()) {
               items[0].title.shouldBe("Should have arrived by")
               items[0].sideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.STRIKETHROUGH)
               items[0].sideTextType.shouldBe(DataList.Data.SideTextType.REGULAR)
@@ -467,8 +509,7 @@ class TransactionDetailsUiStateMachineImplTests :
                 ?.iconModel
                 ?.iconImage
                 .shouldBeTypeOf<IconImage.LocalImage>()
-                .icon ==
-                Icon.SmallIconInformationFilled
+                .icon.shouldBe(SmallIconInformationFilled)
             }
           }
 
@@ -482,7 +523,7 @@ class TransactionDetailsUiStateMachineImplTests :
         clock.now = pendingSentProps.transaction.estimatedConfirmationTime!!.plus(10.minutes)
 
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             testButtonsAndHeader(
               isSpeedUpOn = true,
               isPending = true,
@@ -497,8 +538,7 @@ class TransactionDetailsUiStateMachineImplTests :
                 ?.iconModel
                 ?.iconImage
                 .shouldBeTypeOf<IconImage.LocalImage>()
-                .icon ==
-                Icon.SmallIconInformationFilled
+                .icon.shouldBe(SmallIconInformationFilled)
               items[0]
                 .explainer
                 ?.iconButton
@@ -508,7 +548,7 @@ class TransactionDetailsUiStateMachineImplTests :
           }
 
           // after currency conversion
-          awaitScreenWithBody<FormBodyModel>()
+          awaitScreenWithBody<TransactionDetailModel>()
 
           // after clicking explainer icon button
           val screenModel = awaitItem()
@@ -532,7 +572,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
       test("tapping speed up should open the fee bump flow") {
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             testButtonsAndHeader(
               isSpeedUpOn = true,
               isPending = true,
@@ -542,8 +582,8 @@ class TransactionDetailsUiStateMachineImplTests :
           }
 
           // after currency conversion
-          awaitScreenWithBody<FormBodyModel> {
-            clickPrimaryButton()
+          awaitScreenWithBody<TransactionDetailModel> {
+            onSpeedUpTransaction()
           }
 
           // Ensure we log analytics event
@@ -560,7 +600,7 @@ class TransactionDetailsUiStateMachineImplTests :
       test("tapping speed up with insufficient balance to bump fee should show error screen") {
         spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             testButtonsAndHeader(
               isSpeedUpOn = true,
               isPending = true,
@@ -570,8 +610,8 @@ class TransactionDetailsUiStateMachineImplTests :
           }
 
           // after currency conversion
-          awaitScreenWithBody<FormBodyModel> {
-            clickPrimaryButton()
+          awaitScreenWithBody<TransactionDetailModel> {
+            onSpeedUpTransaction()
           }
 
           // loading the fee rates and fetching wallet
@@ -594,7 +634,7 @@ class TransactionDetailsUiStateMachineImplTests :
       test("tapping speed up when fee rates are too low should show error screen") {
         spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
         stateMachine.test(pendingSentProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             testButtonsAndHeader(
               isSpeedUpOn = true,
               isPending = true,
@@ -604,7 +644,7 @@ class TransactionDetailsUiStateMachineImplTests :
           }
 
           // after currency conversion
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             clickPrimaryButton()
           }
 
@@ -635,7 +675,7 @@ class TransactionDetailsUiStateMachineImplTests :
     context("utxo consolidation") {
       test("pending utxo consolidation transaction returns correct model") {
         stateMachine.test(pendingUtxoConsolidationProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // before currency conversion
 
             testButtonsAndHeader(
@@ -644,31 +684,25 @@ class TransactionDetailsUiStateMachineImplTests :
               isLate = false
             )
 
-            mainContentList[0]
-              .shouldBeInstanceOf<DataList>()
-              .items[0]
-              .expect(title = "Confirmed at", sideText = "Unconfirmed")
-
             // Amount Details
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[0].shouldBeInstanceOf<DataList>()) {
               items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
               items[1].expect(
                 title = "Consolidation cost",
-                sideText = "10,000,000 sats",
-                secondarySideText = "~$0.00"
+                sideText = "10,000,000 sats"
               )
               total.shouldBeNull()
             }
           }
 
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // after currency conversion
             // Should use the current exchange rate
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[0].shouldBeInstanceOf<DataList>()) {
               items[1].expect(
                 title = "Consolidation cost",
-                sideText = "10,000,000 sats",
-                secondarySideText = "~$0.30"
+                sideText = "~$0.30",
+                secondarySideText = "10,000,000 sats"
               )
               total.shouldBeNull()
             }
@@ -678,7 +712,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
       test("utxo consolidation transaction returns correct model") {
         stateMachine.test(utxoConsolidationProps) {
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // before currency conversion
 
             testButtonsAndHeader(
@@ -688,31 +722,32 @@ class TransactionDetailsUiStateMachineImplTests :
             )
 
             // Time Details
-            mainContentList[0]
+            content[0]
               .shouldBeInstanceOf<DataList>()
               .items[0]
               .expect(title = "Confirmed at", sideText = "confirmed-time")
 
             // Amount Details
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[1].shouldBeInstanceOf<DataList>()) {
               items[0].expect(title = "UTXOs consolidated", sideText = "2 → 1")
               items[1].expect(
                 title = "Consolidation cost",
-                sideText = "10,000,000 sats",
-                secondarySideText = "$0.00 at time confirmed"
+                secondaryTitle = "At time confirmed",
+                sideText = "10,000,000 sats"
               )
               total.shouldBeNull()
             }
           }
 
-          awaitScreenWithBody<FormBodyModel> {
+          awaitScreenWithBody<TransactionDetailModel> {
             // after currency conversion
             // Should use the current exchange rate
-            with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            with(content[1].shouldBeInstanceOf<DataList>()) {
               items[1].expect(
                 title = "Consolidation cost",
-                sideText = "10,000,000 sats",
-                secondarySideText = "$0.30 at time confirmed"
+                secondaryTitle = "At time confirmed",
+                sideText = "$0.30",
+                secondarySideText = "10,000,000 sats"
               )
               total.shouldBeNull()
             }
@@ -722,99 +757,36 @@ class TransactionDetailsUiStateMachineImplTests :
     }
   })
 
-private fun FormBodyModel.testButtonsAndHeader(
+private fun TransactionDetailModel.testButtonsAndHeader(
   isSpeedUpOn: Boolean = false,
   isPending: Boolean,
   transactionType: TransactionType,
   isLate: Boolean,
 ) {
   if (transactionType == Incoming || transactionType == UtxoConsolidation || !isPending || !isSpeedUpOn) {
-    primaryButton
-      .shouldNotBeNull()
-      .expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
+    feeBumpEnabled.shouldBeFalse()
   } else {
-    primaryButton.shouldNotBeNull().expect(SmallIconLightning, "Speed Up", Secondary, Footer)
-    secondaryButton
-      .shouldNotBeNull()
-      .expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
+    feeBumpEnabled.shouldBeTrue()
   }
 
-  header
-    .shouldNotBeNull()
-    .expect(
-      iconModel = if (isPending) {
-        if (isLate) {
-          IconModel(
-            icon = LargeIconWarningFilled,
-            iconSize = IconSize.Avatar,
-            iconTint = IconTint.Primary
-          )
-        } else {
-          IconModel(
-            iconImage = IconImage.Loader,
-            iconSize = IconSize.Large,
-            iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Avatar)
-          )
-        }
-      } else {
-        when (transactionType) {
-          Incoming -> IncomingTransactionIconModel
-          Outgoing -> OutgoingTransactionIconModel
-          UtxoConsolidation -> UtxoConsolidationTransactionIconModel
-        }
-      },
-      headline =
-        if (isPending) {
-          if (isLate) {
-            "Transaction delayed"
-          } else {
-            when (transactionType) {
-              Incoming, Outgoing -> "Transaction pending"
-              UtxoConsolidation -> "Consolidation pending"
-            }
-          }
-        } else {
-          when (transactionType) {
-            Incoming -> "Transaction received"
-            Outgoing -> "Transaction sent"
-            UtxoConsolidation -> "UTXO Consolidation"
-          }
-        },
-      subline = "bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs"
-    )
-}
-
-private fun ButtonModel.expect(
-  icon: Icon,
-  text: String,
-  treatment: Treatment,
-  size: Size,
-) {
-  this.leadingIcon.shouldBe(icon)
-  this.text.shouldBe(text)
-  this.treatment.shouldBe(treatment)
-  this.size.shouldBe(size)
-}
-
-private fun FormHeaderModel.expect(
-  iconModel: IconModel,
-  headline: String,
-  subline: String,
-) {
-  this.iconModel.shouldBe(iconModel)
-  this.headline.shouldBe(headline)
-  this.sublineModel
-    .shouldNotBeNull()
-    .string
-    .shouldBe(subline)
+  txStatusModel.transactionType.shouldBe(transactionType)
+  txStatusModel.recipientAddress.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+  if (isPending) {
+    txStatusModel.shouldBeTypeOf<TxStatusModel.Pending>()
+      .isLate.shouldBe(isLate)
+  } else {
+    txStatusModel.shouldBeTypeOf<TxStatusModel.Confirmed>()
+  }
 }
 
 private fun DataList.Data.expect(
   title: String,
+  secondaryTitle: String? = null,
   sideText: String,
   secondarySideText: String? = null,
 ) {
   this.title.shouldBe(title)
+  this.secondaryTitle.shouldBe(secondaryTitle)
   this.sideText.shouldBe(sideText)
   this.secondarySideText.shouldBe(secondarySideText)
 }

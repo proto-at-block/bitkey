@@ -54,6 +54,8 @@ import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.debug.NetworkingDebugServiceImpl
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClientImpl
+import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8EClientImpl
+import build.wallet.f8e.inheritance.StartInheritanceClaimF8eClientImpl
 import build.wallet.f8e.inheritance.UploadInheritanceMaterialF8eClientImpl
 import build.wallet.f8e.mobilepay.MobilePayBalanceF8eClientImpl
 import build.wallet.f8e.mobilepay.MobilePayFiatConfigF8eClientImpl
@@ -427,14 +429,13 @@ class AppComponentImpl(
   override val inheritanceFeatureFlag: InheritanceFeatureFlag =
     InheritanceFeatureFlag(featureFlagDao)
 
-  override val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag =
-    BitcoinPriceChartFeatureFlag(featureFlagDao)
-
   override val mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao)
 
   override val sellBitcoinFeatureFlag = SellBitcoinFeatureFlag(featureFlagDao)
 
   override val exportToolsFeatureFlag = ExportToolsFeatureFlag(featureFlagDao)
+
+  private val sellBitcoinQuotesEnabledFeatureFlag = SellBitcoinQuotesEnabledFeatureFlag(featureFlagDao)
 
   override val allRemoteFeatureFlags: List<FeatureFlag<out FeatureFlagValue>> =
     setOf(
@@ -444,7 +445,6 @@ class AppComponentImpl(
       promptSweepFeatureFlag,
       inheritanceFeatureFlag,
       coachmarksGlobalFeatureFlag,
-      bitcoinPriceChartFeatureFlag,
       utxoConsolidationFeatureFlag,
       asyncNfcSigningFeatureFlag,
       mobilePayRevampFeatureFlag,
@@ -452,7 +452,8 @@ class AppComponentImpl(
       speedUpAllowShrinkingFeatureFlag,
       exportToolsFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
-      progressSpinnerForLongNfcOpsFeatureFlag
+      progressSpinnerForLongNfcOpsFeatureFlag,
+      sellBitcoinQuotesEnabledFeatureFlag
     ).toList()
 
   private val allLocalFeatureFlags = setOf(
@@ -537,7 +538,6 @@ class AppComponentImpl(
   override val bitcoinPriceCardPreference = BitcoinPriceCardPreferenceImpl(
     databaseProvider = bitkeyDatabaseProvider,
     eventTracker = eventTracker,
-    bitcoinPriceChartFeatureFlag = bitcoinPriceChartFeatureFlag,
     appCoroutineScope = appCoroutineScope
   )
   override val memfaultClient =
@@ -1013,6 +1013,10 @@ class AppComponentImpl(
     f8eClient = f8eHttpClient
   )
 
+  private val retrieveInheritanceClaimsF8eClient = RetrieveInheritanceClaimsF8EClientImpl(
+    f8eHttpClient = f8eHttpClient
+  )
+
   private val inheritanceRelationshipsProvider = InheritanceRelationshipsAdapter(
     relationshipsService = relationshipsService
   )
@@ -1022,16 +1026,29 @@ class AppComponentImpl(
     crypto = relationshipsCrypto
   )
 
+  private val startInheritanceClaimF8eClient = StartInheritanceClaimF8eClientImpl(
+    f8eClient = f8eHttpClient
+  )
+
+  override val inheritanceClaimsDao = InheritanceClaimsDaoImpl(
+    databaseProvider = bitkeyDatabaseProvider
+  )
+
   override val inheritanceService = InheritanceServiceImpl(
     accountService = accountService,
     relationshipsService = relationshipsService,
     appCoroutineScope = appCoroutineScope,
     inheritanceSyncDao = inheritanceSyncDao,
     inheritanceMaterialF8eClient = inheritanceMaterialF8eClient,
-    inheritanceMaterialCreator = inheritanceMaterialRepository
+    startInheritanceClaimF8eClient = startInheritanceClaimF8eClient,
+    inheritanceMaterialCreator = inheritanceMaterialRepository,
+    retrieveInheritanceClaimsF8EClient = retrieveInheritanceClaimsF8eClient,
+    inheritanceClaimsDao = inheritanceClaimsDao,
+    appSessionManager = appSessionManager,
+    inheritanceFeatureFlag = inheritanceFeatureFlag
   )
 
-  private val inheritanceSyncWorker = InheritanceSyncWorker(
+  private val inheritanceMaterialSyncWorker = InheritanceMaterialSyncWorker(
     inheritanceService = inheritanceService,
     inheritanceRelationshipsProvider = inheritanceRelationshipsProvider,
     keyboxDao = keyboxDao,
@@ -1057,7 +1074,8 @@ class AppComponentImpl(
     syncRelationshipsWorker = relationshipsService,
     mobilePayBalanceSyncWorker = mobilePayService,
     appFunctionalitySyncWorker = appFunctionalityService,
-    inheritanceSyncWorker = inheritanceSyncWorker
+    inheritanceMaterialSyncWorker = inheritanceMaterialSyncWorker,
+    inheritanceClaimsSyncWorker = inheritanceService
   )
 
   override val appWorkerExecutor = AppWorkerExecutorImpl(

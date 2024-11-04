@@ -138,6 +138,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
           updateState = { state = it },
           notificationTouchpointData = notificationTouchpointData
         )
+
       is EnteringAndVerifyingPhoneNumberUiState -> {
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
@@ -148,7 +149,11 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
               onSuccess = {
                 state =
-                  TogglingNotificationChannelUiState(NotificationChannel.Sms, null)
+                  if (notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)) {
+                    ShowingNotificationsSettingsUiState()
+                  } else {
+                    TogglingNotificationChannelUiState(NotificationChannel.Sms, null)
+                  }
               },
               onClose = {
                 state = ShowingNotificationsSettingsUiState()

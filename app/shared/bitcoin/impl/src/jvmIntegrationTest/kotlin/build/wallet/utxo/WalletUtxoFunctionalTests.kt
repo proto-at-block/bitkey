@@ -70,7 +70,7 @@ class WalletUtxoFunctionalTests : FunSpec({
           }
 
         // Add unconfirmed utxo
-        appTester.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
+        val fundingResult = appTester.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
         awaitItem()
           .should { utxos ->
             utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
@@ -80,7 +80,7 @@ class WalletUtxoFunctionalTests : FunSpec({
           }
 
         // Wait for confirmation
-        appTester.mineBlock()
+        appTester.mineBlock(txid = fundingResult.tx.id)
         appTester.waitForFunds { it.confirmed == sats(3_000) }
 
         // Both utxos should be confirmed

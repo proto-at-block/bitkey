@@ -31,7 +31,7 @@ struct DataListView: View {
                 ) { idx, viewModel in
                     DataRowView(
                         viewModel: viewModel,
-                        titleFont: .body3Regular,
+                        titleFont: viewModel.titleTextType.font,
                         titleTextColor: .foreground60,
                         isFirst: idx == 0
                     )
@@ -87,14 +87,28 @@ struct DataRowView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 HStack(spacing: 0) {
-                    ModeledText(model: .standard(
-                        viewModel.title,
-                        font: titleFont,
-                        textColor: titleTextColor
-                    ))
+                    VStack {
+                        ModeledText(model: .standard(
+                            viewModel.title,
+                            font: titleFont,
+                            textColor: titleTextColor
+                        ))
+                        .lineLimit(1)
+
+                        viewModel.secondaryTitle.map {
+                            ModeledText(model: .standard(
+                                $0,
+                                font: .body3Regular,
+                                textAlignment: .leading,
+                                textColor: .foreground60,
+                                treatment: .unspecified
+                            ))
+                            .lineLimit(1)
+                        }
+                    }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(1)
                     .fixedSize()
+
                     if let icon = viewModel.titleIcon {
                         IconView(model: icon)
                             .padding(.leading, 4)
@@ -255,6 +269,16 @@ private extension FormMainContentModel.DataListDataSideTextTreatment {
         switch self {
         case .strikethrough: .strikethrough
         default: .unspecified
+        }
+    }
+}
+
+private extension FormMainContentModel.DataListDataTitleTextType {
+    var font: FontTheme {
+        switch self {
+        case .regular: .body3Regular
+        case .bold: .body3Bold
+        default: .body3Regular
         }
     }
 }

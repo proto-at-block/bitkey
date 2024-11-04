@@ -45,7 +45,7 @@ use crate::entities::{Features, Settings};
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::spend_rules::SpendRuleSet;
 use crate::util::total_sats_spent_today;
-use crate::{metrics as mobile_pay_metrics, FLAG_MOBILE_PAY_ENABLED};
+use crate::{metrics as mobile_pay_metrics, SERVER_SIGNING_ENABLED};
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -164,7 +164,7 @@ async fn sign_transaction_maybe_broadcast_impl(
     context_key: Option<ContextKey>,
 ) -> Result<SignTransactionResponse, ApiError> {
     // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
-    let is_mobile_pay_enabled = FLAG_MOBILE_PAY_ENABLED
+    let is_mobile_pay_enabled = SERVER_SIGNING_ENABLED
         .resolver(&feature_flags_service)
         .resolve();
 
@@ -310,7 +310,7 @@ async fn sign_transaction_maybe_broadcast_impl(
     let mut signed_psbt = Psbt::from_str(&result.psbt)
         .map_err(|err| RouteError::InvalidPsbt(err.to_string(), result.psbt.clone()))?;
 
-    mobile_pay_metrics::MOBILE_PAY_TIME_TO_COSIGN.record(
+    mobile_pay_metrics::TIME_TO_COSIGN.record(
         (OffsetDateTime::now_utc() - signing_start_time).whole_milliseconds() as u64,
         &[KeyValue::new(
             mobile_pay_metrics::IS_MOBILE_PAY,
@@ -343,7 +343,7 @@ async fn sign_transaction_maybe_broadcast_impl(
     if psbt_fully_signed {
         let broadcast_start_time = OffsetDateTime::now_utc();
         transaction_broadcaster.broadcast(unsynced_source_wallet, &mut signed_psbt, &rpc_uris)?;
-        mobile_pay_metrics::MOBILE_PAY_F8E_TIME_TO_BROADCAST.record(
+        mobile_pay_metrics::TIME_TO_BROADCAST.record(
             (OffsetDateTime::now_utc() - broadcast_start_time).whole_milliseconds() as u64,
             &[KeyValue::new(
                 mobile_pay_metrics::IS_MOBILE_PAY,

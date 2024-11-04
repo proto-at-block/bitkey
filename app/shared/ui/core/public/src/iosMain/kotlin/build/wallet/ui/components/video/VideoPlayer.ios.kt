@@ -10,6 +10,7 @@ import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCAction
 import platform.AVFoundation.*
+import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSURL
@@ -118,13 +119,17 @@ actual fun VideoPlayer(
   )
 }
 
-@OptIn(BetaInteropApi::class)
+@OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
 private data class AVPlayerHandler(
   private val player: AVPlayer,
 ) : VideoPlayerHandler() {
   @ObjCAction
   override fun play() {
     player.play()
+  }
+
+  override fun seekTo(position: Int) {
+    player.seekToTime(CMTimeMakeWithSeconds(position.toDouble(), 1))
   }
 
   @ObjCAction

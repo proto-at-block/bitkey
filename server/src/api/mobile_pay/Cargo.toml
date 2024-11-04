@@ -29,6 +29,8 @@ http_server = { workspace = true }
 instrumentation = { workspace = true }
 migration = { workspace = true }
 screener = { workspace = true }
+strum_macros = { workspace = true }
+tokio = { workspace = true }
 types = { workspace = true, features = [
   "currencies",
   "exchange_rate",
@@ -37,5 +39,7 @@ types = { workspace = true, features = [
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
 
-#[dev-dependencies]
-tokio = { workspace = true }
+[dev-dependencies]
+mockall = { workspace = true }
+rstest = { workspace = true }
+wsm-common = { workspace = true }

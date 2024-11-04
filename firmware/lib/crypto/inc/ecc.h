@@ -17,13 +17,10 @@
 secure_bool_t crypto_ecc_verify_hash(key_handle_t* key, uint8_t* hash, uint32_t hash_size,
                                      uint8_t signature[ECC_SIG_SIZE]);
 
-secure_bool_t crypto_ecc_keypair_sign_hash(key_handle_t* keypair, uint8_t* hash, uint32_t hash_size,
-                                           uint8_t signature[ECC_SIG_SIZE]);
-
-// Same as `crypto_ecc_keypair_sign_hash`, but for when the private and public keys are in separate
-// key handles.
-secure_bool_t crypto_ecc_sign_hash(key_handle_t* privkey, key_handle_t* pubkey, uint8_t* hash,
-                                   uint32_t hash_size, uint8_t signature[ECC_SIG_SIZE]);
+// Does NOT verify the signature after signing. If that is important for the security of
+// the caller, the caller must verify the signature.
+secure_bool_t crypto_ecc_sign_hash(key_handle_t* privkey, uint8_t* hash, uint32_t hash_size,
+                                   uint8_t signature[ECC_SIG_SIZE]);
 
 bool crypto_ecc_validate_private_key(key_handle_t* privkey);
 
@@ -55,8 +52,8 @@ bool crypto_ecc_secp256k1_schnorr_verify(key_handle_t* key, uint8_t* message, ui
                                          uint8_t* signature, uint32_t signature_size,
                                          bool* verify_result);
 
-bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* key, uint8_t* hash, uint8_t* signature,
-                                            uint32_t signature_size);
+bool crypto_ecc_secp256k1_ecdsa_sign_hash32(key_handle_t* privkey, uint8_t* hash,
+                                            uint8_t* signature, uint32_t signature_size);
 
 bool crypto_ecc_secp256k1_priv_verify(const uint8_t privkey[SECP256K1_KEY_SIZE]);
 
@@ -72,3 +69,5 @@ bool crypto_ecc_secp256k1_priv_tweak_add(uint8_t privkey[SECP256K1_KEY_SIZE], ui
 
 bool crypto_ecc_secp256k1_pub_tweak_add(uint8_t sec_encoded_pubkey[SECP256K1_SEC1_KEY_SIZE],
                                         uint8_t tweak[SECP256K1_KEY_SIZE]);
+
+bool crypto_ecc_secp256k1_normalize_signature(uint8_t signature[ECC_SIG_SIZE]);

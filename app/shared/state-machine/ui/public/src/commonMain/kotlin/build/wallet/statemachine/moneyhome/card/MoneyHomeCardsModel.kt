@@ -1,5 +1,6 @@
 package build.wallet.statemachine.moneyhome.card
 
+import androidx.compose.runtime.Immutable
 import build.wallet.Progress
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
@@ -30,6 +31,7 @@ data class MoneyHomeCardsModel(
  * @property content - the optional contents of the card that can render in various forms
  * @property animation - optional list of animations to play out on the card
  */
+@Immutable
 data class CardModel(
   val heroImage: Icon? = null,
   val title: LabelModel.StringWithStyledSubstringModel?,

@@ -37,6 +37,15 @@ static seed_res_t master_key_lazy_init(extended_key_t* master_key, seed_t* seed)
   return SEED_RES_OK;
 }
 
+seed_res_t seed_as_extended_key(extended_key_t* key) {
+  if (!wkek_lazy_init()) {
+    return SEED_RES_ERR_WKEK;
+  }
+
+  seed_t seed CLEANUP(seed_zero);
+  return master_key_lazy_init(key, &seed);
+}
+
 seed_res_t seed_derive_bip32(const derivation_path_t path, extended_key_t* key,
                              fingerprint_t* master_fingerprint,
                              fingerprint_t* childs_parent_fingerprint) {

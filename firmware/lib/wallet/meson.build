@@ -1,4 +1,5 @@
 srcs = [
+  'src/derived_key_cache.c',
   'src/seed.c',
   'src/wallet.c',
   'src/wallet_storage.c',
@@ -67,3 +68,11 @@ seed_test = executable('seed-test',
   dependencies : [wallet_dep, deps, test_deps],
 )
 test('seed test', seed_test)
+
+derived_key_cache_test = executable('derived-key-cache-test',
+  'src/derived_key_cache_test.c',
+  srcs,
+  include_directories : [includes, private_includes],
+  dependencies : [wallet_dep, deps, test_deps],
+)
+test('derived key cache test', derived_key_cache_test)

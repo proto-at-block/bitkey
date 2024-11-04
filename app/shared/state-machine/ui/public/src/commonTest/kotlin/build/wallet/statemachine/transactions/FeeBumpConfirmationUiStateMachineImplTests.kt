@@ -21,16 +21,15 @@ import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
+import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
-import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
@@ -90,10 +89,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
   test("fee bump happy path") {
     stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<TransferConfirmationScreenModel> {
+        onConfirmClick()
       }
 
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
@@ -121,11 +118,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         )
       )
     ) {
-      awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().headline.shouldBe("Speed up your consolidation")
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<UtxoConsolidationSpeedUpConfirmationModel> {
+        onConfirmClick()
       }
 
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
@@ -138,11 +132,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
         awaitItem().shouldContainExactly(PsbtMock)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().headline.shouldBe("Transaction sent")
-        primaryButton
-          .shouldNotBeNull()
-          .onClick()
+      awaitScreenWithBody<UtxoConsolidationSpeedUpTransactionSentModel> {
+        onDone()
       }
     }
   }

@@ -16,6 +16,7 @@ public extension UIImage {
   static let cloudBackupEmergencyAccessKit = UIImage(named: "CloudBackupEmergencyAccessKit", in: .main, compatibleWith: nil)!
   static let cloudBackupMobileKey = UIImage(named: "CloudBackupMobileKey", in: .main, compatibleWith: nil)!
   static let largeIconAdd = UIImage(named: "LargeIconAdd", in: .main, compatibleWith: nil)!
+  static let largeIconConsolidationFilled = UIImage(named: "LargeIconConsolidationFilled", in: .main, compatibleWith: nil)!
   static let largeIconMinus = UIImage(named: "LargeIconMinus", in: .main, compatibleWith: nil)!
   static let largeIconCheckFilled = UIImage(named: "LargeIconCheckFilled", in: .main, compatibleWith: nil)!
   static let largeIconCheckStroked = UIImage(named: "LargeIconCheckStroked", in: .main, compatibleWith: nil)!
@@ -114,7 +115,6 @@ public extension UIImage {
   static let smallIconX = UIImage(named: "SmallIconX", in: .main, compatibleWith: nil)!
   static let smallIconXFilled = UIImage(named: "SmallIconXFilled", in: .main, compatibleWith: nil)!
   static let smallIconXStroked = UIImage(named: "SmallIconXStroked", in: .main, compatibleWith: nil)!
-  static let sparklinePlaceholder = UIImage(named: "SparklinePlaceholder", in: .main, compatibleWith: nil)!
   static let subtractLeft = UIImage(named: "SubtractLeft", in: .main, compatibleWith: nil)!
   static let subtractRight = UIImage(named: "SubtractRight", in: .main, compatibleWith: nil)!
   static let calloutArrow = UIImage(named: "CalloutArrow", in: .main, compatibleWith: nil)!
@@ -138,6 +138,7 @@ public extension Icon {
         case .cloudbackupemergencyaccesskit: return .cloudBackupEmergencyAccessKit
         case .cloudbackupmobilekey: return .cloudBackupMobileKey
         case .largeiconadd: return .largeIconAdd
+        case .largeiconconsolidationfilled: return .largeIconConsolidationFilled
         case .largeiconminus: return .largeIconMinus
         case .largeiconcheckfilled: return .largeIconCheckFilled
         case .largeiconcheckstroked: return .largeIconCheckStroked

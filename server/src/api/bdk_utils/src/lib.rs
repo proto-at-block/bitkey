@@ -163,7 +163,7 @@ impl ElectrumServerConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElectrumRpcUris {
     pub mainnet: String,
     pub testnet: String,
@@ -180,22 +180,17 @@ pub fn generate_electrum_rpc_uris(
             // The following `evaluate_flag_value` calls should not fail, but just to be safe, we fall
             // back to the default flag value.
             macro_rules! evaluate_flag_with_fallback {
-			($flag: expr, $network: expr) => {
-				evaluate_flag_value(
-					service,
-					$flag.key.to_string(),
-					context_key,
-				)
-				.unwrap_or_else(|e| {
-					event!(
-						Level::WARN,
-						"Failed to resolve {} Electrum RPC URI using app installation ID: {e}",
-						$network,
-					);
-					$flag.resolver(service).resolve()
-				})
-			};
-		}
+                ($flag: expr, $network: expr) => {
+                    evaluate_flag_value(service, $flag.key, context_key).unwrap_or_else(|e| {
+                        event!(
+                            Level::WARN,
+                            "Failed to resolve {} Electrum RPC URI using app installation ID: {e}",
+                            $network,
+                        );
+                        $flag.resolver(service).resolve()
+                    })
+                };
+            }
             let mainnet = evaluate_flag_with_fallback!(FLAG_MAINNET_ELECTRUM_RPC_URI, "mainnet");
             let testnet = evaluate_flag_with_fallback!(FLAG_TESTNET_ELECTRUM_RPC_URI, "testnet");
             let signet = evaluate_flag_with_fallback!(FLAG_SIGNET_ELECTRUM_RPC_URI, "signet");

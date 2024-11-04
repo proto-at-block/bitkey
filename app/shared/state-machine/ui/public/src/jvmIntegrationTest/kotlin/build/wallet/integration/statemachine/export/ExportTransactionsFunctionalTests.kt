@@ -59,7 +59,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
     // External transaction by sending back to treasury.
     appTester.returnFundsToTreasury()
-    appTester.waitForFunds { it.spendable == zero() }
+    appTester.waitForFunds { it.confirmed == zero() }
 
     val service = appTester.app.appComponent.exportTransactionsService
 
@@ -166,8 +166,6 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
       awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
 
-      // Ensure transaction is confirmed, before proceeding.
-      appTester.mineBlock()
       eventually(
         eventuallyConfig {
           duration = 20.seconds
@@ -178,7 +176,14 @@ class ExportTransactionsFunctionalTests : FunSpec({
         val activeWallet = appTester.getActiveWallet()
         activeWallet.sync().shouldBeOk()
         val balance = activeWallet.balance().first()
-        balance.spendable.shouldBeGreaterThan(sats(0))
+
+        // Let's mine a block if the sweep transaction is still unconfirmed.
+        if (balance.confirmed.isZero) {
+          val newWalletFundingTx = activeWallet.transactions().first().first()
+          appTester.mineBlock(newWalletFundingTx.id)
+        }
+
+        balance.confirmed.shouldBeGreaterThan(sats(0))
       }
     }
 

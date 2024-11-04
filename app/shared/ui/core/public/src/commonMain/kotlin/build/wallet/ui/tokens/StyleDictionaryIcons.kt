@@ -6,8 +6,6 @@ package build.wallet.ui.tokens
 import androidx.compose.runtime.Composable
 import bitkey.shared.ui_core_public.generated.resources.*
 import bitkey.shared.ui_core_public.generated.resources.Res
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.BitcoinOrange
@@ -16,13 +14,15 @@ import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
 import build.wallet.statemachine.core.Icon.BitkeyLogo
 import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
+import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
 import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
 import build.wallet.statemachine.core.Icon.LargeIconAdd
-import build.wallet.statemachine.core.Icon.LargeIconMinus
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
+import build.wallet.statemachine.core.Icon.LargeIconConsolidationFilled
 import build.wallet.statemachine.core.Icon.LargeIconEllipsisFilled
+import build.wallet.statemachine.core.Icon.LargeIconMinus
 import build.wallet.statemachine.core.Icon.LargeIconNetworkError
 import build.wallet.statemachine.core.Icon.LargeIconReceive
 import build.wallet.statemachine.core.Icon.LargeIconSend
@@ -49,10 +49,10 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretLeft
 import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
-import build.wallet.statemachine.core.Icon.SmallIconCheckbox
-import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
+import build.wallet.statemachine.core.Icon.SmallIconCheckbox
+import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
@@ -119,9 +119,10 @@ import build.wallet.statemachine.core.Icon.SmallIconXFilled
 import build.wallet.statemachine.core.Icon.SmallIconXStroked
 import build.wallet.statemachine.core.Icon.SubtractLeft
 import build.wallet.statemachine.core.Icon.SubtractRight
-import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.TabIconHome
 import build.wallet.statemachine.core.Icon.TabIconProfile
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun Icon.painter() = painterResource(drawableRes)
@@ -139,6 +140,7 @@ private val Icon.drawableRes: DrawableResource
       CloudBackupEmergencyAccessKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
       LargeIconAdd -> Res.drawable.large_icon_add
+      LargeIconConsolidationFilled -> Res.drawable.large_icon_consolidation_filled
       LargeIconMinus -> Res.drawable.large_icon_minus
       LargeIconCheckFilled -> Res.drawable.large_icon_check_filled
       LargeIconCheckStroked -> Res.drawable.large_icon_check_stroked

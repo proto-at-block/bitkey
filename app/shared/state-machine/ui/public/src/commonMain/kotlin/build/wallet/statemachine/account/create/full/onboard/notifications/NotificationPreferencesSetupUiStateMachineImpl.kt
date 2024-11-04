@@ -142,15 +142,6 @@ class NotificationPreferencesSetupUiStateMachineImpl(
                   }
                 }
             ),
-          alertModel = constructAlertModel(
-            overlayState = currentState.overlayState,
-            setState = { state = it },
-            pushItemModel = pushItemModel
-          ),
-          bottomSheetModel = constructBottomSheetModel(
-            currentState.overlayState,
-            setState = { state = it }
-          ),
           continueOnClick = {
             val allOptionsCompleted =
               (isCountryUS || smsState == Completed || smsErrorHint.value != UiErrorHint.None) &&
@@ -175,6 +166,16 @@ class NotificationPreferencesSetupUiStateMachineImpl(
               state = RecoveryState.ShowLearnRecoveryWebView
             }
           }
+        ).asRootScreen(
+          alertModel = constructAlertModel(
+            overlayState = currentState.overlayState,
+            setState = { state = it },
+            pushItemModel = pushItemModel
+          ),
+          bottomSheetModel = constructBottomSheetModel(
+            currentState.overlayState,
+            setState = { state = it }
+          )
         )
       }
 
@@ -280,7 +281,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
       !is PushAlertState -> null
       else -> when (overlayState.pushActionState) {
         is RecoveryChannelsSetupPushActionState.AppInfoPromptRequestingPush -> {
-          RequestPushAlertModel(
+          requestPushAlertModel(
             onAllow = {
               setState(ConfigureRecoveryOptionsUiState(SystemPromptRequestingPush))
               eventTracker.track(ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_ENABLED)
@@ -292,7 +293,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
           )
         }
         is RecoveryChannelsSetupPushActionState.OpenSettings -> {
-          OpenSettingsForPushAlertModel(
+          openSettingsForPushAlertModel(
             pushEnabled = pushItemModel.state == Completed,
             settingsOpenAction = {
               overlayState.pushActionState.openAction()
@@ -313,13 +314,17 @@ class NotificationPreferencesSetupUiStateMachineImpl(
   ): SheetModel? =
     when (overlayState) {
       !is BottomSheetState -> null
-      NoEmailError -> EmailRecoveryMethodRequiredErrorModal {
+      NoEmailError -> EmailRecoveryMethodRequiredErrorModal(
+        onCancel = { setState(ConfigureRecoveryOptionsUiState()) }
+      ).asSheetModalScreen {
         setState(ConfigureRecoveryOptionsUiState())
       }
       ConfirmSkipRecoveryMethods -> ConfirmSkipRecoveryMethodsSheetModel(
         onCancel = { setState(ConfigureRecoveryOptionsUiState()) },
         onContinue = { setState(TransactionsAndProductUpdatesState) }
-      )
+      ).asSheetModalScreen {
+        setState(TransactionsAndProductUpdatesState)
+      }
     }
 
   private sealed interface RecoveryState {
@@ -381,3 +386,20 @@ class NotificationPreferencesSetupUiStateMachineImpl(
 }
 
 const val RECOVERY_INFO_URL = "https://bitkey.world/serious-about-security"
+
+/**
+ * App dialog informing user about push request
+ */
+private fun requestPushAlertModel(
+  onAllow: () -> Unit,
+  onDontAllow: () -> Unit,
+) = ButtonAlertModel(
+  title = "Recovery notifications",
+  subline = "Enabling push notifications for recovery verification is highly recommended and will help keep you, and your funds, safe in case you lose your Bitkey device.",
+  onDismiss = onDontAllow,
+  primaryButtonText = "Allow",
+  onPrimaryButtonClick = onAllow,
+  secondaryButtonText = "Don't allow",
+  onSecondaryButtonClick = onDontAllow,
+  secondaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive
+)

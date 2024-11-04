@@ -11,7 +11,9 @@ internal class RustToolchain(
 ) {
   fun installCargoNdk() {
     cargo {
-      args("install", "cargo-ndk")
+      // TODO(W-9887): once cargo-ndk 3.5.5+ is published, bump this version and
+      //               remove workaround from CompileRustForAndroidTask.kt.
+      args("install", "cargo-ndk@3.5.4")
     }
   }
 

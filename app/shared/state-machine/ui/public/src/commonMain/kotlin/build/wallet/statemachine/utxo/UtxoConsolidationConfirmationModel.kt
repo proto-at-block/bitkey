@@ -3,6 +3,7 @@ package build.wallet.statemachine.utxo
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconConsolidation
 import build.wallet.statemachine.core.LabelModel
@@ -31,18 +32,19 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.icon.IconTint.Foreground
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Body model for the UTXO consolidation confirmation screen.
  *
  * Shown to the customer before they proceed with consolidating their UTXOs in settings.
  */
+@Redacted
 data class UtxoConsolidationConfirmationModel(
-  val balanceFiat: String,
-  val balanceBitcoin: String,
+  val balanceTitle: String,
+  val balanceAmountDisplayText: AmountDisplayText,
   val utxoCount: String,
-  val consolidationCostFiat: String,
-  val consolidationCostBitcoin: String,
+  val consolidationCostDisplayText: AmountDisplayText,
   val estimatedConsolidationTime: String,
   val showUnconfirmedTransactionsCallout: Boolean,
   override val onBack: () -> Unit,
@@ -80,7 +82,7 @@ data class UtxoConsolidationConfirmationModel(
         item = CalloutModel(
           title = "Unconfirmed incoming transactions",
           subtitle = LabelModel
-            .StringModel("This consolidation will not include unconfirmed incoming transactions. To include them, wait until all transactions are confirmed and then consolidate."),
+            .StringModel("To consolidate all UTXOs, wait until all incoming transactions are confirmed."),
           treatment = CalloutModel.Treatment.Warning,
           leadingIcon = Icon.SmallIconInformation
         )
@@ -102,9 +104,9 @@ data class UtxoConsolidationConfirmationModel(
       DataList(
         items = immutableListOf(
           Data(
-            title = "Wallet balance",
-            sideText = balanceFiat,
-            secondarySideText = balanceBitcoin
+            title = balanceTitle,
+            sideText = balanceAmountDisplayText.primaryAmountText,
+            secondarySideText = balanceAmountDisplayText.secondaryAmountText
           ),
           Data(
             title = "Number of UTXOs",
@@ -118,8 +120,8 @@ data class UtxoConsolidationConfirmationModel(
               iconSize = IconSize.XSmall,
               iconTint = IconTint.On30
             ),
-            sideText = consolidationCostFiat,
-            secondarySideText = consolidationCostBitcoin
+            sideText = consolidationCostDisplayText.primaryAmountText,
+            secondarySideText = consolidationCostDisplayText.secondaryAmountText
           )
         )
       )

@@ -11,7 +11,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -19,15 +21,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import build.wallet.ui.model.tab.CircularTabRowBodyModel
+import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.theme.WalletTheme
 
 private val EaseInOut = CubicBezierEasing(0.42f, 0.0f, 0.58f, 1.0f)
 
+/*
+ A Circular Tab Row is an outlined component where each end is a half circle. The active tab
+ is highlighted with a filled indicator (CircularTabIndicator), with the ends also using the half-circle design.
+ */
 @Composable
-internal fun CircularTabRow(model: CircularTabRowBodyModel) {
+fun CircularTabRow(
+  modifier: Modifier = Modifier,
+  model: CircularTabRowModel,
+) {
   BoxWithConstraints(
-    modifier = Modifier
+    modifier = modifier
+      .height(height = 48.dp)
       .border(
         width = 2.dp,
         color = WalletTheme.colors.foreground10,
@@ -39,7 +49,7 @@ internal fun CircularTabRow(model: CircularTabRowBodyModel) {
     val tabWidth = remember(this.maxWidth, model.items.size) { this.maxWidth / model.items.size }
     val indicatorOffset: Dp by animateDpAsState(
       targetValue = tabWidth * model.selectedItemIndex,
-      animationSpec = tween(easing = EaseInOut)
+      animationSpec = tween(easing = EaseInOut, durationMillis = 200)
     )
 
     CircularTabIndicator(

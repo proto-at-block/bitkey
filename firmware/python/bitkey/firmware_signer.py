@@ -50,7 +50,7 @@ APP_CERT_ENV_VERSIONS = {
     "localstack": 1,
     "development": 1,
     "staging": 1,
-    "production": 1,
+    "production": 2,
 }
 
 

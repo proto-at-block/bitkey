@@ -11,6 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.bitcoinPrimitivesFake)
+        api(projects.shared.timeFake)
       }
     }
   }

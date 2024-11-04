@@ -365,4 +365,61 @@ class MobilePayServiceImplTests : FunSpec({
 
     mobilePaySigningF8eClient.signWithSpecificKeysetCalls.awaitItem().shouldBe(PsbtMock)
   }
+
+  test(
+    "Given previous transactions and new transaction are below limit, mobile pay is available"
+  ) {
+    backgroundScope.launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    mobilePayStatusProvider.status.value = mobilePayEnabled
+
+    mobilePayService.mobilePayData.test {
+      awaitItem().shouldBe(null)
+      awaitItem().shouldBe(mobilePayDataEnabled)
+    }
+
+    mobilePayService.getDailySpendingLimitStatus(
+      transactionAmount = BitcoinMoney.sats(1000)
+    ).shouldBe(
+      DailySpendingLimitStatus.MobilePayAvailable
+    )
+  }
+
+  test("Given that transaction amount is above the limit, hardware is required") {
+    backgroundScope.launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    mobilePayStatusProvider.status.value = mobilePayEnabled
+
+    mobilePayService.mobilePayData.test {
+      awaitItem().shouldBe(null)
+      awaitItem().shouldBe(mobilePayDataEnabled)
+    }
+
+    mobilePayService.getDailySpendingLimitStatus(
+      transactionAmount = BitcoinMoney.btc(2.0)
+    ).shouldBe(
+      DailySpendingLimitStatus.RequiresHardware
+    )
+  }
+
+  test("Given that balance is null, hardware is required") {
+    backgroundScope.launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    mobilePayStatusProvider.status.value = MobilePayEnabled(
+      activeSpendingLimit = SpendingLimitMock,
+      balance = null
+    )
+
+    mobilePayService.getDailySpendingLimitStatus(
+      transactionAmount = BitcoinMoney.btc(2.0)
+    ).shouldBe(
+      DailySpendingLimitStatus.RequiresHardware
+    )
+  }
 })

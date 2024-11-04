@@ -19,10 +19,14 @@ public struct CalloutView: View {
         self.model = model
     }
 
+    // Tracks whether the subtitle fits on a single line or not.
+    // This is used to determine how to align the leading icon.
+    @SwiftUI.State private var iconVerticalAlignment: SwiftUI.VerticalAlignment = .center
+
     public var body: some View {
         let theme = model.theme
         HStack {
-            HStack {
+            HStack(alignment: iconVerticalAlignment) {
                 if let leadingIcon = self.model.leadingIcon {
                     IconView(
                         model: IconModel(
@@ -51,11 +55,12 @@ public struct CalloutView: View {
                             .foregroundStyle(theme.titleColor)
                     }
 
+                    let subtitleFontLineHeight = 24
                     if let subtitle = model.subtitle {
                         let fontTheme = FontTheme(
                             name: "Inter",
                             size: "16",
-                            lineHeight: "24",
+                            lineHeight: subtitleFontLineHeight.formatted(),
                             kerning: "0"
                         )
                         ModeledText(
@@ -68,6 +73,24 @@ public struct CalloutView: View {
                         .opacity(0.60)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .foregroundStyle(theme.subtitleColor)
+                        .background(
+                            GeometryReader { geometry in
+                                EmptyView()
+                                    .onAppear {
+                                        let isSubtitleMultiLine = geometry.size
+                                            .height > CGFloat(subtitleFontLineHeight)
+                                        if isSubtitleMultiLine {
+                                            // If the subtitle is multiline, align the icon to the
+                                            // top of the row
+                                            iconVerticalAlignment = .top
+                                        } else {
+                                            // If the subtitle is single line, align the icon to the
+                                            // center of the row
+                                            iconVerticalAlignment = .center
+                                        }
+                                    }
+                            }
+                        )
                     }
                 }
 
@@ -199,19 +222,44 @@ extension CalloutModel.Treatment: Identifiable {}
 struct CalloutViewPreview: PreviewProvider {
     static var previews: some View {
         Group {
-            ForEach([CalloutModel.Treatment.default_, .information, .success, .warning, .danger]) {
+            // Single-line subtitle
+            ForEach(
+                [CalloutModel.Treatment.default_, .information, .success, .warning, .danger],
+                id: \.self
+            ) { treatment in
                 CalloutView(
                     model:
                     CalloutModel(
                         title: "Title",
                         subtitle: LabelModelStringModel(string: "Subtitle"),
-                        treatment: $0,
+                        treatment: treatment,
                         leadingIcon: .largeiconcheckstroked,
                         trailingIcon: .smalliconarrowright,
                         onClick: StandardClick(onClick: {})
                     )
                 )
-                .previewDisplayName("CalloutView - \($0)")
+                .previewDisplayName("CalloutView - \(treatment)")
+            }
+
+            // Multi-line subtitle
+            ForEach(
+                [CalloutModel.Treatment.default_, .information, .success, .warning, .danger],
+                id: \.self
+            ) { treatment in
+                CalloutView(
+                    model:
+                    CalloutModel(
+                        title: "Title",
+                        subtitle: LabelModelStringModel(
+                            string: "Subtitle - line one\nSubtitle - line two"
+                        ),
+                        treatment: treatment,
+                        leadingIcon: .largeiconcheckstroked,
+                        trailingIcon: .smalliconarrowright,
+                        onClick: StandardClick(onClick: {})
+                    )
+                )
+                .previewDisplayName("CalloutView - Multiline - \(treatment)")
             }
         }
     }

@@ -1,7 +1,5 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
-import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
@@ -13,14 +11,12 @@ import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.relationships.endorseTrustedContacts
 import build.wallet.f8e.relationships.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
-import build.wallet.statemachine.ui.shouldHaveTrailingAccessoryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
@@ -126,8 +122,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
-      // Expect the social recovery button to exist
-      advanceToCloudRecovery().shouldHaveTrailingAccessoryButton()
+      advanceToCloudRecovery()
     }
   }
 
@@ -177,7 +172,8 @@ class SocRecE2eFunctionalTests : FunSpec({
     val relationshipsCrypto = customerApp.app.appComponent.relationshipsCrypto
     val badKeyCert = TrustedContactKeyCertificate(
       // This is a tampered key we are trying to get into the Protected Customer backup
-      delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow().publicKey,
+      delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey()
+        .getOrThrow().publicKey,
       hwAuthPublicKey = customerApp.getActiveHwAuthKey().publicKey,
       appGlobalAuthPublicKey = customerApp.getActiveAppGlobalAuthKey().publicKey,
       appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature("tampered-app-auth-key-sig"),
@@ -270,12 +266,12 @@ class SocRecE2eFunctionalTests : FunSpec({
       ) {
         val cloudRecoveryForm = advanceToCloudRecovery()
         // Expect the social recovery button to exist
-        cloudRecoveryForm.shouldHaveTrailingAccessoryButton()
+        cloudRecoveryForm.showSocRecButton.shouldBeTrue()
         // Do cloud recovery
-        cloudRecoveryForm.clickPrimaryButton()
+        cloudRecoveryForm.onLostBitkeyClick()
         // Skip auth key rotation
-        awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH)
-          .clickPrimaryButton()
+        awaitUntilScreenWithBody<RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice>()
+          .onNotRightNow()
         awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
         // Suspend until a cloud backup refresh happens
@@ -308,7 +304,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       ) {
         val cloudRecoveryForm = advanceToCloudRecovery()
         // Expect the social recovery button to exist
-        cloudRecoveryForm.shouldHaveTrailingAccessoryButton()
+        cloudRecoveryForm.showSocRecButton.shouldBeTrue()
       }
 
       shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
@@ -344,14 +340,14 @@ class SocRecE2eFunctionalTests : FunSpec({
       useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
-      advanceToCloudRecovery().clickPrimaryButton()
+      advanceToCloudRecovery().onLostBitkeyClick()
       // Do auth key rotation
       screenDecideIfShouldRotate {
         clickSecondaryButton()
       }
       // Note that the auth rotation should write a new cloud backup with new socrec keys.
-      awaitUntilScreenWithBody<FormBodyModel>(SUCCESSFULLY_ROTATED_AUTH)
-        .clickPrimaryButton()
+      awaitUntilScreenWithBody<RotateAuthKeyScreens.Confirmation>()
+        .onSelected()
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -407,14 +403,14 @@ class SocRecE2eFunctionalTests : FunSpec({
       useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
-      advanceToCloudRecovery().clickPrimaryButton()
+      advanceToCloudRecovery().onRestore()
       // Do auth key rotation
       screenDecideIfShouldRotate {
         clickSecondaryButton()
       }
       // Note that the auth rotation should write a new cloud backup with new socrec keys.
-      awaitUntilScreenWithBody<FormBodyModel>(SUCCESSFULLY_ROTATED_AUTH)
-        .clickPrimaryButton()
+      awaitUntilScreenWithBody<RotateAuthKeyScreens.Confirmation>()
+        .onSelected()
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -621,9 +617,9 @@ suspend fun shouldSucceedSocialRestore(
     props = Unit,
     useVirtualTime = false
   ) {
-    val tcList =
+    val model =
       advanceToSocialChallengeTrustedContactList(CloudStoreAccountFake.ProtectedCustomerFake)
-    challengeCode = startSocialChallenge(tcList)
+    challengeCode = startSocialChallenge(model)
     cancelAndIgnoreRemainingEvents()
   }
 

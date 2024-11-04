@@ -61,6 +61,15 @@ suspend fun AppTester.mineBlock() {
 }
 
 /**
+ * Mines a new block if on Regtest and a txid is observed in the mempool. Noop otherwise. Call this
+ * after sending transactions to make tests runnable on Regtest and other networks. Mining rewards
+ * are sent to the Treasury.
+ */
+suspend fun AppTester.mineBlock(txid: String) {
+  blockchainControl.mineBlock(txid)
+}
+
+/**
  * Validates that current wallet has total balance equal to [amount].
  */
 suspend fun AppTester.shouldHaveTotalBalance(amount: BitcoinMoney) {

@@ -16,6 +16,7 @@ import build.wallet.home.GettingStartedTaskDao
 import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.inappsecurity.HideBalancePreference
+import build.wallet.inheritance.InheritanceClaimsDao
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.log
@@ -64,6 +65,7 @@ class AppDataDeleterImpl(
   private val authSignatureStatusProvider: F8eAuthSignatureStatusProvider,
   private val hideBalancePreference: HideBalancePreference,
   private val biometricPreference: BiometricPreference,
+  private val inheritanceClaimsDao: InheritanceClaimsDao,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     coroutineBinding {
@@ -97,6 +99,7 @@ class AppDataDeleterImpl(
       authSignatureStatusProvider.clear()
       biometricPreference.clear()
       hideBalancePreference.clear()
+      inheritanceClaimsDao.clear()
 
       // Make sure we clear Account data last because this will transition the UI
       accountService.clear().bind()

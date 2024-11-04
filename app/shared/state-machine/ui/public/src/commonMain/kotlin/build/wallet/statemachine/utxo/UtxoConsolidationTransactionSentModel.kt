@@ -2,6 +2,7 @@ package build.wallet.statemachine.utxo
 
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -13,16 +14,14 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
-/**
- * TODO(W-9563): polish UI
- */
+@Redacted
 data class UtxoConsolidationTransactionSentModel(
   val targetAddress: String,
   val arrivalTime: String,
   val utxosCountConsolidated: String,
-  val consolidationCostBitcoin: String,
-  val consolidationCostFiat: String,
+  val consolidationCostDisplayText: AmountDisplayText,
   override val onBack: () -> Unit,
   val onDone: () -> Unit,
 ) : FormBodyModel(
@@ -52,8 +51,8 @@ data class UtxoConsolidationTransactionSentModel(
           ),
           Data(
             title = "Consolidation cost",
-            sideText = consolidationCostFiat,
-            secondarySideText = consolidationCostBitcoin
+            sideText = consolidationCostDisplayText.primaryAmountText,
+            secondarySideText = consolidationCostDisplayText.secondaryAmountText
           )
         )
       )

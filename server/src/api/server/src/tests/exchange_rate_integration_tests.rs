@@ -1,4 +1,5 @@
 use http::StatusCode;
+
 use types::currencies::Currency;
 
 use crate::tests::gen_services;

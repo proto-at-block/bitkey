@@ -50,7 +50,6 @@ import build.wallet.inappsecurity.HideBalancePreferenceImpl
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderImpl
 import build.wallet.keybox.AppDataDeleterImpl
 import build.wallet.keybox.CloudBackupDeleterImpl
-import build.wallet.limit.MobilePaySpendingPolicyImpl
 import build.wallet.logging.log
 import build.wallet.money.formatter.internal.MoneyDisplayFormatterImpl
 import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
@@ -141,6 +140,7 @@ import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMac
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachineImpl
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachineImpl
 import build.wallet.statemachine.inheritance.InviteBeneficiaryUiStateMachineImpl
+import build.wallet.statemachine.inheritance.claims.start.StartClaimUiStateMachineImpl
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachineImpl
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiStateMachineImpl
 import build.wallet.statemachine.money.amount.MoneyAmountEntryUiStateMachineImpl
@@ -206,6 +206,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachineImpl
 import build.wallet.statemachine.root.AppUiStateMachineImpl
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachineImpl
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineImpl
 import build.wallet.statemachine.send.fee.FeeOptionUiStateMachineImpl
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachineImpl
@@ -643,17 +644,20 @@ class ActivityComponentImpl(
     doubleFormatter = doubleFormatter
   )
 
-  val mobilePaySpendingPolicy = MobilePaySpendingPolicyImpl()
+  val transferCardUiStateMachine = TransferCardUiStateMachineImpl(
+    mobilePayRevampFeatureFlag = appComponent.mobilePayRevampFeatureFlag,
+    appFunctionalityService = appComponent.appFunctionalityService,
+    mobilePayService = appComponent.mobilePayService
+  )
 
   val transferAmountEntryUiStateMachine = TransferAmountEntryUiStateMachineImpl(
     currencyConverter = appComponent.currencyConverter,
     moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-    mobilePaySpendingPolicy = mobilePaySpendingPolicy,
     moneyDisplayFormatter = moneyDisplayFormatter,
     fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
     transactionsService = appComponent.transactionsService,
-    mobilePayService = appComponent.mobilePayService,
-    mobilePayRevampFeatureFlag = appComponent.mobilePayRevampFeatureFlag
+    transferCardUiStateMachine = transferCardUiStateMachine,
+    appFunctionalityService = appComponent.appFunctionalityService
   )
 
   val transactionDetailsCardUiStateMachine = TransactionDetailsCardUiStateMachineImpl(
@@ -1045,7 +1049,6 @@ class ActivityComponentImpl(
       fiatCurrenciesService = appComponent.fiatCurrenciesService,
       moneyDisplayFormatter = moneyDisplayFormatter,
       hideBalancePreference = hideBalancePreference,
-      bitcoinPriceChartFeatureFlag = appComponent.bitcoinPriceChartFeatureFlag,
       bitcoinPriceCardPreference = appComponent.bitcoinPriceCardPreference,
       transactionsService = appComponent.transactionsService
     )
@@ -1263,7 +1266,8 @@ class ActivityComponentImpl(
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionsService = appComponent.transactionsService,
-      mobilePayService = appComponent.mobilePayService
+      mobilePayService = appComponent.mobilePayService,
+      appFunctionalityService = appComponent.appFunctionalityService
     )
 
   val bitcoinTransactionFeeEstimator = BitcoinTransactionFeeEstimatorImpl(
@@ -1303,7 +1307,6 @@ class ActivityComponentImpl(
     feeSelectionUiStateMachine = feeSelectionStateMachine,
     exchangeRateService = appComponent.exchangeRateService,
     clock = appComponent.clock,
-    networkReachabilityProvider = appComponent.networkReachabilityProvider,
     fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
   )
 
@@ -1376,7 +1379,8 @@ class ActivityComponentImpl(
       recoveryDao = appComponent.recoveryDao,
       authSignatureStatusProvider = appComponent.f8eAuthSignatureStatusProvider,
       hideBalancePreference = hideBalancePreference,
-      biometricPreference = appComponent.biometricPreference
+      biometricPreference = appComponent.biometricPreference,
+      inheritanceClaimsDao = appComponent.inheritanceClaimsDao
     )
 
   val exchangeRateChartFetcher = ChartDataFetcherServiceImpl(
@@ -1885,10 +1889,19 @@ class ActivityComponentImpl(
     inheritanceService = appComponent.inheritanceService
   )
 
+  private val startClaimUiStateMachine = StartClaimUiStateMachineImpl(
+    inheritanceService = appComponent.inheritanceService,
+    notificationsStateMachine = enableNotificationsUiStateMachine,
+    permissionChecker = appComponent.permissionChecker,
+    dateTimeFormatter = dateTimeFormatter,
+    timeZoneProvider = timeZoneProvider
+  )
+
   private val inheritanceManagementUiStateMachine = InheritanceManagementUiStateMachineImpl(
     inviteBeneficiaryUiStateMachine = inviteBeneficiaryUiStateMachine,
     trustedContactEnrollmentUiStateMachine = trustedContactEnrollmentUiStateMachine,
-    inheritanceService = appComponent.inheritanceService
+    inheritanceService = appComponent.inheritanceService,
+    startClaimUiStateMachine = startClaimUiStateMachine
   )
 
   private val exportToolsUiStateMachine = ExportToolsUiStateMachineImpl(

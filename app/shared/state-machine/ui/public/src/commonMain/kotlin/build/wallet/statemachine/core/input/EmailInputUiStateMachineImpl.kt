@@ -1,10 +1,6 @@
 package build.wallet.statemachine.core.input
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.email.Email
 import build.wallet.email.EmailValidator
 import build.wallet.f8e.error.F8eError
@@ -13,9 +9,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
-import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.Hidden
-import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.ShowingErrorSheet
-import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.ShowingSkipSheet
+import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -32,80 +26,70 @@ class EmailInputUiStateMachineImpl(
     }
 
     return EmailInputScreenModel(
-      title =
-        when (props.dataInputStyle) {
-          Enter -> "Enter your email address"
-          Edit -> "Edit your email address"
-        },
+      title = when (props.dataInputStyle) {
+        Enter -> "Enter your email address"
+        Edit -> "Edit your email address"
+      },
       subline = props.subline,
       value = state.email.value,
-      primaryButton =
-        ButtonModel(
-          text = "Continue",
-          isEnabled = state.isValid,
-          isLoading = state.isLoading,
-          size = Footer,
-          onClick =
-            StandardClick {
-              if (state.isValid) {
-                state = state.copy(isLoading = true)
-              }
-              val trimmedEmail = Email(value = state.email.value.trim())
-              props.onEmailEntered(trimmedEmail) { error ->
-                state =
-                  state.copy(
-                    isLoading = false,
-                    bottomSheetState = ShowingErrorSheet(error)
-                  )
-              }
-            }
-        ),
+      primaryButton = ButtonModel(
+        text = "Continue",
+        isEnabled = state.isValid,
+        isLoading = state.isLoading,
+        size = Footer,
+        onClick = StandardClick {
+          if (state.isValid) {
+            state = state.copy(isLoading = true)
+          }
+          val trimmedEmail = Email(value = state.email.value.trim())
+          props.onEmailEntered(trimmedEmail) { error ->
+            state = state.copy(
+              isLoading = false,
+              bottomSheetState = ShowingErrorSheet(error)
+            )
+          }
+        }
+      ),
       onValueChange = { updatedEmailText: String ->
         val updatedEmail = Email(value = updatedEmailText)
-        state =
-          State(
-            email = updatedEmail,
-            isValid = emailValidator.validateEmail(updatedEmail)
-          )
+        state = State(
+          email = updatedEmail,
+          isValid = emailValidator.validateEmail(updatedEmail)
+        )
       },
       onClose = { props.onClose() },
-      onSkip =
-        props.skipBottomSheetProvider?.let {
-          {
-            handleOnSkip(it) { produceState ->
-              state = produceState(state)
-            }
+      onSkip = props.skipBottomSheetProvider?.let {
+        {
+          handleOnSkip(it) { produceState ->
+            state = produceState(state)
           }
-        },
-      errorOverlayModel =
-        when (val bottomSheetState = state.bottomSheetState) {
-          is Hidden -> null
-          is ShowingSkipSheet -> bottomSheetState.sheet
-          is ShowingErrorSheet ->
-            when (bottomSheetState.error) {
-              is F8eError.SpecificClientError ->
-                when (bottomSheetState.error.errorCode) {
-                  AddTouchpointClientErrorCode.TOUCHPOINT_ALREADY_ACTIVE ->
-                    EmailTouchpointAlreadyActiveErrorSheetModel(
-                      onBack = { state = state.copy(bottomSheetState = Hidden) }
-                    )
-
-                  AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE ->
-                    error("Unexpected error code for email touchpoint")
-
-                  AddTouchpointClientErrorCode.INVALID_EMAIL_ADDRESS ->
-                    EmailTouchpointInvalidErrorSheetModel(
-                      onBack = { state = state.copy(bottomSheetState = Hidden) }
-                    )
-                }
-
-              else ->
-                EmailInputErrorSheetModel(
-                  isConnectivityError = bottomSheetState.error is F8eError.ConnectivityError,
-                  onBack = { state = state.copy(bottomSheetState = Hidden) }
-                )
-            }
         }
+      }
+    ).asModalScreen(
+      bottomSheetModel = when (val bottomSheetState = state.bottomSheetState) {
+        is Hidden -> null
+        is ShowingSkipSheet -> bottomSheetState.sheet
+        is ShowingErrorSheet ->
+          when (bottomSheetState.error) {
+            is F8eError.SpecificClientError ->
+              when (bottomSheetState.error.errorCode) {
+                AddTouchpointClientErrorCode.TOUCHPOINT_ALREADY_ACTIVE ->
+                  EmailTouchpointAlreadyActiveErrorSheetModel(
+                    onBack = { state = state.copy(bottomSheetState = Hidden) }
+                  )
+                AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE ->
+                  error("Unexpected error code for email touchpoint")
+                AddTouchpointClientErrorCode.INVALID_EMAIL_ADDRESS ->
+                  EmailTouchpointInvalidErrorSheetModel(
+                    onBack = { state = state.copy(bottomSheetState = Hidden) }
+                  )
+              }
+            else -> EmailInputErrorSheetModel(
+              isConnectivityError = bottomSheetState.error is F8eError.ConnectivityError,
+              onBack = { state = state.copy(bottomSheetState = Hidden) }
+            )
+          }
+      }
     )
   }
 

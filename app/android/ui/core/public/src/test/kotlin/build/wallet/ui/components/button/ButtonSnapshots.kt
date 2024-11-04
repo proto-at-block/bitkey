@@ -2,9 +2,7 @@ package build.wallet.ui.components.button
 
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
-import com.airbnb.lottie.LottieTask
 import io.kotest.core.spec.style.FunSpec
-import java.util.concurrent.Executor
 
 class ButtonSnapshots : FunSpec(
   {
@@ -95,16 +93,8 @@ class ButtonSnapshots : FunSpec(
     }
 
     test("button - loading") {
-      // Needed for snapshotting the loading lottie animation
-      LottieTask.EXECUTOR = Executor(Runnable::run)
       paparazzi.snapshot {
         RegularButtonLoading()
-      }
-    }
-
-    test("floating button") {
-      paparazzi.snapshot {
-        FloatingButtonPreview()
       }
     }
   }

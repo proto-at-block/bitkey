@@ -80,7 +80,7 @@ private extension FormBodyModel {
             TransferConfirmationScreenVariantRegular()
         }
 
-        return TransferConfirmationScreenModelKt.TransferConfirmationScreenModel(
+        return SnapshotTestModels.shared.CreateTransferConfirmationScreenModel(
             onBack: {},
             onCancel: {},
             variant: displayVariant,
@@ -99,11 +99,10 @@ private extension FormBodyModel {
             ),
             requiresHardware: requiresHardware,
             confirmButtonEnabled: confirmButtonEnabled,
-            errorOverlayModel: nil,
             onConfirmClick: {},
             onNetworkFeesClick: {},
             onArrivalTimeClick: {}
-        ).body as! FormBodyModel
+        )
     }
 
 }

@@ -22,6 +22,7 @@ pub enum FirmwareFeatureFlag {
     MultipleFingerprints,
     ImprovedFingerprintEnrollment,
     AsyncSigning,
+    SigningOptimizations,
 }
 
 macro_rules! convert_enum {
@@ -53,7 +54,8 @@ convert_enum!(
     Unlock,
     MultipleFingerprints,
     ImprovedFingerprintEnrollment,
-    AsyncSigning
+    AsyncSigning,
+    SigningOptimizations
 );
 
 impl FirmwareFeatureFlag {

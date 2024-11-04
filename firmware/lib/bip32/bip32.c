@@ -12,12 +12,12 @@
 
 #define KEY_IDENTIFIER_SIZE (HASH160_DIGEST_SIZE)
 
-static bool all_zeroes(uint8_t* buf, uint32_t size) {
+static inline bool all_zeroes(uint8_t* buf, uint32_t size) {
+  volatile uint8_t v = 0;
   for (size_t i = 0; i < size; i++) {
-    if (buf[i] != 0)
-      return false;
+    v |= buf[i];
   }
-  return true;
+  return v == 0;
 }
 
 static bool compute_identifier(uint8_t* sec_encoded_pubkey, uint8_t* identifier,
@@ -158,22 +158,26 @@ bool bip32_derive_master_key(const uint8_t* seed, uint32_t seed_length,
 bool bip32_derive_path_priv(extended_key_t* priv_parent, extended_key_t* priv_child_out,
                             uint8_t childs_parent_fingerprint_out[BIP32_KEY_FINGERPRINT_SIZE],
                             const derivation_path_t* path) {
-  ASSERT(priv_parent && priv_child_out && childs_parent_fingerprint_out && path);
+  ASSERT(priv_parent && priv_child_out && path);
   ASSERT(path->num_indices <= BIP32_MAX_DERIVATION_DEPTH);
   ASSERT(path->indices);
 
   bool status = false;
 
   memcpy(priv_child_out, priv_parent, sizeof(extended_key_t));
-  memzero(childs_parent_fingerprint_out, BIP32_KEY_FINGERPRINT_SIZE);
+  if (childs_parent_fingerprint_out) {
+    memzero(childs_parent_fingerprint_out, BIP32_KEY_FINGERPRINT_SIZE);
+  }
 
   for (uint32_t i = 0; i < path->num_indices; i++) {
     uint32_t index = path->indices[i];
 
     // Convert current child, who will be the NEXT child's parent, to
     // public key to compute the fingerprint.
-    if (!bip32_compute_fingerprint(priv_child_out, childs_parent_fingerprint_out)) {
-      goto out;
+    if (childs_parent_fingerprint_out) {
+      if (!bip32_compute_fingerprint(priv_child_out, childs_parent_fingerprint_out)) {
+        goto out;
+      }
     }
 
     // CKDpriv((k_par, c_par), i) → (k_i, c_i)
@@ -361,24 +365,25 @@ bool bip32_serialize_ext_key(extended_key_t* ext_key, extended_key_t* parent_pub
 
 bool bip32_sign(extended_key_t* priv_key, uint8_t digest[SHA256_DIGEST_SIZE],
                 uint8_t signature_out[ECC_SIG_SIZE]) {
-  uint8_t keypair_bytes[SECP256K1_KEYPAIR_SIZE] = {0};
+  uint8_t keypair_bytes[SECP256K1_CUSTOM_DOMAIN_OVERHEAD + ECC_PRIVKEY_SIZE] = {0};
 
   key_buffer_t key_buffer = {
     .bytes = keypair_bytes,
-    .size = SECP256K1_KEYPAIR_SIZE,
+    .size = sizeof(keypair_bytes),
   };
 
   key_handle_t key_handle CLEANUP(zeroize_key) = {
-    .alg = ALG_ECC_SECP256K1,  // Not actually used, since this key is software only.
+    .alg = ALG_ECC_SECP256K1,
     .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
+    .acl = SE_KEY_FLAG_ASYMMETRIC_BUFFER_HAS_PRIVATE_KEY | SE_KEY_FLAG_ASYMMETRIC_SIGNING_ONLY,
     .key = key_buffer,
   };
 
-  if (!crypto_ecc_secp256k1_load_keypair(priv_key->key, &key_handle)) {
-    return false;
-  }
+  uint32_t privkey_offset =
+    key_management_custom_domain_prepare(ALG_ECC_SECP256K1, key_buffer.bytes, key_buffer.size);
+  memcpy(&keypair_bytes[privkey_offset], priv_key->key, ECC_PRIVKEY_SIZE);
 
-  if (!crypto_ecc_secp256k1_ecdsa_sign_hash32(&key_handle, digest, signature_out, ECC_SIG_SIZE)) {
+  if (crypto_ecc_sign_hash(&key_handle, digest, SHA256_DIGEST_SIZE, signature_out) != SECURE_TRUE) {
     memzero(signature_out, ECC_SIG_SIZE);  // Clear signature if signing failed.
     return false;
   }

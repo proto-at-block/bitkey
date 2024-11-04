@@ -9,9 +9,9 @@ final class EmailRecoveryMethodRequiredErrorScreenSnapshotTests: XCTestCase {
 
     func test_email_receovery_method_required_error_screen() {
         let view = FormView(
-            viewModel: RecoveryChannelsSetupFormBodyModelKt.EmailRecoveryMethodRequiredErrorModal(
+            viewModel: SnapshotTestModels.shared.CreateEmailRecoveryMethodRequiredErrorModal(
                 onCancel: {}
-            ).body as! FormBodyModel
+            )
         )
 
         assertBitkeySnapshots(view: view)

@@ -13,10 +13,12 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * The screen shown after successfully speeding up a UTXO consolidation via RBF.
  */
+@Redacted
 data class UtxoConsolidationSpeedUpTransactionSentModel(
   val targetAddress: String,
   val arrivalTime: String,
