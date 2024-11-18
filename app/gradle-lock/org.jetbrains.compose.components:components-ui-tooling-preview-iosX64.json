@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-ui-tooling-preview-iosX64",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iosx64-1.6.11-metadata.jar": "0efa6f77a20686fae8575d073faa2c6b44c020fe081e4f2fd69ecf7bdadca01c"
+                        "library-iosx64-1.7.0-metadata.jar": "fba85fe3fa61d4cbbe58092f248dc1c1fcd1f0a4e4773ac607767a00952d275d"
                     }
                 },
                 {

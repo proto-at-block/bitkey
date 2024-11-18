@@ -14,8 +14,6 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun RequestPermissionScreen(
@@ -51,22 +49,6 @@ fun RequestPermissionScreen(
           onClick = StandardClick(model.onRequest)
         )
       }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun PreviewRequestPermissionScreen() {
-  PreviewWalletTheme {
-    RequestPermissionScreen(
-      model = RequestPermissionBodyModel(
-        title = "Requesting Permission",
-        explanation = "This permission is needed in order to use this feature to change the world",
-        showingSystemPermission = false,
-        onBack = {},
-        onRequest = {}
-      )
     )
   }
 }

@@ -35,6 +35,13 @@ class BenefactorClaimSerializerTests : FunSpec({
                 "recovery_relationship_id": "test-relationship_id"
             }
   """.trimIndent()
+  val completeClaim = """
+            {
+                "status": "COMPLETE",
+                "id": "test-id",
+                "recovery_relationship_id": "test-relationship_id"
+            }
+  """.trimIndent()
 
   test("Deserialize pending claim") {
     val result = json.decodeFromString(BenefactorClaimSerializer, pendingClaimJson)
@@ -96,6 +103,25 @@ class BenefactorClaimSerializerTests : FunSpec({
     val result = json.encodeToString(BenefactorClaimSerializer, input)
 
     result.shouldBe(lockedClaim)
+  }
+
+  test("Deserialize complete claim") {
+    val result = json.decodeFromString(BenefactorClaimSerializer, completeClaim)
+
+    result.shouldBeInstanceOf<BenefactorClaim.CompleteClaim>()
+    result.claimId.value.shouldBe("test-id")
+    result.relationshipId.value.shouldBe("test-relationship_id")
+  }
+
+  test("Serialize complete Claim") {
+    val input = BenefactorClaim.CompleteClaim(
+      claimId = InheritanceClaimId("test-id"),
+      relationshipId = RelationshipId("test-relationship_id")
+    )
+
+    val result = json.encodeToString(BenefactorClaimSerializer, input)
+
+    result.shouldBe(completeClaim)
   }
 
   test("Deserialize unknown state") {

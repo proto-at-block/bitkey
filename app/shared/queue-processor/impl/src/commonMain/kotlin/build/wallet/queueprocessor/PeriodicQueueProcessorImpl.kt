@@ -12,7 +12,7 @@ import kotlin.time.Duration
 /**
  * Utility wrapper to make it easy to pass around an object instead of lambdas
  */
-class PeriodicQueueProcessorImpl<T>(
+internal class PeriodicQueueProcessorImpl<T>(
   private val queue: Queue<T>,
   private val processor: Processor<T>,
   private val frequency: Duration,

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-core-desktop",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-desktop-1.6.11.jar": "6487c4c965c887e9f7d3d658b3c291dd3d3c0bb82f1805fce2b4ef9d7089cd66"
+                        "animation-core-desktop-1.7.0.jar": "49b5a4e8f3a5e84702450325c0175688d55c4a12973cfc1a1a36e64f18fdf8d5"
                     }
                 }
             ],

@@ -3,7 +3,6 @@ package build.wallet.ui.components.tabbar
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -16,8 +15,6 @@ import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun RowScope.TabBarItem(
@@ -51,33 +48,5 @@ fun RowScope.TabBarItem(
         },
       onClick = onClick
     )
-  }
-}
-
-@Preview
-@Composable
-private fun TabBarItemSelectedPreview() {
-  PreviewWalletTheme {
-    Row {
-      TabBarItem(
-        icon = Icon.TabIconHome,
-        selected = true,
-        onClick = {}
-      )
-    }
-  }
-}
-
-@Preview
-@Composable
-private fun TabBarItemNotSelectedPreview() {
-  PreviewWalletTheme {
-    Row {
-      TabBarItem(
-        icon = Icon.TabIconHome,
-        selected = false,
-        onClick = {}
-      )
-    }
   }
 }

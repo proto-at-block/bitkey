@@ -1,23 +1,24 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.*
+import build.wallet.account.AccountService
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
+import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
+import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.keybox.AppDataDeleter
 import build.wallet.keybox.CloudBackupDeleter
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveLiteAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
@@ -29,8 +30,10 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
+import kotlinx.coroutines.launch
 
 class DebugMenuListStateMachineImpl(
+  private val accountService: AccountService,
   private val accountConfigUiStateMachine: AccountConfigUiStateMachine,
   private val analyticsOptionsUiStateMachine: AnalyticsOptionsUiStateMachine,
   private val appDataDeleter: AppDataDeleter,
@@ -47,15 +50,17 @@ class DebugMenuListStateMachineImpl(
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val debugOptionsService: DebugOptionsService,
+  private val testNotificationF8eClient: TestNotificationF8eClient,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
+    val account = remember { accountService.activeAccount() }.collectAsState(null).value
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
     var resetCoachmarks by remember { mutableStateOf(false) }
 
     if (deleteAppDataRequest != null) {
-      val interstitial = DeleteEffect(deleteAppDataRequest!!, props.accountData) {
+      val interstitial = DeleteEffect(account, deleteAppDataRequest!!) {
         deleteAppDataRequest = null
         props.onClose()
       }
@@ -77,24 +82,31 @@ class DebugMenuListStateMachineImpl(
         immutableListOfNotNull(
           accountConfigUiStateMachine.model(
             AccountConfigProps(
-              accountData = props.accountData,
               onBitcoinWalletClick = {
                 props.onSetState(DebugMenuState.ShowingBitcoinWalletDebugMenu)
               }
             )
           ),
-          OnboardingConfigListGroupModel(props),
+          onboardingConfigStateMachine.model(Unit),
           bitcoinNetworkPickerUiStateMachine.model(Unit),
-          F8eEnvironmentPickerListGroupModel(props),
+          f8eEnvironmentPickerUiStateMachine.model(
+            F8eEnvironmentPickerUiProps(
+              openCustomUrlInput = { customUrl ->
+                props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl))
+              }
+            )
+          ),
           infoOptionsUiStateMachine.model(Unit),
           BitkeyDeviceOptionsListGroupModel(
             props = props,
+            account = account,
             onActionConfirmationRequest = { actionConfirmation = it }
           ),
           LogsListGroupModel(props.onSetState),
           AnalyticsOptionsListGroupModel(props.onSetState),
           FeatureFlagsOptionsListGroupModel(props.onSetState),
           NetworkingDebugOptionsListGroupModel(
+            account,
             onActionConfirmationRequest = { actionConfirmation = it },
             props.onSetState,
             resetCoachmarks = {
@@ -133,12 +145,11 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun DeleteEffect(
+    account: Account?,
     request: DeleteAppDataRequest,
-    accountData: AccountData,
     onDone: () -> Unit,
   ): BodyModel? {
-    val requiresLogin =
-      !(accountData is AccountData.HasActiveFullAccountData || accountData is HasActiveLiteAccountData)
+    val requiresLogin = account == null
     var cloudLoggedIn: Boolean by remember { mutableStateOf(false) }
 
     if (requiresLogin && !cloudLoggedIn) {
@@ -184,21 +195,15 @@ class DebugMenuListStateMachineImpl(
   }
 
   @Composable
-  private fun OnboardingConfigListGroupModel(props: DebugMenuListProps): ListGroupModel? {
-    return onboardingConfigStateMachine.model(
-      OnboardingConfigProps(props.accountData)
-    )
-  }
-
-  @Composable
   private fun BitkeyDeviceOptionsListGroupModel(
     props: DebugMenuListProps,
+    account: Account?,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
   ): ListGroupModel? {
     val debugOptions =
       remember { debugOptionsService.options() }.collectAsState(initial = null).value
 
-    val isHardwareFake = props.accountData.isHardwareFake(debugOptions) ?: return null
+    val isHardwareFake = account?.isHardwareFake(debugOptions) ?: return null
     return bitkeyDeviceOptionsUiStateMachine.model(
       props =
         BitkeyDeviceOptionsUiProps(
@@ -307,11 +312,14 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun NetworkingDebugOptionsListGroupModel(
+    account: Account?,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onSetState: (DebugMenuState) -> Unit,
     resetCoachmarks: () -> Unit,
-  ): ListGroupModel? =
-    when (appVariant) {
+  ): ListGroupModel? {
+    val scope = rememberStableCoroutineScope()
+
+    return when (appVariant) {
       AppVariant.Customer -> null
       else ->
         ListGroupModel(
@@ -338,22 +346,24 @@ class DebugMenuListStateMachineImpl(
                     )
                   )
                 }
+              ),
+              ListItemModel(
+                title = "Test Notification",
+                onClick = {
+                  account?.let { account ->
+                    scope.launch {
+                      testNotificationF8eClient.notification(
+                        account.accountId,
+                        account.config.f8eEnvironment
+                      )
+                    }
+                  }
+                }
               )
             ),
           style = ListGroupStyle.DIVIDER
         )
     }
-
-  @Composable
-  private fun F8eEnvironmentPickerListGroupModel(props: DebugMenuListProps): ListGroupModel? {
-    return f8eEnvironmentPickerUiStateMachine.model(
-      F8eEnvironmentPickerUiProps(
-        accountData = props.accountData,
-        openCustomUrlInput = { customUrl ->
-          props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl))
-        }
-      )
-    )
   }
 
   @Composable
@@ -376,15 +386,11 @@ class DebugMenuListStateMachineImpl(
     }
   }
 
-  private fun AccountData.isHardwareFake(debugOptions: DebugOptions?): Boolean? {
+  private fun Account.isHardwareFake(debugOptions: DebugOptions?): Boolean? {
     if (debugOptions == null) return null
-    return when (val accountData = this) {
-      is ActiveFullAccountLoadedData -> accountData.account.keybox.config.isHardwareFake
-      is CreatingFullAccountData -> debugOptions.isHardwareFake
-      is GettingStartedData -> debugOptions.isHardwareFake
-      is RecoveringAccountData -> debugOptions.isHardwareFake
-      is HasActiveLiteAccountData -> debugOptions.isHardwareFake
-      else -> null
+    return when (this) {
+      is FullAccount -> keybox.config.isHardwareFake
+      else -> debugOptions.isHardwareFake
     }
   }
 }

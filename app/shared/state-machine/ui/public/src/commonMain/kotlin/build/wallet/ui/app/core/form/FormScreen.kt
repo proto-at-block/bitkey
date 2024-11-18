@@ -1,13 +1,10 @@
 package build.wallet.ui.app.core.form
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
@@ -19,14 +16,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.toolbar.EmptyToolbar
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * A slot-based screen for rendering form views.
@@ -101,176 +94,5 @@ fun FormScreen(
       }
     }
     Spacer(Modifier.height(28.dp))
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenAllContentsPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = {
-        ToolbarPlaceholder()
-      },
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = {
-        MainContentPlaceholder()
-      },
-      footerContent = {
-        FooterPlaceholder()
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenAllContentsNoToolbarPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = null,
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = {
-        MainContentPlaceholder()
-      },
-      footerContent = {
-        FooterPlaceholder()
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenAllContentsNoMainContentPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = {
-        ToolbarPlaceholder()
-      },
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = null,
-      footerContent = {
-        FooterPlaceholder()
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenAllContentsNoFooterPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = {
-        ToolbarPlaceholder()
-      },
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = {
-        MainContentPlaceholder()
-      },
-      footerContent = null
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenAllContentsNoMainAndFooterContentPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = {
-        ToolbarPlaceholder()
-      },
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = null,
-      footerContent = null
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FormScreenNotFullHeightPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      onBack = null,
-      toolbarContent = {
-        ToolbarPlaceholder()
-      },
-      headerContent = {
-        HeaderPlaceholder()
-      },
-      mainContent = {
-        MainContentPlaceholder()
-      },
-      footerContent = {
-        FooterPlaceholder()
-      },
-      fullHeight = false
-    )
-  }
-}
-
-@Composable
-private fun ToolbarPlaceholder() {
-  ContentPlaceholder(
-    borderColor = Color.Red,
-    label = "Toolbar Content"
-  )
-}
-
-@Composable
-private fun HeaderPlaceholder() {
-  ContentPlaceholder(
-    borderColor = Color.Blue,
-    label = "Header Content"
-  )
-}
-
-@Composable
-private fun MainContentPlaceholder() {
-  ContentPlaceholder(
-    borderColor = Color.Yellow,
-    label = "Main Content"
-  )
-}
-
-@Composable
-private fun FooterPlaceholder() {
-  ContentPlaceholder(
-    borderColor = Color.Green,
-    label = "Footer Content"
-  )
-}
-
-@Composable
-private fun ContentPlaceholder(
-  borderColor: Color,
-  label: String,
-) {
-  Box(
-    modifier =
-      Modifier
-        .fillMaxWidth()
-        .border(width = 2.dp, color = borderColor),
-    contentAlignment = Alignment.Center
-  ) {
-    Label(text = label, type = LabelType.Title2)
   }
 }

@@ -87,15 +87,22 @@ pub(crate) async fn create_default_account_with_predefined_wallet(
     client: &TestClient,
     services: &Services,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
-    let (account, wallet) =
-        create_default_account_with_predefined_wallet_internal(context, client, services).await;
-    (account, wallet)
+    create_default_account_with_predefined_wallet_internal(context, client, services, true).await
+}
+
+pub(crate) async fn create_nontest_default_account_with_predefined_wallet(
+    context: &mut TestContext,
+    client: &TestClient,
+    services: &Services,
+) -> (FullAccount, BdkWallet<AnyDatabase>) {
+    create_default_account_with_predefined_wallet_internal(context, client, services, false).await
 }
 
 async fn create_default_account_with_predefined_wallet_internal(
     context: &mut TestContext,
     client: &TestClient,
     services: &Services,
+    is_test_account: bool,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
     let network = Network::BitcoinSignet;
     let app_dprv = DescriptorSecretKey::from_str("[7699ff15/84'/1'/0']tprv8iy8auG1S2uBHrd5SWEW3gQELVDMoqur43KKPkbVGDXGTmwLZ4P2Lq7iXA6SzWEh5qB7AG26ENcYqLeDVCgRaJDMXJBdn8A8T5VnZJ6A6C9/*").unwrap();
@@ -113,23 +120,27 @@ async fn create_default_account_with_predefined_wallet_internal(
                     recovery: auth.recovery_pubkey,
                 },
                 spending: SpendingKeysetRequest {
-                    network: Network::BitcoinSignet.into(),
+                    network: network.into(),
                     app: app_dpub.clone(),
                     hardware: hardware_dpub.clone(),
                 },
-                is_test_account: true,
+                is_test_account,
             },
         )
         .await;
+
     assert_eq!(
         response.status_code,
         StatusCode::OK,
         "{}",
         response.body_string
     );
+
     let response = response.body.unwrap();
-    let keyset = response.keyset.expect("Account should have a keyset");
-    let server_dpub = keyset.spending;
+    let server_dpub = response
+        .keyset
+        .expect("Account should have a keyset")
+        .spending;
 
     let account = services
         .account_service

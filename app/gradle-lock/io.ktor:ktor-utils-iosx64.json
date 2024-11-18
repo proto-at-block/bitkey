@@ -2,7 +2,7 @@
     "module-identifier": "io.ktor:ktor-utils-iosx64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
@@ -12,7 +12,7 @@
                 },
                 {
                     "artifacts": {
-                        "ktor-utils-iosx64-2.3.11-metadata.jar": "913dfc1a2e56577a1128bfa9e9e7e5076ac5b7df27d008156e68d71a6c5b0805"
+                        "ktor-utils-iosx64-2.3.12-metadata.jar": "f25905bf6ec8a4276401e391efc83de06824b44b42a44b62e3be511491148b2d"
                     }
                 }
             ],

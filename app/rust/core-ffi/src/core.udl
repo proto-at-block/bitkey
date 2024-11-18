@@ -73,6 +73,7 @@ interface Hkdf {
   bytes expand([ByRef] bytes info, i32 len);
 };
 
+[Error]
 enum ChaCha20Poly1305Error {
   "XChaCha20InstantiationError",
   "EncryptError",
@@ -180,22 +181,98 @@ interface CryptoBoxKeyPair {
 [Error]
 enum KeygenError {
   "MissingSharePackage",
-  "MissingShareAggParams",
-  "InvalidParticipantIndex",
   "InvalidProofOfKnowledge",
   "InvalidIntermediateShare",
   "InvalidKeyCommitments",
+  "InvalidParticipants",
+  "ShareAggregationFailed",
+  "VerificationShareGenerationFailed"
 };
 
 interface SharePackage {};
-interface ShareDetails {};
-interface KeyCommitments {};
+
+dictionary KeyCommitments {
+  sequence<PublicKey> vss_commitments;
+  PublicKey aggregate_public_key;
+};
+
+dictionary ShareDetails {
+  FrostShare secret_share;
+  KeyCommitments key_commitments;
+};
 
 interface ShareGenerator {
   constructor();
 
   [Throws=KeygenError]
-  SharePackage generate();
+  string generate();
   [Throws=KeygenError]
-  ShareDetails aggregate(SharePackage peer_share_package, KeyCommitments peer_key_commitments);
+  ShareDetails aggregate(string sealed_response);
+  [Throws=KeygenError]
+  string encode_complete_distribution_request(ShareDetails share_details);
+};
+
+[Custom]
+typedef sequence<u8> FrostShare;
+
+[Error]
+enum NoiseWrapperError {
+  "InternalError",
+  "HandshakeNotMyTurn",
+  "HandshakeNotFinished",
+  "Transport",
+  "IllegalState",
+};
+
+enum NoiseRole {
+  "Initiator",
+  "Responder",
+};
+
+[Enum]
+interface PrivateKey {
+  InMemory(bytes secret_bytes);
+  HardwareBacked(string name);
+};
+
+interface NoiseContext {
+  [Throws=NoiseWrapperError]
+  constructor(NoiseRole role, PrivateKey privkey, bytes? their_public_key, HardwareBackedDh? dh);
+
+  [Throws=NoiseWrapperError]
+  bytes initiate_handshake();
+
+  [Throws=NoiseWrapperError]
+  bytes? advance_handshake(bytes peer_handshake_message);
+
+  [Throws=NoiseWrapperError]
+  void finalize_handshake();
+
+  [Throws=NoiseWrapperError]
+  bytes encrypt_message([ByRef] bytes message);
+
+  [Throws=NoiseWrapperError]
+  bytes decrypt_message([ByRef] bytes ciphertext);
+};
+
+dictionary HardwareBackedKeyPair {
+  string privkey_name;
+  bytes pubkey;
+};
+
+// callback interface is soft-deprecated, but we have to use it for now.
+// https://github.com/squareup/wallet/pull/18047#issuecomment-2353790460
+callback interface HardwareBackedDh {
+  [Throws=DhError]
+  bytes dh(string our_privkey_name, bytes peer_pubkey);
+  [Throws=DhError]
+  HardwareBackedKeyPair generate();
+  [Throws=DhError]
+  bytes pubkey(string privkey_name);
+};
+
+[Error]
+enum DhError {
+  "InvalidPublicKey",
+  "ExchangeFailed"
 };

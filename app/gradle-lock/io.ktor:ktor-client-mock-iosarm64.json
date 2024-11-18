@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-mock-iosarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-mock-iosarm64-2.3.11-metadata.jar": "8aaad9dfbf3b5b3cbf40bbb37cc1967dd6fb857dd7cade894416c56c4d7cd8f5"
+                        "ktor-client-mock-iosarm64-2.3.12-metadata.jar": "dd004523cc0464d0bdc7f0549c06d387dcb08f9f94f3ecf3559a6c7c4a3add63"
                     }
                 },
                 {

@@ -33,6 +33,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         initializeDatadog(appVariant: appVariant)
 
         self.appContext = AppContext(appVariant: appVariant)
+        appContext.appComponent.loggerInitializer.initialize()
 
         appContext.appComponent.bugsnagContext.configureCommonMetadata()
 
@@ -65,7 +66,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window = UIWindow(frame: UIScreen.main.bounds)
         if COMPOSE_RENDERING {
             window?.rootViewController = ComposeIosAppUIController(
-                activityComponent: appContext.activityComponent
+                appUiStateMachine: appContext.activityComponent.appUiStateMachine,
+                biometricPromptUiStateMachine: appContext.activityComponent
+                    .biometricPromptUiStateMachine
             ).viewController
         } else {
             window?.rootViewController = appContext.appUiStateMachineManager.appViewController

@@ -23,62 +23,61 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
   tags(ServerSmoke)
 
   test("smoke") {
-    val appTester = launchNewApp()
-    appTester.app.apply {
-      /**
-       * Onboard a new fake hardware and app
-       */
-      val account = appTester.onboardFullAccountWithFakeHardware(shouldSetUpNotifications = true)
-      val keyboxWallet = appTester.getActiveWallet()
+    val app = launchNewApp()
 
-      /**
-       * Fund the new spending keyset with some satoshis from our treasury
-       */
-      val treasury = appTester.treasuryWallet
-      val fundingResult = treasury.fund(keyboxWallet, BitcoinMoney.sats(10_000))
-      println("Sending coins to ${fundingResult.depositAddress.address}")
-      println("Funding txid ${fundingResult.tx.id}")
+    /**
+     * Onboard a new fake hardware and app
+     */
+    val account = app.onboardFullAccountWithFakeHardware(shouldSetUpNotifications = true)
+    val keyboxWallet = app.getActiveWallet()
 
-      println("Syncing wallet")
-      keyboxWallet.sync().shouldBeOk()
+    /**
+     * Fund the new spending keyset with some satoshis from our treasury
+     */
+    val treasury = app.treasuryWallet
+    val fundingResult = treasury.fund(keyboxWallet, BitcoinMoney.sats(10_000))
+    println("Sending coins to ${fundingResult.depositAddress.address}")
+    println("Funding txid ${fundingResult.tx.id}")
 
-      println("Setting up Quickpay for $100")
-      appTester.setupMobilePay(FiatMoney.usd(100.0))
+    println("Syncing wallet")
+    keyboxWallet.sync().shouldBeOk()
 
-      /**
-       * Send the money back to the treasury
-       */
-      println("spending coins via server-spend")
-      val appSignedPsbt =
-        keyboxWallet
-          .createSignedPsbt(
-            SpendingWallet.PsbtConstructionMethod.Regular(
-              recipientAddress = treasury.getReturnAddress(),
-              amount = SendAll,
-              feePolicy = FeePolicy.MinRelayRate
-            )
-          ).getOrThrow()
+    println("Setting up Quickpay for $100")
+    app.setupMobilePay(FiatMoney.usd(100.0))
 
-      val serverSignedPsbt = appComponent.mobilePaySigningF8eClient.signWithSpecificKeyset(
-        account.config.f8eEnvironment,
-        account.accountId,
-        account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-        appSignedPsbt
-      ).getOrThrow()
+    /**
+     * Send the money back to the treasury
+     */
+    println("spending coins via server-spend")
+    val appSignedPsbt =
+      keyboxWallet
+        .createSignedPsbt(
+          SpendingWallet.PsbtConstructionMethod.Regular(
+            recipientAddress = treasury.getReturnAddress(),
+            amount = SendAll,
+            feePolicy = FeePolicy.MinRelayRate
+          )
+        ).getOrThrow()
 
-      appComponent.bitcoinBlockchain.broadcast(serverSignedPsbt).fold(
-        success = { /* broadcast succeeded */ },
-        failure = { error ->
-          if (error.isExpectedRaceError()) {
-            println("F8e won publishing race, continue... Error: ${error.message}")
-          } else {
-            throw error
-          }
+    val serverSignedPsbt = app.mobilePaySigningF8eClient.signWithSpecificKeyset(
+      account.config.f8eEnvironment,
+      account.accountId,
+      account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+      appSignedPsbt
+    ).getOrThrow()
+
+    app.bitcoinBlockchain.broadcast(serverSignedPsbt).fold(
+      success = { /* broadcast succeeded */ },
+      failure = { error ->
+        if (error.isExpectedRaceError()) {
+          println("F8e won publishing race, continue... Error: ${error.message}")
+        } else {
+          throw error
         }
-      )
+      }
+    )
 
-      println("\uD83C\uDF89 success! \uD83C\uDF89")
-    }
+    println("\uD83C\uDF89 success! \uD83C\uDF89")
   }
 })
 

@@ -10,7 +10,6 @@ import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import okio.ByteString
 
 /**
  * Persists sealed CSEKs in a secure store, encoded as hex string.
@@ -21,7 +20,7 @@ class OnboardingKeyboxSealedCsekDaoImpl(
   private suspend fun secureStore() =
     encryptedKeyValueStoreFactory.getOrCreate(storeName = STORE_NAME)
 
-  override suspend fun get(): Result<ByteString?, Throwable> =
+  override suspend fun get(): Result<SealedCsek?, Throwable> =
     coroutineBinding {
       log { "Fetching sealed CSEK" }
 

@@ -2,6 +2,7 @@ package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitkey.factor.SigningFactor
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.Money
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
@@ -29,7 +30,10 @@ data class ContinueTransferParams(
 data class TransferAmountEntryUiProps(
   val onBack: () -> Unit,
   val initialAmount: Money,
+  val minAmount: BitcoinMoney? = null,
+  val maxAmount: BitcoinMoney? = null,
   val exchangeRates: ImmutableList<ExchangeRate>?,
+  val allowSendAll: Boolean = true,
   val onContinueClick: (ContinueTransferParams) -> Unit,
 )
 
@@ -49,5 +53,14 @@ sealed interface TransferAmountUiState {
 
     /** Amount is too small to send. */
     data object AmountBelowDustLimitUiState : InvalidAmountEnteredUiState
+
+    /** Amount is too large to send and send all is not available */
+    data object InvalidAmountEqualOrAboveBalanceUiState : InvalidAmountEnteredUiState
+
+    /** Amount is less than the minimum allowed amount. */
+    data object AmountBelowMinimumUiState : InvalidAmountEnteredUiState
+
+    /** Amount is greater than the maximum allowed amount. */
+    data object AmountAboveMaximumUiState : InvalidAmountEnteredUiState
   }
 }

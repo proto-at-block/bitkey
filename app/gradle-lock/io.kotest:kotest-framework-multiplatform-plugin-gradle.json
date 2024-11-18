@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-multiplatform-plugin-gradle",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-multiplatform-plugin-gradle-5.9.0.jar": "1bda277200080f05065f603275d3858e90faa1700cfaecf1afdd8a78a9850392"
+                        "kotest-framework-multiplatform-plugin-gradle-6.0.0.M1.jar": "7a2adaced8919c8a116930d6aa14e7656a0c303bf89b7f07626bdd451daec690"
                     }
                 }
             ],

@@ -1,7 +1,6 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -41,7 +40,7 @@ interface RecoveryCanceler {
      * - due to some rare I/O error
      */
     data class FailedToClearRecoveryStateError(
-      override val cause: DbError,
+      override val cause: Error,
     ) : RecoveryCancelerError()
   }
 }

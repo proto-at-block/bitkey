@@ -240,8 +240,6 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
           .feeAmount
           .shouldBe(BitcoinMoney.btc(BigDecimal.TEN))
       }
-
-      awaitScreenWithBody<FormBodyModel>()
     }
   }
 })

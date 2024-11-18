@@ -1,4 +1,5 @@
 import build.wallet.gradle.logic.extensions.allTargets
+import build.wallet.gradle.logic.extensions.buildLogic
 import build.wallet.gradle.logic.reproducible.GenerateEmergencyAccessKitInformationTask
 
 plugins {
@@ -93,6 +94,14 @@ kotlin {
   sourceSets {
     commonMain {
       kotlin.srcDir(generateEmergencyAccessKitInformation.map { it.outputDirectories })
+    }
+  }
+}
+
+buildLogic {
+  android {
+    buildFeatures {
+      androidResources = true
     }
   }
 }

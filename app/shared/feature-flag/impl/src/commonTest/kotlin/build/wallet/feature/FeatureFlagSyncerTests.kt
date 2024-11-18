@@ -65,7 +65,7 @@ class FeatureFlagSyncerTests : FunSpec({
       debugOptionsService = debugOptionsService,
       featureFlagsF8eClient = featureFlagsF8eClient,
       clock = clock,
-      remoteFlags = listOf(testFlag),
+      featureFlags = listOf(testFlag),
       appSessionManager = appSessionManager
     )
   }

@@ -5,7 +5,6 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
-import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -63,7 +62,7 @@ interface LostAppRecoveryInitiator {
      * - due to some rare I/O error
      */
     data class FailedToPersistRecoveryStateError(
-      override val cause: DbError,
+      override val cause: Error,
     ) : InitiateDelayNotifyAppRecoveryError()
 
     data class FailedToSyncRecoveryError(

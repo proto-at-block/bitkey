@@ -11,6 +11,8 @@ import build.wallet.f8e.F8eEnvironment.*
 import build.wallet.f8e.name
 import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 class F8eEnvironmentPickerUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugOptionsService: DebugOptionsService,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : F8eEnvironmentPickerUiStateMachine {
   @Composable
   override fun model(props: F8eEnvironmentPickerUiProps): ListGroupModel? {
@@ -57,9 +60,11 @@ class F8eEnvironmentPickerUiStateMachineImpl(
     environmentOption: F8eEnvironment,
   ): ListItemModel {
     val scope = rememberStableCoroutineScope()
+    val deviceInfo = deviceInfoProvider.getDeviceInfo()
+    val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
     return ListItemModel(
       title = environmentOption.name,
-      secondaryText = environmentOption.url,
+      secondaryText = environmentOption.url(isAndroidEmulator),
       trailingAccessory = ListItemAccessory.SwitchAccessory(
         model = SwitchModel(
           checked = currentEnvironment == environmentOption,

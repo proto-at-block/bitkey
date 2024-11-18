@@ -28,14 +28,16 @@ class EmergencyAccessPayloadRestorerImplTests : FunSpec({
     EmergencyAccessPayloadCreatorImpl(
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      appPrivateKeyDao = appPrivateKeyDao
+      appPrivateKeyDao = appPrivateKeyDao,
+      emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl()
     )
 
   val restorer =
     EmergencyAccessPayloadRestorerImpl(
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      appPrivateKeyDao = appPrivateKeyDao
+      appPrivateKeyDao = appPrivateKeyDao,
+      emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl()
     )
 
   afterTest {

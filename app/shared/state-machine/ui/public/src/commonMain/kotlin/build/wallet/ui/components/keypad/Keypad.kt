@@ -25,8 +25,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun Keypad(
@@ -144,20 +142,4 @@ private fun DecimalIcon() {
           shape = CircleShape
         )
   )
-}
-
-@Preview
-@Composable
-fun KeypadWithDecimalPreview() {
-  PreviewWalletTheme {
-    Keypad(showDecimal = true, onButtonPress = {})
-  }
-}
-
-@Preview
-@Composable
-fun KeypadNoDecimalPreview() {
-  PreviewWalletTheme {
-    Keypad(showDecimal = false, onButtonPress = {})
-  }
 }

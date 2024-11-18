@@ -5,6 +5,7 @@ import build.wallet.auth.AccountCreationError.AccountCreationAuthError
 import build.wallet.auth.AccountCreationError.AccountCreationDatabaseError.FailedToSaveAuthTokens
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -36,8 +37,7 @@ class RecoveryAuthCompleterImpl(
   override suspend fun rotateAuthKeys(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    challenge: ChallengeToCompleteRecovery,
-    hardwareSignedChallenge: SignedChallengeToCompleteRecovery,
+    hardwareSignedChallenge: HardwareSignedChallenge,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
     removeProtectedCustomers: Boolean,
@@ -57,11 +57,11 @@ class RecoveryAuthCompleterImpl(
             LocalRecoveryAttemptProgress.AttemptingCompletion(sealedCsek = sealedCsek)
           ).bind()
 
-        val signedCompleteRecoveryChallenge =
+        val appSignedChallenge =
           appAuthKeyMessageSigner
-            .signMessage(
+            .signChallenge(
               publicKey = destinationAppAuthPubKeys.appGlobalAuthPublicKey,
-              message = challenge.bytes
+              challenge = hardwareSignedChallenge.challenge
             )
             .logFailure { "Error signing complete recovery challenge with app auth key." }
             .bind()
@@ -70,8 +70,8 @@ class RecoveryAuthCompleterImpl(
           .complete(
             f8eEnvironment = f8eEnvironment,
             fullAccountId = fullAccountId,
-            challenge = challenge.bytes.utf8(),
-            appSignature = signedCompleteRecoveryChallenge,
+            challenge = hardwareSignedChallenge.challenge.data,
+            appSignature = appSignedChallenge.signature,
             hardwareSignature = hardwareSignedChallenge.signature
           )
           .logNetworkFailure { "Error completing recovery with f8e." }

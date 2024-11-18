@@ -12,7 +12,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
+import build.wallet.partnerships.PartnershipTransactionsServiceMock
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.awaitSheetWithBody
@@ -33,7 +33,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientMock(turbines::create)
   val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
   val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
-  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+  val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
@@ -51,7 +51,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         PartnershipsTransferUiStateMachineImpl(
           getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
           getTransferRedirectF8eClient = getTransferRedirectF8eClient,
-          partnershipsRepository = partnershipRepositoryMock,
+          partnershipTransactionsService = partnershipTransactionsService,
           eventTracker = eventTracker,
           bitcoinAddressService = bitcoinAddressService
         ),
@@ -60,7 +60,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         getPurchaseOptionsF8eClient = getPurchaseAmountsF8eClient,
         getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
         getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
-        partnershipsRepository = partnershipRepositoryMock,
+        partnershipTransactionsService = partnershipTransactionsService,
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         eventTracker = eventTracker,
         currencyConverter = CurrencyConverterFake(),

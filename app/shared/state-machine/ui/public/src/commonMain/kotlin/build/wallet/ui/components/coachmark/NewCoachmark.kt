@@ -18,9 +18,7 @@ import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.inter_semibold
 import build.wallet.ui.model.coachmark.NewCoachmarkTreatment
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
 import org.jetbrains.compose.resources.Font
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * A new label that can be used to indicate new features or content.
@@ -55,21 +53,5 @@ fun NewCoachmark(treatment: NewCoachmarkTreatment) {
         textAlign = TextAlign.Center
       )
     )
-  }
-}
-
-@Preview
-@Composable
-internal fun NewLabelPreviews() {
-  PreviewWalletTheme {
-    Box(modifier = Modifier.padding(16.dp)) {
-      Column {
-        NewCoachmark(NewCoachmarkTreatment.Light)
-        Spacer(Modifier.height(8.dp))
-        NewCoachmark(NewCoachmarkTreatment.Dark)
-        Spacer(Modifier.height(8.dp))
-        NewCoachmark(NewCoachmarkTreatment.Disabled)
-      }
-    }
   }
 }

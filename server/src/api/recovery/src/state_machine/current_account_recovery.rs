@@ -280,7 +280,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     active_auth.recovery_pubkey,
                     &challenge,
                     &app_signature,
-                    &hardware_signature,
+                    Some(&hardware_signature),
                 )
                 .map_err(|_| RecoveryError::NoExistingRecovery)?;
                 return Ok(Transition::next(
@@ -310,7 +310,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 recovery_auth_pubkey,
                 &challenge,
                 &app_signature,
-                &hardware_signature,
+                Some(&hardware_signature),
             )
             .map_err(|_| RecoveryError::InvalidInputForCompletion)?;
 

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-device-provider-ddmlib-proto",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-device-provider-ddmlib-proto-31.3.2.jar": "da9f3f3dae26544c90668549584765d5854a87c425d2cfe577cd34d3600ea097"
+                        "android-device-provider-ddmlib-proto-31.5.2.jar": "da9f3f3dae26544c90668549584765d5854a87c425d2cfe577cd34d3600ea097"
                     }
                 }
             ],

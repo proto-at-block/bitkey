@@ -1,9 +1,8 @@
 package build.wallet.f8e.client.plugins
 
 import build.wallet.f8e.url
-import io.ktor.client.plugins.*
+import build.wallet.platform.device.DevicePlatform.Android
 import io.ktor.client.plugins.api.*
-import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.ContentType.Application.Json
 import io.ktor.util.*
@@ -15,11 +14,13 @@ import io.ktor.util.*
 val CommonRequestConfigPlugin = createClientPlugin("common-request-config") {
   onRequest { request, _ ->
     with(request) {
+      val deviceInfo = request.attributes[DeviceInfoAttribute]
       val platformInfo = request.attributes[PlatformInfoAttribute]
       val f8eEnvironment = requireNotNull(attributes.getOrNull(F8eEnvironmentAttribute)) {
         "HTTP requests must set an environment with `withEnvironment(f8eEnvironment)`"
       }
-      val environmentUrl = Url(f8eEnvironment.url)
+      val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
+      val environmentUrl = Url(f8eEnvironment.url(isAndroidEmulator))
       url {
         host = environmentUrl.host
         port = environmentUrl.port

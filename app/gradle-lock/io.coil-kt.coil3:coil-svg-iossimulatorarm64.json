@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-svg-iossimulatorarm64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-svg-iossimulatorarm64-3.0.0-rc01-metadata.jar": "1883958258660825b0514ce1ea6fae6f502503dc9074dd49fbca7f7ca7bbf495"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil-svg.klib": "a7a9e59b6f0a83683f1c16dc19e0da9533aece4d69d948c48c19a5c41b5975d5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

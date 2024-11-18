@@ -11,7 +11,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.dbResultPublic)
         api(projects.shared.firmwarePublic)
         api(libs.kmp.okio)
         implementation(projects.shared.firmwareFake)

@@ -41,11 +41,11 @@
             ]
         },
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-reflect-2.0.0.jar": "111bd906921937f76da17760641116d04b57a7a12fcf980efe7c6767f45179f0"
+                        "kotlin-reflect-2.0.21.jar": "3ad2fcad0c09ddc0922debab4444d612144b7b465b75a8bb7587e20ddfafd799"
                     }
                 }
             ],

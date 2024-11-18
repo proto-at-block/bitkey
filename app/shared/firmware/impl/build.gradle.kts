@@ -15,7 +15,10 @@ kotlin {
         api(projects.shared.databasePublic)
         api(projects.shared.queueProcessorPublic)
         implementation(projects.shared.stdlibPublic)
-        implementation(projects.shared.coroutinesPublic)
+        // TODO: remove dependency on :impl
+        implementation(projects.shared.queueProcessorImpl) {
+          because("Depends on PeriodicProcessorImpl")
+        }
       }
     }
 

@@ -12,8 +12,8 @@ import io.kotest.core.spec.style.FunSpec
 class NetworkDebugFunctionalTests : FunSpec({
   test("force fail f8e requests") {
     val app = launchNewApp()
-    val f8eNetworkReachabilityService = app.app.appComponent.f8eNetworkReachabilityService
-    val networkingDebugService = app.app.appComponent.networkingDebugService
+    val f8eNetworkReachabilityService = app.f8eNetworkReachabilityService
+    val networkingDebugService = app.networkingDebugService
 
     // Check that f8e requests are successful by default
     f8eNetworkReachabilityService.checkConnection(F8eEnvironment.Local).shouldBeOk()

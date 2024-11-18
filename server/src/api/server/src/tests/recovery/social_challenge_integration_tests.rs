@@ -36,6 +36,7 @@ use super::shared::{
 use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{create_full_account, create_lite_account};
+use crate::tests::recovery::shared::try_create_relationship;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::CognitoAuthentication;
 
@@ -667,4 +668,89 @@ tests! {
         is_customer_endorsed: false,
         expected_status_code: StatusCode::BAD_REQUEST,
     },
+}
+
+#[tokio::test]
+async fn test_start_social_challenge_with_beneficiary() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let customer_account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_full_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+
+    let create_body = try_create_relationship(
+        &context,
+        &client,
+        &customer_account.id,
+        &TrustedContactRole::Beneficiary,
+        &CognitoAuthentication::Wallet {
+            is_app_signed: true,
+            is_hardware_signed: true,
+        },
+        StatusCode::OK,
+        1,
+        0,
+    )
+    .await
+    .unwrap();
+
+    let _initial_response = try_accept_recovery_relationship_invitation(
+        &context,
+        &client,
+        &customer_account.id,
+        &tc_account.id,
+        &TrustedContactRole::Beneficiary,
+        &CognitoAuthentication::Recovery,
+        &create_body.invitation,
+        CodeOverride::None,
+        StatusCode::OK,
+        1,
+    )
+    .await
+    .unwrap();
+
+    try_endorse_recovery_relationship(
+        &context,
+        &client,
+        &customer_account.id,
+        &TrustedContactRole::Beneficiary,
+        &create_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
+        "ENDORSEMENT_CERT",
+        StatusCode::OK,
+    )
+    .await;
+
+    try_start_social_challenge(
+        &client,
+        &customer_account.id,
+        vec![StartChallengeTrustedContactRequest {
+            recovery_relationship_id: create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .clone(),
+            challenge_request: TrustedContactChallengeRequest {
+                protected_customer_recovery_pake_pubkey: PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY
+                    .to_owned(),
+                sealed_dek: "".to_owned(),
+            },
+        }],
+        StatusCode::BAD_REQUEST,
+    )
+    .await;
 }

@@ -8,9 +8,29 @@ import com.android.build.api.dsl.ApplicationBaseFlavor
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.CommonExtension
 import com.android.build.api.dsl.LibraryExtension
+import org.gradle.api.Action
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
+
+/**
+ * Provides Android Gradle Plugin extensions for an Android Application or Library.
+ */
+fun Project.android(configure: Action<AndroidExtension>): Unit =
+  extensions.configure("android", configure)
+
+/**
+ * Provides Android Gradle Plugin extensions specifically for an Android Library.
+ */
+internal fun Project.androidLib(
+  configure: Action<com.android.build.gradle.LibraryExtension>,
+): Unit = extensions.configure("android", configure)
+
+/**
+ * Provides Android Gradle Plugin extensions specifically for an Android Application.
+ */
+internal fun Project.androidApp(configure: Action<ApplicationExtension>): Unit =
+  extensions.configure("android", configure)
 
 /**
  * Common extension properties for the Android Application. Library and Dynamic Feature Plugins.

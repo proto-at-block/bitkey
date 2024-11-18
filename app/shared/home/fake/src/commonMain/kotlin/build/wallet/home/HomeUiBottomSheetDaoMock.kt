@@ -1,7 +1,6 @@
 package build.wallet.home
 
 import app.cash.turbine.Turbine
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +16,7 @@ class HomeUiBottomSheetDaoMock(
   val setHomeUiBottomSheetCalls = turbine("setHomeUiBottomSheet calls")
   var setHomeUiBottomSheetReturn = Ok(Unit)
 
-  override suspend fun setHomeUiBottomSheet(sheetId: HomeUiBottomSheetId): Result<Unit, DbError> {
+  override suspend fun setHomeUiBottomSheet(sheetId: HomeUiBottomSheetId): Result<Unit, Error> {
     setHomeUiBottomSheetCalls.add(sheetId)
     return setHomeUiBottomSheetReturn
   }
@@ -25,7 +24,7 @@ class HomeUiBottomSheetDaoMock(
   val clearHomeUiBottomSheetCalls = turbine("clearHomeUiBottomSheet calls")
   var clearHomeUiBottomSheetReturn = Ok(Unit)
 
-  override suspend fun clearHomeUiBottomSheet(): Result<Unit, DbError> {
+  override suspend fun clearHomeUiBottomSheet(): Result<Unit, Error> {
     clearHomeUiBottomSheetCalls.add(Unit)
     return clearHomeUiBottomSheetReturn
   }

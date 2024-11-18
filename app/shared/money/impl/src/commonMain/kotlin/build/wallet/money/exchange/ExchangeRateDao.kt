@@ -1,6 +1,5 @@
 package build.wallet.money.exchange
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.datetime.Instant
@@ -9,7 +8,7 @@ interface ExchangeRateDao {
   /**
    * Updates local exchange rate.
    */
-  suspend fun storeExchangeRate(exchangeRate: ExchangeRate): Result<Unit, DbError>
+  suspend fun storeExchangeRate(exchangeRate: ExchangeRate): Result<Unit, Error>
 
   /**
    * Emits list of latest exchange rates (currently we only sync BTC:USD rate).
@@ -22,7 +21,7 @@ interface ExchangeRateDao {
   suspend fun storeHistoricalExchangeRate(
     exchangeRate: ExchangeRate,
     atTime: Instant,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Returns all of the local historical exchange rates for the given time.

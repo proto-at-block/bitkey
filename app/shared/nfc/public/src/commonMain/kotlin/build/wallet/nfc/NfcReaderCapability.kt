@@ -2,7 +2,7 @@ package build.wallet.nfc
 
 fun interface NfcReaderCapability {
   /** Determines availability of the NFC tag reading functionality on the given phone. */
-  fun availability(): NfcAvailability
+  fun availability(isHardwareFake: Boolean): NfcAvailability
 }
 
 sealed class NfcAvailability {

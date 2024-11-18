@@ -39,7 +39,6 @@ use comms_verification::{
     ConsumeVerificationForScopeInput, InitiateVerificationForScopeInput,
     Service as CommsVerificationService, VerifyForScopeInput,
 };
-use crypto::frost::KeyCommitments;
 use errors::{ApiError, ErrorCode, RouteError};
 use experimentation::claims::ExperimentationClaims;
 use external_identifier::ExternalIdentifier;
@@ -59,7 +58,7 @@ use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::RecoveryRepository;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+
 use time::Duration;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::{
@@ -1509,7 +1508,7 @@ pub struct InititateDistributedKeygenResponse {
 pub async fn initiate_distributed_keygen(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    State(_wsm_client): State<WsmClient>,
+    State(wsm_client): State<WsmClient>,
     Json(request): Json<InititateDistributedKeygenRequest>,
 ) -> Result<Json<InititateDistributedKeygenResponse>, ApiError> {
     // TODO: Are there ever sweeps? Or should this only ever be called once in the lifetime of a software account?
@@ -1534,65 +1533,18 @@ pub async fn initiate_distributed_keygen(
 
     let key_definition_id = KeyDefinitionId::gen().map_err(RouteError::InvalidIdentifier)?;
 
-    let (aggregate_public_key, sealed_response) = {
-        // Fake wsm
-        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
-        use crypto::frost::dkg::{server::initiate_dkg, SharePackage};
-
-        let request_bytes = b64.decode(request.sealed_request.as_bytes()).map_err(|e| {
-            let msg = "Failed to decode sealed request";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let request = serde_json::from_slice::<Value>(&request_bytes).map_err(|e| {
-            let msg = "Failed to deserialize sealed request";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let app_share_package_value = request.get("app_share_package").ok_or_else(|| {
-            let msg = "Missing app_share_package in sealed request";
-            error!("{msg}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let app_share_package = serde_json::from_value::<SharePackage>(
-            app_share_package_value.clone(),
+    let wsm_response = wsm_client
+        .initiate_distributed_keygen(
+            &key_definition_id.to_string(),
+            request.network,
+            &request.sealed_request,
         )
+        .await
         .map_err(|e| {
-            let msg = "Failed to deserialize app_share_package";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let initiate_result = initiate_dkg(&app_share_package).map_err(|e| {
-            let msg = "Failed to initiate DKG";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let response = json!(
-            {
-                "server_share_package": initiate_result.share_package,
-                "server_key_commitments": initiate_result.share_details.key_commitments,
-            }
-        );
-
-        let response_bytes = serde_json::to_vec(&response).map_err(|e| {
-            let msg = "Failed to serialize sealed response";
+            let msg = "Failed to initiate distributed keygen in WSM";
             error!("{msg}: {e}");
             ApiError::GenericInternalApplicationError(msg.to_string())
         })?;
-
-        (
-            initiate_result
-                .share_details
-                .key_commitments
-                .aggregate_public_key,
-            b64.encode(response_bytes),
-        )
-    };
 
     account_service
         .put_inactive_spending_distributed_key(PutInactiveSpendingDistributedKeyInput {
@@ -1600,7 +1552,7 @@ pub async fn initiate_distributed_keygen(
             spending_key_definition_id: &key_definition_id,
             spending: SpendingDistributedKey::new(
                 request.network.into(),
-                aggregate_public_key.to_public_key(),
+                wsm_response.aggregate_public_key.to_public_key(),
                 false,
             ),
         })
@@ -1608,7 +1560,7 @@ pub async fn initiate_distributed_keygen(
 
     Ok(Json(InititateDistributedKeygenResponse {
         key_definition_id,
-        sealed_response,
+        sealed_response: wsm_response.sealed_response,
     }))
 }
 
@@ -1639,7 +1591,7 @@ pub struct ContinueDistributedKeygenResponse {}
 pub async fn continue_distributed_keygen(
     Path((account_id, key_definition_id)): Path<(AccountId, KeyDefinitionId)>,
     State(account_service): State<AccountService>,
-    State(_wsm_client): State<WsmClient>,
+    State(wsm_client): State<WsmClient>,
     Json(request): Json<ContinueDistributedKeygenRequest>,
 ) -> Result<Json<ContinueDistributedKeygenResponse>, ApiError> {
     let account = account_service
@@ -1666,61 +1618,18 @@ pub async fn continue_distributed_keygen(
         ));
     }
 
-    {
-        // Fake wsm
-        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
-        use crypto::frost::dkg::{
-            app::initiate_dkg as initiate_app_dkg,
-            server::{continue_dkg, initiate_dkg},
-        };
-
-        let request_bytes = b64.decode(request.sealed_request.as_bytes()).map_err(|e| {
-            let msg = "Failed to decode sealed request";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let request = serde_json::from_slice::<Value>(&request_bytes).map_err(|e| {
-            let msg = "Failed to deserialize sealed request";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let app_key_commitments_value = request.get("app_key_commitments").ok_or_else(|| {
-            let msg = "Missing app_key_commitments in sealed request";
-            error!("{msg}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        let app_key_commitments = serde_json::from_value::<KeyCommitments>(
-            app_key_commitments_value.clone(),
+    wsm_client
+        .continue_distributed_keygen(
+            &key_definition_id.to_string(),
+            distributed_key.network.into(),
+            &request.sealed_request,
         )
+        .await
         .map_err(|e| {
-            let msg = "Failed to deserialize app_key_commitments";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-
-        // The following will come from persistence when implemented in WSM, but regen from scratch
-        // since fakes are hardcoded
-        let app_share_package = initiate_app_dkg().map_err(|e| {
-            let msg = "Failed to initiate app DKG";
+            let msg = "Failed to continue distributed keygen in WSM";
             error!("{msg}: {e}");
             ApiError::GenericInternalApplicationError(msg.to_string())
         })?;
-
-        let initiate_result = initiate_dkg(&app_share_package).map_err(|e| {
-            let msg = "Failed to initiate DKG";
-            error!("{msg}: {e}");
-            ApiError::GenericInternalApplicationError(msg.to_string())
-        })?;
-
-        continue_dkg(initiate_result.share_details, &app_key_commitments).map_err(|e| {
-            let msg = "Failed to continue DKG";
-            error!("{msg}: {e}");
-            ApiError::GenericBadRequest(msg.to_string())
-        })?;
-    };
 
     account_service
         .put_inactive_spending_distributed_key(PutInactiveSpendingDistributedKeyInput {

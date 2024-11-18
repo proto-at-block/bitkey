@@ -1,3 +1,11 @@
 package build.wallet.statemachine.cloud
 
-expect class CloudBackupRectificationNavigatorImpl() : CloudBackupRectificationNavigator
+import androidx.compose.runtime.Composable
+
+expect class CloudBackupRectificationNavigatorImpl() : CloudBackupRectificationNavigator {
+  @Composable
+  override fun navigate(
+    data: Any,
+    onReturn: () -> Unit,
+  )
+}

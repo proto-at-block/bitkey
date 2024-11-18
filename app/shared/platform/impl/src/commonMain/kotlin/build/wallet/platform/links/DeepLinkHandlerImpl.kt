@@ -4,4 +4,9 @@ import build.wallet.platform.PlatformContext
 
 expect class DeepLinkHandlerImpl constructor(
   platformContext: PlatformContext,
-) : DeepLinkHandler
+) : DeepLinkHandler {
+  override fun openDeeplink(
+    url: String,
+    appRestrictions: AppRestrictions?,
+  ): OpenDeeplinkResult
+}

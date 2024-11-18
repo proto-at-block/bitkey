@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.databasePublic)
+        implementation(projects.shared.frostPublic)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.nfcFake)
         implementation(projects.shared.serializationPublic)
@@ -26,7 +27,6 @@ kotlin {
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.f8eClientFake)
-        implementation(projects.shared.f8eFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
       }

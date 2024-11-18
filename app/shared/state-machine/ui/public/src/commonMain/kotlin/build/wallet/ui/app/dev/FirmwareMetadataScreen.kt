@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.dev.FirmwareMetadataBodyModel
-import build.wallet.statemachine.dev.FirmwareMetadataModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.layout.Divider
@@ -24,8 +23,6 @@ import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun FirmwareMetadataScreen(
@@ -108,45 +105,5 @@ fun FirmwareMetadataScreen(
         )
       }
     }
-  }
-}
-
-@Preview
-@Composable
-fun FirmwareMetadataWithDataPreview() {
-  PreviewWalletTheme {
-    FirmwareMetadataScreen(
-      model =
-        FirmwareMetadataBodyModel(
-          onBack = { },
-          onFirmwareMetadataRefreshClick = { },
-          firmwareMetadataModel =
-            FirmwareMetadataModel(
-              activeSlot = "A",
-              gitId = "some-fake-id",
-              gitBranch = "main",
-              version = "1.0",
-              build = "mock",
-              timestamp = "3/06/2023, 3:38:05 PM PST",
-              hash = "0123456789ABCDEF",
-              hwRevision = "mocky-mcmockface :)"
-            )
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun FirmwareMetadataWithoutDataPreview() {
-  PreviewWalletTheme {
-    FirmwareMetadataScreen(
-      model =
-        FirmwareMetadataBodyModel(
-          onBack = { },
-          onFirmwareMetadataRefreshClick = { },
-          firmwareMetadataModel = null
-        )
-    )
   }
 }

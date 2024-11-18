@@ -5,6 +5,8 @@
             <w>broadcasted</w>
             <w>coachmark</w>
             <w>composables</w>
+            <w>coredump</w>
+            <w>csek</w>
             <w>dpub</w>
             <w>dpubs</w>
             <w>electrum</w>
@@ -20,6 +22,7 @@
             <w>psbt</w>
             <w>psbts</w>
             <w>pubkey</w>
+            <w>regtest</w>
             <w>sats</w>
             <w>segwit</w>
             <w>socrec</w>

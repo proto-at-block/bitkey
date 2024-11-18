@@ -78,12 +78,14 @@ extension XCTestCase {
 
         let deviceConfigs = [
             ViewImageConfig.iPhone8, .iPhone8Plus, .iPhoneSe, .iPhoneX, .iPhoneXr, .iPhoneXsMax,
-                .iPhone12, .iPhone12Pro, .iPhone12ProMax,
-                .iPhone13, .iPhone13Mini, .iPhone13Pro, .iPhone13ProMax,
-                .iPhone14(.portrait), .iPhone14Plus(.portrait), .iPhone14Pro(.portrait), .iPhone14ProMax(.portrait),
-                .iPhone15(.portrait), .iPhone15Plus(.portrait), .iPhone15Pro(.portrait), .iPhone15ProMax(.portrait)
+            .iPhone12, .iPhone12Pro, .iPhone12ProMax,
+            .iPhone13, .iPhone13Mini, .iPhone13Pro, .iPhone13ProMax,
+            .iPhone14(.portrait), .iPhone14Plus(.portrait), .iPhone14Pro(.portrait),
+            .iPhone14ProMax(.portrait),
+            .iPhone15(.portrait), .iPhone15Plus(.portrait), .iPhone15Pro(.portrait),
+            .iPhone15ProMax(.portrait),
         ]
-        
+
         for config in deviceConfigs {
             let snapshot = verifySnapshot(
                 of: viewController,

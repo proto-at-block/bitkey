@@ -8,18 +8,14 @@ import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_DEVI
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_UPDATE_IN_PROGRESS_FWUP
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
-import build.wallet.fwup.FirmwareDataService
-import build.wallet.fwup.FwupData
-import build.wallet.fwup.FwupDataDao
+import build.wallet.fwup.*
 import build.wallet.fwup.FwupFinishResponseStatus.*
-import build.wallet.fwup.FwupMode
-import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.logging.log
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcException
-import build.wallet.nfc.NfcReaderCapabilityProvider
+import build.wallet.nfc.NfcReaderCapability
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
@@ -47,7 +43,7 @@ class FwupNfcSessionUiStateMachineImpl(
   private val delayer: Delayer,
   private val fwupProgressCalculator: FwupProgressCalculator,
   private val deviceInfoProvider: DeviceInfoProvider,
-  private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
+  private val nfcReaderCapability: NfcReaderCapability,
   private val nfcTransactor: NfcTransactor,
   private val fwupDataDao: FwupDataDao,
   private val firmwareDataService: FirmwareDataService,
@@ -58,7 +54,7 @@ class FwupNfcSessionUiStateMachineImpl(
   override fun model(props: FwupNfcSessionUiProps): ScreenModel {
     var uiState by remember {
       mutableStateOf(
-        when (nfcReaderCapabilityProvider.get(props.isHardwareFake).availability()) {
+        when (nfcReaderCapability.availability(props.isHardwareFake)) {
           NotAvailable -> NoNFCMessage
           Disabled -> EnableNFCInstructions
           Enabled -> SearchingUiState

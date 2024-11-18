@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-engine-jvm",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-engine-jvm-5.9.0.jar": "87a0f1cdbe28dfd3b22e9e468121330b1d733dda05c244ef86cfd91daa166255"
+                        "kotest-framework-engine-jvm-6.0.0.M1.jar": "37b9c4c2f0d52c1d781de9507e16377246ed9ad97af5a0fe30e90089d99baa8c"
                     }
                 }
             ],

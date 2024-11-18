@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.sync
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -10,12 +9,12 @@ interface ElectrumServerConfigRepository {
    */
   suspend fun storeF8eDefinedElectrumConfig(
     electrumServerDetails: ElectrumServerDetails,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Update locally-persisted Electrum preference provided by the user
    */
-  suspend fun storeUserPreference(preference: ElectrumServerPreferenceValue): Result<Unit, DbError>
+  suspend fun storeUserPreference(preference: ElectrumServerPreferenceValue): Result<Unit, Error>
 
   /**
    * Get current locally-persisted Electrum server state information.

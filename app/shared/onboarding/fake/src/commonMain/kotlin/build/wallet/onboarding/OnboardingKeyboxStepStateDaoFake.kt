@@ -1,6 +1,5 @@
 package build.wallet.onboarding
 
-import build.wallet.db.DbError
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
@@ -16,7 +15,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
   override suspend fun setStateForStep(
     step: OnboardingKeyboxStep,
     state: OnboardingKeyboxStepState,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     when (step) {
       CloudBackup -> cloudBackupStateFlow.emit(state)
       NotificationPreferences -> notificationPreferencesStateFlow.emit(state)
@@ -31,7 +30,7 @@ class OnboardingKeyboxStepStateDaoFake : OnboardingKeyboxStepStateDao {
     }
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     cloudBackupStateFlow = MutableStateFlow(Incomplete)
     notificationPreferencesStateFlow = MutableStateFlow(Incomplete)
     return Ok(Unit)

@@ -11,8 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
@@ -24,8 +22,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * @param onSwapClick: When nonnull, a swap icon will be shown to the right
@@ -120,118 +116,5 @@ private fun HeroAmountBottom(
         )
       }
     }
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountWithFullGhosted() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount =
-        buildAnnotatedString {
-          append("$1,221.00")
-          addStyle(
-            style = SpanStyle(color = WalletTheme.colors.foreground30),
-            start = 6,
-            end = 9
-          )
-        },
-      secondaryAmountWithCurrency = "4,792,442 sats"
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountWithSomeGhosted() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount =
-        buildAnnotatedString {
-          append("$1,221.00")
-          addStyle(
-            style = SpanStyle(color = WalletTheme.colors.foreground30),
-            start = 8,
-            end = 9
-          )
-        },
-      secondaryAmountWithCurrency = "4,792,442 sats"
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountWithNoGhosted() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats"
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountSwappable() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats",
-      onSwapClick = {}
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountDisabled() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "4,792,442 sats",
-      disabled = true,
-      onSwapClick = {}
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountNoSecondary() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = null,
-      disabled = true,
-      onSwapClick = {}
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountHideAmount() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$1,221.00"),
-      secondaryAmountWithCurrency = "test",
-      disabled = true,
-      hideBalance = true,
-      onSwapClick = {}
-    )
-  }
-}
-
-@Preview
-@Composable
-fun HeroAmountLargeAmount() {
-  PreviewWalletTheme {
-    HeroAmount(
-      primaryAmount = AnnotatedString("$88,888,888.88"),
-      secondaryAmountWithCurrency = "153,984,147,317 sats",
-      onSwapClick = {}
-    )
   }
 }

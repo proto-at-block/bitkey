@@ -176,8 +176,8 @@ class DeviceSettingsUiStateMachineImpl(
       InitiatingHardwareRecoveryUiState ->
         lostHardwareRecoveryUiStateMachine.model(
           props = LostHardwareRecoveryProps(
-            account = props.accountData.account,
-            lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+            account = props.account,
+            lostHardwareRecoveryData = props.lostHardwareRecoveryData,
             screenPresentationStyle = Modal,
             instructionsStyle = InstructionsStyle.Independent,
             onFoundHardware = {}, // noop
@@ -189,8 +189,8 @@ class DeviceSettingsUiStateMachineImpl(
       HardwareRecoveryDelayAndNotifyUiState ->
         lostHardwareRecoveryUiStateMachine.model(
           props = LostHardwareRecoveryProps(
-            account = props.accountData.account,
-            lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+            account = props.account,
+            lostHardwareRecoveryData = props.lostHardwareRecoveryData,
             screenPresentationStyle = Modal,
             instructionsStyle = InstructionsStyle.Independent,
             onFoundHardware = {}, // noop
@@ -209,7 +209,7 @@ class DeviceSettingsUiStateMachineImpl(
             },
             onSuccess = { uiState = ViewingDeviceDataUiState() },
             onCancel = { uiState = ViewingDeviceDataUiState() },
-            isHardwareFake = props.accountData.account.config.isHardwareFake,
+            isHardwareFake = props.account.config.isHardwareFake,
             needsAuthentication = false,
             screenPresentationStyle = Modal,
             eventTrackerContext = METADATA
@@ -221,14 +221,14 @@ class DeviceSettingsUiStateMachineImpl(
           props =
             FwupNfcUiProps(
               firmwareData = state.pendingFirmwareUpdate,
-              isHardwareFake = props.accountData.account.config.isHardwareFake,
+              isHardwareFake = props.account.config.isHardwareFake,
               onDone = { uiState = ViewingDeviceDataUiState() }
             )
         )
 
       is ManagingFingerprintsUiState -> managingFingerprintsUiStateMachine.model(
         props = ManagingFingerprintsProps(
-          account = props.accountData.account,
+          account = props.account,
           onBack = { uiState = ViewingDeviceDataUiState() },
           onFwUpRequired = {
             uiState = ViewingDeviceDataUiState(showingPromptForFingerprintFwUpdate = true)
@@ -242,8 +242,8 @@ class DeviceSettingsUiStateMachineImpl(
           props = ResettingDeviceProps(
             onBack = { uiState = ViewingDeviceDataUiState() },
             onSuccess = props.onUnwindToMoneyHome,
-            fullAccountConfig = props.accountData.account.config,
-            fullAccount = props.accountData.account
+            fullAccountConfig = props.account.config,
+            fullAccount = props.account
           )
         )
       }
@@ -302,7 +302,7 @@ class DeviceSettingsUiStateMachineImpl(
               modelName = "Bitkey",
               emptyState = false,
               replacementPending =
-                when (val recoveryData = props.accountData.lostHardwareRecoveryData) {
+                when (val recoveryData = props.lostHardwareRecoveryData) {
                   is LostHardwareRecoveryInProgressData ->
                     when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
                       is WaitingForRecoveryDelayPeriodData ->

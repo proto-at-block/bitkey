@@ -4,9 +4,9 @@ use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 
-use crate::metrics;
-
 use super::Rule;
+use crate::metrics;
+use crate::spend_rules::errors::SpendRuleCheckError;
 
 pub(crate) struct AllPsbtOutputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
@@ -14,12 +14,16 @@ pub(crate) struct AllPsbtOutputsBelongToWalletRule<'a> {
 
 impl<'a> Rule for AllPsbtOutputsBelongToWalletRule<'a> {
     /// Ensure all the outputs in the PSBT belong to this wallet
-    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+    /// Requires a synced wallet
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
         if !is_psbt_addressed_to_wallet(self.wallet, psbt)
-            .map_err(|err| format!("Invalid PSBT for given wallet: {}", err))?
+            .map_err(|err| SpendRuleCheckError::BdkUtils(err.to_string()))?
         {
             metrics::SWEEP_OUTPUTS_DONT_BELONG_TO_ACTIVE_KEYSET.add(1, &[]);
-            Err("Invalid Sweep transaction. Contains output not to self.".to_string())
+            Err(SpendRuleCheckError::OutputsDontBelongToDestinationWallet)
         } else {
             Ok(())
         }

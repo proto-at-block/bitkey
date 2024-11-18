@@ -1,88 +1,239 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
-import androidx.compose.runtime.Composable
-import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
+import androidx.compose.runtime.*
+import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
+import build.wallet.auth.AccountCreationError
+import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeys
+import build.wallet.f8e.error.F8eError
+import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
+import build.wallet.onboarding.AppKeyAlreadyInUseError
+import build.wallet.onboarding.CreateFullAccountService
+import build.wallet.onboarding.ErrorStoringSealedCsekError
+import build.wallet.onboarding.HardwareKeyAlreadyInUseError
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
+import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachineImpl.State.*
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreateKeyboxErrorData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppAndHardwareKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.PairingWithServerData
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 
 class CreateKeyboxUiStateMachineImpl(
   private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
+  private val createFullAccountService: CreateFullAccountService,
 ) : CreateKeyboxUiStateMachine {
   @Composable
   override fun model(props: CreateKeyboxUiProps): ScreenModel {
-    return when (val dataState: CreateKeyboxData = props.createKeyboxData) {
-      is CreatingAppKeysData ->
-        CreatingAppKeysUiModel(dataState)
+    var state: State by remember { mutableStateOf(CreatingAppKeysState) }
+    return when (val currentState = state) {
+      is CreatingAppKeysState -> {
+        LaunchedEffect("generate-app-keys") {
+          createFullAccountService.createAppKeys()
+            .onSuccess {
+              state = HasAppKeysState(appKeys = it)
+            }
+            .onFailure {
+              state = CreateAppKeysErrorState
+            }
+        }
+        pairNewHardwareUiStateMachine.model(
+          props = PairNewHardwareProps(
+            request = PairNewHardwareProps.Request.Preparing,
+            screenPresentationStyle = RootFullScreen,
+            onExit = props.onExit,
+            eventTrackerContext = ACCOUNT_CREATION
+          )
+        )
+      }
 
-      is HasAppKeysData ->
-        HasAppKeysUiModel(dataState)
+      is HasAppKeysState ->
+        pairNewHardwareUiStateMachine.model(
+          props = PairNewHardwareProps(
+            request = PairNewHardwareProps.Request.Ready(
+              fullAccountConfig = currentState.appKeys.config,
+              appGlobalAuthPublicKey = currentState.appKeys.appKeyBundle.authKey,
+              onSuccess = { hwActivation ->
+                state = PairingWithServerState(
+                  hwActivation = hwActivation,
+                  appKeys = currentState.appKeys
+                )
+              }
+            ),
+            screenPresentationStyle = Root,
+            onExit = props.onExit,
+            eventTrackerContext = ACCOUNT_CREATION
+          )
+        )
 
-      is HasAppAndHardwareKeysData, is PairingWithServerData ->
-        PairingWithServerModel()
+      is PairingWithServerState -> {
+        LaunchedEffect("create-full-account") {
+          createFullAccountService
+            .createAccount(
+              context = props.context,
+              appKeys = currentState.appKeys,
+              hwActivation = currentState.hwActivation
+            )
+            .onSuccess {
+              // noop - Full account is created and onboarding state is updated.
+              //          Data state machine takes care of the rest.
+            }
+            .onFailure {
+              state = when (it) {
+                is ErrorStoringSealedCsekError -> ErrorStoringSealedCsek(appKeys = currentState.appKeys)
 
-      is CreateKeyboxErrorData ->
+                is HardwareKeyAlreadyInUseError -> PairWithServerErrorHardwareKeyAlreadyInUseState(
+                  hwActivation = currentState.hwActivation,
+                  appKeys = currentState.appKeys
+                )
+
+                is AppKeyAlreadyInUseError -> PairWithServerErrorAppKeyAlreadyInUseState(
+                  hwActivation = currentState.hwActivation,
+                  appKeys = currentState.appKeys
+                )
+
+                else -> PairWithServerErrorState(
+                  hwActivation = currentState.hwActivation,
+                  appKeys = currentState.appKeys,
+                  error = it
+                )
+              }
+            }
+        }
+
+        LoadingBodyModel(
+          message = "Creating account...",
+          id = NEW_ACCOUNT_SERVER_KEYS_LOADING
+        ).asRootScreen()
+      }
+
+      is ErrorStoringSealedCsek -> ErrorFormBodyModel(
+        onBack = props.onExit,
+        title = "We couldn’t create your wallet",
+        subline = "There was an issue with setting up your Bitkey device. Please retry to set up your device.",
+        primaryButton = ButtonDataModel(
+          text = "Retry",
+          onClick = { state = HasAppKeysState(appKeys = currentState.appKeys) }
+        ),
+        eventTrackerScreenId = NEW_ACCOUNT_CREATION_HW_FAILURE
+      ).asRootScreen()
+      is CreateAppKeysErrorState -> ErrorFormBodyModel(
+        onBack = props.onExit,
+        title = "We couldn’t create your wallet",
+        subline = "We are looking into this. Please try again later.",
+        primaryButton = ButtonDataModel(text = "Done", onClick = props.onExit),
+        eventTrackerScreenId = APP_KEYS_CREATION_FAILURE
+      ).asRootScreen()
+      is PairWithServerErrorAppKeyAlreadyInUseState ->
         ErrorFormBodyModel(
-          onBack = dataState.onBack,
-          title = dataState.title,
-          subline = dataState.subline,
-          primaryButton =
-            dataState.primaryButton.let {
-              ButtonDataModel(text = it.text, onClick = it.onClick)
-            },
-          secondaryButton =
-            dataState.secondaryButton?.let {
-              ButtonDataModel(text = it.text, onClick = it.onClick)
-            },
-          eventTrackerScreenId = dataState.eventTrackerScreenId
+          onBack = props.onExit,
+          title = "We couldn’t create your wallet",
+          subline = "Please try again.",
+          primaryButton = ButtonDataModel(
+            text = "Retry",
+            onClick = {
+              state = PairingWithServerState(
+                appKeys = currentState.appKeys,
+                hwActivation = currentState.hwActivation
+              )
+            }
+          ),
+          secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_APP_KEY_ALREADY_IN_USE
+        ).asRootScreen()
+      is PairWithServerErrorHardwareKeyAlreadyInUseState ->
+        ErrorFormBodyModel(
+          onBack = props.onExit,
+          title = "We couldn’t create your wallet",
+          subline = "The Bitkey device is already being used by an existing wallet. If it belongs to you, you can use the device to restore your wallet.",
+          primaryButton = ButtonDataModel(text = "Got it", onClick = props.onExit),
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_HW_KEY_ALREADY_IN_USE
+        ).asRootScreen()
+      is PairWithServerErrorState ->
+        ErrorFormBodyModel(
+          onBack = props.onExit,
+          title = "We couldn’t create your wallet",
+          subline = when {
+            currentState.error.isConnectivityError() -> "Make sure you are connected to the internet and try again."
+            else -> "We are looking into this. Please try again later."
+          },
+          primaryButton = ButtonDataModel(
+            text = "Retry",
+            onClick = {
+              state = PairingWithServerState(
+                appKeys = currentState.appKeys,
+                hwActivation = currentState.hwActivation
+              )
+            }
+          ),
+          secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
+          eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE
         ).asRootScreen()
     }
   }
 
-  @Composable
-  private fun CreatingAppKeysUiModel(dataState: CreatingAppKeysData): ScreenModel {
-    return pairNewHardwareUiStateMachine.model(
-      props = PairNewHardwareProps(
-        request = PairNewHardwareProps.Request.Preparing,
-        screenPresentationStyle = RootFullScreen,
-        onExit = dataState.rollback,
-        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-      )
-    )
+  private sealed interface State {
+    data object CreatingAppKeysState : State
+
+    data object CreateAppKeysErrorState : State
+
+    /**
+     * App keys generated. We can now pair with hardware, UI state machine is taking care of this.
+     */
+    data class HasAppKeysState(
+      val appKeys: WithAppKeys,
+    ) : State
+
+    /**
+     * Received an error when storing the Sealed Csek into dao
+     *
+     * @property appKeys - The keycross draft with app keys necessary for re-attempting csek
+     * storage
+     */
+    data class ErrorStoringSealedCsek(
+      val appKeys: WithAppKeys,
+    ) : State
+
+    /**
+     * Pairing with server, creating Account.
+     */
+    data class PairingWithServerState(
+      val hwActivation: FingerprintEnrolled,
+      val appKeys: WithAppKeys,
+    ) : State
+
+    /**
+     * There was an error when pairing with the server due to the HW key already being paired.
+     */
+    data class PairWithServerErrorHardwareKeyAlreadyInUseState(
+      val hwActivation: FingerprintEnrolled,
+      val appKeys: WithAppKeys,
+    ) : State
+
+    /**
+     * There was an error when pairing with the server due to the app key already being paired.
+     */
+    data class PairWithServerErrorAppKeyAlreadyInUseState(
+      val hwActivation: FingerprintEnrolled,
+      val appKeys: WithAppKeys,
+    ) : State
+
+    /**
+     * There was a generic error when pairing with the server.
+     */
+    data class PairWithServerErrorState(
+      val hwActivation: FingerprintEnrolled,
+      val appKeys: WithAppKeys,
+      val error: Throwable,
+    ) : State
   }
 
-  @Composable
-  private fun HasAppKeysUiModel(dataState: HasAppKeysData): ScreenModel {
-    return pairNewHardwareUiStateMachine.model(
-      props = PairNewHardwareProps(
-        request = PairNewHardwareProps.Request.Ready(
-          fullAccountConfig = dataState.fullAccountConfig,
-          appGlobalAuthPublicKey = dataState.appKeys.appKeyBundle.authKey,
-          onSuccess = { dataState.onPairHardwareComplete(it) }
-        ),
-        screenPresentationStyle = Root,
-        onExit = dataState.rollback,
-        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-      )
-    )
+  private fun Throwable.isConnectivityError(): Boolean {
+    val f8eError = this as? AccountCreationError.AccountCreationF8eError
+    return f8eError?.f8eError is F8eError.ConnectivityError
   }
-
-  @Composable
-  private fun PairingWithServerModel() =
-    LoadingBodyModel(
-      message = "Creating account...",
-      id = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_SERVER_KEYS_LOADING
-    ).asRootScreen()
 }

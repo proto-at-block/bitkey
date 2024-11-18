@@ -1,6 +1,5 @@
 package build.wallet.ui.components.list
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.label.Label
@@ -38,8 +36,6 @@ import build.wallet.ui.model.list.ListGroupStyle.NONE
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun ListGroup(
@@ -182,43 +178,6 @@ private fun RegularListGroup(
             .height(40.dp),
         model = buttonModel,
         cornerRadius = 12.dp
-      )
-    }
-  }
-}
-
-@Preview
-@Composable
-fun ListSectionForPreview(
-  showHeader: Boolean,
-  style: ListGroupStyle = NONE,
-  collapsed: Boolean = false,
-  explainerSubtext: String? = null,
-) {
-  PreviewWalletTheme {
-    Box(modifier = Modifier.background(WalletTheme.colors.foreground10)) {
-      ListGroup(
-        collapseContent = collapsed,
-        model =
-          ListGroupModel(
-            header = "Header".takeIf { showHeader },
-            items =
-              immutableListOf(
-                ListItemModel(
-                  title = "Title 1"
-                ),
-                ListItemModel(
-                  title = "Title 2",
-                  secondaryText = "Secondary text 2"
-                ),
-                ListItemModel(
-                  title = "Title 3",
-                  sideText = "Side text 3"
-                )
-              ),
-            style = style,
-            explainerSubtext = explainerSubtext
-          )
       )
     }
   }

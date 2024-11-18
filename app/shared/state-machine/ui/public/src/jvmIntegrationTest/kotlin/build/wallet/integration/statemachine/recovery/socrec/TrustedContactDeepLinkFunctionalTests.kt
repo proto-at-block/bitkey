@@ -30,22 +30,22 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
 
   test("trusted contact deep link full account") {
     // full account creates invite
-    val invite = launchNewApp()
-    invite.onboardFullAccountWithFakeHardware()
-    invite.app.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(invite),
+    val inviteApp = launchNewApp()
+    inviteApp.onboardFullAccountWithFakeHardware()
+    inviteApp.trustedContactManagementUiStateMachine.test(
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
       useVirtualTime = false
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
     }
-    val inviteCode = invite.getSharedInviteCode()
+    val inviteCode = inviteApp.getSharedInviteCode()
 
     // onboarded tester uses the invite
-    val appTester = launchNewApp()
-    appTester.onboardFullAccountWithFakeHardware()
+    val app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware()
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
-    appTester.app.appUiStateMachine.test(
+    app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
     ) {
@@ -58,16 +58,16 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // full account creates invite
     val inviterApp = launchNewApp()
     inviterApp.onboardFullAccountWithFakeHardware()
-    val tcInvite = inviterApp.createTcInvite("appTester")
+    val tcInvite = inviterApp.createTcInvite("app")
 
     // tester onboard as TC
-    val appTester = launchNewApp()
-    appTester.onboardLiteAccountFromInvitation(tcInvite.inviteCode, "inviterApp")
+    val app = launchNewApp()
+    app.onboardLiteAccountFromInvitation(tcInvite.inviteCode, "inviterApp")
 
     // generate another invite from another, different full account
     val secondInviter = launchNewApp()
     secondInviter.onboardFullAccountWithFakeHardware()
-    secondInviter.app.trustedContactManagementUiStateMachine.test(
+    secondInviter.trustedContactManagementUiStateMachine.test(
       props = buildTrustedContactManagementUiStateMachineProps(secondInviter),
       useVirtualTime = false
     ) {
@@ -78,7 +78,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
 
     // onboarded tester uses the invite
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
-    appTester.app.appUiStateMachine.test(
+    app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
     ) {
@@ -89,21 +89,21 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
 
   test("trusted contact deep link onboard new lite account instructions") {
     // full account creates invite
-    val invite = launchNewApp()
-    invite.onboardFullAccountWithFakeHardware()
-    invite.app.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(invite),
+    val inviteApp = launchNewApp()
+    inviteApp.onboardFullAccountWithFakeHardware()
+    inviteApp.trustedContactManagementUiStateMachine.test(
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
       useVirtualTime = false
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
     }
-    val inviteCode = invite.getSharedInviteCode()
+    val inviteCode = inviteApp.getSharedInviteCode()
 
     // lite account onboards
-    val appTester = launchNewApp()
+    val app = launchNewApp()
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
-    appTester.app.appUiStateMachine.test(
+    app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
     ) {
@@ -122,23 +122,23 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
 
   test("trusted contact deep link restore lite account") {
     // full account creates invite
-    val invite = launchNewApp()
-    invite.onboardFullAccountWithFakeHardware()
-    invite.app.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(invite),
+    val inviteApp = launchNewApp()
+    inviteApp.onboardFullAccountWithFakeHardware()
+    inviteApp.trustedContactManagementUiStateMachine.test(
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
       useVirtualTime = false
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
     }
-    val inviteCode = invite.getSharedInviteCode()
+    val inviteCode = inviteApp.getSharedInviteCode()
 
     // lite account restores
-    val appTester = launchNewApp()
-    (appTester.app.cloudStoreAccountRepository as WritableCloudStoreAccountRepository)
+    val app = launchNewApp()
+    (app.cloudStoreAccountRepository as WritableCloudStoreAccountRepository)
       .set(CloudStoreAccountFake.TrustedContactFake)
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
-    appTester.app.appUiStateMachine.test(
+    app.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false
     ) {

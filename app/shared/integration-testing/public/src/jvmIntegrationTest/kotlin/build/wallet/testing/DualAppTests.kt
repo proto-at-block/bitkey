@@ -12,10 +12,10 @@ import java.util.concurrent.atomic.AtomicReference
 
 class DualAppTests : FunSpec({
   suspend fun runApp(appRef: AtomicReference<AppTester>): AppTester {
-    val appTester = launchNewApp()
-    appTester.onboardFullAccountWithFakeHardware()
-    appRef.set(appTester)
-    return appTester
+    val app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware()
+    appRef.set(app)
+    return app
   }
 
   test("onboarding 2 apps in parallel") {

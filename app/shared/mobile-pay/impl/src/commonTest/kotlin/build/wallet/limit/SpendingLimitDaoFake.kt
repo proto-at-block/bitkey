@@ -1,6 +1,5 @@
 package build.wallet.limit
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -15,22 +14,22 @@ class SpendingLimitDaoFake : SpendingLimitDao {
 
   private val mostRecentSpendingLimit = MutableStateFlow<SpendingLimit?>(null)
 
-  override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, DbError> {
+  override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, Error> {
     return Ok(mostRecentSpendingLimit.value)
   }
 
-  override suspend fun saveAndSetSpendingLimit(limit: SpendingLimit): Result<Unit, DbError> {
+  override suspend fun saveAndSetSpendingLimit(limit: SpendingLimit): Result<Unit, Error> {
     activeSpendingLimit.value = limit
     mostRecentSpendingLimit.value = limit
     return Ok(Unit)
   }
 
-  override suspend fun disableSpendingLimit(): Result<Unit, DbError> {
+  override suspend fun disableSpendingLimit(): Result<Unit, Error> {
     activeSpendingLimit.value = null
     return Ok(Unit)
   }
 
-  override suspend fun removeAllLimits(): Result<Unit, DbError> {
+  override suspend fun removeAllLimits(): Result<Unit, Error> {
     activeSpendingLimit.value = null
     mostRecentSpendingLimit.value = null
     return Ok(Unit)

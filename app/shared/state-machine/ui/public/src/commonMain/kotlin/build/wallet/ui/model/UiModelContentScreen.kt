@@ -1,7 +1,9 @@
 package build.wallet.ui.model
 
+import androidx.compose.runtime.Composable
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.components.screen.Screen
+import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
 /**
@@ -14,4 +16,9 @@ import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
  */
 expect class UiModelContentScreen(model: ScreenModel) : VoyagerScreen {
   var model: ScreenModel
+
+  override val key: ScreenKey
+
+  @Composable
+  override fun Content()
 }

@@ -26,12 +26,12 @@ import kotlinx.coroutines.flow.map
 class WalletUtxoFunctionalTests : FunSpec({
   coroutineTestScope = true
 
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
   lateinit var transactionsService: TransactionsService
 
   beforeTest {
-    appTester = launchNewApp()
-    transactionsService = appTester.app.appComponent.transactionsService
+    app = launchNewApp()
+    transactionsService = app.transactionsService
   }
 
   fun utxos(): Flow<Utxos> {
@@ -41,7 +41,7 @@ class WalletUtxoFunctionalTests : FunSpec({
   }
 
   test("no utxos in empty wallet") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     utxos().test {
       awaitItem().should { utxos ->
@@ -54,13 +54,13 @@ class WalletUtxoFunctionalTests : FunSpec({
 
   test("utxos are loaded after receiving funds")
     .config(tags = setOf(IsolatedTest)) {
-      appTester.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
 
       utxos().test {
         awaitItem().all.shouldBeEmpty()
 
         // Add confirmed utxo
-        appTester.addSomeFunds(amount = sats(1_000), waitForConfirmation = true)
+        app.addSomeFunds(amount = sats(1_000), waitForConfirmation = true)
         awaitItem()
           .should { utxos ->
             utxos.confirmed.shouldHaveSize(1)
@@ -70,7 +70,7 @@ class WalletUtxoFunctionalTests : FunSpec({
           }
 
         // Add unconfirmed utxo
-        val fundingResult = appTester.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
+        val fundingResult = app.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
         awaitItem()
           .should { utxos ->
             utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
@@ -80,8 +80,8 @@ class WalletUtxoFunctionalTests : FunSpec({
           }
 
         // Wait for confirmation
-        appTester.mineBlock(txid = fundingResult.tx.id)
-        appTester.waitForFunds { it.confirmed == sats(3_000) }
+        app.mineBlock(txid = fundingResult.tx.id)
+        app.waitForFunds { it.confirmed == sats(3_000) }
 
         // Both utxos should be confirmed
         awaitItem()

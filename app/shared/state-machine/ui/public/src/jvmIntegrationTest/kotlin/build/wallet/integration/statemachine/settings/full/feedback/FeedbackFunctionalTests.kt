@@ -40,9 +40,9 @@ class FeedbackFunctionalTests : FunSpec({
   lateinit var account: FullAccount
   lateinit var feedbackStateMachine: FeedbackUiStateMachine
   beforeTest {
-    val appTester = launchNewApp()
-    account = appTester.onboardFullAccountWithFakeHardware()
-    feedbackStateMachine = appTester.app.feedbackUiStateMachine
+    val app = launchNewApp()
+    account = app.onboardFullAccountWithFakeHardware()
+    feedbackStateMachine = app.feedbackUiStateMachine
   }
 
   test("feedback form loads and closes") {

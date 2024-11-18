@@ -1,9 +1,10 @@
 package build.wallet.statemachine.settings.full
 
+import build.wallet.bitkey.account.Account
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.ui.model.status.StatusBannerModel
 
 interface SettingsHomeUiStateMachine : StateMachine<SettingsHomeUiProps, ScreenModel>
@@ -14,7 +15,8 @@ interface SettingsHomeUiStateMachine : StateMachine<SettingsHomeUiProps, ScreenM
  */
 data class SettingsHomeUiProps(
   val onBack: () -> Unit,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: Account,
+  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
 )

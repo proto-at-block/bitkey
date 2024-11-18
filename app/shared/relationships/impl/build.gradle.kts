@@ -14,7 +14,6 @@ kotlin {
         implementation(projects.shared.accountPublic)
         implementation(projects.shared.databasePublic)
         implementation(projects.shared.f8eClientPublic)
-        implementation(projects.shared.coroutinesPublic)
         implementation(projects.shared.serializationPublic)
       }
     }

@@ -40,6 +40,16 @@ sealed interface BeneficiaryClaim : InheritanceClaim {
     val sealedDek: XCiphertext,
     @Redacted
     val sealedMobileKey: XCiphertext,
+    @Redacted
+    val benefactorKeyset: BenefactorDescriptorKeyset,
+  ) : BeneficiaryClaim
+
+  /**
+   * Inheritance claims that have been signed and transferred.
+   */
+  data class CompleteClaim(
+    override val claimId: InheritanceClaimId,
+    override val relationshipId: RelationshipId,
   ) : BeneficiaryClaim
 
   /**

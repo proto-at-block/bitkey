@@ -1,1 +1,0 @@
-This module contains custom extensions for Kotest framework to make testing easier.

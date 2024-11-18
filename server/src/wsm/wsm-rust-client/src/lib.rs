@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 extern crate core;
 pub use wsm_common::derivation::WSMSupportedDomain;
 pub use wsm_common::messages::api::CreatedSigningKey;
@@ -14,7 +12,9 @@ use tracing::instrument;
 use url::Url;
 use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
-    AttestationDocResponse, CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
+    AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
+    CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
+    InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
 };
 
 pub use wsm_common::messages::{
@@ -69,6 +69,18 @@ pub trait SigningService {
         root_key_id: &str,
         network: Network,
     ) -> Result<CreatedSigningKey, Error>;
+    async fn initiate_distributed_keygen(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<InitiateDistributedKeygenResponse, Error>;
+    async fn continue_distributed_keygen(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<ContinueDistributedKeygenResponse, Error>;
     async fn sign_psbt(
         &self,
         root_key_id: &str,
@@ -158,6 +170,48 @@ impl SigningService for WsmClient {
             .json(&CreateRootKeyRequest {
                 root_key_id: root_key_id.to_string(),
                 network,
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn initiate_distributed_keygen(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<InitiateDistributedKeygenResponse, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("initiate-distributed-keygen")?)
+            .json(&InitiateDistributedKeygenRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request: sealed_request.to_string(),
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn continue_distributed_keygen(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<ContinueDistributedKeygenResponse, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("continue-distributed-keygen")?)
+            .json(&ContinueDistributedKeygenRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request: sealed_request.to_string(),
             })
             .send()
             .await?;

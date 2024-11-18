@@ -43,12 +43,10 @@ import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.system.isBlurSupported
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun FwupNfcScreen(
@@ -362,63 +360,3 @@ private fun Modifier.indicatorWarningBackground() =
         )
       )
   }
-
-@Preview
-@Composable
-internal fun FwupNfcSearchingPreview() {
-  PreviewWalletTheme {
-    FwupNfcScreenInternal(
-      model =
-        FwupNfcBodyModel(
-          onCancel = {},
-          status = Searching(),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun FwupNfcProgressPreview() {
-  PreviewWalletTheme {
-    FwupNfcScreenInternal(
-      model =
-        FwupNfcBodyModel(
-          onCancel = {},
-          status = InProgress(fwupProgress = 5f),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun FwupNfcLostConnectionPreview() {
-  PreviewWalletTheme {
-    FwupNfcScreenInternal(
-      model =
-        FwupNfcBodyModel(
-          onCancel = {},
-          status = LostConnection(fwupProgress = 5f),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun FwupNfcSuccessPreview() {
-  PreviewWalletTheme {
-    FwupNfcScreenInternal(
-      model =
-        FwupNfcBodyModel(
-          onCancel = null,
-          status = Success(),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}

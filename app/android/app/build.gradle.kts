@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2024,
-      version = 72,
-      patch = 1,
-      build = 1
+      version = 73,
+      patch = 0,
+      build = 3
     )
   }
   compose {
@@ -134,10 +134,6 @@ dependencies {
   implementation(libs.android.lifecycle.process)
   implementation(libs.kmp.kermit)
   implementation(libs.kmp.molecule.runtime)
-  implementation(projects.android.debugImpl)
-  implementation(projects.android.nfcImpl)
-  implementation(projects.android.platformImpl)
-  implementation(projects.android.uiAppImpl)
   implementation(projects.android.uiAppPublic)
   implementation(projects.android.uiCorePublic)
   implementation(projects.shared.appComponentImpl)

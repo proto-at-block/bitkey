@@ -35,6 +35,14 @@ sealed interface BenefactorClaim : InheritanceClaim {
   ) : BenefactorClaim
 
   /**
+   * Inheritance claims that have been signed and transferred.
+   */
+  data class CompleteClaim(
+    override val claimId: InheritanceClaimId,
+    override val relationshipId: RelationshipId,
+  ) : BenefactorClaim
+
+  /**
    * An inheritance claim that is in an unknown state.
    *
    * This type is included for forwards compatibility, and forces the

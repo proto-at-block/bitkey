@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-framework-engine-iossimulatorarm64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-engine-iossimulatorarm64-5.9.0-metadata.jar": "999a1481b06d8d6ae4f581d31d521aa6b7cae100a01f5e652a6bf3829ab749e2"
+                        "kotest-framework-engine-iossimulatorarm64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-framework-engine.klib": "10ed280965ff5207622148c896b484b4f8b85b03c045771c769f6b5fec60b877"
+                        "kotest-framework-engine.klib": "7da5c2668cd695022b49e5436947d65bad53db45faca345f1af3a8f6ba88acfa"
                     }
                 }
             ],

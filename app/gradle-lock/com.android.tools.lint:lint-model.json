@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.lint:lint-model",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "lint-model-31.3.2.jar": "243bb5e90bef1f94b419506bc9c236e86cecd977220e89ddb9e9f973b9e56ce1"
+                        "lint-model-31.5.2.jar": "ae5b38460f3a59c0725930d779dbbb3372f08031a1a41faa59d9f8500b3e4641"
                     }
                 }
             ],

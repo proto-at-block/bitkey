@@ -1,77 +1,49 @@
-use bitcoin::secp256k1::{schnorr::Signature, PublicKey};
+use bitcoin::secp256k1::{
+    ffi::CPtr,
+    serde::{Deserialize, Serialize},
+    PublicKey,
+};
+use rand::{rngs::StdRng, RngCore, SeedableRng};
+use secp256k1_zkp::{
+    self as zkp,
+    constants::{GENERATOR_X, GENERATOR_Y},
+    frost::{
+        generate_frost_shares, CoefficientCommitment, FrostPublicKey, FrostShare, VerificationShare,
+    },
+};
 use thiserror::Error;
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use super::{KeyCommitments, Participant, ParticipantIndex, ShareDetails};
 
-use super::{
-    fakes::*, KeyCommitments, Participant, ParticipantIndex, Share, ShareAggParams, ShareDetails,
-    APP_PARTICIPANT_INDEX, SERVER_PARTICIPANT_INDEX,
-};
+static DKG_THRESHOLD: usize = 2;
 
-/// Returns a SharePackage object containing the peer's share and the necessary commitments.
-///
-/// participant – The participant generating the share.
-/// peer – The peer the participant is generating the share for.
-pub fn generate_share_package(
-    participant: Participant,
-    peer: Participant,
-) -> Result<SharePackage, KeygenError> {
-    let server_pok = {
-        let mut pok = [0u8; 64];
-        pok[..32].copy_from_slice(&SERVER_POK_R);
-        pok[32..].copy_from_slice(&SERVER_POK_S);
-        pok
-    };
+pub fn generate_share_packages() -> Result<Vec<SharePackage>, KeygenError> {
+    let mut seed = [0u8; 32];
+    let mut rng = StdRng::from_entropy();
+    rng.fill_bytes(&mut seed);
 
-    let app_pok = {
-        let mut pok = [0u8; 64];
-        pok[..32].copy_from_slice(&APP_POK_R);
-        pok[32..].copy_from_slice(&APP_POK_S);
-        pok
-    };
+    let participants = [Participant::App, Participant::Server]
+        .iter()
+        .map(|participant| (*participant).into())
+        .collect::<Vec<zkp::PublicKey>>();
+    let participants_refs = participants.iter().collect::<Vec<&zkp::PublicKey>>();
 
-    let app_coefficient_commitments =
-        APP_COEFFICIENT_COMMITMENTS.map(|coefficient| PublicKey::from_slice(&coefficient).unwrap());
-    let server_coefficient_commitments = SERVER_COEFFICIENT_COMMITMENTS
-        .map(|coefficient| PublicKey::from_slice(&coefficient).unwrap());
+    let (shares, commitments, pok) =
+        generate_frost_shares(zkp::SECP256K1, &seed, DKG_THRESHOLD, &participants_refs)
+            .expect("Should always succeed since we hardcode the threshold.");
 
-    let share_package = match (participant, peer) {
-        (Participant::App, Participant::Server) => SharePackage {
-            index: participant.into(),
-            coefficient_commitments: app_coefficient_commitments.to_vec(),
-            proof_of_knowledge: Signature::from_slice(&app_pok).unwrap(),
-            intermediate_share: Share(APP_SERVER_DKG_INTERMEDIATE_SHARE),
-        },
-        (Participant::Server, Participant::App) => SharePackage {
-            index: participant.into(),
-            coefficient_commitments: server_coefficient_commitments.to_vec(),
-            proof_of_knowledge: Signature::from_slice(&server_pok).unwrap(),
-            intermediate_share: Share(SERVER_APP_DKG_INTERMEDIATE_SHARE),
-        },
-        _ => return Err(KeygenError::InvalidParticipantIndex),
-    };
+    let share_packages = shares
+        .into_iter()
+        .enumerate()
+        .map(|(index, share)| SharePackage {
+            index: participants[index],
+            coefficient_commitments: commitments.to_public_keys(),
+            proof_of_knowledge: pok,
+            intermediate_share: share,
+        })
+        .collect();
 
-    Ok(share_package)
-}
-
-/// Returns a ShareAggParams object containing the participant's intermediate share and coefficient
-/// commitments.
-///
-/// This should **NOT** be shared with other participants.
-///
-/// participant – The participant generating the share.
-pub fn share_agg_params(share_package: &SharePackage) -> Result<ShareAggParams, KeygenError> {
-    let share_agg_params = ShareAggParams {
-        intermediate_share: match share_package.index {
-            APP_PARTICIPANT_INDEX => Share(APP_DKG_INTERMEDIATE_SHARE),
-            SERVER_PARTICIPANT_INDEX => Share(SERVER_DKG_INTERMEDIATE_SHARE),
-            _ => return Err(KeygenError::InvalidParticipantIndex),
-        },
-        coefficient_commitments: share_package.coefficient_commitments.clone(),
-    };
-
-    Ok(share_agg_params)
+    Ok(share_packages)
 }
 
 /// Aggregate the shares and generates key commitments.
@@ -80,24 +52,74 @@ pub fn share_agg_params(share_package: &SharePackage) -> Result<ShareAggParams, 
 /// peer_package – The peer's share package.
 /// share_agg_params – The participant's share aggregation parameters.
 pub fn aggregate_shares(
-    _share_agg_params: &ShareAggParams,
-    peer_package: &SharePackage,
+    participant: Participant,
+    share_packages: &[&SharePackage],
 ) -> Result<ShareDetails, KeygenError> {
-    let secret_share = match peer_package.index {
-        SERVER_PARTICIPANT_INDEX => APP_SHAMIR_SHARE,
-        APP_PARTICIPANT_INDEX => SERVER_SHAMIR_SHARE,
-        _ => return Err(KeygenError::InvalidParticipantIndex),
-    };
+    let intermediate_shares = share_packages
+        .iter()
+        .map(|package| &package.intermediate_share)
+        .collect::<Vec<&FrostShare>>();
+    let participants = share_packages
+        .iter()
+        .map(|package| &package.index)
+        .collect::<Vec<&zkp::PublicKey>>();
+    let vss_commitments = share_packages
+        .iter()
+        .map(|package| {
+            CoefficientCommitment::from_public_keys(package.coefficient_commitments.clone())
+        })
+        .collect::<Vec<CoefficientCommitment>>();
+    let vss_commitment_refs = vss_commitments
+        .iter()
+        .collect::<Vec<&CoefficientCommitment>>();
 
-    let aggregate_vss_commitments =
-        AGGREGATE_VSS_COMMITMENTS.map(|coefficient| PublicKey::from_slice(&coefficient).unwrap());
+    let poks = share_packages
+        .iter()
+        .map(|package| &package.proof_of_knowledge)
+        .collect::<Vec<&zkp::schnorr::Signature>>();
+
+    let (secret_share, vss_commitments) = FrostShare::aggregate(
+        zkp::SECP256K1,
+        &intermediate_shares,
+        &vss_commitment_refs,
+        &poks,
+        &participant.into(),
+        DKG_THRESHOLD,
+    )
+    .map_err(|_| KeygenError::ShareAggregationFailed)?;
+
+    let app_verification_share = VerificationShare::new(
+        zkp::SECP256K1,
+        &vss_commitment_refs,
+        &Participant::App.into(),
+        DKG_THRESHOLD,
+    )
+    .map_err(|_| KeygenError::VerificationShareGenerationFailed)?;
+    let server_verification_share = VerificationShare::new(
+        zkp::SECP256K1,
+        &vss_commitment_refs,
+        &Participant::Server.into(),
+        DKG_THRESHOLD,
+    )
+    .map_err(|_| KeygenError::VerificationShareGenerationFailed)?;
+
+    let aggregate_public_key = FrostPublicKey::from_verification_shares(
+        zkp::SECP256K1,
+        &[&app_verification_share, &server_verification_share],
+        &participants,
+    );
 
     Ok(ShareDetails {
         key_commitments: KeyCommitments {
-            vss_commitments: aggregate_vss_commitments.to_vec(),
-            aggregate_public_key: PublicKey::from_slice(&AGGREGATE_PUBLIC_KEY).unwrap(),
+            aggregate_public_key: ZkpPublicKey(aggregate_public_key.public_key(zkp::SECP256K1))
+                .into(),
+            vss_commitments: vss_commitments
+                .to_public_keys()
+                .into_iter()
+                .map(|zkp_public_key| ZkpPublicKey(zkp_public_key).into())
+                .collect::<Vec<PublicKey>>(),
         },
-        secret_share: Share(secret_share),
+        secret_share,
     })
 }
 
@@ -112,43 +134,91 @@ pub fn equality_check(
     Ok(share_details)
 }
 
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(crate = "bitcoin::secp256k1::serde")]
 pub struct SharePackage {
-    index: ParticipantIndex,
-    coefficient_commitments: Vec<PublicKey>,
-    proof_of_knowledge: Signature,
-    intermediate_share: Share,
+    index: zkp::PublicKey,
+    coefficient_commitments: Vec<zkp::PublicKey>,
+    proof_of_knowledge: zkp::schnorr::Signature,
+    intermediate_share: FrostShare,
 }
 
 #[derive(Error, Debug, PartialEq)]
 pub enum KeygenError {
     #[error("Generator is missing a share package. Did you forget to generate a share package?")]
     MissingSharePackage,
-    #[error("Generator is missing share aggregation parameters. Did you forget to generate a share package?")]
-    MissingShareAggParams,
-    #[error("Invalid participant index")]
-    InvalidParticipantIndex,
+    #[error("Unable to run DKG for the given participants.")]
+    InvalidParticipants,
     #[error("Invalid proof of knowledge")]
     InvalidProofOfKnowledge,
     #[error("Invalid intermediate share")]
     InvalidIntermediateShare,
     #[error("Invalid key commitments")]
     InvalidKeyCommitments,
+    #[error("Unable to aggregate shares")]
+    ShareAggregationFailed,
+    #[error("Unable to generate verification share")]
+    VerificationShareGenerationFailed,
+}
+
+struct ZkpPublicKey(zkp::PublicKey);
+// We expose and ingest non-secpZKP publicly outside this crate, so we'd need some way to
+// "translate" between them.
+impl From<PublicKey> for ZkpPublicKey {
+    fn from(value: PublicKey) -> Self {
+        let pubkey_bytes = unsafe { &*value.as_c_ptr() }.underlying_bytes();
+        Self(zkp::PublicKey::from(unsafe {
+            zkp::ffi::PublicKey::from_array_unchecked(pubkey_bytes)
+        }))
+    }
+}
+
+impl From<ZkpPublicKey> for PublicKey {
+    fn from(value: ZkpPublicKey) -> Self {
+        use secp256k1_zkp::ffi::CPtr;
+        let pubkey_bytes = unsafe { &*value.0.as_c_ptr() }.underlying_bytes();
+        Self::from(unsafe {
+            bitcoin::secp256k1::ffi::PublicKey::from_array_unchecked(pubkey_bytes)
+        })
+    }
+}
+
+/// We use participant indices (1, 2, ...) to derive an identity public key.
+impl From<Participant> for zkp::PublicKey {
+    fn from(participant: Participant) -> Self {
+        let generator_point = get_generator_point();
+        let index: ParticipantIndex = participant.into();
+        let mut index_bytes = [0u8; 32];
+        index_bytes[31] = index.0;
+        let participant_index_tweak =
+            zkp::Scalar::from_be_bytes(index_bytes).expect("Scalar should always be valid.");
+
+        generator_point
+            .mul_tweak(zkp::SECP256K1, &participant_index_tweak)
+            .expect("Non-zero scalar multiplication of generator should always be valid.")
+    }
+}
+
+fn get_generator_point() -> zkp::PublicKey {
+    let mut g_bytes = [0u8; 65];
+    g_bytes[0] = 0x04;
+    g_bytes[1..33].copy_from_slice(&GENERATOR_X);
+    g_bytes[33..65].copy_from_slice(&GENERATOR_Y);
+
+    zkp::PublicKey::from_slice(&g_bytes)
+        .expect("Should always succeed since we use the generator point.")
 }
 
 pub mod server {
     use crate::frost::{KeyCommitments, Participant, ShareDetails};
+    use bitcoin::secp256k1::serde::{Deserialize, Serialize};
 
     use super::{
-        aggregate_shares, equality_check, generate_share_package, share_agg_params, KeygenError,
-        SharePackage,
+        aggregate_shares, equality_check, generate_share_packages, KeygenError, SharePackage,
     };
 
-    #[cfg(feature = "serde")]
-    use serde::{Deserialize, Serialize};
-
-    #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+    #[derive(Deserialize, Serialize)]
+    #[serde(crate = "bitcoin::secp256k1::serde")]
     pub struct InitiateDkgResult {
         pub share_package: SharePackage,
         pub share_details: ShareDetails,
@@ -157,11 +227,23 @@ pub mod server {
     pub fn initiate_dkg(
         peer_share_package: &SharePackage,
     ) -> Result<InitiateDkgResult, KeygenError> {
-        let share_package = generate_share_package(Participant::Server, Participant::App)?;
-        let share_agg_params = share_agg_params(&share_package)?;
-        let share_details = aggregate_shares(&share_agg_params, peer_share_package)?;
+        let mut share_packages = generate_share_packages()?;
+
+        let share_package_for_server = share_packages
+            .pop()
+            .expect("server share package should exist.");
+
+        let share_package_for_app = share_packages
+            .pop()
+            .expect("app share package should exist.");
+
+        let share_details = aggregate_shares(
+            Participant::Server,
+            &[peer_share_package, &share_package_for_server],
+        )?;
+
         Ok(InitiateDkgResult {
-            share_package,
+            share_package: share_package_for_app,
             share_details,
         })
     }
@@ -178,12 +260,29 @@ pub mod app {
     use crate::frost::{KeyCommitments, Participant, ShareDetails};
 
     use super::{
-        aggregate_shares, equality_check, generate_share_package, share_agg_params, KeygenError,
-        SharePackage,
+        aggregate_shares, equality_check, generate_share_packages, KeygenError, SharePackage,
     };
 
-    pub fn initiate_dkg() -> Result<SharePackage, KeygenError> {
-        generate_share_package(Participant::App, Participant::Server)
+    pub struct InitialSharePackage {
+        pub share_package: SharePackage,
+        pub share_package_for_peer: SharePackage,
+    }
+
+    pub fn initiate_dkg() -> Result<InitialSharePackage, KeygenError> {
+        let mut share_packages = generate_share_packages()?;
+
+        let share_package_for_server = share_packages
+            .pop()
+            .expect("Should have a SharePackage for Server");
+
+        let share_package_for_app = share_packages
+            .pop()
+            .expect("Should have an App SharePackage");
+
+        Ok(InitialSharePackage {
+            share_package: share_package_for_app,
+            share_package_for_peer: share_package_for_server,
+        })
     }
 
     pub fn continue_dkg(
@@ -191,50 +290,49 @@ pub mod app {
         peer_share_package: &SharePackage,
         peer_key_commitments: &KeyCommitments,
     ) -> Result<ShareDetails, KeygenError> {
-        let share_agg_params = share_agg_params(share_package)?;
-        let share_details = aggregate_shares(&share_agg_params, peer_share_package)?;
+        let share_details =
+            aggregate_shares(Participant::App, &[share_package, peer_share_package])?;
         equality_check(peer_key_commitments, share_details)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::frost::dkg::{equality_check, generate_share_package, KeygenError};
-    use crate::frost::Participant::{App, Server};
+    use rand::{thread_rng, RngCore};
+    use secp256k1_zkp::frost::{
+        CoefficientCommitment, FrostPublicKey, FrostSession, FrostSessionId, VerificationShare,
+    };
+    use secp256k1_zkp::{self as zkp};
+    use secp256k1_zkp::{new_frost_nonce_pair, Message, Scalar};
 
-    use super::{aggregate_shares, app, server, share_agg_params};
+    use crate::frost::dkg::{equality_check, generate_share_packages};
+    use crate::frost::Participant::{self, App, Server};
 
-    #[test]
-    fn test_generate_share_package() {
-        // Valid permutations
-        assert!(generate_share_package(App, Server).is_ok());
-        assert!(generate_share_package(Server, App).is_ok());
-
-        // Invalid Permutations
-        assert_eq!(
-            generate_share_package(App, App),
-            Err(KeygenError::InvalidParticipantIndex)
-        );
-        assert_eq!(
-            generate_share_package(Server, Server),
-            Err(KeygenError::InvalidParticipantIndex)
-        )
-    }
+    use super::{aggregate_shares, app, server, DKG_THRESHOLD};
 
     #[test]
     fn test_equality_check() {
         // Run DKG twice, and check their outputs are equal
 
-        let app_share_package = generate_share_package(App, Server).unwrap();
-        let app_share_agg_params = share_agg_params(&app_share_package).unwrap();
+        let app_share_packages = generate_share_packages().unwrap();
+        let server_share_packages = generate_share_packages().unwrap();
 
-        let server_share_package = generate_share_package(Server, App).unwrap();
-        let server_share_agg_params = share_agg_params(&server_share_package).unwrap();
-
-        let app_share_details =
-            aggregate_shares(&app_share_agg_params, &server_share_package).unwrap();
-        let server_share_details =
-            aggregate_shares(&server_share_agg_params, &app_share_package).unwrap();
+        let app_share_details = aggregate_shares(
+            App,
+            &[
+                app_share_packages.first().unwrap(),
+                server_share_packages.first().unwrap(),
+            ],
+        )
+        .unwrap();
+        let server_share_details = aggregate_shares(
+            Server,
+            &[
+                server_share_packages.get(1).unwrap(),
+                app_share_packages.get(1).unwrap(),
+            ],
+        )
+        .unwrap();
 
         // Server checks
         assert!(equality_check(
@@ -249,9 +347,11 @@ mod tests {
     #[test]
     fn test_wrappers() {
         let app_initiate_result = app::initiate_dkg().unwrap();
-        let server_initiate_result = server::initiate_dkg(&app_initiate_result).unwrap();
+        let server_initiate_result =
+            server::initiate_dkg(&app_initiate_result.share_package_for_peer).unwrap();
+
         let app_continue_result = app::continue_dkg(
-            &app_initiate_result,
+            &app_initiate_result.share_package,
             &server_initiate_result.share_package,
             &server_initiate_result.share_details.key_commitments,
         )
@@ -261,5 +361,139 @@ mod tests {
             &app_continue_result.key_commitments,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn test_sign() {
+        let app_share_packages = generate_share_packages().unwrap();
+        let server_share_packages = generate_share_packages().unwrap();
+
+        let app_share_packages_to_agg = vec![
+            app_share_packages.first().unwrap(),
+            server_share_packages.first().unwrap(),
+        ];
+        let app_share_details = aggregate_shares(App, &app_share_packages_to_agg).unwrap();
+
+        let server_share_packages_to_agg = vec![
+            server_share_packages.get(1).unwrap(),
+            app_share_packages.get(1).unwrap(),
+        ];
+        let server_share_details = aggregate_shares(Server, &server_share_packages_to_agg).unwrap();
+
+        let app_vss_commitments = app_share_packages_to_agg
+            .iter()
+            .map(|package| {
+                CoefficientCommitment::from_public_keys(package.coefficient_commitments.clone())
+            })
+            .collect::<Vec<CoefficientCommitment>>();
+        let app_vss_commitments_refs = app_vss_commitments
+            .iter()
+            .collect::<Vec<&CoefficientCommitment>>();
+
+        let app_verification_share = VerificationShare::new(
+            zkp::SECP256K1,
+            &app_vss_commitments_refs,
+            &Participant::App.into(),
+            DKG_THRESHOLD,
+        )
+        .unwrap();
+
+        let server_vss_commitments = server_share_packages_to_agg
+            .iter()
+            .map(|package| {
+                CoefficientCommitment::from_public_keys(package.coefficient_commitments.clone())
+            })
+            .collect::<Vec<CoefficientCommitment>>();
+        let server_vss_commitments_refs = server_vss_commitments
+            .iter()
+            .collect::<Vec<&CoefficientCommitment>>();
+
+        let server_verification_share = VerificationShare::new(
+            zkp::SECP256K1,
+            &server_vss_commitments_refs,
+            &Participant::Server.into(),
+            DKG_THRESHOLD,
+        )
+        .unwrap();
+
+        let participants = app_share_packages
+            .iter()
+            .map(|package| &package.index)
+            .collect::<Vec<&zkp::PublicKey>>();
+        let mut aggregate_pubkey = FrostPublicKey::from_verification_shares(
+            zkp::SECP256K1,
+            &[&app_verification_share, &server_verification_share],
+            &participants,
+        );
+        aggregate_pubkey.add_tweak(zkp::SECP256K1, Scalar::random());
+        aggregate_pubkey.add_x_only_tweak(zkp::SECP256K1, Scalar::random());
+        let (final_pubkey, _) = aggregate_pubkey
+            .public_key(zkp::SECP256K1)
+            .x_only_public_key();
+
+        let mut msg = [0u8; 32];
+        thread_rng().fill_bytes(&mut msg[..]);
+        let msg = Message::from_digest(msg);
+
+        let (app_secret_nonce, app_public_nonce) = new_frost_nonce_pair(
+            zkp::SECP256K1,
+            FrostSessionId::random(),
+            &app_share_details.secret_share,
+            &aggregate_pubkey,
+            &msg,
+            None,
+        );
+
+        let (server_secret_nonce, server_public_nonce) = new_frost_nonce_pair(
+            zkp::SECP256K1,
+            FrostSessionId::random(),
+            &server_share_details.secret_share,
+            &aggregate_pubkey,
+            &msg,
+            None,
+        );
+
+        let app_frost_session = FrostSession::new(
+            zkp::SECP256K1,
+            &[&app_public_nonce, &server_public_nonce],
+            &msg,
+            &aggregate_pubkey,
+            &Participant::App.into(),
+            &participants,
+            None,
+        );
+
+        let server_frost_session = FrostSession::new(
+            zkp::SECP256K1,
+            &[&app_public_nonce, &server_public_nonce],
+            &msg,
+            &aggregate_pubkey,
+            &Participant::Server.into(),
+            &participants,
+            None,
+        );
+
+        let app_partial_sig = app_frost_session.partial_sign(
+            zkp::SECP256K1,
+            app_secret_nonce,
+            &app_share_details.secret_share,
+            &aggregate_pubkey,
+        );
+        let server_partial_sig = server_frost_session.partial_sign(
+            zkp::SECP256K1,
+            server_secret_nonce,
+            &server_share_details.secret_share,
+            &aggregate_pubkey,
+        );
+
+        let app_agg_sig = app_frost_session
+            .aggregate_partial_sigs(zkp::SECP256K1, &[&app_partial_sig, &server_partial_sig]);
+        let server_agg_sig = server_frost_session
+            .aggregate_partial_sigs(zkp::SECP256K1, &[&app_partial_sig, &server_partial_sig]);
+
+        assert_eq!(app_agg_sig, server_agg_sig);
+        zkp::SECP256K1
+            .verify_schnorr(&app_agg_sig, &msg, &final_pubkey)
+            .unwrap()
     }
 }

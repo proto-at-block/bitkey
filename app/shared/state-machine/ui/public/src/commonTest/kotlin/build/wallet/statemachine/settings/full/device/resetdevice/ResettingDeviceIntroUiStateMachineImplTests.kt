@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
@@ -19,7 +20,6 @@ import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroProps
@@ -52,16 +52,14 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
 
   val onBackCalls = turbines.create<Unit>("on back calls")
 
-  val activeKeyboxLoadedData = ActiveKeyboxLoadedDataMock
-
   val spendingWallet = SpendingWalletMock(turbines::create)
 
   val props = ResettingDeviceIntroProps(
     onBack = { onBackCalls += Unit },
     onUnwindToMoneyHome = {},
     onDeviceConfirmed = {},
-    fullAccountConfig = activeKeyboxLoadedData.account.config,
-    fullAccount = activeKeyboxLoadedData.account
+    fullAccountConfig = FullAccountMock.config,
+    fullAccount = FullAccountMock
   )
 
   beforeTest {

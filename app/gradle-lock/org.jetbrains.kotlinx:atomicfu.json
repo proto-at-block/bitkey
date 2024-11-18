@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:atomicfu",
     "components": [
         {
-            "version": "0.24.0",
+            "version": "0.25.0",
             "variants": [
                 {
                     "artifacts": {
-                        "atomicfu-metadata-0.24.0.jar": "a4026538274c13c3d3305a9be5210370ab894fb1d219b3d9ba41be18c2b5e9d6"
+                        "atomicfu-metadata-0.25.0.jar": "22a15795017d0a031fec244fef20a198a64f231a8e399ad48488736e197d2487"
                     }
                 }
             ],

@@ -4,4 +4,6 @@ import build.wallet.platform.PlatformContext
 
 expect class LocaleLanguageCodeProviderImpl constructor(
   platformContext: PlatformContext,
-) : LocaleLanguageCodeProvider
+) : LocaleLanguageCodeProvider {
+  override fun languageCode(): String
+}

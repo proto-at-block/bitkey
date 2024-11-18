@@ -3,7 +3,6 @@ package build.wallet.recovery.socrec
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
-import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Result
 
 /**
@@ -21,13 +20,11 @@ interface SocRecStartedChallengeAuthenticationDao {
     recoveryRelationshipId: String,
   ): Result<SocRecStartedChallengeAuthenticationRow?, Throwable>
 
-  suspend fun deleteByRelationshipId(
-    recoveryRelationshipId: String,
-  ): Result<Unit, DbTransactionError>
+  suspend fun deleteByRelationshipId(recoveryRelationshipId: String): Result<Unit, Error>
 
   suspend fun getAll(): Result<List<SocRecStartedChallengeAuthenticationRow>, Throwable>
 
-  suspend fun clear(): Result<Unit, DbTransactionError>
+  suspend fun clear(): Result<Unit, Error>
 
   data class SocRecStartedChallengeAuthenticationRow(
     val relationshipId: String,

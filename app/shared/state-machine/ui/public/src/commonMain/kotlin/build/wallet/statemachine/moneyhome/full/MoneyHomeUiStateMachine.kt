@@ -1,10 +1,11 @@
 package build.wallet.statemachine.moneyhome.full
 
+import build.wallet.bitkey.account.Account
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -21,7 +22,8 @@ interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
  * @property origin The origin of money home. Used to control modals that only show during launch.
  */
 data class MoneyHomeUiProps(
-  val accountData: ActiveFullAccountLoadedData,
+  val account: Account,
+  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,

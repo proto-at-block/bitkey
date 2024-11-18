@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-additional-test-output-proto",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-additional-test-output-proto-31.3.2.jar": "38450694de6328c2c4cba696f9c04ecdd5ce6952355f68c3a22f9541d1d6546f"
+                        "android-test-plugin-host-additional-test-output-proto-31.5.2.jar": "38450694de6328c2c4cba696f9c04ecdd5ce6952355f68c3a22f9541d1d6546f"
                     }
                 }
             ],

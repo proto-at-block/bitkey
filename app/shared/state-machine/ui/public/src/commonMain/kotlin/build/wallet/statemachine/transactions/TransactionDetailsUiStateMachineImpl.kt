@@ -14,6 +14,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.C
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
@@ -148,7 +149,7 @@ class TransactionDetailsUiStateMachineImpl(
       is SpeedingUpTransactionUiState ->
         feeBumpConfirmationUiStateMachine.model(
           FeeBumpConfirmationProps(
-            account = props.accountData.account,
+            account = props.account as FullAccount,
             speedUpTransactionDetails = state.speedUpTransactionDetails,
             onExit = { props.onClose() },
             psbt = state.psbt,
@@ -175,7 +176,7 @@ class TransactionDetailsUiStateMachineImpl(
             inAppBrowserNavigator.open(
               bitcoinExplorer.getTransactionUrl(
                 txId = props.transaction.id,
-                network = props.accountData.account.config.bitcoinNetworkType,
+                network = props.account.config.bitcoinNetworkType,
                 explorerType = Mempool
               ),
               onClose = {}
@@ -270,7 +271,7 @@ class TransactionDetailsUiStateMachineImpl(
     if (isLoading) {
       LaunchedEffect("loading-rates-and-getting-wallet") {
         feeRateEstimator
-          .getEstimatedFeeRates(networkType = props.accountData.account.config.bitcoinNetworkType)
+          .getEstimatedFeeRates(networkType = props.account.config.bitcoinNetworkType)
           .getOrElse {
             onFailedToPrepareData()
             return@LaunchedEffect
@@ -280,8 +281,8 @@ class TransactionDetailsUiStateMachineImpl(
           }.also { feeRate ->
             // For test accounts on Signet, we manually choose a fee rate that is 5 times the previous
             // one. This is particularly useful for QA when testing.
-            val newFeeRate = if (props.accountData.account.config.isTestAccount &&
-              props.accountData.account.config.bitcoinNetworkType == BitcoinNetworkType.SIGNET
+            val newFeeRate = if (props.account.config.isTestAccount &&
+              props.account.config.bitcoinNetworkType == BitcoinNetworkType.SIGNET
             ) {
               FeeRate(satsPerVByte = feeRate.satsPerVByte * 5)
             } else {

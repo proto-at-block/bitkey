@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.transactions
 
-import build.wallet.db.DbError
 import build.wallet.money.exchange.ExchangeRate
 import com.github.michaelbull.result.Result
 import kotlinx.datetime.Instant
@@ -15,7 +14,7 @@ interface OutgoingTransactionDetailDao {
     transactionId: String,
     estimatedConfirmationTime: Instant,
     exchangeRates: List<ExchangeRate>?,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Returns the time at which the transaction with the given ID was
@@ -31,5 +30,5 @@ interface OutgoingTransactionDetailDao {
   /**
    * Clears all details for all transactions from the dao
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

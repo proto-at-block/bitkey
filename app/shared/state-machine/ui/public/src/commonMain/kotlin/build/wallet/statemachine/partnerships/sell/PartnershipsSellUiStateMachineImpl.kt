@@ -1,38 +1,114 @@
 package build.wallet.statemachine.partnerships.sell
 
 import androidx.compose.runtime.*
+import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
+import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
+import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.money.BitcoinMoney
+import build.wallet.money.FiatMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.ExchangeRate
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.partnerships.sell.SellState.*
+import build.wallet.statemachine.send.TransferAmountEntryUiProps
+import build.wallet.statemachine.send.TransferAmountEntryUiStateMachine
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
+import kotlin.time.Duration.Companion.minutes
 
 class PartnershipsSellUiStateMachineImpl(
   private val partnershipsSellOptionsUiStateMachine: PartnershipsSellOptionsUiStateMachine,
   private val partnershipsSellConfirmationUiStateMachine:
     PartnershipsSellConfirmationUiStateMachine,
+  private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag,
+  private val sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
+  private val sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val exchangeRateService: ExchangeRateService,
+  private val deepLinkHandler: DeepLinkHandler,
 ) : PartnershipsSellUiStateMachine {
   @Composable
   override fun model(props: PartnershipsSellUiProps): ScreenModel {
     var state: SellState by remember {
-      props.confirmedSale?.let { sale ->
-        mutableStateOf(SellConfirmation(sale))
-      } ?: mutableStateOf(ListSellPartners)
+      when {
+        props.confirmedSale != null -> mutableStateOf(SellConfirmation(props.confirmedSale))
+        sellBitcoinQuotesEnabledFeatureFlag.isEnabled() -> mutableStateOf(EnteringSellAmount)
+        else -> mutableStateOf(ListSellPartners)
+      }
     }
 
+    val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
+      .collectAsState()
+
+    // On initiating the sell flow, we grab and lock in the current exchange rates, so we use
+    // the same rates over the duration of the flow. This is null when the exchange rates are not
+    // available or are out of date due to the customer being offline or unable to communicate with f8e
+    val exchangeRates: ImmutableList<ExchangeRate>? by remember {
+      mutableStateOf(
+        exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, fiatCurrency)
+          ?.toImmutableList()
+      )
+    }
+
+    val initialAmount by remember(exchangeRates) {
+      when (exchangeRates) {
+        null -> mutableStateOf(BitcoinMoney.zero())
+        else -> mutableStateOf(FiatMoney.zero(fiatCurrency))
+      }
+    }
+
+    // this is defaulted to .1 BTC for now to preserve legacy behaviour
+    var sellAmount by remember { mutableStateOf(BitcoinMoney.btc(0.1)) }
+
     return when (val currentState = state) {
+      is EnteringSellAmount -> transferAmountEntryUiStateMachine.model(
+        props = TransferAmountEntryUiProps(
+          onBack = props.onBack,
+          initialAmount = initialAmount,
+          exchangeRates = exchangeRates,
+          minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value?.let { BitcoinMoney.btc(it.value) },
+          maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value?.let { BitcoinMoney.btc(it.value) },
+          allowSendAll = false,
+          onContinueClick = { continueTransferParams ->
+            sellAmount = when (continueTransferParams.sendAmount) {
+              is BitcoinTransactionSendAmount.ExactAmount -> continueTransferParams.sendAmount.money
+              BitcoinTransactionSendAmount.SendAll -> error("Send all not supported, this shouldn't be possible")
+            }
+            state = ListSellPartners
+          }
+        )
+      )
       is ListSellPartners -> {
         partnershipsSellOptionsUiStateMachine.model(
           PartnershipsSellOptionsUiProps(
+            sellAmount = sellAmount,
+            exchangeRates = exchangeRates,
             keybox = props.account.keybox,
-            onBack = props.onBack,
+            onBack = {
+              if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
+                state = EnteringSellAmount
+              } else {
+                // If we're not showing the amount entry screen, we should just go back to the previous screen
+                // as we don't have a way to go back to the amount entry screen
+                props.onBack()
+              }
+            },
             onPartnerRedirected = { method, transaction ->
               handlePartnerRedirected(
+                props = props,
                 method = method,
                 transaction = transaction,
                 setState = {
@@ -61,7 +137,11 @@ class PartnershipsSellUiStateMachineImpl(
             account = props.account,
             confirmedPartnerSale = currentState.confirmedPartnerSale,
             onBack = {
-              state = ListSellPartners
+              state = if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
+                EnteringSellAmount
+              } else {
+                ListSellPartners
+              }
             },
             exchangeRates = emptyImmutableList(),
             onDone = { partnerInfo ->
@@ -83,6 +163,7 @@ class PartnershipsSellUiStateMachineImpl(
   }
 
   private fun handlePartnerRedirected(
+    props: PartnershipsSellUiProps,
     method: PartnerRedirectionMethod,
     transaction: PartnershipTransaction,
     setState: (SellState) -> Unit,
@@ -106,8 +187,13 @@ class PartnershipsSellUiStateMachineImpl(
           )
         )
       }
-      is PartnerRedirectionMethod.Deeplink ->
-        TODO("PartnerRedirectionMethod.Deeplink not implemented")
+      is PartnerRedirectionMethod.Deeplink -> {
+        deepLinkHandler.openDeeplink(
+          url = method.urlString,
+          appRestrictions = null
+        )
+        props.onBack()
+      }
     }
   }
 }
@@ -133,4 +219,6 @@ sealed interface SellState {
   data object TrackSell : SellState
 
   data class ShowingSellSuccess(val partnerInfo: PartnerInfo?) : SellState
+
+  data object EnteringSellAmount : SellState
 }

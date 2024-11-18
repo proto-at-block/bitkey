@@ -1,13 +1,13 @@
 package build.wallet.statemachine.home.full.card
 
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
@@ -98,7 +98,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         ),
       gettingStartedCardUiProps =
         GettingStartedCardUiProps(
-          accountData = ActiveKeyboxLoadedDataMock,
           onAddBitcoin = {},
           onEnableSpendingLimit = {},
           onInviteTrustedContact = {},
@@ -130,7 +129,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         onStartSweepClicked = {}
       ),
       bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
-        fullAccountId = ActiveKeyboxLoadedDataMock.account.accountId,
+        accountId = FullAccountIdMock,
         f8eEnvironment = F8eEnvironment.Development,
         onOpenPriceChart = {}
       )

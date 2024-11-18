@@ -22,13 +22,13 @@ class RegtestTreasuryWalletTests : FunSpec({
 
   test("we can fund a regtest treasury").config(enabledIf = enableOnlyForRegtest) {
     val network = REGTEST
-    val appTester = launchNewApp()
+    val app = launchNewApp()
     // Set the keybox config to regtest because the syncer use its network. It'd be better
     // to construct the needed dependencies from scratch in the test instead of relying on
-    // appTester, but instantiating the graph is far too complex to be maintainable.
-    appTester.app.appComponent.debugOptionsService.setBitcoinNetworkType(network)
+    // app, but instantiating the graph is far too complex to be maintainable.
+    app.debugOptionsService.setBitcoinNetworkType(network)
     val bdkDescriptorFactory = BdkDescriptorFactoryImpl()
-    val xprv = appTester.app.appComponent.extendedKeyGenerator.generate(network).getOrThrow()
+    val xprv = app.extendedKeyGenerator.generate(network).getOrThrow()
     val key = BdkDescriptorSecretKeyFactoryImpl().fromString(xprv.privateKey.xprv)
     val descriptor =
       SpendingWalletDescriptor(
@@ -48,10 +48,10 @@ class RegtestTreasuryWalletTests : FunSpec({
           )
       )
     val destination =
-      appTester.app.appComponent.spendingWalletProvider.getWallet(
+      app.spendingWalletProvider.getWallet(
         descriptor
       ).getOrThrow()
 
-    appTester.treasuryWallet.fund(destination, BitcoinMoney.sats(10000))
+    app.treasuryWallet.fund(destination, BitcoinMoney.sats(10000))
   }
 })

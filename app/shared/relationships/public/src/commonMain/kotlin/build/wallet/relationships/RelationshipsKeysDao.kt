@@ -4,7 +4,6 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
-import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Result
 import kotlin.reflect.KClass
 
@@ -41,7 +40,7 @@ interface RelationshipsKeysDao {
   /**
    * Clear all public and private keys for SocRec from the database.
    */
-  suspend fun clear(): Result<Unit, DbTransactionError>
+  suspend fun clear(): Result<Unit, Error>
 }
 
 /**

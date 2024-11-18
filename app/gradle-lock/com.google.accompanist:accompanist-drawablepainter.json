@@ -2,11 +2,11 @@
     "module-identifier": "com.google.accompanist:accompanist-drawablepainter",
     "components": [
         {
-            "version": "0.32.0",
+            "version": "0.36.0",
             "variants": [
                 {
                     "artifacts": {
-                        "accompanist-drawablepainter-0.32.0.aar": "680d27950f91ba186aa14522ad019dad92c702248d110ebdd6c497734abd7da0"
+                        "accompanist-drawablepainter-0.36.0.aar": "599137c53f921c901ee40df056a7f940a6acdb0dd8f05763deec8cf495a40848"
                     }
                 }
             ],

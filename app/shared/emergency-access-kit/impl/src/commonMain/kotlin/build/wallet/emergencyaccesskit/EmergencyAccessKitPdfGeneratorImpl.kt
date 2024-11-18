@@ -2,15 +2,7 @@ package build.wallet.emergencyaccesskit
 
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.platform.pdf.PdfAnnotator
-import build.wallet.platform.pdf.PdfAnnotatorFactory
-import build.wallet.platform.pdf.PdfColor
-import build.wallet.platform.pdf.PdfFrame
-import build.wallet.platform.pdf.TextAnnotation
-import build.wallet.platform.pdf.addImageData
-import build.wallet.platform.pdf.addText
-import build.wallet.platform.pdf.create
-import build.wallet.platform.pdf.serialize
+import build.wallet.platform.pdf.*
 import build.wallet.time.DateTimeFormatter
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -26,6 +18,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
   private val templateProvider: EmergencyAccessKitTemplateProvider,
   private val backupDateProvider: EmergencyAccessKitBackupDateProvider,
   private val dateTimeFormatter: DateTimeFormatter,
+  private val qrCodeGenerator: EmergencyAccessKitQrCodeGenerator,
 ) : EmergencyAccessKitPdfGenerator {
   override suspend fun generate(
     keybox: Keybox,
@@ -55,6 +48,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
       }
     }
 
+  @Suppress("unused") // Used in iOS
   @Throws(Error::class, CancellationException::class)
   suspend fun generateOrThrow(
     keybox: Keybox,
@@ -137,7 +131,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
     }
   }
 
-  companion object {
+  private companion object {
     const val QR_CODE_FRAME_X = 108.0f
     const val QR_CODE_LENGTH = 610.0f
     const val TEXT_BOX_X = 860.0f
@@ -153,35 +147,33 @@ class EmergencyAccessKitPdfGeneratorImpl(
     url: String? = null,
   ) {
     addText(
-      text =
-        TextAnnotation(
-          contents = text,
-          font = "Helvetica",
-          fontSize = fontSize,
-          color = PdfColor(0.0f, 0.0f, 0.0f)
-        ),
+      text = TextAnnotation(
+        contents = text,
+        font = "Helvetica",
+        fontSize = fontSize,
+        color = PdfColor(0.0f, 0.0f, 0.0f)
+      ),
       pageNum = pageNum,
       frame = frame,
       url = url
     )
   }
-}
 
-private suspend fun PdfAnnotator.addQrCodeImage(
-  contents: String,
-  pageNum: Int,
-  frameX: Float,
-  frameY: Float,
-) {
-  val qrCodeGenerator = EmergencyAccessKitQrCodeGeneratorImpl()
-  val qrCodeLength = EmergencyAccessKitPdfGeneratorImpl.QR_CODE_LENGTH
-  qrCodeGenerator.imageBytes(qrCodeLength, qrCodeLength, contents)
-    .onSuccess { qrCodeData ->
-      addImageData(
-        data = qrCodeData,
-        pageNum = pageNum,
-        frame = PdfFrame(frameX, frameY, qrCodeLength, qrCodeLength),
-        url = null
-      )
-    }
+  private suspend fun PdfAnnotator.addQrCodeImage(
+    contents: String,
+    pageNum: Int,
+    frameX: Float,
+    frameY: Float,
+  ) {
+    val qrCodeLength = QR_CODE_LENGTH
+    qrCodeGenerator.imageBytes(qrCodeLength, qrCodeLength, contents)
+      .onSuccess { qrCodeData ->
+        addImageData(
+          data = qrCodeData,
+          pageNum = pageNum,
+          frame = PdfFrame(frameX, frameY, qrCodeLength, qrCodeLength),
+          url = null
+        )
+      }
+  }
 }

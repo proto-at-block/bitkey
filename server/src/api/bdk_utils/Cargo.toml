@@ -21,3 +21,6 @@ instrumentation = { workspace = true }
 
 [features]
 test-helpers = []
+
+[lints]
+workspace = true

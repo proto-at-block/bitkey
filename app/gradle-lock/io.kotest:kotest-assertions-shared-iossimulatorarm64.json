@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-assertions-shared-iossimulatorarm64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-shared-iossimulatorarm64-5.9.0-metadata.jar": "486868cbc221414571d3d6f778afd523180acbe8b5fb4f04d198f82b03999d99"
+                        "kotest-assertions-shared-iossimulatorarm64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-assertions-shared.klib": "6a5d759713bffe7570c20be433742679fd3e1218c2ccacae93f47b78017e7ad8"
+                        "kotest-assertions-shared.klib": "b55c0a931bbb4be7a56eb87459e9f1b7d662fefab487b477e2fd21419ad72e50"
                     }
                 }
             ],

@@ -2,16 +2,16 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-iosarm64",
     "components": [
         {
-            "version": "2.8.1",
+            "version": "2.8.5",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-iosarm64-2.8.1-metadata.jar": "2d51e66f801e3125d4ff16f17c598212c88ce096963b642b24eb2849dc88bb1c"
+                        "lifecycle-viewmodel-iosarm64-2.8.5-metadata.jar": "2d51e66f801e3125d4ff16f17c598212c88ce096963b642b24eb2849dc88bb1c"
                     }
                 },
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel.klib": "1f6e8fea8e5192142c6aed7027ee8267722f3916bf799c5bb35eb7539be65f6b"
+                        "lifecycle-viewmodel.klib": "143fb501627cba6847ec08fba2d27df6bf785cacd9639d0bca3bd95ee4e6e224"
                     }
                 }
             ],

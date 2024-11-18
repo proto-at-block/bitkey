@@ -18,6 +18,7 @@ pub enum RunMode {
 pub struct Settings {
     pub dek_table_name: String,
     pub customer_keys_table_name: String,
+    pub customer_key_shares_table_name: String,
     pub enclave_endpoint: String,
     pub address: IpAddr,
     pub kms_proxy_port: u32,

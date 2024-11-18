@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-core-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-core-iossimulatorarm64-2.3.11-metadata.jar": "cd88c20a36a471d43ccef1e230b767c260221037e72175cd04c061a0151fe460"
+                        "ktor-client-core-iossimulatorarm64-2.3.12-metadata.jar": "9ee8187d9f4364d34c3167be1372c91e943ccfc56b83041106c9c3c56f35f333"
                     }
                 },
                 {

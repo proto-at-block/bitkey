@@ -68,6 +68,11 @@ impl Service {
             id.clone(),
             input.recovery_relationship_id,
             input.auth_keys,
+            input
+                .beneficiary_account
+                .get_common_fields()
+                .properties
+                .is_test_account,
         );
 
         let claim = self

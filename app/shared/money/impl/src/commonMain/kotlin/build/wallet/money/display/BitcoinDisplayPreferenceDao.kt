@@ -1,6 +1,5 @@
 package build.wallet.money.display
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -14,10 +13,10 @@ interface BitcoinDisplayPreferenceDao {
   /**
    * Sets the given unit as the customer's preferred Bitcoin display unit.
    */
-  suspend fun setBitcoinDisplayPreference(unit: BitcoinDisplayUnit): Result<Unit, DbError>
+  suspend fun setBitcoinDisplayPreference(unit: BitcoinDisplayUnit): Result<Unit, Error>
 
   /**
    * Clears the customer's preferred Bitcoin display unit.
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

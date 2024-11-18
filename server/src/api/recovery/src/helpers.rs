@@ -25,22 +25,32 @@ pub(crate) fn validate_signatures(
     recovery: Option<PublicKey>,
     challenge: &str,
     app_sig: &str,
-    hw_sig: &str,
+    hw_sig: Option<&str>,
 ) -> Result<(), SignatureValidationError> {
-    let expected_challenge = signature_type.to_string()
-        + &hw.to_string()
-        + &app.to_string()
-        + &recovery.map_or("".to_string(), |f| f.to_string());
+    let expected_challenge = format!(
+        "{}{}{}{}",
+        signature_type,
+        hw,
+        app,
+        recovery.map_or(String::new(), |f| f.to_string())
+    );
 
-    // No need to check a recovery sig because it's redundant if you have the app and hw keys
-    let valid_app_sig = check_signature(challenge, app_sig, app).is_ok();
-    let valid_hardware_sig = check_signature(challenge, hw_sig, hw).is_ok();
-    let is_valid = expected_challenge == challenge && valid_app_sig && valid_hardware_sig;
-    match is_valid {
-        true => Ok(()),
-        false => Err(SignatureValidationError),
+    let has_valid_signatures = match signature_type {
+        SignatureType::DelayNotify => {
+            let hw_sig = hw_sig.ok_or(SignatureValidationError)?;
+            check_signature(challenge, app_sig, app).is_ok()
+                && check_signature(challenge, hw_sig, hw).is_ok()
+        }
+        SignatureType::LockInheritance => check_signature(challenge, app_sig, app).is_ok(),
+    };
+
+    if expected_challenge == challenge && has_valid_signatures {
+        Ok(())
+    } else {
+        Err(SignatureValidationError)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,7 +79,10 @@ mod tests {
             + &recovery.as_ref().unwrap().to_string();
 
         let app_sig = sign_message(&secp, &challenge, &app_secret_key);
-        let hw_sig = sign_message(&secp, &challenge, &hw_secret_key);
+        let hw_sig = match signature_type {
+            SignatureType::DelayNotify => Some(sign_message(&secp, &challenge, &hw_secret_key)),
+            SignatureType::LockInheritance => None,
+        };
 
         // act
         let result = validate_signatures(
@@ -79,7 +92,7 @@ mod tests {
             recovery,
             &challenge,
             &app_sig,
-            &hw_sig,
+            hw_sig.as_deref(),
         );
 
         // assert
@@ -118,7 +131,7 @@ mod tests {
             recovery,
             &challenge,
             &app_sig,
-            &hw_sig,
+            Some(&hw_sig),
         );
 
         // assert
@@ -156,7 +169,7 @@ mod tests {
             recovery,
             &challenge,
             &app_sig,
-            &hw_sig,
+            Some(&hw_sig),
         );
 
         // assert
@@ -196,7 +209,7 @@ mod tests {
             recovery,
             &challenge,
             &app_sig,
-            &hw_sig,
+            Some(&hw_sig),
         );
 
         // assert

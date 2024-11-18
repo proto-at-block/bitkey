@@ -13,7 +13,6 @@ kotlin {
       dependencies {
         implementation(projects.shared.databasePublic)
         implementation(projects.shared.f8eClientPublic)
-        implementation(projects.shared.coroutinesPublic)
       }
     }
 

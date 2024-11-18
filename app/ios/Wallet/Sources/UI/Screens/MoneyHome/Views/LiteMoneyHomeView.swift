@@ -27,7 +27,7 @@ public struct LiteMoneyHomeView: View {
                     VStack(alignment: .center, spacing: 0) {
                         // Header
                         HStack(alignment: .center) {
-                            TabHeaderView(headline: "Home")
+                            TabHeaderView(headline: "Bitkey")
                             Spacer()
                             ToolbarAccessoryView(viewModel: viewModel.trailingToolbarAccessoryModel)
                         }

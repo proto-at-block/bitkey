@@ -17,7 +17,6 @@ kotlin {
         api(projects.shared.amountPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.featureFlagPublic)
-        api(projects.shared.dbResultPublic)
         implementation(libs.kmp.big.number)
         implementation(libs.kmp.kotlin.codepoints)
         implementation(libs.kmp.kotlin.datetime)

@@ -2,6 +2,8 @@ package build.wallet.statemachine.data.recovery.inprogress
 
 import app.cash.turbine.plusAssign
 import build.wallet.auth.AccountAuthenticatorMock
+import build.wallet.bitkey.challange.DelayNotifyRecoveryChallengeFake
+import build.wallet.bitkey.challange.SignedChallenge
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -59,6 +61,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create)
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
+  val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
+    challenge = DelayNotifyRecoveryChallengeFake,
+    signature = ""
+  )
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
@@ -369,7 +375,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         csekDao.setResult = Err(IllegalStateException())
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )
@@ -397,7 +403,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )
@@ -507,7 +513,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )
@@ -617,7 +623,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )
@@ -736,7 +742,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )
@@ -835,7 +841,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
         it.nfcTransaction.onSuccess(
           SignedChallengeAndCsek(
-            signedChallenge = "",
+            signedChallenge = fakeChallenge,
             sealedCsek = SealedCsekFake
           )
         )

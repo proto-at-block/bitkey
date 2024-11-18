@@ -44,7 +44,7 @@ class InheritanceServiceImplTests : FunSpec({
   val inheritanceSyncDao = InheritanceSyncDaoFake(
     updateCalls = turbines.create("update calls")
   )
-  val inheritanceMaterialCreator = InheritanceMaterialCreatorFake(
+  val inheritanceMaterialCreator = InheritanceCryptoFake(
     inheritanceMaterial = Ok(InheritanceMaterial(emptyList()))
   )
   val inheritanceF8eClient = UploadInheritanceMaterialF8eClientFake(
@@ -84,7 +84,7 @@ class InheritanceServiceImplTests : FunSpec({
     appCoroutineScope = appCoroutineScope,
     inheritanceSyncDao = inheritanceSyncDao,
     inheritanceMaterialF8eClient = inheritanceF8eClient,
-    inheritanceMaterialCreator = inheritanceMaterialCreator,
+    inheritanceCrypto = inheritanceMaterialCreator,
     startInheritanceClaimF8eClient = StartInheritanceClaimF8eFake(),
     retrieveInheritanceClaimsF8EClient = inheritanceClaimsF8eClient,
     inheritanceClaimsDao = inheritanceClaimsDao,

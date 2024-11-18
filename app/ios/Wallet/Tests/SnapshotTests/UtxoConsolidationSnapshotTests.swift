@@ -11,9 +11,15 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: SnapshotTestModels.shared.CreateUtxoConsolidationConfirmationModel(
                 balanceTitle: "Wallet balance",
-                balanceAmountDisplayText: .init(primaryAmountText: "$15,000", secondaryAmountText: "26,259,461 sats"),
+                balanceAmountDisplayText: .init(
+                    primaryAmountText: "$15,000",
+                    secondaryAmountText: "26,259,461 sats"
+                ),
                 utxoCount: "20",
-                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,000 sats"),
+                consolidationCostDisplayText: .init(
+                    primaryAmountText: "$37.42",
+                    secondaryAmountText: "65,000 sats"
+                ),
                 estimatedConsolidationTime: "~24 hours",
                 showUnconfirmedTransactionsCallout: false,
                 onBack: {},
@@ -30,9 +36,15 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: SnapshotTestModels.shared.CreateUtxoConsolidationConfirmationModel(
                 balanceTitle: "Wallet balance",
-                balanceAmountDisplayText: .init(primaryAmountText: "$15,000", secondaryAmountText: "26,259,461 sats"),
+                balanceAmountDisplayText: .init(
+                    primaryAmountText: "$15,000",
+                    secondaryAmountText: "26,259,461 sats"
+                ),
                 utxoCount: "20",
-                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,000 sats"),
+                consolidationCostDisplayText: .init(
+                    primaryAmountText: "$37.42",
+                    secondaryAmountText: "65,000 sats"
+                ),
                 estimatedConsolidationTime: "~24 hours",
                 showUnconfirmedTransactionsCallout: true,
                 onBack: {},
@@ -51,7 +63,10 @@ final class UtxoConsolidationSnapshotTests: XCTestCase {
                 targetAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
                 arrivalTime: "Aug 7, 12:24 pm",
                 utxosCountConsolidated: "20 → 1",
-                consolidationCostDisplayText: .init(primaryAmountText: "$37.42", secondaryAmountText: "65,509 sats"),
+                consolidationCostDisplayText: .init(
+                    primaryAmountText: "$37.42",
+                    secondaryAmountText: "65,509 sats"
+                ),
                 onBack: {},
                 onDone: {}
             )

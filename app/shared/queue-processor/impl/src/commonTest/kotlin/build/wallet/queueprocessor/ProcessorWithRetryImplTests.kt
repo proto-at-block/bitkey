@@ -16,7 +16,7 @@ class ProcessorWithRetryImplTests : FunSpec({
 
   beforeTest {
     q = MemoryQueueImpl()
-    retryer = ProcessorImpl(q, processor, 0.seconds, 0)
+    retryer = PeriodicProcessorImpl(q, processor, 0.seconds, 0)
     processor.reset()
   }
 

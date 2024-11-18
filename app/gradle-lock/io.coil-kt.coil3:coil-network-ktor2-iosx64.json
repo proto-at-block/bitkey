@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-network-ktor2-iosx64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-network-ktor2-iosx64-3.0.0-rc01-metadata.jar": "44afab6377ebc9ace8693471cc54e2325d6a75a086987438ffb84da7688786b8"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil-network-ktor2.klib": "f519cad60cc9be2a4d9c3cfaa230ebf98ed8b88a88c8c1384236869e84b09b7c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

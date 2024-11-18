@@ -4,6 +4,12 @@ plugins {
 }
 
 buildLogic {
+  android {
+    buildFeatures {
+      androidResources = true
+    }
+  }
+
   compose {
     composeUi()
   }
@@ -24,8 +30,6 @@ dependencies {
   implementation(libs.android.compose.ui.material3)
   implementation(libs.kmp.kotlin.datetime)
   implementation(libs.jvm.zxing)
-  implementation(libs.android.io.coil.compose)
-  implementation(libs.android.io.coil.svg)
   implementation(libs.android.voyager.navigator)
   implementation(libs.android.voyager.transitions)
   implementation(projects.shared.stateMachineUiPublic)

@@ -10,6 +10,7 @@ import build.wallet.f8e.client.plugins.ProofOfPossessionPlugin
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.*
 import io.ktor.client.engine.*
@@ -18,6 +19,7 @@ class AuthenticatedF8eHttpClientFactory(
   appVariant: AppVariant,
   platformInfoProvider: PlatformInfoProvider,
   datadogTracer: DatadogTracer,
+  deviceInfoProvider: DeviceInfoProvider,
   private val keyboxDao: KeyboxDao,
   private val authTokensRepository: AuthTokensRepository,
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
@@ -30,6 +32,7 @@ class AuthenticatedF8eHttpClientFactory(
     appVariant = appVariant,
     platformInfoProvider = platformInfoProvider,
     datadogTracer = datadogTracer,
+    deviceInfoProvider = deviceInfoProvider,
     appInstallationDao = appInstallationDao,
     countryCodeGuesser = countryCodeGuesser,
     networkReachabilityProvider = networkReachabilityProvider,

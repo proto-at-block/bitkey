@@ -1,6 +1,5 @@
 package build.wallet.inappsecurity
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
@@ -16,15 +15,15 @@ interface HideBalancePreference {
   /**
    * Retrieve the current value of the preference
    */
-  suspend fun get(): Result<Boolean, DbError>
+  suspend fun get(): Result<Boolean, Error>
 
   /**
    * Update the current value of the preference
    */
-  suspend fun set(enabled: Boolean): Result<Unit, DbError>
+  suspend fun set(enabled: Boolean): Result<Unit, Error>
 
   /**
    * Clear the value of the preference
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

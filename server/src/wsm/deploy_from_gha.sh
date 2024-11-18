@@ -33,9 +33,11 @@ export BUCKET_NAME=$(aws ssm get-parameter --name "${SSM_PREFIX}"/wsm/artifact_b
 export KMS_KEY_ARN=$(aws ssm get-parameter --name "${SSM_PREFIX}"/wsm/key_arn | jq -r '.Parameter.Value')
 export DEK_TABLE=$(aws ssm get-parameter --name "${SSM_PREFIX}"/wsm/dek_table | jq -r '.Parameter.Value')
 export KEYS_TABLE=$(aws ssm get-parameter --name "${SSM_PREFIX}"/wsm/customer_server_keys_table | jq -r '.Parameter.Value')
+export KEY_SHARES_TABLE=$(aws ssm get-parameter --name "${SSM_PREFIX}"/wsm/customer_server_key_shares_table | jq -r '.Parameter.Value')
   cat <<EOF >> config/release.toml
 dekTableName = "$DEK_TABLE"
 customerKeysTableName = "$KEYS_TABLE"
+customerKeySharesTableName = "$KEY_SHARES_TABLE"
 cmkId = "${KMS_KEY_ARN}"
 EOF
 

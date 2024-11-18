@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-network-ktor2-jvm",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-network-ktor2-jvm-3.0.0-rc01.jar": "1b5b67d6cc0ae0272e285cabe37e270637780f2465eeef0fbb883b6f89311124"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

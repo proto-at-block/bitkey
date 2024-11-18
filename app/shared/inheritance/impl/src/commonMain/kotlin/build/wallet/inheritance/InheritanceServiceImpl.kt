@@ -41,7 +41,7 @@ class InheritanceServiceImpl(
   private val inheritanceMaterialF8eClient: UploadInheritanceMaterialF8eClient,
   private val startInheritanceClaimF8eClient: StartInheritanceClaimF8eClient,
   private val retrieveInheritanceClaimsF8EClient: RetrieveInheritanceClaimsF8eClient,
-  private val inheritanceMaterialCreator: InheritanceMaterialCreator,
+  private val inheritanceCrypto: InheritanceCrypto,
   private val inheritanceClaimsDao: InheritanceClaimsDao,
   private val appSessionManager: AppSessionManager,
   private val inheritanceFeatureFlag: InheritanceFeatureFlag,
@@ -116,7 +116,7 @@ class InheritanceServiceImpl(
     coroutineBinding {
       val lastSyncHash = inheritanceSyncDao.getSyncedInheritanceMaterialHash().bind()
       val currentMaterialHashData =
-        inheritanceMaterialCreator.getInheritanceMaterialHashData(keybox).bind()
+        inheritanceCrypto.getInheritanceMaterialHashData(keybox).bind()
 
       if (lastSyncHash == currentMaterialHashData.inheritanceMaterialHash) {
         log(LogLevel.Debug) { "Inheritance Material is up-to-date. Skipping inheritance material sync" }
@@ -136,7 +136,7 @@ class InheritanceServiceImpl(
         return@coroutineBinding
       }
 
-      val inheritanceMaterial = inheritanceMaterialCreator.createInheritanceMaterial(keybox).bind()
+      val inheritanceMaterial = inheritanceCrypto.createInheritanceMaterial(keybox).bind()
 
       inheritanceMaterialF8eClient.uploadInheritanceMaterial(
         f8eEnvironment = account.config.f8eEnvironment,

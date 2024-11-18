@@ -7,6 +7,7 @@ import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.TransactionsData
 import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.immutableListOf
@@ -31,6 +32,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
@@ -112,7 +114,7 @@ class MoneyHomeUiStateMachineImpl(
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
           // Navigate directly to hardware recovery when completing hardware recovery
-          val lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData
+          val lostHardwareRecoveryData = props.lostHardwareRecoveryData
 
           when {
             justCompletingSocialRecovery -> {
@@ -146,7 +148,7 @@ class MoneyHomeUiStateMachineImpl(
     return when (val state = uiState) {
       is FixingCloudBackupState -> repairCloudBackupStateMachine.model(
         RepairMobileKeyBackupProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           presentationStyle = Modal,
           mobileKeyBackupStatus = state.status,
           onExit = { uiState = ViewingBalanceUiState() },
@@ -156,7 +158,8 @@ class MoneyHomeUiStateMachineImpl(
 
       is ViewingBalanceUiState -> moneyHomeViewingBalanceUiStateMachine.model(
         props = MoneyHomeViewingBalanceUiProps(
-          accountData = props.accountData,
+          account = props.account,
+          lostHardwareRecoveryData = props.lostHardwareRecoveryData,
           homeBottomSheetModel = props.homeBottomSheetModel,
           homeStatusBannerModel = props.homeStatusBannerModel,
           onSettings = props.onSettings,
@@ -175,13 +178,13 @@ class MoneyHomeUiStateMachineImpl(
           onExit = { uiState = ViewingBalanceUiState() },
           onSuccess = { uiState = ViewingBalanceUiState() },
           recoveredFactor = null,
-          keybox = props.accountData.account.keybox
+          keybox = (props.account as FullAccount).keybox
         )
       )
 
       SellFlowUiState -> partnershipsSellUiStateMachine.model(
         props = PartnershipsSellUiProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -198,8 +201,8 @@ class MoneyHomeUiStateMachineImpl(
         validPaymentDataInClipboard =
           clipboard.getPlainTextItem()?.let {
             paymentDataParser.decode(
-              it.data,
-              props.accountData.account.config.bitcoinNetworkType
+              paymentDataString = it.data,
+              networkType = props.account.config.bitcoinNetworkType
             ).get()
           },
         onExit = {
@@ -218,8 +221,9 @@ class MoneyHomeUiStateMachineImpl(
       )
 
       is ViewHardwareRecoveryStatusUiState -> HardwareRecoveryModel(
-        props,
-        state.instructionsStyle,
+        account = props.account as FullAccount,
+        lostHardwareRecoveryData = props.lostHardwareRecoveryData,
+        instructionsStyle = state.instructionsStyle,
         onExit = {
           uiState = ViewingBalanceUiState()
         }
@@ -229,7 +233,7 @@ class MoneyHomeUiStateMachineImpl(
         props =
           FwupNfcUiProps(
             firmwareData = state.firmwareData,
-            isHardwareFake = props.accountData.account.config.isHardwareFake,
+            isHardwareFake = (props.account as FullAccount).config.isHardwareFake,
             onDone = {
               uiState = ViewingBalanceUiState()
             }
@@ -285,7 +289,7 @@ class MoneyHomeUiStateMachineImpl(
 
       is InviteTrustedContactFlow -> inviteTrustedContactFlowUiStateMachine.model(
         props = InviteTrustedContactFlowUiProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           onExit = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -319,59 +323,9 @@ class MoneyHomeUiStateMachineImpl(
         )
       )
 
-      is ShowingInAppBrowserUiState ->
-        InAppBrowserModel(
-          open = {
-            inAppBrowserNavigator.open(
-              url = state.urlString,
-              onClose = state.onClose
-            )
-          }
-        ).asModalScreen()
-
-      is InviteTrustedContactFlow ->
-        inviteTrustedContactFlowUiStateMachine.model(
-          props =
-            InviteTrustedContactFlowUiProps(
-              account = props.accountData.account,
-              onExit = { uiState = ViewingBalanceUiState() }
-            )
-        )
-
-      is SelectCustomPartnerPurchaseAmountState ->
-        customAmountEntryUiStateMachine.model(
-          props =
-            CustomAmountEntryUiProps(
-              minimumAmount = state.minimumAmount,
-              maximumAmount = state.maximumAmount,
-              onBack = {
-                uiState =
-                  ViewingBalanceUiState(
-                    bottomSheetDisplayState =
-                      Partners(
-                        initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
-                          selectedAmount = FiatMoney.zero(fiatCurrency)
-                        )
-                      )
-                  )
-              },
-              onNext = { selectedAmount ->
-                uiState =
-                  ViewingBalanceUiState(
-                    bottomSheetDisplayState =
-                      Partners(
-                        initialState = AddBitcoinBottomSheetDisplayState.PurchasingUiState(
-                          selectedAmount = selectedAmount
-                        )
-                      )
-                  )
-              }
-            )
-        )
-
       AddAdditionalFingerprintUiState -> managingFingerprintsUiStateMachine.model(
         ManagingFingerprintsProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           onBack = { uiState = ViewingBalanceUiState() },
           onFwUpRequired = {
             uiState = ViewingBalanceUiState(bottomSheetDisplayState = PromptingForFwUpUiState)
@@ -382,8 +336,8 @@ class MoneyHomeUiStateMachineImpl(
       is ShowingPriceChartUiState -> bitcoinPriceChartUiStateMachine.model(
         BitcoinPriceChartUiProps(
           initialType = state.type,
-          fullAccountId = props.accountData.account.accountId,
-          f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+          accountId = props.account.accountId,
+          f8eEnvironment = props.account.config.f8eEnvironment,
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -396,7 +350,7 @@ class MoneyHomeUiStateMachineImpl(
       )
       is ConfirmingPartnerSale -> partnershipsSellUiStateMachine.model(
         props = PartnershipsSellUiProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           confirmedSale = ConfirmedPartnerSale(
             partner = state.partner,
             event = state.event,
@@ -415,7 +369,7 @@ class MoneyHomeUiStateMachineImpl(
   ) = addressQrCodeUiStateMachine.model(
     props =
       AddressQrCodeUiProps(
-        accountData = props.accountData,
+        account = props.account as FullAccount,
         onBack = onExit
       )
   ).asModalFullScreen()
@@ -428,7 +382,7 @@ class MoneyHomeUiStateMachineImpl(
     onGoToUtxoConsolidation: () -> Unit,
   ) = sendUiStateMachine.model(
     props = SendUiProps(
-      account = props.accountData.account,
+      account = props.account as FullAccount,
       validInvoiceInClipboard = validPaymentDataInClipboard,
       onExit = onExit,
       // Since hitting "Done" is the same as exiting out of the send flow.
@@ -444,7 +398,7 @@ class MoneyHomeUiStateMachineImpl(
   ) = setSpendingLimitUiStateMachine.model(
     props = SpendingLimitProps(
       currentSpendingLimit = null,
-      accountData = props.accountData,
+      account = props.account as FullAccount,
       onClose = onExit,
       onSetLimit = { onExit() }
     )
@@ -457,7 +411,7 @@ class MoneyHomeUiStateMachineImpl(
     onClose: (EntryPoint) -> Unit,
   ) = transactionDetailsUiStateMachine.model(
     props = TransactionDetailsUiProps(
-      accountData = props.accountData,
+      account = props.account,
       transaction = state.transaction,
       onClose = { onClose(state.entryPoint) }
     )
@@ -465,7 +419,8 @@ class MoneyHomeUiStateMachineImpl(
 
   @Composable
   private fun HardwareRecoveryModel(
-    props: MoneyHomeUiProps,
+    account: FullAccount,
+    lostHardwareRecoveryData: LostHardwareRecoveryData,
     instructionsStyle: InstructionsStyle,
     onExit: () -> Unit,
   ): ScreenModel {
@@ -473,8 +428,8 @@ class MoneyHomeUiStateMachineImpl(
     return lostHardwareUiStateMachine.model(
       props =
         LostHardwareRecoveryProps(
-          account = props.accountData.account,
-          lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+          account = account,
+          lostHardwareRecoveryData = lostHardwareRecoveryData,
           onExit = onExit,
           onFoundHardware = {
             scope.launch {
@@ -528,8 +483,6 @@ sealed interface MoneyHomeUiState {
       /**
        * We have entered the partners flow, which is a half-sheet
        * displayed on top of the money home screen
-       *
-       * @param purchaseAmount - skip ahead to the quotes flow with the given amount
        */
       data class Partners(
         val initialState: AddBitcoinBottomSheetDisplayState,

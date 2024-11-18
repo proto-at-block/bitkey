@@ -17,22 +17,22 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateSoftwareWalletE2eTests : FunSpec({
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
 
   beforeEach {
-    appTester = launchNewApp()
+    app = launchNewApp()
 
     // Set push notifications to authorized to enable us to successfully advance through
     // the notifications step in onboarding.
-    appTester.app.appComponent.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+    app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
 
-    appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
+    app.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
   }
 
   xtest("create software wallet") {
-    appTester.app.appUiStateMachine.test(Unit) {
+    app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
         .clickSetUpNewWalletButton()
 

@@ -10,9 +10,9 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.debug.DebugOptions
 import build.wallet.keybox.KeyboxDao
+import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
 import build.wallet.router.Route
 import build.wallet.router.Router
-import build.wallet.statemachine.data.account.create.CreateFullAccountContext
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
@@ -133,7 +133,7 @@ class NoActiveAccountDataStateMachineImpl(
           createFullAccountData = createFullAccountDataStateMachine.model(
             props = CreateFullAccountDataProps(
               onboardingKeybox = onboardingKeybox,
-              context = CreateFullAccountContext.NewFullAccount,
+              context = NewFullAccount,
               rollback = { state = GettingStartedState(isNavigatingBack = true) }
             )
           )

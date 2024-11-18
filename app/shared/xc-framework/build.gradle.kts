@@ -18,7 +18,6 @@ kotlin {
    */
   val runtimeDependencies =
     listOf(
-      projects.shared.appIosPublic,
       projects.shared.accountImpl,
       projects.shared.accountPublic,
       projects.shared.amountImpl,
@@ -42,7 +41,6 @@ kotlin {
       projects.shared.cloudStoreImpl,
       projects.shared.cloudStorePublic,
       projects.shared.datadogPublic,
-      projects.shared.encryptionImpl,
       projects.shared.encryptionPublic,
       projects.shared.keyValueStoreImpl,
       projects.shared.keyValueStorePublic,
@@ -80,7 +78,9 @@ kotlin {
       projects.shared.timeImpl,
       projects.shared.timePublic,
       projects.shared.uiCorePublic,
-      projects.shared.workerPublic
+      projects.shared.workerPublic,
+      projects.shared.secureEnclavePublic,
+      projects.shared.secureEnclaveImpl
     )
 
   sourceSets {
@@ -101,7 +101,6 @@ kotlin {
    */
   val exposedDependencies =
     listOf(
-      projects.shared.appIosPublic,
       projects.shared.accountPublic,
       projects.shared.amountPublic,
       projects.shared.analyticsPublic,
@@ -157,6 +156,7 @@ kotlin {
       projects.shared.timePublic,
       projects.shared.uiCorePublic,
       projects.shared.priceChartPublic,
+      projects.shared.secureEnclavePublic,
       libs.native.nserror.kt
     )
 

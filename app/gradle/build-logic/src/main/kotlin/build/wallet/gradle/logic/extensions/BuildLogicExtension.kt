@@ -1,8 +1,10 @@
 package build.wallet.gradle.logic.extensions
 
+import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.findByType
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.newInstance
 
 /**
@@ -15,7 +17,7 @@ import org.gradle.kotlin.dsl.newInstance
  * }
  * ```
  */
-open class BuildLogicExtension(project: Project) {
+open class BuildLogicExtension(private val project: Project) {
   private val objects = project.objects
 
   private val app = objects.newInstance<AppExtension>()
@@ -25,6 +27,24 @@ open class BuildLogicExtension(project: Project) {
 
   fun app(action: Action<AppExtension>) {
     action.execute(app)
+  }
+
+  /**
+   * Extensions for Android library. Allows to configure Android build features, for example:
+   *
+   * ```
+   * buildLogic {
+   *   android {
+   *     buildFeatures {
+   *       androidResources = true
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  fun android(action: Action<LibraryExtension>) {
+    val extension = project.extensions.getByType<LibraryExtension>()
+    action.execute(extension)
   }
 
   fun compose(action: Action<ComposeExtension>) {

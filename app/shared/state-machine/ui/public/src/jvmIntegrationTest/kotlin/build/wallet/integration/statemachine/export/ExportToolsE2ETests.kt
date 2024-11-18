@@ -21,20 +21,20 @@ import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.launch
 
 class ExportToolsE2ETests : FunSpec({
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
 
   beforeTest {
-    appTester = launchNewApp()
+    app = launchNewApp()
   }
 
   test("e2e – export descriptor") {
     launch {
-      appTester.app.appComponent.appWorkerExecutor.executeAll()
+      app.appWorkerExecutor.executeAll()
     }
-    appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.appComponent.exportToolsFeatureFlag.setFlagValue(true)
+    app.onboardFullAccountWithFakeHardware()
+    app.exportToolsFeatureFlag.setFlagValue(true)
 
-    appTester.app.appUiStateMachine.test(Unit) {
+    app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
         clickSettings()
       }

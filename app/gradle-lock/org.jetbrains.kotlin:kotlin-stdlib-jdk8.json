@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-2.0.0.jar": "92035a0fa8b97a97bb430d30ba03e5ad51f4cfa839cf1559e55245cba735aa94"
+                        "kotlin-stdlib-jdk8-2.0.21.jar": "15c8c0acb311483c068d1697501965474b70dfd80ac79580eca3a03cf51e4a1d"
                     }
                 }
             ],

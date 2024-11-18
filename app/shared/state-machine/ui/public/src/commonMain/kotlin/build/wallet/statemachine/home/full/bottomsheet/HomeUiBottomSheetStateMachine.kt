@@ -1,6 +1,6 @@
 package build.wallet.statemachine.home.full.bottomsheet
 
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.Account
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -10,6 +10,6 @@ import build.wallet.statemachine.core.StateMachine
 interface HomeUiBottomSheetStateMachine : StateMachine<HomeUiBottomSheetProps, SheetModel?>
 
 data class HomeUiBottomSheetProps(
-  val account: FullAccount,
+  val account: Account,
   val onShowSetSpendingLimitFlow: () -> Unit,
 )

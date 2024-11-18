@@ -9,6 +9,7 @@ use serde::Serialize;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tracing::{event, instrument, Level};
+use types::recovery::trusted_contacts::TrustedContactRole;
 use types::{
     account::identifiers::AccountId,
     recovery::{
@@ -168,6 +169,7 @@ impl SocialRecoveryRepository {
         &self,
         customer_account_id: &AccountId,
         trusted_contact_account_id: &AccountId,
+        role: &TrustedContactRole,
     ) -> Result<Option<RecoveryRelationship>, DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
@@ -185,6 +187,7 @@ impl SocialRecoveryRepository {
                 TRUSTED_CONTACT_IDX_SORT_KEY,
                 TRUSTED_CONTACT_IDX_SORT_KEY,
             ))
+            .filter_expression("contains(trusted_contact_roles, :role)")
             .expression_attribute_values(
                 format!(":{}", TRUSTED_CONTACT_IDX_PARTITION_KEY),
                 try_to_attribute_val(trusted_contact_account_id, database_object)?,
@@ -193,6 +196,7 @@ impl SocialRecoveryRepository {
                 format!(":{}", TRUSTED_CONTACT_IDX_SORT_KEY),
                 try_to_attribute_val(customer_account_id, database_object)?,
             )
+            .expression_attribute_values(":role", try_to_attribute_val(role, database_object)?)
             .send()
             .await
             .map_err(|err| {

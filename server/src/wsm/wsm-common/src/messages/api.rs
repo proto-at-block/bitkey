@@ -1,7 +1,34 @@
 use bitcoin::Network;
+use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
 
 use crate::derivation::WSMSupportedDomain;
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InitiateDistributedKeygenRequest {
+    pub root_key_id: String,
+    pub network: Network,
+    pub sealed_request: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct InitiateDistributedKeygenResponse {
+    pub root_key_id: String,
+    pub sealed_response: String,
+    pub aggregate_public_key: PublicKey,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ContinueDistributedKeygenRequest {
+    pub root_key_id: String,
+    pub network: Network,
+    pub sealed_request: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ContinueDistributedKeygenResponse {
+    pub root_key_id: String,
+}
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CreateRootKeyRequest {
@@ -21,6 +48,12 @@ pub struct CreatedSigningKey {
     pub xpub: String,
     #[serde(default)]
     pub xpub_sig: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CreatedSigningKeyShare {
+    pub root_key_id: String,
+    pub aggregate_public_key: PublicKey,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

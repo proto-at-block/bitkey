@@ -93,7 +93,8 @@ fn get_fingerprint_enrollment_status(
                 }),
             })
         } else {
-            Err(CommandError::MissingMessage)
+            println!("Got a bad status: {}", rsp_status);
+            Err(CommandError::BadStatus(rsp_status))
         }
     } else {
         Err(CommandError::MissingMessage)

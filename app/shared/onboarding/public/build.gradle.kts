@@ -11,7 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.cloudBackupPublic)
-        api(projects.shared.dbResultPublic)
+        api(projects.shared.nfcPublic)
       }
     }
   }

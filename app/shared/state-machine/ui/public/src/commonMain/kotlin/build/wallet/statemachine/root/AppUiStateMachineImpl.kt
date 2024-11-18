@@ -132,7 +132,6 @@ class AppUiStateMachineImpl(
       accountData?.let {
         return debugMenuStateMachine.model(
           props = DebugMenuProps(
-            accountData = it,
             onClose = { isShowingDebugMenu = false }
           )
         )
@@ -359,7 +358,8 @@ class AppUiStateMachineImpl(
   private fun HomeScreenModel(accountData: ActiveFullAccountLoadedData): ScreenModel =
     homeUiStateMachine.model(
       props = HomeUiProps(
-        accountData = accountData
+        account = accountData.account,
+        lostHardwareRecoveryData = accountData.lostHardwareRecoveryData
       )
     )
 

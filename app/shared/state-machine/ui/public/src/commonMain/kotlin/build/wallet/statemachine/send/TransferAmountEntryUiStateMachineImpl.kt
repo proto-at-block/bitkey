@@ -161,8 +161,14 @@ class TransferAmountEntryUiStateMachineImpl(
           // Check for invalid cases first
           // User entered an amount while having a zero balance
           bitcoinBalance.total.isZero -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountWithZeroBalanceUiState
-          // Amount entered is above balance
-          enteredAmountAboveBalance -> TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
+          // Amount entered is less than minAmount
+          props.minAmount != null && enteredBitcoinMoney < props.minAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowMinimumUiState
+          // Amount entered is greater than maxAmount
+          props.maxAmount != null && enteredBitcoinMoney > props.maxAmount -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountAboveMaximumUiState
+          // Amount entered is above balance and send all is allowed
+          enteredAmountAboveBalance && props.allowSendAll -> TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
+          // Amount entered is above balance and send all is *not* allowed
+          enteredAmountAboveBalance && !props.allowSendAll -> TransferAmountUiState.InvalidAmountEnteredUiState.InvalidAmountEqualOrAboveBalanceUiState
           // Amount entered is below dust limit
           enteredBitcoinMoney < dustLimit -> TransferAmountUiState.InvalidAmountEnteredUiState.AmountBelowDustLimitUiState
 
@@ -172,11 +178,17 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     }
 
-    val disableTransferAmount by remember(enteredAmountAboveBalance, enteredBitcoinMoney, enteredFiatMoney) {
+    val disableTransferAmount by remember(
+      enteredBitcoinMoney,
+      enteredAmountAboveBalance,
+      bitcoinBalance
+    ) {
       derivedStateOf {
         when {
           bitcoinBalance.total.isZero -> !(enteredBitcoinMoney.isZero || (enteredFiatMoney?.isZero == true))
           enteredAmountAboveBalance -> true
+          props.minAmount != null && enteredBitcoinMoney < props.minAmount -> true
+          props.maxAmount != null && enteredBitcoinMoney > props.maxAmount -> true
           else -> false
         }
       }

@@ -18,6 +18,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -75,7 +76,8 @@ class RelationshipsServiceImplTests : FunSpec({
       relationshipsCrypto = relationshipsCrypto,
       relationshipsCodeBuilder = RelationshipsCodeBuilderFake(),
       appSessionManager = appSessionManager,
-      accountService = accountService
+      accountService = accountService,
+      appCoroutineScope = backgroundScope
     )
   }
 
@@ -90,14 +92,7 @@ class RelationshipsServiceImplTests : FunSpec({
     relationshipsF8eFake.reset()
   }
 
-  // TODO(W-6203): this test is racy because syncLoop overwrites the dao with f8e data in the loop.
-  xtest("sync relationships when db is changed") {
-    /**
-     * TODO: Can't use kotest's test scope due to a bug in kotest
-     * https://github.com/kotest/kotest/pull/3717#issuecomment-1858174448
-     *
-     * This should be fixed in 5.9.0
-     */
+  test("sync relationships when db is changed") {
     val service = relationshipsService()
 
     backgroundScope.launch {
@@ -204,6 +199,7 @@ class RelationshipsServiceImplTests : FunSpec({
 
     service.relationships.test {
       awaitItem().shouldBeNull() // initial loading
+      awaitItem().shouldBe(Relationships.EMPTY) // Empty relationships in database
 
       // Mark tcAlice's cert as invalid
       relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
@@ -213,6 +209,9 @@ class RelationshipsServiceImplTests : FunSpec({
       // Add both to f8e
       relationshipsF8eFake.endorsedTrustedContacts += tcAliceUnverified
       relationshipsF8eFake.endorsedTrustedContacts += tcBobUnverified
+
+      // App is still in background
+      expectNoEvents()
 
       appSessionManager.appDidEnterForeground()
       awaitItem()

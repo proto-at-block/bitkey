@@ -7,6 +7,7 @@ use http_server::config;
 use migration::repository::MigrationRepository;
 use migration::MigrationError;
 use types::notification::NotificationChannel;
+use workers::jobs::user_metrics::DefaultWalletProvider;
 
 #[derive(Parser)]
 #[clap()]
@@ -70,6 +71,8 @@ pub(crate) enum WorkerCommands {
 pub(crate) enum CronCommands {
     /// Grinds signet coins for our mobile integration tests wallet (for testing purposes only)
     CoinGrinder,
+    /// Gathers histogram of user data for our metrics dashboard and outputs them
+    UserHistogram,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -184,6 +187,17 @@ async fn main() -> Result<(), Error> {
         Commands::Cron { command } => match command {
             CronCommands::CoinGrinder => {
                 workers::jobs::coin_grinder::handler().await?;
+            }
+            CronCommands::UserHistogram => {
+                let profile = None;
+                let bootstrap = server::create_bootstrap(profile).await?;
+                let provider =
+                    DefaultWalletProvider::new(&bootstrap.services.feature_flags_service);
+                workers::jobs::user_metrics::histogram::handler(
+                    &bootstrap.services.account_service,
+                    &provider,
+                )
+                .await?;
             }
         },
     }

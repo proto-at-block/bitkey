@@ -1,8 +1,8 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 
 /**
  * State machine for the entire screen (vs for just the UI in [MobilePayStatusUiStateMachine])
@@ -14,5 +14,5 @@ interface MobilePaySettingsUiStateMachine : StateMachine<MobilePaySettingsUiProp
 
 data class MobilePaySettingsUiProps(
   val onBack: () -> Unit,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
 )

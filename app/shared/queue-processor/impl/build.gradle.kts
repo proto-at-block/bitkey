@@ -13,7 +13,6 @@ kotlin {
         api(projects.shared.queueProcessorPublic)
         api(projects.shared.databasePublic)
         api(projects.shared.loggingPublic)
-        implementation(projects.shared.coroutinesPublic)
       }
     }
 

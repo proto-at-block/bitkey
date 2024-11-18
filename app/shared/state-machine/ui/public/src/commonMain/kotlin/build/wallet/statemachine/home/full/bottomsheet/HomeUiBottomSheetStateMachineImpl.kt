@@ -45,9 +45,9 @@ class HomeUiBottomSheetStateMachineImpl(
       null ->
         null
 
-      CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY ->
+      CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY -> {
         CurrencyChangeMobilePayHomeUiBottomSheetModel(
-          account = props.account,
+          account = props.account as FullAccount,
           fiatCurrency = fiatCurrency,
           mobilePayData = mobilePayData,
           isMobilePayRevampEnabled = mobilePayRevampFeatureFlag.isEnabled(),
@@ -56,6 +56,7 @@ class HomeUiBottomSheetStateMachineImpl(
           },
           onShowSetSpendingLimitFlow = props.onShowSetSpendingLimitFlow
         )
+      }
     }
   }
 

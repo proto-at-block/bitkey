@@ -146,6 +146,10 @@ data "aws_secretsmanager_secret_version" "gcm_firebase_admin_key" {
   secret_id = data.aws_secretsmanager_secret.gcm_firebase_admin_key.id
 }
 
+data "aws_secretsmanager_secret" "fromagerie_histogram_output_encryption_key" {
+  name = "fromagerie/user_balance_histogram/output_encryption_key"
+}
+
 data "aws_acm_certificate" "external_certs" {
   count  = length(var.external_certs)
   domain = var.external_certs[count.index]
@@ -254,7 +258,7 @@ resource "aws_security_group" "api_migration" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "service" {
+resource "aws_cloudwatch_log_group" "api_migration" {
   name = var.namespace == "default" ? "${var.name}-api-migration" : "${var.namespace}/${var.name}-api-migration"
 }
 
@@ -272,6 +276,69 @@ resource "aws_ecs_task_definition" "api_migration" {
   execution_role_arn       = module.api_migration_iam.exec_role_arn
   task_role_arn            = module.api_migration_iam.task_role_arn
   container_definitions    = jsonencode(module.api_migration.containers)
+  cpu                      = 512
+  memory                   = 1024
+  runtime_platform {
+    cpu_architecture = "ARM64"
+  }
+}
+
+module "api_user_balance_histogram" {
+  source     = "../../../pieces/ecs-containers"
+  name       = "${var.name}-user-balance-histogram"
+  image_name = var.image_name
+  image_tag  = coalesce(var.image_tag, "fake-tag-for-template")
+  namespace  = var.namespace
+  command    = ["cron", "user-histogram"]
+
+  environment_variables = merge(local.common_env_vars, {
+    SERVER_WALLET_TELEMETRY = "{service_name=${var.name}-user-balance-histogram,mode=datadog}"
+    COGNITO_USER_POOL       = var.cognito_user_pool_id
+    COGNITO_CLIENT_ID       = var.cognito_user_pool_client_id
+    SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+  })
+  environment = var.environment
+  secrets = merge(local.common_secrets, {
+    ITERABLE_API_KEY                = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn
+    TWILIO_ACCOUNT_SID              = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
+    TWILIO_AUTH_TOKEN               = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_AUTH_TOKEN::",
+    TWILIO_KEY_SID                  = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
+    TWILIO_KEY_SECRET               = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
+    HISTOGRAM_OUTPUT_ENCRYPTION_KEY = data.aws_secretsmanager_secret.fromagerie_histogram_output_encryption_key.arn,
+  })
+}
+
+resource "aws_security_group" "api_user_balance_histogram" {
+  name        = "${module.this.id}-user-balance-histogram"
+  description = "user balance histogram task security group"
+  vpc_id      = module.lookup_vpc.vpc_id
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
+resource "aws_cloudwatch_log_group" "user_balance_histogram" {
+  name = var.namespace == "default" ? "${var.name}-user-balance-histogram" : "${var.namespace}/${var.name}-user-balance-histogram"
+}
+
+module "api_user_balance_histogram_iam" {
+  source    = "../../../pieces/ecs-iam-roles"
+  namespace = var.namespace
+  name      = "${var.name}-user-balance-histogram"
+}
+
+# User balance histogram task definition
+resource "aws_ecs_task_definition" "api_user_balance_histogram" {
+  family                   = "${module.this.id}-user-balance-histogram"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = module.api_user_balance_histogram_iam.exec_role_arn
+  task_role_arn            = module.api_user_balance_histogram_iam.task_role_arn
+  container_definitions    = jsonencode(module.api_user_balance_histogram.containers)
   cpu                      = 512
   memory                   = 1024
   runtime_platform {
@@ -727,6 +794,11 @@ resource "aws_iam_role_policy" "task_api_migration" {
   policy = data.aws_iam_policy_document.api_iam_policy.json
 }
 
+resource "aws_iam_role_policy" "task_api_user_balance_histogram" {
+  role   = module.api_user_balance_histogram_iam.task_role_name
+  policy = data.aws_iam_policy_document.api_iam_policy.json
+}
+
 data "aws_iam_policy_document" "secrets_iam_policy" {
   statement {
     resources = [
@@ -791,6 +863,11 @@ resource "aws_iam_role_policy" "job_scheduled_notification_secrets" {
 
 resource "aws_iam_role_policy" "task_api_migration_secrets" {
   role   = module.api_migration_iam.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_iam_policy.json
+}
+
+resource "aws_iam_role_policy" "task_api_user_balance_histogram_secrets" {
+  role   = module.api_user_balance_histogram_iam.exec_role_name
   policy = data.aws_iam_policy_document.secrets_iam_policy.json
 }
 
@@ -867,6 +944,13 @@ module "task_api_migration_table_policy" {
   source = "../../../pieces/dynamodb-iam-policy"
 
   role        = module.api_migration_iam.task_role_name
+  table_names = local.table_name_list
+}
+
+module "task_api_user_balance_histogram_table_policy" {
+  source = "../../../pieces/dynamodb-iam-policy"
+
+  role        = module.api_user_balance_histogram_iam.task_role_name
   table_names = local.table_name_list
 }
 

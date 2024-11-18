@@ -27,8 +27,14 @@ val BeneficiaryLockedClaimFake =
     claimId = InheritanceClaimId("claim-benefactor-locked-id"),
     relationshipId = RelationshipId("relationship-benefactor-locked-id"),
     sealedDek = XCiphertext("sealed-dek"),
-    sealedMobileKey = XCiphertext("sealed-mobile-key")
+    sealedMobileKey = XCiphertext("sealed-mobile-key"),
+    benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset")
   )
+
+val BeneficiaryCompleteClaim = BeneficiaryClaim.CompleteClaim(
+  claimId = InheritanceClaimId("claim-benefactor-locked-id"),
+  relationshipId = RelationshipId("relationship-benefactor-locked-id")
+)
 
 val BenefactorPendingClaimFake = BenefactorClaim.PendingClaim(
   claimId = InheritanceClaimId("claim-benefactor-pending-id"),
@@ -43,6 +49,11 @@ val BenefactorCanceledClaimFake = BenefactorClaim.CanceledClaim(
 )
 
 val BenefactorLockedClaimFake = BenefactorClaim.LockedClaim(
+  claimId = InheritanceClaimId("claim-benefactor-locked-id"),
+  relationshipId = RelationshipId("relationship-benefactor-locked-id")
+)
+
+val BenefactorCompleteClaim = BenefactorClaim.CompleteClaim(
   claimId = InheritanceClaimId("claim-benefactor-locked-id"),
   relationshipId = RelationshipId("relationship-benefactor-locked-id")
 )

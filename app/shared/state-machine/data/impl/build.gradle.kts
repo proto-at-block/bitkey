@@ -20,7 +20,6 @@ kotlin {
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.cloudBackupPublic)
-        api(projects.shared.coroutinesPublic)
         api(projects.shared.emailPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)

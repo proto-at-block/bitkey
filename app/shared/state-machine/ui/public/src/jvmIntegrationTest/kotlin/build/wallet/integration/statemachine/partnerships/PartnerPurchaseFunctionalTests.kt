@@ -20,8 +20,8 @@ import kotlin.test.assertNotNull
 
 class PartnerPurchaseFunctionalTests : FunSpec({
   context("Partnerships purchase flow") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
     var capturedRedirectionMethod: PartnerRedirectionMethod? = null
     var capturedTransaction: PartnershipTransaction? = null
     val purchaseUiProps = PartnershipsPurchaseUiProps(
@@ -38,7 +38,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     )
 
     test("displays the expected purchase options") {
-      appTester.app.addBitcoinUiStateMachine.partnershipsPurchaseUiStateMachine.test(
+      app.partnershipsPurchaseUiStateMachine.test(
         props = purchaseUiProps,
         useVirtualTime = true
       ) {
@@ -62,7 +62,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("displays the expected quotes") {
-      appTester.app.addBitcoinUiStateMachine.partnershipsPurchaseUiStateMachine.test(
+      app.partnershipsPurchaseUiStateMachine.test(
         props = purchaseUiProps,
         useVirtualTime = true
       ) {
@@ -88,7 +88,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("redirects correctly") {
-      appTester.app.addBitcoinUiStateMachine.partnershipsPurchaseUiStateMachine.test(
+      app.partnershipsPurchaseUiStateMachine.test(
         props = purchaseUiProps,
         useVirtualTime = true
       ) {

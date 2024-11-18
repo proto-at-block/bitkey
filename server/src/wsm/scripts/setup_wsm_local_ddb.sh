@@ -27,3 +27,10 @@ $ddb create-table \
     --attribute-definitions AttributeName=root_key_id,AttributeType=S \
     --key-schema AttributeName=root_key_id,KeyType=HASH \
     --billing-mode PAY_PER_REQUEST
+
+$ddb delete-table --table-name wsm_customer_key_shares 2>/dev/null || true
+$ddb create-table \
+    --table-name wsm_customer_key_shares \
+    --attribute-definitions AttributeName=root_key_id,AttributeType=S \
+    --key-schema AttributeName=root_key_id,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST

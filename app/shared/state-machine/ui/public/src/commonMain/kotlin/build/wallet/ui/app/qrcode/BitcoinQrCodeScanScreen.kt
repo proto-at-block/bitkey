@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.send.BitcoinQrCodeScanBodyModel
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconButton
@@ -28,8 +27,6 @@ import build.wallet.ui.model.icon.*
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 private val qrCodeViewfinderMargin = 48.dp
 private val qrCodeViewfinderBorderRadius = 40.dp
@@ -55,7 +52,7 @@ fun QrCodeScanScreen(
 internal expect fun NativeQrCodeScanner(model: QrCodeScanBodyModel)
 
 @Composable
-private fun QrCodeScanViewFinder() {
+internal fun QrCodeScanViewFinder() {
   Canvas(modifier = Modifier.fillMaxSize()) {
     // the width of the view finder is the width of the canvas minus two sides of margin
     val viewFinderWidth = size.width - qrCodeViewfinderMargin.toPx() * 2
@@ -111,7 +108,7 @@ private fun QrCodeScanViewFinder() {
 }
 
 @Composable
-private fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
+internal fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
   BoxWithConstraints(
     modifier =
       Modifier
@@ -189,41 +186,5 @@ private fun QrCodeScanWidgets(model: QrCodeScanBodyModel) {
         Button(it)
       }
     }
-  }
-}
-
-@Preview
-@Composable
-fun PreviewQrCodeScanScreenWithoutPasteAddressButton() {
-  PreviewWalletTheme(backgroundColor = Color.Transparent) {
-    QrCodeScanViewFinder()
-    QrCodeScanWidgets(
-      model =
-        BitcoinQrCodeScanBodyModel(
-          showSendToCopiedAddressButton = false,
-          onQrCodeScanned = {},
-          onEnterAddressClick = {},
-          onClose = {},
-          onSendToCopiedAddressClick = {}
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun PreviewQrCodeScanScreenWithPasteAddressButton() {
-  PreviewWalletTheme(backgroundColor = Color.Transparent) {
-    QrCodeScanViewFinder()
-    QrCodeScanWidgets(
-      model =
-        BitcoinQrCodeScanBodyModel(
-          showSendToCopiedAddressButton = true,
-          onQrCodeScanned = {},
-          onEnterAddressClick = {},
-          onClose = {},
-          onSendToCopiedAddressClick = {}
-        )
-    )
   }
 }

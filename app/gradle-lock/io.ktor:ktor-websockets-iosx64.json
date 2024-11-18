@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websockets-iosx64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websockets-iosx64-2.3.11-metadata.jar": "096fb7b49f5bc7c8cc739307506404e8b22dc0941778eb2b712c9a8590998cbc"
+                        "ktor-websockets-iosx64-2.3.12-metadata.jar": "cf45728d1291ef43dc54eb4be18579bef552e8f6ea4a38c28c98af70986c92c9"
                     }
                 },
                 {

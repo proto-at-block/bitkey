@@ -4,6 +4,7 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.account.SoftwareAccount
+import build.wallet.bitkey.f8e.SoftwareKeyDefinitionId
 import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.debug.DebugOptionsService
 import build.wallet.ensure
@@ -12,9 +13,10 @@ import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClient
 import build.wallet.f8e.onboarding.frost.InitiateDistributedKeygenF8eClient
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.isEnabled
+import build.wallet.frost.SealedRequest
+import build.wallet.frost.ShareGeneratorFactory
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
-import build.wallet.nfc.FakeHardwareKeyStore
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
@@ -24,11 +26,11 @@ class CreateSoftwareWalletServiceImpl(
   private val initiateDistributedKeygenF8eClient: InitiateDistributedKeygenF8eClient,
   private val continueDistributedKeygenF8eClient: ContinueDistributedKeygenF8eClient,
   private val activateSpendingDescriptorF8eClient: ActivateSpendingDescriptorF8eClient,
-  private val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val softwareAccountCreator: SoftwareAccountCreator,
   private val appKeysGenerator: AppKeysGenerator,
   private val debugOptionsService: DebugOptionsService,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
+  private val shareGeneratorFactory: ShareGeneratorFactory,
 ) : CreateSoftwareWalletService {
   override suspend fun createAccount(): Result<SoftwareAccount, Throwable> {
     return coroutineBinding {
@@ -75,32 +77,42 @@ class CreateSoftwareWalletServiceImpl(
     account: OnboardingSoftwareAccount,
   ): Result<SoftwareKeybox, Throwable> {
     return coroutineBinding {
-      val hwAuthKey = fakeHardwareKeyStore.getAuthKeypair().publicKey
+      val shareGenerator = shareGeneratorFactory.createShareGenerator()
+      // TODO add error handling
+      val sealedRequest = shareGenerator.generate().result.value
 
-      val keysetId = initiateDistributedKeygenF8eClient.initiateDistributedKeygen(
+      val response = initiateDistributedKeygenF8eClient.initiateDistributedKeygen(
         f8eEnvironment = account.config.f8eEnvironment,
         accountId = account.accountId,
         appAuthKey = account.appGlobalAuthKey,
         networkType = account.config.bitcoinNetworkType,
-        hwAuthKey = hwAuthKey
+        sealedRequest = sealedRequest
       ).bind()
+
+      val softwareKeyDefinitionId = SoftwareKeyDefinitionId(response.keyDefinitionId)
+
+      val shareDetails = shareGenerator.aggregate(
+        sealedRequest = SealedRequest(response.sealedResponse)
+      ).result.value
+      val continueSealedRequest = shareGenerator.encode(shareDetails).result.value
 
       continueDistributedKeygenF8eClient.continueDistributedKeygen(
         f8eEnvironment = account.config.f8eEnvironment,
         accountId = account.accountId,
-        keysetId = keysetId,
-        appAuthKey = account.appGlobalAuthKey
+        softwareKeyDefinitionId = softwareKeyDefinitionId,
+        appAuthKey = account.appGlobalAuthKey,
+        sealedRequest = continueSealedRequest
       ).bind()
 
-      activateSpendingDescriptorF8eClient.activateSpendingDescriptor(
+      activateSpendingDescriptorF8eClient.activateSpendingKey(
         f8eEnvironment = account.config.f8eEnvironment,
         accountId = account.accountId,
         appAuthKey = account.appGlobalAuthKey,
-        keysetId = keysetId
+        softwareKeyDefinitionId = softwareKeyDefinitionId
       ).bind()
 
       SoftwareKeybox(
-        id = keysetId.keysetId,
+        id = softwareKeyDefinitionId.value,
         authKey = account.appGlobalAuthKey,
         recoveryAuthKey = account.recoveryAuthKey
       )

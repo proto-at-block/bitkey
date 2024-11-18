@@ -4,6 +4,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.onboarding.CreateFullAccountContext.LiteToFullAccountUpgrade
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
@@ -18,7 +19,8 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   val createFullAccountDataStateMachine =
     object : CreateFullAccountDataStateMachine,
       StateMachineMock<CreateFullAccountDataProps, CreateFullAccountData>(
-        initialModel = CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
+        initialModel = CreateFullAccountData.CreatingAccountData(
+          context = LiteToFullAccountUpgrade(LiteAccountMock),
           rollback = {}
         )
       ) {}

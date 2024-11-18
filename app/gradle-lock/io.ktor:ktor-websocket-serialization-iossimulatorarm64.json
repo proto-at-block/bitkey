@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websocket-serialization-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websocket-serialization-iossimulatorarm64-2.3.11-metadata.jar": "ca2cca2fe49e935c2ac3be39b8408488de7ff0ba7a0028184a9d9a822b2dc071"
+                        "ktor-websocket-serialization-iossimulatorarm64-2.3.12-metadata.jar": "9ee8187d9f4364d34c3167be1372c91e943ccfc56b83041106c9c3c56f35f333"
                     }
                 },
                 {

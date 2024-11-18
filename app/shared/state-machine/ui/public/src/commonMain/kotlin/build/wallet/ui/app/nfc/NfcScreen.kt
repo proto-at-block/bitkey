@@ -41,12 +41,10 @@ import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.system.isBlurSupported
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
 import io.github.alexzhirkevich.compottie.LottieCompositionSpec
 import io.github.alexzhirkevich.compottie.rememberLottieComposition
 import io.github.alexzhirkevich.compottie.rememberLottiePainter
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun NfcScreen(
@@ -58,7 +56,7 @@ fun NfcScreen(
 }
 
 @Composable
-private fun NfcScreenInternal(
+internal fun NfcScreenInternal(
   model: NfcBodyModel,
   modifier: Modifier = Modifier,
 ) {
@@ -318,64 +316,4 @@ private fun NfcStatusLabel(
         alignment = TextAlign.Center
       ).copy(color = WalletTheme.colors.translucentForeground)
   )
-}
-
-@Preview
-@Composable
-fun NfcScreenSearchingPreview() {
-  PreviewWalletTheme {
-    NfcScreenInternal(
-      model =
-        NfcBodyModel(
-          text = "Hold device here behind phone",
-          status = Searching { },
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun NfcScreenConnectedPreview() {
-  PreviewWalletTheme {
-    NfcScreenInternal(
-      model =
-        NfcBodyModel(
-          text = "Hold device here behind phone",
-          status = Connected(onCancel = {}),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun NfcScreenConnectedWithSpinnerPreview() {
-  PreviewWalletTheme {
-    NfcScreenInternal(
-      model =
-        NfcBodyModel(
-          text = "This can take up to 1 minute…",
-          status = Connected(onCancel = {}, showProgressSpinner = true),
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun NfcScreenSuccessPreview() {
-  PreviewWalletTheme {
-    NfcScreenInternal(
-      model =
-        NfcBodyModel(
-          text = "Success",
-          status = Success,
-          eventTrackerScreenInfo = null
-        )
-    )
-  }
 }

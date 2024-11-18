@@ -38,14 +38,14 @@ class ElectrumServerSettingProviderImplTests : FunSpec({
       ) {
         debugOptionsService.setBitcoinNetworkType(TESTNET)
         electrumServerSettingProviderImpl.get().test {
-          awaitItem().shouldBe(Default(Mempool(TESTNET)))
+          awaitItem().shouldBe(Default(Mempool(TESTNET, isAndroidEmulator = false)))
         }
       }
 
       test("returns correct Electrum server based on active keybox value") {
         keyboxDaoMock.saveKeyboxAsActive(KeyboxMock)
         electrumServerSettingProviderImpl.get().test {
-          awaitItem().shouldBe(Default(Mempool(SIGNET)))
+          awaitItem().shouldBe(Default(Mempool(SIGNET, isAndroidEmulator = false)))
         }
       }
     }

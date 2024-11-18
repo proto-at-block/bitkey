@@ -1,11 +1,6 @@
 package build.wallet.statemachine.partnerships.expected
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_LOADING
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -13,7 +8,7 @@ import build.wallet.logging.logFailure
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionStatus
-import build.wallet.partnerships.PartnershipTransactionsStatusRepository
+import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.time.DateTimeFormatter
@@ -24,7 +19,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class ExpectedTransactionNoticeUiStateMachineImpl(
-  private val transactionsStatusRepository: PartnershipTransactionsStatusRepository,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
   private val dateTimeFormatter: DateTimeFormatter,
   private val delayer: Delayer,
 ) : ExpectedTransactionNoticeUiStateMachine {
@@ -38,7 +33,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
           PartnershipEvent.TransactionCreated -> {
             state = delayer.withMinimumDelay {
               props.partner?.let {
-                transactionsStatusRepository
+                partnershipTransactionsService
                   .updateRecentTransactionStatusIfExists(
                     partnerId = props.partner,
                     status = PartnershipTransactionStatus.PENDING
@@ -70,8 +65,8 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
         } else {
           delayer
             .withMinimumDelay {
-              transactionsStatusRepository.syncTransaction(
-                fullAccountId = props.fullAccountId,
+              partnershipTransactionsService.syncTransaction(
+                accountId = props.accountId,
                 f8eEnvironment = props.f8eEnvironment,
                 transactionId = props.partnerTransactionId
               )

@@ -14,7 +14,9 @@ use tracing::{event, instrument};
 use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::enclave::{
-    DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, LoadIntegrityKeyRequest,
+    DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
+    EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveInitiateDistributedKeygenRequest,
+    EnclaveInitiateDistributedKeygenResponse, LoadIntegrityKeyRequest,
 };
 use wsm_common::messages::{
     api::SignedPsbt,
@@ -100,6 +102,36 @@ impl EnclaveClient {
     pub async fn create_key(&self, req: EnclaveCreateKeyRequest) -> anyhow::Result<CreatedKey> {
         let result = self
             .post_request_with_dek(SecretRequest::new("create-key", req.dek_id.clone(), req))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn initiate_distributed_keygen(
+        &self,
+        req: EnclaveInitiateDistributedKeygenRequest,
+    ) -> anyhow::Result<EnclaveInitiateDistributedKeygenResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "initiate-distributed-keygen",
+                req.dek_id.clone(),
+                req,
+            ))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn continue_distributed_keygen(
+        &self,
+        req: EnclaveContinueDistributedKeygenRequest,
+    ) -> anyhow::Result<EnclaveContinueDistributedKeygenResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "continue-distributed-keygen",
+                req.dek_id.clone(),
+                req,
+            ))
             .await?;
         Ok(result.json().await?)
     }

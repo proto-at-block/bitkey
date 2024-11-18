@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:builder-model",
     "components": [
         {
-            "version": "8.3.2",
+            "version": "8.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "builder-model-8.3.2.jar": "4425f79fbbf84fcee0819425bc37e0a5446cbb0ce825742bea3df6e60a0a2a7c"
+                        "builder-model-8.5.2.jar": "516de3ebed580152d500fd45073f66bf5b658778b7523507dff60c9a8d4286cd"
                     }
                 }
             ],

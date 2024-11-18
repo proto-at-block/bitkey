@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-svg-jvm",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-svg-jvm-3.0.0-rc01.jar": "9864a1b069598574b2f0ccb8dc634d3d338a6f431a4cb150a1d0e503749b86ab"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

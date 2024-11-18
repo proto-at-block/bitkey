@@ -4,8 +4,8 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_S
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
-import build.wallet.bitcoin.export.*
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
+import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.feature.setFlagValue
@@ -38,30 +38,30 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class ExportTransactionsFunctionalTests : FunSpec({
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
 
   beforeTest {
-    appTester = launchNewApp()
-    appTester.app.appComponent.utxoConsolidationFeatureFlag.setFlagValue(true)
+    app = launchNewApp()
+    app.utxoConsolidationFeatureFlag.setFlagValue(true)
   }
 
   test("e2e – export external, internal, and consolidation transactions") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
     val initialFundingAmount = btc(0.0001)
-    val fundingTransaction1 = appTester.addSomeFunds(amount = initialFundingAmount)
-    val fundingTransaction2 = appTester.addSomeFunds(amount = initialFundingAmount)
-    appTester.waitForFunds { it.spendable == btc(0.0002) }
+    val fundingTransaction1 = app.addSomeFunds(amount = initialFundingAmount)
+    val fundingTransaction2 = app.addSomeFunds(amount = initialFundingAmount)
+    app.waitForFunds { it.spendable == btc(0.0002) }
 
     // Consolidate the outputs to produce consolidation transaction
-    val (consolidationParams, consolidationTransactionDetail) = appTester.consolidateAllUtxos()
+    val (consolidationParams, consolidationTransactionDetail) = app.consolidateAllUtxos()
 
     // External transaction by sending back to treasury.
-    appTester.returnFundsToTreasury()
-    appTester.waitForFunds { it.confirmed == zero() }
+    app.returnFundsToTreasury()
+    app.waitForFunds { it.confirmed == zero() }
 
-    val service = appTester.app.appComponent.exportTransactionsService
+    val service = app.exportTransactionsService
 
     val csvString = service.export().shouldBeOk().data.utf8()
     val deserializedRowsToAssert =
@@ -105,27 +105,27 @@ class ExportTransactionsFunctionalTests : FunSpec({
   }
 
   test("e2e - export transactions including inactive keysets") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
     val initialFundingAmount = btc(0.0001)
-    val fundingTransaction1 = appTester.addSomeFunds(amount = initialFundingAmount)
-    val fundingTransaction2 = appTester.addSomeFunds(amount = initialFundingAmount)
-    appTester.waitForFunds { it.spendable == btc(0.0002) }
+    val fundingTransaction1 = app.addSomeFunds(amount = initialFundingAmount)
+    val fundingTransaction2 = app.addSomeFunds(amount = initialFundingAmount)
+    app.waitForFunds { it.spendable == btc(0.0002) }
 
     // Consolidate the outputs to produce consolidation transaction
-    val (consolidationParams, consolidationTransactionDetail) = appTester.consolidateAllUtxos()
+    val (consolidationParams, consolidationTransactionDetail) = app.consolidateAllUtxos()
 
     // We do a Lost App + Cloud recovery
-    appTester.app.appDataDeleter.deleteAll().getOrThrow()
-    appTester.app.cloudBackupDeleter.delete(cloudServiceProvider())
-    appTester.deleteBackupsFromFakeCloud()
+    app.appDataDeleter.deleteAll().getOrThrow()
+    app.cloudBackupDeleter.delete(cloudServiceProvider())
+    app.deleteBackupsFromFakeCloud()
     val recoveryStateMachine =
       RecoveryTestingStateMachine(
-        appTester.app.accountDataStateMachine,
-        appTester.app.recoveringKeyboxUiStateMachine,
-        appTester.app.recoverySyncer,
-        appTester.app.appComponent.accountService
+        app.accountDataStateMachine,
+        app.recoveringKeyboxUiStateMachine,
+        app.recoverySyncer,
+        app.accountService
       )
 
     recoveryStateMachine.test(
@@ -140,7 +140,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
         .clickPrimaryButton()
       awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-      appTester.completeRecoveryDelayPeriodOnF8e()
+      app.completeRecoveryDelayPeriodOnF8e()
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -173,24 +173,24 @@ class ExportTransactionsFunctionalTests : FunSpec({
           initialDelay = 1.seconds
         }
       ) {
-        val activeWallet = appTester.getActiveWallet()
+        val activeWallet = app.getActiveWallet()
         activeWallet.sync().shouldBeOk()
         val balance = activeWallet.balance().first()
 
         // Let's mine a block if the sweep transaction is still unconfirmed.
         if (balance.confirmed.isZero) {
           val newWalletFundingTx = activeWallet.transactions().first().first()
-          appTester.mineBlock(newWalletFundingTx.id)
+          app.mineBlock(newWalletFundingTx.id)
         }
 
         balance.confirmed.shouldBeGreaterThan(sats(0))
       }
     }
 
-    val sweepTransaction = appTester.getActiveWallet().transactions().first().first()
-    val newWalletTransaction = appTester.addSomeFunds(amount = initialFundingAmount)
+    val sweepTransaction = app.getActiveWallet().transactions().first().first()
+    val newWalletTransaction = app.addSomeFunds(amount = initialFundingAmount)
 
-    val service = appTester.app.appComponent.exportTransactionsService
+    val service = app.exportTransactionsService
     val csvString = service.export().shouldBeOk().data.utf8()
 
     val deserializedRowsToAssert =
@@ -245,9 +245,9 @@ class ExportTransactionsFunctionalTests : FunSpec({
   }
 
   test("export with no transactions") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
-    val service = appTester.app.appComponent.exportTransactionsService
+    val service = app.exportTransactionsService
     val dataList = service.export().shouldBeOk().data.utf8().split("\n")
     // We should have:
     // (1) 1 heading row
@@ -258,10 +258,10 @@ class ExportTransactionsFunctionalTests : FunSpec({
     .config(tags = setOf(IsolatedTest)) {
 
       // Make pending transaction
-      appTester.onboardFullAccountWithFakeHardware()
-      appTester.addSomeFunds(amount = sats(50000), waitForConfirmation = false)
+      app.onboardFullAccountWithFakeHardware()
+      app.addSomeFunds(amount = sats(50000), waitForConfirmation = false)
 
-      val service = appTester.app.appComponent.exportTransactionsService
+      val service = app.exportTransactionsService
       val dataList = service.export().shouldBeOk().data.utf8().split("\n")
       // We should have:
       // (1) 1 heading row

@@ -6,7 +6,6 @@ import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.flatMapBoth
@@ -22,19 +21,19 @@ class KeyboxDaoMock(
   val clearCalls = turbine("clear calls KeyboxDaoMock")
   val rotateAuthKeysCalls = turbine("rotate auth keys calls")
 
-  val activeKeybox = MutableStateFlow<Result<Keybox?, DbError>>(Ok(defaultActiveKeybox))
+  val activeKeybox = MutableStateFlow<Result<Keybox?, Error>>(Ok(defaultActiveKeybox))
   val onboardingKeybox =
-    MutableStateFlow<Result<Keybox?, DbError>>(Ok(defaultOnboardingKeybox))
+    MutableStateFlow<Result<Keybox?, Error>>(Ok(defaultOnboardingKeybox))
 
-  var rotateKeyboxResult: Result<Keybox, DbError> = Ok(KeyboxMock)
+  var rotateKeyboxResult: Result<Keybox, Error> = Ok(KeyboxMock)
 
   var keyset: SpendingKeyset? = null
 
-  override fun activeKeybox(): Flow<Result<Keybox?, DbError>> = activeKeybox
+  override fun activeKeybox(): Flow<Result<Keybox?, Error>> = activeKeybox
 
-  override fun onboardingKeybox(): Flow<Result<Keybox?, DbError>> = onboardingKeybox
+  override fun onboardingKeybox(): Flow<Result<Keybox?, Error>> = onboardingKeybox
 
-  override suspend fun getActiveOrOnboardingKeybox(): Result<Keybox?, DbError> {
+  override suspend fun getActiveOrOnboardingKeybox(): Result<Keybox?, Error> {
     val activeKeyboxResult = activeKeybox().first()
     return activeKeyboxResult.flatMapBoth(
       success = { activeKeybox ->
@@ -49,7 +48,7 @@ class KeyboxDaoMock(
 
   override suspend fun activateNewKeyboxAndCompleteOnboarding(
     keybox: Keybox,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     this.activeKeybox.value = Ok(keybox)
     this.onboardingKeybox.value = Ok(value = null)
     return Ok(Unit)
@@ -58,7 +57,7 @@ class KeyboxDaoMock(
   override suspend fun rotateKeyboxAuthKeys(
     keyboxToRotate: Keybox,
     appAuthKeys: AppAuthPublicKeys,
-  ): Result<Keybox, DbError> {
+  ): Result<Keybox, Error> {
     rotateAuthKeysCalls += Unit
     return rotateKeyboxResult.also {
       if (it.isOk) {
@@ -67,17 +66,17 @@ class KeyboxDaoMock(
     }
   }
 
-  override suspend fun saveKeyboxAndBeginOnboarding(keybox: Keybox): Result<Unit, DbError> {
+  override suspend fun saveKeyboxAndBeginOnboarding(keybox: Keybox): Result<Unit, Error> {
     this.onboardingKeybox.value = Ok(keybox)
     return Ok(Unit)
   }
 
-  override suspend fun saveKeyboxAsActive(keybox: Keybox): Result<Unit, DbError> {
+  override suspend fun saveKeyboxAsActive(keybox: Keybox): Result<Unit, Error> {
     this.activeKeybox.value = Ok(keybox)
     return Ok(Unit)
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     activeKeybox.value = Ok(null)
     return Ok(Unit)

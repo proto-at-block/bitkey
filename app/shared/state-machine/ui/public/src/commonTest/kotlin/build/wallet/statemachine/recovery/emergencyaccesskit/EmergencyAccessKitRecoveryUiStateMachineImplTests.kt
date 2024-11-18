@@ -97,12 +97,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   val debugOptionsService = DebugOptionsServiceFake()
   val stateMachine = EmergencyAccessKitRecoveryUiStateMachineImpl(
     clipboard = clipboard,
-    payloadDecoder = EmergencyAccessKitPayloadDecoderImpl,
+    payloadDecoder = EmergencyAccessKitPayloadDecoderImpl(),
     permissionUiStateMachine = permissionMock,
     emergencyAccessPayloadRestorer = EmergencyAccessPayloadRestorerImpl(
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      appPrivateKeyDao = appPrivateKeyDao
+      appPrivateKeyDao = appPrivateKeyDao,
+      emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl()
     ),
     csekDao = csekDao,
     keyboxDao = keyboxDao,
@@ -110,11 +111,11 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     uuidGenerator = UuidGeneratorFake(),
     debugOptionsService = debugOptionsService
   )
-  val validData = EmergencyAccessKitPayloadDecoderImpl.encode(
+  val validData = EmergencyAccessKitPayloadDecoderImpl().encode(
     EmergencyAccessKitPayloadV1(
       sealedHwEncryptionKey = CsekFake.key.raw,
       sealedActiveSpendingKeys = SealedData(
-        ciphertext = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
+        ciphertext = EmergencyAccessKitPayloadDecoderImpl().encodeBackup(
           EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
             spendingKeyset = SpendingKeysetMock,
             appSpendingKeyXprv = AppSpendingPrivateKeyMock
@@ -339,7 +340,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("Failed Restore - invalid backup") {
     val invalidPayload =
-      EmergencyAccessKitPayloadDecoderImpl.encode(
+      EmergencyAccessKitPayloadDecoderImpl().encode(
         EmergencyAccessKitPayloadV1(
           sealedHwEncryptionKey = "ciphertext".toByteArray().toByteString(),
           sealedActiveSpendingKeys =

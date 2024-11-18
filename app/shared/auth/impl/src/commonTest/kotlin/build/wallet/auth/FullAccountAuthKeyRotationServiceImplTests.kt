@@ -622,8 +622,8 @@ class FullAccountAuthKeyRotationServiceImplTests : FunSpec({
       AccountMissing,
       AuthStorageError(message = "storage error"),
       AuthNetworkError(message = "network error"),
-      FailedToReadAccountStatus(dbError = Error("failed ot read account status")),
-      FailedToReadRecoveryStatus(dbError = Error("failed to read recovery status")),
+      FailedToReadAccountStatus(cause = Error("failed ot read account status")),
+      FailedToReadRecoveryStatus(cause = Error("failed to read recovery status")),
       AppRecoveryAuthPublicKeyMissing,
       RequestGlobalScopeForLiteAccount,
       UnhandledError(cause = RuntimeException("totally unexpected error"))

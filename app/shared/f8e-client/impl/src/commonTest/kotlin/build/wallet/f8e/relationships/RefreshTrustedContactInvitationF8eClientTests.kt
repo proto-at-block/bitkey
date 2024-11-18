@@ -13,7 +13,7 @@ import kotlinx.serialization.json.Json
 
 class RefreshTrustedContactInvitationF8eClientTests : FunSpec({
   test("Refresh TC Invite - Request Serialization") {
-    val result = Json.encodeToString(RefreshTrustedContactRequestBody())
+    val result = Json.encodeToString(RefreshTrustedContactRequestBody(action = "Reissue"))
 
     result.shouldBeEqual("""{"action":"Reissue"}""")
   }

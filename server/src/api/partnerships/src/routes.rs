@@ -316,7 +316,7 @@ async fn get_purchase_options(
     let purchase_options = partnerships
         .purchase_options(
             request.country.clone(),
-            request.fiat_currency.clone(),
+            request.fiat_currency,
             &experimentation_claims.account_context_key()?,
         )
         .await;
@@ -436,6 +436,7 @@ pub struct GetSaleRedirectRequest {
     pub fiat_amount: f64,
     pub fiat_currency: CurrencyCode,
     pub partner: String,
+    pub quote_id: Option<String>,
 }
 
 #[utoipa::path(
@@ -458,6 +459,7 @@ async fn get_sales_redirect(
             request.fiat_amount,
             request.fiat_currency,
             request.partner,
+            request.quote_id,
         )
         .await?;
     Ok(Json(GetRedirectResponse { redirect_info }))

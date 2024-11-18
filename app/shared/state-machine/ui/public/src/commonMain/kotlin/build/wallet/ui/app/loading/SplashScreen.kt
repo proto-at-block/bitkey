@@ -14,12 +14,9 @@ import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.bitkey_logo_mark
 import bitkey.shared.ui_core_public.generated.resources.bitkey_word_mark
 import build.wallet.statemachine.core.SplashBodyModel
-import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.time.Duration.Companion.ZERO
-import kotlin.time.Duration.Companion.seconds
 
 @Composable
 fun SplashScreen(
@@ -104,19 +101,5 @@ private fun BitkeyWordMarkAnimatedVisibility(
       ).plus(fadeOut(animationSpec = tween(durationMillis = animationMilliseconds)))
   ) {
     BitkeyWordMark()
-  }
-}
-
-@Preview
-@Composable
-fun PreviewSplashScreen() {
-  PreviewWalletTheme {
-    SplashScreen(
-      model =
-        SplashBodyModel(
-          bitkeyWordMarkAnimationDelay = 0.seconds,
-          bitkeyWordMarkAnimationDuration = 0.seconds
-        )
-    )
   }
 }

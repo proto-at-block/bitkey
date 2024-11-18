@@ -3,9 +3,9 @@ use std::sync::Arc;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::bitcoin::{Address, Network};
 
-use screener::service::SanctionsScreener;
-
+use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::spend_rules::Rule;
+use screener::service::SanctionsScreener;
 
 pub(crate) struct AddressScreeningRule {
     screener_service: Arc<dyn SanctionsScreener>,
@@ -13,7 +13,10 @@ pub(crate) struct AddressScreeningRule {
 }
 
 impl Rule for AddressScreeningRule {
-    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
         let tx = psbt.clone().unsigned_tx;
         let destination_addresses = tx
             .output
@@ -21,18 +24,15 @@ impl Rule for AddressScreeningRule {
             .map(|output| {
                 Address::from_script(&output.script_pubkey, self.network)
                     .map(|address| address.to_string())
-                    .map_err(|_| {
-                        "One or more script pub keys are invalid. Cannot check transaction"
-                            .to_string()
-                    })
+                    .map_err(|_| SpendRuleCheckError::InvalidScriptPubKeys)
             })
-            .collect::<Result<Vec<String>, String>>()?;
+            .collect::<Result<Vec<String>, SpendRuleCheckError>>()?;
 
         if self
             .screener_service
             .should_block_transaction(&destination_addresses)
         {
-            Err("One or more outputs belong to sanctioned individuals.".to_string())
+            Err(SpendRuleCheckError::OutputsBelongToSanctionedIndividuals)
         } else {
             Ok(())
         }

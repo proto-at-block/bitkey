@@ -1,6 +1,5 @@
 package build.wallet.availability
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.datetime.Instant
 
@@ -15,7 +14,7 @@ interface NetworkReachabilityEventDao {
   suspend fun insertReachabilityEvent(
     connection: NetworkConnection,
     reachability: NetworkReachability,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Returns the most recent event for the given connection that is REACHABLE,
@@ -24,5 +23,5 @@ interface NetworkReachabilityEventDao {
    * @param connection - The connection to look up an event for, or null to look
    * up the last REACHABLE event, regardless of connection.
    */
-  suspend fun getMostRecentReachableEvent(connection: NetworkConnection?): Result<Instant?, DbError>
+  suspend fun getMostRecentReachableEvent(connection: NetworkConnection?): Result<Instant?, Error>
 }

@@ -93,9 +93,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validAddress.address)
       }
-      // Extra models produced with unstable lambda.
-      awaitScreenWithBody<QrCodeScanBodyModel>()
-      awaitScreenWithBody<QrCodeScanBodyModel>()
 
       onRecipientScannedCalls.awaitItem().shouldBe(validAddress)
     }
@@ -106,9 +103,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(bitcoinAddressP2PKH.address)
       }
-      // Extra models produced with unstable lambda.
-      awaitScreenWithBody<QrCodeScanBodyModel>()
-      awaitScreenWithBody<QrCodeScanBodyModel>()
 
       onInvoiceScannedCalls.awaitItem().shouldBe(
         BitcoinInvoice(
@@ -124,8 +118,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(invalidAddressText)
       }
-      // Extra model produced with unstable lambda.
-      awaitScreenWithBody<QrCodeScanBodyModel>()
 
       // Error
       awaitScreenWithBody<FormBodyModel>()
@@ -137,8 +129,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetAddress)
       }
-      // Extra model produced with unstable lambda.
-      awaitScreenWithBody<QrCodeScanBodyModel>()
 
       // Error
       awaitScreenWithBody<FormBodyModel>()
@@ -150,8 +140,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetBIP21URI)
       }
-      // Extra model produced with unstable lambda.
-      awaitScreenWithBody<QrCodeScanBodyModel>()
 
       // Error
       awaitScreenWithBody<FormBodyModel>()
@@ -213,8 +201,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
         awaitScreenWithBody<QrCodeScanBodyModel> {
           secondaryButton.shouldNotBeNull().onClick()
         }
-        // Extra model produced with unstable lambda.
-        awaitScreenWithBody<QrCodeScanBodyModel>()
 
         // error from self send
         awaitScreenWithBody<FormBodyModel> {
@@ -229,9 +215,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
         awaitScreenWithBody<QrCodeScanBodyModel> {
           onQrCodeScanned(selfSendAddress)
         }
-        // Extra model produced with unstable lambda.
-        awaitScreenWithBody<QrCodeScanBodyModel>()
-        awaitScreenWithBody<QrCodeScanBodyModel>()
 
         // error from self send
         awaitScreenWithBody<FormBodyModel> {
@@ -254,8 +237,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
         awaitScreenWithBody<QrCodeScanBodyModel> {
           secondaryButton.shouldNotBeNull().onClick()
         }
-        // Extra model produced with unstable lambda.
-        awaitScreenWithBody<QrCodeScanBodyModel>()
 
         // error from self send
         awaitScreenWithBody<FormBodyModel> {
@@ -277,9 +258,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
         awaitScreenWithBody<QrCodeScanBodyModel> {
           onQrCodeScanned(selfSendAddress)
         }
-        // Extra model produced with unstable lambda.
-        awaitScreenWithBody<QrCodeScanBodyModel>()
-        awaitScreenWithBody<QrCodeScanBodyModel>()
 
         // error from self send
         awaitScreenWithBody<FormBodyModel> {

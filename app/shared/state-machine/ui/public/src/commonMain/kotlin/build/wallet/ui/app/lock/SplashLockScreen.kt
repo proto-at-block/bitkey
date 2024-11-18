@@ -16,14 +16,10 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun SplashLockScreen(
@@ -75,22 +71,5 @@ fun SplashLockScreen(
       model = model.unlockButtonModel
     )
     Spacer(Modifier.height(28.dp))
-  }
-}
-
-@Composable
-@Preview
-fun SplashLockScreenPreview() {
-  PreviewWalletTheme {
-    SplashLockScreen(
-      model = SplashLockModel(
-        unlockButtonModel = ButtonModel(
-          text = "Unlock",
-          treatment = ButtonModel.Treatment.Translucent,
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick {}
-        )
-      )
-    )
   }
 }

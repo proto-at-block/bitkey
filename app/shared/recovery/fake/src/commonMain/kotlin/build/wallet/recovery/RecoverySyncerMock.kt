@@ -3,7 +3,6 @@ package build.wallet.recovery
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.recovery.RecoverySyncer.SyncError
 import com.github.michaelbull.result.Ok
@@ -17,10 +16,10 @@ class RecoverySyncerMock(
   val recovery: Recovery,
   turbine: (String) -> Turbine<Any>,
 ) : RecoverySyncer {
-  val recoveryStatus = MutableStateFlow<Result<Recovery, DbError>>(Ok(recovery))
+  val recoveryStatus = MutableStateFlow<Result<Recovery, Error>>(Ok(recovery))
   val clearCalls = turbine("clear recovery syncer calls")
   val setLocalRecoveryProgressCalls = turbine("set local recovery progress calls")
-  var clearCallResult: Result<Unit, DbError> = Ok(Unit)
+  var clearCallResult: Result<Unit, Error> = Ok(Unit)
 
   override suspend fun performSync(
     fullAccountId: FullAccountId,
@@ -36,18 +35,18 @@ class RecoverySyncerMock(
     // no-op
   }
 
-  override fun recoveryStatus(): Flow<Result<Recovery, DbError>> {
+  override fun recoveryStatus(): Flow<Result<Recovery, Error>> {
     return recoveryStatus
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     return clearCallResult
   }
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     setLocalRecoveryProgressCalls += progress
     return Ok(Unit)
   }

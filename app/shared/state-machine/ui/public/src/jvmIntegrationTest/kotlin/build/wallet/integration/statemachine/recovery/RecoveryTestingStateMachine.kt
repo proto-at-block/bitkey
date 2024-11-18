@@ -18,9 +18,9 @@ import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
-import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
+import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
-import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachineImpl
+import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
 
@@ -44,8 +44,8 @@ import com.github.michaelbull.result.getOrThrow
  *   }
  */
 class RecoveryTestingStateMachine(
-  val dsm: AccountDataStateMachineImpl,
-  val usm: LostAppRecoveryUiStateMachineImpl,
+  val dsm: AccountDataStateMachine,
+  val usm: LostAppRecoveryUiStateMachine,
   val recoverySyncer: RecoverySyncer,
   val accountService: AccountService,
 ) : StateMachine<Unit, ScreenModel> {

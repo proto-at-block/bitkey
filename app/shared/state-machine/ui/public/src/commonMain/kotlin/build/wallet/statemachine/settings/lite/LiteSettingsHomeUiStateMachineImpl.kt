@@ -54,7 +54,7 @@ class LiteSettingsHomeUiStateMachineImpl(
       is State.ShowingTrustedContactsManagement ->
         liteTrustedContactManagementUiStateMachine.model(
           props = LiteTrustedContactManagementProps(
-            accountData = props.accountData,
+            account = props.account,
             acceptInvite = null,
             onExit = { uiState = State.ShowingAllSettingsList }
           )
@@ -63,8 +63,8 @@ class LiteSettingsHomeUiStateMachineImpl(
       is State.ShowingContactUs ->
         feedbackUiStateMachine.model(
           props = FeedbackUiProps(
-            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-            accountId = props.accountData.account.accountId,
+            f8eEnvironment = props.account.config.f8eEnvironment,
+            accountId = props.account.accountId,
             onBack = { uiState = State.ShowingAllSettingsList }
           )
         )
@@ -80,7 +80,6 @@ class LiteSettingsHomeUiStateMachineImpl(
       is State.ShowingDebugMenu ->
         debugMenuStateMachine.model(
           props = DebugMenuProps(
-            accountData = props.accountData,
             onClose = { uiState = State.ShowingAllSettingsList }
           )
         )
@@ -100,7 +99,7 @@ class LiteSettingsHomeUiStateMachineImpl(
           props =
             SettingsListUiProps(
               onBack = props.onBack,
-              f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+              f8eEnvironment = props.account.config.f8eEnvironment,
               supportedRows = setOfNotNull(
                 SettingsListUiProps.SettingsListRow.AppearancePreference {
                   setState(State.ShowingCurrencyPreferenceSettings)

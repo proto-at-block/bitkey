@@ -266,7 +266,7 @@ async fn sign_transaction_maybe_broadcast_impl(
             .to_owned()
             .into();
 
-        // A full sync is required here, because we don't have derivation path information in
+        // W-9888: A full sync is required here, because we don't have derivation path information in
         // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
         let active_wallet = active_descriptor.generate_wallet(true, &rpc_uris)?;
 

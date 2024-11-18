@@ -1951,7 +1951,7 @@ async fn software_onboarding_keygen_activation_test() {
 
         let request = json!(
             {
-                "app_share_package": initiate_result,
+                "app_share_package": initiate_result.share_package_for_peer,
             }
         );
 
@@ -1995,7 +1995,7 @@ async fn software_onboarding_keygen_activation_test() {
             serde_json::from_value::<KeyCommitments>(server_key_commitments_value.clone()).unwrap();
 
         let continue_result = continue_dkg(
-            &app_share_package,
+            &app_share_package.share_package,
             &server_share_package,
             &server_key_commitments,
         )

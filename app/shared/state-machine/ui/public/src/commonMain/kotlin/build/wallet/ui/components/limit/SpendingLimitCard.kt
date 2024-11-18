@@ -16,7 +16,6 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.progress.LinearProgressIndicator
 import build.wallet.ui.tokens.LabelType
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun SpendingLimitCard(
@@ -70,19 +69,4 @@ fun SpendingLimitCard(
       Label(text = remainingText, type = LabelType.Body4Medium, treatment = Secondary)
     }
   }
-}
-
-@Preview
-@Composable
-fun PreviewSpendingLimitCard() {
-  SpendingLimitCard(
-    modifier = Modifier.fillMaxWidth(),
-    model =
-      SpendingLimitCardModel(
-        dailyResetTimezoneText = "Resets at 3:00am PDT",
-        spentAmountText = "$50.00 spent",
-        remainingAmountText = "$50.00 remaining",
-        progressPercentage = .5f
-      )
-  )
 }

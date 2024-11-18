@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-extensions-jvm",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-extensions-jvm-5.9.0.jar": "31be6b0b265d2f7712d0a75e68e42feb0b8e615fabf019089e7fbfe59734e1d0"
+                        "kotest-extensions-jvm-6.0.0.M1.jar": "337e7268a222fef9df4abe5875fb5c5cbf9b1d5d1fccef3d19d33cfd22e61a2a"
                     }
                 }
             ],

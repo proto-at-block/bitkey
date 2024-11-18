@@ -6,7 +6,6 @@ import build.wallet.amount.DecimalSeparatorProviderFake
 import build.wallet.amount.DoubleFormatterImpl
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputFormatter
 import build.wallet.money.input.MoneyInputFormatterImpl
 import build.wallet.platform.settings.LocaleIdentifierProviderFake

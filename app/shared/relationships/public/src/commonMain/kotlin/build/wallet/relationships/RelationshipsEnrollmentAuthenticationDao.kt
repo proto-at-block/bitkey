@@ -3,7 +3,6 @@ package build.wallet.relationships
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
-import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Result
 
 /**
@@ -21,11 +20,9 @@ interface RelationshipsEnrollmentAuthenticationDao {
     recoveryRelationshipId: String,
   ): Result<RelationshipsEnrollmentAuthenticationRow?, Throwable>
 
-  suspend fun deleteByRelationshipId(
-    recoveryRelationshipId: String,
-  ): Result<Unit, DbTransactionError>
+  suspend fun deleteByRelationshipId(recoveryRelationshipId: String): Result<Unit, Error>
 
-  suspend fun clear(): Result<Unit, DbTransactionError>
+  suspend fun clear(): Result<Unit, Error>
 
   data class RelationshipsEnrollmentAuthenticationRow(
     val relationshipId: String,

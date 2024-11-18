@@ -21,6 +21,7 @@ import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS
 import build.wallet.platform.settings.LocaleCountryCodeProviderMock
 import build.wallet.platform.settings.LocaleCurrencyCodeProviderFake
+import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
@@ -32,7 +33,10 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 
 class EventTrackerImplTests : FunSpec({
-  val eventProcessor = ProcessorMock<QueueAnalyticsEvent>(turbines::create)
+  val processorMock = ProcessorMock<QueueAnalyticsEvent>(turbines::create)
+  val eventProcessor = object :
+    AnalyticsEventProcessor,
+    Processor<QueueAnalyticsEvent> by processorMock {}
 
   val sessionId = "session-id"
   val clock = ClockFake()
@@ -73,8 +77,8 @@ class EventTrackerImplTests : FunSpec({
     accountService.reset()
     analyticsTrackingPreference.clear()
     debugOptionsService.reset()
-    eventProcessor.processBatchReturnValues = listOf(Ok(Unit))
-    eventProcessor.reset()
+    processorMock.processBatchReturnValues = listOf(Ok(Unit))
+    processorMock.reset()
   }
 
   context("happy path") {
@@ -85,7 +89,8 @@ class EventTrackerImplTests : FunSpec({
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
-          eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+          processorMock.processBatchCalls.awaitItem()
+            .shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
         persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
         persistedEvent.event.session_id.shouldBe(sessionId)
@@ -110,7 +115,8 @@ class EventTrackerImplTests : FunSpec({
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
-        eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+        processorMock.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>()
+          .first()
 
       persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
       persistedEvent.event.session_id.shouldBe(sessionId)
@@ -131,7 +137,8 @@ class EventTrackerImplTests : FunSpec({
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
-          eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+          processorMock.processBatchCalls.awaitItem()
+            .shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
         persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
         persistedEvent.event.session_id.shouldBe(sessionId)
@@ -161,7 +168,8 @@ class EventTrackerImplTests : FunSpec({
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
-        eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+        processorMock.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>()
+          .first()
 
       persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
       persistedEvent.event.session_id.shouldBe(sessionId)
@@ -187,7 +195,8 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+      processorMock.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>()
+        .first()
 
     persistedEvent.event.action.shouldBe(ACTION_APP_SCREEN_IMPRESSION)
     persistedEvent.event.screen_id.shouldBe("HW_PAIR_INSTRUCTIONS_ACCOUNT_CREATION")
@@ -204,7 +213,8 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+      processorMock.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>()
+        .first()
     persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
   }
 
@@ -219,7 +229,8 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
+      processorMock.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>()
+        .first()
     persistedEvent.event.app_device_id.shouldBe(appDeviceIdDao.appDeviceId)
   }
 
@@ -227,6 +238,6 @@ class EventTrackerImplTests : FunSpec({
     analyticsTrackingPreference.set(false)
     eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
     appScope.runCurrent()
-    eventProcessor.processBatchCalls.expectNoEvents()
+    processorMock.processBatchCalls.expectNoEvents()
   }
 })

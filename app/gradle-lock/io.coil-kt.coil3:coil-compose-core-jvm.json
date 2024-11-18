@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-compose-core-jvm",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-compose-core-jvm-3.0.0-rc01.jar": "8eb047be7c42e566fcf12621eca034a5524f5f71fc7c0a5180c2e6a1af267225"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

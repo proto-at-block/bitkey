@@ -1,7 +1,7 @@
 package build.wallet.statemachine.data.account.create
 
-import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.CreateFullAccountData
 
@@ -22,14 +22,3 @@ data class CreateFullAccountDataProps(
   val context: CreateFullAccountContext,
   val rollback: () -> Unit,
 )
-
-/**
- * The context in which the Full Account is being created.
- * We either create a Full Account when we are creating a brand new account, or we
- * "create" a Full Account by upgrading an existing Lite Account to a Full Account.
- */
-sealed interface CreateFullAccountContext {
-  data object NewFullAccount : CreateFullAccountContext
-
-  data class LiteToFullAccountUpgrade(val liteAccount: LiteAccount) : CreateFullAccountContext
-}

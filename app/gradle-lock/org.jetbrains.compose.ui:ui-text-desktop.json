@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-text-desktop",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-text-desktop-1.6.11.jar": "c014073d865f784fb94c22fb6bb9d056a996af63c93a176e90118a58ff0facc6"
+                        "ui-text-desktop-1.7.0.jar": "80e07e4ca739f7b6122f63e9a17e6853b947220ecb1180f8dcaf419d0e468996"
                     }
                 }
             ],

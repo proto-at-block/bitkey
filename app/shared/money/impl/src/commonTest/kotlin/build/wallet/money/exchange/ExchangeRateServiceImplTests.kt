@@ -8,15 +8,21 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.HttpError.UnhandledException
+import build.wallet.money.currency.USD
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.minutes
 
 class ExchangeRateServiceImplTests : FunSpec({
   coroutineTestScope = true
@@ -46,7 +52,8 @@ class ExchangeRateServiceImplTests : FunSpec({
       exchangeRateDao = exchangeRateDao,
       exchangeRateF8eClient = exchangeRateF8eClient,
       appSessionManager = appSessionManager,
-      keyboxDao = keyboxDao
+      keyboxDao = keyboxDao,
+      clock = ClockFake(now = Instant.fromEpochSeconds(500))
     )
   }
 
@@ -203,6 +210,41 @@ class ExchangeRateServiceImplTests : FunSpec({
       appSessionManager.appDidEnterForeground()
 
       awaitItem().shouldContainExactly(exchangeRate1)
+    }
+  }
+
+  test("retrieving existing exchange rates in past 10 mins") {
+    val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
+    exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
+
+    backgroundScope.launch {
+      exchangeRateService.executeWork()
+    }
+
+    exchangeRateService.exchangeRates.test {
+      awaitItem().shouldBeEmpty() // Initial value
+      awaitItem().shouldBe(exchangeRates)
+
+      exchangeRateService.mostRecentRatesSinceDurationForCurrency(10.minutes, USD)
+        .shouldNotBeNull()
+        .shouldContainExactly(exchangeRates)
+    }
+  }
+
+  test("retrieving existing exchange rates in past 5 mins") {
+    val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
+    exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
+
+    backgroundScope.launch {
+      exchangeRateService.executeWork()
+    }
+
+    exchangeRateService.exchangeRates.test {
+      awaitItem().shouldBeEmpty() // Initial value
+      awaitItem().shouldBe(exchangeRates)
+
+      exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, USD)
+        .shouldBeNull()
     }
   }
 })

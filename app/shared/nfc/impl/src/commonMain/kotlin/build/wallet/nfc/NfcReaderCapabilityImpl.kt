@@ -2,7 +2,8 @@ package build.wallet.nfc
 
 import build.wallet.platform.PlatformContext
 
-expect class NfcReaderCapabilityImpl constructor(
+expect class NfcReaderCapabilityImpl(
   platformContext: PlatformContext,
-  isHardwareFake: Boolean,
-) : NfcReaderCapability
+) : NfcReaderCapability {
+  override fun availability(isHardwareFake: Boolean): NfcAvailability
+}

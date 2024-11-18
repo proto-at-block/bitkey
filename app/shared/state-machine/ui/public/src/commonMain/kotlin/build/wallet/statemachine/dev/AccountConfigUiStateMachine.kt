@@ -1,7 +1,6 @@
 package build.wallet.statemachine.dev
 
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.ui.model.list.ListGroupModel
 
 /**
@@ -12,6 +11,5 @@ import build.wallet.ui.model.list.ListGroupModel
 interface AccountConfigUiStateMachine : StateMachine<AccountConfigProps, ListGroupModel?>
 
 data class AccountConfigProps(
-  val accountData: AccountData,
   val onBitcoinWalletClick: () -> Unit,
 )

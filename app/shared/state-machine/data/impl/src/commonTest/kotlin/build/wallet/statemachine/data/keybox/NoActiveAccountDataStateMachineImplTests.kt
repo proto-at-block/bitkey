@@ -9,11 +9,13 @@ import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsFake
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
+import build.wallet.statemachine.data.account.CreateFullAccountData.CreatingAccountData
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
@@ -39,7 +41,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
   val createFullAccountDataStateMachine =
     object : CreateFullAccountDataStateMachine,
       StateMachineMock<CreateFullAccountDataProps, CreateFullAccountData>(
-        initialModel = CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
+        initialModel = CreatingAccountData(
+          context = NewFullAccount,
           rollback = {}
         )
       ) {}

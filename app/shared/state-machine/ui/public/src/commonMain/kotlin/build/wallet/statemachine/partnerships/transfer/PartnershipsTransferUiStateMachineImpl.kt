@@ -20,9 +20,12 @@ import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
-import build.wallet.partnerships.*
+import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod.Deeplink
 import build.wallet.partnerships.PartnerRedirectionMethod.Web
+import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -58,7 +61,7 @@ import kotlinx.coroutines.delay
 class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
   private val getTransferRedirectF8eClient: GetTransferRedirectF8eClient,
-  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
   private val eventTracker: EventTracker,
   private val bitcoinAddressService: BitcoinAddressService,
 ) : PartnershipsTransferUiStateMachine {
@@ -175,7 +178,7 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.LoadingPartnerRedirect -> {
         LaunchedEffect("load-transfer-partner-redirect-info") {
           coroutineBinding {
-            val address = bitcoinAddressService.generateAddress(props.account).bind()
+            val address = bitcoinAddressService.generateAddress().bind()
             val result = getTransferRedirectF8eClient
               .getTransferRedirect(
                 fullAccountId = props.keybox.fullAccountId,
@@ -184,7 +187,7 @@ class PartnershipsTransferUiStateMachineImpl(
                 address = address
               ).bind()
 
-            val localTransaction = partnershipsRepository.create(
+            val localTransaction = partnershipTransactionsService.create(
               id = result.redirectInfo.partnerTransactionId,
               partnerInfo = currentState.partnerInfo,
               type = PartnershipTransactionType.TRANSFER

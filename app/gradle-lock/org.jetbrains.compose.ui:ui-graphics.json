@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-graphics",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-graphics-1.6.11.jar": "a42f49ac9f9423fcf652e50a65e6a041e86537374d87aee0bc86a708527da418"
+                        "ui-graphics-1.7.0.jar": "d8ab67b0efe9f1b6ec052ba9e36b0d82a28a03b09879d4fc0be83b9ed35d7a7c"
                     }
                 }
             ],

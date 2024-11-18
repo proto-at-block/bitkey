@@ -1,9 +1,9 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.limit.SpendingLimit
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 
 /**
  * State machine for the UI for the mobile pay settings screen that shows
@@ -13,6 +13,6 @@ interface MobilePayStatusUiStateMachine : StateMachine<MobilePayUiProps, BodyMod
 
 data class MobilePayUiProps(
   val onBack: () -> Unit,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
   val onSetLimitClick: (currentLimit: SpendingLimit?) -> Unit,
 )

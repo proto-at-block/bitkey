@@ -34,3 +34,6 @@ types = { workspace = true, features = [
   "time",
 ] }
 userpool = { workspace = true }
+
+[lints]
+workspace = true

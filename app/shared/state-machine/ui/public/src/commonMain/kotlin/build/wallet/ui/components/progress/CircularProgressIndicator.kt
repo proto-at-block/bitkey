@@ -21,13 +21,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.TimerDirection
-import build.wallet.statemachine.core.TimerDirection.Clockwise
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.time.Duration.Companion.seconds
 import androidx.compose.material3.CircularProgressIndicator as MaterialCircularProgressIndicator
 
@@ -125,56 +121,4 @@ private fun DrawScope.drawCircularIndicator(
     size = Size(arcDimen, arcDimen),
     style = stroke
   )
-}
-
-@Preview
-@Composable
-private fun CircularProgressIndicatorPreview() {
-  PreviewWalletTheme {
-    CircularProgressIndicator(
-      progress = 0.10f,
-      direction = Clockwise,
-      size = 200.dp,
-      remainingSeconds = 1000
-    )
-  }
-}
-
-@Preview
-@Composable
-private fun CircularProgressIndicatorCounterClockwisePreview() {
-  PreviewWalletTheme {
-    CircularProgressIndicator(
-      progress = 0.10f,
-      direction = CounterClockwise,
-      size = 200.dp,
-      remainingSeconds = 0
-    )
-  }
-}
-
-@Preview
-@Composable
-private fun CircularProgressDonePreview() {
-  PreviewWalletTheme {
-    CircularProgressIndicator(
-      progress = 1.0f,
-      direction = CounterClockwise,
-      size = 200.dp,
-      remainingSeconds = 0
-    )
-  }
-}
-
-@Preview
-@Composable
-private fun CircularProgressFullPreview() {
-  PreviewWalletTheme {
-    CircularProgressIndicator(
-      progress = 0.0f,
-      direction = CounterClockwise,
-      size = 200.dp,
-      remainingSeconds = 100
-    )
-  }
 }

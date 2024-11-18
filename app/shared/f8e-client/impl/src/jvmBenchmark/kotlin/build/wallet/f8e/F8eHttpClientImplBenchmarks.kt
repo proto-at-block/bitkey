@@ -8,7 +8,6 @@ import build.wallet.auth.AuthTokensRepositoryMock
 import build.wallet.availability.NetworkReachabilityProviderMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.coroutines.*
 import build.wallet.datadog.DatadogSpan
 import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.TracerHeaders
@@ -21,16 +20,19 @@ import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.data.MimeType
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
 import io.kotest.matchers.shouldBe
 import io.ktor.client.engine.mock.*
 import io.ktor.client.request.*
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.headersOf
+import io.ktor.http.*
 import io.ktor.utils.io.*
-import kotlinx.benchmark.*
+import kotlinx.benchmark.Benchmark
+import kotlinx.benchmark.Scope
+import kotlinx.benchmark.Setup
+import kotlinx.benchmark.State
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -86,12 +88,13 @@ open class F8eHttpClientImplBenchmarks {
           )
         )
     }
+  private val deviceInfoProvider = DeviceInfoProviderMock()
 
   private val networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine() }
   private val f8eHttpClientProvider =
     F8eHttpClientProvider(
       appId = AppId("world.bitkey.test"),
-      appVersion = "2008.10.31",
+      appVersion = AppVersion("2008.10.31"),
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
@@ -105,6 +108,7 @@ open class F8eHttpClientImplBenchmarks {
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracer = datadogTracer,
+      deviceInfoProvider = deviceInfoProvider,
       networkReachabilityProvider = NetworkReachabilityProviderMock { Turbine(name = it) },
       appInstallationDao = AppInstallationDaoMock(),
       countryCodeGuesser = CountryCodeGuesserMock(),
@@ -115,6 +119,7 @@ open class F8eHttpClientImplBenchmarks {
   private val client =
     F8eHttpClientImpl(
       authTokensRepository = AuthTokensRepositoryMock(),
+      deviceInfoProvider = deviceInfoProvider,
       proofOfPossessionPluginProvider =
         ProofOfPossessionPluginProvider(
           authTokensRepository = authTokensRepository,

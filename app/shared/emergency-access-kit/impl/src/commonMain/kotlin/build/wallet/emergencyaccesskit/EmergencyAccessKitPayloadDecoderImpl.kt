@@ -22,7 +22,7 @@ import com.github.michaelbull.result.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-data object EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
+class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
   override fun encode(payload: EmergencyAccessKitPayload): String {
     when (payload) {
       is EmergencyAccessKitPayloadV1 ->

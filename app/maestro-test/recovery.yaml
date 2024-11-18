@@ -27,5 +27,5 @@ onFlowStart:
 - waitForAnimationToEnd
 - tapOn:
     text: "Restore Bitkey Wallet" #todo figure out adding id for button in list item
-- assertVisible: "Home"
+- assertVisible: "Bitkey"
 - assertVisible: "$0.00"

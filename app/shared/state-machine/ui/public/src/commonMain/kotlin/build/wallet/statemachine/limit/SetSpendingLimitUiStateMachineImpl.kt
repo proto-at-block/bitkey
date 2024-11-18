@@ -101,7 +101,7 @@ class SetSpendingLimitUiStateMachineImpl(
   ) {
     LaunchedEffect("saving-spending-limit") {
       mobilePayService.setLimit(
-        account = props.accountData.account,
+        account = props.account,
         spendingLimit = state.spendingLimit,
         hwFactorProofOfPossession = state.hwFactorProofOfPossession
       )
@@ -123,7 +123,7 @@ class SetSpendingLimitUiStateMachineImpl(
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     return spendingLimitPickerUiStateMachine.model(
       props = SpendingLimitPickerUiProps(
-        accountData = props.accountData,
+        account = props.account,
         initialLimit = state.selectedFiatLimit ?: FiatMoney.zero(fiatCurrency),
         retreat = Retreat(
           style = Close,

@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 pub mod attestation;
 pub mod command_interface;
 pub mod commands;

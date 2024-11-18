@@ -1,7 +1,6 @@
 package build.wallet.auth
 
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -20,9 +19,9 @@ sealed class AuthKeyRotationAttemptDaoState {
 interface AuthKeyRotationAttemptDao {
   fun observeAuthKeyRotationAttemptState(): Flow<Result<AuthKeyRotationAttemptDaoState, Throwable>>
 
-  suspend fun setKeyRotationProposal(): Result<Unit, DbError>
+  suspend fun setKeyRotationProposal(): Result<Unit, Error>
 
-  suspend fun setAuthKeysWritten(appAuthPublicKeys: AppAuthPublicKeys): Result<Unit, DbError>
+  suspend fun setAuthKeysWritten(appAuthPublicKeys: AppAuthPublicKeys): Result<Unit, Error>
 
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

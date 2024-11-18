@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.skiko:skiko-awt",
     "components": [
         {
-            "version": "0.8.4",
+            "version": "0.8.15",
             "variants": [
                 {
                     "artifacts": {
-                        "skiko-awt-0.8.4.jar": "a9da8815e049ed1f350bde4f418b188113aaf20076a8c8c5cff177089f78d174"
+                        "skiko-awt-0.8.15.jar": "2d6efe988f8d3a57e63fcf923f3439cdabb88947e351f97d06ec9b2a6a87fff0"
                     }
                 }
             ],

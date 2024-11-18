@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-geometry-android",
     "components": [
         {
-            "version": "1.6.7",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-release.aar": "4b530fb4562fb997fccc6ba33072c028f2c16edb1cea733ce653f8afe9fc5c17"
+                        "ui-geometry-release.aar": "ca3aaebec9c2d87595712c291d1443c8d5cb6555543a207aa9482cd9ca9f4438"
                     }
                 }
             ],

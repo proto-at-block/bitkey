@@ -30,16 +30,16 @@ import kotlin.time.Duration.Companion.seconds
 
 class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
   test("replace full account with lite account backup") {
-    val (appTester, liteAccount, liteBackup) = createLiteAccountWithInvite()
+    val (app, liteAccount, liteBackup) = createLiteAccountWithInvite()
 
     // Start a new app to attempt to onboard a new full account.
     val onboardApp = launchNewApp(
-      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.app.cloudBackupRepository
+    onboardApp.cloudBackupRepository
       .readBackup(
         CloudStoreAccountFake.CloudStoreAccount1Fake
       )
@@ -49,11 +49,11 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     // Set push notifications to authorized to enable us to successfully advance through
     // the notifications step in onboarding.
-    onboardApp.app.appComponent.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+    onboardApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
 
-    onboardApp.app.appUiStateMachine.test(
+    onboardApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -68,7 +68,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      onboardApp.app.onboardingKeyboxHwAuthPublicKeyDao.get().getOrThrow().shouldNotBeNull()
+      onboardApp.onboardingKeyboxHwAuthPublicKeyDao.get().getOrThrow().shouldNotBeNull()
       advanceThroughOnboardKeyboxScreens(
         listOf(
           OnboardingKeyboxStep.CloudBackup,
@@ -85,21 +85,21 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    onboardApp.app.onboardingKeyboxHwAuthPublicKeyDao.get().getOrThrow().shouldBeNull()
+    onboardApp.onboardingKeyboxHwAuthPublicKeyDao.get().getOrThrow().shouldBeNull()
     verifyAccountDataIsPreserved(onboardApp, liteAccount)
   }
 
   test("relaunch app before backing up upgraded lite account") {
-    val (appTester, liteAccount, liteBackup) = createLiteAccountWithInvite()
+    val (app, liteAccount, liteBackup) = createLiteAccountWithInvite()
 
     // Start a new app to attempt to onboard a new full account.
     var onboardApp = launchNewApp(
-      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore
     )
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
-    onboardApp.app.cloudBackupRepository
+    onboardApp.cloudBackupRepository
       .readBackup(
         CloudStoreAccountFake.CloudStoreAccount1Fake
       )
@@ -107,7 +107,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       .shouldNotBeNull()
       .shouldBe(liteBackup)
 
-    onboardApp.app.appUiStateMachine.test(
+    onboardApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -137,10 +137,10 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     // Set push notifications to authorized to enable us to successfully advance through
     // the notifications step in onboarding.
-    onboardApp.app.appComponent.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+    onboardApp.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
       PermissionStatus.Authorized
     )
-    onboardApp.app.appUiStateMachine.test(
+    onboardApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -178,9 +178,9 @@ private suspend fun createLiteAccountWithInvite(): Triple<AppTester, LiteAccount
       PROTECTED_CUSTOMER_NAME
     )
 
-  val liteBackup = liteApp.app.liteAccountCloudBackupCreator.create(liteAccount).getOrThrow()
+  val liteBackup = liteApp.liteAccountCloudBackupCreator.create(liteAccount).getOrThrow()
   // Note the cloud backup is written to shared settings.
-  liteApp.app.cloudBackupRepository.writeBackup(
+  liteApp.cloudBackupRepository.writeBackup(
     liteAccount.accountId,
     CloudStoreAccountFake.CloudStoreAccount1Fake,
     liteBackup,
@@ -197,7 +197,7 @@ private suspend fun verifyAccountDataIsPreserved(
   // Expect the active full account ID and the lite account ID to match
   val onboardedAccount = onboardApp.getActiveFullAccount()
   onboardedAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
-  val socRecRelationships = onboardApp.app.appComponent.relationshipsService
+  val socRecRelationships = onboardApp.relationshipsService
     .syncAndVerifyRelationships(onboardedAccount)
     .getOrThrow()
   // Expect the protected customer to have been preserved

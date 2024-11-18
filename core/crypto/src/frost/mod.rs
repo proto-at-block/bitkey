@@ -1,27 +1,24 @@
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1::{
+    serde::{Deserialize, Serialize},
+    PublicKey,
+};
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+pub use secp256k1_zkp::frost::FrostShare;
 
 pub mod dkg;
-pub(crate) mod fakes;
-
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-pub struct Share(pub [u8; 32]);
 
 /// Output of the DKG and Refresh protocol, containing the secret share and VSS commitments.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(crate = "bitcoin::secp256k1::serde")]
 pub struct ShareDetails {
-    secret_share: Share,
+    pub secret_share: FrostShare,
     pub key_commitments: KeyCommitments,
 }
 
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(crate = "bitcoin::secp256k1::serde")]
 pub struct KeyCommitments {
-    vss_commitments: Vec<PublicKey>,
+    pub vss_commitments: Vec<PublicKey>,
     pub aggregate_public_key: PublicKey,
 }
 
@@ -39,17 +36,8 @@ pub enum Participant {
     Server,
 }
 
-/// Returns a ShareDetails object containing the participant's share and public key.
-///
-/// This should **NOT** be shared with other participants.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ShareAggParams {
-    intermediate_share: Share,
-    coefficient_commitments: Vec<PublicKey>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(crate = "bitcoin::secp256k1::serde")]
 pub struct ParticipantIndex(pub u8);
 
 pub const APP_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(1);

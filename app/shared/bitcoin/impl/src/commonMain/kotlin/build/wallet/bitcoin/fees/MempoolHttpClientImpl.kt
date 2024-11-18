@@ -4,31 +4,32 @@ import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
-import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
-import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
-import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
-import build.wallet.ktor.result.client.KtorLogLevelPolicy
+import build.wallet.bitcoin.BitcoinNetworkType.*
 import build.wallet.ktor.result.client.installLogging
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpResponseValidator
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.accept
-import io.ktor.http.ContentType.Application
-import io.ktor.http.contentType
-import io.ktor.serialization.kotlinx.json.json
+import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.Development
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.http.ContentType.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
 class MempoolHttpClientImpl(
-  private val logLevelPolicy: KtorLogLevelPolicy,
+  private val appVariant: AppVariant,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : MempoolHttpClient {
   override fun client(networkType: BitcoinNetworkType): HttpClient =
     HttpClient {
       installLogging(
         tag = "Mempool",
-        logLevel = logLevelPolicy.level()
+        logLevel = when (appVariant) {
+          Development -> LogLevel.ALL
+          else -> LogLevel.INFO
+        }
       )
 
       install(ContentNegotiation) {

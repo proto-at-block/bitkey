@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 use crate::psbt_verification::verify_inputs_only_have_one_signature;
 use crate::psbt_verification::verify_inputs_pubkey_belongs_to_wallet;
 use crate::psbt_verification::WalletDescriptors;
@@ -33,8 +31,14 @@ use bdk::keys::{DerivableKey, DescriptorKey, DescriptorSecretKey, ExtendedKey};
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper, TransactionSigner};
 use bdk::{KeychainKind, SignOptions, Wallet};
 
+use crypto::frost::dkg::server::continue_dkg;
+use crypto::frost::dkg::{server::initiate_dkg, SharePackage};
+
+use crypto::frost::KeyCommitments;
+use crypto::frost::ShareDetails;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
+use serde::Deserialize;
 use serde::Serialize;
 
 use tokio::net::TcpListener;
@@ -44,6 +48,10 @@ use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::api::SignedPsbt;
+use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenRequest;
+use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
+use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenRequest;
+use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenResponse;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
     EnclaveDeriveKeyRequest, EnclaveSignRequest, KmsRequest, LoadIntegrityKeyRequest,
@@ -589,6 +597,122 @@ async fn create_key(
     })))
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+struct InitiateDistributedKeygenSealedRequest {
+    pub app_share_package: SharePackage,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct InitiateDistributedKeygenSealedResponse {
+    pub server_share_package: SharePackage,
+    pub server_key_commitments: KeyCommitments,
+}
+
+async fn initiate_distributed_keygen(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveInitiateDistributedKeygenRequest>,
+) -> Result<Json<EnclaveInitiateDistributedKeygenResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let sealed_request_bytes = BASE64
+        .decode(request.sealed_request.as_bytes())
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to decode sealed request: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let sealed_request =
+        serde_json::from_slice::<InitiateDistributedKeygenSealedRequest>(&sealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to deserialize sealed request: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    let initiate_result =
+        initiate_dkg(&sealed_request.app_share_package).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to initiate dkg: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let server_key_commitments = initiate_result.share_details.key_commitments.clone();
+    let aggregate_public_key = server_key_commitments.aggregate_public_key;
+
+    let sealed_response = InitiateDistributedKeygenSealedResponse {
+        server_share_package: initiate_result.share_package,
+        server_key_commitments,
+    };
+
+    let sealed_response_bytes =
+        serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize sealed response: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let datakey = get_dek(&request.dek_id, keystore, &mut log_buffer).await?;
+    let (wrapped_share_details, wrapped_share_details_nonce) = encrypt_share_details(
+        &request.root_key_id,
+        &datakey,
+        &initiate_result.share_details,
+        Some(request.network),
+        &mut log_buffer,
+    )?;
+
+    Ok(Json(EnclaveInitiateDistributedKeygenResponse {
+        sealed_response: BASE64.encode(sealed_response_bytes),
+        aggregate_public_key,
+        wrapped_share_details,
+        wrapped_share_details_nonce,
+    }))
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct ContinueDistributedKeygenSealedRequest {
+    pub app_key_commitments: KeyCommitments,
+}
+
+async fn continue_distributed_keygen(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveContinueDistributedKeygenRequest>,
+) -> Result<Json<EnclaveContinueDistributedKeygenResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let share_details = decode_wrapped_share_details(
+        keystore.clone(),
+        &request.wrapped_share_details,
+        &request.wrapped_share_details_nonce,
+        &request.dek_id,
+        &request.root_key_id,
+        Some(request.network),
+        &mut log_buffer,
+    )
+    .await?;
+
+    let sealed_request_bytes = BASE64
+        .decode(request.sealed_request.as_bytes())
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to decode sealed request: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let sealed_request =
+        serde_json::from_slice::<ContinueDistributedKeygenSealedRequest>(&sealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to deserialize sealed request: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    continue_dkg(share_details, &sealed_request.app_key_commitments).map_err(|e| {
+        WsmError::ServerError {
+            message: format!("Failed to continue dkg: {}", e),
+            log_buffer: log_buffer.clone(),
+        }
+    })?;
+
+    Ok(Json(EnclaveContinueDistributedKeygenResponse {}))
+}
+
 async fn derive_key(
     State(route_state): State<RouteState>,
     Json(request): Json<EnclaveDeriveKeyRequest>,
@@ -675,6 +799,31 @@ fn encrypt_root_key(
         .encrypt(&nonce, payload)
         .map_err(|e| WsmError::ServerError {
             message: format!("Failed to encrypt root key: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+    Ok((BASE64.encode(ciphertext), BASE64.encode(nonce)))
+}
+
+fn encrypt_share_details(
+    root_key_id: &String,
+    datakey: &Aes256Gcm,
+    share_details: &ShareDetails,
+    network: Option<Network>,
+    log_buffer: &mut LogBuffer,
+) -> Result<(String, String), WsmError> {
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+    let aad = Aad::new(root_key_id.to_string(), network);
+    let payload = Payload {
+        aad: &try_with_log_and_error!(log_buffer, WsmError::ServerError, aad.serialize())?,
+        msg: &serde_json::to_vec(share_details).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize share details: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?,
+    };
+    let ciphertext = datakey
+        .encrypt(&nonce, payload)
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to encrypt share details: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
     Ok((BASE64.encode(ciphertext), BASE64.encode(nonce)))
@@ -789,6 +938,51 @@ async fn decode_wrapped_xprv(
     Ok(xprv)
 }
 
+async fn decode_wrapped_share_details(
+    keystore: KeyStore,
+    wrapped_share_details: &String,
+    wrapped_share_details_nonce: &String,
+    dek_id: &String,
+    root_key_id: &String,
+    network: Option<Network>,
+    log_buffer: &mut LogBuffer,
+) -> Result<ShareDetails, WsmError> {
+    let decoded_wrapped_share_details =
+        BASE64
+            .decode(wrapped_share_details)
+            .map_err(|_| WsmError::ServerError {
+                message: "Could not b64 decode wrapped share details".to_string(),
+                log_buffer: log_buffer.clone(),
+            })?;
+    let decoded_nonce =
+        BASE64
+            .decode(wrapped_share_details_nonce)
+            .map_err(|_| WsmError::ServerError {
+                message: "Could not b64 decode nonce".to_string(),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    let cipher = get_dek(dek_id, keystore, log_buffer).await?;
+    let aad = Aad::new(root_key_id.to_string(), network);
+    let plaintext_share_details = cipher
+        .decrypt(
+            Nonce::from_slice(decoded_nonce.as_slice()),
+            Payload {
+                aad: &aad.serialize().map_err(|_| WsmError::ServerError {
+                    message: "Could not serialize aad".to_string(),
+                    log_buffer: log_buffer.clone(),
+                })?,
+                msg: decoded_wrapped_share_details.as_ref(),
+            },
+        )
+        .expect("Could not decrypt wrapped share details");
+
+    let share_details =
+        serde_json::from_slice(&plaintext_share_details).expect("Could not decrypt share details");
+
+    Ok(share_details)
+}
+
 fn decode_der_secp256k1_private_key(
     der_bytes: &[u8],
     log_buffer: LogBuffer,
@@ -843,6 +1037,14 @@ impl From<RouteState> for Router {
             .route("/create-key", post(create_key))
             .route("/derive-key", post(derive_key))
             .route("/attestation-doc-from-enclave", get(attestation_doc))
+            .route(
+                "/initiate-distributed-keygen",
+                post(initiate_distributed_keygen),
+            )
+            .route(
+                "/continue-distributed-keygen",
+                post(continue_distributed_keygen),
+            )
             .with_state(state)
     }
 }

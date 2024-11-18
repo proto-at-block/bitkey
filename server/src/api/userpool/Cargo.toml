@@ -22,3 +22,6 @@ tracing = { workspace = true }
 errors = { workspace = true }
 migration = { workspace = true }
 types = { workspace = true, features = ["account", "authn_authz"] }
+
+[lints]
+workspace = true

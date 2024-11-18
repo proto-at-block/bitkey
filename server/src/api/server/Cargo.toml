@@ -29,6 +29,7 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
+tower-http = { workspace = true, features = ["catch-panic"] }
 tracing = { workspace = true }
 ulid = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
@@ -88,3 +89,6 @@ rstest = { workspace = true }
 
 [features]
 partnerships = ["dep:partnerships"]
+
+[lints]
+workspace = true

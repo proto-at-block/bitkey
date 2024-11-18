@@ -25,7 +25,7 @@ class MobilePaySettingsUiStateMachineImpl(
               props =
                 MobilePayUiProps(
                   onBack = props.onBack,
-                  accountData = props.accountData,
+                  account = props.account,
                   onSetLimitClick = { currentLimit: SpendingLimit? ->
                     state = SettingSpendingLimitUiState(defaultSpendingLimit = currentLimit)
                   }
@@ -39,7 +39,7 @@ class MobilePaySettingsUiStateMachineImpl(
           props = SpendingLimitProps(
             currentSpendingLimit = currentState.defaultSpendingLimit?.amount,
             onClose = { state = ShowingMobilePayStatusUiState },
-            accountData = props.accountData,
+            account = props.account,
             onSetLimit = {
               state = ShowingMobilePayStatusUiState
             }

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-klib-commonizer-api",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-klib-commonizer-api-2.0.0.jar": "1e1b57dc1f802aa778f5f46054a253213d8b03c58357e347f08222a2d1950175"
+                        "kotlin-klib-commonizer-api-2.0.21.jar": "4757891165b698fbdace8f4da6f2bc0e988eaef9ef36713548865a8f27069afd"
                     }
                 }
             ],

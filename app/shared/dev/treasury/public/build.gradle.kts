@@ -15,7 +15,6 @@ kotlin {
         api(projects.shared.testingPublic)
         implementation(libs.kmp.test.kotest.assertions)
         implementation(projects.shared.bdkBindingsPublic)
-        implementation(projects.shared.coroutinesPublic)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.moneyTesting)
         implementation(projects.shared.resultPublic)

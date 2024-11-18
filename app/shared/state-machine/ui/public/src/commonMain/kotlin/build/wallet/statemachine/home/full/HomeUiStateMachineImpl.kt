@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.feature.flags.SellBitcoinFeatureFlag
 import build.wallet.feature.isEnabled
@@ -124,7 +125,8 @@ class HomeUiStateMachineImpl(
           is Route.NavigationDeeplink -> {
             return@onRouteChange when (route.screen) {
               NavigationScreenId.NAVIGATION_SCREEN_ID_MONEY_HOME -> {
-                uiState = uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Launch))
+                uiState =
+                  uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Launch))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS -> {
@@ -144,7 +146,7 @@ class HomeUiStateMachineImpl(
       homeUiBottomSheetStateMachine.model(
         props =
           HomeUiBottomSheetProps(
-            account = props.accountData.account,
+            account = props.account,
             onShowSetSpendingLimitFlow = {
               uiState = uiState.copy(presentedScreen = SetSpendingLimit)
             }
@@ -156,7 +158,7 @@ class HomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine.model(
         props =
           HomeStatusBannerUiProps(
-            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+            f8eEnvironment = props.account.config.f8eEnvironment,
             onBannerClick = { limitedFunctionality ->
               uiState = uiState.copy(presentedScreen = AppFunctionalityStatus(limitedFunctionality))
             }
@@ -218,7 +220,7 @@ class HomeUiStateMachineImpl(
             currentSpendingLimit = null,
             onClose = { uiState = uiState.copy(presentedScreen = null) },
             onSetLimit = { uiState = uiState.copy(presentedScreen = null) },
-            accountData = props.accountData
+            account = props.account as FullAccount
           )
         )
 
@@ -233,7 +235,7 @@ class HomeUiStateMachineImpl(
                     uiState = uiState.copy(presentedScreen = null)
                   }
                 ),
-              account = props.accountData.account,
+              account = props.account,
               inviteCode = presentedScreen.inviteCode,
               onDone = {
                 uiState = uiState.copy(presentedScreen = null)
@@ -244,8 +246,8 @@ class HomeUiStateMachineImpl(
 
       is PresentedScreen.PartnerTransfer -> expectedTransactionNoticeUiStateMachine.model(
         props = ExpectedTransactionNoticeProps(
-          fullAccountId = props.accountData.account.accountId,
-          f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+          accountId = props.account.accountId,
+          f8eEnvironment = props.account.config.f8eEnvironment,
           partner = presentedScreen.partner,
           event = presentedScreen.event,
           partnerTransactionId = presentedScreen.partnerTransactionId,
@@ -299,7 +301,8 @@ class HomeUiStateMachineImpl(
   ) = moneyHomeUiStateMachine.model(
     props =
       MoneyHomeUiProps(
-        accountData = props.accountData,
+        account = props.account,
+        lostHardwareRecoveryData = props.lostHardwareRecoveryData,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel,
         onSettings = onSettingsButtonClicked,
@@ -318,10 +321,12 @@ class HomeUiStateMachineImpl(
 
   @Composable
   private fun SyncCloudBackupHealthEffect(props: HomeUiProps) {
-    LaunchedEffect("sync-cloud-backup-health") {
-      // TODO: W-9117 - migrate to app worker pattern
-      withContext(Dispatchers.Default) {
-        cloudBackupHealthRepository.syncLoop(account = props.accountData.account)
+    if (props.account is FullAccount) {
+      LaunchedEffect("sync-cloud-backup-health") {
+        // TODO: W-9117 - migrate to app worker pattern
+        withContext(Dispatchers.Default) {
+          cloudBackupHealthRepository.syncLoop(account = props.account)
+        }
       }
     }
   }
@@ -336,7 +341,8 @@ class HomeUiStateMachineImpl(
     props =
       SettingsHomeUiProps(
         onBack = onBack,
-        accountData = props.accountData,
+        account = props.account,
+        lostHardwareRecoveryData = props.lostHardwareRecoveryData,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel
       )

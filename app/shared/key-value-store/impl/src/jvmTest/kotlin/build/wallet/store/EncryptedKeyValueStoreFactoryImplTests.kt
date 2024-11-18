@@ -3,6 +3,7 @@ package build.wallet.store
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManagerImpl
+import build.wallet.platform.data.filesDir
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe

@@ -3,7 +3,6 @@ package build.wallet.email
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.mpp.log
 
 class EmailValidatorTests : FunSpec({
   val emailValidator = EmailValidatorImpl()
@@ -47,7 +46,6 @@ class EmailValidatorTests : FunSpec({
   test("invalid email address are all invalid") {
     invalidEmails.forEach {
       val email = Email(it)
-      log { email.value }
       emailValidator.validateEmail(email).shouldBeFalse()
     }
   }

@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-framework-engine-iosarm64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-engine-iosarm64-5.9.0-metadata.jar": "dd94e39c2bd7f1f17a8518ce0224a02d8e34c0a0ac0ebf4d77e59b10f92b2207"
+                        "kotest-framework-engine-iosarm64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-framework-engine.klib": "1c9f8363c0dc05596ef20513f9579de2ba17abe8be6bd958d3d53a89b23aed3f"
+                        "kotest-framework-engine.klib": "bcec06b2745ef41e163c7c7144e0813da63b927a6c67139ce5b41b123bfef132"
                     }
                 }
             ],

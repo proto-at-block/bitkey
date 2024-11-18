@@ -24,6 +24,7 @@ fun PreviewWalletTheme(
   systemColorMode: SystemColorMode = LIGHT,
   content: @Composable () -> Unit,
 ) {
+  PreviewContextConfigurationEffect()
   CompositionLocalProvider(
     LocalIsPreviewTheme provides true
   ) {

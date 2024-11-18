@@ -11,7 +11,6 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.databasePublic)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.featureFlagPublic)
       }
     }

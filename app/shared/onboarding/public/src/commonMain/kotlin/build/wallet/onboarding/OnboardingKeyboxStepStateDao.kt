@@ -1,6 +1,5 @@
 package build.wallet.onboarding
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -14,7 +13,7 @@ interface OnboardingKeyboxStepStateDao {
   suspend fun setStateForStep(
     step: OnboardingKeyboxStep,
     state: OnboardingKeyboxStepState,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Returns the state for the step as a flow.
@@ -25,5 +24,5 @@ interface OnboardingKeyboxStepStateDao {
   /**
    * Clears all of the stored state
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

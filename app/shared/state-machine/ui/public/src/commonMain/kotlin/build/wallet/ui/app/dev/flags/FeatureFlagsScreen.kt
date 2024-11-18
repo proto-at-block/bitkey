@@ -9,24 +9,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsBodyModel
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.system.BackHandler
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun FeatureFlagsScreen(
@@ -63,38 +55,5 @@ fun FeatureFlagsScreen(
     item {
       ListGroup(model = model.flagsModel)
     }
-  }
-}
-
-@Preview
-@Composable
-internal fun FeatureFlagsScreenPreview() {
-  PreviewWalletTheme {
-    FeatureFlagsScreen(
-      model = FeatureFlagsBodyModel(
-        flagsModel =
-          ListGroupModel(
-            header = null,
-            style = ListGroupStyle.DIVIDER,
-            items =
-              immutableListOf(
-                ListItemModel(
-                  title = "Flag Title",
-                  secondaryText = "Flag Description",
-                  trailingAccessory =
-                    SwitchAccessory(
-                      model =
-                        SwitchModel(
-                          checked = false,
-                          onCheckedChange = {}
-                        )
-                    )
-                )
-              )
-          ),
-        onBack = {},
-        onReset = {}
-      )
-    )
   }
 }

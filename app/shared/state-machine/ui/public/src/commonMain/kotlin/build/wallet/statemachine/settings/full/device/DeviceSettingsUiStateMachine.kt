@@ -1,8 +1,9 @@
 package build.wallet.statemachine.settings.full.device
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 
 /**
  * State machine for showing device information and various actions to take on hardware
@@ -11,12 +12,10 @@ interface DeviceSettingsUiStateMachine : StateMachine<DeviceSettingsProps, Scree
 
 /**
  * Device settings props
- *
- * @property accountData - The current active keybox
- * @property onBack - invoked once a back action has occurred
  */
 data class DeviceSettingsProps(
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
+  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val onBack: () -> Unit,
   val onUnwindToMoneyHome: () -> Unit,
 )

@@ -22,11 +22,14 @@ kotlin {
     }
     commonTest {
       dependencies {
+        // TODO: remove dependency on :impl.
+        implementation(projects.shared.amountImpl) {
+          because("Depends on DoubleFormatterImpl.")
+        }
         implementation(projects.shared.amountFake)
         implementation(projects.shared.accountFake)
         implementation(projects.shared.debugFake)
         implementation(projects.shared.f8eClientFake)
-        implementation(projects.shared.f8eFake)
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.moneyFake)

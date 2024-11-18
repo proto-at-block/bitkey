@@ -2,7 +2,6 @@ package build.wallet.recovery
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbError
 import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import com.github.michaelbull.result.Ok
@@ -15,8 +14,8 @@ class RecoveryDaoMock(
 ) : RecoveryDao {
   var recovery: Recovery = NoActiveRecovery
 
-  override fun activeRecovery(): Flow<Result<Recovery, DbError>> {
-    return MutableStateFlow<Result<Recovery, DbError>>(
+  override fun activeRecovery(): Flow<Result<Recovery, Error>> {
+    return MutableStateFlow<Result<Recovery, Error>>(
       Ok(recovery)
     )
   }
@@ -25,15 +24,15 @@ class RecoveryDaoMock(
 
   override suspend fun setActiveServerRecovery(
     activeServerRecovery: ServerRecovery?,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     setActiveServerRecoveryCalls += Unit
     return Ok(Unit)
   }
 
   var clearCalls = turbine("clear recovery table calls")
-  var clearCallResult: Result<Unit, DbError> = Ok(Unit)
+  var clearCallResult: Result<Unit, Error> = Ok(Unit)
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     return clearCallResult
   }
@@ -42,7 +41,7 @@ class RecoveryDaoMock(
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     setLocalRecoveryProgressCalls += Unit
     return Ok(Unit)
   }

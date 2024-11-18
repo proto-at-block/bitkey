@@ -26,7 +26,9 @@ kotlin {
         api(compose.material)
         api(compose.material3)
         api(compose.components.resources)
-        implementation(compose.components.uiToolingPreview)
+        implementation(libs.kmp.coil.compose)
+        implementation(libs.kmp.coil.svg)
+        implementation(libs.kmp.coil.ktor)
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
         implementation(projects.shared.featureFlagPublic)
@@ -36,8 +38,8 @@ kotlin {
     androidMain {
       dependencies {
         implementation(libs.android.compose.ui.activity)
-        implementation(libs.android.io.coil.compose)
-        implementation(libs.android.io.coil.svg)
+        implementation(libs.android.compose.ui.tooling)
+        implementation(libs.android.compose.ui.tooling.preview)
       }
     }
   }

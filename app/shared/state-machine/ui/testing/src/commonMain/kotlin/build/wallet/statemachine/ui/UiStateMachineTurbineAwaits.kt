@@ -66,7 +66,17 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
 }
 
 inline fun ScreenModel.toSimpleString(): String {
-  return "ScreenModel(${body::class.simpleName}) id=${body.eventTrackerScreenInfo?.eventTrackerScreenId}"
+  return buildString {
+    append("ScreenModel(")
+    val bodyName = body::class.simpleName
+    append("body=$bodyName")
+    // TODO(W-9780): remove this once FormBodyModelImpl is removed.
+    if (bodyName == "FormBodyModelImpl") {
+      // not an exact FormBodyModel type, so add screen ID as a hint
+      append(" id=${body.eventTrackerScreenInfo?.eventTrackerScreenId}")
+    }
+    append(")")
+  }
 }
 
 suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitScreenWithSheetModelBody(

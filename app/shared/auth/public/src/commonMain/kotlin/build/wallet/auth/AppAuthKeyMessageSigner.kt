@@ -1,9 +1,12 @@
 package build.wallet.auth
 
 import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.bitkey.challange.DelayNotifyChallenge
+import build.wallet.bitkey.challange.SignedChallenge.AppSignedChallenge
 import build.wallet.crypto.CurveType
 import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 import okio.ByteString
 
 interface AppAuthKeyMessageSigner {
@@ -16,4 +19,17 @@ interface AppAuthKeyMessageSigner {
     publicKey: PublicKey<T>,
     message: ByteString,
   ): Result<String, Throwable> where T : AppAuthKey, T : CurveType.Secp256K1
+}
+
+/**
+ * Use a message signer to sign a delay/notify challenge.
+ */
+suspend fun <T : AppAuthKey> AppAuthKeyMessageSigner.signChallenge(
+  publicKey: PublicKey<T>,
+  challenge: DelayNotifyChallenge,
+): Result<AppSignedChallenge, Throwable> {
+  return signMessage(
+    publicKey = publicKey,
+    message = challenge.asByteString()
+  ).map { AppSignedChallenge(challenge, it) }
 }

@@ -74,7 +74,6 @@ class SendUiStateMachineImplTests : FunSpec({
           "fee-options"
         ) {},
       exchangeRateService = rateSyncer,
-      clock = clock,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 

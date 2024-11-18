@@ -1,8 +1,8 @@
 package build.wallet.statemachine.recovery.socrec
 
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData
 
 /**
  * State machine for managing Trusted Contacts (syncing/viewing, adding, removing) for
@@ -14,7 +14,7 @@ interface LiteTrustedContactManagementUiStateMachine :
   StateMachine<LiteTrustedContactManagementProps, ScreenModel>
 
 data class LiteTrustedContactManagementProps(
-  val accountData: AccountData.HasActiveLiteAccountData,
+  val account: LiteAccount,
   val acceptInvite: AcceptInvite?,
   val onExit: () -> Unit,
 ) {

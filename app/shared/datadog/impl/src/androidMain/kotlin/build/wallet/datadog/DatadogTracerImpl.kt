@@ -5,7 +5,7 @@ import io.opentracing.propagation.TextMapInject
 import io.opentracing.util.GlobalTracer
 
 class DatadogTracerImpl : DatadogTracer {
-  override fun buildSpan(spanName: String) =
+  override fun buildSpan(spanName: String): DatadogSpan =
     GlobalTracer.get().buildSpan(spanName)
       .start()
       .let(::DatadogSpanImpl)

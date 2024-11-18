@@ -11,7 +11,7 @@ public class FileManagerImpl: Shared.FileManager {
     private let fileManager = FileManager.default
 
     private var applicationFilesDirectory: URL {
-        return URL(fileURLWithPath: fileDirectoryProvider.filesDir())
+        return URL(fileURLWithPath: FileDirectoryProviderKt.filesDir(fileDirectoryProvider))
     }
 
     // MARK: - Life Cycle

@@ -1,22 +1,17 @@
 package build.wallet.functional.statemachine.data.sweep
 
-import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.encrypt.toSecp256k1PublicKey
-import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
-import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.keys.AppKeysGenerator
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
+import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
@@ -36,32 +31,14 @@ import kotlin.time.Duration.Companion.seconds
 class SweepDataStateMachineFunctionalTests : FunSpec() {
   lateinit var app: AppTester
   lateinit var account: FullAccount
-  lateinit var stateMachine: SweepDataStateMachineImpl
-  lateinit var createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
-  lateinit var appKeysGenerator: AppKeysGenerator
-  lateinit var appPrivateKeyDao: AppPrivateKeyDao
-  lateinit var keyboxDao: KeyboxDao
-  lateinit var appSpendingWalletProvider: AppSpendingWalletProvider
+  lateinit var stateMachine: SweepDataStateMachine
 
   init {
     beforeEach {
       app = launchNewApp()
 
       account = app.onboardFullAccountWithFakeHardware()
-      createAccountKeysetF8eClient = app.app.createAccountKeysetF8eClient
-      appKeysGenerator = app.app.appKeysGenerator
-      appPrivateKeyDao = app.app.appComponent.appPrivateKeyDao
-      keyboxDao = app.app.appComponent.keyboxDao
-      appSpendingWalletProvider = app.app.appComponent.appSpendingWalletProvider
-
-      stateMachine = app.app.run {
-        SweepDataStateMachineImpl(
-          sweepService = sweepService,
-          mobilePaySigningF8eClient = appComponent.mobilePaySigningF8eClient,
-          appSpendingWalletProvider = appSpendingWalletProvider,
-          transactionsService = appComponent.transactionsService
-        )
-      }
+      stateMachine = app.sweepDataStateMachine
     }
 
     test("sweep funds for account with no inactive keysets and recovered app key") {
@@ -103,7 +80,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
           // There is a 15 second delay in this code path. Using the test dispatcher skips this delay.
           lostKeyset = createLostHardwareKeyset()
         }
-        val wallet = appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
+        val wallet = app.appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
 
         val funding = app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000))
         println("Funded ${funding.depositAddress.address}")
@@ -146,9 +123,9 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
     val network = app.initialBitcoinNetworkType
     // Since we use mock hardware, a keyset that we've lost hardware for is equivalent to
     // a keyset that we've deleted the private keys for
-    val newKeyBundle = appKeysGenerator.generateKeyBundle(network).getOrThrow()
-    appPrivateKeyDao.remove(newKeyBundle.authKey)
-    appPrivateKeyDao.remove(newKeyBundle.spendingKey)
+    val newKeyBundle = app.appKeysGenerator.generateKeyBundle(network).getOrThrow()
+    app.appPrivateKeyDao.remove(newKeyBundle.authKey)
+    app.appPrivateKeyDao.remove(newKeyBundle.spendingKey)
 
     val hwKeyBundle =
       HwKeyBundle(
@@ -158,10 +135,10 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         networkType = network
       )
 
-    val appKeyBundle = appKeysGenerator.generateKeyBundle(network).getOrThrow()
+    val appKeyBundle = app.appKeysGenerator.generateKeyBundle(network).getOrThrow()
 
     val f8eSpendingKeyset =
-      createAccountKeysetF8eClient
+      app.createAccountKeysetF8eClient
         .createKeyset(
           f8eEnvironment = account.config.f8eEnvironment,
           fullAccountId = account.accountId,
@@ -181,7 +158,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       f8eSpendingKeyset = f8eSpendingKeyset
     )
 
-    keyboxDao.saveKeyboxAsActive(
+    app.keyboxDao.saveKeyboxAsActive(
       account.keybox.copy(inactiveKeysets = (account.keybox.inactiveKeysets + keyset).toImmutableList())
     ).getOrThrow()
     return keyset

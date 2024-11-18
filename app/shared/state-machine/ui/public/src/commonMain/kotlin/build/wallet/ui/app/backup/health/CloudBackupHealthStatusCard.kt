@@ -34,7 +34,6 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.theme.WalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 internal fun CloudBackupHealthStatusCard(model: CloudBackupHealthStatusCardModel) {
@@ -118,62 +117,3 @@ internal val CloudBackupHealthStatusCardModelForPreview =
       ),
     type = CloudBackupHealthStatusCardType.MOBILE_KEY_BACKUP
   )
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusGood() {
-  CloudBackupHealthStatusCard(
-    model =
-      CloudBackupHealthStatusCardModelForPreview.copy(
-        backupStatusActionButton = null,
-        toolbarModel = null
-      )
-  )
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusError() {
-  CloudBackupHealthStatusCard(
-    model = CloudBackupHealthStatusCardModelForPreview.copy(
-      toolbarModel = null,
-      backupStatus = ListItemModel(
-        title = "Problem with Google account access",
-        trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
-      )
-    )
-  )
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusEAKGood() {
-  CloudBackupHealthStatusCard(
-    model =
-      CloudBackupHealthStatusCardModelForPreview.copy(
-        backupStatusActionButton = null
-      )
-  )
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthStatusEAKError() {
-  CloudBackupHealthStatusCard(
-    model =
-      CloudBackupHealthStatusCardModelForPreview.copy(
-        backupStatusActionButton =
-          ButtonModel(
-            text = "Back up now",
-            size = Footer,
-            treatment = ButtonModel.Treatment.Primary,
-            onClick = StandardClick {}
-          ),
-        backupStatus = ListItemModel(
-          title = "Problem with Google account access",
-          trailingAccessory = ListItemAccessory.IconAccessory(Icon.SmallIconWarning)
-        ),
-        type = CloudBackupHealthStatusCardType.EAK_BACKUP
-      )
-  )
-}

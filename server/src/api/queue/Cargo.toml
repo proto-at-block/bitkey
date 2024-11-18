@@ -16,3 +16,6 @@ tracing = { workspace = true }
 
 # path dependencies
 errors = { workspace = true }
+
+[lints]
+workspace = true

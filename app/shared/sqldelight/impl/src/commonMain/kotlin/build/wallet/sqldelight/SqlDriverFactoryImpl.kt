@@ -1,5 +1,8 @@
 package build.wallet.sqldelight
 
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
@@ -14,7 +17,12 @@ expect class SqlDriverFactoryImpl(
   uuidGenerator: UuidGenerator,
   appVariant: AppVariant,
   databaseIntegrityChecker: DatabaseIntegrityChecker,
-) : SqlDriverFactory
+) : SqlDriverFactory {
+  override fun createDriver(
+    dataBaseName: String,
+    dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
+  ): SqlDriver
+}
 
 // TODO(W-5766): remove runBlocking
 @Suppress("ForbiddenMethodCall")
@@ -32,7 +40,8 @@ internal fun loadDbKey(
     val databaseEncryptionKey = suspendSettings.getStringOrNull("db-key")
 
     // Ensure the database file and encryption keys are in an expected state.
-    val isValid = databaseIntegrityChecker.purgeDatabaseStateIfInvalid(databaseEncryptionKey = databaseEncryptionKey)
+    val isValid =
+      databaseIntegrityChecker.purgeDatabaseStateIfInvalid(databaseEncryptionKey = databaseEncryptionKey)
 
     if (isValid && databaseEncryptionKey != null) {
       // If we already have a db key, we're guaranteed to be in a valid state, just return the

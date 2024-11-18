@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-auth-iosx64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-auth-iosx64-2.3.11-metadata.jar": "65f33000f0fe629381a4caf9143f07f48f0a42d3a2b735e39ee02a87122d6ac3"
+                        "ktor-client-auth-iosx64-2.3.12-metadata.jar": "b052b414c6b5562ce182cb45082757dd3be91b10f53d4f33b48c735ec40a0991"
                     }
                 },
                 {

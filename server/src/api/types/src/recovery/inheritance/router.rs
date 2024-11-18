@@ -47,12 +47,18 @@ pub struct BenefactorInheritanceClaimViewLocked {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+pub struct BenefactorInheritanceClaimViewCompleted {
+    #[serde(flatten)]
+    pub common_fields: InheritanceClaimViewCommonFields,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
 pub struct BeneficiaryInheritanceClaimViewPending {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimViewCommonFields,
     #[serde(flatten)]
     pub pending_common_fields: InheritanceClaimViewPendingCommonFields,
-    pub destination: Option<()>, // TODO: fix after W-9368
     pub auth_keys: InheritanceClaimAuthKeys,
 }
 
@@ -74,11 +80,20 @@ pub struct BeneficiaryInheritanceClaimViewLocked {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct BeneficiaryInheritanceClaimViewCompleted {
+    #[serde(flatten)]
+    pub common_fields: InheritanceClaimViewCommonFields,
+    pub psbt: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum BenefactorInheritanceClaimView {
     Pending(BenefactorInheritanceClaimViewPending),
     Canceled(BenefactorInheritanceClaimViewCanceled),
     Locked(BenefactorInheritanceClaimViewLocked),
+    Completed(BenefactorInheritanceClaimViewCompleted),
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -87,6 +102,7 @@ pub enum BeneficiaryInheritanceClaimView {
     Pending(BeneficiaryInheritanceClaimViewPending),
     Canceled(BeneficiaryInheritanceClaimViewCanceled),
     Locked(BeneficiaryInheritanceClaimViewLocked),
+    Completed(BeneficiaryInheritanceClaimViewCompleted),
 }
 
 impl From<InheritanceClaim> for BenefactorInheritanceClaimView {
@@ -120,6 +136,14 @@ impl From<InheritanceClaim> for BenefactorInheritanceClaimView {
                     },
                 })
             }
+            InheritanceClaim::Completed(completed) => {
+                BenefactorInheritanceClaimView::Completed(BenefactorInheritanceClaimViewCompleted {
+                    common_fields: InheritanceClaimViewCommonFields {
+                        id: completed.common_fields.id,
+                        recovery_relationship_id: completed.common_fields.recovery_relationship_id,
+                    },
+                })
+            }
         }
     }
 }
@@ -138,7 +162,6 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                         delay_start_time: pending.common_fields.created_at,
                         delay_end_time: pending.delay_end_time,
                     },
-                    destination: None, // TODO: fix after W-9368
                 })
             }
             InheritanceClaim::Canceled(canceled) => {
@@ -160,6 +183,15 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                     benefactor_descriptor_keyset: locked.benefactor_descriptor_keyset,
                 })
             }
+            InheritanceClaim::Completed(completed) => BeneficiaryInheritanceClaimView::Completed(
+                BeneficiaryInheritanceClaimViewCompleted {
+                    common_fields: InheritanceClaimViewCommonFields {
+                        id: completed.common_fields.id,
+                        recovery_relationship_id: completed.common_fields.recovery_relationship_id,
+                    },
+                    psbt: completed.psbt.to_string(),
+                },
+            ),
         }
     }
 }

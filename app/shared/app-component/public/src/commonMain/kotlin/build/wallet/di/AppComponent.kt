@@ -9,6 +9,7 @@ import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokensRepository
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.F8eAuthSignatureStatusProvider
+import build.wallet.availability.F8eNetworkReachabilityService
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkDescriptorSecretKeyGenerator
@@ -51,6 +52,7 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.*
 import build.wallet.firmware.*
+import build.wallet.frost.ShareGeneratorFactory
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
@@ -63,7 +65,6 @@ import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
-import build.wallet.ktor.result.client.KtorLogLevelPolicy
 import build.wallet.limit.MobilePayService
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStore
@@ -79,12 +80,13 @@ import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.notifications.NotificationTouchpointService
-import build.wallet.notifications.RegisterWatchAddressContext
+import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
 import build.wallet.phonenumber.PhoneNumberValidator
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
@@ -99,8 +101,6 @@ import build.wallet.platform.settings.LocaleCurrencyCodeProvider
 import build.wallet.platform.settings.LocaleLanguageCodeProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.pricechart.BitcoinPriceCardPreference
-import build.wallet.queueprocessor.PeriodicProcessor
-import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.*
 import build.wallet.relationships.*
@@ -116,11 +116,10 @@ import kotlin.time.Duration
 interface AppComponent {
   val accountAuthenticator: AccountAuthenticator
   val accountService: AccountService
-  val allFeatureFlags: List<FeatureFlag<*>>
-  val allRemoteFeatureFlags: List<FeatureFlag<*>>
+  val featureFlags: List<FeatureFlag<*>>
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
   val appFunctionalityService: AppFunctionalityService
-  val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>
+  val registerWatchAddressPeriodicProcessor: RegisterWatchAddressPeriodicProcessor
   val appWorkerExecutor: AppWorkerExecutor
   val authF8eClient: AuthF8eClient
   val authTokensRepository: AuthTokensRepository
@@ -133,7 +132,7 @@ interface AppComponent {
   val appSpendingWalletProvider: AppSpendingWalletProvider
   val keysetWalletProvider: KeysetWalletProvider
   val appVariant: AppVariant
-  val appVersion: String
+  val appVersion: AppVersion
   val authTokenDao: AuthTokenDao
   val bdkAddressBuilder: BdkAddressBuilder
   val bdkBlockchainProvider: BdkBlockchainProvider
@@ -185,7 +184,6 @@ interface AppComponent {
   val featureFlagsF8eClient: FeatureFlagsF8eClient
   val keyboxDao: KeyboxDao
   val keyValueStoreFactory: KeyValueStoreFactory
-  val ktorLogLevelPolicy: KtorLogLevelPolicy
   val listKeysetsF8eClient: ListKeysetsF8eClient
   val localeCountryCodeProvider: LocaleCountryCodeProvider
   val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider
@@ -201,6 +199,7 @@ interface AppComponent {
   val symmetricKeyEncryptor: SymmetricKeyEncryptor
   val symmetricKeyGenerator: SymmetricKeyGenerator
   val networkingDebugService: NetworkingDebugService
+  val f8eNetworkReachabilityService: F8eNetworkReachabilityService
   val networkReachabilityProvider: NetworkReachabilityProvider
   val notificationTouchpointDao: NotificationTouchpointDao
   val notificationTouchpointF8eClient: NotificationTouchpointF8eClient
@@ -209,9 +208,9 @@ interface AppComponent {
   val haptics: Haptics
   val nfcHaptics: NfcHaptics
   val osVersionInfoProvider: OsVersionInfoProvider
-  val periodicEventProcessor: PeriodicProcessor
-  val periodicFirmwareCoredumpProcessor: PeriodicProcessor
-  val periodicFirmwareTelemetryEventProcessor: PeriodicProcessor
+  val analyticsEventPeriodicProcessor: AnalyticsEventPeriodicProcessor
+  val periodicFirmwareCoredumpProcessor: FirmwareCoredumpEventPeriodicProcessor
+  val periodicFirmwareTelemetryEventProcessor: FirmwareTelemetryEventPeriodicProcessor
   val permissionChecker: PermissionChecker
   val phoneNumberLibBindings: PhoneNumberLibBindings
   val platformContext: PlatformContext
@@ -255,6 +254,7 @@ interface AppComponent {
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
   val inheritanceFeatureFlag: InheritanceFeatureFlag
+  val expectedTransactionsPhase2FeatureFlag: ExpectedTransactionsPhase2FeatureFlag
   val biometricPreference: BiometricPreference
   val bitcoinPriceCardPreference: BitcoinPriceCardPreference
   val transactionsService: TransactionsService
@@ -271,4 +271,8 @@ interface AppComponent {
   val databaseIntegrityChecker: DatabaseIntegrityChecker
   val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag
   val mobilePaySigningF8eClient: MobilePaySigningF8eClient
+  val shareGeneratorFactory: ShareGeneratorFactory
+  val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag
+  val sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag
+  val sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag
 }

@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-events",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-events-metadata-2.3.11.jar": "a9f4e2bd6ec02ebb79a6b39c104afefa4dbcd4803bb9fad5d9ed57093457f06d"
+                        "ktor-events-metadata-2.3.12.jar": "75076f6def7f570946916998330d27dbc3af7617cecb25d1657c9a0d42901604"
                     }
                 }
             ],

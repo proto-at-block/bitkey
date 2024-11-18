@@ -1,6 +1,5 @@
 package build.wallet.money.exchange
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -13,7 +12,7 @@ class ExchangeRateDaoFake : ExchangeRateDao {
 
   var allExchangeRates = MutableStateFlow<List<ExchangeRate>>(emptyList())
 
-  override suspend fun storeExchangeRate(exchangeRate: ExchangeRate): Result<Unit, DbError> {
+  override suspend fun storeExchangeRate(exchangeRate: ExchangeRate): Result<Unit, Error> {
     // if the exchange rate for the same currency pair already exists, update it
     // otherwise, add it to the list
     allExchangeRates.update { currentRates ->
@@ -32,7 +31,7 @@ class ExchangeRateDaoFake : ExchangeRateDao {
   override suspend fun storeHistoricalExchangeRate(
     exchangeRate: ExchangeRate,
     atTime: Instant,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     // if the exchange rate for the same currency pair and time already exists, update it
     // otherwise, add it to the list
     historicalExchangeRates.update { currentRates ->

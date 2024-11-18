@@ -43,7 +43,8 @@ extension EmergencyAccessKitPdfGeneratorImpl {
                 platformContext: PlatformContext()
             ),
             backupDateProvider: EmergencyAccessKitBackupDateProviderFake(),
-            dateTimeFormatter: DateTimeFormatterImpl()
+            dateTimeFormatter: DateTimeFormatterImpl(),
+            qrCodeGenerator: EmergencyAccessKitQrCodeGeneratorImpl()
         )
     }
 

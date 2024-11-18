@@ -3,31 +3,37 @@ import Foundation
 import Shared
 
 public class ShareGeneratorImpl: Shared.ShareGenerator {
-    private let coreShareGenerator: core.ShareGenerator
+    private let coreShareGenerator: core.ShareGenerator = .init()
 
-    public init(coreShareGenerator: core.ShareGenerator) {
-        self.coreShareGenerator = coreShareGenerator
-    }
-
-    public func generate() -> KeygenResult<Shared.SharePackage> {
+    public func generate() -> KeygenResult<Shared.SealedRequest> {
         return KeygenResult {
-            try SharePackageImpl(coreSharePackage: coreShareGenerator.generate())
+            try SealedRequest(value: coreShareGenerator.generate())
         }
     }
 
     public func aggregate(
-        peerSharePackage: Shared.SharePackage,
-        peerKeyCommitments: Shared.KeyCommitments
+        sealedRequest: Shared.SealedRequest
     ) -> KeygenResult<Shared.ShareDetails> {
-        let peerSharePackage = peerSharePackage as! SharePackageImpl
-        let peerKeyCommitments = peerKeyCommitments as! KeyCommitmentsImpl
-
         return KeygenResult {
             try ShareDetailsImpl(
                 coreShareDetails: coreShareGenerator.aggregate(
-                    peerSharePackage: peerSharePackage.coreSharePackage,
-                    peerKeyCommitments: peerKeyCommitments.coreKeyCommitments
+                    sealedResponse: sealedRequest.value
                 )
+            )
+        }
+    }
+
+    public func encode(
+        shareDetails: Shared.ShareDetails
+    ) -> KeygenResult<Shared.SealedRequest> {
+        let realShareDetails = shareDetails as! ShareDetailsImpl
+        return KeygenResult {
+            try SealedRequest(
+                value: coreShareGenerator
+                    .encodeCompleteDistributionRequest(
+                        shareDetails: realShareDetails
+                            .coreShareDetails
+                    )
             )
         }
     }

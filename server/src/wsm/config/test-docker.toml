@@ -1,6 +1,7 @@
 address = "0.0.0.0"
 cmkId = "fake"
 customerKeysTableName = "wsm_customer_keys"
+customerKeySharesTableName = "wsm_customer_key_shares"
 dekTableName = "wsm_deks"
 dynamodbEndpoint = "http://dynamodb:8000"
 enclaveEndpoint = "http://wsm-enclave:8080"

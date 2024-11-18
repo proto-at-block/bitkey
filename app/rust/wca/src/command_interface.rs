@@ -44,16 +44,35 @@ pub trait Command<T, E> {
 macro_rules! command {
     ($struct_name:ident = $generator_name:ident -> $generator_return_type:ty) => {
         pub struct $struct_name {
-            _lock: std::sync::RwLock<Vec<Vec<u8>>>,
+            is_first_call: std::sync::atomic::AtomicBool,
         }
 
         impl $struct_name {
             pub fn new() -> Self {
-                Self { _lock: Default::default() }
+                // New is called when the command is created, so is_first_call is reset to true on creation.
+                Self {
+                    is_first_call: std::sync::atomic::AtomicBool::new(true),
+                }
             }
 
-            fn generator(&self) -> $crate::command_interface::CommandFn<$generator_return_type, CommandError> {
-                next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ())
+            fn generator<'a>(&self) -> &'a mut Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> {
+                static mut GENERATOR: Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> = None;
+                // We have to use unsafe because of Cell<TransferBox> (https://docs.rs/next-gen/latest/src/next_gen/generator_fn.rs.html#88)
+                // and Cell is !Sync https://doc.rust-lang.org/std/cell/struct.Cell.html#impl-Sync-for-Cell%3CT%3E
+                // However, this is safe in practice AS LONG AS a command is only used by one thread at a time and NOT moved
+                // across threads.
+                unsafe {
+                    // Reset generator if it's the first call
+                    if self.is_first_call.swap(false, std::sync::atomic::Ordering::SeqCst) {  // Swap to false, and if it was true, reset the generator
+                        GENERATOR = None;
+                    }
+
+                    if GENERATOR.is_none() {
+                        // Create the generator when it's not already set
+                        GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ()));
+                    }
+                    &mut GENERATOR
+                }
             }
         }
 
@@ -70,17 +89,32 @@ macro_rules! command {
 
     ($struct_name:ident = $generator_name:ident -> $generator_return_type:ty, $($argname:ident: $type:ty),*) => {
         pub struct $struct_name {
-            _lock: std::sync::RwLock<Vec<Vec<u8>>>,
-            $( $argname: $type ),*
+            $( $argname: $type, )*
+            is_first_call: std::sync::atomic::AtomicBool,  // Track first call with AtomicBool
         }
 
         impl $struct_name {
             pub fn new($($argname: $type),*) -> Self {
-                Self { _lock: Default::default(), $($argname),* }
+                Self {
+                    $( $argname ),*,
+                    is_first_call: std::sync::atomic::AtomicBool::new(true),
+                }
             }
 
-            fn generator(&self) -> $crate::command_interface::CommandFn<$generator_return_type, CommandError> {
-                next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ($(self.$argname.to_owned()),*,))
+            fn generator<'a>(&self) -> &'a mut Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> {
+                static mut GENERATOR: Option<$crate::command_interface::CommandFn<$generator_return_type, CommandError>> = None;
+                unsafe {
+                    // Reset generator if it's the first call
+                    if self.is_first_call.swap(false, std::sync::atomic::Ordering::SeqCst) {
+                        GENERATOR = None;
+                    }
+
+                    if GENERATOR.is_none() {
+                        // Create the generator with arguments when it's not already set
+                        GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ($(self.$argname.to_owned()),*,)));
+                    }
+                    &mut GENERATOR
+                }
             }
         }
 
@@ -91,18 +125,29 @@ macro_rules! command {
 
     (next_impl $generator_return_type:ty) => {
         fn next(&self, response: Vec<u8>) -> std::result::Result<$crate::command_interface::State<$generator_return_type>, $crate::errors::CommandError> {
-            let mut generator = self.generator();
-            let mut responses = self._lock.write()?;
-            for input in responses.iter() {
-                generator.as_mut().resume(input.to_owned());
-            }
-
-            responses.push(response.clone());
-            let response = generator.as_mut().resume(response);
+            // Acquire the statically allocated generator. We statically allocate here to to ensure that the generator's state
+            // is preserved across calls to next.
+            // Previously, this code created a new generator per call to next, and we cached the responses from the generator, and
+            // then replayed them into the generator with resume. The code was like this:
+            //      let mut generator = self.generator();
+            //      let mut responses = self._lock.write()?;
+            //      for input in responses.iter() {
+            //          generator.as_mut().resume(input.to_owned());
+            //      }
+            //      responses.push(response.clone());
+            //      let response = generator.as_mut().resume(response);
+            //
+            // This was problematic: the call to `call_boxed()` invokes the generator function, for example `sign_transaction()`.
+            // If that function had side effects, then those re-evaluated lines of code would trigger them multiple times.
+            // This didn't cause any problems because the generator functions were pure, but it was easy to misuse.
+            let generator_opt = self.generator();
+            let response = generator_opt.as_mut().expect("generator must be set").as_mut().resume(response);
 
             match response {
                 next_gen::generator::GeneratorState::Yielded(response) => Ok($crate::command_interface::State::Data { response }),
-                next_gen::generator::GeneratorState::Returned(value) => Ok($crate::command_interface::State::Result { value: value? }),
+                next_gen::generator::GeneratorState::Returned(value) => {
+                    Ok($crate::command_interface::State::Result { value: value? })
+                }
             }
         }
     };

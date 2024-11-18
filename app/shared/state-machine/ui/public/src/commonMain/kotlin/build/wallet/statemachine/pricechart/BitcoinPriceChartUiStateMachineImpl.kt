@@ -13,7 +13,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.pricechart.*
-import build.wallet.pricechart.DataPoint
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
@@ -26,7 +25,9 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.*
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -98,7 +99,7 @@ class BitcoinPriceChartUiStateMachineImpl(
       }
 
       chartDataFetcherService.getChartData(
-        fullAccountId = props.fullAccountId,
+        accountId = props.accountId,
         f8eEnvironment = props.f8eEnvironment,
         chartHistory = selectedHistory
       ).onSuccess { chartData ->

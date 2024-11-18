@@ -11,17 +11,17 @@ import io.kotest.core.spec.style.FunSpec
 
 class CreateSoftwareWalletServiceComponentTests : FunSpec({
 
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
   lateinit var service: CreateSoftwareWalletService
 
   beforeTest {
-    appTester = launchNewApp()
-    service = appTester.app.createSoftwareWalletService
+    app = launchNewApp()
+    service = app.createSoftwareWalletService
   }
 
   context("happy path") {
     xtest("successfully create software account") {
-      appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
+      app.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
 
       service.createAccount().shouldBeOkOfType<SoftwareAccount>()
     }
@@ -30,13 +30,13 @@ class CreateSoftwareWalletServiceComponentTests : FunSpec({
   context("unhappy path") {
 
     test("workflow fails when an account already exists") {
-      appTester.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
 
       service.createAccount().shouldBeErrOfType<Error>()
     }
 
     test("workflow fails when feature flag is disabled") {
-      appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag.setFlagValue(false)
+      app.softwareWalletIsEnabledFeatureFlag.setFlagValue(false)
 
       service.createAccount().shouldBeErrOfType<Error>()
     }

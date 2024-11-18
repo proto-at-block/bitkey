@@ -49,7 +49,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val getPurchaseOptionsF8eClient: GetPurchaseOptionsF8eClient,
   private val getPurchaseQuoteListF8eClient: GetPurchaseQuoteListF8eClient,
   private val getPurchaseRedirectF8eClient: GetPurchaseRedirectF8eClient,
-  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val eventTracker: EventTracker,
   private val exchangeRateService: ExchangeRateService,
@@ -148,7 +148,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
         }
         return selectPartnerQuoteModel(
           title = "Purchase ${moneyDisplayFormatter.format(currentState.amount)}",
-          subTitle = "Offers show amount you'll receive after exchange fees. Bitkey does not charge a fee.",
+          subTitle = "Offers show the amount you'll receive after exchange fees. Bitkey does not charge a fee.",
           quotes = currentState.quotes.map {
             it.toQuoteDisplay(moneyDisplayFormatter, exchangeRates, currencyConverter)
           }.toImmutableList(),
@@ -188,7 +188,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
                   amount = currentState.amount,
                   paymentMethod = SUPPORTED_PAYMENT_METHOD,
                   quotes = it.quoteList.toImmutableList(),
-                  previousPartnerIds = partnershipsRepository.previouslyUsedPartnerIds.first()
+                  previousPartnerIds = partnershipTransactionsService.previouslyUsedPartnerIds.first()
                 )
             }
         }
@@ -210,7 +210,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
           coroutineBinding {
             val result = fetchRedirectInfo(props, currentState).bind()
 
-            val localTransaction = partnershipsRepository.create(
+            val localTransaction = partnershipTransactionsService.create(
               partnerInfo = currentState.quote.partnerInfo,
               type = PartnershipTransactionType.PURCHASE,
               id = result.redirectInfo.partnerTransactionId
@@ -257,7 +257,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
     redirectLoadingState: RedirectState.Loading,
   ): Result<GetPurchaseRedirectF8eClient.Success, Throwable> =
     coroutineBinding {
-      bitcoinAddressService.generateAddress(props.account)
+      bitcoinAddressService.generateAddress()
         .flatMap { address ->
           getPurchaseRedirectF8eClient.purchaseRedirect(
             fullAccountId = props.keybox.fullAccountId,

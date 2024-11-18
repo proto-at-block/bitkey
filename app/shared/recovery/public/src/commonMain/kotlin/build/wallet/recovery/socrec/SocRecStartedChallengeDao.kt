@@ -1,6 +1,5 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 
 /**
@@ -10,15 +9,15 @@ interface SocRecStartedChallengeDao {
   /**
    * Get the ID of an in-progress local social challenge, if any.
    */
-  suspend fun get(): Result<String?, DbError>
+  suspend fun get(): Result<String?, Error>
 
   /**
    * Save a social challenge as pending.
    */
-  suspend fun set(challengeId: String): Result<Unit, DbError>
+  suspend fun set(challengeId: String): Result<Unit, Error>
 
   /**
    * Remove any pending social challenge.
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

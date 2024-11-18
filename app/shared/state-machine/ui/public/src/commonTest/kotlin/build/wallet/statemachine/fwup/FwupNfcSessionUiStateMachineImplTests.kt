@@ -40,7 +40,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       delayer = ControlledDelayer(),
       fwupProgressCalculator = FwupProgressCalculatorMock(),
       deviceInfoProvider = deviceInfoProvider,
-      nfcReaderCapabilityProvider = NfcReaderCapabilityProviderMock(),
+      nfcReaderCapability = NfcReaderCapabilityMock(),
       nfcTransactor = nfcTransactor,
       fwupDataDao = fwupDataDao,
       firmwareDataService = firmwareDataService

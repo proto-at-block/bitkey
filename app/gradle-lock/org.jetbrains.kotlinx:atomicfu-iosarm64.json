@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.kotlinx:atomicfu-iosarm64",
     "components": [
         {
-            "version": "0.24.0",
+            "version": "0.25.0",
             "variants": [
                 {
                     "artifacts": {
-                        "atomicfu-cinterop-interop.klib": "3aab42fdbce0d45819ddbcf9b6b3cb67040178f885f88ecb71c69c715d5e3263",
-                        "atomicfu.klib": "b9158eeebb2d256352dfd1a006bd4ddab887d938a162101fc9d00e175e4864e5"
+                        "atomicfu-cinterop-interop.klib": "c7e5c73e50429307c9df55097ad7f7ac342ef0814b8020d5936701b7a527035e",
+                        "atomicfu.klib": "9c6a8a609c7988c78bc72bca7851a55aa57cb93b3a56319f606a7e6217dbf820"
                     }
                 },
                 {
                     "artifacts": {
-                        "atomicfu-iosarm64-0.24.0-metadata.jar": "f283012ac593ee0a20291b34bbe235cdb8608a91bac403db748cb2ddadd797e4"
+                        "atomicfu-iosarm64-0.25.0-metadata.jar": "41df577af2aed17334e62ba511fd461a5cf5c19e064ccc41be446b92548d0309"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-core",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-core-metadata-5.9.0.jar": "fae589f48e61b3bba2687bef31b6e77aed898ba76cc05537add150ee94ac9a46"
+                        "kotest-assertions-core-metadata-6.0.0.M1.jar": "b69e83a4476cf75e5c1a4d50e684d9f4162ed10802fad7b0aa8632da8595a157"
                     }
                 }
             ],

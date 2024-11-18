@@ -28,7 +28,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
   val privateKeyDao = AppPrivateKeyDaoFake()
   val crypto = RelationshipsCryptoFake()
   val inheritanceRelationshipsProvider = InheritanceRelationshipsProviderFake()
-  val creator = InheritanceMaterialCreatorImpl(
+  val creator = InheritanceCryptoImpl(
     appPrivateKeyDao = privateKeyDao,
     relationships = inheritanceRelationshipsProvider,
     crypto = crypto
@@ -113,7 +113,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
         return Err(error)
       }
     }
-    val testCreator = InheritanceMaterialCreatorImpl(
+    val testCreator = InheritanceCryptoImpl(
       appPrivateKeyDao = privateKeyDao,
       relationships = inheritanceRelationshipsProvider,
       crypto = failingCrypto

@@ -13,11 +13,5 @@ kotlin {
         api(projects.shared.platformPublic)
       }
     }
-
-    commonTest {
-      dependencies {
-        api(projects.shared.platformFake)
-      }
-    }
   }
 }

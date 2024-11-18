@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcutil-jdk18on",
+    "components": [
+        {
+            "version": "1.77",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcutil-jdk18on-1.77.jar": "947673bcbc5a8dde2d2fa688a5b7598d0ca6e2a74a7ea30cd93f04f6b3ad68f8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

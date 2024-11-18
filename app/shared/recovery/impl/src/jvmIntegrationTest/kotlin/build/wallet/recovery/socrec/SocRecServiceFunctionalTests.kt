@@ -31,11 +31,11 @@ class SocRecServiceFunctionalTests : FunSpec({
     val (inviteCode, tcInvitation) = customerApp.createTcInvite(tcName = tcName)
 
     backgroundScope.launch {
-      customerApp.app.appComponent.appWorkerExecutor.executeAll()
+      customerApp.appWorkerExecutor.executeAll()
     }
 
     // Protected Customer sees pending TC invitation
-    customerApp.app.appComponent.socRecService.socRecRelationships.test {
+    customerApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.invitations.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleInvitation {
@@ -50,11 +50,11 @@ class SocRecServiceFunctionalTests : FunSpec({
     tcApp.onboardLiteAccountFromInvitation(inviteCode, customerName)
 
     backgroundScope.launch {
-      tcApp.app.appComponent.appWorkerExecutor.executeAll()
+      tcApp.appWorkerExecutor.executeAll()
     }
 
     // Trusted Contact sees Protected Customer
-    tcApp.app.appComponent.socRecService.socRecRelationships.test {
+    tcApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.protectedCustomers.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleProtectedCustomer {
@@ -69,7 +69,7 @@ class SocRecServiceFunctionalTests : FunSpec({
     @Suppress("UNREACHABLE_CODE")
 
     // Protected Customer sees Trusted Contact, no longer pending
-    customerApp.app.appComponent.socRecService.socRecRelationships.test {
+    customerApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.endorsedTrustedContacts.isNotEmpty() }.run {
         shouldNotBeNull()
         shouldOnlyHaveSingleEndorsedTrustedContact {

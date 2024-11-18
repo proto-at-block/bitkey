@@ -30,3 +30,6 @@ futures-util = { version = "0.3", default-features = false, features = ["io"] }
 isahc = "1.4"
 opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
 opentelemetry_sdk = { version = "0.21.2", features = ["testing", "trace"] }
+
+[lints]
+workspace = true

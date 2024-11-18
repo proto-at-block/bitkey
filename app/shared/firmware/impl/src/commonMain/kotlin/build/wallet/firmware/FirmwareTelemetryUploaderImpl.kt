@@ -1,16 +1,17 @@
 package build.wallet.firmware
 
-import build.wallet.coroutines.scopes.CoroutineScopes
 import build.wallet.logging.log
-import build.wallet.queueprocessor.Processor
+import build.wallet.queueprocessor.process
 import build.wallet.toByteString
 import build.wallet.toUByteList
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import okio.ByteString
 
 class FirmwareTelemetryUploaderImpl(
-  private val firmwareCoredumpProcessor: Processor<FirmwareCoredump>,
-  private val firmwareTelemetryProcessor: Processor<FirmwareTelemetryEvent>,
+  private val appCoroutineScope: CoroutineScope,
+  private val firmwareCoredumpProcessor: FirmwareCoredumpEventProcessor,
+  private val firmwareTelemetryProcessor: FirmwareTelemetryEventProcessor,
   private val teltra: Teltra,
 ) : FirmwareTelemetryUploader {
   private val oldCoredumpSize: Int = 4096
@@ -25,7 +26,7 @@ class FirmwareTelemetryUploaderImpl(
       return
     }
 
-    CoroutineScopes.AppScope.launch {
+    appCoroutineScope.launch {
       val translated =
         teltra.translateBitlogs(eventsBytes.toUByteList(), identifiers)
       if (translated.isEmpty()) {
@@ -52,7 +53,7 @@ class FirmwareTelemetryUploaderImpl(
       log { "Rejecting invalid coredump (${coredump.size} bytes)" }
       return
     }
-    CoroutineScopes.AppScope.launch {
+    appCoroutineScope.launch {
       firmwareCoredumpProcessor.process(FirmwareCoredump(coredump, identifiers))
     }
   }

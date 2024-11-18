@@ -1,7 +1,6 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
@@ -38,19 +37,17 @@ interface RecoverySyncer {
    * A flow that emits whenever the recovery status changes. This could be an advancement
    * of a local recovery to a new phase, or entering a state where our local recovery attempt.
    */
-  fun recoveryStatus(): Flow<Result<Recovery, DbError>>
+  fun recoveryStatus(): Flow<Result<Recovery, Error>>
 
   /**
    * Clears server and local recovery db states.
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 
   /**
    * Moves a local recovery along the completion path by specifying the relevant progress made on it.
    */
-  suspend fun setLocalRecoveryProgress(
-    progress: LocalRecoveryAttemptProgress,
-  ): Result<Unit, DbError>
+  suspend fun setLocalRecoveryProgress(progress: LocalRecoveryAttemptProgress): Result<Unit, Error>
 
   /**
    * Represents an error with the Syncing process
@@ -59,7 +56,7 @@ interface RecoverySyncer {
     /**
      * Error if we can't read/write from the Database.
      */
-    data class SyncDbError(val error: DbError) : SyncError()
+    data class SyncDbError(val error: Error) : SyncError()
 
     /**
      * Error if we cannot fetch the recovery from the server

@@ -35,9 +35,9 @@ class MobilePayE2ETests : FunSpec({
     test("set mobile pay") {
       val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
-      app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(false)
+      app.mobilePayRevampFeatureFlag.setFlagValue(false)
 
-      app.app.appUiStateMachine.test(Unit) {
+      app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
@@ -86,10 +86,10 @@ class MobilePayE2ETests : FunSpec({
     test("entry should be pre-populated") {
       val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
-      app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(false)
+      app.mobilePayRevampFeatureFlag.setFlagValue(false)
       app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
-      app.app.appUiStateMachine.test(Unit) {
+      app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
@@ -122,9 +122,9 @@ class MobilePayE2ETests : FunSpec({
     test("set mobile pay") {
       val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
-      app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(true)
+      app.mobilePayRevampFeatureFlag.setFlagValue(true)
 
-      app.app.appUiStateMachine.test(Unit) {
+      app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
@@ -181,10 +181,10 @@ class MobilePayE2ETests : FunSpec({
     test("entry should be pre-populated") {
       val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
-      app.app.appComponent.mobilePayRevampFeatureFlag.setFlagValue(true)
+      app.mobilePayRevampFeatureFlag.setFlagValue(true)
       app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
-      app.app.appUiStateMachine.test(Unit) {
+      app.appUiStateMachine.test(Unit) {
         awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }

@@ -39,21 +39,21 @@ import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec() {
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
 
   init {
     beforeEach {
-      appTester = launchNewApp()
+      app = launchNewApp()
 
       // Set push notifications to authorized to enable us to successfully advance through
       // the notifications step in onboarding.
-      appTester.app.appComponent.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
+      app.pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
         PermissionStatus.Authorized
       )
     }
 
     test("happy path through create and then onboard and activate keybox") {
-      appTester.app.appUiStateMachine.test(
+      app.appUiStateMachine.test(
         Unit,
         useVirtualTime = false,
         testTimeout = 60.seconds,
@@ -90,15 +90,15 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec() {
     stepsToAdvance: List<OnboardingKeyboxStep>,
     screenIdExpectation: EventTrackerScreenId,
   ) {
-    appTester.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(stepsToAdvance)
       awaitUntilScreenWithBody<T>(screenIdExpectation)
       cancelAndIgnoreRemainingEvents()
     }
 
-    val newAppTester = appTester.relaunchApp()
-    newAppTester.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    val newApp = app.relaunchApp()
+    newApp.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<T>(screenIdExpectation)
       cancelAndIgnoreRemainingEvents()
     }

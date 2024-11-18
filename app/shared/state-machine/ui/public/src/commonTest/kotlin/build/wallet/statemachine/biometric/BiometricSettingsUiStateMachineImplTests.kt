@@ -246,9 +246,6 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
         coachmarkService.turbine.awaitItem().shouldBe(CoachmarkIdentifier.BiometricUnlockCoachmark)
       }
-
-      // coachmark is now hidden and marked
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel>()
     }
   }
 })

@@ -37,8 +37,9 @@ import build.wallet.email.EmailValidatorImpl
 import build.wallet.emergencyaccesskit.*
 import build.wallet.f8e.configuration.GetBdkConfigurationF8eClientImpl
 import build.wallet.f8e.demo.DemoModeF8eClientImpl
+import build.wallet.f8e.notifications.TestNotificationF8eClientImpl
 import build.wallet.f8e.onboarding.*
-import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClientImpl
+import build.wallet.f8e.onboarding.frost.ActivateSpendingKeyF8eClientImpl
 import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClientImpl
 import build.wallet.f8e.onboarding.frost.InitiateDistributedKeygenF8eClientImpl
 import build.wallet.f8e.partnerships.*
@@ -51,11 +52,10 @@ import build.wallet.inappsecurity.MoneyHomeHiddenStatusProviderImpl
 import build.wallet.keybox.AppDataDeleterImpl
 import build.wallet.keybox.CloudBackupDeleterImpl
 import build.wallet.logging.log
-import build.wallet.money.formatter.internal.MoneyDisplayFormatterImpl
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
+import build.wallet.money.formatter.MoneyDisplayFormatterImpl
+import build.wallet.money.formatter.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputFormatterImpl
-import build.wallet.nfc.FakeHardwareKeyStore
-import build.wallet.nfc.NfcReaderCapabilityProviderImpl
+import build.wallet.nfc.NfcReaderCapabilityImpl
 import build.wallet.nfc.NfcTransactorImpl
 import build.wallet.nfc.interceptors.*
 import build.wallet.nfc.platform.NfcCommandsProvider
@@ -63,7 +63,7 @@ import build.wallet.nfc.platform.NfcSessionProvider
 import build.wallet.nfc.transaction.PairingTransactionProviderImpl
 import build.wallet.onboarding.*
 import build.wallet.partnerships.PartnershipTransactionsDaoImpl
-import build.wallet.partnerships.PartnershipTransactionsRepositoryImpl
+import build.wallet.partnerships.PartnershipTransactionsServiceImpl
 import build.wallet.phonenumber.PhoneNumberFormatterImpl
 import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.biometrics.BiometricTextProviderImpl
@@ -85,7 +85,7 @@ import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachineImpl
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachineImpl
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachineImpl
-import build.wallet.statemachine.account.create.full.OnboardKeyboxUiStateMachineImpl
+import build.wallet.statemachine.account.create.full.OnboardFullAccountUiStateMachineImpl
 import build.wallet.statemachine.account.create.full.OverwriteFullAccountCloudBackupUiStateMachineImpl
 import build.wallet.statemachine.account.create.full.ReplaceWithLiteAccountRestoreUiStateMachineImpl
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl
@@ -108,9 +108,6 @@ import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl
 import build.wallet.statemachine.core.input.PhoneNumberInputUiStateMachineImpl
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachineImpl
-import build.wallet.statemachine.data.account.create.activate.ActivateFullAccountDataStateMachineImpl
-import build.wallet.statemachine.data.account.create.keybox.CreateKeyboxDataStateMachineImpl
-import build.wallet.statemachine.data.account.create.onboard.OnboardKeyboxDataStateMachineImpl
 import build.wallet.statemachine.data.keybox.*
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.inprogress.F8eSpendingKeyRotatorImpl
@@ -254,11 +251,11 @@ import build.wallet.time.*
 @Suppress("LargeClass")
 class ActivityComponentImpl(
   val appComponent: AppComponentImpl,
-  val cloudKeyValueStore: CloudKeyValueStore,
-  val cloudFileStore: CloudFileStore,
+  override val cloudKeyValueStore: CloudKeyValueStore,
+  override val cloudFileStore: CloudFileStore,
   cloudSignInUiStateMachine: CloudSignInUiStateMachine,
   cloudDevOptionsStateMachine: CloudDevOptionsStateMachine,
-  val cloudStoreAccountRepository: CloudStoreAccountRepository,
+  override val cloudStoreAccountRepository: CloudStoreAccountRepository,
   datadogRumMonitor: DatadogRumMonitor,
   lightningInvoiceParser: LightningInvoiceParser,
   sharingManager: SharingManager,
@@ -268,7 +265,6 @@ class ActivityComponentImpl(
   nfcSessionProvider: NfcSessionProvider,
   val pdfAnnotatorFactory: PdfAnnotatorFactory,
   biometricPrompter: BiometricPrompter,
-  fakeHardwareKeyStore: FakeHardwareKeyStore,
 ) : ActivityComponent {
   init {
     log { "App Variant: ${appComponent.appVariant}" }
@@ -328,9 +324,6 @@ class ActivityComponentImpl(
       encryptedKeyValueStoreFactory = appComponent.secureStoreFactory
     )
 
-  val nfcReaderCapabilityProvider =
-    NfcReaderCapabilityProviderImpl(appComponent.platformContext)
-
   val permissionStateMachine = PermissionUiStateMachineImpl()
 
   val bitcoinAddressParser = BitcoinAddressParserImpl(appComponent.bdkAddressBuilder)
@@ -348,7 +341,8 @@ class ActivityComponentImpl(
 
   val createAccountF8eClient = CreateAccountF8eClientImpl(appComponent.f8eHttpClient)
 
-  val createAccountKeysetF8eClient = CreateAccountKeysetF8eClientImpl(appComponent.f8eHttpClient)
+  override val createAccountKeysetF8eClient =
+    CreateAccountKeysetF8eClientImpl(appComponent.f8eHttpClient)
 
   val setActiveSpendingKeysetF8eClient =
     SetActiveSpendingKeysetF8eClientImpl(appComponent.f8eHttpClient)
@@ -365,24 +359,24 @@ class ActivityComponentImpl(
       wholeNumberCalculator = wholeNumberCalculator
     )
 
-  val gettingStartedTaskDao =
+  override val gettingStartedTaskDao =
     GettingStartedTaskDaoImpl(
       databaseProvider = appComponent.bitkeyDatabaseProvider
     )
 
-  val cloudBackupDao =
+  override val cloudBackupDao =
     CloudBackupDaoImpl(
       encryptedKeyValueStoreFactory = appComponent.secureStoreFactory
     )
 
-  val cloudBackupRepository =
+  override val cloudBackupRepository =
     CloudBackupRepositoryImpl(
       cloudKeyValueStore = cloudKeyValueStore,
       cloudBackupDao = cloudBackupDao,
       authTokensRepository = appComponent.authTokensRepository
     )
 
-  val relationshipsCryptoFake = RelationshipsCryptoFake(
+  override val relationshipsCryptoFake = RelationshipsCryptoFake(
     messageSigner = appComponent.messageSigner,
     signatureVerifier = appComponent.signatureVerifier,
     appPrivateKeyDao = appComponent.appPrivateKeyDao
@@ -394,7 +388,8 @@ class ActivityComponentImpl(
       appPrivateKeyDao = appComponent.appPrivateKeyDao
     )
 
-  val relationshipsKeysRepository = RelationshipsKeysRepository(appComponent.relationshipsCrypto, relationshipsKeysDao)
+  override val relationshipsKeysRepository =
+    RelationshipsKeysRepository(appComponent.relationshipsCrypto, relationshipsKeysDao)
 
   private val fullAccountFieldsCreator =
     FullAccountFieldsCreatorImpl(
@@ -411,7 +406,7 @@ class ActivityComponentImpl(
       f8eHttpClient = appComponent.f8eHttpClient
     )
 
-  val recoverySyncer =
+  override val recoverySyncer =
     RecoverySyncerImpl(
       recoveryDao = appComponent.recoveryDao,
       getRecoveryStatusF8eClient = getDelayNotifyRecoveryStatusF8eClient,
@@ -463,10 +458,12 @@ class ActivityComponentImpl(
         )
     )
 
+  val nfcReaderCapability = NfcReaderCapabilityImpl(platformContext = appComponent.platformContext)
+
   val nfcSessionUIStateMachine =
     NfcSessionUIStateMachineImpl(
       delayer = appComponent.delayer,
-      nfcReaderCapabilityProvider = nfcReaderCapabilityProvider,
+      nfcReaderCapability = nfcReaderCapability,
       enableNfcNavigator = enableNfcNavigator,
       deviceInfoProvider = appComponent.deviceInfoProvider,
       nfcTransactor = nfcTransactor,
@@ -476,7 +473,7 @@ class ActivityComponentImpl(
 
   val completeDelayNotifyF8eClient = CompleteDelayNotifyF8eClientImpl(appComponent.f8eHttpClient)
 
-  val csekGenerator = CsekGeneratorImpl(
+  override val csekGenerator = CsekGeneratorImpl(
     symmetricKeyGenerator = appComponent.symmetricKeyGenerator
   )
 
@@ -512,17 +509,21 @@ class ActivityComponentImpl(
 
   val emergencyAccessKitDataProvider = EmergencyAccessKitDataProviderImpl(appComponent.appVariant)
 
+  private val emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl()
   val eakPayloadCreator = EmergencyAccessPayloadCreatorImpl(
     csekDao = csekDao,
     symmetricKeyEncryptor = appComponent.symmetricKeyEncryptor,
-    appPrivateKeyDao = appComponent.appPrivateKeyDao
+    appPrivateKeyDao = appComponent.appPrivateKeyDao,
+    emergencyAccessKitPayloadDecoder = emergencyAccessKitPayloadDecoder
   )
+  private val emergencyAccessKitQrCodeGenerator = EmergencyAccessKitQrCodeGeneratorImpl()
   val emergencyAccessKitPdfGenerator = EmergencyAccessKitPdfGeneratorImpl(
     apkParametersProvider = EmergencyAccessKitApkParametersProviderImpl(
       emergencyAccessKitDataProvider
     ),
     mobileKeyParametersProvider = EmergencyAccessKitMobileKeyParametersProviderImpl(
-      payloadCreator = eakPayloadCreator
+      payloadCreator = eakPayloadCreator,
+      emergencyAccessKitPayloadDecoder = emergencyAccessKitPayloadDecoder
     ),
     pdfAnnotatorFactory = pdfAnnotatorFactory,
     templateProvider = EmergencyAccessKitTemplateProviderImpl(
@@ -532,17 +533,18 @@ class ActivityComponentImpl(
       clock = appComponent.clock,
       timeZoneProvider = timeZoneProvider
     ),
-    dateTimeFormatter = dateTimeFormatter
+    dateTimeFormatter = dateTimeFormatter,
+    qrCodeGenerator = emergencyAccessKitQrCodeGenerator
   )
 
-  val cloudBackupRepairer = FullAccountCloudBackupRepairerImpl(
+  override val cloudBackupRepairer = FullAccountCloudBackupRepairerImpl(
     cloudBackupRepository = cloudBackupRepository,
     cloudBackupDao = cloudBackupDao,
     emergencyAccessKitPdfGenerator = emergencyAccessKitPdfGenerator,
     emergencyAccessKitRepository = emergencyAccessKitRepository
   )
 
-  val cloudBackupHealthRepository =
+  override val cloudBackupHealthRepository =
     CloudBackupHealthRepositoryImpl(
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupRepository = cloudBackupRepository,
@@ -552,7 +554,7 @@ class ActivityComponentImpl(
       appSessionManager = appComponent.appSessionManager
     )
 
-  val fullAccountCloudBackupCreator =
+  override val fullAccountCloudBackupCreator =
     FullAccountCloudBackupCreatorImpl(
       appPrivateKeyDao = appComponent.appPrivateKeyDao,
       fullAccountFieldsCreator = fullAccountFieldsCreator,
@@ -757,7 +759,7 @@ class ActivityComponentImpl(
 
   val challengeCodeFormatter = ChallengeCodeFormatterImpl()
 
-  val recoveryChallengeUiStateMachine = RecoveryChallengeUiStateMachineImpl(
+  override val recoveryChallengeUiStateMachine = RecoveryChallengeUiStateMachineImpl(
     crypto = appComponent.relationshipsCrypto,
     enableNotificationsUiStateMachine = enableNotificationsUiStateMachine,
     deviceTokenManager = appComponent.deviceTokenManager,
@@ -774,14 +776,14 @@ class ActivityComponentImpl(
       registerWatchAddressProcessor = appComponent.registerWatchAddressProcessor
     )
 
-  val sweepService = SweepServiceImpl(
+  override val sweepService = SweepServiceImpl(
     accountService = appComponent.accountService,
     appSessionManager = appComponent.appSessionManager,
     promptSweepFeatureFlag = appComponent.promptSweepFeatureFlag,
     sweepGenerator = sweepGenerator
   )
 
-  val sweepDataStateMachine = SweepDataStateMachineImpl(
+  override val sweepDataStateMachine = SweepDataStateMachineImpl(
     sweepService = sweepService,
     mobilePaySigningF8eClient = appComponent.mobilePaySigningF8eClient,
     appSpendingWalletProvider = appComponent.appSpendingWalletProvider,
@@ -816,7 +818,7 @@ class ActivityComponentImpl(
       recoveryNotificationVerificationUiStateMachine = recoveryNotificationVerificationUiStateMachine
     )
 
-  val addingTcsUiStateMachine =
+  override val addingTcsUiStateMachine =
     AddingTrustedContactUiStateMachineImpl(
       proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine,
       clipboard = clipboard,
@@ -881,7 +883,7 @@ class ActivityComponentImpl(
       relationshipsService = appComponent.relationshipsService
     )
 
-  val trustedContactManagementUiStateMachine =
+  override val trustedContactManagementUiStateMachine =
     TrustedContactManagementUiStateMachineImpl(
       addingTrustedContactUiStateMachine = addingTcsUiStateMachine,
       listingTrustedContactsUiStateMachine = listingTcsUiStateMachine,
@@ -997,7 +999,7 @@ class ActivityComponentImpl(
       encryptedKeyValueStoreFactory = appComponent.secureStoreFactory
     )
 
-  val onboardingKeyboxHwAuthPublicKeyDao =
+  override val onboardingKeyboxHwAuthPublicKeyDao =
     OnboardingKeyboxHardwareKeysDaoImpl(
       databaseProvider = appComponent.bitkeyDatabaseProvider
     )
@@ -1007,7 +1009,7 @@ class ActivityComponentImpl(
       f8eHttpClient = appComponent.f8eHttpClient
     )
 
-  val pairingTransactionProvider =
+  override val pairingTransactionProvider =
     PairingTransactionProviderImpl(
       csekGenerator = csekGenerator,
       csekDao = csekDao,
@@ -1029,8 +1031,34 @@ class ActivityComponentImpl(
       helpCenterUiStateMachine = helpCenterUiStateMachine
     )
 
+  val liteToFullAccountUpgrader = LiteToFullAccountUpgraderImpl(
+    keyboxDao = appComponent.keyboxDao,
+    accountAuthenticator = appComponent.accountAuthenticator,
+    authTokenDao = appComponent.authTokenDao,
+    deviceTokenManager = appComponent.deviceTokenManager,
+    upgradeAccountF8eClient = upgradeAccountF8eClient,
+    uuidGenerator = appComponent.uuidGenerator
+  )
+
+  override val createFullAccountService = CreateFullAccountServiceImpl(
+    appKeysGenerator = appKeysGenerator,
+    debugOptionsService = appComponent.debugOptionsService,
+    keyboxDao = appComponent.keyboxDao,
+    onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
+    uuidGenerator = appComponent.uuidGenerator,
+    fullAccountCreator = fullAccountCreator,
+    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
+    onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
+    liteToFullAccountUpgrader = liteToFullAccountUpgrader,
+    eventTracker = appComponent.eventTracker,
+    gettingStartedTaskDao = gettingStartedTaskDao,
+    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
+    onboardingF8eClient = onboardingF8eClient
+  )
+
   private val createKeyboxUiStateMachine =
     CreateKeyboxUiStateMachineImpl(
+      createFullAccountService = createFullAccountService,
       pairNewHardwareUiStateMachine = pairNewHardwareUiStateMachine
     )
 
@@ -1053,11 +1081,17 @@ class ActivityComponentImpl(
       transactionsService = appComponent.transactionsService
     )
 
-  val onboardKeyboxUiStateMachine =
-    OnboardKeyboxUiStateMachineImpl(
-      fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
-      notificationPreferencesSetupUiStateMachine = notificationPreferencesSetupUiStateMachine
-    )
+  override val onboardAccountService = OnboardAccountServiceImpl(
+    debugOptionsService = appComponent.debugOptionsService,
+    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
+    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao
+  )
+
+  val onboardFullAccountUiStateMachine = OnboardFullAccountUiStateMachineImpl(
+    onboardAccountService = onboardAccountService,
+    fullAccountCloudSignInAndBackupUiStateMachine = fullAccountCloudSignInAndBackupUiStateMachine,
+    notificationPreferencesSetupUiStateMachine = notificationPreferencesSetupUiStateMachine
+  )
 
   val deleteOnboardingFullAccountF8eClient =
     DeleteOnboardingFullAccountF8eClientImpl(appComponent.f8eHttpClient)
@@ -1067,16 +1101,6 @@ class ActivityComponentImpl(
       accountService = appComponent.accountService,
       keyboxDao = appComponent.keyboxDao,
       deleteOnboardingFullAccountF8eClient = deleteOnboardingFullAccountF8eClient
-    )
-
-  val liteToFullAccountUpgrader =
-    LiteToFullAccountUpgraderImpl(
-      keyboxDao = appComponent.keyboxDao,
-      accountAuthenticator = appComponent.accountAuthenticator,
-      authTokenDao = appComponent.authTokenDao,
-      deviceTokenManager = appComponent.deviceTokenManager,
-      upgradeAccountF8eClient = upgradeAccountF8eClient,
-      uuidGenerator = appComponent.uuidGenerator
     )
 
   val liteAccountCloudBackupRestorer =
@@ -1111,13 +1135,57 @@ class ActivityComponentImpl(
       proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine
     )
 
-  private val createAccountUiStateMachine =
-    CreateAccountUiStateMachineImpl(
-      createKeyboxUiStateMachine = createKeyboxUiStateMachine,
-      onboardKeyboxUiStateMachine = onboardKeyboxUiStateMachine,
-      replaceWithLiteAccountRestoreUiStateMachine = replaceWithLiteAccountRestoreUiStateMachine,
-      overwriteFullAccountCloudBackupUiStateMachine = overwriteFullAccountCloudBackupUiStateMachine
-    )
+  val authKeyRotationAttemptDao = AuthKeyRotationAttemptDaoImpl(
+    databaseProvider = appComponent.bitkeyDatabaseProvider
+  )
+
+  val homeUiBottomSheetDao = HomeUiBottomSheetDaoImpl(appComponent.bitkeyDatabaseProvider)
+
+  val transactionPriorityPreference = TransactionPriorityPreferenceImpl(
+    databaseProvider = appComponent.bitkeyDatabaseProvider
+  )
+
+  override val appDataDeleter = AppDataDeleterImpl(
+    appVariant = appComponent.appVariant,
+    appPrivateKeyDao = appComponent.appPrivateKeyDao,
+    accountService = appComponent.accountService,
+    authTokenDao = appComponent.authTokenDao,
+    gettingStartedTaskDao = gettingStartedTaskDao,
+    keyboxDao = appComponent.keyboxDao,
+    notificationTouchpointDao = appComponent.notificationTouchpointDao,
+    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
+    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
+    onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
+    mobilePayService = appComponent.mobilePayService,
+    outgoingTransactionDetailDao = appComponent.outgoingTransactionDetailDao,
+    fwupDataDao = appComponent.fwupDataDao,
+    firmwareDeviceInfoDao = appComponent.firmwareDeviceInfoDao,
+    firmwareMetadataDao = appComponent.firmwareMetadataDao,
+    transactionPriorityPreference = transactionPriorityPreference,
+    onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+    homeUiBottomSheetDao = homeUiBottomSheetDao,
+    bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
+    cloudBackupDao = cloudBackupDao,
+    relationshipsKeysDao = relationshipsKeysDao,
+    relationshipsService = appComponent.relationshipsService,
+    socRecStartedChallengeDao = appComponent.socRecStartedChallengeDao,
+    csekDao = csekDao,
+    authKeyRotationAttemptDao = authKeyRotationAttemptDao,
+    recoveryDao = appComponent.recoveryDao,
+    authSignatureStatusProvider = appComponent.f8eAuthSignatureStatusProvider,
+    hideBalancePreference = hideBalancePreference,
+    biometricPreference = appComponent.biometricPreference,
+    inheritanceClaimsDao = appComponent.inheritanceClaimsDao
+  )
+
+  private val createAccountUiStateMachine = CreateAccountUiStateMachineImpl(
+    createFullAccountService = createFullAccountService,
+    createKeyboxUiStateMachine = createKeyboxUiStateMachine,
+    onboardFullAccountUiStateMachine = onboardFullAccountUiStateMachine,
+    replaceWithLiteAccountRestoreUiStateMachine = replaceWithLiteAccountRestoreUiStateMachine,
+    overwriteFullAccountCloudBackupUiStateMachine = overwriteFullAccountCloudBackupUiStateMachine
+  )
 
   val fwupNfcSessionUiStateMachine =
     FwupNfcSessionUiStateMachineImpl(
@@ -1126,7 +1194,7 @@ class ActivityComponentImpl(
       eventTracker = appComponent.eventTracker,
       delayer = appComponent.delayer,
       fwupProgressCalculator = appComponent.fwupProgressCalculator,
-      nfcReaderCapabilityProvider = nfcReaderCapabilityProvider,
+      nfcReaderCapability = nfcReaderCapability,
       nfcTransactor = nfcTransactor,
       fwupDataDao = appComponent.fwupDataDao,
       firmwareDataService = appComponent.firmwareDataService
@@ -1174,13 +1242,16 @@ class ActivityComponentImpl(
 
   val accountConfigStateMachine = AccountConfigUiStateMachineImpl(
     appVariant = appComponent.appVariant,
-    debugOptionsService = appComponent.debugOptionsService
+    accountService = appComponent.accountService,
+    debugOptionsService = appComponent.debugOptionsService,
+    deviceInfoProvider = appComponent.deviceInfoProvider
   )
 
   val f8eEnvironmentPickerStateMachine =
     F8eEnvironmentPickerUiStateMachineImpl(
       appVariant = appComponent.appVariant,
-      debugOptionsService = appComponent.debugOptionsService
+      debugOptionsService = appComponent.debugOptionsService,
+      deviceInfoProvider = appComponent.deviceInfoProvider
     )
 
   val bitcoinNetworkPickerStateMachine = BitcoinNetworkPickerUiStateMachineImpl(
@@ -1242,11 +1313,6 @@ class ActivityComponentImpl(
       setSpendingLimitUiStateMachine = setSpendingLimitUiStateMachine
     )
 
-  val transactionPriorityPreference =
-    TransactionPriorityPreferenceImpl(
-      databaseProvider = appComponent.bitkeyDatabaseProvider
-    )
-
   val feeOptionUiStateMachine =
     FeeOptionUiStateMachineImpl(
       currencyConverter = appComponent.currencyConverter,
@@ -1306,7 +1372,6 @@ class ActivityComponentImpl(
     permissionUiStateMachine = permissionStateMachine,
     feeSelectionUiStateMachine = feeSelectionStateMachine,
     exchangeRateService = appComponent.exchangeRateService,
-    clock = appComponent.clock,
     fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
   )
 
@@ -1340,47 +1405,6 @@ class ActivityComponentImpl(
       feeRateEstimator = appComponent.bitcoinFeeRateEstimator,
       inAppBrowserNavigator = inAppBrowserNavigator,
       transactionsService = appComponent.transactionsService
-    )
-
-  val homeUiBottomSheetDao = HomeUiBottomSheetDaoImpl(appComponent.bitkeyDatabaseProvider)
-
-  val authKeyRotationAttemptDao = AuthKeyRotationAttemptDaoImpl(
-    databaseProvider = appComponent.bitkeyDatabaseProvider
-  )
-
-  val appDataDeleter =
-    AppDataDeleterImpl(
-      appVariant = appComponent.appVariant,
-      appPrivateKeyDao = appComponent.appPrivateKeyDao,
-      accountService = appComponent.accountService,
-      authTokenDao = appComponent.authTokenDao,
-      gettingStartedTaskDao = gettingStartedTaskDao,
-      keyboxDao = appComponent.keyboxDao,
-      notificationTouchpointDao = appComponent.notificationTouchpointDao,
-      onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-      mobilePayService = appComponent.mobilePayService,
-      outgoingTransactionDetailDao = appComponent.outgoingTransactionDetailDao,
-      fwupDataDao = appComponent.fwupDataDao,
-      firmwareDeviceInfoDao = appComponent.firmwareDeviceInfoDao,
-      firmwareMetadataDao = appComponent.firmwareMetadataDao,
-      transactionPriorityPreference = transactionPriorityPreference,
-      onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
-      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
-      homeUiBottomSheetDao = homeUiBottomSheetDao,
-      bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
-      cloudBackupDao = cloudBackupDao,
-      relationshipsKeysDao = relationshipsKeysDao,
-      relationshipsService = appComponent.relationshipsService,
-      socRecStartedChallengeDao = appComponent.socRecStartedChallengeDao,
-      csekDao = csekDao,
-      authKeyRotationAttemptDao = authKeyRotationAttemptDao,
-      recoveryDao = appComponent.recoveryDao,
-      authSignatureStatusProvider = appComponent.f8eAuthSignatureStatusProvider,
-      hideBalancePreference = hideBalancePreference,
-      biometricPreference = appComponent.biometricPreference,
-      inheritanceClaimsDao = appComponent.inheritanceClaimsDao
     )
 
   val exchangeRateChartFetcher = ChartDataFetcherServiceImpl(
@@ -1460,7 +1484,7 @@ class ActivityComponentImpl(
     client = appComponent.f8eHttpClient
   )
 
-  val partnershipTransactionsStatusRepository = PartnershipTransactionsRepositoryImpl(
+  val partnershipTransactionsService = PartnershipTransactionsServiceImpl(
     dao = partnershipsTransactionsDao,
     clock = appComponent.clock,
     getPartnershipTransactionF8eClient = getPartnershipTransactionF8eClient
@@ -1471,16 +1495,16 @@ class ActivityComponentImpl(
     appComponent.f8eHttpClient
   )
 
-  val partnershipsTransferUiStateMachine =
+  override val partnershipsTransferUiStateMachine =
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
       getTransferRedirectF8eClient = GetTransferRedirectF8eClientImpl(appComponent.f8eHttpClient),
-      partnershipsRepository = partnershipTransactionsStatusRepository,
+      partnershipTransactionsService = partnershipTransactionsService,
       eventTracker = appComponent.eventTracker,
       bitcoinAddressService = appComponent.bitcoinAddressService
     )
 
-  val partnershipsPurchaseUiStateMachine =
+  override val partnershipsPurchaseUiStateMachine =
     PartnershipsPurchaseUiStateMachineImpl(
       moneyDisplayFormatter = moneyDisplayFormatter,
       getPurchaseOptionsF8eClient = GetPurchaseOptionsF8eClientImpl(
@@ -1492,7 +1516,7 @@ class ActivityComponentImpl(
         appComponent.f8eHttpClient
       ),
       getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientImpl(appComponent.f8eHttpClient),
-      partnershipsRepository = partnershipTransactionsStatusRepository,
+      partnershipTransactionsService = partnershipTransactionsService,
       fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
       eventTracker = appComponent.eventTracker,
       exchangeRateService = appComponent.exchangeRateService,
@@ -1508,21 +1532,34 @@ class ActivityComponentImpl(
   val partnershipsSellUiStateMachine = PartnershipsSellUiStateMachineImpl(
     partnershipsSellOptionsUiStateMachine = PartnershipsSellOptionsUiStateMachineImpl(
       getSaleQuoteListF8eClient = getSaleQuoteListF8eClient,
-      getSellRedirectF8eClient = GetSellRedirectF8eClientImpl(appComponent.f8eHttpClient),
-      partnershipsRepository = partnershipTransactionsStatusRepository,
+      getSellRedirectF8eClient = GetSellRedirectF8eClientImpl(
+        appComponent.f8eHttpClient,
+        appComponent.bitcoinAddressService
+      ),
+      partnershipTransactionsService = partnershipTransactionsService,
       fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
-      eventTracker = appComponent.eventTracker
+      eventTracker = appComponent.eventTracker,
+      currencyConverter = appComponent.currencyConverter,
+      moneyFormatter = moneyDisplayFormatter,
+      sellBitcoinQuotesEnabledFeatureFlag = appComponent.sellBitcoinQuotesEnabledFeatureFlag
     ),
     partnershipsSellConfirmationUiStateMachine = PartnershipsSellConfirmationUiStateMachineImpl(
       transferConfirmationUiStateMachine = transferConfirmationStateMachine,
       feeSelectionUiStateMachineImpl = feeSelectionStateMachine,
-      partnershipsRepository = partnershipTransactionsStatusRepository,
+      partnershipTransactionsService = partnershipTransactionsService,
       exchangeRateService = appComponent.exchangeRateService
     ),
-    inAppBrowserNavigator = inAppBrowserNavigator
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    transferAmountEntryUiStateMachine = transferAmountEntryUiStateMachine,
+    sellBitcoinQuotesEnabledFeatureFlag = appComponent.sellBitcoinQuotesEnabledFeatureFlag,
+    sellBitcoinMinAmountFeatureFlag = appComponent.sellBitcoinMinAmountFeatureFlag,
+    sellBitcoinMaxAmountFeatureFlag = appComponent.sellBitcoinMaxAmountFeatureFlag,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+    exchangeRateService = appComponent.exchangeRateService,
+    deepLinkHandler = deepLinkHandler
   )
 
-  val addBitcoinUiStateMachine =
+  override val addBitcoinUiStateMachine =
     AddBitcoinUiStateMachineImpl(
       partnershipsTransferUiStateMachine = partnershipsTransferUiStateMachine,
       partnershipsPurchaseUiStateMachine = partnershipsPurchaseUiStateMachine
@@ -1536,7 +1573,7 @@ class ActivityComponentImpl(
       proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine
     )
 
-  val lostHardwareRecoveryUiStateMachine =
+  override val lostHardwareRecoveryUiStateMachine =
     LostHardwareRecoveryUiStateMachineImpl(
       initiatingLostHardwareRecoveryUiStateMachine = initiatingLostHardwareRecoveryUiStateMachine,
       recoveryInProgressUiStateMachine = recoveryInProgressUiStateMachine
@@ -1547,7 +1584,7 @@ class ActivityComponentImpl(
     signer = appComponent.appAuthKeyMessageSigner
   )
 
-  val fullAccountAuthKeyRotationService =
+  override val fullAccountAuthKeyRotationService =
     FullAccountAuthKeyRotationServiceImpl(
       authKeyRotationAttemptDao = authKeyRotationAttemptDao,
       rotateAuthKeysF8eClient = rotateAuthKeysF8eClient,
@@ -1558,7 +1595,7 @@ class ActivityComponentImpl(
       endorseTrustedContactsService = appComponent.endorseTrustedContactsService
     )
 
-  val rotateAuthUIStateMachine = RotateAuthKeyUIStateMachineImpl(
+  override val rotateAuthUIStateMachine = RotateAuthKeyUIStateMachineImpl(
     appKeysGenerator = appComponent.appKeysGenerator,
     proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine,
     fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
@@ -1679,7 +1716,7 @@ class ActivityComponentImpl(
       appVariant = appComponent.appVariant
     )
 
-  val cloudBackupDeleter =
+  override val cloudBackupDeleter =
     CloudBackupDeleterImpl(
       appVariant = appComponent.appVariant,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
@@ -1702,8 +1739,13 @@ class ActivityComponentImpl(
     debugOptionsService = appComponent.debugOptionsService
   )
 
+  private val testNotificationF8eClient = TestNotificationF8eClientImpl(
+    appComponent.f8eHttpClient
+  )
+
   val debugMenuListStateMachine =
     DebugMenuListStateMachineImpl(
+      accountService = appComponent.accountService,
       accountConfigUiStateMachine = accountConfigStateMachine,
       appDataDeleter = appDataDeleter,
       appStateDeleterOptionsUiStateMachine = appStateDeleterOptionsUiStateMachine,
@@ -1719,7 +1761,8 @@ class ActivityComponentImpl(
       onboardingConfigStateMachine = onboardingConfigStateMachine,
       cloudSignUiStateMachine = cloudSignInUiStateMachine,
       coachmarkService = coachmarkService,
-      debugOptionsService = appComponent.debugOptionsService
+      debugOptionsService = appComponent.debugOptionsService,
+      testNotificationF8eClient = testNotificationF8eClient
     )
 
   private val bitcoinWalletDebugUiStateMachine = BitcoinWalletDebugUiStateMachineImpl(
@@ -1833,7 +1876,7 @@ class ActivityComponentImpl(
       appInstallationDao = appComponent.appInstallationDao,
       firmwareDeviceInfoDao = appComponent.firmwareDeviceInfoDao,
       platformInfoProvider = appComponent.platformInfoProvider,
-      allFeatureFlags = appComponent.allFeatureFlags
+      allFeatureFlags = appComponent.featureFlags
     )
 
   val supportTicketFormValidator =
@@ -1850,7 +1893,7 @@ class ActivityComponentImpl(
       inAppBrowserNavigator = inAppBrowserNavigator
     )
 
-  val feedbackUiStateMachine =
+  override val feedbackUiStateMachine =
     FeedbackUiStateMachineImpl(
       supportTicketRepository = supportTicketRepository,
       feedbackFormUiStateMachine = feedbackFormUiStateMachine
@@ -1968,7 +2011,7 @@ class ActivityComponentImpl(
 
   val expectedTransactionNoticeUiStateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
     dateTimeFormatter = dateTimeFormatter,
-    transactionsStatusRepository = partnershipTransactionsStatusRepository,
+    partnershipTransactionsService = partnershipTransactionsService,
     delayer = Delayer.Default
   )
 
@@ -2006,20 +2049,20 @@ class ActivityComponentImpl(
     f8eHttpClient = appComponent.f8eHttpClient
   )
 
-  val activateSpendingDescriptorF8eClient = ActivateSpendingDescriptorF8eClientImpl(
+  val activateSpendingDescriptorF8eClient = ActivateSpendingKeyF8eClientImpl(
     f8eHttpClient = appComponent.f8eHttpClient
   )
 
-  val createSoftwareWalletService = CreateSoftwareWalletServiceImpl(
+  override val createSoftwareWalletService = CreateSoftwareWalletServiceImpl(
     softwareAccountCreator = softwareAccountCreator,
     initiateDistributedKeygenF8eClient = initiateDistributedKeygenF8eClient,
     continueDistributedKeygenF8eClient = continueDistributedKeygenF8eClient,
     activateSpendingDescriptorF8eClient = activateSpendingDescriptorF8eClient,
-    fakeHardwareKeyStore = fakeHardwareKeyStore,
     appKeysGenerator = appKeysGenerator,
     debugOptionsService = appComponent.debugOptionsService,
     softwareWalletIsEnabledFeatureFlag = appComponent.softwareWalletIsEnabledFeatureFlag,
-    accountService = appComponent.accountService
+    accountService = appComponent.accountService,
+    shareGeneratorFactory = appComponent.shareGeneratorFactory
   )
 
   val createSoftwareWalletUiStateMachine = CreateSoftwareWalletUiStateMachineImpl(
@@ -2094,43 +2137,7 @@ class ActivityComponentImpl(
     endorseTrustedContactsService = appComponent.endorseTrustedContactsService
   )
 
-  val createKeyboxDataStateMachine = CreateKeyboxDataStateMachineImpl(
-    fullAccountCreator = fullAccountCreator,
-    appKeysGenerator = appKeysGenerator,
-    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-    onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-    uuidGenerator = appComponent.uuidGenerator,
-    onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
-    liteToFullAccountUpgrader = liteToFullAccountUpgrader,
-    debugOptionsService = appComponent.debugOptionsService
-  )
-
-  val onboardKeyboxDataStateMachine =
-    OnboardKeyboxDataStateMachineImpl(
-      onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      debugOptionsService = appComponent.debugOptionsService
-    )
-
-  val activateFullAccountDataStateMachine =
-    ActivateFullAccountDataStateMachineImpl(
-      eventTracker = appComponent.eventTracker,
-      gettingStartedTaskDao = gettingStartedTaskDao,
-      keyboxDao = appComponent.keyboxDao,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      onboardingF8eClient = onboardingF8eClient,
-      onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
-      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao
-    )
-
-  val createFullAccountDataStateMachine =
-    CreateFullAccountDataStateMachineImpl(
-      activateFullAccountDataStateMachine = activateFullAccountDataStateMachine,
-      createKeyboxDataStateMachine = createKeyboxDataStateMachine,
-      onboardKeyboxDataStateMachine = onboardKeyboxDataStateMachine,
-      appDataDeleter = appDataDeleter,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
-    )
+  val createFullAccountDataStateMachine = CreateFullAccountDataStateMachineImpl()
 
   val lostAppRecoveryDataStateMachine =
     LostAppRecoveryDataStateMachineImpl(
@@ -2190,13 +2197,13 @@ class ActivityComponentImpl(
       fullAccountCloudBackupRestorationUiStateMachine = fullAccountCloudBackupRestorationUiStateMachine
     )
 
-  val recoveringKeyboxUiStateMachine =
+  override val recoveringKeyboxUiStateMachine =
     LostAppRecoveryUiStateMachineImpl(
       lostAppRecoveryHaveNotStartedDataStateMachine = lostAppRecoveryHaveNotStartedUiStateMachine,
       recoveryInProgressUiStateMachine = recoveryInProgressUiStateMachine
     )
 
-  val cloudBackupRefresher = TrustedContactCloudBackupRefresherImpl(
+  override val cloudBackupRefresher = TrustedContactCloudBackupRefresherImpl(
     socRecService = appComponent.socRecService,
     cloudBackupDao = cloudBackupDao,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
@@ -2233,7 +2240,7 @@ class ActivityComponentImpl(
       keyboxDao = appComponent.keyboxDao
     )
 
-  val accountDataStateMachine = AccountDataStateMachineImpl(
+  override val accountDataStateMachine = AccountDataStateMachineImpl(
     hasActiveFullAccountDataStateMachine = hasActiveFullAccountDataStateMachine,
     hasActiveLiteAccountDataStateMachine = hasActiveLiteAccountDataStateMachine,
     noActiveAccountDataStateMachine = noActiveAccountDataStateMachine,
@@ -2244,7 +2251,7 @@ class ActivityComponentImpl(
     debugOptionsService = appComponent.debugOptionsService
   )
 
-  val liteAccountCreator =
+  override val liteAccountCreator =
     LiteAccountCreatorImpl(
       accountAuthenticator = appComponent.accountAuthenticator,
       accountService = appComponent.accountService,
@@ -2253,7 +2260,7 @@ class ActivityComponentImpl(
       createLiteAccountF8eClient = createAccountF8eClient
     )
 
-  val liteAccountCloudBackupCreator =
+  override val liteAccountCloudBackupCreator =
     LiteAccountCloudBackupCreatorImpl(
       relationshipsKeysRepository = relationshipsKeysRepository,
       appPrivateKeyDao = appComponent.appPrivateKeyDao
@@ -2328,12 +2335,13 @@ class ActivityComponentImpl(
   val emergencyAccessKitRecoveryUiStateMachine =
     EmergencyAccessKitRecoveryUiStateMachineImpl(
       clipboard = clipboard,
-      payloadDecoder = EmergencyAccessKitPayloadDecoderImpl,
+      payloadDecoder = emergencyAccessKitPayloadDecoder,
       permissionUiStateMachine = permissionStateMachine,
       emergencyAccessPayloadRestorer = EmergencyAccessPayloadRestorerImpl(
         csekDao = csekDao,
         symmetricKeyEncryptor = appComponent.symmetricKeyEncryptor,
-        appPrivateKeyDao = appComponent.appPrivateKeyDao
+        appPrivateKeyDao = appComponent.appPrivateKeyDao,
+        emergencyAccessKitPayloadDecoder = emergencyAccessKitPayloadDecoder
       ),
       csekDao = csekDao,
       keyboxDao = appComponent.keyboxDao,

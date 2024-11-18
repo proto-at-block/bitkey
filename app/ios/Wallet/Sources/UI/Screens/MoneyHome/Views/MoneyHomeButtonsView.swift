@@ -17,13 +17,14 @@ public struct MoneyHomeButtonsView: View {
         case let buttonsModel as MoneyHomeButtonsModelMoneyMovementButtonsModel:
             let buttonCount = buttonsModel.buttons.count
             let spacing: Double = buttonCount > 3 ? 16 : 32
-            
+
             // Adaptive layout that wraps the buttons to a second row on smaller screens
-            // 60 is a bit of a magic number here, but it's the best default for our supported devices
+            // 60 is a bit of a magic number here, but it's the best default for our supported
+            // devices
             let columns = [
-                GridItem(.adaptive(minimum: 60), spacing: spacing)
+                GridItem(.adaptive(minimum: 60), spacing: spacing),
             ]
-            
+
             LazyVGrid(columns: columns, alignment: .center, spacing: spacing) {
                 ForEach(buttonsModel.buttons, id: \.self) { model in
                     IconButtonView(model: model)

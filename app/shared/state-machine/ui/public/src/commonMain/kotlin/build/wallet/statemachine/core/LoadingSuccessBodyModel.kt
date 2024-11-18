@@ -30,7 +30,7 @@ data class LoadingSuccessBodyModel(
       id?.let {
         EventTrackerScreenInfo(
           eventTrackerScreenId = it,
-          eventTrackerContext = null,
+          eventTrackerContext = eventTrackerContext,
           eventTrackerShouldTrack = true
         )
       }

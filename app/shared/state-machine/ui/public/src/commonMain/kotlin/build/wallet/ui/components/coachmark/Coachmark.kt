@@ -13,15 +13,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.coachmark.NewCoachmarkTreatment
 import build.wallet.ui.model.icon.IconModel
@@ -29,8 +26,6 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * Popover-style coachmark
@@ -167,31 +162,5 @@ fun Coachmark(
         )
       }
     }
-  }
-}
-
-@Preview
-@Composable
-internal fun CoachmarkPreviews() {
-  PreviewWalletTheme {
-    Coachmark(
-      model = CoachmarkModel(
-        identifier = CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-        title = "Multiple fingerprints",
-        description = "Now you can add more fingerprints to your Bitkey device.",
-        arrowPosition = CoachmarkModel.ArrowPosition(
-          vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-          horizontal = CoachmarkModel.ArrowPosition.Horizontal.Trailing
-        ),
-        button = ButtonModel(
-          text = "Add fingerprints",
-          size = ButtonModel.Size.Footer,
-          onClick = StandardClick {}
-        ),
-        image = null,
-        dismiss = {}
-      ),
-      offset = Offset(0f, 0f)
-    )
   }
 }

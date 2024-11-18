@@ -16,6 +16,7 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.bitcoin.sync.F8eDefinedElectrumServerMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.datadog.DatadogRumMonitorFake
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -28,6 +29,7 @@ class BdkWalletSyncerImplTests : FunSpec({
   val reachabilityMock = ElectrumReachabilityMock(reachableResult = Ok(Unit))
   val bdkBlockchainProvider = BdkBlockchainProviderMock(turbines::create)
   val datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
+  val deviceInfoProvider = DeviceInfoProviderMock()
   val electrumServerSettingProvider =
     ElectrumServerSettingProviderMock(
       turbines::create,
@@ -49,6 +51,7 @@ class BdkWalletSyncerImplTests : FunSpec({
           bdkBlockchainProvider = bdkBlockchainProvider,
           clock = ClockFake(),
           datadogRumMonitor = datadogRumMonitor,
+          deviceInfoProvider = deviceInfoProvider,
           electrumServerSettingProvider = electrumServerSettingProvider,
           electrumReachability = reachabilityMock,
           networkReachabilityProvider = networkReachabilityProvider
@@ -78,6 +81,7 @@ class BdkWalletSyncerImplTests : FunSpec({
           bdkBlockchainProvider = bdkBlockchainProvider,
           clock = ClockFake(),
           datadogRumMonitor = datadogRumMonitor,
+          deviceInfoProvider = deviceInfoProvider,
           electrumServerSettingProvider = electrumServerSettingProvider,
           electrumReachability =
             ElectrumReachabilityMock(
@@ -101,7 +105,7 @@ class BdkWalletSyncerImplTests : FunSpec({
 
       datadogRumMonitor.startResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
       (bdkBlockchainProvider.blockchainCalls.awaitItem() as ElectrumServer).shouldBe(
-        Blockstream(BITCOIN)
+        Blockstream(BITCOIN, isAndroidEmulator = false)
       )
       datadogRumMonitor.stopResourceLoadingCalls.awaitItem().shouldBe("BDK Wallet Sync")
 

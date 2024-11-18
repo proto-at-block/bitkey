@@ -34,7 +34,7 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
     // Going through onboarding with the lite account, becoming a trusted contact
     // and then remove the trusted contact relationship
     val liteAccountApp = launchNewApp()
-    liteAccountApp.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    liteAccountApp.appUiStateMachine.test(Unit, useVirtualTime = false) {
       advanceThroughCreateLiteAccountScreens(
         inviteCode = inviteCode
       )
@@ -48,21 +48,6 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 })
 
 private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveRelationship() {
-  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
-    expectedBodyContentMatch = { body ->
-      // Wait until the "Wallets you're Protecting" card shows a protected customer
-      body.walletsYoureProtectingCount == 1
-    }
-  ) {
-    // Showing Money Home, tap on first row (first protected customer)
-    // of "Wallets you're Protecting" card (which is the first card)
-    cardsModel.cards.count()
-      .shouldBe(2)
-    cardsModel.cards.first()
-      .content.shouldNotBeNull()
-      .shouldBeTypeOf<CardModel.CardContent.DrillList>()
-      .items.first().onClick.shouldNotBeNull().invoke()
-  }
   // Showing Money Home with a bottom sheet (the PC info sheet)
   // Tap the secondary button to remove the relationship
   awaitItem()
@@ -92,7 +77,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
   )
 }
 
-private val LiteMoneyHomeBodyModel.walletsYoureProtectingCount: Int
+internal val LiteMoneyHomeBodyModel.walletsYoureProtectingCount: Int
   get() {
     val drillList = cardsModel.cards.first().content as CardModel.CardContent.DrillList
     return when (drillList.items.first().leadingAccessory) {

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcprov-jdk18on",
+    "components": [
+        {
+            "version": "1.77",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcprov-jdk18on-1.77.jar": "dabb98c24d72c9b9f585633d1df9c5cd58d9ad373d0cd681367e6a603a495d58"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

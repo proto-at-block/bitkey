@@ -28,7 +28,8 @@ class EmergencyAccessKitSnapshotTest {
         ),
       templateProvider = EmergencyAccessKitTemplateProviderImpl(platformContext),
       backupDateProvider = EmergencyAccessKitBackupDateProviderFake(),
-      dateTimeFormatter = DateTimeFormatterImpl()
+      dateTimeFormatter = DateTimeFormatterImpl(),
+      qrCodeGenerator = EmergencyAccessKitQrCodeGeneratorImpl()
     )
 
   @Test

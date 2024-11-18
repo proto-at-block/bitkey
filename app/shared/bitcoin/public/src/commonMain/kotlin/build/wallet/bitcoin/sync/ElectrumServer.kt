@@ -20,17 +20,31 @@ sealed interface ElectrumServer {
   /**
    * Indicates a Mempool-hosted Electrum server. Its underlying value is derived from the
    * `electrumDetails` extension defined on `BitcoinNetworkType`.
+   *
+   * @property isAndroidEmulator used to determine local host IP
    */
-  data class Mempool(val network: BitcoinNetworkType) : ElectrumServer {
-    override val electrumServerDetails: ElectrumServerDetails = network.mempoolElectrumServerDetails()
+  data class Mempool(
+    val network: BitcoinNetworkType,
+    // TODO: inject
+    val isAndroidEmulator: Boolean,
+  ) : ElectrumServer {
+    override val electrumServerDetails: ElectrumServerDetails =
+      network.mempoolElectrumServerDetails(isAndroidEmulator)
   }
 
   /**
    * Indicates a Blockstream-hosted Electrum server. Its underlying value is derived from the
    * `electrumDetails` extension defined on `BitcoinNetworkType`.
+   *
+   * @property isAndroidEmulator used to determine local host IP
    */
-  data class Blockstream(val network: BitcoinNetworkType) : ElectrumServer {
-    override val electrumServerDetails: ElectrumServerDetails = network.blockstreamElectrumServerDetails()
+  data class Blockstream(
+    val network: BitcoinNetworkType,
+    // TODO: inject
+    val isAndroidEmulator: Boolean,
+  ) : ElectrumServer {
+    override val electrumServerDetails: ElectrumServerDetails =
+      network.blockstreamElectrumServerDetails(isAndroidEmulator)
   }
 
   /**

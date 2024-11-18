@@ -3,6 +3,7 @@ package build.wallet.statemachine.home.full
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.InactiveApp
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
@@ -26,7 +27,7 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
@@ -127,7 +128,8 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   val props =
     HomeUiProps(
-      accountData = ActiveKeyboxLoadedDataMock
+      account = FullAccountMock,
+      lostHardwareRecoveryData = LostHardwareRecoveryDataMock
     )
 
   beforeEach {

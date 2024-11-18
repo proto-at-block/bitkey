@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.sync
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -12,14 +11,14 @@ class ElectrumServerConfigRepositoryFake : ElectrumServerConfigRepository {
 
   override suspend fun storeF8eDefinedElectrumConfig(
     electrumServerDetails: ElectrumServerDetails,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     f8eDefinedElectrumConfig.value = ElectrumServer.F8eDefined(electrumServerDetails)
     return Ok(Unit)
   }
 
   override suspend fun storeUserPreference(
     preference: ElectrumServerPreferenceValue,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     userElectrumServerPreferenceValue.value = preference
     return Ok(Unit)
   }

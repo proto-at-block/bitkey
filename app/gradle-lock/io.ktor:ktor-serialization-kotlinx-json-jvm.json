@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-serialization-kotlinx-json-jvm",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-serialization-kotlinx-json-jvm-2.3.11.jar": "09ee4aaa112abe6d537718dae7640d6bbffcbf1189bc29c2a15686f53d2de306"
+                        "ktor-serialization-kotlinx-json-jvm-2.3.12.jar": "4b99f073dd66e7ad43cba60b5259876f85a75e06b84ce9b3b789b9159fb41707"
                     }
                 }
             ],

@@ -10,23 +10,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.ResendCodeContent.Text
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Hidden
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
-import build.wallet.statemachine.core.input.VerificationCodeInputBodyModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
 import build.wallet.ui.tokens.LabelType
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun VerificationCodeInput(model: VerificationCodeInput) {
@@ -79,60 +75,4 @@ fun VerificationCodeInput(model: VerificationCodeInput) {
       }
     }
   }
-}
-
-@Preview
-@Composable
-internal fun PreviewPhoneVerificationCodeInputFormScreen() {
-  FormScreen(
-    model =
-      VerificationCodeInputBodyModel(
-        title = "Verify your touchpoint",
-        subtitle = "We sent a code to you",
-        resendCodeContent = Text(value = "Resend code in 00:15"),
-        skipForNowContent =
-          Showing(
-            text = "Can’t receive the code?",
-            button =
-              ButtonModel(
-                text = "Skip for now",
-                treatment = Tertiary,
-                size = Compact,
-                onClick = StandardClick {}
-              )
-          ),
-        onValueChange = {},
-        onBack = {},
-        id = null,
-        explainerText = null
-      ).body as FormBodyModel
-  )
-}
-
-@Preview
-@Composable
-internal fun PreviewEmailVerificationCodeInputFormScreen() {
-  FormScreen(
-    model =
-      VerificationCodeInputBodyModel(
-        title = "Verify your touchpoint",
-        subtitle = "We sent a code to you",
-        resendCodeContent = Text(value = "Resend code in 00:15"),
-        skipForNowContent =
-          Showing(
-            text = "Can’t receive the code?",
-            button =
-              ButtonModel(
-                text = "Skip for now",
-                treatment = Tertiary,
-                size = Compact,
-                onClick = StandardClick {}
-              )
-          ),
-        onValueChange = {},
-        onBack = {},
-        id = null,
-        explainerText = "If the code doesn’t arrive, please check your spam folder."
-      ).body as FormBodyModel
-  )
 }

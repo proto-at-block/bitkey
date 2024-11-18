@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-device-provider-gradle-proto",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-device-provider-gradle-proto-31.3.2.jar": "ad2342bb1d6f95563400a322493ea1c229cb93df3944f1261b7399f718494049"
+                        "android-device-provider-gradle-proto-31.5.2.jar": "ad2342bb1d6f95563400a322493ea1c229cb93df3944f1261b7399f718494049"
                     }
                 }
             ],

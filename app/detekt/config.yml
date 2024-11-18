@@ -347,8 +347,10 @@ naming:
   LambdaParameterNaming:
     active: false
     parameterPattern: '[a-z][A-Za-z0-9]*|_'
+  # TODO: enable this rule back. For some reason this rule fails on KMP files with platform suffix (`.android.kt`, `.jvm.kt`)
+  #       even though Detekt does support it - there might be an issue with how we configure Detekt.
   MatchingDeclarationName:
-    active: true
+    active: false
     mustBeFirst: true
   MemberNameEqualsClassName:
     active: true

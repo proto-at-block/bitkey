@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-tooling-core-2.0.0.jar": "73464aa3c214567013a4373f09e7b6f0b63185b3a6df6988b347430d7777a971"
+                        "kotlin-tooling-core-2.0.21.jar": "5b6f148548fe9e074df51f4225344433bf0375ac5b39ffcd3d7bd7d7f602d629"
                     }
                 }
             ],

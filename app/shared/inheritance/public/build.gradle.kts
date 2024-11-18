@@ -13,7 +13,6 @@ kotlin {
       dependencies {
         api(projects.shared.bitkeyPrimitivesPublic)
         api(projects.shared.databasePublic)
-        implementation(projects.shared.coroutinesPublic)
       }
     }
 

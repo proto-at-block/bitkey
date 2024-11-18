@@ -11,7 +11,6 @@ import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
-import build.wallet.money.currency.Currency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
@@ -26,8 +25,6 @@ import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.minutes
 
 class SendUiStateMachineImpl(
@@ -39,7 +36,6 @@ class SendUiStateMachineImpl(
   private val permissionUiStateMachine: PermissionUiStateMachine,
   private val feeSelectionUiStateMachine: FeeSelectionUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
-  private val clock: Clock,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : SendUiStateMachine {
   @Composable
@@ -55,15 +51,9 @@ class SendUiStateMachineImpl(
     // the same rates over the duration of the flow. This is null when the exchange rates are not
     // available or are out of date due to the customer being offline or unable to communicate with f8e
     val exchangeRates: ImmutableList<ExchangeRate>? by remember {
-      val rates = exchangeRateService.exchangeRates.value.toImmutableList()
-      val instant = rates.timeRetrievedForCurrency(fiatCurrency)
       mutableStateOf(
-        when {
-          // if rates are older than 5 minutes or we cant find any for our fiat currency, we don't
-          // use them
-          instant == null || instant <= clock.now() - 5.minutes -> null
-          else -> rates
-        }
+        exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, fiatCurrency)
+          ?.toImmutableList()
       )
     }
 
@@ -247,11 +237,6 @@ class SendUiStateMachineImpl(
             )
         ).asModalFullScreen()
     }
-  }
-
-  private fun ImmutableList<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {
-    return firstOrNull { it.fromCurrency == currency.textCode || it.toCurrency == currency.textCode }
-      ?.timeRetrieved
   }
 }
 

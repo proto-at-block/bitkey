@@ -26,10 +26,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.mapResult
-import io.ktor.client.request.delete
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.put
+import io.ktor.client.request.*
 import kotlinx.collections.immutable.toImmutableList
 import okio.ByteString
 
@@ -106,7 +103,7 @@ class RelationshipsF8eClientImpl(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
           withDescription("Refresh Invitation")
-          setRedactedBody(RefreshTrustedContactRequestBody())
+          setRedactedBody(RefreshTrustedContactRequestBody(action = "Reissue"))
         }
       }.map {
         it.invitation.toInvitation()

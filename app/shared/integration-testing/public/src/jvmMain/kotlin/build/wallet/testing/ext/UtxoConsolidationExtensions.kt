@@ -8,13 +8,13 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlinx.coroutines.flow.first
 
 suspend fun AppTester.consolidateAllUtxos(): Pair<UtxoConsolidationParams, UtxoConsolidationTransactionDetail> {
-  val utxoConsolidationService = app.appComponent.utxoConsolidationService
+  val utxoConsolidationService = utxoConsolidationService
   val consolidationParams = utxoConsolidationService.prepareUtxoConsolidation()
     .shouldBeOk()
     .single()
 
   val appAndHardwareSignedPsbt = signPsbtWithHardware(psbt = consolidationParams.appSignedPsbt)
-  val spendingWallet = app.appComponent.transactionsService.spendingWallet().value.shouldNotBeNull()
+  val spendingWallet = transactionsService.spendingWallet().value.shouldNotBeNull()
   val totalBalanceBeforeConsolidation = spendingWallet.balance().first().total
 
   val consolidationTransactionDetail = utxoConsolidationService

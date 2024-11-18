@@ -1,6 +1,5 @@
 package build.wallet.coachmark
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.datetime.Instant
 
@@ -18,7 +17,7 @@ interface CoachmarkDao {
   suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
     expiration: Instant,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Set a coachmark as viewed.
@@ -26,7 +25,7 @@ interface CoachmarkDao {
    * @param id The coachmark identifier.
    * @return The coachmark if it was updated successfully, or an error if it wasn't.
    */
-  suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, DbError>
+  suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, Error>
 
   /**
    * Get a coachmark from the DB.
@@ -34,17 +33,17 @@ interface CoachmarkDao {
    * @param id The coachmark identifier.
    * @return The coachmark if it exists, or null if it doesn't.
    */
-  suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError>
+  suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, Error>
 
   /**
    * Get all coachmarks from the DB.
    * @return A list of all coachmarks in the DB.
    */
-  suspend fun getAllCoachmarks(): Result<List<Coachmark>, DbError>
+  suspend fun getAllCoachmarks(): Result<List<Coachmark>, Error>
 
   /**
    * Delete all coachmarks in the DB. This is only used for testing purposes.
    * @return A result indicating success or failure.
    */
-  suspend fun resetCoachmarks(): Result<Unit, DbError>
+  suspend fun resetCoachmarks(): Result<Unit, Error>
 }

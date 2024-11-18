@@ -1,3 +1,4 @@
+use crate::spend_rules::errors::{SpendRuleCheckError, SpendRuleCheckErrors};
 use bdk_utils::bdk::bitcoin::psbt::PsbtParseError;
 use bdk_utils::error::BdkUtilError;
 use errors::ApiError;
@@ -16,14 +17,16 @@ pub enum SigningError {
     InvalidPsbt(String),
     #[error(transparent)]
     PsbtParsingFailed(#[from] PsbtParseError),
-    #[error("Transaction failed to pass sweep spend rules: {0:?}")]
-    SpendRuleCheckFailed(Vec<String>),
+    #[error(transparent)]
+    SpendRuleCheckFailed(#[from] SpendRuleCheckErrors),
     #[error("Account doesn't have requested keyset: {0}")]
     NoSpendKeyset(KeysetId),
     #[error(transparent)]
     PsbtSigning(#[from] wsm_rust_client::Error),
     #[error("Account without active spending keyset")]
     NoActiveSpendKeyset,
+    #[error("Psbt was not broadcasted because it wasn't fully signed")]
+    CannotBroadcastNonFullySignedPsbt,
 }
 
 impl From<SigningError> for ApiError {
@@ -39,9 +42,22 @@ impl From<SigningError> for ApiError {
             | SigningError::NoActiveSpendKeyset => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
-            SigningError::SpendRuleCheckFailed(_)
-            | SigningError::InvalidPsbt(_)
-            | SigningError::PsbtParsingFailed(_) => ApiError::GenericBadRequest(err_msg),
+            SigningError::InvalidPsbt(_)
+            | SigningError::PsbtParsingFailed(_)
+            | SigningError::CannotBroadcastNonFullySignedPsbt => {
+                ApiError::GenericBadRequest(err_msg)
+            }
+            SigningError::SpendRuleCheckFailed(errors) => {
+                if errors
+                    .0
+                    .iter()
+                    .any(|e| matches!(e, SpendRuleCheckError::OutputsBelongToSanctionedIndividuals))
+                {
+                    ApiError::GenericUnavailableForLegalReasons(err_msg)
+                } else {
+                    ApiError::GenericBadRequest(err_msg)
+                }
+            }
         }
     }
 }

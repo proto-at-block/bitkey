@@ -3,7 +3,6 @@ package build.wallet.money.formatter
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
-import dev.zacsweers.redacted.annotations.Redacted
 
 interface MoneyDisplayFormatter {
   /**
@@ -17,15 +16,6 @@ interface MoneyDisplayFormatter {
    */
   fun formatCompact(amount: FiatMoney): String
 }
-
-/**
- * A simple container for display amounts; see [amountDisplayText].
- */
-@Redacted
-data class AmountDisplayText(
-  val primaryAmountText: String,
-  val secondaryAmountText: String?,
-)
 
 /**
  * Determines the priority of money text to be displayed to the user, returned as an [AmountDisplayText].

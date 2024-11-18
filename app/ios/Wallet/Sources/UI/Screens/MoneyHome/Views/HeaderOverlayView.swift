@@ -23,7 +23,7 @@ public struct HeaderOverlayView: View {
                 VisualEffectView(effect: UIBlurEffect(style: .light))
                     .ignoresSafeArea()
                     .frame(height: Metrics.height)
-                ModeledText(model: .standard("Home", font: .title2, textAlignment: .center))
+                ModeledText(model: .standard("Bitkey", font: .title2, textAlignment: .center))
             }
             Spacer()
         }

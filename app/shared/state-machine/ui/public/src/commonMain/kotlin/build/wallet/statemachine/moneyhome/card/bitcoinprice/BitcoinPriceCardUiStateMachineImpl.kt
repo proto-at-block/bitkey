@@ -72,7 +72,7 @@ class BitcoinPriceCardUiStateMachineImpl(
     LaunchedEffect(priceMoney, fiatCurrency) {
       if (priceMoney != null) {
         chartDataFetcherService.getChartData(
-          fullAccountId = props.fullAccountId,
+          accountId = props.accountId,
           f8eEnvironment = props.f8eEnvironment,
           chartHistory = ChartHistory.DAY,
           maxPricePoints = SPARKLINE_MAX_POINTS

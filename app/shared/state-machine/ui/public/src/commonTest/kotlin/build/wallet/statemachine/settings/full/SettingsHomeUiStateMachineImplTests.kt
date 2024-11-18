@@ -1,5 +1,6 @@
 package build.wallet.statemachine.settings.full
 
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.ExportToolsFeatureFlag
@@ -20,7 +21,7 @@ import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateM
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.export.ExportToolsUiProps
@@ -67,7 +68,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
 
   val props =
     SettingsHomeUiProps(
-      accountData = ActiveKeyboxLoadedDataMock,
+      account = FullAccountMock,
+      lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
       homeBottomSheetModel = null,
       homeStatusBannerModel = null,
       onBack = { propsOnBackCalls.add(Unit) }

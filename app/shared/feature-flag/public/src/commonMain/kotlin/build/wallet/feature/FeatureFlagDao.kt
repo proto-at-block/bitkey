@@ -1,6 +1,5 @@
 package build.wallet.feature
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlin.reflect.KClass
 
@@ -14,20 +13,20 @@ interface FeatureFlagDao {
   suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,
     kClass: KClass<T>,
-  ): Result<T?, DbError>
+  ): Result<T?, Error>
 
   /** Sets the value for the flag with the given ID. */
   suspend fun <T : FeatureFlagValue> setFlag(
     flagValue: T,
     featureFlagId: String,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /** Returns true if the flag with the given ID is overridden, false otherwise. */
-  suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, DbError>
+  suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, Error>
 
   /** Sets whether the flag with the given ID is overridden or not. */
   suspend fun setFlagOverridden(
     featureFlagId: String,
     overridden: Boolean,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 }

@@ -20,8 +20,8 @@ import kotlin.test.assertNotNull
 
 class PartnerTransferFunctionalTests : FunSpec({
   context("Partnerships Transfer Flow") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
     var capturedRedirectionMethod: PartnerRedirectionMethod? = null
     var capturedTransaction: PartnershipTransaction? = null
     val transferUiProps = PartnershipsTransferUiProps(
@@ -38,7 +38,7 @@ class PartnerTransferFunctionalTests : FunSpec({
     )
 
     test("displays the expected partners") {
-      appTester.app.addBitcoinUiStateMachine.partnershipsTransferUiStateMachine.test(
+      app.partnershipsTransferUiStateMachine.test(
         props = transferUiProps,
         useVirtualTime = true
       ) {
@@ -60,7 +60,7 @@ class PartnerTransferFunctionalTests : FunSpec({
     }
 
     test("redirects correctly") {
-      appTester.app.addBitcoinUiStateMachine.partnershipsTransferUiStateMachine.test(
+      app.partnershipsTransferUiStateMachine.test(
         props = transferUiProps,
         useVirtualTime = true
       ) {

@@ -13,8 +13,6 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupModel.HeaderTreatment.PRIMARY
 import build.wallet.ui.model.list.ListGroupModel.HeaderTreatment.SECONDARY
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun ListSectionHeader(
@@ -38,13 +36,5 @@ fun ListSectionHeader(
         PRIMARY -> Primary
       }
     )
-  }
-}
-
-@Composable
-@Preview
-internal fun ListSectionHeaderPreview() {
-  PreviewWalletTheme {
-    ListHeader(title = "Pending")
   }
 }

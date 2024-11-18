@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-events-iosx64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-events-iosx64-2.3.11-metadata.jar": "8758ae6cf0d66d3aae422001bd383f172386ee266fe89334c1bb6e93f9029887"
+                        "ktor-events-iosx64-2.3.12-metadata.jar": "cf45728d1291ef43dc54eb4be18579bef552e8f6ea4a38c28c98af70986c92c9"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-events.klib": "9ab4a3616574bdcbc86cb9d167633e7b7d9974dcdfdfa8710caf3f038b996b24"
+                        "ktor-events.klib": "2b2fdd8c735140848200af0ec7746e472809b870c472367088182d81a3c69ba1"
                     }
                 }
             ],

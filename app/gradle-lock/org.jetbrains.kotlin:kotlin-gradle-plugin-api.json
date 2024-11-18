@@ -2,12 +2,12 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-api",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-api-2.0.0-gradle85.jar": "f95693a82de0bbfb06d6b1eac364954b68bf488ba0c8cc2ff273976bb28ee223",
-                        "kotlin-gradle-plugin-api-2.0.0.jar": "f95693a82de0bbfb06d6b1eac364954b68bf488ba0c8cc2ff273976bb28ee223"
+                        "kotlin-gradle-plugin-api-2.0.21-gradle85.jar": "52eaf52ce303b529de67abc3bac13e4f13596357543dfa831c4d72d2d6310e50",
+                        "kotlin-gradle-plugin-api-2.0.21.jar": "52eaf52ce303b529de67abc3bac13e4f13596357543dfa831c4d72d2d6310e50"
                     }
                 }
             ],

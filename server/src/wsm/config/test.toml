@@ -1,5 +1,6 @@
 dekTableName = "wsm_deks"
 customerKeysTableName = "wsm_customer_keys"
+customerKeySharesTableName = "wsm_customer_key_shares"
 cmkId = "fake"
 dynamodbEndpoint = "http://localhost:8000"
 enclaveEndpoint = "http://localhost:7446"

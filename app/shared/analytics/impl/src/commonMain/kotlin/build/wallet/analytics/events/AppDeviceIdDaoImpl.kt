@@ -13,11 +13,9 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
  */
 class AppDeviceIdDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  uuidGenerator: UuidGenerator,
+  private val uuidGenerator: UuidGenerator,
 ) : AppDeviceIdDao {
   private suspend fun secureStore() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
-
-  private val uuid = uuidGenerator
 
   override suspend fun getOrCreateAppDeviceIdIfNotExists(): Result<String, Throwable> {
     val secureStore = secureStore()
@@ -27,7 +25,7 @@ class AppDeviceIdDaoImpl(
       if (appDeviceId != null) {
         appDeviceId
       } else {
-        val newAppDeviceId = uuid.random()
+        val newAppDeviceId = uuidGenerator.random()
         secureStore.putStringWithResult(key = KEY, value = newAppDeviceId).bind()
         newAppDeviceId
       }

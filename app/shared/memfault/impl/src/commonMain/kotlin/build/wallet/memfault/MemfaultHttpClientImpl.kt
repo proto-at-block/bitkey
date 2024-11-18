@@ -3,28 +3,32 @@ package build.wallet.memfault
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
-import build.wallet.ktor.result.client.KtorLogLevelPolicy
 import build.wallet.ktor.result.client.installLogging
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpResponseValidator
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.request.accept
-import io.ktor.http.ContentType.Application
-import io.ktor.http.HttpHeaders
-import io.ktor.serialization.kotlinx.json.json
-import io.ktor.util.appendIfNameAbsent
+import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.Development
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.http.ContentType.*
+import io.ktor.serialization.kotlinx.json.*
+import io.ktor.util.*
 import kotlinx.serialization.json.Json
 
 class MemfaultHttpClientImpl(
-  val logLevelPolicy: KtorLogLevelPolicy,
+  private val appVariant: AppVariant,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : MemfaultHttpClient {
   override fun client(): HttpClient =
     HttpClient {
       installLogging(
         tag = "Memfault",
-        logLevel = logLevelPolicy.level()
+        logLevel = when (appVariant) {
+          Development -> LogLevel.ALL
+          else -> LogLevel.INFO
+        }
       )
 
       install(ContentNegotiation) {

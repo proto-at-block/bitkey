@@ -1,7 +1,7 @@
 package build.wallet.f8e.partnerships
 
 import app.cash.turbine.Turbine
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.partnerships.PartnerId
@@ -17,7 +17,7 @@ class GetPartnershipTransactionF8eClientMock(
   val getTransactionCalls = turbine("get partnership transaction")
 
   override suspend fun getPartnershipTransaction(
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
     partner: PartnerId,
     partnershipTransactionId: PartnershipTransactionId,

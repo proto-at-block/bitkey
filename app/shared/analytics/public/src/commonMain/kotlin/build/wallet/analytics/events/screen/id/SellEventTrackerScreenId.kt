@@ -4,6 +4,9 @@ enum class SellEventTrackerScreenId : EventTrackerScreenId {
   /** Sheet showing an option to sell or transfer to partners */
   SELL_PARTNERS_LIST,
 
+  /** Screen showing a list of quotes from partners for selling */
+  SELL_QUOTES_LIST,
+
   /** Loading screen shown when we are loading sell partners */
   LOADING_SELL_PARTNERS,
 

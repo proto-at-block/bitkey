@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.skiko:skiko-iosx64",
     "components": [
         {
-            "version": "0.8.4",
+            "version": "0.8.15",
             "variants": [
                 {
                     "artifacts": {
                         "skiko-cinterop-uikit.klib": "c4872bd739a5a4ca5f08156566675dc2cafae394756a4d981100e041254bc07c",
-                        "skiko.klib": "03f8dfca3c72923e689b831b35a826af291ea098b956b2d6f8bd4e26592e8d40"
+                        "skiko.klib": "04cfa8170957e6cdf7ab712b928870a04e0e6d99fb2a69509ef4befb6d5b93c5"
                     }
                 },
                 {
                     "artifacts": {
-                        "skiko-iosx64-0.8.4-metadata.jar": "e7e77b68f48ebd5bbc934c3c163af292682189497abefc5465a8e8a870d2c8f6"
+                        "skiko-iosx64-0.8.15-metadata.jar": "45ea3e6a7c843ea467d3bf71ed88a2ea6ba11a9575ae4c71a0834bfb7945a3aa"
                     }
                 }
             ],

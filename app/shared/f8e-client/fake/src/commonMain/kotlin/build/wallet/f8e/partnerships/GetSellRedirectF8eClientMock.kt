@@ -6,6 +6,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.GetSellRedirectF8eClient.Success
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Ok
@@ -34,6 +35,7 @@ class GetSellRedirectF8eClientMock(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     fiatAmount: FiatMoney,
+    bitcoinAmount: BitcoinMoney,
     partner: String,
   ): Result<Success, NetworkingError> {
     getSellPartnersRedirectCall.add(Unit)

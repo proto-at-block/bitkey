@@ -1,5 +1,3 @@
-@file:Suppress("MatchingDeclarationName")
-
 package build.wallet.ui.model
 
 import android.os.Parcel
@@ -38,11 +36,11 @@ actual class UiModelContentScreen actual constructor(
       modelState.value = value
     }
 
-  override val key: ScreenKey
+  actual override val key: ScreenKey
     get() = model.key
 
   @Composable
-  override fun Content() {
+  actual override fun Content() {
     Screen(model = modelState.value)
   }
 

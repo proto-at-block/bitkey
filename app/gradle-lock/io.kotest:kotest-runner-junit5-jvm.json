@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-runner-junit5-jvm",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-runner-junit5-jvm-5.9.0.jar": "76957400399f55a24164581419f2a3d07f727c48b03dc3972e2576e18747ea22"
+                        "kotest-runner-junit5-jvm-6.0.0.M1.jar": "753212b71853d55ee50e66998725f2e9156f5135f27844b87f1633e39da4935b"
                     }
                 }
             ],

@@ -1,5 +1,6 @@
 use bitcoin::bip32::{DerivationPath, ExtendedPubKey};
 use bitcoin::Network;
+use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -68,6 +69,35 @@ pub struct EnclaveCreateKeyRequest {
     pub dek_id: String,
     pub network: Network,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveInitiateDistributedKeygenRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub sealed_request: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveInitiateDistributedKeygenResponse {
+    pub aggregate_public_key: PublicKey,
+    pub wrapped_share_details: String,
+    pub wrapped_share_details_nonce: String,
+    pub sealed_response: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveContinueDistributedKeygenRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub wrapped_share_details: String,
+    pub wrapped_share_details_nonce: String,
+    pub sealed_request: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveContinueDistributedKeygenResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveDeriveKeyRequest {

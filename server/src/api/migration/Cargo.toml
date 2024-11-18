@@ -14,3 +14,6 @@ tracing = { workspace = true }
 
 # path dependencies
 database = { workspace = true }
+
+[lints]
+workspace = true

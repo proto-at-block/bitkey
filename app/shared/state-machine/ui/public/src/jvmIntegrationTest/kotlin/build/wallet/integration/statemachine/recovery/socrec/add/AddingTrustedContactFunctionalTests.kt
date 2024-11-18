@@ -47,9 +47,9 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Enter TC Name") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.addingTcsUiStateMachine.test(
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
         account = account,
         onAddTc = onAddTc,
@@ -92,9 +92,9 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Save Contact With Bitkey") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.addingTcsUiStateMachine.test(
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
         account = account,
         onAddTc = onAddTc,
@@ -111,9 +111,9 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Share Invite") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.addingTcsUiStateMachine.test(
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
         account = account,
         onAddTc = onAddTc,
@@ -140,9 +140,9 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   test("Complete TC Invite") {
-    val appTester = launchNewApp()
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.addingTcsUiStateMachine.test(
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.addingTcsUiStateMachine.test(
       AddingTrustedContactUiProps(
         account = account,
         onAddTc = onAddTc,

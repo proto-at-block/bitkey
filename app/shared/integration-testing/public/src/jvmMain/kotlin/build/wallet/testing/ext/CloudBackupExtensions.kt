@@ -12,7 +12,7 @@ import com.github.michaelbull.result.getOrThrow
  */
 suspend fun AppTester.deleteBackupsFromFakeCloud() {
   CloudStoreAccountFake.cloudStoreAccountFakes.forEach { fakeCloudAccount ->
-    app.cloudBackupRepository.clear(fakeCloudAccount, clearRemoteOnly = true)
+    cloudBackupRepository.clear(fakeCloudAccount, clearRemoteOnly = true)
   }
 }
 
@@ -22,7 +22,7 @@ suspend fun AppTester.deleteBackupsFromFakeCloud() {
 suspend fun AppTester.readCloudBackup(cloudStoreAccount: CloudStoreAccount? = null): CloudBackup? {
   val cloudAccount =
     cloudStoreAccount
-      ?: app.cloudStoreAccountRepository.currentAccount(cloudServiceProvider()).getOrThrow()
+      ?: cloudStoreAccountRepository.currentAccount(cloudServiceProvider()).getOrThrow()
       ?: return null
-  return app.cloudBackupRepository.readBackup(cloudAccount).getOrThrow()
+  return cloudBackupRepository.readBackup(cloudAccount).getOrThrow()
 }

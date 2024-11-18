@@ -11,6 +11,8 @@ import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.challange.DelayNotifyChallenge
+import build.wallet.bitkey.challange.SignedChallenge
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -147,7 +149,8 @@ class RecoveryInProgressDataStateMachineImpl(
               state =
                 AwaitingChallengeAndCsekSignedWithHardwareState(
                   challenge =
-                    ChallengeToCompleteRecovery(
+                    DelayNotifyChallenge.fromParts(
+                      type = DelayNotifyChallenge.Type.RECOVERY,
                       app = props.recovery.appGlobalAuthKey,
                       recovery = props.recovery.appRecoveryAuthKey,
                       hw = props.recovery.hardwareAuthKey
@@ -251,7 +254,7 @@ class RecoveryInProgressDataStateMachineImpl(
         AwaitingChallengeAndCsekSignedWithHardwareData(
           nfcTransaction =
             SignChallengeAndCsek(
-              challenge = dataState.challenge.bytes,
+              challenge = dataState.challenge,
               csek = dataState.csek,
               success = { response ->
                 scope.launch {
@@ -260,12 +263,7 @@ class RecoveryInProgressDataStateMachineImpl(
                       state =
                         RotatingAuthKeysWithF8eState(
                           sealedCsek = response.sealedCsek,
-                          challenge = dataState.challenge,
-                          hardwareSignedChallenge =
-                            SignedChallengeToCompleteRecovery(
-                              signature = response.signedChallenge,
-                              signingFactor = Hardware
-                            )
+                          hardwareSignedChallenge = response.signedChallenge
                         )
                     }
                     .onFailure { error ->
@@ -656,7 +654,6 @@ class RecoveryInProgressDataStateMachineImpl(
         .rotateAuthKeys(
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           fullAccountId = props.recovery.fullAccountId,
-          challenge = state.challenge,
           hardwareSignedChallenge = state.hardwareSignedChallenge,
           destinationAppAuthPubKeys = AppAuthPublicKeys(
             props.recovery.appGlobalAuthKey,
@@ -744,7 +741,7 @@ class RecoveryInProgressDataStateMachineImpl(
      * keybox after recovery is complete.
      */
     data class AwaitingChallengeAndCsekSignedWithHardwareState(
-      val challenge: ChallengeToCompleteRecovery,
+      val challenge: DelayNotifyChallenge,
       val csek: Csek,
     ) : State
 
@@ -758,13 +755,8 @@ class RecoveryInProgressDataStateMachineImpl(
      */
     data class RotatingAuthKeysWithF8eState(
       val sealedCsek: SealedCsek,
-      val challenge: ChallengeToCompleteRecovery,
-      val hardwareSignedChallenge: SignedChallengeToCompleteRecovery,
-    ) : State {
-      init {
-        require(hardwareSignedChallenge.signingFactor == Hardware)
-      }
-    }
+      val hardwareSignedChallenge: SignedChallenge.HardwareSignedChallenge,
+    ) : State
 
     data class FailedToCreateSpendingKeysState(
       val cause: Error,

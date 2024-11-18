@@ -26,12 +26,12 @@ kotlin {
     commonMain {
       dependencies {
         implementation(compose.runtime)
+        implementation(compose.components.resources)
         implementation(libs.kmp.molecule.runtime)
         implementation(projects.shared.composeRuntimePublic)
         implementation(projects.shared.serializationPublic)
         implementation(projects.shared.stdlibPublic)
         implementation(libs.kmp.settings)
-        implementation(compose.components.uiToolingPreview)
         implementation(libs.android.voyager.navigator)
         implementation(libs.android.voyager.transitions)
         implementation(libs.kmp.compottie)
@@ -41,6 +41,10 @@ kotlin {
 
         api(projects.shared.fwupPublic)
         api(projects.shared.amountPublic)
+        // TODO: remove dependency on :impl.
+        implementation(projects.shared.amountImpl) {
+          because("Depends on AmountCalculatorImpl, DecimalNumberCalculatorImpl, and WholeNumberCalculatorImpl.")
+        }
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.bootstrapPublic)
@@ -72,7 +76,6 @@ kotlin {
         api(projects.shared.uiCorePublic)
         api(projects.shared.firmwarePublic)
         api(projects.shared.emailPublic)
-        api(projects.shared.coroutinesPublic)
         api(projects.shared.workerPublic)
         api(projects.shared.priceChartPublic)
         implementation(projects.shared.supportPublic)
@@ -93,6 +96,8 @@ kotlin {
         implementation(libs.android.compose.ui.activity)
         implementation(libs.android.compose.ui.core)
         implementation(libs.android.accompanist.system.ui.controller)
+        implementation(libs.android.compose.ui.tooling)
+        implementation(libs.android.compose.ui.tooling.preview)
       }
     }
 

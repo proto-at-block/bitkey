@@ -15,7 +15,7 @@ import io.kotest.property.exhaustive.enum
 class AppKeysGeneratorComponentTests : FunSpec({
 
   test("KeyBundle uses random localId") {
-    val app = launchNewApp().app
+    val app = launchNewApp()
     val appKeyBundle1 =
       app.appKeysGenerator
         .generateKeyBundle(network = BITCOIN)
@@ -33,7 +33,7 @@ class AppKeysGeneratorComponentTests : FunSpec({
 
   test("generate new app KeyBundle") {
     checkAll(Exhaustive.enum<BitcoinNetworkType>()) { network ->
-      val app = launchNewApp().app
+      val app = launchNewApp()
       val appKeyBundle =
         app.appKeysGenerator
           .generateKeyBundle(network)
@@ -41,17 +41,17 @@ class AppKeysGeneratorComponentTests : FunSpec({
 
       appKeyBundle.networkType.shouldBe(network)
 
-      app.appComponent.appPrivateKeyDao
+      app.appPrivateKeyDao
         .getAppSpendingPrivateKey(appKeyBundle.spendingKey)
         .shouldBeOk()
         .shouldNotBeNull()
 
-      app.appComponent.appPrivateKeyDao
+      app.appPrivateKeyDao
         .getAsymmetricPrivateKey(appKeyBundle.authKey)
         .shouldBeOk()
         .shouldNotBeNull()
 
-      app.appComponent.appPrivateKeyDao
+      app.appPrivateKeyDao
         .getAsymmetricPrivateKey(appKeyBundle.recoveryAuthKey.shouldNotBeNull())
         .shouldBeOk()
         .shouldNotBeNull()

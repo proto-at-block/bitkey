@@ -2,11 +2,11 @@
     "module-identifier": "com.google.devtools.ksp:symbol-processing-common-deps",
     "components": [
         {
-            "version": "2.0.0-1.0.24",
+            "version": "2.0.21-1.0.26",
             "variants": [
                 {
                     "artifacts": {
-                        "symbol-processing-common-deps-2.0.0-1.0.24.jar": "22f0f50184f0f1162cb77aef8f057d409472e1bd7f4dc9cad1f2eae2243675cd"
+                        "symbol-processing-common-deps-2.0.21-1.0.26.jar": "f54ddfbad5923a56fca59f2cffcffa4961488b33969935c25e9492f4de754ce4"
                     }
                 }
             ],

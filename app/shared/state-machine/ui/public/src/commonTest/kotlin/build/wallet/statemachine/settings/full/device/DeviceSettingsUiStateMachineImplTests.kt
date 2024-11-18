@@ -4,6 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
@@ -22,7 +23,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -93,7 +94,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   val onBackCalls = turbines.create<Unit>("on back calls")
 
   val props = DeviceSettingsProps(
-    accountData = ActiveKeyboxLoadedDataMock,
+    account = FullAccountMock,
+    lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
     onBack = { onBackCalls += Unit },
     onUnwindToMoneyHome = {}
   )

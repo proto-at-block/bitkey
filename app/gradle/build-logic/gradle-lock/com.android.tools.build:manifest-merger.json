@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:manifest-merger",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "manifest-merger-31.3.2.jar": "da93ccdd854ca54aed7efcc9c948a8ee9ea567b15dcc28e04445b30ba1bc13e1"
+                        "manifest-merger-31.5.2.jar": "9dae7cd6914283fd7c441068b77061e5083ffa3d4ee0d4dd01e08d849ad255c8"
                     }
                 }
             ],

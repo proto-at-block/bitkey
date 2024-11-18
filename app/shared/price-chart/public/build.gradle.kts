@@ -15,7 +15,6 @@ kotlin {
       dependencies {
         api(compose.runtime)
         api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.uiCorePublic)
         implementation(compose.components.resources)
         implementation(compose.foundation)

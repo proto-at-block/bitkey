@@ -4,24 +4,29 @@ use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 
-use crate::metrics;
-
 use super::Rule;
+use crate::metrics;
+use crate::spend_rules::errors::SpendRuleCheckError;
 
 pub(crate) struct NoPsbtOutputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
 }
 
 impl<'a> Rule for NoPsbtOutputsBelongToWalletRule<'a> {
-    /// Ensure no outputs in the PSBT belong to this wallet
-    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+    /// Ensure no outputs in the PSBT belong to this wallet.
+    /// Requires derivation path information in the PSBT.
+    /// Works for an un-synced walled if checking for self-spend.
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
         if self
             .wallet
             .is_addressed_to_self(psbt)
-            .map_err(|err| format!("Invalid PSBT for given wallet: {err}"))?
+            .map_err(|err| SpendRuleCheckError::BdkUtils(err.to_string()))?
         {
             metrics::MOBILE_PAY_OUTPUTS_BELONG_TO_SELF.add(1, &[]);
-            Err("Invalid Mobile Pay transaction. Contains outputs to self.".to_string())
+            Err(SpendRuleCheckError::PsbtOutputsBelongToOriginWallet)
         } else {
             Ok(())
         }

@@ -8,7 +8,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
  * If processing is successful, all items in batch are removed from [queue]. Otherwise, all items
  * are placed on the back of the [queue] for future processing.
  */
-suspend fun <T> processQueueInBatches(
+internal suspend fun <T> processQueueInBatches(
   queue: Queue<T>,
   processor: Processor<T>,
   batchSize: Int,

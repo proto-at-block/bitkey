@@ -3,7 +3,7 @@ package build.wallet.statemachine.data.keybox
 import androidx.compose.runtime.*
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.keybox.KeyboxDao
-import build.wallet.statemachine.data.account.create.CreateFullAccountContext
+import build.wallet.onboarding.CreateFullAccountContext.LiteToFullAccountUpgrade
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.UpgradingLiteAccount
@@ -55,7 +55,7 @@ class HasActiveLiteAccountDataStateMachineImpl(
           createFullAccountData = createFullAccountDataStateMachine.model(
             props = CreateFullAccountDataProps(
               onboardingKeybox = onboardingKeybox,
-              context = CreateFullAccountContext.LiteToFullAccountUpgrade(props.account),
+              context = LiteToFullAccountUpgrade(props.account),
               rollback = { state = UsingLiteAccount }
             )
           )

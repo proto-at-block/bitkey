@@ -485,7 +485,7 @@ dependencies = [
  "jsonwebtoken",
  "jwt-authorizer",
  "once_cell",
- "secp256k1",
+ "secp256k1 0.27.0",
  "serde",
  "sha2",
  "tokio",
@@ -1375,7 +1375,7 @@ dependencies = [
  "bitcoin-private",
  "bitcoin_hashes 0.12.0",
  "hex_lit",
- "secp256k1",
+ "secp256k1 0.27.0",
  "serde",
 ]
 
@@ -1838,7 +1838,8 @@ dependencies = [
  "crypto_box",
  "hkdf",
  "hmac",
- "serde",
+ "rand 0.8.5",
+ "secp256k1-zkp",
  "sha2",
  "thiserror",
 ]
@@ -4197,10 +4198,8 @@ dependencies = [
  "axum 0.7.4",
  "axum-extra",
  "axum-macros",
- "base64 0.21.7",
  "bdk_utils",
  "comms_verification",
- "crypto",
  "database",
  "errors",
  "experimentation",
@@ -5144,14 +5143,17 @@ dependencies = [
  "http_server",
  "instrumentation",
  "migration",
+ "mobile_pay",
  "mockall",
  "notification",
  "once_cell",
  "rand 0.8.5",
  "repository",
  "rstest",
+ "screener",
  "serde",
  "serde_json",
+ "serde_with 3.9.0",
  "thiserror",
  "time",
  "tokio",
@@ -5664,7 +5666,18 @@ checksum = "25996b82292a7a57ed3508f052cfff8640d38d32018784acd714758b43da9c8f"
 dependencies = [
  "bitcoin_hashes 0.12.0",
  "rand 0.8.5",
- "secp256k1-sys",
+ "secp256k1-sys 0.8.1",
+ "serde",
+]
+
+[[package]]
+name = "secp256k1"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9465315bc9d4566e1724f0fffcbcc446268cb522e60f9a27bcded6b19c108113"
+dependencies = [
+ "rand 0.8.5",
+ "secp256k1-sys 0.10.1",
  "serde",
 ]
 
@@ -5675,6 +5688,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70a129b9e9efbfb223753b9163c4ab3b13cff7fd9c7f010fbac25ab4099fa07e"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "secp256k1-sys"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4387882333d3aa8cb20530a17c69a3752e97837832f34f6dccc760e715001d9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "secp256k1-zkp"
+version = "0.11.0"
+source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings#9651e37abffcfaf9b9307c3317315d947ddcbe57"
+dependencies = [
+ "bitcoin-private",
+ "rand 0.8.5",
+ "secp256k1 0.29.1",
+ "secp256k1-zkp-sys",
+ "serde",
+]
+
+[[package]]
+name = "secp256k1-zkp-sys"
+version = "0.10.0"
+source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings#9651e37abffcfaf9b9307c3317315d947ddcbe57"
+dependencies = [
+ "cc",
+ "secp256k1-sys 0.10.1",
 ]
 
 [[package]]
@@ -5952,6 +5995,7 @@ dependencies = [
  "time",
  "tokio",
  "tower",
+ "tower-http",
  "tracing",
  "types",
  "ulid",
@@ -6590,13 +6634,14 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0da193277a4e2c33e59e09b5861580c33dd0a637c3883d0fa74ba40c0374af2e"
+checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
 dependencies = [
  "base64 0.21.7",
  "bitflags 2.4.1",
  "bytes",
+ "futures-util",
  "http 1.0.0",
  "http-body 1.0.0",
  "http-body-util",
@@ -6935,7 +6980,7 @@ dependencies = [
  "jsonwebtoken",
  "migration",
  "rand 0.8.5",
- "secp256k1",
+ "secp256k1 0.27.0",
  "serde",
  "thiserror",
  "tracing",
@@ -7500,6 +7545,7 @@ dependencies = [
  "recovery",
  "repository",
  "reqwest",
+ "rstest",
  "serde",
  "serde_json",
  "strum",
@@ -7526,6 +7572,7 @@ dependencies = [
  "axum-tracing-opentelemetry",
  "base64 0.21.7",
  "config",
+ "crypto",
  "log",
  "reqwest",
  "serde",
@@ -7545,6 +7592,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
  "bitcoin",
+ "crypto",
  "once_cell",
  "serde",
  "serde_json",

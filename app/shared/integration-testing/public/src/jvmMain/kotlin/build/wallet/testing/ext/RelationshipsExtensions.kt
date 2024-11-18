@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
   withClue("await TC is verified and backed up") {
-    app.appUiStateMachine.test(props = Unit, useVirtualTime = false) {
+    appUiStateMachine.test(props = Unit, useVirtualTime = false) {
       // Wait until TC is synced and verified
       awaitRelationships { relationships ->
         relationships.endorsedTrustedContacts.any {
@@ -46,7 +46,7 @@ suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
 suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
   val account = getActiveFullAccount()
   val hwPop = getHardwareFactorProofOfPossession()
-  val invitation = app.appComponent.relationshipsService
+  val invitation = relationshipsService
     .createInvitation(
       account = account,
       trustedContactAlias = TrustedContactAlias(tcName),
@@ -54,7 +54,10 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
       roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
     .getOrThrow()
-  val pakeData = app.appComponent.relationshipsEnrollmentAuthenticationDao
+  awaitRelationships { relationships ->
+    relationships.invitations.any { it.relationshipId == invitation.invitation.relationshipId }
+  }
+  val pakeData = relationshipsEnrollmentAuthenticationDao
     .getByRelationshipId(invitation.invitation.relationshipId)
     .getOrThrow()
     .shouldNotBeNull()
@@ -78,7 +81,7 @@ suspend fun AppTester.awaitRelationships(
   predicate: (Relationships) -> Boolean,
 ): Relationships =
   withClue("await for SocRec relationships matching a predicate") {
-    app.appComponent.relationshipsService.relationships
+    relationshipsService.relationships
       .filterNotNull()
       .transform { relationships ->
         if (predicate(relationships)) {

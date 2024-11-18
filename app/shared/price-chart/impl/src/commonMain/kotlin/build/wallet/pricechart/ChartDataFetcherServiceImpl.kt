@@ -1,6 +1,6 @@
 package build.wallet.pricechart
 
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -16,18 +16,18 @@ class ChartDataFetcherServiceImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : ChartDataFetcherService {
   override suspend fun getChartData(
-    fullAccountId: FullAccountId,
+    accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
     chartHistory: ChartHistory,
     maxPricePoints: Int?,
   ): Result<List<DataPoint>, NetworkingError> =
     withContext(Dispatchers.IO) {
       exchangeRateF8eClient.getHistoricalBtcExchangeRateChartData(
-        f8eEnvironment,
-        fullAccountId,
-        fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value.textCode.code,
-        chartHistory.days,
-        maxPricePoints ?: chartHistory.maxPricePoints
+        f8eEnvironment = f8eEnvironment,
+        accountId = accountId,
+        currencyCode = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value.textCode.code,
+        days = chartHistory.days,
+        maxPricePoints = maxPricePoints ?: chartHistory.maxPricePoints
       ).map { chartData ->
         chartData.exchangeRates.map { priceAt ->
           DataPoint(priceAt.timestamp.epochSeconds, priceAt.price)

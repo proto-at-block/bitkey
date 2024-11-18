@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-ui-tooling-preview-iosSimulatorArm64",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iossimulatorarm64-1.6.11-metadata.jar": "b0163e7e1c767019f9cc777d53cea56eed57ce7c821adb7f06d4f2d4e2193346"
+                        "library-iossimulatorarm64-1.7.0-metadata.jar": "99054d673b81b24ca18c460261dc0296d645332d0ef925b614e1fc97313157da"
                     }
                 },
                 {

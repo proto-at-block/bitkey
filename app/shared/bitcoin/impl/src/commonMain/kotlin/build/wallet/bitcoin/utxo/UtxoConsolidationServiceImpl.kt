@@ -70,7 +70,7 @@ class UtxoConsolidationServiceImpl(
       val utxoBalance = BitcoinMoney.sats(selectedUtxos.sumOf { it.txOut.value })
 
       // An address belonging to this wallet to which the consolidated UTXOs will be sent.
-      val targetAddress = bitcoinAddressService.generateAddress(account).bind()
+      val targetAddress = bitcoinAddressService.generateAddress().bind()
 
       val feeRate = bitcoinFeeRateEstimator.estimatedFeeRateForTransaction(
         networkType = account.config.bitcoinNetworkType,

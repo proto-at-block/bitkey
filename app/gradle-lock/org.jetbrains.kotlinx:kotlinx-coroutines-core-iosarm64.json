@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-core-iosarm64-1.8.1-metadata.jar": "97528e61f5b97f852e7e862a8d0f669117e3953f56fd361253e33084ac8fb1b3"
+                        "kotlinx-coroutines-core-iosarm64-1.9.0-metadata.jar": "dd143f0cdc3ad3bd481b9da28fc74e769697a4ae872c94ba9df1ec186a306797"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-core.klib": "0659ffd0c1c6e22a9a8bb3dbeea56bf589df212a8a9899147361fd46defea7a1"
+                        "kotlinx-coroutines-core.klib": "58ca93b7d9b02f7b84b503312f5c6e1741e106368c93977da4362d63126a9f1b"
                     }
                 }
             ],

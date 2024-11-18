@@ -31,18 +31,18 @@ class UtxoConsolidationFunctionalTests : FunSpec({
 
   coroutineTestScope = true
 
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
   lateinit var utxoConsolidationService: UtxoConsolidationService
 
   beforeTest {
-    appTester = launchNewApp()
-    appTester.app.appComponent.utxoConsolidationFeatureFlag.setFlagValue(true)
-    utxoConsolidationService = appTester.app.appComponent.utxoConsolidationService
+    app = launchNewApp()
+    app.utxoConsolidationFeatureFlag.setFlagValue(true)
+    utxoConsolidationService = app.utxoConsolidationService
   }
 
   context("prepareUtxoConsolidation") {
     test("error is returned when wallet has 0 UTXOs") {
-      appTester.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
 
       utxoConsolidationService
         .prepareUtxoConsolidation()
@@ -50,10 +50,10 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
 
     test("error is returned when wallet has 1 UTXO") {
-      appTester.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
 
-      appTester.addSomeFunds(amount = sats(1_000L))
-      appTester.waitForFunds()
+      app.addSomeFunds(amount = sats(1_000L))
+      app.waitForFunds()
 
       utxoConsolidationService
         .prepareUtxoConsolidation()
@@ -61,11 +61,11 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
 
     test("UTXO consolidation is available when there are more than 1 UTXOs") {
-      appTester.onboardFullAccountWithFakeHardware()
+      app.onboardFullAccountWithFakeHardware()
 
-      appTester.addSomeFunds(amount = sats(1_000L))
-      appTester.addSomeFunds(amount = sats(2_000L))
-      appTester.waitForFunds { it.total == sats(3_000L) }
+      app.addSomeFunds(amount = sats(1_000L))
+      app.addSomeFunds(amount = sats(2_000L))
+      app.waitForFunds { it.total == sats(3_000L) }
 
       val consolidationParams = utxoConsolidationService.prepareUtxoConsolidation()
         .shouldBeOk()
@@ -82,30 +82,30 @@ class UtxoConsolidationFunctionalTests : FunSpec({
         it.appSignedPsbt.numOfInputs.shouldBe(2)
       }
 
-      val spendingWallet = appTester.getActiveWallet()
+      val spendingWallet = app.getActiveWallet()
       // Target address of the consolidation transaction belongs to this wallet.
       spendingWallet.isMine(consolidationParams.targetAddress).shouldBeOk(true)
     }
   }
 
   test("consolidate all: consolidate two UTXOs into one UTXO") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     val consolidationAmountBeforeFee = sats(3_000L)
 
-    appTester.addSomeFunds(amount = sats(1_000L))
-    appTester.addSomeFunds(amount = sats(2_000L))
-    appTester.waitForFunds { it.total == consolidationAmountBeforeFee }
+    app.addSomeFunds(amount = sats(1_000L))
+    app.addSomeFunds(amount = sats(2_000L))
+    app.waitForFunds { it.total == consolidationAmountBeforeFee }
 
     // UTXO consolidation is available without f8e access
-    appTester.app.appComponent.networkingDebugService.setFailF8eRequests(value = true)
+    app.networkingDebugService.setFailF8eRequests(value = true)
 
     // Prepare UTXO consolidation
     val consolidationParams =
       utxoConsolidationService.prepareUtxoConsolidation().shouldBeOk().single()
 
     // Sign consolidation with hardware
-    val appAndHardwareSignedPsbt = appTester.signPsbtWithHardware(consolidationParams.appSignedPsbt)
+    val appAndHardwareSignedPsbt = app.signPsbtWithHardware(consolidationParams.appSignedPsbt)
 
     // Complete consolidation by broadcasting it
     val consolidationTransactionDetail = utxoConsolidationService
@@ -113,7 +113,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
       .shouldBeOk()
 
     // Consolidation transaction is listed in the transactions list
-    val spendingWallet = appTester.getActiveWallet()
+    val spendingWallet = app.getActiveWallet()
     spendingWallet.transactions().test {
       // Await until transactions contain the consolidation transaction
       val consolidationTransaction = awaitUntil {
@@ -156,7 +156,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
 
     // Can spend funds
-    appTester.returnFundsToTreasury()
+    app.returnFundsToTreasury()
   }
 
   /**
@@ -174,7 +174,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
    * The total balance after consolidation should be 2,000 sats minus mining fee plus 3,000 sats.
    */
   test("consolidate all: ignore UTXO from incoming unconfirmed transaction") {
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     // An amount associated with an unconfirmed transaction. This UTXO will be ignored.
     val unconfirmedAmount = sats(3_000L)
@@ -183,15 +183,15 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     val confirmedAmount = sats(2_000L)
 
     // Add funds
-    appTester.addSomeFunds(amount = sats(1_000))
-    appTester.addSomeFunds(amount = sats(1_000))
-    appTester.addSomeFunds(amount = unconfirmedAmount, waitForConfirmation = false)
+    app.addSomeFunds(amount = sats(1_000))
+    app.addSomeFunds(amount = sats(1_000))
+    app.addSomeFunds(amount = unconfirmedAmount, waitForConfirmation = false)
 
     // Wait for balance
     val totalBalance = unconfirmedAmount + confirmedAmount
     // How much we will consolidate
     val consolidationAmount = confirmedAmount
-    appTester.waitForFunds { it.total == totalBalance }.should {
+    app.waitForFunds { it.total == totalBalance }.should {
       it.confirmed.shouldBe(consolidationAmount)
       it.untrustedPending.shouldBe(unconfirmedAmount)
     }
@@ -207,7 +207,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
 
     // Sign consolidation with hardware
-    val appAndHardwareSignedPsbt = appTester
+    val appAndHardwareSignedPsbt = app
       .signPsbtWithHardware(consolidationParams.appSignedPsbt)
 
     // Complete consolidation by broadcasting it
@@ -216,7 +216,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
       .shouldBeOk()
 
     // Consolidation transaction is listed in the transactions list
-    val spendingWallet = appTester.getActiveWallet()
+    val spendingWallet = app.getActiveWallet()
     spendingWallet.transactions().test {
       // Await until transactions contain the consolidation transaction
       val consolidationTransaction = awaitUntil {
@@ -252,7 +252,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
       }
 
       val balanceAfterConsolidation = consolidationAmountAfterFee + unconfirmedAmount
-      appTester.shouldHaveTotalBalance(balanceAfterConsolidation)
+      app.shouldHaveTotalBalance(balanceAfterConsolidation)
 
       // The target address of the consolidation transaction belongs to this wallet.
       consolidationParams.targetAddress.shouldBe(consolidationTransaction.recipientAddress)
@@ -262,7 +262,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
 
       // Have 2 remaining UTXOs: consolidated UTXO and a UTXO from the unconfirmed transaction.
       val transactionsData =
-        appTester.app.appComponent.transactionsService.transactionsLoadedData().first()
+        app.transactionsService.transactionsLoadedData().first()
       transactionsData.utxos.should { utxos ->
         utxos.confirmed.shouldBeEmpty() // Consolidation transaction is not confirmed yet.
         utxos.unconfirmed.shouldHaveSize(2)
@@ -278,6 +278,6 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
 
     // Can spend funds
-    appTester.returnFundsToTreasury()
+    app.returnFundsToTreasury()
   }
 })

@@ -11,7 +11,6 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.bitcoinPublic)
-        api(projects.shared.dbResultPublic)
       }
     }
   }

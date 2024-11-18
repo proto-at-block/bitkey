@@ -2,7 +2,6 @@ package build.wallet.onboarding
 
 import build.wallet.cloud.backup.csek.SealedCsek
 import com.github.michaelbull.result.Result
-import okio.ByteString
 
 /**
  * A temporary dao for storing the sealed CSEK in order to
@@ -12,7 +11,7 @@ interface OnboardingKeyboxSealedCsekDao {
   /**
    * Access [SealedCsek] from local storage, if available.
    */
-  suspend fun get(): Result<ByteString?, Throwable>
+  suspend fun get(): Result<SealedCsek?, Throwable>
 
   /**
    * Set sealed CSEK in local storage.

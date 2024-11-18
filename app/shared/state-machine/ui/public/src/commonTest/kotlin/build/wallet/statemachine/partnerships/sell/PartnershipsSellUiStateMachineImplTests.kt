@@ -1,93 +1,178 @@
 package build.wallet.statemachine.partnerships.sell
 
-import build.wallet.analytics.events.EventTrackerMock
-import build.wallet.analytics.v1.Action
-import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.GetSaleQuoteListF8eClientMock
-import build.wallet.f8e.partnerships.GetSellRedirectF8eClientMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
+import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
+import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
+import build.wallet.money.BitcoinMoney
+import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.partnerships.PartnerRedirectionMethod
-import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.partnerships.*
+import build.wallet.platform.links.AppRestrictions
+import build.wallet.platform.links.DeepLinkHandler
+import build.wallet.platform.links.OpenDeeplinkResult
+import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
+import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
+import build.wallet.statemachine.send.ContinueTransferParams
+import build.wallet.statemachine.send.TransferAmountEntryUiProps
+import build.wallet.statemachine.send.TransferAmountEntryUiStateMachine
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.should
-import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
-import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.datetime.Instant
 
 class PartnershipsSellUiStateMachineImplTests : FunSpec({
   // turbines
   val onBack = turbines.create<Unit>("on back calls")
-  val onPartnerRedirectedCalls =
-    turbines.create<PartnerRedirectionMethod>(
-      "on partner redirected calls"
-    )
-  val getSaleQuoteListF8eClient = GetSaleQuoteListF8eClientMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val eventTracker = EventTrackerMock(turbines::create)
-  val getSellRedirectF8eClient = GetSellRedirectF8eClientMock(turbines::create)
-  val partnershipRepository = PartnershipTransactionStatusRepositoryMock(
-    clearCalls = turbines.create("clear calls"),
-    syncCalls = turbines.create("sync calls"),
-    createCalls = turbines.create("create calls"),
-    fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
-  )
+  val sellBitcoinQuotesEnabledFeatureFlag = SellBitcoinQuotesEnabledFeatureFlag(FeatureFlagDaoFake())
+  val sellBitcoinMinAmountFeatureFlag = SellBitcoinMinAmountFeatureFlag(FeatureFlagDaoFake())
+  val sellBitcoinMaxAmountFeatureFlag = SellBitcoinMaxAmountFeatureFlag(FeatureFlagDaoFake())
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val deepLinkCalls = turbines.create<String>("Deep Links")
+  val deepLinkHandler = object : DeepLinkHandler {
+    override fun openDeeplink(
+      url: String,
+      appRestrictions: AppRestrictions?,
+    ): OpenDeeplinkResult {
+      deepLinkCalls.add(url)
 
+      return OpenDeeplinkResult.Opened(OpenDeeplinkResult.AppRestrictionResult.Success)
+    }
+  }
   // state machine
   val stateMachine =
-    PartnershipsSellOptionsUiStateMachineImpl(
-      getSaleQuoteListF8eClient = getSaleQuoteListF8eClient,
+    PartnershipsSellUiStateMachineImpl(
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      eventTracker = eventTracker,
-      getSellRedirectF8eClient = getSellRedirectF8eClient,
-      partnershipsRepository = partnershipRepository
+      partnershipsSellOptionsUiStateMachine = object : PartnershipsSellOptionsUiStateMachine,
+        ScreenStateMachineMock<PartnershipsSellOptionsUiProps>(id = "partnerships sell options") {},
+      partnershipsSellConfirmationUiStateMachine = object : PartnershipsSellConfirmationUiStateMachine,
+        ScreenStateMachineMock<PartnershipsSellConfirmationProps>(id = "partnerships sell confirmation") {},
+      transferAmountEntryUiStateMachine = object : TransferAmountEntryUiStateMachine,
+        ScreenStateMachineMock<TransferAmountEntryUiProps>(
+          "transfer-amount-entry"
+        ) {},
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      sellBitcoinQuotesEnabledFeatureFlag = sellBitcoinQuotesEnabledFeatureFlag,
+      sellBitcoinMinAmountFeatureFlag = sellBitcoinMinAmountFeatureFlag,
+      sellBitcoinMaxAmountFeatureFlag = sellBitcoinMaxAmountFeatureFlag,
+      exchangeRateService = ExchangeRateServiceFake(),
+      deepLinkHandler = deepLinkHandler
     )
 
   val props =
-    PartnershipsSellOptionsUiProps(
-      keybox = KeyboxMock,
+    PartnershipsSellUiProps(
       onBack = {
         onBack.add(Unit)
       },
-      onPartnerRedirected = { method, _ ->
-        onPartnerRedirectedCalls.add(method)
-      }
+      account = FullAccountMock,
+      confirmedSale = null
     )
+
+  val transaction = PartnershipTransaction(
+    id = PartnershipTransactionId("test-id"),
+    partnerInfo = PartnerInfo(
+      partnerId = PartnerId("test-partner"),
+      name = "test-partner-name",
+      logoUrl = "test-partner-logo-url"
+    ),
+    context = "test-context",
+    type = PartnershipTransactionType.PURCHASE,
+    status = PartnershipTransactionStatus.PENDING,
+    cryptoAmount = 1.23,
+    txid = "test-transaction-hash",
+    fiatAmount = 3.21,
+    fiatCurrency = IsoCurrencyTextCode("USD"),
+    paymentMethod = "test-payment-method",
+    created = Instant.fromEpochMilliseconds(248),
+    updated = Instant.fromEpochMilliseconds(842),
+    sellWalletAddress = "test-sell-wallet-address"
+  )
+
+  afterTest {
+    sellBitcoinQuotesEnabledFeatureFlag.reset()
+  }
 
   // tests
 
-  test("load sell partners") {
+  test("in-app browser happy path with feature flag disabled") {
+    sellBitcoinQuotesEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+
     stateMachine.test(props) {
-      getSaleQuoteListF8eClient.getSaleQuotesListCall.awaitItem()
-
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      awaitScreenWithBodyModelMock<PartnershipsSellOptionsUiProps>(id = "partnerships sell options") {
+        onPartnerRedirected(
+          PartnerRedirectionMethod.Web(
+            "",
+            PartnerInfo(
+              name = "partner",
+              logoUrl = "https://logo.url.example.com",
+              partnerId = PartnerId("partner")
+            )
+          ),
+          transaction
+        )
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList.size.shouldBe(1)
-        mainContentList[0].apply {
-          shouldBeInstanceOf<ListGroup>()
-          listGroupModel.items.count().shouldBe(2)
-          listGroupModel.items[0].title.shouldBe("partner")
-          listGroupModel.items[1].title.shouldBe("More partners coming soon...")
-        }
+      awaitScreenWithBody<InAppBrowserModel>()
+    }
+  }
 
-        eventTracker.eventCalls.awaitItem().should {
-          it.action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_SALE_PARTNER)
-          it.context.should { context ->
-            context.shouldBeTypeOf<PartnerEventTrackerScreenIdContext>()
-            context.name.shouldBe("partner")
-          }
-        }
+  test("deeplink happy path with feature flag disabled") {
+    sellBitcoinQuotesEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
+
+    stateMachine.test(props) {
+      awaitScreenWithBodyModelMock<PartnershipsSellOptionsUiProps>(id = "partnerships sell options") {
+        onPartnerRedirected(
+          PartnerRedirectionMethod.Deeplink(
+            "",
+            appRestrictions = null,
+            partnerName = "partner"
+          ),
+          transaction
+        )
       }
+
+      onBack.awaitItem()
+      deepLinkCalls.awaitItem()
+    }
+  }
+
+  test("happy path with feature flag enabled") {
+    sellBitcoinQuotesEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    stateMachine.test(props) {
+      awaitScreenWithBodyModelMock<TransferAmountEntryUiProps>(id = "transfer-amount-entry") {
+        onContinueClick(
+          ContinueTransferParams(
+            BitcoinTransactionSendAmount.ExactAmount(
+              BitcoinMoney.zero()
+            )
+          )
+        )
+      }
+
+      awaitScreenWithBodyModelMock<PartnershipsSellOptionsUiProps>(id = "partnerships sell options") {
+        onPartnerRedirected(
+          PartnerRedirectionMethod.Web(
+            "",
+            PartnerInfo(
+              name = "partner",
+              logoUrl = "https://logo.url.example.com",
+              partnerId = PartnerId("partner")
+            )
+          ),
+          transaction
+        )
+      }
+
+      awaitScreenWithBody<InAppBrowserModel>()
     }
   }
 })

@@ -18,8 +18,9 @@ fmt-ci:
   just fmt
   git diff --exit-code
 
+# Must run with only one thread because the NFC generators are not thread-safe
 integration:
-  {{cargo}} test --all-features --test integration_test
+  {{cargo}} test --all-features --test integration_test -- --test-threads 1
 
 record-integration $UPDATE_EXPECT="1":
   {{cargo}} test --all-features --test integration_test

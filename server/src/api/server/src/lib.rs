@@ -1,5 +1,3 @@
-#![forbid(unsafe_code)]
-
 extern crate core;
 
 use std::collections::{HashMap, HashSet};
@@ -64,6 +62,7 @@ use screener::service::Service as ScreenerService;
 use thiserror::Error;
 use tokio::try_join;
 use tower::ServiceBuilder;
+use tower_http::catch_panic::CatchPanicLayer;
 use types::time::{Clock, DefaultClock};
 use userpool::userpool::UserPoolService;
 use utoipa_swagger_ui::SwaggerUi;
@@ -392,6 +391,7 @@ impl BootstrapBuilder {
             notification_service.clone(),
             account_service.clone(),
             feature_flags_service.clone(),
+            screener_service.clone(),
         );
         let privileged_action_service = PrivilegedActionService::new(
             repositories.privileged_action_repository.clone(),
@@ -508,6 +508,9 @@ impl BootstrapBuilder {
             self.services.account_service.clone(),
             self.services.notification_service.clone(),
             self.services.inheritance_service.clone(),
+            self.services.feature_flags_service.clone(),
+            self.services.wsm_client.clone(),
+            self.services.broadcaster.clone(),
         );
 
         let relationship_state = recovery::routes::relationship::RouteState(
@@ -642,7 +645,8 @@ impl BootstrapBuilder {
             .layer(HttpMetrics::new())
             .layer(OtelInResponseLayer)
             .layer(OtelAxumLayer::default())
-            .layer(middleware::from_fn(request_baggage));
+            .layer(middleware::from_fn(request_baggage))
+            .layer(CatchPanicLayer::new());
 
         // Assemble the final router
         let router = Router::new()

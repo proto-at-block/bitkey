@@ -10,11 +10,11 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.dbResultPublic)
         api(projects.shared.timePublic)
         api(libs.kmp.okio)
         api(projects.shared.memfaultPublic)
         api(projects.shared.featureFlagPublic)
+        api(projects.shared.queueProcessorPublic)
       }
     }
   }

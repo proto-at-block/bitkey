@@ -1,3 +1,11 @@
 package build.wallet.statemachine.platform.permissions
 
-expect class PermissionUiStateMachineImpl constructor() : PermissionUiStateMachine
+import androidx.compose.runtime.Composable
+import build.wallet.statemachine.core.BodyModel
+
+expect class PermissionUiStateMachineImpl constructor() : PermissionUiStateMachine {
+  override val isImplemented: Boolean
+
+  @Composable
+  override fun model(props: PermissionUiProps): BodyModel
+}

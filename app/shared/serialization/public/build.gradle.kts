@@ -23,7 +23,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.testingPublic)
-        implementation(libs.kmp.test.kotest.framework.datatest)
+        implementation(libs.kmp.test.kotest.framework.engine)
       }
     }
   }

@@ -15,12 +15,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.SliderState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -31,7 +30,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection.Rtl
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.WalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Slider as MaterialSlider
 
 /**
@@ -181,11 +179,10 @@ private fun SliderThumb(
       .hoverable(interactionSource = interactionSource)
       .indication(
         interactionSource = interactionSource,
-        indication =
-          rememberRipple(
-            bounded = false,
-            radius = thumbSize / 2
-          )
+        indication = ripple(
+          bounded = false,
+          radius = thumbSize / 2
+        )
       )
       .shadow(if (enabled) elevation else 0.dp, shape, clip = false)
   ) {
@@ -204,28 +201,4 @@ private fun SliderThumb(
         )
     )
   }
-}
-
-@Preview // (locale = "en", showBackground = true)
-@Composable
-fun PreviewSlider() {
-  val value = remember { mutableStateOf(.5f) }
-  Slider(
-    value = value.value,
-    onValueChange = { f -> value.value = f },
-    enabled = true,
-    valueRange = 0f..1f
-  )
-}
-
-@Preview // (locale = "ar", showBackground = true)
-@Composable
-fun PreviewSliderRTL() {
-  val value = remember { mutableStateOf(.5f) }
-  Slider(
-    value = value.value,
-    onValueChange = { f -> value.value = f },
-    enabled = true,
-    valueRange = 0f..1f
-  )
 }

@@ -2,9 +2,6 @@ package build.wallet.ui.components.callout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +17,6 @@ import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.inter_medium
 import bitkey.shared.ui_core_public.generated.resources.inter_regular
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
@@ -30,9 +26,7 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
 import org.jetbrains.compose.resources.Font
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * A callout is a component that displays a title, leading icon (optional), subtitle, trailing icon (optional)
@@ -216,50 +210,3 @@ private fun CalloutModel.calloutStyle() =
       trailingIconBackgroundColor = WalletTheme.colors.danger
     )
   }
-
-@Preview
-@Composable
-fun CalloutPreviews() {
-  val multipleLines = listOf(false, true)
-  val treatments = CalloutModel.Treatment.entries
-  val configs = treatments.flatMap { treatment ->
-    multipleLines.map { multipleLines ->
-      CalloutPreviewConfig(
-        multipleLines = multipleLines,
-        treatment = treatment
-      )
-    }
-  }
-
-  PreviewWalletTheme {
-    LazyVerticalGrid(
-      modifier = Modifier
-        .fillMaxWidth()
-        .background(color = Color.White)
-        .padding(all = 10.dp),
-      columns = GridCells.Fixed(2),
-      verticalArrangement = Arrangement.spacedBy(10.dp),
-      horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-      items(configs) { config ->
-        Callout(
-          model = CalloutModel(
-            title = "Title",
-            subtitle = when (config.multipleLines) {
-              true -> StringModel("Subtitle line one\nSubtitle line two")
-              false -> StringModel("Subtitle")
-            },
-            treatment = config.treatment,
-            leadingIcon = Icon.SmallIconCheck,
-            trailingIcon = Icon.SmallIconArrowRight
-          )
-        )
-      }
-    }
-  }
-}
-
-private data class CalloutPreviewConfig(
-  val multipleLines: Boolean,
-  val treatment: CalloutModel.Treatment,
-)

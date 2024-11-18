@@ -42,14 +42,14 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
 class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
   val onExitCalls = turbines.create<Unit>("exit-recovery-flow")
   val onRecoveryCalls = turbines.create<FullAccountKeys>("recovery-key-recovered")
   val relationshipIdToPkekMap: MutableMap<String, XCiphertext> = mutableMapOf()
@@ -83,15 +83,15 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   lateinit var socRecF8eClientFake: SocRecF8eClientFake
 
   beforeAny {
-    appTester = launchNewApp(isUsingSocRecFakes = true)
+    app = launchNewApp(isUsingSocRecFakes = true)
     relationshipsF8eClientFake =
-      (appTester.app.appComponent.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
+      (app.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
         .apply {
           reset()
           endorsedTrustedContacts.add(endorsedTrustedContact)
         }
-    socRecF8eClientFake = appTester.app.appComponent.socRecF8eClientProvider.get() as SocRecF8eClientFake
-    appTester.app.appComponent.socRecStartedChallengeDao.clear()
+    socRecF8eClientFake = app.socRecF8eClientProvider.get() as SocRecF8eClientFake
+    app.socRecStartedChallengeDao.clear()
     relationshipIdToPkekMap[endorsedTrustedContact.relationshipId] =
       relationshipsCrypto.encryptPrivateKeyEncryptionKey(
         endorsedTrustedContact.identityKey,
@@ -100,12 +100,12 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Start Challenge") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        actions = app.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           isUsingSocRecFakes = true
@@ -159,14 +159,14 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Start Challenge Failed") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
     socRecF8eClientFake.fakeNetworkingError =
       HttpError.ServerError(HttpResponseMock(HttpStatusCode.InternalServerError))
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        actions = app.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           isUsingSocRecFakes = true
@@ -190,12 +190,12 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("TC Verification Code") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    val account = app.onboardFullAccountWithFakeHardware()
+    app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        actions = app.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           isUsingSocRecFakes = true
@@ -239,10 +239,10 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           .shouldHaveSize(1)
           .first()
         val challengeAuth =
-          appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getAll()
+          app.socRecStartedChallengeAuthenticationDao.getAll()
             .getOrThrow()
             .single()
-        val code = appTester.app.appComponent.relationshipsCodeBuilder.buildRecoveryCode(
+        val code = app.relationshipsCodeBuilder.buildRecoveryCode(
           challenge.response.counter,
           challengeAuth.pakeCode
         ).getOrThrow()
@@ -263,13 +263,13 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Resume Challenge") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
     var challengeId: String? = null
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        actions = app.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           isUsingSocRecFakes = true
@@ -292,11 +292,11 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       )
       challengeId = socRecF8eClientFake.challenges.single().response.challengeId
     }
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
-        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        actions = app.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
           isUsingSocRecFakes = true
@@ -322,11 +322,11 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Complete Challenge") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     suspend fun simulateRespondToChallenge() {
       val recoveryAuth =
-        appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
+        app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
           recoveryRelationshipId = endorsedTrustedContact.relationshipId
         ).getOrThrow().shouldNotBeNull()
       val decryptOutput = relationshipsCrypto.decryptPrivateKeyEncryptionKey(
@@ -348,7 +348,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     val props = RecoveryChallengeUiProps(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+      actions = app.socRecChallengeRepository.toActions(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
         isUsingSocRecFakes = true
@@ -360,7 +360,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       onKeyRecovered = { onRecoveryCalls.add(it) }
     )
 
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    app.recoveryChallengeUiStateMachine.test(
       props = props,
       useVirtualTime = false
     ) {
@@ -382,7 +382,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
     simulateRespondToChallenge()
 
-    appTester.app.recoveryChallengeUiStateMachine.test(
+    app.recoveryChallengeUiStateMachine.test(
       props = props,
       useVirtualTime = false
     ) {

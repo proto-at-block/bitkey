@@ -46,7 +46,7 @@ suspend fun AppTester.waitForFunds(
  */
 suspend fun AppTester.getActiveWallet(): SpendingWallet {
   getActiveAccount()
-  return app.appComponent.transactionsService.spendingWallet()
+  return transactionsService.spendingWallet()
     .filterNotNull()
     .timeout(2.seconds)
     .first()

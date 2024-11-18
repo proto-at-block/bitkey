@@ -17,3 +17,6 @@ utoipa-swagger-ui = { workspace = true }
 feature_flags = { workspace = true }
 wallet-telemetry = { workspace = true }
 wsm-rust-client = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,10 +1,9 @@
 package build.wallet.gradle.logic.extensions
 
+import build.wallet.gradle.logic.androidApp
 import build.wallet.gradle.logic.gradle.isSnapshot
 import build.wallet.gradle.logic.gradle.snapshotName
 import build.wallet.gradle.logic.gradle.snapshotVersion
-import com.android.build.api.dsl.ApplicationExtension
-import org.gradle.api.Action
 import org.gradle.api.Project
 import javax.inject.Inject
 
@@ -38,7 +37,7 @@ open class AppExtension
           build = build
         )
 
-      android {
+      androidApp {
         defaultConfig {
           versionName = when {
             project.isSnapshot() -> "${project.snapshotName()} ${appVersion.name} (${project.snapshotVersion()})"
@@ -89,6 +88,3 @@ private data class AppVersion(
     "Version group has to between 0 and $maxVersion inclusively, but was $group."
   }
 }
-
-private fun Project.android(configure: Action<ApplicationExtension>): Unit =
-  extensions.configure("android", configure)

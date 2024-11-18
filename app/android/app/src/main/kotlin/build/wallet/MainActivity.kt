@@ -20,7 +20,7 @@ import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponent
 import build.wallet.di.AppComponentImpl
-import build.wallet.encrypt.*
+import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
 import build.wallet.google.signin.GoogleSignInClientProviderImpl
 import build.wallet.google.signin.GoogleSignInLauncherImpl
 import build.wallet.google.signin.GoogleSignOutActionImpl
@@ -254,8 +254,7 @@ class MainActivity : FragmentActivity() {
       nfcCommandsProvider = nfcCommandsProvider,
       nfcSessionProvider = nfcSessionProvider,
       pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this),
-      biometricPrompter = BiometricPrompterImpl(this),
-      fakeHardwareKeyStore = fakeHardwareKeyStore
+      biometricPrompter = BiometricPrompterImpl(this)
     )
   }
 

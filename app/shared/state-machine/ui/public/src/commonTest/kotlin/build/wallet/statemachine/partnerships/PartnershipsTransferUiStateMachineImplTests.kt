@@ -35,7 +35,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     )
   val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
   val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
-  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+  val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
@@ -49,7 +49,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
       getTransferRedirectF8eClient = getTransferRedirectF8eClient,
-      partnershipsRepository = partnershipRepositoryMock,
+      partnershipTransactionsService = partnershipTransactionsService,
       eventTracker = eventTracker,
       bitcoinAddressService = BitcoinAddressServiceFake()
     )
@@ -113,7 +113,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
           )
           awaitSheetWithBody<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
-            partnershipRepositoryMock.createCalls.awaitItem().should { (partnerInfo, type) ->
+            partnershipTransactionsService.createCalls.awaitItem().should { (partnerInfo, type) ->
               type.shouldBe(PartnershipTransactionType.TRANSFER)
               partnerInfo.shouldBe(partner2)
             }

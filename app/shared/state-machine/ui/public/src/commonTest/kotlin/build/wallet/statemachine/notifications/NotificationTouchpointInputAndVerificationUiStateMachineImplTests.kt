@@ -418,8 +418,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
     }
   }
 
@@ -474,8 +472,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
     }
   }
 

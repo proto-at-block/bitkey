@@ -16,30 +16,28 @@ import kotlinx.coroutines.flow.first
  */
 suspend fun AppTester.returnFundsToTreasury() {
   val account = getActiveFullAccount()
-  app.apply {
-    val spendingWallet = getActiveWallet()
-    spendingWallet.sync().getOrThrow()
+  val spendingWallet = getActiveWallet()
+  spendingWallet.sync().getOrThrow()
 
-    val appSignedPsbt =
-      spendingWallet
-        .createSignedPsbt(
-          SpendingWallet.PsbtConstructionMethod.Regular(
-            recipientAddress = treasuryWallet.getReturnAddress(),
-            amount = BitcoinTransactionSendAmount.SendAll,
-            feePolicy = FeePolicy.MinRelayRate
-          )
+  val appSignedPsbt =
+    spendingWallet
+      .createSignedPsbt(
+        SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = treasuryWallet.getReturnAddress(),
+          amount = BitcoinTransactionSendAmount.SendAll,
+          feePolicy = FeePolicy.MinRelayRate
         )
-        .getOrThrow()
+      )
+      .getOrThrow()
 
-    val appAndHwSignedPsbt =
-      nfcTransactor.fakeTransact(
-        transaction = { session, commands ->
-          commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
-        }
-      ).getOrThrow()
-    appComponent.bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
-    mineBlock(appAndHwSignedPsbt.id)
-  }
+  val appAndHwSignedPsbt =
+    nfcTransactor.fakeTransact(
+      transaction = { session, commands ->
+        commands.signTransaction(session, appSignedPsbt, account.keybox.activeSpendingKeyset)
+      }
+    ).getOrThrow()
+  bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
+  mineBlock(appAndHwSignedPsbt.id)
 }
 
 /**
@@ -51,6 +49,6 @@ suspend fun AppTester.addSomeFunds(
   amount: BitcoinMoney = BitcoinMoney.sats(10_000L),
   waitForConfirmation: Boolean = true,
 ): FundingResult {
-  val wallet = app.appComponent.transactionsService.spendingWallet().filterNotNull().first()
+  val wallet = transactionsService.spendingWallet().filterNotNull().first()
   return treasuryWallet.fund(wallet, amount, waitForConfirmation)
 }

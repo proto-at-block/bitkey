@@ -1,6 +1,5 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -10,7 +9,7 @@ class PostSocRecTaskRepositoryMock : PostSocRecTaskRepository {
   val mutableState = MutableStateFlow(PostSocialRecoveryTaskState.None)
   override val taskState: Flow<PostSocialRecoveryTaskState> = mutableState
 
-  override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, DbError> {
+  override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, Error> {
     return Ok(Unit)
   }
 

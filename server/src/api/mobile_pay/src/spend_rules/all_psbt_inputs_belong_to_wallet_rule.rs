@@ -4,9 +4,9 @@ use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 
-use crate::metrics;
-
 use super::Rule;
+use crate::metrics;
+use crate::spend_rules::errors::SpendRuleCheckError;
 
 pub(crate) struct AllPsbtInputsBelongToWalletRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
@@ -14,16 +14,19 @@ pub(crate) struct AllPsbtInputsBelongToWalletRule<'a> {
 
 impl<'a> Rule for AllPsbtInputsBelongToWalletRule<'a> {
     /// Ensure all the inputs in the PSBT belong to this wallet
-    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
         if self
             .wallet
             .all_inputs_are_from_self(psbt)
-            .map_err(|err| format!("Invalid PSBT for given wallet: {err}"))?
+            .map_err(|err| SpendRuleCheckError::BdkUtils(err.to_string()))?
         {
             Ok(())
         } else {
             metrics::MOBILE_PAY_INPUTS_DO_NOT_BELONG_TO_SELF.add(1, &[]);
-            Err("Invalid PSBT for given Wallet".to_string())
+            Err(SpendRuleCheckError::PsbtInputsDontBelongToOriginWallet)
         }
     }
 }

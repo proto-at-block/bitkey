@@ -11,11 +11,12 @@ import summary from './util/summary.mjs';
 import asyncRequest from './util/asyncRequest.mjs';
 
 const testName = process.argv[2];
-const commit = process.argv[3];
-const benchmarkFile = process.argv[4];
-const tags = process.argv.slice(5);
+const branch = process.argv[3];
+const commit = process.argv[4];
+const benchmarkFile = process.argv[5];
+const tags = process.argv.slice(6);
 
-console.log(`Processing results for test ${testName} at ${commit} from ${benchmarkFile}`);
+console.log(`Processing results for test '${testName}' branch '${branch}' commit '${commit}' from '${benchmarkFile}'`);
 console.log(`Additional tags ${tags}`)
 
 const datadogApiKey = process.env.DATADOG_API_KEY;
@@ -71,6 +72,7 @@ const scenarios = names.map((name, index) => {
             `test:${testName}`,
             `scenario:${name}`,
             `iterations:${iterations}`,
+            `branch:${branch}`,
             `commit:${commit}`,
             `env:${datadogEnvironment}`,
             ...tags,

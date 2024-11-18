@@ -27,6 +27,8 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.notifications.RegisterWatchAddressContext
+import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
@@ -173,14 +175,17 @@ class SweepGeneratorImplTests : FunSpec({
     }
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
-  val registerWatchAddressF8eClient = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val registerWatchAddressProcessor = object :
+    RegisterWatchAddressProcessor,
+    Processor<RegisterWatchAddressContext> by processorMock {}
   val sweepGenerator =
     SweepGeneratorImpl(
       listKeysetsF8eClient,
       BitcoinFeeRateEstimatorMock(),
       keysetWalletProvider,
       appPrivateKeyDao,
-      registerWatchAddressF8eClient
+      registerWatchAddressProcessor
     )
 
   beforeEach {
@@ -206,11 +211,11 @@ class SweepGeneratorImplTests : FunSpec({
   }
 
   beforeTest {
-    registerWatchAddressF8eClient.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
+    processorMock.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
   }
 
   afterTest {
-    registerWatchAddressF8eClient.reset()
+    processorMock.reset()
   }
 
   test("lost app recovery - single keyset - success") {
@@ -225,7 +230,7 @@ class SweepGeneratorImplTests : FunSpec({
         SweepPsbt(psbtMock, Hardware, lostAppKeyset1)
       )
     // single address to watch
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -260,7 +265,7 @@ class SweepGeneratorImplTests : FunSpec({
     )
 
     // two addresses to watch
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -274,7 +279,7 @@ class SweepGeneratorImplTests : FunSpec({
           )
         )
       )
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -319,8 +324,8 @@ class SweepGeneratorImplTests : FunSpec({
       )
     )
     // two addresses to watch
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
 
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
@@ -348,8 +353,8 @@ class SweepGeneratorImplTests : FunSpec({
       )
     )
     // two addresses to watch
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
 
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
@@ -367,8 +372,8 @@ class SweepGeneratorImplTests : FunSpec({
     sweepGenerator.generateSweep(activeKeybox)
       .shouldBe(Ok(listOf(SweepPsbt(psbtMock, App, lostHwKeyset2))))
     // two addresses to watch
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
 
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
@@ -385,7 +390,7 @@ class SweepGeneratorImplTests : FunSpec({
 
     sweepGenerator.generateSweep(activeKeybox).shouldBeErrOfType<BdkFailedToCreatePsbt>()
     // single address to watch, subsequent fail and don't trigger
-    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    processorMock.processBatchCalls.awaitItem()
 
     wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
     wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()

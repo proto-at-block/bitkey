@@ -282,8 +282,6 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
           .shouldBeTypeOf<VerificationCodeInput>()
           .skipForNowContent.shouldBeInstanceOf<Hidden>()
       }
-
-      awaitScreenWithBody<FormBodyModel>()
     }
   }
 

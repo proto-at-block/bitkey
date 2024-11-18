@@ -8,7 +8,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.WalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material.LinearProgressIndicator as MaterialLinearProgressIndicator
 
 @Composable
@@ -26,29 +25,5 @@ fun LinearProgressIndicator(
     color = indicatorColor,
     backgroundColor = backgroundColor,
     strokeCap = StrokeCap.Round
-  )
-}
-
-@Preview
-@Composable
-fun PreviewLinearProgressIndicatorEmpty() {
-  LinearProgressIndicator(
-    progress = 0f
-  )
-}
-
-@Preview
-@Composable
-fun PreviewLinearProgressIndicatorHalf() {
-  LinearProgressIndicator(
-    progress = .50f
-  )
-}
-
-@Preview
-@Composable
-fun PreviewLinearProgressIndicatorFull() {
-  LinearProgressIndicator(
-    progress = 1f
   )
 }

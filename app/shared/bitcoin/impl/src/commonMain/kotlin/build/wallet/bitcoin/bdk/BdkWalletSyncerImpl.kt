@@ -9,10 +9,7 @@ import build.wallet.bdk.bindings.sync
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServer
-import build.wallet.bitcoin.sync.ElectrumServer.Blockstream
-import build.wallet.bitcoin.sync.ElectrumServer.Custom
-import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
-import build.wallet.bitcoin.sync.ElectrumServer.Mempool
+import build.wallet.bitcoin.sync.ElectrumServer.*
 import build.wallet.bitcoin.sync.ElectrumServerSetting.Default
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.datadog.DatadogRumMonitor
@@ -22,13 +19,10 @@ import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform.Android
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +35,7 @@ class BdkWalletSyncerImpl(
   private val bdkBlockchainProvider: BdkBlockchainProvider,
   private val clock: Clock,
   private val datadogRumMonitor: DatadogRumMonitor,
+  private val deviceInfoProvider: DeviceInfoProvider,
   private val electrumServerSettingProvider: ElectrumServerSettingProvider,
   val electrumReachability: ElectrumReachability,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
@@ -77,11 +72,13 @@ class BdkWalletSyncerImpl(
                 Network,
                 mapOf("server" to electrumServerSetting.server.electrumServerDetails.url())
               )
+              val deviceInfo = deviceInfoProvider.getDeviceInfo()
+              val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
               serverToTry =
                 when (val server = electrumServerSetting.server) {
-                  is F8eDefined -> Blockstream(networkType)
-                  is Blockstream -> Mempool(networkType)
-                  is Mempool -> Blockstream(networkType)
+                  is F8eDefined -> Blockstream(networkType, isAndroidEmulator)
+                  is Blockstream -> Mempool(networkType, isAndroidEmulator)
+                  is Mempool -> Blockstream(networkType, isAndroidEmulator)
                   is Custom -> server
                 }
             }

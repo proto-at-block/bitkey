@@ -34,13 +34,13 @@ class FeatureFlagServiceImpl(
         it.initializeFromDao()
       }
 
-      featureFlagsInitializedState.value = true
-
       // Kick off feature flag sync loop to keep flags up to date with remote values
       featureFlagSyncer.initializeSyncLoop(scope = this)
 
       // Also perform an initial sync
       featureFlagSyncer.sync()
+
+      featureFlagsInitializedState.value = true
     }
   }
 }

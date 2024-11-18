@@ -18,7 +18,6 @@ kotlin {
         api(projects.shared.bitcoinPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.featureFlagPublic)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.workerPublic)
         implementation(libs.kmp.kotlin.serialization.core)

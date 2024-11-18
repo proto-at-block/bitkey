@@ -62,3 +62,6 @@ rstest = { workspace = true }
 [build-dependencies]
 prost-build-config = "0.6.3"
 serde_yaml = "0.9.32"
+
+[lints]
+workspace = true

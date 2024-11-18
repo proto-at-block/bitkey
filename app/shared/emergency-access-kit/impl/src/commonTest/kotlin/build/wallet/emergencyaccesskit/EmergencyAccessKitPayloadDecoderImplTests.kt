@@ -16,12 +16,12 @@ import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.string.shouldNotContain
-import io.ktor.utils.io.core.toByteArray
+import io.ktor.utils.io.core.*
 import okio.ByteString.Companion.EMPTY
 import okio.ByteString.Companion.toByteString
 
 class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
-  val decoder = EmergencyAccessKitPayloadDecoderImpl
+  val decoder = EmergencyAccessKitPayloadDecoderImpl()
 
   test("Full encode decode loop") {
     val ciphertext = "ciphertext".toByteArray().toByteString()

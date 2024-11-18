@@ -10,7 +10,7 @@ kotlin {
   sourceSets {
     commonTest {
       dependencies {
-        api(projects.shared.kotestPublic)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

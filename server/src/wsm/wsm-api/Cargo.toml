@@ -19,6 +19,7 @@ axum-macros = { workspace = true }
 axum-tracing-opentelemetry = { workspace = true }
 base64 = { workspace = true }
 config = { workspace = true, features = ["toml"] }
+crypto = { workspace = true }
 log = "0.4.21"
 reqwest = { workspace = true, default-features = false, features = [
   "json",
@@ -35,3 +36,6 @@ ulid = { workspace = true }
 # path dependencies
 wallet-telemetry = { workspace = true }
 wsm-common = { workspace = true }
+
+[lints]
+workspace = true

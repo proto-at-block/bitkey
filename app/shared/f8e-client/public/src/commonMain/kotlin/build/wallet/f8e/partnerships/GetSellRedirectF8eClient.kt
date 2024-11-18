@@ -2,7 +2,7 @@ package build.wallet.f8e.partnerships
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.ktor.result.NetworkingError
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import com.github.michaelbull.result.Result
 
@@ -11,8 +11,9 @@ interface GetSellRedirectF8eClient {
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     fiatAmount: FiatMoney,
+    bitcoinAmount: BitcoinMoney,
     partner: String,
-  ): Result<Success, NetworkingError>
+  ): Result<Success, Error>
 
   /**
    * A struct representing the redirect information needed to present the partner experience

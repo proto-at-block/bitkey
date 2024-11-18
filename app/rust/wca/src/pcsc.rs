@@ -23,7 +23,7 @@ impl<T: Transactor + ?Sized> Performer<T> for T {
         let mut response = vec![];
         loop {
             response = match command.next(response)? {
-                State::Data { response } => self.transmit(&response)?,
+                State::Data { response: cmd } => self.transmit(&cmd)?, // cmd is what is sent to the firmware
                 State::Result { value } => break Ok(value),
             }
         }

@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-io-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-io-iossimulatorarm64-2.3.11-metadata.jar": "0e0434f4d851ad690548cd4c8c6220a6545ac21debad1f473c3d5a6d17406510"
+                        "ktor-io-iossimulatorarm64-2.3.12-metadata.jar": "bf984a8d08d1f3f99a420a353e20ed8a8029635a4eed488d3143ba557c327afa"
                     }
                 },
                 {

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-metadata-3.0.0-rc01.jar": "c2b52ca254ed361528af11cc42efb431fe0740355d0d6686bf8f0d59ed967508"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

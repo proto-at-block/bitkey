@@ -13,8 +13,6 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /**
  * Icon with single digit.
@@ -44,13 +42,5 @@ internal fun DigitIcon(
           textColor = WalletTheme.colors.secondaryIconForeground
         )
     )
-  }
-}
-
-@Preview
-@Composable
-private fun IconWithNumberPreview() {
-  PreviewWalletTheme {
-    DigitIcon(digit = 3)
   }
 }

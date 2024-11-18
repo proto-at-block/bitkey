@@ -42,6 +42,10 @@ internal class KotlinBasePlugin : Plugin<Project> {
           project.configureComposeCompilerMetrics(this)
         }
 
+        if (project.kotlinCompilerProfilerEnabled()) {
+          freeCompilerArgs.add("-Xprofile-phases")
+        }
+
         when (this) {
           is KotlinJvmCompilerOptions -> {
             jvmTarget.set(JvmTarget.fromTarget(libs.versions.jvmTarget.get()))
@@ -83,6 +87,9 @@ internal class KotlinBasePlugin : Plugin<Project> {
       )
     }
   }
+
+  private fun Project.kotlinCompilerProfilerEnabled(): Boolean =
+    project.findProperty("build.wallet.ksp.enableProfiler") == "true"
 
   private fun Project.composeCompilerMetricsEnabled(): Boolean =
     project.findProperty("enableComposeMetrics") == "true"

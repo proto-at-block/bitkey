@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-api",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-api-metadata-5.9.0.jar": "d5969f630a6bb5832ee3fab13e894596812c8cb7341a6f7b095728a744f24813"
+                        "kotest-framework-api-metadata-6.0.0.M1.jar": "af0bcd49a5c678efe1368879ec842510fc3e0ccafb47dd1106813b1bc6346ee9"
                     }
                 }
             ],

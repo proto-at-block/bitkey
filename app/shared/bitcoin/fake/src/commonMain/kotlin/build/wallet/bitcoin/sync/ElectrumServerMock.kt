@@ -2,7 +2,10 @@ package build.wallet.bitcoin.sync
 
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 
-val DefaultElectrumServerMock = ElectrumServer.Mempool(BITCOIN)
+val DefaultElectrumServerMock = ElectrumServer.Mempool(
+  network = BITCOIN,
+  isAndroidEmulator = false
+)
 val CustomElectrumServerMock =
   ElectrumServer.Custom(
     ElectrumServerDetails(

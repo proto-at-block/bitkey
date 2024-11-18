@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-property-iosx64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-property-iosx64-5.9.0-metadata.jar": "1d3070d8b058a7690a7658eace8d3410c0712f5a99c274056e0201831d791770"
+                        "kotest-property-iosx64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-property.klib": "978211f10fd03472f9105f05451b15f8a468ae4f75313cb5330af76ed8ed71c0"
+                        "kotest-property.klib": "5f53313c4b13b81c4959ee56ab40e5e08470d3ae9b520fe746fa7635052a3be1"
                     }
                 }
             ],

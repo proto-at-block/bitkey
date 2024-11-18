@@ -1,19 +1,24 @@
 package build.wallet.bitcoin.address
 
+import build.wallet.account.AccountService
 import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.ensure
 import build.wallet.ensureNotNull
 import build.wallet.logging.logFailure
 import build.wallet.notifications.RegisterWatchAddressContext
-import build.wallet.queueprocessor.Processor
+import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.queueprocessor.process
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 
 class BitcoinAddressServiceImpl(
-  private val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>,
+  private val registerWatchAddressProcessor: RegisterWatchAddressProcessor,
   private val transactionsService: TransactionsService,
+  private val accountService: AccountService,
 ) : BitcoinAddressService, BitcoinRegisterWatchAddressWorker {
   private val addressCache = MutableStateFlow<AccountWithAddress?>(null)
 
@@ -34,8 +39,10 @@ class BitcoinAddressServiceImpl(
       }
   }
 
-  override suspend fun generateAddress(account: FullAccount): Result<BitcoinAddress, Throwable> {
+  override suspend fun generateAddress(): Result<BitcoinAddress, Throwable> {
     return coroutineBinding {
+      val account = accountService.activeAccount().first()
+      ensure(account is FullAccount) { Error("No active full account present.") }
       val wallet = transactionsService.spendingWallet().value
       ensureNotNull(wallet) { Error("No spending wallet found.") }
       val address = wallet.getNewAddress().bind()

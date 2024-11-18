@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.animation:animation",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-1.6.11.jar": "131a9e7ad73bf8d30a003df72a70ea8647a25e56b4f2436c2499d315048dec50"
+                        "animation-1.7.0.jar": "bb27a0ad82b652ab7344c8455038b61cac14c31e82168bdd81fcf9f5aa4bded2"
                     }
                 }
             ],

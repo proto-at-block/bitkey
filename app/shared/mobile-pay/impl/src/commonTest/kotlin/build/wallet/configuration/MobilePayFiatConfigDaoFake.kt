@@ -1,6 +1,5 @@
 package build.wallet.configuration
 
-import build.wallet.db.DbError
 import build.wallet.money.currency.FiatCurrency
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -16,7 +15,7 @@ class MobilePayFiatConfigDaoFake : MobilePayFiatConfigDao {
 
   override suspend fun storeConfigurations(
     configurations: Map<FiatCurrency, MobilePayFiatConfig>,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     this.configurations.value = configurations
     return Ok(Unit)
   }

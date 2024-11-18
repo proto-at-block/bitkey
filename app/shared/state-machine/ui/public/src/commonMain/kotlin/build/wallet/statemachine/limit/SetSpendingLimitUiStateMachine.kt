@@ -1,11 +1,11 @@
 package build.wallet.statemachine.limit
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 
 /**
  * State machine for entering and coordinating the Spending Limit (Mobile Pay) flow for setting the
@@ -24,7 +24,7 @@ data class SpendingLimitProps(
   val currentSpendingLimit: FiatMoney?,
   val onClose: () -> Unit,
   val onSetLimit: (SpendingLimit) -> Unit,
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
 )
 
 /**

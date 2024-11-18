@@ -1,7 +1,3 @@
-/**
- * This file contains all the various Ktor Request Attributes for
- * configuring plugins, and simplified methods for direct configuration.
- */
 package build.wallet.f8e.client.plugins
 
 import build.wallet.analytics.v1.PlatformInfo
@@ -11,14 +7,21 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.platform.device.DeviceInfo
 import io.ktor.client.request.*
 import io.ktor.util.*
+
+/**
+ * This file contains all the various Ktor Request Attributes for
+ * configuring plugins, and simplified methods for direct configuration.
+ */
 
 val F8eEnvironmentAttribute = AttributeKey<F8eEnvironment>("f8-environment")
 val AccountIdAttribute = AttributeKey<AccountId>("account-id")
 val AuthTokenScopeAttribute = AttributeKey<AuthTokenScope>("auth-token-scope")
 val AppAuthKeyAttribute = AttributeKey<PublicKey<AppAuthKey>>("app-auth-key")
 val HwProofOfPossessionAttribute = AttributeKey<HwFactorProofOfPossession>("hw-proof-of-possession")
+val DeviceInfoAttribute = AttributeKey<DeviceInfo>("device-info")
 val PlatformInfoAttribute = AttributeKey<PlatformInfo>("platform-info")
 val CheckReachabilityAttribute = AttributeKey<Boolean>("check-reachability")
 

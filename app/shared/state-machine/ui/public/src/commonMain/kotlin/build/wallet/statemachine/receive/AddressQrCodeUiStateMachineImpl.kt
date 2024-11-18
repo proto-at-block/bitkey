@@ -34,7 +34,7 @@ class AddressQrCodeUiStateMachineImpl(
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
         LaunchedEffect("loading-address") {
-          bitcoinAddressService.generateAddress(props.accountData.account)
+          bitcoinAddressService.generateAddress()
             .onSuccess { address ->
               state =
                 State.AddressLoadedUiState(

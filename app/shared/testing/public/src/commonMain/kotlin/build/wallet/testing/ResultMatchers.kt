@@ -2,11 +2,8 @@ package build.wallet.testing
 
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.LoadedValue
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.getError
+import com.github.michaelbull.result.*
+import io.kotest.assertions.asClue
 import io.kotest.assertions.fail
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.should
@@ -17,11 +14,14 @@ import io.kotest.matchers.types.shouldBeTypeOf
 /**
  * Verifies that result is [Err] with exact [error] of type [E].
  */
-inline fun <reified E : Throwable> Result<Any?, Any>.shouldBeErr(error: E) =
-  shouldBeErrOfType<E>().should {
-    it.message.shouldBe(error.message)
-    it.cause.shouldBe(error.cause)
+inline fun <reified E : Throwable> Result<Any?, Any>.shouldBeErr(error: E) {
+  asClue {
+    shouldBeErrOfType<E>().should {
+      it.message.shouldBe(error.message)
+      it.cause.shouldBe(error.cause)
+    }
   }
+}
 
 /**
  * Verifies that result is [Err] and [Err.error] is an instance of [E].

@@ -4,4 +4,6 @@ import build.wallet.platform.PlatformContext
 
 expect class TelephonyCountryCodeProviderImpl constructor(
   platformContext: PlatformContext,
-) : TelephonyCountryCodeProvider
+) : TelephonyCountryCodeProvider {
+  override fun countryCode(): String
+}

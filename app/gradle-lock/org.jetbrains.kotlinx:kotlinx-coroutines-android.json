@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-android",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-android-1.8.1.jar": "a134dacf4e6578b29b32e97aa50548d09cb45e3cb3551ce77ac27e55e265d8f5"
+                        "kotlinx-coroutines-android-1.9.0.jar": "bd783acd2f9738845d58380f46f45b5cde95d0cb03027d56725338b26bfc4d72"
                     }
                 }
             ],

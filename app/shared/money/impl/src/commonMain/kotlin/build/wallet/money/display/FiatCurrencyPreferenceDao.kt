@@ -1,6 +1,5 @@
 package build.wallet.money.display
 
-import build.wallet.db.DbError
 import build.wallet.money.currency.FiatCurrency
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -18,10 +17,10 @@ interface FiatCurrencyPreferenceDao {
   /**
    * Sets the given currency as the customer's preferred fiat currency.
    */
-  suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, DbError>
+  suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, Error>
 
   /**
    * Clears the customer's preferred fiat currency.
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

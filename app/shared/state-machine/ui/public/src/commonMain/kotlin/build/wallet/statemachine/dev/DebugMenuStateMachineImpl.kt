@@ -50,7 +50,6 @@ class DebugMenuStateMachineImpl(
         debugMenuListStateMachine.model(
           props =
             DebugMenuListProps(
-              accountData = props.accountData,
               firmwareData = firmwareData,
               onSetState = { uiState = it },
               onClose = props.onClose

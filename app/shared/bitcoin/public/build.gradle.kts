@@ -18,7 +18,6 @@ kotlin {
         api(projects.shared.bdkBindingsPublic)
         api(projects.shared.bitcoinPrimitivesPublic)
         api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.encryptionPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.featureFlagPublic)

@@ -10,7 +10,7 @@ name = "core"
 
 [dependencies]
 bitcoin = { workspace = true }
-crypto = { workspace = true, features = ["spake2"] }
+crypto = { workspace = true, features = ["noise", "spake2"] }
 frost = { path = "../frost" }
 lightning-support = { path = "../lightning-support" }
 thiserror = { workspace = true }

@@ -1,14 +1,7 @@
 package build.wallet
 
 import android.app.Application
-import build.wallet.bdk.BdkAddressBuilderImpl
-import build.wallet.bdk.BdkBlockchainFactoryImpl
-import build.wallet.bdk.BdkBumpFeeTxBuilderFactoryImpl
-import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
-import build.wallet.bdk.BdkMnemonicGeneratorImpl
-import build.wallet.bdk.BdkPartiallySignedTransactionBuilderImpl
-import build.wallet.bdk.BdkTxBuilderFactoryImpl
-import build.wallet.bdk.BdkWalletFactoryImpl
+import build.wallet.bdk.*
 import build.wallet.bugsnag.Bugsnag
 import build.wallet.datadog.AndroidDatadogInitializer
 import build.wallet.debug.StrictModeEnablerImpl
@@ -19,11 +12,13 @@ import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.firmware.FirmwareCommsLogBufferImpl
 import build.wallet.firmware.HardwareAttestationImpl
 import build.wallet.firmware.TeltraImpl
+import build.wallet.frost.ShareGeneratorFactoryImpl
 import build.wallet.logging.DatadogLogWriter
 import build.wallet.platform.DeviceTokenConfigProviderImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.appVariant
 import build.wallet.platform.config.AppId
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.config.DeviceOs
 
 @Suppress("unused")
@@ -47,7 +42,7 @@ class BitkeyApplication : Application() {
       makeAppComponent(
         appId = AppId(value = BuildConfig.APPLICATION_ID),
         appVariant = appVariant,
-        appVersion = BuildConfig.VERSION_NAME,
+        appVersion = AppVersion(BuildConfig.VERSION_NAME),
         deviceOs = DeviceOs.Android,
         bdkAddressBuilder = BdkAddressBuilderImpl(),
         bdkBlockchainFactory = BdkBlockchainFactoryImpl(),
@@ -69,8 +64,10 @@ class BitkeyApplication : Application() {
         platformContext = PlatformContext(this),
         teltra = TeltraImpl(),
         firmwareCommsLogBuffer = FirmwareCommsLogBufferImpl(),
-        hardwareAttestation = HardwareAttestationImpl()
+        hardwareAttestation = HardwareAttestationImpl(),
+        shareGeneratorFactory = ShareGeneratorFactoryImpl()
       )
+    appComponent.loggerInitializer.initialize()
 
     val strictModeEnabler = StrictModeEnablerImpl(appVariant)
     strictModeEnabler.configure()

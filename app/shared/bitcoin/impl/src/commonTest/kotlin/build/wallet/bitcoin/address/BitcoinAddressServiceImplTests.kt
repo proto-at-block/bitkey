@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.address
 
+import build.wallet.account.AccountServiceFake
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -10,6 +11,8 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.F8eSpendingPublicKeyMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.notifications.RegisterWatchAddressContext
+import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -23,33 +26,40 @@ class BitcoinAddressServiceImplTests : FunSpec({
   coroutineTestScope = true
 
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val registerWatchAddressProcessor =
-    ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val registerWatchAddressProcessor = object :
+    RegisterWatchAddressProcessor,
+    Processor<RegisterWatchAddressContext> by processorMock {}
   val transactionService = TransactionsServiceFake()
+  val accountService = AccountServiceFake()
   val service = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
-    transactionsService = transactionService
+    transactionsService = transactionService,
+    accountService = accountService
   )
 
   beforeTest {
     spendingWallet.reset()
-    registerWatchAddressProcessor.reset()
+    processorMock.reset()
     transactionService.reset()
     transactionService.spendingWallet.value = spendingWallet
+    accountService.reset()
   }
 
   test("generate new address successfully") {
+    accountService.setActiveAccount(FullAccountMock)
+
     backgroundScope.launch {
       service.executeWork()
     }
 
     spendingWallet.newAddressResult = Ok(someBitcoinAddress)
-    registerWatchAddressProcessor.processBatchReturnValues = listOf(Ok(Unit))
+    processorMock.processBatchReturnValues = listOf(Ok(Unit))
 
-    val addressResult = service.generateAddress(FullAccountMock)
+    val addressResult = service.generateAddress()
     addressResult.shouldBe(Ok(someBitcoinAddress))
 
-    registerWatchAddressProcessor.processBatchCalls.awaitItem().shouldBe(
+    processorMock.processBatchCalls.awaitItem().shouldBe(
       listOf(
         RegisterWatchAddressContext(
           someBitcoinAddress,
@@ -65,16 +75,14 @@ class BitcoinAddressServiceImplTests : FunSpec({
   }
 
   test("generate new address - address generation failure") {
-    backgroundScope.launch {
-      service.executeWork()
-    }
+    accountService.setActiveAccount(FullAccountMock)
 
     val error = Err(Generic(Exception("failed to generate address"), null))
     spendingWallet.newAddressResult = error
 
-    val addressResult = service.generateAddress(FullAccountMock)
+    val addressResult = service.generateAddress()
     addressResult.shouldBe(error)
 
-    registerWatchAddressProcessor.processBatchCalls.expectNoEvents()
+    processorMock.processBatchCalls.expectNoEvents()
   }
 })

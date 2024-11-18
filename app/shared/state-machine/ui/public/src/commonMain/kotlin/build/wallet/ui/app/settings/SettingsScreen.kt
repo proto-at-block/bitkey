@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.label.Label
@@ -21,8 +19,6 @@ import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun SettingsScreen(
@@ -81,57 +77,5 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
       )
       Divider()
     }
-  }
-}
-
-@Preview
-@Composable
-fun SettingsScreenPreview() {
-  PreviewWalletTheme {
-    SettingsScreen(
-      model = SettingsBodyModel(
-        onBack = {},
-        sectionModels =
-          immutableListOf(
-            SettingsBodyModel.SectionModel(
-              sectionHeaderTitle = "General",
-              rowModels =
-                immutableListOf(
-                  SettingsBodyModel.RowModel(
-                    icon = Icon.SmallIconPhone,
-                    title = "Mobile Pay",
-                    isDisabled = true
-                  ) {},
-                  SettingsBodyModel.RowModel(
-                    icon = Icon.SmallIconBitkey,
-                    title = "Lost or Stolen Device",
-                    isDisabled = true
-                  ) {},
-                  SettingsBodyModel.RowModel(
-                    icon = Icon.SmallIconQuestion,
-                    title = "Help Center",
-                    isDisabled = false
-                  ) {},
-                  SettingsBodyModel.RowModel(
-                    icon = Icon.SmallIconCloud,
-                    title = "Cloud Backup",
-                    isDisabled = false,
-                    specialTrailingIconModel = IconModel(
-                      icon = Icon.SmallIconInformationFilled,
-                      iconSize = Small,
-                      iconTint = IconTint.Warning
-                    )
-                  ) {},
-                  SettingsBodyModel.RowModel(
-                    icon = Icon.SmallIconLock,
-                    title = "App Security",
-                    isDisabled = false,
-                    showNewCoachmark = true
-                  ) {}
-                )
-            )
-          )
-      )
-    )
   }
 }

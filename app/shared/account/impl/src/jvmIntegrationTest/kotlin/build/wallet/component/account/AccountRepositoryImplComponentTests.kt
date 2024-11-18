@@ -15,45 +15,45 @@ import io.kotest.matchers.shouldBe
 
 class AccountRepositoryImplComponentTests : FunSpec({
   test("no active account or onboarding") {
-    val appTester = launchNewApp()
+    val app = launchNewApp()
 
-    appTester.app.appComponent.accountService.accountStatus().test {
+    app.accountService.accountStatus().test {
       awaitItem().shouldBeOk(NoAccount)
     }
 
-    appTester.app.appComponent.accountService.activeAccount().test {
+    app.accountService.activeAccount().test {
       awaitItem().shouldBeNull()
     }
   }
 
   test("active Full account is present") {
-    val appTester = launchNewApp()
+    val app = launchNewApp()
 
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
-    appTester.app.appComponent.accountService.accountStatus().test {
+    app.accountService.accountStatus().test {
       awaitItem().shouldBeOk(ActiveAccount(account))
     }
 
-    appTester.app.appComponent.accountService.activeAccount().test {
+    app.accountService.activeAccount().test {
       awaitItem().shouldBe(account)
     }
   }
 
   xtest("active Software account is present") {
-    val appTester = launchNewApp()
-    appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag
+    val app = launchNewApp()
+    app.softwareWalletIsEnabledFeatureFlag
       .setFlagValue(true)
 
-    val account = appTester.app.createSoftwareWalletService
+    val account = app.createSoftwareWalletService
       .createAccount()
       .shouldBeOkOfType<SoftwareAccount>()
 
-    appTester.app.appComponent.accountService.accountStatus().test {
+    app.accountService.accountStatus().test {
       awaitItem().shouldBeOk(ActiveAccount(account))
     }
 
-    appTester.app.appComponent.accountService.activeAccount().test {
+    app.accountService.activeAccount().test {
       awaitItem().shouldBe(account)
     }
   }

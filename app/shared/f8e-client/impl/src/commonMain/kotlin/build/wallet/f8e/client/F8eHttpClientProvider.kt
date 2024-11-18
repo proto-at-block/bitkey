@@ -10,6 +10,7 @@ import build.wallet.f8e.logging.F8eHttpClientLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.get
 import io.ktor.client.*
@@ -26,7 +27,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class F8eHttpClientProvider(
   private val appId: AppId,
-  private val appVersion: String,
+  private val appVersion: AppVersion,
   private val appVariant: AppVariant,
   private val platformInfoProvider: PlatformInfoProvider,
   private val datadogTracerPluginProvider: DatadogTracerPluginProvider,
@@ -95,7 +96,7 @@ class F8eHttpClientProvider(
     config.install(UserAgent) {
       val platformInfo = platformInfoProvider.getPlatformInfo()
       agent =
-        "${appId.value}/$appVersion ${platformInfo.device_make} (${platformInfo.device_model}; ${platformInfo.os_type.name}/${platformInfo.os_version})"
+        "${appId.value}/${appVersion.value} ${platformInfo.device_make} (${platformInfo.device_model}; ${platformInfo.os_type.name}/${platformInfo.os_version})"
     }
 
     config.install(datadogTracerPluginProvider.getPlugin(accountId = accountId))

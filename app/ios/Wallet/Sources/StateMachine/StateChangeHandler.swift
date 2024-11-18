@@ -9,7 +9,7 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     // MARK: - Private Types
 
     /// Will be handled in `handleNavigationAnimationCompletion`.
-    private enum QueuedAction: Equatable {
+    enum QueuedAction: Equatable {
         /// A queued view controller to navigate to after any in progress navigation completes.
         case pushOrPop(vc: UIViewController, stateKey: String, animation: AnimationStyle?)
 
@@ -250,8 +250,9 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
         // This prevent a pushOrPop getting stuck in the queue and shown later,
         // which would get the view model and navigation state out of sync.
         // See [W-6300] for an example of this.
-        let queueToDrain = queuedActions
+        let queueToDrain = dedupeQueue(queueToDrain: queuedActions)
         queuedActions = []
+
         for queuedAction in queueToDrain {
             switch queuedAction {
             case let .pushOrPop(vc, stateKey, animation):
@@ -260,6 +261,35 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
                 clearBackStack()
             }
         }
+    }
+
+    /// Dedupes enqueued .pushOrPop actions by their stateKey, choosing the last enqueued action as
+    /// it is the most up to date.
+    /// Without this, screen models that are rapidly updated during an animation may enqueue
+    /// multiple actions, but only
+    /// the earliest screen would be rendered, thus not showing the actual desired end state.
+    /// W-9908.
+    func dedupeQueue(queueToDrain: [QueuedAction]) -> [QueuedAction] {
+        // Dictionary to track the most recent `stateKey` for `.pushOrPop` cases
+        var seenStateKeys: [String: QueuedAction] = [:]
+
+        // Reverse iteration to dedupe (keeping the most recent occurrence)
+        return queueToDrain.reversed().filter { action in
+            switch action {
+            case let .pushOrPop(_, stateKey, _):
+                if seenStateKeys[stateKey] == nil {
+                    // If the stateKey hasn't been seen, store this action and include it in the
+                    // result
+                    seenStateKeys[stateKey] = action
+                    return true
+                }
+                // If we've already seen this stateKey, skip this action (duplicate)
+                return false
+            default:
+                // For none `.pushOrPop` actions, just include them in the result
+                return true
+            }
+        }.reversed() // Reverse back to original order
     }
 
     /// If a view controller for the given state already exists in the stack, it pops to that view

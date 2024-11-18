@@ -1,5 +1,6 @@
 use bdk_utils::error::BdkUtilError;
 use errors::ApiError;
+use mobile_pay::error::SigningError;
 use thiserror::Error;
 use types::recovery::trusted_contacts::TrustedContactError;
 
@@ -27,8 +28,8 @@ pub enum ServiceError {
     PendingClaimExists,
     #[error("Pending claim not found between benefactor and beneficiary")]
     PendingClaimNotFound,
-    #[error("Completed claim exists between benefactor and beneficiary")]
-    CompletedClaimExists,
+    #[error("Locked claim not found between benefactor and beneficiary")]
+    LockedClaimNotFound,
     #[error("Unable to parse beneficiary package from database")]
     InvalidPackage,
     #[error("No inheritance package was found")]
@@ -51,8 +52,12 @@ pub enum ServiceError {
     InvalidChallengeSignature,
     #[error("Failed to lock claim")]
     ClaimLockFailed,
+    #[error("Failed to complete claim")]
+    ClaimCompleteFailed,
     #[error("Can't lock claim before delay end time")]
     ClaimDelayNotComplete,
+    #[error(transparent)]
+    PsbtSigningFailed(#[from] SigningError),
 }
 
 impl From<TrustedContactError> for ServiceError {
@@ -75,6 +80,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::NoInheritancePackage
             | ServiceError::NoActiveDescriptorKeySet
             | ServiceError::ClaimLockFailed
+            | ServiceError::ClaimCompleteFailed
             | ServiceError::RecoveryRelationship(_)
             | ServiceError::NotificationPayloadBuilder(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
@@ -84,7 +90,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::MismatchingRecoveryRelationship
             | ServiceError::PendingClaimExists
             | ServiceError::InvalidRelationship
-            | ServiceError::CompletedClaimExists
+            | ServiceError::LockedClaimNotFound
             | ServiceError::InvalidClaimStateForCancellation
             | ServiceError::PendingClaimNotFound
             | ServiceError::IncompatibleAccountType
@@ -93,6 +99,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::UnownedDestination => ApiError::GenericBadRequest(err_msg),
             ServiceError::InvalidChallengeSignature => ApiError::GenericUnauthorized(err_msg),
             ServiceError::Notification(e) => e.into(),
+            ServiceError::PsbtSigningFailed(e) => e.into(),
         }
     }
 }

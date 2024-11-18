@@ -1,9 +1,9 @@
 import SnapshotTesting
 import UIKit
 
-extension ViewImageConfig {
+public extension ViewImageConfig {
 
-    public static func iPhone14(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone14(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -17,7 +17,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone14(orientation))
     }
 
-    public static func iPhone14Plus(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone14Plus(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -31,7 +31,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone14Plus(orientation))
     }
 
-    public static func iPhone14Pro(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone14Pro(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -45,7 +45,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone14Pro(orientation))
     }
 
-    public static func iPhone14ProMax(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone14ProMax(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -59,7 +59,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone14ProMax(orientation))
     }
 
-    public static func iPhone15(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone15(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -73,7 +73,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone15(orientation))
     }
 
-    public static func iPhone15Plus(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone15Plus(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -87,7 +87,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone15Plus(orientation))
     }
 
-    public static func iPhone15Pro(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone15Pro(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -101,7 +101,7 @@ extension ViewImageConfig {
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone15Pro(orientation))
     }
 
-    public static func iPhone15ProMax(_ orientation: Orientation) -> ViewImageConfig {
+    static func iPhone15ProMax(_ orientation: Orientation) -> ViewImageConfig {
         let safeArea: UIEdgeInsets
         let size: CGSize
         switch orientation {
@@ -114,8 +114,8 @@ extension ViewImageConfig {
         }
         return ViewImageConfig(safeArea: safeArea, size: size, traits: .iPhone15ProMax(orientation))
     }
-    
-    public var description: String? {
+
+    var description: String? {
         switch self {
         case .iPhone8: "iPhone8"
         case .iPhone8Plus: "iPhone8Plus"
@@ -147,8 +147,7 @@ extension ViewImageConfig {
 extension ViewImageConfig: Equatable {
     public static func == (lhs: ViewImageConfig, rhs: ViewImageConfig) -> Bool {
         return lhs.safeArea == rhs.safeArea &&
-               lhs.size == rhs.size &&
-               lhs.traits == rhs.traits
+            lhs.size == rhs.size &&
+            lhs.traits == rhs.traits
     }
 }
-

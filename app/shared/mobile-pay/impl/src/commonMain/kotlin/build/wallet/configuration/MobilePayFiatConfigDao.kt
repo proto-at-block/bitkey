@@ -1,6 +1,5 @@
 package build.wallet.configuration
 
-import build.wallet.db.DbError
 import build.wallet.money.currency.FiatCurrency
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -17,5 +16,5 @@ interface MobilePayFiatConfigDao {
    */
   suspend fun storeConfigurations(
     configurations: Map<FiatCurrency, MobilePayFiatConfig>,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 }

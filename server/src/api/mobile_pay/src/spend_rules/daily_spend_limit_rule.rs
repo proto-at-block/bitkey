@@ -7,6 +7,7 @@ use super::Rule;
 use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::Features;
 use crate::metrics;
+use crate::spend_rules::errors::SpendRuleCheckError;
 use crate::util::{get_total_outflow_for_psbt, total_sats_spent_today};
 
 pub(crate) struct DailySpendingLimitRule<'a> {
@@ -35,12 +36,16 @@ impl<'a> DailySpendingLimitRule<'a> {
 impl<'a> Rule for DailySpendingLimitRule<'a> {
     /// Ensure that the total outflows for this PSBT plus the outflows so far today do not exceed
     /// the set spending limit
-    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+    fn check_transaction(
+        &self,
+        psbt: &PartiallySignedTransaction,
+    ) -> Result<(), SpendRuleCheckError> {
         let total_spent = total_sats_spent_today(
             self.spending_history,
             &self.features.settings.limit,
             self.now_utc,
-        )?;
+        )
+        .map_err(|err| SpendRuleCheckError::CouldNotFetchSpendAmount(err.to_string()))?;
 
         let total_spend_for_unsigned_transaction_sats =
             get_total_outflow_for_psbt(self.wallet, psbt);
@@ -49,13 +54,11 @@ impl<'a> Rule for DailySpendingLimitRule<'a> {
             Ok(())
         } else {
             metrics::MOBILE_PAY_COSIGN_OVERFLOW.add(1, &[]);
-            let err_msg = format!(
-                "Transaction spend total of {} with existing spend of {} for the day exceeds limit of {}",
+            Err(SpendRuleCheckError::SpendLimitExceeded(
                 total_spend_for_unsigned_transaction_sats,
                 total_spent,
-                self.features.daily_limit_sats
-            );
-            Err(err_msg)
+                self.features.daily_limit_sats,
+            ))
         }
     }
 }

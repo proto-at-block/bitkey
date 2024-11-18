@@ -1,11 +1,6 @@
 package build.wallet.statemachine.dev
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDao
@@ -13,6 +8,7 @@ import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -25,7 +21,7 @@ class InfoOptionsUiStateMachineImpl(
   private val accountService: AccountService,
   private val appInstallationDao: AppInstallationDao,
   private val appVariant: AppVariant,
-  private val appVersion: String,
+  private val appVersion: AppVersion,
   private val osVersionInfoProvider: OsVersionInfoProvider,
   private val clipboard: Clipboard,
 ) : InfoOptionsUiStateMachine {
@@ -78,7 +74,7 @@ class InfoOptionsUiStateMachineImpl(
           ),
           ListItemModel(
             title = "App Version",
-            sideText = appVersion
+            sideText = appVersion.value
           ),
           // Don't show OS Version in Customer build
           when (appVariant) {

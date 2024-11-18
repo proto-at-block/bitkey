@@ -43,7 +43,7 @@ ide-sync +scenarios="sync_android_studio": && (append_scenario_names scenarios)
 	GRADLE_PROFILER_OPTS=-Dstudio.tests.headless=true {{gradle-profiler}} --studio-install-dir "{{studio_install_path}}" {{scenarios}}
 
 upload-results testName commitSha csvFile="_build/profile-out/benchmark.csv":
-	../../bin/node upload-profiler-results.mjs {{testName}} {{commitSha}} "{{csvFile}}" os:{{os()}} arch:{{arch()}} num_cpus:{{num_cpus()}}
+	../../bin/node upload-profiler-results.mjs {{testName}} `git branch --show-current` {{commitSha}} "{{csvFile}}" os:{{os()}} arch:{{arch()}} num_cpus:{{num_cpus()}}
 
 [private]
 append_scenario_names +scenarios:

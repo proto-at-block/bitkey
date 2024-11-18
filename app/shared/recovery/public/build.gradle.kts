@@ -14,7 +14,6 @@ kotlin {
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.cloudBackupPublic)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)

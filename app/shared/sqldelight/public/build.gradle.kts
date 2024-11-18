@@ -17,7 +17,6 @@ kotlin {
         api(libs.kmp.sqldelight.coroutines)
         api(libs.kmp.sqldelight.runtime)
         api(libs.kmp.wire.runtime)
-        api(projects.shared.dbResultPublic)
         implementation(projects.shared.loggingPublic)
       }
     }

@@ -15,7 +15,7 @@ import io.kotest.property.exhaustive.enum
 
 class ExtendedKeyGeneratorComponentTests : FunSpec({
   context("generate new extended key") {
-    val app = launchNewApp().app
+    val app = launchNewApp()
     val extendedKeyGenerator: ExtendedKeyGenerator = app.extendedKeyGenerator
 
     checkAll(Exhaustive.enum<BitcoinNetworkType>()) { network ->

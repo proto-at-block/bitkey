@@ -6,6 +6,7 @@ import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.datadog.DatadogTracer
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.engine.*
 
@@ -13,6 +14,7 @@ class UnauthenticatedF8eHttpClientFactory(
   appVariant: AppVariant,
   platformInfoProvider: PlatformInfoProvider,
   datadogTracer: DatadogTracer,
+  deviceInfoProvider: DeviceInfoProvider,
   appInstallationDao: AppInstallationDao,
   countryCodeGuesser: CountryCodeGuesser,
   networkReachabilityProvider: NetworkReachabilityProvider?,
@@ -22,6 +24,7 @@ class UnauthenticatedF8eHttpClientFactory(
     appVariant = appVariant,
     platformInfoProvider = platformInfoProvider,
     datadogTracer = datadogTracer,
+    deviceInfoProvider = deviceInfoProvider,
     appInstallationDao = appInstallationDao,
     countryCodeGuesser = countryCodeGuesser,
     networkReachabilityProvider = networkReachabilityProvider,

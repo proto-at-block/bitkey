@@ -55,7 +55,7 @@ class ElectrumServerSettingProviderImpl(
                 is Off, null ->
                   defaultServer?.let {
                     ElectrumServerSetting.Default(F8eDefined(it.electrumServerDetails))
-                  } ?: ElectrumServerSetting.Default(server = ElectrumServer.Mempool(networkToUse))
+                  } ?: ElectrumServerSetting.Default(server = ElectrumServer.Mempool(networkToUse, isAndroidEmulator = false))
               }
             )
           }

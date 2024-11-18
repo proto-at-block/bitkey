@@ -11,7 +11,6 @@ kotlin {
   sourceSets {
     val commonMain by getting {
       dependencies {
-        implementation(projects.shared.coroutinesPublic)
         implementation(projects.shared.recoveryPublic)
         implementation(projects.shared.serializationPublic)
         implementation(projects.shared.databasePublic)
@@ -25,7 +24,6 @@ kotlin {
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.coroutinesTesting)
-        implementation(projects.shared.f8eFake)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.f8eClientImpl)
         implementation(projects.shared.featureFlagFake)

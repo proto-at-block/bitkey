@@ -5,9 +5,12 @@ use notification::{
 use tracing::instrument;
 use types::{
     account::identifiers::AccountId,
-    recovery::social::{
-        challenge::{SocialChallenge, SocialChallengeId, SocialChallengeResponse},
-        relationship::RecoveryRelationship,
+    recovery::{
+        social::{
+            challenge::{SocialChallenge, SocialChallengeId, SocialChallengeResponse},
+            relationship::RecoveryRelationship,
+        },
+        trusted_contacts::TrustedContactRole,
     },
 };
 
@@ -37,6 +40,7 @@ impl Service {
             .fetch_optional_recovery_relationship_for_account_ids(
                 customer_account_id,
                 input.trusted_contact_account_id,
+                &TrustedContactRole::SocialRecoveryContact,
             )
             .await?
         else {

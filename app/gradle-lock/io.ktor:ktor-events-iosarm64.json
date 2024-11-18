@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-events-iosarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-events-iosarm64-2.3.11-metadata.jar": "8758ae6cf0d66d3aae422001bd383f172386ee266fe89334c1bb6e93f9029887"
+                        "ktor-events-iosarm64-2.3.12-metadata.jar": "cf45728d1291ef43dc54eb4be18579bef552e8f6ea4a38c28c98af70986c92c9"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-events.klib": "530a23fed02e791327173bfd2d807801fa6fcfef79f68e2b703d98e81164bc96"
+                        "ktor-events.klib": "63d1df98a3de906bcfef14f8fb7478eb26d0c27cc1661fece96ae373adeaab07"
                     }
                 }
             ],

@@ -23,6 +23,8 @@ pub enum ApiError {
     GenericServiceUnavailable(String),
     #[error("Conflict {0}")]
     GenericConflict(String),
+    #[error("Unavailable For Legal Reasons {0}")]
+    GenericUnavailableForLegalReasons(String),
     #[error("{code}")]
     Specific {
         code: ErrorCode,
@@ -71,6 +73,8 @@ pub enum ErrorCode {
     Conflict,
     // Not Found - a general error occurred.
     NotFound,
+    // Unavailable For Legal Reasons - a general error occurred.
+    UnavailableForLegalReasons,
 
     AccountNotFound,
 
@@ -125,7 +129,8 @@ impl From<ErrorCode> for ErrorCategory {
             | ErrorCode::InvitationExpired
             | ErrorCode::AccountNotFound
             | ErrorCode::MaxTrustedContactsReached
-            | ErrorCode::MaxProtectedCustomersReached => ErrorCategory::InvalidRequestError,
+            | ErrorCode::MaxProtectedCustomersReached
+            | ErrorCode::UnavailableForLegalReasons => ErrorCategory::InvalidRequestError,
         }
     }
 }
@@ -137,6 +142,7 @@ impl From<ErrorCode> for StatusCode {
             ErrorCode::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             ErrorCode::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             ErrorCode::Forbidden | ErrorCode::CommsVerificationRequired => StatusCode::FORBIDDEN,
+            ErrorCode::UnavailableForLegalReasons => StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
             ErrorCode::BadRequest
             | ErrorCode::UnsupportedCountryCode
             | ErrorCode::CodeMismatch
@@ -193,6 +199,9 @@ impl IntoResponse for ApiError {
                 (ErrorCode::ServiceUnavailable, Some(message), None)
             }
             ApiError::GenericConflict(message) => (ErrorCode::Conflict, Some(message), None),
+            ApiError::GenericUnavailableForLegalReasons(message) => {
+                (ErrorCode::UnavailableForLegalReasons, Some(message), None)
+            }
             ApiError::Specific {
                 code,
                 detail,

@@ -24,9 +24,7 @@ import build.wallet.ui.components.video.VideoPlayer
 import build.wallet.ui.compose.getVideoResource
 import build.wallet.ui.compose.resId
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun ChooseAccountAccessScreen(
@@ -112,20 +110,5 @@ fun ChooseAccountAccessScreen(
         tint = Color.White
       )
     }
-  }
-}
-
-@Preview
-@Composable
-fun ChooseAccountAccessScreenPreview() {
-  PreviewWalletTheme {
-    ChooseAccountAccessScreen(
-      model =
-        ChooseAccountAccessModel(
-          onLogoClick = {},
-          onSetUpNewWalletClick = {},
-          onMoreOptionsClick = {}
-        )
-    )
   }
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-network-core-jvm",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-network-core-jvm-3.0.0-rc01.jar": "41dd145fa50dcdbdc0e0d98af64e4b4b0e6faaadb75aee2c07eab11107b0f0e3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -2,7 +2,6 @@ package build.wallet.notifications
 
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
-import build.wallet.queueprocessor.Queue
 import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
@@ -10,7 +9,7 @@ import com.github.michaelbull.result.map
 
 class RegisterWatchAddressQueueImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
-) : Queue<RegisterWatchAddressContext> {
+) : RegisterWatchAddressQueue {
   override suspend fun append(item: RegisterWatchAddressContext): Result<Unit, Error> {
     return databaseProvider.database().awaitTransaction {
       registerWatchAddressQueueQueries.append(

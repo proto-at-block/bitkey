@@ -4,7 +4,6 @@ import build.wallet.auth.AccountAuthTokens
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 
 interface LostAppRecoveryAuthenticator {
@@ -80,7 +79,7 @@ interface LostAppRecoveryAuthenticator {
     ) : DelayNotifyLostAppAuthError()
 
     data class ClearRecoveryTableError(
-      override val cause: DbError,
+      override val cause: Error,
     ) : DelayNotifyLostAppAuthError()
   }
 }

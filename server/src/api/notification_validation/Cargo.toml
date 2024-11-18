@@ -16,3 +16,6 @@ notification = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = ["privileged_action", "recovery"] }
 types = { workspace = true, features = ["privileged_action", "recovery"] }
+
+[lints]
+workspace = true

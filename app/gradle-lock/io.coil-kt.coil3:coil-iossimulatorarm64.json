@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-iossimulatorarm64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-iossimulatorarm64-3.0.0-rc01-metadata.jar": "30beb4c7f874e439050a877fb8460113855f6863833800010e3af187d05a25ec"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil.klib": "54529dd195102d4d98c2d83c0e110a9e41f897df17629d2c51849d9f739de8f8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

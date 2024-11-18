@@ -5,6 +5,7 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.ClipboardMock
@@ -13,7 +14,6 @@ import build.wallet.platform.sharing.SharingManagerMock.SharedText
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.time.ControlledDelayer
@@ -44,7 +44,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val onBackCalls = turbines.create<Unit>("back calls")
   val props =
     AddressQrCodeUiProps(
-      accountData = ActiveKeyboxLoadedDataMock,
+      account = FullAccountMock,
       onBack = {
         onBackCalls += Unit
       }

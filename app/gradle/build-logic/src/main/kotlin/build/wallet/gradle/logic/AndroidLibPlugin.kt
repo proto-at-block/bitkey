@@ -4,8 +4,6 @@ import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigu
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
 import build.wallet.gradle.logic.structure.namespace
-import com.android.build.api.dsl.LibraryExtension
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -24,12 +22,14 @@ internal class AndroidLibPlugin : Plugin<Project> {
       pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
       pluginManager.apply<AutomaticKotlinOptInPlugin>()
 
-      android {
+      androidLib {
         namespace = "build.wallet.${project.namespace}"
         commonConfiguration(project)
+        buildFeatures {
+          // Most of the modules do not use Resources - disable by default.
+          // Resources can be enabled using `buildLogic.android {}` extension.
+          androidResources = false
+        }
       }
     }
 }
-
-private fun Project.android(configure: Action<LibraryExtension>): Unit =
-  extensions.configure("android", configure)

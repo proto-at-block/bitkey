@@ -11,6 +11,7 @@ import build.wallet.encrypt.*
 import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
+import build.wallet.frost.ShareGeneratorFactory
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
@@ -18,6 +19,7 @@ import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProviderImpl
@@ -29,7 +31,7 @@ import co.touchlab.kermit.LogWriter
 fun makeAppComponent(
   appId: AppId,
   appVariant: AppVariant,
-  appVersion: String,
+  appVersion: AppVersion,
   bdkAddressBuilder: BdkAddressBuilder,
   bdkBlockchainFactory: BdkBlockchainFactory,
   bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
@@ -47,6 +49,7 @@ fun makeAppComponent(
   firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
   hardwareAttestation: HardwareAttestation,
   deviceOs: DeviceOs,
+  shareGeneratorFactory: ShareGeneratorFactory,
 ): AppComponentImpl {
   val datadogTracer = DatadogTracerImpl()
   val datadogRumMonitor = DatadogRumMonitorImpl()
@@ -100,6 +103,7 @@ fun makeAppComponent(
     xNonceGenerator = XNonceGeneratorImpl(),
     spake2 = Spake2Impl(),
     cryptoBox = CryptoBoxImpl(),
-    databaseIntegrityChecker = databaseIntegrityChecker
+    databaseIntegrityChecker = databaseIntegrityChecker,
+    shareGeneratorFactory = shareGeneratorFactory
   )
 }

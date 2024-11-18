@@ -18,32 +18,29 @@ import kotlinx.datetime.TimeZone
  * Sets up mobile pay limits.
  */
 suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
-  return app.run {
-    val account = getActiveFullAccount()
-    val accessToken =
-      appComponent.authTokensRepository
-        .getAuthTokens(account.accountId, AuthTokenScope.Global)
-        .toErrorIfNull { IllegalStateException("Auth tokens missing.") }
-        .getOrThrow()
-        .accessToken
-    val signResponse =
-      nfcTransactor.fakeTransact { session, command ->
-        command.signAccessToken(session, accessToken)
-      }.getOrThrow()
-    val spendingLimit = SpendingLimit(true, limit, TimeZone.UTC)
-    appComponent.mobilePayService.setLimit(
-      account = account,
-      spendingLimit = spendingLimit,
-      hwFactorProofOfPossession = HwFactorProofOfPossession(signResponse)
-    ).getOrThrow()
+  val account = getActiveFullAccount()
+  val accessToken = authTokensRepository
+    .getAuthTokens(account.accountId, AuthTokenScope.Global)
+    .toErrorIfNull { IllegalStateException("Auth tokens missing.") }
+    .getOrThrow()
+    .accessToken
+  val signResponse =
+    nfcTransactor.fakeTransact { session, command ->
+      command.signAccessToken(session, accessToken)
+    }.getOrThrow()
+  val spendingLimit = SpendingLimit(true, limit, TimeZone.UTC)
+  mobilePayService.setLimit(
+    account = account,
+    spendingLimit = spendingLimit,
+    hwFactorProofOfPossession = HwFactorProofOfPossession(signResponse)
+  ).getOrThrow()
 
-    appComponent.mobilePayService.mobilePayData.test {
-      awaitUntil {
-        it is MobilePayData.MobilePayEnabledData &&
-          it.activeSpendingLimit.amount == limit
-      }
+  mobilePayService.mobilePayData.test {
+    awaitUntil {
+      it is MobilePayData.MobilePayEnabledData &&
+        it.activeSpendingLimit.amount == limit
     }
-
-    spendingLimit
   }
+
+  return spendingLimit
 }

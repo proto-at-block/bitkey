@@ -3,8 +3,6 @@ package build.wallet.money.formatter
 import build.wallet.amount.DoubleFormatterImpl
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitions
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
 import build.wallet.money.testJPY
 import build.wallet.money.testKWD
 import build.wallet.platform.settings.LocaleIdentifierProviderFake

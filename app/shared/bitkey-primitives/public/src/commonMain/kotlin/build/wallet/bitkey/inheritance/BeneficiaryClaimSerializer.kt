@@ -23,6 +23,7 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
       InheritanceClaimStatus.PENDING -> surrogate.asPendingClaim()
       InheritanceClaimStatus.CANCELED -> surrogate.asCancelledClaim()
       InheritanceClaimStatus.LOCKED -> surrogate.asLockedClaim()
+      InheritanceClaimStatus.COMPLETE -> surrogate.asCompleteClaim()
       else -> surrogate.asUnknownState()
     }
   }
@@ -55,12 +56,15 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
     val sealedDek: XCiphertext? = null,
     @SerialName("sealed_mobile_key")
     val sealedMobileKey: XCiphertext? = null,
+    @SerialName("benefactor_descriptor_keyset")
+    val benefactorKeyset: BenefactorDescriptorKeyset? = null,
   ) {
     constructor(claim: BeneficiaryClaim) : this(
       status = when (claim) {
         is BeneficiaryClaim.PendingClaim -> InheritanceClaimStatus.PENDING
         is BeneficiaryClaim.CanceledClaim -> InheritanceClaimStatus.CANCELED
         is BeneficiaryClaim.LockedClaim -> InheritanceClaimStatus.LOCKED
+        is BeneficiaryClaim.CompleteClaim -> InheritanceClaimStatus.COMPLETE
         is BeneficiaryClaim.UnknownStatus -> error("Cannot serialize claim with unknown state")
       },
       claimId = claim.claimId,
@@ -69,7 +73,8 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
       delayStartTime = (claim as? BeneficiaryClaim.PendingClaim)?.delayStartTime,
       authKeys = (claim as? BeneficiaryClaim.PendingClaim)?.authKeys,
       sealedDek = (claim as? BeneficiaryClaim.LockedClaim)?.sealedDek,
-      sealedMobileKey = (claim as? BeneficiaryClaim.LockedClaim)?.sealedMobileKey
+      sealedMobileKey = (claim as? BeneficiaryClaim.LockedClaim)?.sealedMobileKey,
+      benefactorKeyset = (claim as? BeneficiaryClaim.LockedClaim)?.benefactorKeyset
     )
 
     fun asPendingClaim() =
@@ -92,7 +97,14 @@ object BeneficiaryClaimSerializer : KSerializer<BeneficiaryClaim> {
         claimId = claimId,
         relationshipId = relationshipId,
         sealedDek = sealedDek!!,
-        sealedMobileKey = sealedMobileKey!!
+        sealedMobileKey = sealedMobileKey!!,
+        benefactorKeyset = benefactorKeyset!!
+      )
+
+    fun asCompleteClaim() =
+      BeneficiaryClaim.CompleteClaim(
+        claimId = claimId,
+        relationshipId = relationshipId
       )
 
     fun asUnknownState() =

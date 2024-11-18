@@ -16,3 +16,6 @@ tracing = { workspace = true }
 
 # path dependencies
 external_identifier = { workspace = true }
+
+[lints]
+workspace = true

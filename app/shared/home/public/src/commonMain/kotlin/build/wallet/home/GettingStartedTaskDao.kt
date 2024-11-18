@@ -1,6 +1,5 @@
 package build.wallet.home
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -20,7 +19,7 @@ interface GettingStartedTaskDao {
   /**
    * Adds the given tasks to the dao
    */
-  suspend fun addTasks(tasks: List<GettingStartedTask>): Result<Unit, DbError>
+  suspend fun addTasks(tasks: List<GettingStartedTask>): Result<Unit, Error>
 
   /**
    * Updates the state of the given task.
@@ -28,10 +27,10 @@ interface GettingStartedTaskDao {
   suspend fun updateTask(
     id: GettingStartedTask.TaskId,
     state: GettingStartedTask.TaskState,
-  ): Result<Unit, DbError>
+  ): Result<Unit, Error>
 
   /**
    * Clears all tasks
    */
-  suspend fun clearTasks(): Result<Unit, DbError>
+  suspend fun clearTasks(): Result<Unit, Error>
 }

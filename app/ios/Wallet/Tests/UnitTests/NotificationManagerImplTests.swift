@@ -235,7 +235,7 @@ private class DeviceTokenManagerMock: DeviceTokenManager {
 
     func addDeviceTokenIfPresentForAccount(
         fullAccountId _: FullAccountId,
-        f8eEnvironment _: F8e_publicF8eEnvironment,
+        f8eEnvironment _: F8eEnvironment,
         authTokenScope _: Auth_publicAuthTokenScope
     ) async throws -> DeviceTokenManagerResult<KotlinUnit, DeviceTokenManagerError> {
         fatalError("Unimplemented")

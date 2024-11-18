@@ -17,7 +17,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class RegisterWatchAddressSenderImplTests : FunSpec({
   val registerWatchAddressF8eClient = RegisterWatchAddressF8eClientMock(turbines::create)
-  val registerWatchAddressSender = RegisterWatchAddressSenderImpl(registerWatchAddressF8eClient)
+  val registerWatchAddressSender = RegisterWatchAddressProcessorImpl(registerWatchAddressF8eClient)
 
   val ctx1 =
     RegisterWatchAddressContext(

@@ -7,8 +7,6 @@ import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.BitcoinDisplayUnit
-import build.wallet.money.formatter.internal.MoneyDisplayFormatterImpl
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
 import build.wallet.platform.settings.LocaleIdentifierProviderFake
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec

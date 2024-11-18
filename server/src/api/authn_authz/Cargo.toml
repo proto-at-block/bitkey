@@ -31,3 +31,6 @@ userpool = { workspace = true }
 [dev-dependencies]
 tokio = { workspace = true }
 tower = { workspace = true }
+
+[lints]
+workspace = true

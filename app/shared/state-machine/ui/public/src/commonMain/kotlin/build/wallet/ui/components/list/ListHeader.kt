@@ -8,8 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun ListHeader(
@@ -26,13 +24,5 @@ fun ListHeader(
       text = title,
       type = LabelType.Title2
     )
-  }
-}
-
-@Composable
-@Preview
-internal fun ListHeaderPreview() {
-  PreviewWalletTheme {
-    ListHeader(title = "Recent activity")
   }
 }

@@ -2,27 +2,23 @@ package build.wallet.frost
 
 import build.wallet.rust.core.ShareGenerator as FfiShareGenerator
 
-class ShareGeneratorImpl(
-  private val shareGenerator: FfiShareGenerator,
+data class ShareGeneratorImpl(
+  private val shareGenerator: FfiShareGenerator = FfiShareGenerator(),
 ) : ShareGenerator {
-  override fun generate(): KeygenResult<SharePackage> =
+  override fun generate(): KeygenResult<SealedRequest> =
     runCatchingKeygenError {
-      SharePackageImpl(ffiSharePackage = shareGenerator.generate())
+      SealedRequest(value = shareGenerator.generate())
     }
 
-  override fun aggregate(
-    peerSharePackage: SharePackage,
-    peerKeyCommitments: KeyCommitments,
-  ): KeygenResult<ShareDetails> =
+  override fun aggregate(sealedRequest: SealedRequest): KeygenResult<ShareDetails> =
     runCatchingKeygenError {
-      require(peerSharePackage is SharePackageImpl)
-      require(peerKeyCommitments is KeyCommitmentsImpl)
-
-      ShareDetailsImpl(
-        shareDetails = shareGenerator.aggregate(
-          peerSharePackage = peerSharePackage.ffiSharePackage,
-          peerKeyCommitments = peerKeyCommitments.ffiKeyCommitments
-        )
-      )
+      ShareDetailsImpl(shareDetails = shareGenerator.aggregate(sealedResponse = sealedRequest.value))
     }
+
+  override fun encode(shareDetails: ShareDetails): KeygenResult<SealedRequest> {
+    require(shareDetails is ShareDetailsImpl)
+    return runCatchingKeygenError {
+      SealedRequest(shareGenerator.encodeCompleteDistributionRequest(shareDetails.shareDetails))
+    }
+  }
 }

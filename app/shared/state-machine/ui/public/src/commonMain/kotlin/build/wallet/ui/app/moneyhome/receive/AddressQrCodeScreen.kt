@@ -18,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -39,8 +38,6 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun AddressQrCodeScreen(
@@ -200,69 +197,4 @@ private fun AddressLabel(
     alignment = TextAlign.Center,
     treatment = LabelTreatment.Primary
   )
-}
-
-@Preview
-@Composable
-fun AddressQrCodeScreenPreview() {
-  val address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-  PreviewWalletTheme {
-    AddressQrCodeScreen(
-      model = AddressQrCodeBodyModel(
-        onBack = {},
-        onRefreshClick = {},
-        content =
-          QrCode(
-            address = address,
-            addressQrImageUrl = "https://api.cash.app/qr/btc/$address?currency=btc&logoColor=000000&rounded=true&size=2000&errorCorrection=2",
-            fallbackAddressQrCodeModel = QrCodeModel(data = "bitcoin:$address"),
-            copyButtonIcon = Icon.SmallIconCopy,
-            copyButtonLabelText = "Copy",
-            onCopyClick = {},
-            onShareClick = {}
-          )
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun AddressQrCodeScreenLoadingPreview() {
-  PreviewWalletTheme {
-    AddressQrCodeScreen(
-      model = AddressQrCodeBodyModel(
-        onBack = {},
-        onRefreshClick = {},
-        content =
-          QrCode(
-            address = null,
-            addressQrImageUrl = null,
-            fallbackAddressQrCodeModel = null,
-            copyButtonIcon = Icon.SmallIconCopy,
-            copyButtonLabelText = "Copy",
-            onCopyClick = {},
-            onShareClick = {}
-          )
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun AddressQrCodeScreenErrorPreview() {
-  PreviewWalletTheme {
-    AddressQrCodeScreen(
-      model = AddressQrCodeBodyModel(
-        onBack = {},
-        onRefreshClick = {},
-        content =
-          Error(
-            title = "We couldn’t create an address",
-            subline = "We are looking into this. Please try again later."
-          )
-      )
-    )
-  }
 }

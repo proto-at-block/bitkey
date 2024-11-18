@@ -1,14 +1,28 @@
 use account::service::{FetchAccountInput, Service as AccountService};
+use std::str::FromStr;
+use std::sync::Arc;
 
+use crate::metrics;
+use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
+use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
+use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
+use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
+use crate::service::inheritance::sign_and_complete_inheritance_claim::SignAndCompleteInheritanceClaimInput;
+use crate::service::inheritance::update_inheritance_claim_destination::UpdateInheritanceProcessWithDestinationInput;
+use crate::service::inheritance::Service as InheritanceService;
 use axum::{
     extract::{Path, State},
     routing::{get, post, put},
     Json, Router,
 };
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::{generate_electrum_rpc_uris, TransactionBroadcasterTrait};
 use errors::ApiError;
 use experimentation::claims::ExperimentationClaims;
+use feature_flags::service::Service as FeatureFlagsService;
 use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
+use mobile_pay::signing_processor::SigningProcessor;
 use notification::service::Service as NotificationService;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -30,20 +44,16 @@ use types::recovery::inheritance::router::{
 };
 use types::recovery::social::relationship::RecoveryRelationshipId;
 use utoipa::{OpenApi, ToSchema};
-
-use crate::metrics;
-use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
-use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
-use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
-use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
-use crate::service::inheritance::update_inheritance_claim_destination::UpdateInheritanceProcessWithDestinationInput;
-use crate::service::inheritance::Service as InheritanceService;
+use wsm_rust_client::WsmClient;
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
     pub AccountService,
     pub NotificationService,
     pub InheritanceService,
+    pub FeatureFlagsService,
+    pub WsmClient,
+    pub Arc<dyn TransactionBroadcasterTrait>,
 );
 
 impl RouterBuilder for RouteState {
@@ -71,6 +81,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/cancel",
                 post(cancel_inheritance_claim),
             )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/complete",
+                put(complete_inheritance_claim),
+            )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
     }
@@ -80,10 +94,6 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/recovery/inheritance/claims",
                 get(get_inheritance_claims),
-            )
-            .route(
-                "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id",
-                put(update_inheritance_claim),
             )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
@@ -105,8 +115,9 @@ impl From<RouteState> for SwaggerEndpoint {
         cancel_inheritance_claim,
         create_inheritance_claim,
         get_inheritance_claims,
-        update_inheritance_claim,
         upload_inheritance_packages,
+        lock_inheritance_claim,
+        complete_inheritance_claim,
     ),
     components(
         schemas(
@@ -122,9 +133,11 @@ impl From<RouteState> for SwaggerEndpoint {
             CancelInheritanceClaimResponse,
             CreateInheritanceClaimRequest,
             CreateInheritanceClaimResponse,
-            UploadInheritancePackagesRequest,
-            UploadInheritancePackagesResponse,
             GetInheritanceClaimsResponse,
+            LockInheritanceClaimRequest,
+            LockInheritanceClaimResponse,
+            CompleteInheritanceClaimRequest,
+            CompleteInheritanceClaimResponse,
             FullAccountAuthKeys,
             InheritanceClaimAuthKeys,
             InheritanceClaimViewCommonFields,
@@ -390,6 +403,7 @@ pub struct UpdateInheritanceProcessWithDestinationResponse {
 }
 
 ///
+/// Updating inheritance claims with destination is not required for V1
 /// This route is used by a beneficiary to update the destination for a
 /// pending inheritance claim. To update it, the caller must:
 /// 1) be the beneficiary
@@ -448,7 +462,6 @@ pub struct LockInheritanceClaimRequest {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub challenge: String,
     pub app_signature: String,
-    pub hardware_signature: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -463,8 +476,8 @@ pub struct LockInheritanceClaimResponse {
 /// 2) the claim must be valid
 /// 3) the claim must be pending
 /// 4) it must be after the delay_end_time of the pending claim
-/// 4) the beneficiary must have a valid recovery relationship with the benefactor.
-/// 5) provide a valid challenge
+/// 5) the beneficiary must have a valid recovery relationship with the benefactor.
+/// 6) provide a valid challenge
 ///
 #[instrument(err, skip(account_service, inheritance_service))]
 #[utoipa::path(
@@ -503,11 +516,91 @@ pub async fn lock_inheritance_claim(
             beneficiary_account,
             challenge: request.challenge,
             app_signature: request.app_signature,
-            hardware_signature: request.hardware_signature,
         })
         .await?;
 
     Ok(Json(LockInheritanceClaimResponse {
         claim: InheritanceClaim::Locked(claim).into(),
+    }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CompleteInheritanceClaimRequest {
+    pub psbt: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct CompleteInheritanceClaimResponse {
+    pub claim: BeneficiaryInheritanceClaimView,
+}
+
+///
+/// This route is used by a beneficiary to complete the locked inheritance claim.
+/// To complete it, the caller must:
+/// 1) be the beneficiary
+/// 2) the claim must be valid & locked
+/// 3) the beneficiary must have a valid recovery relationship with the benefactor.
+/// 4) provide a valid singly signed psbt
+/// 5) In case of RBF, the PSBT must have the same receiver address.
+///
+#[instrument(err, skip(account_service, inheritance_service, feature_flags_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/complete",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("inheritance_id" = InheritanceId, Path, description = "InheritanceId"),
+    ),
+    request_body = CompleteInheritanceClaimRequest,
+    responses(
+        (status = 200, description = "Completed inheritance claim", body=CompleteInheritanceClaimResponse),
+    ),
+)]
+pub async fn complete_inheritance_claim(
+    Path((beneficiary_account_id, inheritance_claim_id)): Path<(AccountId, InheritanceClaimId)>,
+    State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
+    State(wsm_client): State<WsmClient>,
+    State(transaction_broadcaster): State<Arc<dyn TransactionBroadcasterTrait>>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
+    Json(request): Json<CompleteInheritanceClaimRequest>,
+) -> Result<Json<CompleteInheritanceClaimResponse>, ApiError> {
+    let beneficiary_account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &beneficiary_account_id,
+        })
+        .await?;
+
+    if !matches!(beneficiary_account, Account::Full(_)) {
+        return Err(ApiError::GenericForbidden(
+            "Incorrect calling account type".to_string(),
+        ));
+    }
+    let context_key = experimentation_claims.app_installation_context_key().ok();
+    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
+
+    let signing_processor = SigningProcessor::new(
+        Arc::new(wsm_client),
+        feature_flags_service,
+        transaction_broadcaster,
+        rpc_uris.clone(),
+    );
+
+    let psbt = Psbt::from_str(&request.psbt)
+        .map_err(|_| ApiError::GenericBadRequest("Invalid PSBT".to_string()))?;
+
+    let claim = inheritance_service
+        .sign_and_complete(SignAndCompleteInheritanceClaimInput {
+            signing_processor,
+            rpc_uris,
+            inheritance_claim_id,
+            beneficiary_account,
+            psbt,
+        })
+        .await?;
+
+    Ok(Json(CompleteInheritanceClaimResponse {
+        claim: InheritanceClaim::Completed(claim).into(),
     }))
 }

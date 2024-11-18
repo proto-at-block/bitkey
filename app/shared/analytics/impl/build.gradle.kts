@@ -22,6 +22,10 @@ kotlin {
         api(projects.shared.timePublic)
         api(projects.shared.databasePublic)
         api(projects.shared.firmwarePublic)
+        // TODO: remove dependency on :impl
+        implementation(projects.shared.queueProcessorImpl) {
+          because("Depends on PeriodicProcessorImpl")
+        }
         implementation(libs.kmp.settings)
       }
     }

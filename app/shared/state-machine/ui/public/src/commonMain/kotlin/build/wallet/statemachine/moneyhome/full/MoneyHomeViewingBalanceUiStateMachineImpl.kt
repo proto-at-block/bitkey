@@ -10,6 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
 import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
 import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
@@ -271,7 +272,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         viewingInvitationUiStateMachine.model(
           ViewingInvitationProps(
             hostScreen = viewingBalanceModel,
-            fullAccount = props.accountData.account,
+            fullAccount = props.account as FullAccount,
             invitation = contact,
             onExit = {
               props.setState(props.state.copy(selectedContact = null))
@@ -282,7 +283,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         ViewingRecoveryContactProps(
           screenBody = viewingBalanceModel.body,
           recoveryContact = contact,
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           afterContactRemoved = {
             props.setState(props.state.copy(selectedContact = null))
           },
@@ -316,7 +317,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             ),
           gettingStartedCardUiProps =
             GettingStartedCardUiProps(
-              accountData = props.accountData,
               onAddBitcoin = {
                 props.setState(
                   ViewingBalanceUiState(
@@ -350,7 +350,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             ),
           hardwareRecoveryStatusCardUiProps =
             HardwareRecoveryStatusCardUiProps(
-              lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+              lostHardwareRecoveryData = props.lostHardwareRecoveryData,
               onClick = {
                 props.setState(
                   ViewHardwareRecoveryStatusUiState(InstructionsStyle.Independent)
@@ -373,8 +373,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             onStartSweepClicked = props.onStartSweepFlow
           ),
           bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
-            fullAccountId = props.accountData.account.accountId,
-            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+            accountId = props.account.accountId,
+            f8eEnvironment = props.account.config.f8eEnvironment,
             onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
           )
         )
@@ -510,9 +510,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             addBitcoinUiStateMachine.model(
               props =
                 AddBitcoinUiProps(
-                  account = props.accountData.account,
+                  account = props.account as FullAccount,
                   initialState = currentState.initialState,
-                  keybox = props.accountData.account.keybox,
+                  keybox = props.account.keybox,
                   sellBitcoinEnabled = sellBitcoinFeatureFlag.isEnabled(),
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
                   onPartnerRedirected = { redirectMethod, transaction ->

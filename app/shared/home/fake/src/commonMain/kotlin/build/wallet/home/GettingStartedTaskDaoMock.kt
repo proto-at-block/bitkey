@@ -1,7 +1,6 @@
 package build.wallet.home
 
 import app.cash.turbine.Turbine
-import build.wallet.db.DbError
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
 import com.github.michaelbull.result.Ok
@@ -20,19 +19,19 @@ class GettingStartedTaskDaoMock(
 
   override fun tasks(): Flow<List<GettingStartedTask>> = gettingStartedTasks
 
-  var addTasksResult: Result<Unit, DbError> = Ok(Unit)
+  var addTasksResult: Result<Unit, Error> = Ok(Unit)
 
-  override suspend fun addTasks(tasks: List<GettingStartedTask>): Result<Unit, DbError> {
+  override suspend fun addTasks(tasks: List<GettingStartedTask>): Result<Unit, Error> {
     gettingStartedTasks.emit(tasks)
     return addTasksResult
   }
 
-  var updateTaskResult: Result<Unit, DbError> = Ok(Unit)
+  var updateTaskResult: Result<Unit, Error> = Ok(Unit)
 
   override suspend fun updateTask(
     id: TaskId,
     state: TaskState,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     val tasks = gettingStartedTasks.value.toMutableList()
     val index = tasks.indexOfFirst { it.id == id }
     tasks[index] = tasks[index].copy(state = state)
@@ -40,9 +39,9 @@ class GettingStartedTaskDaoMock(
     return updateTaskResult
   }
 
-  var clearTasksResult: Result<Unit, DbError> = Ok(Unit)
+  var clearTasksResult: Result<Unit, Error> = Ok(Unit)
 
-  override suspend fun clearTasks(): Result<Unit, DbError> {
+  override suspend fun clearTasks(): Result<Unit, Error> {
     clearTasksCalls.add(Unit)
     reset()
     return clearTasksResult

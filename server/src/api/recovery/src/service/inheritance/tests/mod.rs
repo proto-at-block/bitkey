@@ -1,24 +1,42 @@
+mod create_inheritance_claim_tests;
 mod lock_inheritance_claim_tests;
+mod sign_and_complete_inheritance_claim_tests;
 
 use crate::service::inheritance;
 use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
 use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
+use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
+
 use crate::service::social::relationship::accept_recovery_relationship_invitation::AcceptRecoveryRelationshipInvitationInput;
 use crate::service::social::relationship::create_recovery_relationship_invitation::CreateRecoveryRelationshipInvitationInput;
 use crate::service::social::relationship::endorse_recovery_relationships::EndorseRecoveryRelationshipsInput;
 use crate::service::social::relationship::tests::construct_test_recovery_relationship_service;
-use account::service::tests::construct_test_account_service;
+use account::service::tests::{
+    construct_test_account_service, create_full_account_for_test, generate_test_authkeys,
+};
+use bdk_utils::bdk::bitcoin::key::Secp256k1;
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::secp256k1;
+use bdk_utils::signature::sign_message;
 use database::ddb;
 use database::ddb::Repository;
 use feature_flags::config::Config;
 use http_server::config;
 use notification::service::tests::construct_test_notification_service;
+use rand::thread_rng;
 use repository::recovery::inheritance::InheritanceRepository;
+use screener::service::Service as ScreenerService;
+use screener::ScreenerMode;
 use std::collections::HashMap;
-use time::OffsetDateTime;
+use std::str::FromStr;
+use std::sync::Arc;
+use time::{Duration, OffsetDateTime};
+use types::account::bitcoin::Network;
 use types::account::entities::{Account, FullAccount};
+use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy, InheritanceClaimPending,
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy,
+    InheritanceClaimCompleted, InheritanceClaimLocked, InheritanceClaimPending,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::social::relationship::{
@@ -153,6 +171,65 @@ pub async fn cancel_claim(
     inheritance_service.cancel_claim(input).await.unwrap()
 }
 
+pub async fn create_locked_claim(
+    benefactor_account: &FullAccount,
+    beneficiary_account: &Account,
+) -> InheritanceClaimLocked {
+    let secp = Secp256k1::new();
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
+
+    let delay_end_time = OffsetDateTime::now_utc() - Duration::minutes(5);
+    let pending_claim = create_pending_inheritance_claim(
+        benefactor_account,
+        beneficiary_account,
+        &auth_keys,
+        Some(delay_end_time),
+    )
+    .await;
+    let inheritance_service = construct_test_inheritance_service().await;
+
+    let delay_end_time = OffsetDateTime::now_utc() - Duration::minutes(5);
+    let pending_claim = update_claim_delay_end_time(&pending_claim, delay_end_time).await;
+
+    let recovery_relationship_id = pending_claim.common_fields.recovery_relationship_id.clone();
+
+    let sealed_dek = "TEST_SEALED_DEK".to_string();
+    let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
+    create_inheritance_package(&recovery_relationship_id, &sealed_dek, &sealed_mobile_key).await;
+
+    let input = LockInheritanceClaimInput {
+        inheritance_claim_id: pending_claim.common_fields.id.clone(),
+        beneficiary_account: beneficiary_account.to_owned(),
+        challenge,
+        app_signature,
+    };
+    inheritance_service.lock(input).await.expect("lock claim")
+}
+
+pub async fn create_completed_claim(
+    locked_claim: &InheritanceClaimLocked,
+) -> InheritanceClaimCompleted {
+    let inheritance_repository = construct_inheritance_repository().await;
+    let signed_psbt = Psbt::from_str("cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA").expect("Failed to parse PSBT");
+
+    let completed_claim = InheritanceClaim::Completed(InheritanceClaimCompleted {
+        common_fields: locked_claim.common_fields.clone(),
+        psbt: signed_psbt,
+        completed_at: OffsetDateTime::now_utc(),
+    });
+
+    let claim = inheritance_repository
+        .persist_inheritance_claim(&completed_claim)
+        .await
+        .expect("persist claim");
+
+    if let InheritanceClaim::Completed(completed_claim) = claim {
+        completed_claim
+    } else {
+        panic!("Expected completed claim");
+    }
+}
+
 pub async fn create_inheritance_package(
     recovery_relationship_id: &RecoveryRelationshipId,
     sealed_dek: &str,
@@ -181,12 +258,21 @@ pub async fn construct_test_inheritance_service() -> inheritance::Service {
         .await
         .unwrap();
 
+    let screener_service = ScreenerService::new_and_load_data(
+        None,
+        screener::Config {
+            screener: ScreenerMode::Test,
+        },
+    )
+    .await;
+
     inheritance::Service::new(
         inheritance_repository,
         construct_test_recovery_relationship_service().await,
         construct_test_notification_service().await,
         construct_test_account_service().await,
         feature_flags_service,
+        Arc::new(screener_service),
     )
 }
 
@@ -195,4 +281,44 @@ pub async fn construct_inheritance_repository() -> InheritanceRepository {
     let ddb_config = config::extract::<ddb::Config>(profile).expect("extract ddb config");
     let ddb_connection = ddb_config.to_connection().await;
     InheritanceRepository::new(ddb_connection.clone())
+}
+
+pub async fn setup_accounts() -> (FullAccount, Account) {
+    setup_accounts_with_network(Network::BitcoinSignet).await
+}
+
+pub async fn setup_accounts_with_network(network: Network) -> (FullAccount, Account) {
+    let account_service = construct_test_account_service().await;
+    let benefactor_account =
+        create_full_account_for_test(&account_service, network, &generate_test_authkeys().into())
+            .await;
+
+    let beneficiary_account = Account::Full(
+        create_full_account_for_test(&account_service, network, &generate_test_authkeys().into())
+            .await,
+    );
+
+    (benefactor_account, beneficiary_account)
+}
+
+pub fn setup_keys_and_signatures(
+    secp: &Secp256k1<secp256k1::All>,
+) -> (InheritanceClaimAuthKeys, String, String, String) {
+    let (app_auth_seckey, app_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let (hardware_auth_seckey, hardware_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let (_recovery_auth_seckey, recovery_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let auth_keys = InheritanceClaimAuthKeys::FullAccount(FullAccountAuthKeys::new(
+        app_auth_pubkey,
+        hardware_auth_pubkey,
+        Some(recovery_auth_pubkey),
+    ));
+
+    let challenge = "LockInheritanceClaim".to_string()
+        + &hardware_auth_pubkey.to_string()
+        + &app_auth_pubkey.to_string()
+        + &recovery_auth_pubkey.to_string();
+    let app_signature = sign_message(secp, &challenge, &app_auth_seckey);
+    let hardware_signature = sign_message(secp, &challenge, &hardware_auth_seckey);
+
+    (auth_keys, challenge, app_signature, hardware_signature)
 }

@@ -2,7 +2,6 @@ package build.wallet.fwup
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,25 +12,25 @@ class FwupDataDaoMock(
   var clearCalls = turbine("clear fwup data dao calls")
   var setFwupDataCalls = turbine("set fwup data dao calls")
 
-  val fwupDataFlow = MutableStateFlow<Result<FwupData?, DbError>>(Ok(null))
+  val fwupDataFlow = MutableStateFlow<Result<FwupData?, Error>>(Ok(null))
 
   override fun fwupData() = fwupDataFlow
 
-  override suspend fun setFwupData(fwupData: FwupData): Result<Unit, DbError> {
+  override suspend fun setFwupData(fwupData: FwupData): Result<Unit, Error> {
     setFwupDataCalls += fwupData
     return Ok(Unit)
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     return Ok(Unit)
   }
 
-  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError> {
+  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, Error> {
     return Ok(Unit)
   }
 
-  override suspend fun getSequenceId(): Result<UInt, DbError> {
+  override suspend fun getSequenceId(): Result<UInt, Error> {
     return Ok(0u)
   }
 

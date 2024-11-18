@@ -21,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import bitkey.shared.ui_core_public.generated.resources.Res
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.header.Header
@@ -31,8 +30,6 @@ import build.wallet.ui.components.video.VideoPlayer
 import build.wallet.ui.compose.getVideoResource
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun FwupInstructionsScreen(
@@ -85,28 +82,5 @@ fun FwupInstructionsScreen(
         Spacer(Modifier.height(28.dp))
       }
     }
-  }
-}
-
-@Preview
-@Composable
-internal fun FwupInstructionsScreenPreview() {
-  PreviewWalletTheme {
-    FwupInstructionsScreen(
-      model =
-        FwupInstructionsBodyModel(
-          onClose = {},
-          headerModel =
-            FormHeaderModel(
-              headline = "Headline",
-              subline = "Some subline",
-              alignment = FormHeaderModel.Alignment.CENTER
-            ),
-          buttonText = "Click me",
-          onButtonClick = {},
-          eventTrackerScreenId = null,
-          eventTrackerContext = null
-        )
-    )
   }
 }

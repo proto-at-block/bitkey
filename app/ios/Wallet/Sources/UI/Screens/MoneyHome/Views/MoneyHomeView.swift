@@ -40,7 +40,7 @@ public struct MoneyHomeView: View {
                     VStack(alignment: .center, spacing: 0) {
                         // Header
                         HStack(alignment: .center) {
-                            TabHeaderView(headline: "Home")
+                            TabHeaderView(headline: "Bitkey")
                                 .opacity(contentHeaderOpacity)
                             Spacer()
                             ToolbarAccessoryView(viewModel: viewModel.trailingToolbarAccessoryModel)
@@ -70,9 +70,9 @@ public struct MoneyHomeView: View {
                         .padding(.top, 40)
 
                         // Balance Hero
-                            MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
-                                .frame(minWidth: 0)
-                                .animation(.none, value: viewModel)
+                        MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
+                            .frame(minWidth: 0)
+                            .animation(.none, value: viewModel)
 
                         // No UI between the action buttons and the tx list so show a divider
                         if viewModel.cardsModel.cards.isEmpty, viewModel.transactionsModel != nil {
@@ -84,12 +84,12 @@ public struct MoneyHomeView: View {
 
                         // Cards
                         if viewModel.cardsModel.cards.count > 0, moneyHomeCardsHeight != 0 {
-                                MoneyHomeCardsView(
-                                    viewModel: viewModel.cardsModel,
-                                    height: $moneyHomeCardsHeight
-                                )
-                                .frame(minWidth: 0)
-                                .animation(.none, value: viewModel)
+                            MoneyHomeCardsView(
+                                viewModel: viewModel.cardsModel,
+                                height: $moneyHomeCardsHeight
+                            )
+                            .frame(minWidth: 0)
+                            .animation(.none, value: viewModel)
                         }
 
                         // Transactions

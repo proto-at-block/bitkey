@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.notifications.*
@@ -143,8 +144,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              accountId = props.accountData.account.accountId,
-              accountConfig = props.accountData.account.keybox.config,
+              accountId = props.account.accountId,
+              accountConfig = (props.account as FullAccount).keybox.config,
               touchpointType = NotificationTouchpointType.PhoneNumber,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
               onSuccess = {
@@ -166,8 +167,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
             NotificationTouchpointInputAndVerificationProps(
-              accountId = props.accountData.account.accountId,
-              accountConfig = props.accountData.account.keybox.config,
+              accountId = props.account.accountId,
+              accountConfig = (props.account as FullAccount).keybox.config,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
               onClose = {
@@ -199,8 +200,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     // Side effect: get prefs from server
     LaunchedEffect("load-notifications-preferences") {
       notificationsPreferencesCachedProvider.getNotificationsPreferences(
-        props.accountData.account.config.f8eEnvironment,
-        props.accountData.account.accountId
+        props.account.config.f8eEnvironment,
+        props.account.accountId
       ).collect {
         it.onSuccess { prefs ->
           updatedPrefsState(prefs)
@@ -233,8 +234,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     // Side effect: send updated preferences to server
     LaunchedEffect("update-notifications-preferences", state) {
       notificationsPreferencesCachedProvider.updateNotificationsPreferences(
-        f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-        accountId = props.accountData.account.accountId,
+        f8eEnvironment = props.account.config.f8eEnvironment,
+        accountId = props.account.accountId,
         preferences = updatedPrefs,
         hwFactorProofOfPossession = hwFactorProofOfPossession
       ).onSuccess {
@@ -272,8 +273,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
       props =
         ProofOfPossessionNfcProps(
           request = Request.HwKeyProof(onSuccess),
-          fullAccountConfig = props.accountData.account.keybox.config,
-          fullAccountId = props.accountData.account.accountId,
+          fullAccountConfig = (props.account as FullAccount).keybox.config,
+          fullAccountId = props.account.accountId,
           onBack = onBack,
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           onTokenRefresh = {

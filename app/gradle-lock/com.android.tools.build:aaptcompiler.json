@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:aaptcompiler",
     "components": [
         {
-            "version": "8.3.2",
+            "version": "8.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "aaptcompiler-8.3.2.jar": "f978aa8c241422d80f15c7bbfbbc0eead768c2a8bdc353bba810900381508c4c"
+                        "aaptcompiler-8.5.2.jar": "a9642f9431a2224253801be664b7afe09fb876c6628d17811594713b202a538e"
                     }
                 }
             ],

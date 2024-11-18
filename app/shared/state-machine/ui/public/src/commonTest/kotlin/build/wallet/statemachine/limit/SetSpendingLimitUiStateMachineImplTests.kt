@@ -1,6 +1,7 @@
 package build.wallet.statemachine.limit
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.MobilePayEnabledDataMock
@@ -18,7 +19,6 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiProps
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiStateMachine
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -53,7 +53,7 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
     currentSpendingLimit = null,
     onClose = { onCloseCalls += Unit },
     onSetLimit = { onSetLimitCalls += it },
-    accountData = ActiveKeyboxLoadedDataMock
+    account = FullAccountMock
   )
 
   beforeTest {

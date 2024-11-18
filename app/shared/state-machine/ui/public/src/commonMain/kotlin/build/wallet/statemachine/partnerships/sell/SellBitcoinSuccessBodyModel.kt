@@ -27,7 +27,11 @@ data class SellBitcoinSuccessBodyModel(
       }
     ),
     header = FormHeaderModel(
-      headline = "Your bitcoin is on the way to MoonPay to sell",
+      headline = if (partnerInfo?.name != null) {
+        "Your bitcoin is on the way to ${partnerInfo.name} to sell"
+      } else {
+        "Your bitcoin is on the way to sell"
+      },
       subline = null,
       iconModel = null,
       sublineTreatment = FormHeaderModel.SublineTreatment.REGULAR,

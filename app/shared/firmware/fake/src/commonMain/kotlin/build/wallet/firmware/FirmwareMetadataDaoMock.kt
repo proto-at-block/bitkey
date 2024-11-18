@@ -2,7 +2,6 @@ package build.wallet.firmware
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -18,11 +17,11 @@ class FirmwareMetadataDaoMock(
     getActiveFirmwareMetadataResult = Ok(firmwareMetadata)
   }
 
-  override fun activeFirmwareMetadata(): Flow<Result<FirmwareMetadata?, DbError>> {
+  override fun activeFirmwareMetadata(): Flow<Result<FirmwareMetadata?, Error>> {
     return flow { getActiveFirmwareMetadata() }
   }
 
-  override suspend fun getActiveFirmwareMetadata(): Result<FirmwareMetadata?, DbError> {
+  override suspend fun getActiveFirmwareMetadata(): Result<FirmwareMetadata?, Error> {
     return getActiveFirmwareMetadataResult
   }
 

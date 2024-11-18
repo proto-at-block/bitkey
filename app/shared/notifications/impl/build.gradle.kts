@@ -14,8 +14,11 @@ kotlin {
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.databasePublic)
         api(projects.shared.f8eClientPublic)
-        api(projects.shared.queueProcessorPublic)
         implementation(projects.shared.loggingPublic)
+        // TODO: remove dependency on :impl
+        implementation(projects.shared.queueProcessorImpl) {
+          because("Depends on PeriodicProcessorImpl")
+        }
       }
     }
 

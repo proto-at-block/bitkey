@@ -28,11 +28,12 @@ kotlin {
         api(projects.shared.emergencyAccessKitImpl)
         api(projects.shared.emergencyAccessKitFake)
         api(projects.shared.encryptionImpl)
-        api(projects.shared.f8eImpl)
+        api(projects.shared.f8ePublic)
         api(projects.shared.f8eClientImpl)
         api(projects.shared.featureFlagImpl)
         api(projects.shared.firmwareImpl)
         api(projects.shared.firmwareFake)
+        api(projects.shared.frostImpl)
         api(projects.shared.fwupImpl)
         api(projects.shared.homeImpl)
         api(projects.shared.keyValueStoreImpl)
@@ -64,7 +65,6 @@ kotlin {
 
     val androidMain by getting {
       dependencies {
-        api(projects.android.nfcImpl)
         api(projects.shared.googleSignInImpl)
       }
     }

@@ -40,6 +40,5 @@ types = { workspace = true, features = ["account", "privileged_action"] }
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
 
-# temporary dependencies (for fake wsm)
-base64 = { workspace = true }
-crypto = { workspace = true, features = ["serde"] }
+[lints]
+workspace = true

@@ -12,7 +12,6 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.di.ActivityComponentImpl
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.*
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
@@ -33,11 +32,11 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
+import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
-import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachineImpl
+import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -60,8 +59,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   data class Props(val fullAccountConfig: FullAccountConfig, val originalKeyboxId: String)
 
   class TestingStateMachine(
-    val dsm: AccountDataStateMachineImpl,
-    val usm: LostHardwareRecoveryUiStateMachineImpl,
+    val dsm: AccountDataStateMachine,
+    val usm: LostHardwareRecoveryUiStateMachine,
     val keyboxDao: KeyboxDao,
     val recoverySyncer: RecoverySyncer,
   ) : StateMachine<Props, ScreenModel> {
@@ -103,38 +102,35 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
   }
 
-  lateinit var appTester: AppTester
-  lateinit var app: ActivityComponentImpl
+  lateinit var app: AppTester
   lateinit var recoveryStateMachine: TestingStateMachine
 
   beforeTest {
-    appTester = launchNewApp()
-    app = appTester.app
-    appTester.onboardFullAccountWithFakeHardware()
-    appTester.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware()
+    app.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveryStateMachine =
       TestingStateMachine(
         app.accountDataStateMachine,
         app.lostHardwareRecoveryUiStateMachine,
-        app.appComponent.keyboxDao,
+        app.keyboxDao,
         app.recoverySyncer
       )
   }
 
   suspend fun resetApp() {
-    appTester = appTester.relaunchApp()
-    app = appTester.app
+    app = app.relaunchApp()
     recoveryStateMachine =
       TestingStateMachine(
         app.accountDataStateMachine,
         app.lostHardwareRecoveryUiStateMachine,
-        app.appComponent.keyboxDao,
+        app.keyboxDao,
         app.recoverySyncer
       )
   }
 
   test("lost hardware recovery - happy path") {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     recoveryStateMachine.test(
       props = props,
@@ -142,7 +138,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       testTimeout = 60.seconds,
       turbineTimeout = 30.seconds
     ) {
-      startRecoveryAndAdvanceToDelayNotify(appTester)
+      startRecoveryAndAdvanceToDelayNotify(app)
 
       awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
@@ -166,7 +162,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   test(
     "recovery lost hardware - force exiting before cloud backup takes you back to icloud backup"
   ) {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     app.apply {
       recoveryStateMachine.test(
@@ -175,7 +171,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -214,7 +210,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   test(
     "recovery lost hardware - force exiting in the middle of initiation"
   ) {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     app.apply {
       recoveryStateMachine.test(
@@ -289,7 +285,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   test(
     "recovery lost hardware - force exiting after cloud backup & before sweep takes you back to sweep"
   ) {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     app.apply {
       recoveryStateMachine.test(
@@ -298,7 +294,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -339,7 +335,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("recovery lost hardware - force exiting during D&N wait") {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     app.apply {
       recoveryStateMachine.test(
@@ -348,7 +344,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -362,9 +358,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("recover lost hardware - sweep real funds") {
-    val account = appTester.getActiveFullAccount()
-    val wallet = appTester.getActiveWallet()
-    appTester.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000L))
+    val account = app.getActiveFullAccount()
+    val wallet = app.getActiveWallet()
+    app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000L))
 
     val props = Props(account.config, account.keybox.localId)
     app.apply {
@@ -374,7 +370,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -403,7 +399,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       }
     }
 
-    val activeWallet = appTester.getActiveWallet()
+    val activeWallet = app.getActiveWallet()
     eventually(
       eventuallyConfig {
         duration = 60.seconds
@@ -416,30 +412,30 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
       // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
     }
-    appTester.returnFundsToTreasury()
+    app.returnFundsToTreasury()
   }
 
   test("can Lost App from Cloud recovery then Lost Hardware recovery with funds") {
     // TODO: we already create an app instance and a new account in `beforeTest`, except we don't
     //       want to wipe hardware just yet - optimize test setup to avoid doing unnecessary account creation.
-    appTester = launchNewApp()
-    appTester.onboardFullAccountWithFakeHardware(
+    app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
 
     // Fund wallet with some funds
-    appTester.addSomeFunds()
+    app.addSomeFunds()
 
     // Create new blank app, persist cloud backups
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore,
-      hardwareSeed = appTester.fakeHardwareKeyStore.getSeed(),
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed(),
       executeWorkers = true
     )
 
     // Lost App recovery from Cloud
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -469,23 +465,23 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     newApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveryStateMachine =
       TestingStateMachine(
-        newApp.app.accountDataStateMachine,
-        newApp.app.lostHardwareRecoveryUiStateMachine,
-        newApp.app.appComponent.keyboxDao,
-        newApp.app.recoverySyncer
+        newApp.accountDataStateMachine,
+        newApp.lostHardwareRecoveryUiStateMachine,
+        newApp.keyboxDao,
+        newApp.recoverySyncer
       )
 
     // Complete Lost Hardware Recovery with D&N
     val keybox = newApp.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
-    newApp.app.apply {
+    newApp.apply {
       recoveryStateMachine.test(
         props = props,
         useVirtualTime = false,
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -521,10 +517,10 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
   test("can Lost Hardware recovery then Lost App recovery from Cloud with funds") {
     // Fund wallet with some funds
-    appTester.addSomeFunds()
+    app.addSomeFunds()
 
     // Complete Lost Hardware Recovery with D&N
-    val keybox = appTester.getActiveFullAccount().keybox
+    val keybox = app.getActiveFullAccount().keybox
     val props = Props(keybox.config, keybox.localId)
     app.apply {
       recoveryStateMachine.test(
@@ -533,7 +529,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify(appTester)
+        startRecoveryAndAdvanceToDelayNotify(app)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -565,14 +561,14 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
     // Create new blank app, persist cloud backups, keep hardware
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore,
-      hardwareSeed = appTester.fakeHardwareKeyStore.getSeed(),
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed(),
       executeWorkers = true
     )
 
     // Lost App recovery from Cloud
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -602,7 +598,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 })
 
 private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify(
-  appTester: AppTester,
+  app: AppTester,
 ) {
   awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_NOT_STARTED)
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
@@ -624,5 +620,5 @@ private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNo
       it.header?.headline == "Replacement in progress..."
     }
   )
-  appTester.completeRecoveryDelayPeriodOnF8e()
+  app.completeRecoveryDelayPeriodOnF8e()
 }

@@ -341,14 +341,14 @@ impl DescriptorKeyset {
 const CHECK_SCRIPT_NUM_CACHED_ADDRESSES: u32 = 1000;
 
 pub fn is_addressed_to_wallet(
-    wallet: &Wallet<AnyDatabase>,
+    synced_wallet: &Wallet<AnyDatabase>,
     script: &ScriptBuf,
 ) -> Result<bool, BdkUtilError> {
-    wallet
+    synced_wallet
         .ensure_addresses_cached(CHECK_SCRIPT_NUM_CACHED_ADDRESSES)
         .map_err(BdkUtilError::WalletCacheAddresses)?;
 
-    wallet
+    synced_wallet
         .is_mine(script)
         .map_err(BdkUtilError::PsbtNotAddressedToAWallet)
 }
@@ -356,15 +356,15 @@ pub fn is_addressed_to_wallet(
 const CHECK_PSBT_NUM_CACHED_ADDRESSES: u32 = 100;
 
 pub fn is_psbt_addressed_to_wallet(
-    wallet: &Wallet<AnyDatabase>,
+    synced_wallet: &Wallet<AnyDatabase>,
     psbt: &Psbt,
 ) -> Result<bool, BdkUtilError> {
-    wallet
+    synced_wallet
         .ensure_addresses_cached(CHECK_PSBT_NUM_CACHED_ADDRESSES)
         .map_err(BdkUtilError::WalletCacheAddresses)?;
 
     for tx_out in &psbt.unsigned_tx.output {
-        if !wallet
+        if !synced_wallet
             .is_mine(&tx_out.script_pubkey)
             .map_err(BdkUtilError::PsbtNotAddressedToAWallet)?
         {
@@ -400,6 +400,9 @@ impl<D> AttributableWallet for Wallet<D>
 where
     D: BatchDatabase,
 {
+    /// Checks if all outputs in the PSBT are addressed to the wallet
+    /// Depends on the derivation path being present in the PSBT
+    /// Derivation path is present in the PSBT for outputs that belong to the originating descriptor
     fn is_addressed_to_self(&self, psbt: &Psbt) -> Result<bool, BdkUtilError> {
         if psbt.outputs.is_empty() {
             return Ok(false);

@@ -315,13 +315,13 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           fullAccountAuthKeyRotationService.recommendKeyRotation()
           keyboxDao
             .saveKeyboxAsActive(state.accountRestoration.asKeybox(uuidGenerator.random(), it))
-            .onFailure { dbError ->
+            .onFailure { error ->
               setState(
                 RestoringFromBackupFailureUiState(
                   errorData = ErrorData(
                     segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
                     actionDescription = "Saving keybox as active",
-                    cause = dbError
+                    cause = error
                   ),
                   onBack = props.onExit
                 )

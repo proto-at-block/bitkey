@@ -1,11 +1,12 @@
 package build.wallet.statemachine.moneyhome.full
 
+import build.wallet.bitkey.account.Account
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -20,7 +21,8 @@ interface MoneyHomeViewingBalanceUiStateMachine :
   StateMachine<MoneyHomeViewingBalanceUiProps, ScreenModel>
 
 data class MoneyHomeViewingBalanceUiProps(
-  val accountData: AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData,
+  val account: Account,
+  val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,

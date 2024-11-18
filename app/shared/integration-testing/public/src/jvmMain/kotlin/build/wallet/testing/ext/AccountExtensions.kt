@@ -15,7 +15,7 @@ suspend fun AppTester.getActiveAppGlobalAuthKey(): AppKey<AppGlobalAuthKey> {
   val appGlobalAuthPublicKey = account.keybox.activeAppKeyBundle.authKey
   val appGlobalAuthPrivateKey =
     requireNotNull(
-      app.appComponent.appPrivateKeyDao.getAsymmetricPrivateKey(appGlobalAuthPublicKey).getOrThrow()
+      appPrivateKeyDao.getAsymmetricPrivateKey(appGlobalAuthPublicKey).getOrThrow()
     )
   return AppKey(appGlobalAuthPublicKey, appGlobalAuthPrivateKey)
 }
@@ -28,8 +28,9 @@ suspend fun AppTester.getActiveLiteAccount(): LiteAccount {
 }
 
 suspend fun AppTester.getActiveAccount(): Account {
-  val accountStatus = app.appComponent.accountService.accountStatus().first().getOrThrow()
-  return (accountStatus as? AccountStatus.ActiveAccount)?.account ?: error("active account not found")
+  val accountStatus = accountService.accountStatus().first().getOrThrow()
+  return (accountStatus as? AccountStatus.ActiveAccount)?.account
+    ?: error("active account not found")
 }
 
 /**

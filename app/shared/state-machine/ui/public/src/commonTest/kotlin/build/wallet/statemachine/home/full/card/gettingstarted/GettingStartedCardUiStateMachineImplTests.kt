@@ -25,7 +25,6 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
@@ -65,7 +64,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
   val props =
     GettingStartedCardUiProps(
-      accountData = ActiveKeyboxLoadedDataMock,
       onAddBitcoin = { onAddBitcoinCalls += Unit },
       onEnableSpendingLimit = { onEnableSpendingLimitCalls += Unit },
       onInviteTrustedContact = { onInviteTrustedContactCalls += Unit },
@@ -280,7 +278,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
 
-      awaitItem()
       awaitItem().shouldNotBeNull().expect(
         tasks =
           listOf(
@@ -311,7 +308,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       transactionsService.transactionsData.value = KeyboxTransactionsDataMock
 
-      awaitItem()
       awaitItem().shouldNotBeNull().expect(
         tasks =
           listOf(
@@ -343,7 +339,6 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       socRecService.socRecRelationships.value = RelationshipsFake
 
-      awaitItem()
       awaitItem().shouldNotBeNull().expect(
         tasks =
           listOf(

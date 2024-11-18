@@ -1,7 +1,6 @@
 package build.wallet.inheritance
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.isEnabled
@@ -43,7 +42,7 @@ class InheritanceMaterialSyncWorker(
 
   private suspend fun syncInheritanceMaterial(
     flagState: FeatureFlagValue.BooleanFlag,
-    keyboxResult: Result<Keybox?, DbError>,
+    keyboxResult: Result<Keybox?, Error>,
   ) {
     if (!flagState.isEnabled()) {
       log(LogLevel.Debug) { "Skipping Inheritance Material Sync: Feature Disabled" }

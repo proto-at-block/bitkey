@@ -7,7 +7,7 @@ use types::recovery::social::{
     challenge::{SocialChallenge, SocialChallengeId, TrustedContactChallengeRequest},
     relationship::RecoveryRelationshipId,
 };
-use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
+use types::recovery::trusted_contacts::TrustedContactRole::{self, SocialRecoveryContact};
 
 use super::{error::ServiceError, Service};
 use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
@@ -35,6 +35,12 @@ impl Service {
         let eligible_recovery_relationship_ids = relationships
             .endorsed_trusted_contacts
             .into_iter()
+            .filter(|r| {
+                r.common_fields()
+                    .trusted_contact_info
+                    .roles
+                    .contains(&TrustedContactRole::SocialRecoveryContact)
+            })
             .map(|r| r.common_fields().id.clone())
             .collect::<HashSet<_>>();
         if !input

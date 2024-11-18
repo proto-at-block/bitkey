@@ -17,3 +17,6 @@ bdk_utils = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }
 types = { workspace = true }
+
+[lints]
+workspace = true

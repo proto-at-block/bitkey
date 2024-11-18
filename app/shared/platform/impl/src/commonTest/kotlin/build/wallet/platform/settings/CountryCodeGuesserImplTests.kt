@@ -13,14 +13,14 @@ class CountryCodeGuesserImplTests : FunSpec({
     )
 
   test("Guesser uses telephony over locale") {
-    localeCountryCodeProvider.mockCountryCode = "locale-code"
-    telephonyCountryCodeProvider.mockCountryCode = "telephony-code"
-    guesser.countryCode().shouldBe("telephony-code")
+    localeCountryCodeProvider.mockCountryCode = "LOCALE-CODE"
+    telephonyCountryCodeProvider.mockCountryCode = "TELEPHONY-CODE"
+    guesser.countryCode().shouldBe("TELEPHONY-CODE")
   }
 
   test("Guesser uses locale when telephony is empty") {
-    localeCountryCodeProvider.mockCountryCode = "locale-code"
+    localeCountryCodeProvider.mockCountryCode = "LOCALE-CODE"
     telephonyCountryCodeProvider.mockCountryCode = ""
-    guesser.countryCode().shouldBe("locale-code")
+    guesser.countryCode().shouldBe("LOCALE-CODE")
   }
 })

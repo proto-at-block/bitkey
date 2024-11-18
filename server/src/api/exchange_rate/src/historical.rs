@@ -140,7 +140,7 @@ impl HistoricalExchangeRateProvider for CoingeckoRateProvider {
             {
                 Ok(response) => match response.status() {
                     StatusCode::OK => match response.json::<CoingeckoResponse>().await {
-                        Ok(response) => Some((currency_code.clone(), response)),
+                        Ok(response) => Some((*currency_code, response)),
                         Err(e) => {
                             event!(
                                 Level::ERROR,

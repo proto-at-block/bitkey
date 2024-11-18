@@ -39,7 +39,15 @@ class BeneficiaryClaimSerializerTests : FunSpec({
                 "id": "test-id",
                 "recovery_relationship_id": "test-relationship_id",
                 "sealed_dek": "test-sealed_dek",
-                "sealed_mobile_key": "test-sealed_mobile_key"
+                "sealed_mobile_key": "test-sealed_mobile_key",
+                "benefactor_descriptor_keyset": "test-keyset"
+            }
+  """.trimIndent()
+  val completeClaim = """
+            {
+                "status": "COMPLETE",
+                "id": "test-id",
+                "recovery_relationship_id": "test-relationship_id"
             }
   """.trimIndent()
 
@@ -99,6 +107,7 @@ class BeneficiaryClaimSerializerTests : FunSpec({
     result.relationshipId.value.shouldBe("test-relationship_id")
     result.sealedDek.value.shouldBe("test-sealed_dek")
     result.sealedMobileKey.value.shouldBe("test-sealed_mobile_key")
+    result.benefactorKeyset.value.shouldBe("test-keyset")
   }
 
   test("Serialize Locked Claim") {
@@ -106,12 +115,32 @@ class BeneficiaryClaimSerializerTests : FunSpec({
       claimId = InheritanceClaimId("test-id"),
       relationshipId = RelationshipId("test-relationship_id"),
       sealedDek = XCiphertext("test-sealed_dek"),
-      sealedMobileKey = XCiphertext("test-sealed_mobile_key")
+      sealedMobileKey = XCiphertext("test-sealed_mobile_key"),
+      benefactorKeyset = BenefactorDescriptorKeyset("test-keyset")
     )
 
     val result = json.encodeToString(BeneficiaryClaimSerializer, input)
 
     result.shouldBe(lockedClaim)
+  }
+
+  test("Deserialize complete claim") {
+    val result = json.decodeFromString(BeneficiaryClaimSerializer, completeClaim)
+
+    result.shouldBeInstanceOf<BeneficiaryClaim.CompleteClaim>()
+    result.claimId.value.shouldBe("test-id")
+    result.relationshipId.value.shouldBe("test-relationship_id")
+  }
+
+  test("Serialize Complete Claim") {
+    val input = BeneficiaryClaim.CompleteClaim(
+      claimId = InheritanceClaimId("test-id"),
+      relationshipId = RelationshipId("test-relationship_id")
+    )
+
+    val result = json.encodeToString(BeneficiaryClaimSerializer, input)
+
+    result.shouldBe(completeClaim)
   }
 
   test("Deserialize unknown state") {

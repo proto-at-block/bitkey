@@ -2,6 +2,7 @@ package build.wallet.bugsnag
 
 import co.touchlab.crashkios.bugsnag.BugsnagConfiguration
 import co.touchlab.crashkios.bugsnag.startBugsnag
+import kotlinx.cinterop.ExperimentalForeignApi
 
 /**
  * iOS Bugsnag initializer using bindings from CrashKiOS.
@@ -13,6 +14,7 @@ import co.touchlab.crashkios.bugsnag.startBugsnag
  * https://crashkios.touchlab.co/docs/misc/THE_PROBLEM
  */
 object Bugsnag {
+  @OptIn(ExperimentalForeignApi::class)
   fun initialize(config: BugsnagConfiguration) {
     startBugsnag(config)
   }

@@ -26,3 +26,6 @@ types = { workspace = true, features = ["account"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[lints]
+workspace = true

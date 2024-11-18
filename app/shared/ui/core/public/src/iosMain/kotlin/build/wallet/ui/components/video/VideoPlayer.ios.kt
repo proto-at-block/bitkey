@@ -1,23 +1,21 @@
 package build.wallet.ui.components.video
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
+import androidx.compose.ui.viewinterop.UIKitView
 import build.wallet.ui.model.video.VideoStartingPosition
-import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.ObjCAction
+import kotlinx.cinterop.*
 import platform.AVFoundation.*
+import platform.CoreGraphics.CGRectZero
 import platform.CoreMedia.CMTimeMakeWithSeconds
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSSelectorFromString
 import platform.Foundation.NSURL
-import platform.UIKit.UIApplicationDidEnterBackgroundNotification
-import platform.UIKit.UIApplicationWillEnterForegroundNotification
-import platform.UIKit.UIColor
-import platform.UIKit.UIView
+import platform.UIKit.*
 
 @OptIn(ExperimentalForeignApi::class)
 @Composable
@@ -37,10 +35,71 @@ actual fun VideoPlayer(
       AVPlayer()
     }
   }
-  // Retain AVPlayerLooper if necessary to loop indefinitely
-  var looper by remember { mutableStateOf<AVPlayerLooper?>(null) }
-  val playerHandler by produceState<AVPlayerHandler?>(null, resourcePath) {
-    val url = NSURL.URLWithString(resourcePath) ?: return@produceState
+  val playerHandler = remember(resourcePath, isLooping, autoStart) {
+    AVPlayerHandler(
+      player = player,
+      resourcePath = resourcePath,
+      isLooping = isLooping,
+      autoStart = autoStart
+    ).also(videoPlayerCallback)
+  }
+
+  DisposableEffect(Unit) {
+    // TODO(W-9784): Support pause on will resign
+    playerHandler.addBackgroundObservers()
+    onDispose {
+      playerHandler.removeBackgroundObservers()
+      playerHandler.dispose()
+    }
+  }
+  val factory = remember(player) {
+    {
+      object : UIView(cValue { CGRectZero }) {
+        private val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player)
+
+        init {
+          this.backgroundColor = UIColor.colorWithRed(
+            red = backgroundColor.red.toDouble(),
+            green = backgroundColor.green.toDouble(),
+            blue = backgroundColor.blue.toDouble(),
+            alpha = backgroundColor.alpha.toDouble()
+          )
+          layer.addSublayer(playerLayer)
+        }
+
+        override fun layoutSubviews() {
+          super.layoutSubviews()
+          playerLayer.setFrame(bounds)
+        }
+      }
+    }
+  }
+
+  UIKitView(
+    factory = factory,
+    modifier = modifier
+      .fillMaxSize()
+      .background(backgroundColor),
+    properties = UIKitInteropProperties(
+      isInteractive = false,
+      isNativeAccessibilityEnabled = false
+    )
+  )
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private data class AVPlayerHandler(
+  private val player: AVPlayer,
+  private val resourcePath: String,
+  private val isLooping: Boolean,
+  private val autoStart: Boolean,
+) : VideoPlayerHandler() {
+  private var looper: AVPlayerLooper? = null
+
+  init {
+    val url = requireNotNull(NSURL.URLWithString(resourcePath)) {
+      "Failed to parse URL from '$resourcePath'"
+    }
     val item = AVPlayerItem.playerItemWithURL(url)
     player.replaceCurrentItemWithPlayerItem(item)
 
@@ -50,80 +109,8 @@ actual fun VideoPlayer(
     if (autoStart) {
       player.play()
     }
-
-    value = AVPlayerHandler(player).also(videoPlayerCallback)
   }
 
-  val factory = remember {
-    {
-      val backgroundUIColor = UIColor.colorWithRed(
-        red = backgroundColor.red.toDouble(),
-        green = backgroundColor.green.toDouble(),
-        blue = backgroundColor.blue.toDouble(),
-        alpha = backgroundColor.alpha.toDouble()
-      )
-      UIView().apply {
-        this.backgroundColor = backgroundUIColor
-        val playerLayer = AVPlayerLayer.playerLayerWithPlayer(player)
-          .also { it.backgroundColor = backgroundUIColor.CGColor }
-        layer.addSublayer(playerLayer)
-      }
-    }
-  }
-
-  DisposableEffect(Unit) {
-    // TODO(W-9784): Support pause on will resign
-    playerHandler?.let { handler ->
-      NSNotificationCenter.defaultCenter
-        .addObserver(
-          observer = player,
-          selector = NSSelectorFromString(handler::play.name),
-          name = UIApplicationWillEnterForegroundNotification,
-          `object` = null
-        )
-      NSNotificationCenter.defaultCenter
-        .addObserver(
-          observer = player,
-          selector = NSSelectorFromString(handler::pause.name),
-          name = UIApplicationDidEnterBackgroundNotification,
-          `object` = null
-        )
-    }
-    onDispose {
-      NSNotificationCenter.defaultCenter
-        .removeObserver(
-          observer = player,
-          name = UIApplicationWillEnterForegroundNotification,
-          `object` = null
-        )
-
-      NSNotificationCenter.defaultCenter
-        .removeObserver(
-          observer = player,
-          name = UIApplicationDidEnterBackgroundNotification,
-          `object` = null
-        )
-      looper = null
-    }
-  }
-  UIKitView(
-    modifier = modifier.background(backgroundColor),
-    factory = factory,
-    onResize = { view, size ->
-      view.layer.sublayers.orEmpty()
-        .filterIsInstance<AVPlayerLayer>()
-        .forEach { it.setFrame(size) }
-    },
-    onRelease = { looper = null },
-    interactive = false
-  )
-}
-
-@OptIn(BetaInteropApi::class, ExperimentalForeignApi::class)
-private data class AVPlayerHandler(
-  private val player: AVPlayer,
-) : VideoPlayerHandler() {
-  @ObjCAction
   override fun play() {
     player.play()
   }
@@ -132,8 +119,43 @@ private data class AVPlayerHandler(
     player.seekToTime(CMTimeMakeWithSeconds(position.toDouble(), 1))
   }
 
-  @ObjCAction
   override fun pause() {
     player.pause()
+  }
+
+  fun addBackgroundObservers() {
+    NSNotificationCenter.defaultCenter.apply {
+      addObserver(
+        observer = player,
+        selector = NSSelectorFromString(player::play.name),
+        name = UIApplicationWillEnterForegroundNotification,
+        `object` = null
+      )
+      addObserver(
+        observer = player,
+        selector = NSSelectorFromString(player::pause.name),
+        name = UIApplicationDidEnterBackgroundNotification,
+        `object` = null
+      )
+    }
+  }
+
+  fun removeBackgroundObservers() {
+    NSNotificationCenter.defaultCenter.apply {
+      removeObserver(
+        observer = player,
+        name = UIApplicationWillEnterForegroundNotification,
+        `object` = null
+      )
+      removeObserver(
+        observer = player,
+        name = UIApplicationDidEnterBackgroundNotification,
+        `object` = null
+      )
+    }
+  }
+
+  fun dispose() {
+    looper = null
   }
 }

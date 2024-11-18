@@ -4,12 +4,15 @@ use crate::metrics::{
     TIME_TO_COSIGN,
 };
 use crate::signing_processor::state::{Initialized, Validated};
+use crate::spend_rules::errors::SpendRuleCheckErrors;
 use crate::spend_rules::SpendRuleSet;
 use crate::SERVER_SIGNING_ENABLED;
+use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::SignOptions;
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
 use feature_flags::service::Service as FeatureFlagsService;
+use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::{event, Level};
@@ -26,6 +29,26 @@ pub mod state {
     }
 }
 
+pub trait SigningValidator {
+    type Signer: SignerBroadcaster;
+
+    fn validate<'a>(
+        &self,
+        psbt: &Psbt,
+        spend_rule_set: SpendRuleSet<'a>,
+    ) -> Result<Self::Signer, SigningError>;
+}
+
+#[async_trait]
+pub trait SignerBroadcaster {
+    async fn sign_and_broadcast_transaction(
+        &self,
+        source_descriptor: &DescriptorKeyset,
+        keyset_id: &KeysetId,
+    ) -> Result<Psbt, SigningError>;
+}
+
+#[derive(Clone)]
 pub struct SigningProcessor<T> {
     wsm_signing_service: Arc<dyn SigningService + Send + Sync>,
     feature_flags_service: FeatureFlagsService,
@@ -51,13 +74,14 @@ impl SigningProcessor<()> {
     }
 }
 
-impl SigningProcessor<Initialized> {
+impl SigningValidator for SigningProcessor<Initialized> {
+    type Signer = SigningProcessor<Validated>;
     // Needs to be sync because SpendRuleSet contains Wallet<AnyDatabase> which is not Send
-    pub fn validate(
+    fn validate<'a>(
         &self,
         psbt: &Psbt,
-        spend_rule_set: &SpendRuleSet<'_>,
-    ) -> Result<SigningProcessor<Validated>, SigningError> {
+        spend_rule_set: SpendRuleSet<'a>,
+    ) -> Result<Self::Signer, SigningError> {
         // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
         if !SERVER_SIGNING_ENABLED
             .resolver(&self.feature_flags_service)
@@ -70,7 +94,7 @@ impl SigningProcessor<Initialized> {
         record_histogram(TIME_TO_CHECK_SPENDING_RULES.to_owned(), &context, || {
             spend_rule_set
                 .check_spend_rules(psbt)
-                .map_err(SigningError::SpendRuleCheckFailed)
+                .map_err(SpendRuleCheckErrors::from)
         })?;
 
         Ok(SigningProcessor {
@@ -86,8 +110,17 @@ impl SigningProcessor<Initialized> {
     }
 }
 
-impl SigningProcessor<Validated> {
-    pub async fn sign_and_broadcast_transaction(
+impl fmt::Debug for SigningProcessor<Initialized> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SigningProcessor")
+            .field("state", &"Initialized")
+            .finish()
+    }
+}
+
+#[async_trait]
+impl SignerBroadcaster for SigningProcessor<Validated> {
+    async fn sign_and_broadcast_transaction(
         &self,
         source_descriptor: &DescriptorKeyset,
         keyset_id: &KeysetId,
@@ -105,7 +138,9 @@ impl SigningProcessor<Validated> {
 
         Ok(signed_psbt)
     }
+}
 
+impl SigningProcessor<Validated> {
     fn broadcast_transaction(
         &self,
         requested_descriptor: &DescriptorKeyset,
@@ -117,16 +152,13 @@ impl SigningProcessor<Validated> {
             .finalize_psbt(signed_psbt, SignOptions::default())
             .map_err(|e| SigningError::InvalidPsbt(e.to_string()))?;
 
-        if psbt_fully_signed {
-            self.transaction_broadcaster
-                .broadcast(source_wallet, signed_psbt, &self.rpc_uris)?;
-        } else {
-            event!(
-                Level::WARN,
-                "Not broadcasting PSBT because it is not fully signed"
-            );
+        if !psbt_fully_signed {
+            event!(Level::WARN, "Cannot broadcast non-fully signed PSBT");
+            return Err(SigningError::CannotBroadcastNonFullySignedPsbt);
         }
-        Ok(())
+        self.transaction_broadcaster
+            .broadcast(source_wallet, signed_psbt, &self.rpc_uris)
+            .map_err(SigningError::BdkUtils)
     }
 
     async fn sign_psbt(
@@ -158,7 +190,8 @@ impl SigningProcessor<Validated> {
 mod tests {
     use crate::error::SigningError;
     use crate::signing_processor::state::Initialized;
-    use crate::signing_processor::SigningProcessor;
+    use crate::signing_processor::{SignerBroadcaster, SigningProcessor, SigningValidator};
+    use crate::spend_rules::errors::SpendRuleCheckError;
     use crate::spend_rules::test::TestRule;
     use crate::spend_rules::SpendRuleSet;
     use account::service::tests::default_electrum_rpc_uris;
@@ -177,7 +210,10 @@ mod tests {
     use std::str::FromStr;
     use std::sync::Arc;
     use types::account::identifiers::KeysetId;
-    use wsm_common::messages::api::{AttestationDocResponse, GetIntegritySigResponse};
+    use wsm_common::messages::api::{
+        AttestationDocResponse, ContinueDistributedKeygenResponse, GetIntegritySigResponse,
+        InitiateDistributedKeygenResponse,
+    };
     use wsm_rust_client::{CreatedSigningKey, Error, SignedPsbt, SigningService};
 
     mock! {
@@ -190,6 +226,18 @@ mod tests {
                 root_key_id: &str,
                 network: Network,
             ) -> Result<CreatedSigningKey, Error>;
+            async fn initiate_distributed_keygen(
+                &self,
+                root_key_id: &str,
+                network: Network,
+                sealed_request: &str,
+            ) -> Result<InitiateDistributedKeygenResponse, Error>;
+            async fn continue_distributed_keygen(
+                &self,
+                root_key_id: &str,
+                network: Network,
+                sealed_request: &str
+            ) -> Result<ContinueDistributedKeygenResponse, Error>;
             async fn sign_psbt(
                 &self,
                 root_key_id: &str,
@@ -275,17 +323,17 @@ mod tests {
         ),
         case(
             true,
-            vec![TestRule { fail_with_error: Some("TestRule failed".to_string()) }],
-            Some(SigningError::SpendRuleCheckFailed(vec!["TestRule failed".to_string()]))
+            vec![TestRule { fail_with_error: Some(SpendRuleCheckError::PsbtOutputsBelongToOriginWallet) }],
+            Some(SigningError::SpendRuleCheckFailed(vec![SpendRuleCheckError::PsbtOutputsBelongToOriginWallet].into()))
         ),
         case(
             true,
             vec![
-                TestRule { fail_with_error: Some("TestRule 1 failed".to_string()) },
+                TestRule { fail_with_error: Some(SpendRuleCheckError::PsbtOutputsBelongToOriginWallet) },
                 TestRule { fail_with_error: None },
-                TestRule { fail_with_error: Some("TestRule 2 failed".to_string()) },
+                TestRule { fail_with_error: Some(SpendRuleCheckError::PsbtInputsDontBelongToOriginWallet) },
             ],
-            Some(SigningError::SpendRuleCheckFailed(vec!["TestRule 1 failed".to_string(), "TestRule 2 failed".to_string()]))
+            Some(SigningError::SpendRuleCheckFailed(vec![SpendRuleCheckError::PsbtOutputsBelongToOriginWallet, SpendRuleCheckError::PsbtInputsDontBelongToOriginWallet].into()))
         ),
         case(
             false,
@@ -309,7 +357,7 @@ mod tests {
         .await;
 
         // act
-        let result = signing_processor.validate(&app_signed_psbt(), &spend_rule_set);
+        let result = signing_processor.validate(&app_signed_psbt(), spend_rule_set);
 
         // assert
         match result {
@@ -333,10 +381,11 @@ mod tests {
         let expected_psbt = app_signed_psbt.to_string();
         let single_signed_return_psbt = app_signed_psbt.to_string();
         let mut mock_signer = MockWsmSigner::new();
+        let expected_keyset_id = keyset_id.clone().to_string();
         mock_signer
             .expect_sign_psbt()
-            .withf(move |keyset_id, _, _, psbt| {
-                keyset_id == keyset_id.to_string() && psbt.to_string() == expected_psbt
+            .withf(move |actual_keyset_id, _, _, psbt| {
+                actual_keyset_id == expected_keyset_id && *psbt == expected_psbt
             })
             .times(1)
             .returning(move |_, _, _, _| {
@@ -354,7 +403,7 @@ mod tests {
             fail_with_error: None,
         }]);
         let signing_processor = signing_processor
-            .validate(&app_signed_psbt, &spend_rule_set)
+            .validate(&app_signed_psbt, spend_rule_set)
             .expect("Failed to validate");
 
         // act
@@ -363,7 +412,11 @@ mod tests {
             .await;
 
         // assert
-        assert!(result.is_ok());
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            SigningError::CannotBroadcastNonFullySignedPsbt.to_string()
+        );
     }
 
     #[rstest]
@@ -379,10 +432,11 @@ mod tests {
         let mut mock_signer = MockWsmSigner::new();
         let expected_psbt = app_signed_psbt.to_string();
         let double_signed_return_psbt = app_and_server_signed_psbt.to_string();
+        let expected_keyset_id = keyset_id.clone().to_string();
         mock_signer
             .expect_sign_psbt()
-            .withf(move |keyset_id, _, _, psbt| {
-                keyset_id == keyset_id.to_string() && psbt.to_string() == expected_psbt
+            .withf(move |actual_keyset_id, _, _, psbt| {
+                actual_keyset_id == expected_keyset_id && psbt.to_string() == expected_psbt
             })
             .times(1)
             .returning(move |_, _, _, _| {
@@ -405,7 +459,7 @@ mod tests {
             fail_with_error: None,
         }]);
         let signing_processor = signing_processor
-            .validate(&app_signed_psbt, &spend_rule_set)
+            .validate(&app_signed_psbt, spend_rule_set)
             .expect("Failed to validate");
 
         // act

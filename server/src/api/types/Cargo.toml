@@ -51,3 +51,6 @@ privileged_action = []
 recovery = []
 serde = []
 time = []
+
+[lints]
+workspace = true

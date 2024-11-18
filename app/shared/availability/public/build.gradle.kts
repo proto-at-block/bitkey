@@ -12,8 +12,7 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.ktor.client.core)
-        api(projects.shared.dbResultPublic)
-        api(projects.shared.f8ePublic)
+        api(projects.shared.bitkeyPrimitivesPublic)
         api(projects.shared.ktorClientPublic)
         api(projects.shared.workerPublic)
       }

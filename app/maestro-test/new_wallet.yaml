@@ -19,8 +19,8 @@ onFlowStart:
     id: "save-fingerprint"
 - waitForAnimationToEnd
 - extendedWaitUntil:
-    visible: "Home"
+    visible: "Bitkey"
     timeout: 10000
-- assertVisible: "Home"
+- assertVisible: "Bitkey"
 - assertVisible: "$0.00"
 

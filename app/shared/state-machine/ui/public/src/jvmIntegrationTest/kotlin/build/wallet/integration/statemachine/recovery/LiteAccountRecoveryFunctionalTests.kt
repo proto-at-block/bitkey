@@ -45,10 +45,10 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
 
     // App is reinstalled and lite account is recovered
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = trustedContactApp.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = trustedContactApp.app.cloudKeyValueStore
+      cloudStoreAccountRepository = trustedContactApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = trustedContactApp.cloudKeyValueStore
     )
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       turbineTimeout = 10.seconds
@@ -87,10 +87,10 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
 
     // App is reinstalled and lite account is recovered
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = trustedContactApp.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = trustedContactApp.app.cloudKeyValueStore
+      cloudStoreAccountRepository = trustedContactApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = trustedContactApp.cloudKeyValueStore
     )
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       turbineTimeout = 10.seconds

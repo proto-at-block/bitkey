@@ -5,25 +5,37 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.SellEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.partnerships.*
+import build.wallet.f8e.partnerships.GetSaleQuoteListF8eClient
+import build.wallet.f8e.partnerships.GetSellRedirectF8eClient
+import build.wallet.f8e.partnerships.RedirectInfo
+import build.wallet.f8e.partnerships.RedirectUrlType
+import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.currency.USD
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.partnerships.PartnershipsSegment
-import build.wallet.statemachine.partnerships.sell.PartnershipsSellState.*
+import build.wallet.statemachine.partnerships.sell.PartnershipsSellState.QuotesState
+import build.wallet.statemachine.partnerships.sell.PartnershipsSellState.RedirectState
+import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconModel
@@ -31,30 +43,51 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
+import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 class PartnershipsSellOptionsUiStateMachineImpl(
   private val getSaleQuoteListF8eClient: GetSaleQuoteListF8eClient,
   private val getSellRedirectF8eClient: GetSellRedirectF8eClient,
-  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val currencyConverter: CurrencyConverter,
   private val eventTracker: EventTracker,
+  private val moneyFormatter: MoneyDisplayFormatter,
+  private val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag,
 ) : PartnershipsSellOptionsUiStateMachine {
   @Composable
   override fun model(props: PartnershipsSellOptionsUiProps): ScreenModel {
     var state: PartnershipsSellState by remember { mutableStateOf(QuotesState.LoadingPartnershipsSell) }
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+    val formattedSellAmount by remember {
+      when (props.exchangeRates) {
+        null -> mutableStateOf(moneyFormatter.format(props.sellAmount))
+        else -> {
+          currencyConverter.convert(
+            fromAmount = props.sellAmount,
+            toCurrency = fiatCurrency,
+            rates = props.exchangeRates
+          )?.let {
+            mutableStateOf(moneyFormatter.format(it))
+          } ?: mutableStateOf(moneyFormatter.format(props.sellAmount))
+        }
+      }
+    }
 
     return when (val currentState = state) {
       is QuotesState.LoadingPartnershipsSell -> {
@@ -63,27 +96,24 @@ class PartnershipsSellOptionsUiStateMachineImpl(
             .getSaleQuotes(
               fullAccountId = props.keybox.fullAccountId,
               f8eEnvironment = props.keybox.config.f8eEnvironment,
-              // placeholder value until we have a UI to input the amount
-              cryptoAmount = BitcoinMoney.btc(0.1),
+              cryptoAmount = props.sellAmount,
               fiatCurrency = fiatCurrency
             )
             .onSuccess {
-              val sellPartners = it.quotes.map { quote ->
-                quote.partnerInfo
-              }.toImmutableList()
+              val sellQuotes = it.quotes.toImmutableList()
 
-              sellPartners.forEach { partner ->
+              sellQuotes.forEach { quote ->
                 eventTracker.track(
                   action = Action.ACTION_APP_PARTNERSHIPS_VIEWED_SALE_PARTNER,
-                  context = PartnerEventTrackerScreenIdContext(partner)
+                  context = PartnerEventTrackerScreenIdContext(quote.partnerInfo)
                 )
               }
               state =
                 QuotesState.ChoosingPartnershipsSell(
-                  sellPartners = sellPartners,
+                  quotes = it.quotes,
                   onPartnerSelected = { partner ->
                     state = RedirectState.Loading(
-                      amount = FiatMoney.zero(fiatCurrency),
+                      amount = props.sellAmount,
                       partner = partner
                     )
                   }
@@ -98,7 +128,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
         return LoadingBodyModel(
           id = SellEventTrackerScreenId.LOADING_SELL_PARTNERS,
           onBack = props.onBack
-        ).asRootScreen()
+        ).asModalFullScreen()
       }
 
       is QuotesState.LoadingPartnershipsSellFailure -> {
@@ -112,7 +142,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
       }
       is QuotesState.ChoosingPartnershipsSell -> {
         when {
-          currentState.sellPartners.isEmpty() -> {
+          currentState.quotes.isEmpty() -> {
             return SellErrorModel(
               id = SellEventTrackerScreenId.SELL_PARTNERS_NOT_AVAILABLE,
               title = "Sell partners coming soon",
@@ -120,11 +150,18 @@ class PartnershipsSellOptionsUiStateMachineImpl(
               onBack = props.onBack
             )
           }
-          else -> {
+          else -> if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
+            return ListSaleQuotesModel(
+              formattedSellAmount,
+              quotes = currentState.quotes,
+              onSelectPartnerQuote = { currentState.onPartnerSelected(it.partnerInfo) },
+              onBack = props.onBack
+            )
+          } else {
             return ListSellPartnersModel(
               id = SellEventTrackerScreenId.SELL_PARTNERS_LIST,
               props,
-              currentState.sellPartners,
+              partners = currentState.quotes.map { it.partnerInfo }.toImmutableList(),
               onPartnerSelected = currentState.onPartnerSelected
             )
           }
@@ -136,14 +173,14 @@ class PartnershipsSellOptionsUiStateMachineImpl(
           id = SellEventTrackerScreenId.SELL_PARTNER_REDIRECTING,
           eventTrackerContext = PartnerEventTrackerScreenIdContext(currentState.partner),
           onBack = props.onBack
-        ).asRootScreen()
+        ).asModalFullScreen()
       }
       is RedirectState.Loading -> {
         LaunchedEffect("load-sale-partner-redirect-info") {
           coroutineBinding {
-            val result = fetchRedirectInfo(props, currentState).bind()
+            val result = fetchRedirectInfo(props, currentState, fiatCurrency).bind()
 
-            val localTransaction = partnershipsRepository.create(
+            val localTransaction = partnershipTransactionsService.create(
               id = result.redirectInfo.partnerTransactionId,
               partnerInfo = currentState.partner,
               type = PartnershipTransactionType.SALE
@@ -171,7 +208,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
             currentState.partner
           ),
           onBack = props.onBack
-        ).asRootScreen()
+        ).asModalFullScreen()
       }
       is RedirectState.LoadingFailure -> {
         val partnerName = currentState.partner.name
@@ -233,7 +270,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
           IconAccessory(
             model =
               IconModel(
-                iconImage = LocalImage(SmallIconStar),
+                iconImage = LocalImage(Icon.SmallIconStar),
                 iconSize = IconSize.Regular,
                 iconTint = IconTint.On30
               )
@@ -266,7 +303,8 @@ class PartnershipsSellOptionsUiStateMachineImpl(
         onBack = onBack,
         content = content,
         id = id
-      )
+      ),
+      presentationStyle = ScreenPresentationStyle.ModalFullScreen
     )
   }
 
@@ -295,20 +333,34 @@ class PartnershipsSellOptionsUiStateMachineImpl(
             actionDescription = "Loading sell partners",
             cause = error ?: Throwable(errorMessage)
           )
-        )
+        ),
+      presentationStyle = ScreenPresentationStyle.ModalFullScreen
     )
   }
 
   private suspend fun fetchRedirectInfo(
     props: PartnershipsSellOptionsUiProps,
     redirectLoadingState: RedirectState.Loading,
-  ): Result<GetSellRedirectF8eClient.Success, Throwable> =
-    getSellRedirectF8eClient.sellRedirect(
-      fullAccountId = props.keybox.fullAccountId,
-      f8eEnvironment = props.keybox.config.f8eEnvironment,
-      fiatAmount = redirectLoadingState.amount,
-      partner = redirectLoadingState.partner.partnerId.value
-    )
+    fiatCurrency: FiatCurrency,
+  ): Result<GetSellRedirectF8eClient.Success, Error> {
+    val fiatAmount = currencyConverter.convert(
+      fromAmount = redirectLoadingState.amount,
+      toCurrency = fiatCurrency,
+      rates = props.exchangeRates?.toImmutableList() ?: persistentListOf()
+    ) as? FiatMoney
+
+    return if (fiatAmount == null) {
+      Err(Error("Failed to convert amount to fiat"))
+    } else {
+      getSellRedirectF8eClient.sellRedirect(
+        fullAccountId = props.keybox.fullAccountId,
+        f8eEnvironment = props.keybox.config.f8eEnvironment,
+        fiatAmount = fiatAmount,
+        bitcoinAmount = redirectLoadingState.amount,
+        partner = redirectLoadingState.partner.partnerId.value
+      )
+    }
+  }
 
   private fun handleRedirect(
     redirectLoadedState: RedirectState.Loaded,
@@ -343,6 +395,52 @@ class PartnershipsSellOptionsUiStateMachineImpl(
       }
     }
   }
+
+  @Composable
+  private fun ListSaleQuotesModel(
+    formattedSellAmount: String,
+    quotes: ImmutableList<SaleQuote>,
+    onSelectPartnerQuote: (SaleQuote) -> Unit,
+    onBack: () -> Unit,
+  ): ScreenModel {
+    val models = quotes
+      .sortedWith(
+        compareByDescending { it.cryptoAmount }
+      )
+      .map { quote ->
+        val bitcoinDisplayAmount = moneyFormatter.format(BitcoinMoney.btc(quote.cryptoAmount))
+        val fiatDisplayAmount = moneyFormatter.format(FiatMoney(USD, quote.fiatAmount.toBigDecimal()))
+
+        ListItemModel(
+          title = quote.partnerInfo.name,
+          sideText = fiatDisplayAmount,
+          secondarySideText = bitcoinDisplayAmount,
+          onClick = { onSelectPartnerQuote(quote) },
+          leadingAccessory = IconAccessory(
+            model = IconModel(
+              iconImage =
+                when (val url = quote.partnerInfo.logoUrl) {
+                  null -> IconImage.LocalImage(Icon.Bitcoin)
+                  else ->
+                    IconImage.UrlImage(
+                      url = url,
+                      fallbackIcon = Icon.Bitcoin
+                    )
+                },
+              iconSize = IconSize.Regular
+            )
+          ),
+          trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30)
+        )
+      }.toImmutableList()
+
+    return SellQuotesFormBodyModel(
+      formattedSellAmount = formattedSellAmount,
+      mainContentList = immutableListOf(ListGroup(listGroupModel = ListGroupModel(items = models, style = CARD_ITEM))),
+      id = SellEventTrackerScreenId.SELL_QUOTES_LIST,
+      onBack = onBack
+    ).asModalFullScreen()
+  }
 }
 
 private class SellPartnersFormBodyModel(
@@ -361,7 +459,27 @@ private class SellPartnersFormBodyModel(
     mainContentList = immutableListOf(content),
     primaryButton = null,
     id = id,
-    renderContext = Sheet
+    renderContext = Screen
+  )
+
+class SellQuotesFormBodyModel(
+  private val formattedSellAmount: String,
+  override val mainContentList: ImmutableList<FormMainContentModel>,
+  override val id: SellEventTrackerScreenId,
+  override val onBack: () -> Unit,
+) : FormBodyModel(
+    onBack = onBack,
+    toolbar = ToolbarModel(
+      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory { onBack() }
+    ),
+    header = FormHeaderModel(
+      headline = "Sell $formattedSellAmount",
+      subline = "Offers show estimates of the amount you'll receive after exchange fees. Bitkey does not charge a fee."
+    ),
+    mainContentList = mainContentList,
+    primaryButton = null,
+    id = id,
+    renderContext = Screen
   )
 
 private sealed interface PartnershipsSellState {
@@ -382,7 +500,7 @@ private sealed interface PartnershipsSellState {
      * Choosing a sell partner
      */
     data class ChoosingPartnershipsSell(
-      val sellPartners: ImmutableList<PartnerInfo>,
+      val quotes: ImmutableList<SaleQuote>,
       val onPartnerSelected: (PartnerInfo) -> Unit,
     ) : PartnershipsSellState
   }
@@ -397,7 +515,7 @@ private sealed interface PartnershipsSellState {
      * @param partner - partner to use for the sell
      */
     data class Loading(
-      val amount: FiatMoney,
+      val amount: BitcoinMoney,
       val partner: PartnerInfo,
     ) : RedirectState
 

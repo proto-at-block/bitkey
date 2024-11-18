@@ -3,13 +3,29 @@ pub use crypto::frost::{
     dkg::{KeygenError, SharePackage},
     KeyCommitments, ShareDetails,
 };
+use serde::{Deserialize, Serialize};
 
-use std::sync::{Arc, Mutex};
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use std::sync::Mutex;
 
-use crypto::frost::dkg::{
-    aggregate_shares, equality_check, generate_share_package, share_agg_params,
-};
-use crypto::frost::{Participant, ParticipantIndex, ShareAggParams, APP_PARTICIPANT_INDEX};
+use crypto::frost::dkg::{aggregate_shares, equality_check, generate_share_packages};
+use crypto::frost::Participant;
+
+#[derive(Serialize)]
+pub struct InitiateDistributedKeygenAppRequest {
+    pub app_share_package: SharePackage,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct InitiateDistributedKeygenServerResponse {
+    pub server_share_package: SharePackage,
+    pub server_key_commitments: KeyCommitments,
+}
+
+#[derive(Serialize)]
+pub struct CompleteDistributedKeygenAppRequest {
+    pub app_key_commitments: KeyCommitments,
+}
 
 pub struct ShareGenerator {
     inner: Mutex<ShareGeneratorState>,
@@ -28,45 +44,67 @@ impl ShareGenerator {
         }
     }
 
-    pub fn generate(&self) -> Result<Arc<SharePackage>, KeygenError> {
+    pub fn generate(&self) -> Result<String, KeygenError> {
         let mut inner = self.inner.lock().unwrap();
 
-        inner.generate().map(Arc::new)
+        let share_package = inner.generate()?;
+
+        // TODO: shouldn't be unwrapping here, but error type is from lower-level crate.
+        Ok(BASE64.encode(
+            serde_json::to_vec(&InitiateDistributedKeygenAppRequest {
+                app_share_package: share_package,
+            })
+            .unwrap(),
+        ))
     }
 
-    pub fn aggregate(
-        &self,
-        peer_share_package: Arc<SharePackage>,
-        peer_key_commitments: Arc<KeyCommitments>,
-    ) -> Result<Arc<ShareDetails>, KeygenError> {
+    pub fn aggregate(&self, sealed_response: String) -> Result<ShareDetails, KeygenError> {
         let inner = self.inner.lock().unwrap();
 
-        inner
-            .aggregate(peer_share_package.as_ref(), peer_key_commitments.as_ref())
-            .map(Arc::new)
+        // TODO: shouldn't be unwrapping here, but error type is from lower-level crate.
+        let unsealed_response: InitiateDistributedKeygenServerResponse =
+            serde_json::from_slice(BASE64.decode(sealed_response).unwrap().as_slice()).unwrap();
+
+        inner.aggregate(
+            &unsealed_response.server_share_package,
+            &unsealed_response.server_key_commitments,
+        )
+    }
+
+    // TODO this is gross
+    pub fn encode_complete_distribution_request(
+        &self,
+        share_details: ShareDetails,
+    ) -> Result<String, KeygenError> {
+        Ok(BASE64.encode(
+            serde_json::to_vec(&CompleteDistributedKeygenAppRequest {
+                app_key_commitments: share_details.key_commitments,
+            })
+            .unwrap(),
+        ))
     }
 }
 
 struct ShareGeneratorState {
-    app_id: ParticipantIndex,
-    share_agg_params: Option<ShareAggParams>,
+    app_share_package: Option<SharePackage>,
 }
 
 impl ShareGeneratorState {
-    // TODO: Change initializer to instantiate using a long-term public key.
     pub fn new() -> Self {
         Self {
-            app_id: APP_PARTICIPANT_INDEX,
-            share_agg_params: None,
+            app_share_package: None,
         }
     }
 
     /// Returns a SharePackage to send the Server.
     fn generate(&mut self) -> Result<SharePackage, KeygenError> {
-        let share_package = generate_share_package(Participant::App, Participant::Server)?;
-        self.share_agg_params = share_agg_params(&share_package).map(Some)?;
+        let mut share_packages = generate_share_packages()?;
 
-        Ok(share_package)
+        // We always can expect the right share packages here given the above call.
+        let server_share_package = share_packages.pop().expect("Missing server share package.");
+        self.app_share_package = Some(share_packages.pop().expect("Missing app share package."));
+
+        Ok(server_share_package)
     }
 
     /// Aggregates the peer's share package and generates the key share.
@@ -76,12 +114,14 @@ impl ShareGeneratorState {
         peer_share_package: &SharePackage,
         peer_key_commitments: &KeyCommitments,
     ) -> Result<ShareDetails, KeygenError> {
-        if self.share_agg_params.is_none() {
-            return Err(KeygenError::MissingShareAggParams);
-        }
+        let app_share_package = if let Some(package) = &self.app_share_package {
+            package
+        } else {
+            return Err(KeygenError::MissingSharePackage);
+        };
 
         let share_details =
-            aggregate_shares(self.share_agg_params.as_ref().unwrap(), peer_share_package)?;
+            aggregate_shares(Participant::App, &[peer_share_package, &app_share_package])?;
 
         equality_check(peer_key_commitments, share_details)
     }
@@ -89,30 +129,51 @@ impl ShareGeneratorState {
 
 #[cfg(test)]
 mod tests {
+    use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
     use crypto::frost::{
-        dkg::{aggregate_shares, generate_share_package, share_agg_params, KeygenError},
-        Participant::{App, Server},
+        dkg::{aggregate_shares, generate_share_packages, KeygenError},
+        Participant,
     };
-    use std::sync::Arc;
 
-    use crate::ShareGenerator;
+    use crate::{InitiateDistributedKeygenServerResponse, ShareGenerator};
 
     #[test]
-    fn test_aggregate_without_agg_params() {
-        let share_generator = ShareGenerator::new();
+    fn test_aggregate_without_calling_generate_first() {
+        let mut app_share_packages = generate_share_packages().unwrap();
+        let app_share_package_for_server = app_share_packages
+            .pop()
+            .expect("Missing server share package.");
+        let _ = app_share_packages
+            .pop()
+            .expect("Missing app share package.");
 
-        // Simulate server
-        let peer_share_package = generate_share_package(Server, App).unwrap();
-        let share_agg_params = share_agg_params(&peer_share_package).unwrap();
-        let share_details = aggregate_shares(&share_agg_params, &peer_share_package).unwrap();
+        let mut server_share_packages = generate_share_packages().unwrap();
+        let server_share_package_for_server = server_share_packages
+            .pop()
+            .expect("Missing server share package.");
+        let server_share_package_for_app = server_share_packages
+            .pop()
+            .expect("Missing server share package.");
 
-        // Attempt to aggregate without generating a share package.
+        let share_details = aggregate_shares(
+            Participant::Server,
+            &[
+                &app_share_package_for_server,
+                &server_share_package_for_server,
+            ],
+        )
+        .unwrap();
+
+        let server_response = InitiateDistributedKeygenServerResponse {
+            server_share_package: server_share_package_for_app,
+            server_key_commitments: share_details.key_commitments,
+        };
+
+        // Attempt to aggregate with a Sharegenerator without generating a share package.
         assert_eq!(
-            share_generator.aggregate(
-                Arc::new(peer_share_package),
-                Arc::new(share_details.key_commitments)
-            ),
-            Err(KeygenError::MissingShareAggParams)
+            ShareGenerator::new()
+                .aggregate(BASE64.encode(serde_json::to_vec(&server_response).unwrap())),
+            Err(KeygenError::MissingSharePackage)
         )
     }
 }

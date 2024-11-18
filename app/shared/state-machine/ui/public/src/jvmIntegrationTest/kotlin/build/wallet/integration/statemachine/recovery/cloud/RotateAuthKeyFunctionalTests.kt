@@ -28,9 +28,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
+    firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
@@ -38,7 +38,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
@@ -49,9 +49,9 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
+    firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
 
@@ -64,7 +64,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -77,11 +77,11 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
+    app.relationshipsService.syncAndVerifyRelationships(account)
 
-    app.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
+    app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    app.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
@@ -109,7 +109,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
+    app.relationshipsService.syncAndVerifyRelationships(account)
 
     val onBackCalls = turbines.create<Unit>("onBackCalls")
 
@@ -121,7 +121,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         }
       )
     )
-    app.app.rotateAuthUIStateMachine.test(props) {
+    app.rotateAuthUIStateMachine.test(props) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
@@ -146,11 +146,11 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    firstAppRun.app.appComponent.relationshipsService.syncAndVerifyRelationships(account)
+    firstAppRun.relationshipsService.syncAndVerifyRelationships(account)
 
-    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
+    firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
@@ -172,7 +172,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -183,11 +183,11 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
+    firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     firstAppRun.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
-    firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
@@ -227,7 +227,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel> {
         trailingToolbarAccessoryModel.shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
           .model.onClick.invoke()
@@ -268,7 +268,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()

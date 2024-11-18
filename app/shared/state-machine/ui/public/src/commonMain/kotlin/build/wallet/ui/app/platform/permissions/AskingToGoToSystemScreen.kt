@@ -14,8 +14,6 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun AskingToGoToSystemScreen(
@@ -51,19 +49,4 @@ fun AskingToGoToSystemScreen(
       )
     }
   )
-}
-
-@Preview
-@Composable
-fun PreviewAskingToGoToSystemScreen() {
-  PreviewWalletTheme {
-    AskingToGoToSystemScreen(
-      model = AskingToGoToSystemBodyModel(
-        title = "Requesting Permission",
-        explanation = "This permission is needed in order to use this. Go to system settings or else",
-        onBack = {},
-        onGoToSetting = {}
-      )
-    )
-  }
 }

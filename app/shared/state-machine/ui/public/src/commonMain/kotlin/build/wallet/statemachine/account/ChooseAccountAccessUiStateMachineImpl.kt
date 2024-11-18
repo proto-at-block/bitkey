@@ -104,7 +104,6 @@ class ChooseAccountAccessUiStateMachineImpl(
 
       is ShowingDebugMenu -> debugMenuStateMachine.model(
         props = DebugMenuProps(
-          accountData = props.chooseAccountAccessData,
           onClose = { state = ShowingChooseAccountAccess }
         )
       )

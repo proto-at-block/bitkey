@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-service",
     "components": [
         {
-            "version": "2.8.1",
+            "version": "2.8.5",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-service-2.8.1.aar": "94e1e1ffa817ffac23bb857b51981c92fbb97f8cc2c09f795b30f5e042308417"
+                        "lifecycle-service-2.8.5.aar": "f81f0d2aea6c1e05fbb9a8c43776f402e26bbb7add01127e830e99ccadecfefc"
                     }
                 }
             ],

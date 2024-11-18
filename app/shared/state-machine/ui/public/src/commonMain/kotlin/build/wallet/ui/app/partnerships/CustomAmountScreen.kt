@@ -10,8 +10,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.keypad.KeypadModel
-import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.amount.HeroAmount
@@ -20,8 +18,6 @@ import build.wallet.ui.components.keypad.Keypad
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun CustomAmountScreen(
@@ -78,56 +74,4 @@ fun CustomAmountScreen(
       )
     }
   )
-}
-
-@Preview
-@Composable
-fun CustomAmountScreenInvalidEntryPreview() {
-  PreviewWalletTheme {
-    CustomAmountScreen(
-      model = CustomAmountBodyModel(
-        onBack = {},
-        limits = "From $20.00 to $100.00",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$5.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = null
-          ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = true,
-            onButtonPress = {}
-          ),
-        continueButtonEnabled = false,
-        onNext = {}
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun CustomAmountScreenValidEntryPreview() {
-  PreviewWalletTheme {
-    CustomAmountScreen(
-      model = CustomAmountBodyModel(
-        onBack = {},
-        limits = "From $20.00 to $100.00",
-        amountModel =
-          MoneyAmountEntryModel(
-            primaryAmount = "$50.00",
-            primaryAmountGhostedSubstringRange = null,
-            secondaryAmount = null
-          ),
-        keypadModel =
-          KeypadModel(
-            showDecimal = true,
-            onButtonPress = {}
-          ),
-        continueButtonEnabled = true,
-        onNext = {}
-      )
-    )
-  }
 }

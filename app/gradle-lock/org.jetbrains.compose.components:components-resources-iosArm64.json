@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-iosArm64",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iosarm64-1.6.11-metadata.jar": "2ce0e1ca0386b105e8799e27371b072108661dec0dc6ef7fc59cfbf1273631c4"
+                        "library-iosarm64-1.7.0-metadata.jar": "9e270aff611128e4dbb213b414aa6180b3f7f1f7c31e368b0384c3c5c18e53c1"
                     }
                 },
                 {
                     "artifacts": {
-                        "library.klib": "e5b6d214499b91330cc4c7a4602dc2a99176f153b28c66074e983825d7021f82"
+                        "library.klib": "7de1dd754f00b48ffe3559ad6d547e66bb5b23792adb04c9f989f915d658bf83"
                     }
                 }
             ],

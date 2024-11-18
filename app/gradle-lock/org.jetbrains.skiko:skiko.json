@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.skiko:skiko",
     "components": [
         {
-            "version": "0.8.4",
+            "version": "0.8.15",
             "variants": [
                 {
                     "artifacts": {
-                        "skiko-metadata-0.8.4.jar": "6649c2bc2ae9e4d67611c1d2394af4402eb6e6f18def80ae5df54c17467bc656"
+                        "skiko-metadata-0.8.15.jar": "ce0f12dc1f3df698f5c1b87c49388b8a572a253246fec3ca6e96c13e0cec69cf"
                     }
                 }
             ],

@@ -13,7 +13,6 @@ kotlin {
         api(projects.shared.bugsnagPublic)
         api(projects.shared.accountPublic)
         api(projects.shared.analyticsPublic)
-        api(projects.shared.coroutinesPublic)
         api(projects.shared.bdkBindingsPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.bootstrapPublic)

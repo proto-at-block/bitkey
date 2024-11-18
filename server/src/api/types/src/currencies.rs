@@ -58,7 +58,7 @@ pub struct CurrencyData {
     pub fractional_digits: u8,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, ToSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, ToSchema)]
 // ISO 4217 currency codes
 pub enum CurrencyCode {
     AUD = 36,
@@ -168,7 +168,7 @@ impl From<CurrencyCode> for Currency {
 
 impl Display for CurrencyCode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let currency: Currency = self.clone().into();
+        let currency: Currency = (*self).into();
 
         let text_code = match currency {
             Fiat(f) => f.currency.text_code,

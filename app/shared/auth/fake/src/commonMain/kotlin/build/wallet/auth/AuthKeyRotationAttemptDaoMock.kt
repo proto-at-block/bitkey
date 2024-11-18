@@ -3,7 +3,6 @@ package build.wallet.auth
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -24,19 +23,19 @@ class AuthKeyRotationAttemptDaoMock(
     return stateFlow.map { Ok(it) }
   }
 
-  override suspend fun setKeyRotationProposal(): Result<Unit, DbError> {
+  override suspend fun setKeyRotationProposal(): Result<Unit, Error> {
     setKeyRotationProposalCalls += Unit
     return Ok(Unit)
   }
 
   override suspend fun setAuthKeysWritten(
     appAuthPublicKeys: AppAuthPublicKeys,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     setAuthKeysWrittenCalls += Unit
     return Ok(Unit)
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     return Ok(Unit)
   }

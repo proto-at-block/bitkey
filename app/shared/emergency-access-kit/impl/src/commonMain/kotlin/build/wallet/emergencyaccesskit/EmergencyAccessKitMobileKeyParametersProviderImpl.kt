@@ -7,6 +7,7 @@ import com.github.michaelbull.result.map
 
 class EmergencyAccessKitMobileKeyParametersProviderImpl(
   private val payloadCreator: EmergencyAccessPayloadCreator,
+  private val emergencyAccessKitPayloadDecoder: EmergencyAccessKitPayloadDecoderImpl,
 ) : EmergencyAccessKitMobileKeyParametersProvider {
   override suspend fun parameters(
     keybox: Keybox,
@@ -14,6 +15,6 @@ class EmergencyAccessKitMobileKeyParametersProviderImpl(
   ): Result<MobileKeyParameters, Error> =
     payloadCreator
       .create(keybox, sealedCsek)
-      .map { EmergencyAccessKitPayloadDecoderImpl.encode(it) }
+      .map { emergencyAccessKitPayloadDecoder.encode(it) }
       .map { MobileKeyParameters(mobileKeyCharacters = it, mobileKeyQRCodeText = it) }
 }

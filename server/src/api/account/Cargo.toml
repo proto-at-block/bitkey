@@ -36,3 +36,6 @@ types = { workspace = true, features = [
 ] }
 ulid = { workspace = true }
 userpool = { workspace = true }
+
+[lints]
+workspace = true

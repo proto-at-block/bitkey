@@ -34,12 +34,20 @@ class RelationshipsServiceImpl(
   private val relationshipsCodeBuilder: RelationshipsCodeBuilder,
   private val appSessionManager: AppSessionManager,
   private val accountService: AccountService,
+  appCoroutineScope: CoroutineScope,
 ) : RelationshipsService, SyncRelationshipsWorker {
   private val f8eSyncSequencer = F8eSyncSequencer()
 
   private suspend fun relationshipsF8eClient() = relationshipsF8eClientProvider.get()
 
-  override val relationships = MutableStateFlow<Relationships?>(value = null)
+  // Sync relationships from the database into memory cache
+  override val relationships: StateFlow<Relationships?> = relationshipsDao.relationships()
+    .map { result ->
+      result
+        .logFailure { "Failed to get relationships" }
+        .getOr(Relationships.EMPTY)
+    }
+    .stateIn(appCoroutineScope, SharingStarted.Eagerly, null)
 
   override suspend fun getRelationshipsWithoutSyncing(
     accountId: AccountId,
@@ -52,17 +60,6 @@ class RelationshipsServiceImpl(
 
   override suspend fun executeWork() {
     coroutineScope {
-      // Sync relationships from the database into memory cache
-      launch {
-        relationshipsDao.relationships()
-          .map { result ->
-            result
-              .logFailure { "Failed to get relationships" }
-              .getOr(Relationships.EMPTY)
-          }
-          .collectLatest(relationships::emit)
-      }
-
       // Sync relationships with f8e
       launch {
         accountService.accountStatus()
@@ -127,7 +124,8 @@ class RelationshipsServiceImpl(
   ): Result<OutgoingInvitation, Error> =
     coroutineBinding {
       // TODO: Use RelationshipsCrypto to generate.
-      val enrollmentPakeCode = InviteCodeParts.Schema.maskPakeData(Random.nextBytes(InviteCodeParts.Schema.pakeByteArraySize()))
+      val enrollmentPakeCode =
+        InviteCodeParts.Schema.maskPakeData(Random.nextBytes(InviteCodeParts.Schema.pakeByteArraySize()))
       val protectedCustomerEnrollmentPakeKey =
         relationshipsCrypto.generateProtectedCustomerEnrollmentPakeKey(enrollmentPakeCode)
           .mapError { Error("Error creating pake key: ${it.message}", it) }
@@ -147,7 +145,9 @@ class RelationshipsServiceImpl(
               protectedCustomerEnrollmentPakeKey,
               enrollmentPakeCode
             )
-            .mapError { Error("Failed to insert into relationshipsEnrollmentAuthenticationDao", it) }
+            .mapError {
+              Error("Failed to insert into relationshipsEnrollmentAuthenticationDao", it)
+            }
             .flatMap {
               relationshipsCodeBuilder.buildInviteCode(
                 invitation.code,

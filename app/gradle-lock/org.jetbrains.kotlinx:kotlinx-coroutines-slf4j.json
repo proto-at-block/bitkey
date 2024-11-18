@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-slf4j",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-slf4j-1.8.1.jar": "72e10bc13dbb324a56c74476c48ceee07b076db598f926017be76392b9e7fb3a"
+                        "kotlinx-coroutines-slf4j-1.9.0.jar": "84287a9bd74dcbe69de8c170190b155a11ebb49a89e94e036ac94fc7831e7325"
                     }
                 }
             ],

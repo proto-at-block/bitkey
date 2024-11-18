@@ -13,7 +13,9 @@ import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
 import build.wallet.cloud.store.*
 import build.wallet.datadog.DatadogRumMonitorImpl
+import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
+import build.wallet.di.AppComponent
 import build.wallet.di.AppComponentImpl
 import build.wallet.di.makeAppComponent
 import build.wallet.encrypt.MessageSignerImpl
@@ -34,6 +36,8 @@ import build.wallet.platform.config.DeviceTokenConfigProviderImpl
 import build.wallet.platform.config.TouchpointPlatform.FcmTeam
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProviderImpl
+import build.wallet.platform.data.databasesDir
+import build.wallet.platform.data.filesDir
 import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.sharing.SharingManager
@@ -46,6 +50,8 @@ import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.time.ControlledDelayer
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.nio.file.Files
 import java.nio.file.Path
@@ -57,7 +63,8 @@ const val F8E_ENV_ENV_VAR_NAME = "F8E_ENVIRONMENT"
 
 @Suppress("TooManyFunctions")
 class AppTester(
-  val app: ActivityComponentImpl,
+  appComponent: AppComponentImpl,
+  activityComponentImpl: ActivityComponentImpl,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
   val fakeNfcCommands: NfcCommandsFake,
   internal val sharingManager: SharingManagerFake,
@@ -66,7 +73,7 @@ class AppTester(
   internal val initialF8eEnvironment: F8eEnvironment,
   val initialBitcoinNetworkType: BitcoinNetworkType,
   val isUsingSocRecFakes: Boolean,
-) {
+) : AppComponent by appComponent, ActivityComponent by activityComponentImpl {
   /**
    * Creates a new [AppTester] that share data with an existing app instance.
    * It is not safe to continue using the previous [AppTester] instance after calling this method.
@@ -77,11 +84,11 @@ class AppTester(
     executeWorkers: Boolean = true,
   ): AppTester =
     launchApp(
-      existingAppDir = app.appComponent.fileDirectoryProvider.appDir(),
+      existingAppDir = fileDirectoryProvider.appDir(),
       bdkBlockchainFactory = bdkBlockchainFactory,
       f8eEnvironment = f8eEnvironment,
-      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.cloudKeyValueStore,
+      cloudStoreAccountRepository = cloudStoreAccountRepository,
+      cloudKeyValueStore = cloudKeyValueStore,
       isUsingSocRecFakes = isUsingSocRecFakes,
       hardwareSeed = fakeHardwareKeyStore.getSeed(),
       executeWorkers = executeWorkers
@@ -148,6 +155,7 @@ class AppTester(
 
       val platformContext = initPlatform(existingAppDir)
       val appComponent = createAppComponent(platformContext, bdkBlockchainFactory)
+      appComponent.loggerInitializer.initialize()
       val blockchainControl = createBlockchainControl(bitcoinNetworkType)
       val fakeHardwareKeyStore =
         createFakeHardwareKeyStore(appComponent.secureStoreFactory, hardwareSeed)
@@ -170,8 +178,7 @@ class AppTester(
           fakeNfcCommands = fakeNfcCommands,
           sharingManager = fakeSharingManager,
           cloudStoreAccRepository = cloudStoreAccountRepository,
-          cloudKeyValueStore = cloudKeyValueStore,
-          fakeHardwareKeyStore = fakeHardwareKeyStore
+          cloudKeyValueStore = cloudKeyValueStore
         )
 
       val treasury = TreasuryWalletFactory(
@@ -191,15 +198,22 @@ class AppTester(
         setDelayNotifyDuration(ZERO)
       }
 
+      // TODO(W-9704): execute workers by default
       if (executeWorkers) {
         coroutineScope {
           launch {
             appComponent.appWorkerExecutor.executeAll()
           }
         }
+
+        // Wait for feature flags to be initialized
+        appComponent.featureFlagService.flagsInitialized
+          .filter { initialized -> initialized }
+          .first() // Suspend until first `true` value
       }
 
       return AppTester(
+        appComponent,
         activityComponent,
         fakeHardwareKeyStore,
         fakeNfcCommands,
@@ -264,7 +278,6 @@ private fun createActivityComponent(
   sharingManager: SharingManager,
   cloudStoreAccRepository: CloudStoreAccountRepository? = null,
   cloudKeyValueStore: CloudKeyValueStore? = null,
-  fakeHardwareKeyStore: FakeHardwareKeyStore,
 ): ActivityComponentImpl {
   val cloudStoreAccountRepository = cloudStoreAccRepository
     ?: CloudStoreAccountRepositoryImpl(
@@ -294,8 +307,7 @@ private fun createActivityComponent(
     systemSettingsLauncher = systemSettingsLauncher,
     inAppBrowserNavigator = inAppBrowserNavigator,
     pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
-    biometricPrompter = BiometricPrompterImpl(),
-    fakeHardwareKeyStore = fakeHardwareKeyStore
+    biometricPrompter = BiometricPrompterImpl()
   )
 }
 

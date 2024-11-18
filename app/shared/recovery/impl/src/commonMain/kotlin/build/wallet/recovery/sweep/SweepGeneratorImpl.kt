@@ -17,14 +17,10 @@ import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.notifications.RegisterWatchAddressContext
-import build.wallet.queueprocessor.Processor
+import build.wallet.notifications.RegisterWatchAddressProcessor
+import build.wallet.queueprocessor.process
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.AppPrivateKeyMissing
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.ErrorCreatingWallet
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.ErrorSyncingSpendingWallet
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToGenerateDestinationAddress
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToListKeysets
+import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
@@ -36,7 +32,7 @@ class SweepGeneratorImpl(
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val keysetWalletProvider: KeysetWalletProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  private val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>,
+  private val registerWatchAddressProcessor: RegisterWatchAddressProcessor,
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,

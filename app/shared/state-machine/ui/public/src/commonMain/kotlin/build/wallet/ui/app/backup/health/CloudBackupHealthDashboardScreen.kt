@@ -11,7 +11,6 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun CloudBackupHealthDashboardScreen(
@@ -37,18 +36,5 @@ fun CloudBackupHealthDashboardScreen(
         CloudBackupHealthStatusCard(model = it)
       }
     }
-  )
-}
-
-@Preview
-@Composable
-fun CloudBackupHealthDashboardScreenPreview() {
-  CloudBackupHealthDashboardScreen(
-    model =
-      CloudBackupHealthDashboardBodyModel(
-        onBack = {},
-        mobileKeyBackupStatusCard = CloudBackupHealthStatusCardModelForPreview,
-        eakBackupStatusCard = CloudBackupHealthStatusCardModelForPreview
-      )
   )
 }

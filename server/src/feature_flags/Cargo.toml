@@ -17,3 +17,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8.10"
+
+[lints]
+workspace = true

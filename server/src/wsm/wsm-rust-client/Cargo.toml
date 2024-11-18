@@ -23,3 +23,6 @@ wsm-common = { workspace = true }
 [dev-dependencies]
 bdk = { workspace = true, features = ["electrum", "std"] }
 tokio = { workspace = true, features = ["macros", "rt"] }
+
+[lints]
+workspace = true

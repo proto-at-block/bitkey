@@ -26,7 +26,6 @@ kotlin {
           exclude(projects.shared.bitcoinPublic)
         }
         implementation(projects.shared.bitcoinPrimitivesFake)
-        implementation(projects.shared.kotestPublic)
         implementation(projects.shared.testingPublic)
       }
     }

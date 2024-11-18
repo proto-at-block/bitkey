@@ -1,14 +1,15 @@
 package build.wallet.nfc.transaction
 
+import build.wallet.bitkey.challange.DelayNotifyChallenge
+import build.wallet.bitkey.challange.SignedChallenge.HardwareSignedChallenge
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
-import okio.ByteString
 
 class SignChallengeAndCsek(
-  private val challenge: ByteString,
+  private val challenge: DelayNotifyChallenge,
   private val csek: Csek,
   private val success: suspend (SignedChallengeAndCsek) -> Unit,
   private val failure: () -> Unit,
@@ -21,7 +22,10 @@ class SignChallengeAndCsek(
     session: NfcSession,
     commands: NfcCommands,
   ) = SignedChallengeAndCsek(
-    signedChallenge = commands.signChallenge(session, challenge),
+    signedChallenge = HardwareSignedChallenge(
+      challenge = challenge,
+      signature = commands.signChallenge(session, challenge.asByteString())
+    ),
     sealedCsek = commands.sealKey(session, csek)
   )
 
@@ -30,7 +34,7 @@ class SignChallengeAndCsek(
   override fun onCancel() = failure()
 
   data class SignedChallengeAndCsek(
-    val signedChallenge: String,
+    val signedChallenge: HardwareSignedChallenge,
     val sealedCsek: SealedCsek,
   )
 }

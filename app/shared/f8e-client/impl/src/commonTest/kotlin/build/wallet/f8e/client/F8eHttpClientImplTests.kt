@@ -25,7 +25,9 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
+import build.wallet.platform.config.AppVersion
 import build.wallet.platform.data.MimeType
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getErrorOr
@@ -101,13 +103,14 @@ class F8eHttpClientImplTests : FunSpec({
           )
         )
     }
+  val deviceInfoProvider = DeviceInfoProviderMock()
 
   val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
   val networkingDebugService = NetworkingDebugServiceFake()
   val f8eHttpClientProvider =
     F8eHttpClientProvider(
       appId = AppId("world.bitkey.test"),
-      appVersion = "2008.10.31",
+      appVersion = AppVersion("2008.10.31"),
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
@@ -122,6 +125,7 @@ class F8eHttpClientImplTests : FunSpec({
     appVariant = Development,
     platformInfoProvider = PlatformInfoProviderMock(),
     datadogTracer = datadogTracer,
+    deviceInfoProvider = deviceInfoProvider,
     appInstallationDao = AppInstallationDaoMock(),
     countryCodeGuesser = CountryCodeGuesserMock(),
     networkReachabilityProvider = networkReachabilityProvider,
@@ -131,6 +135,7 @@ class F8eHttpClientImplTests : FunSpec({
   val client =
     F8eHttpClientImpl(
       authTokensRepository = AuthTokensRepositoryMock(),
+      deviceInfoProvider = deviceInfoProvider,
       proofOfPossessionPluginProvider =
         ProofOfPossessionPluginProvider(
           authTokensRepository = authTokensRepository,

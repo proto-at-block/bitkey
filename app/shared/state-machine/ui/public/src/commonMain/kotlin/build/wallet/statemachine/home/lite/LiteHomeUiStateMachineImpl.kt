@@ -87,7 +87,7 @@ class LiteHomeUiStateMachineImpl(
 
           Settings -> liteSettingsHomeUiStateMachine.model(
             props = LiteSettingsHomeUiProps(
-              accountData = props.accountData,
+              account = props.accountData.account,
               homeStatusBannerModel = homeStatusBannerModel,
               onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
             )
@@ -97,7 +97,7 @@ class LiteHomeUiStateMachineImpl(
 
       is AddTrustedContact -> liteTrustedContactManagementUiStateMachine.model(
         props = LiteTrustedContactManagementProps(
-          accountData = props.accountData,
+          account = props.accountData.account,
           acceptInvite = presentedScreen.acceptInvite,
           onExit = {
             uiState = uiState.copy(presentedScreen = null)

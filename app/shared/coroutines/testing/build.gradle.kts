@@ -15,8 +15,8 @@ kotlin {
         api(libs.kmp.test.kotlin.coroutines)
         api(libs.kmp.test.turbine)
         implementation(libs.kmp.test.kotest.assertions)
-        implementation(projects.shared.kotestPublic)
         implementation(projects.shared.loggingPublic)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

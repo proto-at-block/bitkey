@@ -2,7 +2,6 @@ package build.wallet.bitcoin.transactions
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbError
 import build.wallet.money.exchange.ExchangeRate
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -20,7 +19,7 @@ class OutgoingTransactionDetailDaoMock(
     transactionId: String,
     estimatedConfirmationTime: Instant,
     exchangeRates: List<ExchangeRate>?,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     insertCalls += Pair(broadcastTime, transactionId)
     internalMutableMap[transactionId] =
       TransactionInfo(
@@ -38,7 +37,7 @@ class OutgoingTransactionDetailDaoMock(
     return internalMutableMap[transactionId]?.confirmationTime
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls += Unit
     reset()
     return Ok(Unit)

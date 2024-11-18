@@ -22,6 +22,7 @@ object BenefactorClaimSerializer : KSerializer<BenefactorClaim> {
       InheritanceClaimStatus.PENDING -> surrogate.asPendingClaim()
       InheritanceClaimStatus.CANCELED -> surrogate.asCancelledClaim()
       InheritanceClaimStatus.LOCKED -> surrogate.asLockedClaim()
+      InheritanceClaimStatus.COMPLETE -> surrogate.asCompleteClaim()
       else -> surrogate.asUnknownState()
     }
   }
@@ -54,6 +55,7 @@ object BenefactorClaimSerializer : KSerializer<BenefactorClaim> {
         is BenefactorClaim.PendingClaim -> InheritanceClaimStatus.PENDING
         is BenefactorClaim.CanceledClaim -> InheritanceClaimStatus.CANCELED
         is BenefactorClaim.LockedClaim -> InheritanceClaimStatus.LOCKED
+        is BenefactorClaim.CompleteClaim -> InheritanceClaimStatus.COMPLETE
         is BenefactorClaim.UnknownStatus -> error("Cannot serialize claim with unknown state")
       },
       claimId = claim.claimId,
@@ -78,6 +80,12 @@ object BenefactorClaimSerializer : KSerializer<BenefactorClaim> {
 
     fun asLockedClaim() =
       BenefactorClaim.LockedClaim(
+        claimId = claimId,
+        relationshipId = relationshipId
+      )
+
+    fun asCompleteClaim() =
+      BenefactorClaim.CompleteClaim(
         claimId = claimId,
         relationshipId = relationshipId
       )

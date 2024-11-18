@@ -20,9 +20,9 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   lateinit var secureStore: SuspendSettings
 
   beforeTest {
-    launchNewApp().app.run {
-      keystore = appComponent.onboardingAppKeyKeystore
-      secureStore = appComponent.secureStoreFactory.getOrCreate("onboarding-app-keys")
+    launchNewApp().run {
+      keystore = onboardingAppKeyKeystore
+      secureStore = secureStoreFactory.getOrCreate("onboarding-app-keys")
     }
   }
 

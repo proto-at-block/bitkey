@@ -32,11 +32,12 @@ internal fun KeygenException.toKeygenError(): KeygenError {
   val message = requireNotNull(message)
 
   return when (this) {
+    is KeygenException.MissingSharePackage -> KeygenError.MissingSharePackage(cause, message)
+    is KeygenException.InvalidProofOfKnowledge -> KeygenError.InvalidProofOfKnowledge(cause, message)
     is KeygenException.InvalidIntermediateShare -> KeygenError.InvalidIntermediateShare(cause, message)
     is KeygenException.InvalidKeyCommitments -> KeygenError.InvalidKeyCommitments(cause, message)
-    is KeygenException.InvalidParticipantIndex -> KeygenError.InvalidParticipantIndex(cause, message)
-    is KeygenException.InvalidProofOfKnowledge -> KeygenError.InvalidProofOfKnowledge(cause, message)
-    is KeygenException.MissingShareAggParams -> KeygenError.MissingShareAggParams(cause, message)
-    is KeygenException.MissingSharePackage -> KeygenError.MissingSharePackage(cause, message)
+    is KeygenException.InvalidParticipants -> KeygenError.InvalidParticipants(cause, message)
+    is KeygenException.ShareAggregationFailed -> KeygenError.ShareAggregationFailed(cause, message)
+    is KeygenException.VerificationShareGenerationFailed -> KeygenError.VerificationShareGenerationFailed(cause, message)
   }
 }

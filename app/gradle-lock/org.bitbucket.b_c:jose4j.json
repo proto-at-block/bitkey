@@ -2,11 +2,11 @@
     "module-identifier": "org.bitbucket.b_c:jose4j",
     "components": [
         {
-            "version": "0.7.0",
+            "version": "0.9.5",
             "variants": [
                 {
                     "artifacts": {
-                        "jose4j-0.7.0.jar": "eb14f69c0395d4a106c6c46fe6dff080c4608ccabc99b1f03933d374383d9bbe"
+                        "jose4j-0.9.5.jar": "808fb3166f3e67dad9811c331029ab1681242fd52b735bc3f33f281167fcc72e"
                     }
                 }
             ],

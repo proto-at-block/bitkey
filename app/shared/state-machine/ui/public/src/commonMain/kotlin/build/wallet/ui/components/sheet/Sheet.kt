@@ -113,7 +113,7 @@ private fun SheetLayout(
     tonalElevation = sheetElevation,
     content = sheetContent,
     scrimColor = WalletTheme.colors.mask,
-    windowInsets = WindowInsets.navigationBars
+    contentWindowInsets = { WindowInsets.navigationBars }
   )
 }
 

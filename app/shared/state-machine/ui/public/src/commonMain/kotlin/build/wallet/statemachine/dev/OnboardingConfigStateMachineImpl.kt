@@ -20,7 +20,7 @@ class OnboardingConfigStateMachineImpl(
   private val debugOptionsService: DebugOptionsService,
 ) : OnboardingConfigStateMachine {
   @Composable
-  override fun model(props: OnboardingConfigProps): ListGroupModel? {
+  override fun model(props: Unit): ListGroupModel? {
     // Do not show this option in Customer builds
     if (appVariant == Customer) return null
 

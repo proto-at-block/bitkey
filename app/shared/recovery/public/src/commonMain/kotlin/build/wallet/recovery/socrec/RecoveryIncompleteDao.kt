@@ -1,6 +1,5 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -12,5 +11,5 @@ import kotlinx.coroutines.flow.Flow
 interface RecoveryIncompleteDao {
   fun recoveryIncomplete(): Flow<Boolean>
 
-  suspend fun setRecoveryIncomplete(incomplete: Boolean): Result<Unit, DbError>
+  suspend fun setRecoveryIncomplete(incomplete: Boolean): Result<Unit, Error>
 }

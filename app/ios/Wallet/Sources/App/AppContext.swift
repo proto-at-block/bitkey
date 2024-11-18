@@ -95,7 +95,8 @@ class AppContext {
             symmetricKeyGenerator: SymmetricKeyGeneratorImpl(),
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
             xNonceGenerator: XNonceGeneratorImpl(),
-            firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl()
+            firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
+            shareGeneratorFactory: ShareGeneratorFactoryImpl()
         )
 
         self.notificationManager = NotificationManagerImpl(
@@ -154,8 +155,7 @@ class AppContext {
             nfcCommandsProvider: nfcCommandsProvider,
             nfcSessionProvider: NfcSessionProviderImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
-            biometricPrompter: biometricsPrompter,
-            fakeHardwareKeyStore: fakeHardwareKeyStore
+            biometricPrompter: biometricsPrompter
         )
 
         self.appUiStateMachineManager = AppUiStateMachineManagerImpl(

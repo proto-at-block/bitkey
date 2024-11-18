@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-logging-iosarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-logging-iosarm64-2.3.11-metadata.jar": "a06598d1eb5507136fb5745fea5e3a7a30361118fa510b6ab2f6dd1d5ed261f3"
+                        "ktor-client-logging-iosarm64-2.3.12-metadata.jar": "bcad63188a1005903426c1c7dc04938e11667d18188d67f0c621a35132c63b0a"
                     }
                 },
                 {

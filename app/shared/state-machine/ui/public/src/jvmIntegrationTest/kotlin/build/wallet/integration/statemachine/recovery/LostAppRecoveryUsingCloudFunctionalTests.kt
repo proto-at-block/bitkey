@@ -43,12 +43,12 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     // copy cloud stores to new app, keep hardware
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = app.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.app.cloudKeyValueStore,
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore,
       hardwareSeed = app.fakeHardwareKeyStore.getSeed()
     )
 
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
       turbineTimeout = 10.seconds
@@ -88,12 +88,12 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     // copy cloud stores to new app, keep hardware
     val newApp = launchNewApp(
-      cloudStoreAccountRepository = app.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.app.cloudKeyValueStore,
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore,
       hardwareSeed = app.fakeHardwareKeyStore.getSeed()
     )
 
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -140,11 +140,11 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     // copy cloud stores to new app
     var newApp = launchNewApp(
-      cloudStoreAccountRepository = app.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.app.cloudKeyValueStore
+      cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+      cloudKeyValueStore = app.cloudKeyValueStore
     )
 
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
       turbineTimeout = 10.seconds
@@ -164,7 +164,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     // reset new app
     newApp = newApp.relaunchApp()
 
-    newApp.app.appUiStateMachine.test(
+    newApp.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
       turbineTimeout = 10.seconds
@@ -174,7 +174,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
   }
 
   test("no cloud backup") {
-    app.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
       awaitUntilScreenWithBody<FormBodyModel>()

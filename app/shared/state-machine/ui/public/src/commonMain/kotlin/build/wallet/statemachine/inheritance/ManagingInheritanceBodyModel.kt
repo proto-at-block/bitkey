@@ -28,7 +28,7 @@ data class ManagingInheritanceBodyModel(
     enableComposeRendering = true,
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory { onBack() }
+      leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
     ),
     header = FormHeaderModel(
       headline = "Manage Inheritance",

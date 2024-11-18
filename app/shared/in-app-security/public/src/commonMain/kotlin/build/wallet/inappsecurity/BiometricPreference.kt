@@ -1,6 +1,5 @@
 package build.wallet.inappsecurity
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +11,7 @@ interface BiometricPreference {
   /**
    * Get the current value of the preference
    */
-  suspend fun get(): Result<Boolean, DbError>
+  suspend fun get(): Result<Boolean, Error>
 
   /**
    * Get the current value of the preference or null in case of an error
@@ -24,7 +23,7 @@ interface BiometricPreference {
   /**
    * Update the value of the preference
    */
-  suspend fun set(enabled: Boolean): Result<Unit, DbError>
+  suspend fun set(enabled: Boolean): Result<Unit, Error>
 
   /**
    * A flow of values of the current state of the preference
@@ -34,5 +33,5 @@ interface BiometricPreference {
   /**
    * Clear the value of the preference
    */
-  suspend fun clear(): Result<Unit, DbError>
+  suspend fun clear(): Result<Unit, Error>
 }

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.partnerships.expected
 
-import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerRedirectionMethod
@@ -20,7 +20,7 @@ import kotlinx.datetime.LocalDateTime
 interface ExpectedTransactionNoticeUiStateMachine : StateMachine<ExpectedTransactionNoticeProps, ScreenModel>
 
 data class ExpectedTransactionNoticeProps(
-  val fullAccountId: FullAccountId,
+  val accountId: AccountId,
   val f8eEnvironment: F8eEnvironment,
   val partner: PartnerId?,
   val event: PartnershipEvent?,

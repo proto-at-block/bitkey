@@ -26,10 +26,10 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     )
 
     val overrideCloudBackupApp = launchNewApp(
-      cloudStoreAccountRepository = uploadCloudBackupApp.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = uploadCloudBackupApp.app.cloudKeyValueStore
+      cloudStoreAccountRepository = uploadCloudBackupApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = uploadCloudBackupApp.cloudKeyValueStore
     )
-    overrideCloudBackupApp.app.appUiStateMachine.test(
+    overrideCloudBackupApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
@@ -62,10 +62,10 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     )
 
     val overrideCloudBackupApp = launchNewApp(
-      cloudStoreAccountRepository = uploadCloudBackupApp.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = uploadCloudBackupApp.app.cloudKeyValueStore
+      cloudStoreAccountRepository = uploadCloudBackupApp.cloudStoreAccountRepository,
+      cloudKeyValueStore = uploadCloudBackupApp.cloudKeyValueStore
     )
-    overrideCloudBackupApp.app.appUiStateMachine.test(
+    overrideCloudBackupApp.appUiStateMachine.test(
       props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,

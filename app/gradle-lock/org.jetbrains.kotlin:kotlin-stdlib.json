@@ -18,16 +18,16 @@
             ]
         },
         {
-            "version": "2.0.0",
+            "version": "2.0.21",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-2.0.0-all.jar": "30e05222bc067fffb896a3276b5f1e3f29450bf1d9461d27a19ce0efc793b5cd"
+                        "kotlin-stdlib-2.0.21-all.jar": "50ffadeb20b4d2456a526595a4f7a9e85889682715073e6cdba1b1d80e3ad458"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-stdlib-2.0.0.jar": "240938c4aab8e73e888703e3e7d3f87383ffe5bd536d6d5e3c100d4cd0379fcf"
+                        "kotlin-stdlib-2.0.21.jar": "f31cc53f105a7e48c093683bbd5437561d1233920513774b470805641bedbc09"
                     }
                 }
             ],

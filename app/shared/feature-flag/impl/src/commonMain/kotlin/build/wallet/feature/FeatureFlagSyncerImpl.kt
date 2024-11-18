@@ -31,7 +31,7 @@ class FeatureFlagSyncerImpl(
   private val debugOptionsService: DebugOptionsService,
   private val featureFlagsF8eClient: FeatureFlagsF8eClient,
   private val clock: Clock,
-  private val remoteFlags: List<FeatureFlag<out FeatureFlagValue>>,
+  private val featureFlags: List<FeatureFlag<out FeatureFlagValue>>,
   private val appSessionManager: AppSessionManager,
 ) : FeatureFlagSyncer {
   /**
@@ -86,7 +86,7 @@ class FeatureFlagSyncerImpl(
       featureFlagsF8eClient.getF8eFeatureFlags(
         f8eEnvironment = f8eEnvironment,
         accountId = accountId,
-        flagKeys = remoteFlags.map { it.identifier }
+        flagKeys = featureFlags.map { it.identifier }
       )
         .onSuccess { remoteFlags ->
           remoteFlags.forEach { remoteFlag ->
@@ -104,7 +104,7 @@ class FeatureFlagSyncerImpl(
   }
 
   private suspend fun updateLocalFlagValue(remoteFlag: F8eFeatureFlag) {
-    val matchingFlags = remoteFlags
+    val matchingFlags = featureFlags
       .filter { it.identifier == remoteFlag.key }
       .filter { !it.isOverridden() }
 

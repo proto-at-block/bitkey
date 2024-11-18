@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-events-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-events-iossimulatorarm64-2.3.11-metadata.jar": "8758ae6cf0d66d3aae422001bd383f172386ee266fe89334c1bb6e93f9029887"
+                        "ktor-events-iossimulatorarm64-2.3.12-metadata.jar": "cf45728d1291ef43dc54eb4be18579bef552e8f6ea4a38c28c98af70986c92c9"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-events.klib": "06112176cc814ed83e3b37d535313635d0e37ba7effdd5888559c11315289863"
+                        "ktor-events.klib": "38062788d00cf00e16031d451d32b34458b7562c9e9914e2c49fe7250ffc17f9"
                     }
                 }
             ],

@@ -11,7 +11,19 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "31.5.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dvlib-31.5.2.jar": "5ccc490258202850630c59eecb9d29a6c849bb17f10f4ca9017db649f72e481f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
             ]
         }

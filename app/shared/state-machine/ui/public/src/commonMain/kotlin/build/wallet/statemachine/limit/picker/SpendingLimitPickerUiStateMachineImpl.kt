@@ -1,6 +1,12 @@
 package build.wallet.statemachine.limit.picker
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import build.wallet.configuration.MobilePayFiatConfigService
 import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.feature.isEnabled
@@ -234,8 +240,8 @@ class SpendingLimitPickerUiStateMachineImpl(
                 )
               }
             ),
-          fullAccountId = props.accountData.account.accountId,
-          fullAccountConfig = props.accountData.account.keybox.config,
+          fullAccountId = props.account.accountId,
+          fullAccountConfig = props.account.keybox.config,
           onBack = onBack,
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           onTokenRefresh = {

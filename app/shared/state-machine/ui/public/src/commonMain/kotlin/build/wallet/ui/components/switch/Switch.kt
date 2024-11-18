@@ -1,17 +1,11 @@
 package build.wallet.ui.components.switch
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import build.wallet.ui.compose.resId
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.Switch as MaterialSwitch
 import androidx.compose.material3.SwitchDefaults as MaterialSwitchDefaults
 
@@ -56,16 +50,4 @@ fun Switch(
       ),
     enabled = enabled
   )
-}
-
-@Preview
-@Composable
-fun SwitchPreview() {
-  PreviewWalletTheme {
-    Column {
-      Switch(checked = true, onCheckedChange = {})
-      Spacer(Modifier.height(5.dp))
-      Switch(checked = false, onCheckedChange = {})
-    }
-  }
 }

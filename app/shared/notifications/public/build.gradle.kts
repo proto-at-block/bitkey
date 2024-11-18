@@ -17,6 +17,7 @@ kotlin {
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.emailPublic)
         api(projects.shared.f8ePublic)
+        api(projects.shared.queueProcessorPublic)
       }
     }
   }

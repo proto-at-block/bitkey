@@ -92,7 +92,7 @@ class MobilePayStatusUiStateMachineImpl(
               cancelText = disableCancelText,
               onConfirm = {
                 scope.launch {
-                  mobilePayService.disable(props.accountData.account)
+                  mobilePayService.disable(props.account)
                   confirmingCancellation = false
                 }
               },

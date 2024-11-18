@@ -1,10 +1,11 @@
 package build.wallet.statemachine.dev
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
+import build.wallet.account.AccountService
 import build.wallet.bitkey.account.AccountConfig
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -14,7 +15,8 @@ import build.wallet.f8e.name
 import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
-import build.wallet.statemachine.data.keybox.AccountData
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -25,7 +27,9 @@ import kotlinx.coroutines.launch
 
 class AccountConfigUiStateMachineImpl(
   private val appVariant: AppVariant,
+  private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : AccountConfigUiStateMachine {
   @Composable
   override fun model(props: AccountConfigProps): ListGroupModel? {
@@ -34,17 +38,19 @@ class AccountConfigUiStateMachineImpl(
     val debugOptions = remember { debugOptionsService.options() }
       .collectAsState(null).value ?: return null
 
-    return when (props.accountData) {
-      is AccountData.HasActiveFullAccountData -> {
+    val account = remember { accountService.activeAccount() }.collectAsState(null).value
+
+    return when (account) {
+      is FullAccount -> {
         ActiveFullAccountModel(
-          accountConfig = props.accountData.account.config,
+          accountConfig = account.config,
           onBitcoinWalletClick = props.onBitcoinWalletClick
         )
       }
 
-      is AccountData.HasActiveLiteAccountData ->
+      is LiteAccount ->
         ActiveLiteAccountModel(
-          accountConfig = props.accountData.account.config,
+          accountConfig = account.config,
           debugOptions = debugOptions
         )
 
@@ -144,11 +150,13 @@ class AccountConfigUiStateMachineImpl(
   }
 
   private fun AccountConfigItems(accountConfig: AccountConfig): List<ListItemModel> {
+    val deviceInfo = deviceInfoProvider.getDeviceInfo()
+    val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
     return listOf(
       ListItemModel(
         title = "F8e Environment",
         sideText = accountConfig.f8eEnvironment.name,
-        secondarySideText = accountConfig.f8eEnvironment.url
+        secondarySideText = accountConfig.f8eEnvironment.url(isAndroidEmulator)
       ),
       ListItemModel(
         title = "Test Account",

@@ -9,6 +9,7 @@ import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.*
 import io.ktor.client.engine.*
@@ -37,6 +38,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 abstract class BaseF8eHttpClientFactory(
   private val appVariant: AppVariant,
+  private val deviceInfoProvider: DeviceInfoProvider,
   private val platformInfoProvider: PlatformInfoProvider,
   private val datadogTracer: DatadogTracer,
   private val appInstallationDao: AppInstallationDao,
@@ -95,6 +97,7 @@ abstract class BaseF8eHttpClientFactory(
 
       defaultRequest {
         attributes.put(CheckReachabilityAttribute, true)
+        attributes.put(DeviceInfoAttribute, deviceInfoProvider.getDeviceInfo())
         attributes.put(PlatformInfoAttribute, platformInfoProvider.getPlatformInfo())
       }
 

@@ -1,7 +1,12 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
-import build.wallet.bitkey.keybox.FullAccountConfigMock
-import build.wallet.bitkey.keybox.WithAppKeysMock
+import app.cash.turbine.plusAssign
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.keybox.HwKeyBundleMock
+import build.wallet.coroutines.turbine.turbines
+import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
+import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
+import build.wallet.onboarding.CreateFullAccountServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
@@ -9,74 +14,58 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
+import okio.ByteString
 
 class CreateKeyboxUiStateMachineImplTests : FunSpec({
 
-  val stateMachine =
-    CreateKeyboxUiStateMachineImpl(
-      pairNewHardwareUiStateMachine =
-        object : PairNewHardwareUiStateMachine, ScreenStateMachineMock<PairNewHardwareProps>(
-          id = "hw-onboard"
-        ) {}
-    )
+  val createFullAccountService = CreateFullAccountServiceFake()
 
-  val props = CreateKeyboxUiProps(
-    createKeyboxData = CreateKeyboxData.CreatingAppKeysData(
-      rollback = {}
-    )
+  val stateMachine = CreateKeyboxUiStateMachineImpl(
+    createFullAccountService = createFullAccountService,
+    pairNewHardwareUiStateMachine = object : PairNewHardwareUiStateMachine,
+      ScreenStateMachineMock<PairNewHardwareProps>(
+        id = "hw-onboard"
+      ) {}
   )
 
-  test("initial state") {
-    stateMachine.test(
-      props.copy(
-        createKeyboxData = CreateKeyboxData.CreatingAppKeysData(
-          rollback = {}
-        )
-      )
-    ) {
-      // Pair hw screen
-      awaitScreenWithBodyModelMock<PairNewHardwareProps>()
-    }
+  val onExitCalls = turbines.create<Unit>("onExit calls")
+
+  val props = CreateKeyboxUiProps(
+    context = NewFullAccount,
+    onExit = { onExitCalls += Unit }
+  )
+
+  beforeTest {
+    createFullAccountService.reset()
   }
 
   test("happy path") {
     stateMachine.test(props) {
-      // Loading key cross draft
-      awaitScreenWithBodyModelMock<PairNewHardwareProps>()
+      // creating app keys
+      awaitScreenWithBodyModelMock<PairNewHardwareProps> {
+        request.shouldBeTypeOf<PairNewHardwareProps.Request.Preparing>()
+      }
 
-      updateProps(
-        props.copy(
-          createKeyboxData =
-            CreateKeyboxData.HasAppKeysData(
-              appKeys = WithAppKeysMock,
-              rollback = {},
-              fullAccountConfig = FullAccountConfigMock,
-              onPairHardwareComplete = {}
-            )
+      // Pairing with HW
+      awaitScreenWithBodyModelMock<PairNewHardwareProps>("hw-onboard") {
+        val ready = request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
+        ready.onSuccess(
+          FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+            keyBundle = HwKeyBundleMock,
+            sealedCsek = ByteString.EMPTY,
+            serial = "123"
+          )
         )
-      )
+      }
 
-      // Pairing with HW, key cross draft loaded
-      awaitScreenWithBodyModelMock<PairNewHardwareProps>("hw-onboard")
-
-      updateProps(
-        props.copy(
-          createKeyboxData =
-            CreateKeyboxData.HasAppAndHardwareKeysData(
-              rollback = {}
-            )
-        )
-      )
-
-      // Pairing with Server
+      // Creating account with f8e
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-
-      updateProps(props.copy(createKeyboxData = CreateKeyboxData.PairingWithServerData))
     }
   }
 })

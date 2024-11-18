@@ -20,10 +20,8 @@ import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.LocalIsPreviewTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
 import io.github.alexzhirkevich.compottie.*
 import org.jetbrains.compose.resources.vectorResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun LoadingSuccessScreen(
@@ -76,33 +74,4 @@ fun LoadingSuccessScreen(
       }
     }
   )
-}
-
-@Preview
-@Composable
-fun LoadingSuccessPreviewLoading() {
-  PreviewWalletTheme {
-    LoadingSuccessScreen(
-      model =
-        LoadingSuccessBodyModel(
-          state = LoadingSuccessBodyModel.State.Loading,
-          id = null
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun LoadingSuccessPreviewSuccess() {
-  PreviewWalletTheme {
-    LoadingSuccessScreen(
-      model =
-        LoadingSuccessBodyModel(
-          message = "You succeeded",
-          state = Success,
-          id = null
-        )
-    )
-  }
 }

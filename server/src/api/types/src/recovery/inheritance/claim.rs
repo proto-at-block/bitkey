@@ -4,7 +4,9 @@ use crate::{
 };
 use external_identifier::ExternalIdentifier;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 
+use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::descriptor::ExtendedDescriptor;
 use std::{
     fmt::{self, Display, Formatter},
@@ -117,18 +119,25 @@ impl InheritanceClaimPending {
         id: InheritanceClaimId,
         recovery_relationship_id: RecoveryRelationshipId,
         auth_keys: InheritanceClaimAuthKeys,
+        use_test_delay_end_time: bool,
     ) -> Self {
+        let current_time = OffsetDateTime::now_utc();
+        let delay_end_time = if use_test_delay_end_time {
+            current_time + Duration::minutes(1)
+        } else {
+            current_time + Duration::days(180)
+        };
         let common_fields = InheritanceClaimCommonFields {
             id,
             destination: None,
             recovery_relationship_id,
             auth_keys,
-            created_at: OffsetDateTime::now_utc(),
-            updated_at: OffsetDateTime::now_utc(),
+            created_at: current_time,
+            updated_at: current_time,
         };
         Self {
             common_fields,
-            delay_end_time: OffsetDateTime::now_utc() + Duration::days(180),
+            delay_end_time,
         }
     }
 
@@ -171,12 +180,24 @@ pub struct InheritanceClaimCanceled {
     pub canceled_by: InheritanceClaimCanceledBy,
 }
 
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InheritanceClaimCompleted {
+    #[serde(flatten)]
+    pub common_fields: InheritanceClaimCommonFields,
+    #[serde_as(as = "DisplayFromStr")]
+    pub psbt: Psbt,
+    #[serde(with = "rfc3339")]
+    pub completed_at: OffsetDateTime,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "status", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum InheritanceClaim {
     Pending(InheritanceClaimPending),
     Canceled(InheritanceClaimCanceled),
     Locked(InheritanceClaimLocked),
+    Completed(InheritanceClaimCompleted),
 }
 
 impl InheritanceClaim {
@@ -185,6 +206,7 @@ impl InheritanceClaim {
             Self::Pending(pending) => &pending.common_fields,
             Self::Canceled(canceled) => &canceled.common_fields,
             Self::Locked(locked) => &locked.common_fields,
+            Self::Completed(completed) => &completed.common_fields,
         }
     }
 
@@ -204,6 +226,11 @@ impl InheritanceClaim {
                 sealed_dek: locked.sealed_dek.to_owned(),
                 sealed_mobile_key: locked.sealed_mobile_key.to_owned(),
                 locked_at: locked.locked_at,
+            }),
+            Self::Completed(completed) => Self::Completed(InheritanceClaimCompleted {
+                common_fields: common_fields.to_owned(),
+                psbt: completed.psbt.to_owned(),
+                completed_at: completed.completed_at,
             }),
         }
     }

@@ -12,13 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.textStyle
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material.LinearProgressIndicator as MaterialLinearProgressIndicator
 
 @Composable
@@ -51,26 +49,4 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
       }
     }
   }
-}
-
-@Preview
-@Composable
-internal fun ThreeStepIndicator() {
-  StepperIndicator(
-    model = FormMainContentModel.StepperIndicator(
-      progress = 0.5f,
-      labels = immutableListOf("Step 1", "Step 2", "Step 3")
-    )
-  )
-}
-
-@Preview
-@Composable
-internal fun SingleStepIndicator() {
-  StepperIndicator(
-    model = FormMainContentModel.StepperIndicator(
-      progress = 0.5f,
-      labels = immutableListOf("Step 1")
-    )
-  )
 }

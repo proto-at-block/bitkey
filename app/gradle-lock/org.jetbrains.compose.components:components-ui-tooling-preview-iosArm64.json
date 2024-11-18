@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-ui-tooling-preview-iosArm64",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iosarm64-1.6.11-metadata.jar": "f4dee43e399d462b868a39145749df3610d2c5e6ee0ab53530470f87b6803805"
+                        "library-iosarm64-1.7.0-metadata.jar": "f931154eb4cead6358d78729aa46b734b00a3e475a4fee4ee459dbde27da42ef"
                     }
                 },
                 {

@@ -96,11 +96,15 @@ impl Service {
             return Err(ServiceError::CustomerIsTrustedContact);
         }
 
+        let Some(role) = prev_common_fields.trusted_contact_info.roles.first() else {
+            return Err(ServiceError::MissingTrustedContactRoles);
+        };
         let relationship = self
             .repository
             .fetch_optional_recovery_relationship_for_account_ids(
                 customer_account_id,
                 input.trusted_contact_account_id,
+                role,
             )
             .await?;
         match relationship {

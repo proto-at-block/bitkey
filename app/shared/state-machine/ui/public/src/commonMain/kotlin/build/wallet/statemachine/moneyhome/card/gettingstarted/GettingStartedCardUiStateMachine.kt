@@ -1,7 +1,6 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.alert.ButtonAlertModel
 
@@ -17,7 +16,6 @@ interface GettingStartedCardUiStateMachine : StateMachine<GettingStartedCardUiPr
  * @property onInviteTrustedContact Incomplete [InviteTrustedContact] task row clicked
  */
 data class GettingStartedCardUiProps(
-  val accountData: ActiveFullAccountLoadedData,
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
   val onInviteTrustedContact: () -> Unit,

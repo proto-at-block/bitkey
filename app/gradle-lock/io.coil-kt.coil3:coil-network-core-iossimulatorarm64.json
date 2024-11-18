@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-network-core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-network-core-iossimulatorarm64-3.0.0-rc01-metadata.jar": "31939b9ff28d70e8d215fdf0d72ae677284d41a4eac2a915df2ac349df8d517a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil-network-core.klib": "5cd993d386b94abf955c09f3eacaadf741608587c899ef5bcacb6ff106179734"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

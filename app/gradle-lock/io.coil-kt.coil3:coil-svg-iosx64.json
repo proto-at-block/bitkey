@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-svg-iosx64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-svg-iosx64-3.0.0-rc01-metadata.jar": "4ba8275806037d3abbcc1f8ceb192713fcae72086e6157ca8c63a87b73f0cfa4"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil-svg.klib": "0c21fd127e58d1cd5c9b597e177c688f7334aca58d016b848bf32902db0c7524"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

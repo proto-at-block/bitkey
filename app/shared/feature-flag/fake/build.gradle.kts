@@ -6,12 +6,4 @@ plugins {
 
 kotlin {
   targets(ios = true, jvm = true)
-
-  sourceSets {
-    commonMain {
-      dependencies {
-        api(projects.shared.dbResultPublic)
-      }
-    }
-  }
 }

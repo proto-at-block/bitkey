@@ -15,14 +15,13 @@ class EmergencyAccessPayloadCreatorImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val appPrivateKeyDao: AppPrivateKeyDao,
+  private val emergencyAccessKitPayloadDecoder: EmergencyAccessKitPayloadDecoder,
 ) : EmergencyAccessPayloadCreator {
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
   ): Result<EmergencyAccessKitPayload, EmergencyAccessPayloadCreatorError> =
     coroutineBinding {
-      val emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl
-
       val xprv =
         appPrivateKeyDao
           .getAppSpendingPrivateKey(keybox.activeSpendingKeyset.appKey)

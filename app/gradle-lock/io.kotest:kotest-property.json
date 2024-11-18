@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-property",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-property-metadata-5.9.0.jar": "940407fb47fc389d22a81d62192a2e38bfa761c8f263ecfbfae03aa70ce54463"
+                        "kotest-property-metadata-6.0.0.M1.jar": "31357578f4c92598d90b4ae9d60770d19ff40f82edf8ffe926b77050a0a673fd"
                     }
                 }
             ],

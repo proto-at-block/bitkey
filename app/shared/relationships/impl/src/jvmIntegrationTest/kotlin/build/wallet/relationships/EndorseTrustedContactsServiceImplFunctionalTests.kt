@@ -30,7 +30,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   coroutineTestScope = true
 
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
   lateinit var relationshipsService: RelationshipsServiceImpl
   lateinit var endorseTrustedContactsService: EndorseTrustedContactsServiceImpl
   lateinit var relationshipsF8eClientFake: RelationshipsF8eClientFake
@@ -44,14 +44,14 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   val alias = TrustedContactAlias("trustedContactId")
 
   beforeTest {
-    appTester = launchNewApp(isUsingSocRecFakes = true)
+    app = launchNewApp(isUsingSocRecFakes = true)
 
     relationshipsF8eClientFake =
-      (appTester.app.appComponent.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
+      (app.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
     relationshipsF8eClientFake.acceptInvitationDelay = Duration.ZERO
-    relationshipsDao = appTester.app.appComponent.relationshipsDao
-    relationshipsEnrollmentAuthenticationDao = appTester.app.appComponent.relationshipsEnrollmentAuthenticationDao
-    relationshipsCrypto = appTester.app.relationshipsCryptoFake
+    relationshipsDao = app.relationshipsDao
+    relationshipsEnrollmentAuthenticationDao = app.relationshipsEnrollmentAuthenticationDao
+    relationshipsCrypto = app.relationshipsCryptoFake
     accountService.reset()
     accountService.setActiveAccount(FullAccountMock)
 
@@ -60,9 +60,10 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       relationshipsDao = relationshipsDao,
       relationshipsEnrollmentAuthenticationDao = relationshipsEnrollmentAuthenticationDao,
       relationshipsCrypto = relationshipsCrypto,
-      relationshipsCodeBuilder = appTester.app.appComponent.relationshipsCodeBuilder,
-      appSessionManager = appTester.app.appComponent.appSessionManager,
-      accountService = accountService
+      relationshipsCodeBuilder = app.relationshipsCodeBuilder,
+      appSessionManager = app.appSessionManager,
+      accountService = accountService,
+      appCoroutineScope = app.appCoroutineScope
     )
 
     endorseTrustedContactsService = EndorseTrustedContactsServiceImpl(
@@ -84,7 +85,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       .createInvitation(
         account = account,
         trustedContactAlias = alias,
-        hardwareProofOfPossession = appTester.getHardwareFactorProofOfPossession(),
+        hardwareProofOfPossession = app.getHardwareFactorProofOfPossession(),
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .getOrThrow()
@@ -132,7 +133,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("happy path") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     // Create TC invite
     val (_, tcIdentityKey) = simulateAcceptedInvite(account)
@@ -169,12 +170,12 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("Authenticate/regenerate/endorse - Empty") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     // Generate new Certs
     val newAppKey = relationshipsCrypto.generateAppAuthKeypair()
-    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+    val newHwKey = app.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = app.messageSigner.signResult(
       newAppKey.publicKey.value.encodeUtf8(),
       newHwKey.privateKey
     ).getOrThrow()
@@ -197,7 +198,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("Authenticate/regenerate/endorse - Success") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     // Create TC invite
     simulateAcceptedInvite(account)
@@ -210,8 +211,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
     // Generate new Certs
     val newAppKey = relationshipsCrypto.generateAppAuthKeypair()
-    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+    val newHwKey = app.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = app.messageSigner.signResult(
       newAppKey.publicKey.value.encodeUtf8(),
       newHwKey.privateKey
     ).getOrThrow()
@@ -234,7 +235,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("Authenticate/regenerate/endorse - Tamper") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     // Create TC invite
     simulateAcceptedInvite(account)
@@ -247,8 +248,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
     // Generate New Certs
     val newAppKey = relationshipsCrypto.generateAppAuthKeypair()
-    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+    val newHwKey = app.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = app.messageSigner.signResult(
       newAppKey.publicKey.value.encodeUtf8(),
       newHwKey.privateKey
     ).getOrThrow()
@@ -279,7 +280,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("missing pake data") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     // Creat TC invite
     simulateAcceptedInvite(account)
@@ -305,7 +306,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("authentication failed due to invalid key confirmation") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
 
@@ -322,7 +323,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("authentication failed due to wrong pake password") {
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overridePakeCode = "F00DBAD")
 
@@ -340,7 +341,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   test("one bad contact does not block a good contact") {
     // Onboard new account
-    val account = appTester.onboardFullAccountWithFakeHardware()
+    val account = app.onboardFullAccountWithFakeHardware()
     val (tcBad, _) = simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
     val (tcGood, tcGoodIdentityKey) = simulateAcceptedInvite(account)
 

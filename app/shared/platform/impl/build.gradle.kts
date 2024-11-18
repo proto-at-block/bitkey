@@ -1,4 +1,5 @@
 import build.wallet.gradle.logic.extensions.allTargets
+import build.wallet.gradle.logic.extensions.buildLogic
 
 plugins {
   id("build.wallet.kmp")
@@ -31,6 +32,14 @@ kotlin {
         implementation(libs.android.pbfbox)
         implementation(libs.android.biometric)
       }
+    }
+  }
+}
+
+buildLogic {
+  android {
+    buildFeatures {
+      androidResources = true
     }
   }
 }

@@ -5,12 +5,12 @@ import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.CsekDao
+import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup.EmergencyAccessKitBackupV1
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.AccountRestoration
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError
-import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError.CsekMissing
-import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError.DecryptionFailed
-import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError.InvalidBackup
+import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError.*
 import build.wallet.encrypt.SymmetricKeyEncryptor
+import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -21,13 +21,12 @@ class EmergencyAccessPayloadRestorerImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val appPrivateKeyDao: AppPrivateKeyDao,
+  private val emergencyAccessKitPayloadDecoder: EmergencyAccessKitPayloadDecoder,
 ) : EmergencyAccessPayloadRestorer {
   override suspend fun restoreFromPayload(
     payload: EmergencyAccessKitPayload,
   ): Result<AccountRestoration, EmergencyAccessPayloadRestorerError> =
     coroutineBinding {
-      val decoder = EmergencyAccessKitPayloadDecoderImpl
-
       when (payload) {
         is EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1 -> {
           val pkek =
@@ -47,9 +46,13 @@ class EmergencyAccessPayloadRestorerImpl(
               .bind()
 
           val backup =
-            decoder.decodeDecryptedBackup(encodedBackup)
+            emergencyAccessKitPayloadDecoder.decodeDecryptedBackup(encodedBackup)
               .mapError { InvalidBackup(cause = it) }
               .bind()
+
+          ensure(backup is EmergencyAccessKitBackupV1) {
+            InvalidBackup(Error("Expected backup to be of type EmergencyAccessKitBackupV1."))
+          }
 
           // Load the spending app private key into the DAO.
           appPrivateKeyDao.storeAppSpendingKeyPair(

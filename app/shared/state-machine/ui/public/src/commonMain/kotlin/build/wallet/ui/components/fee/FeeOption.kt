@@ -23,7 +23,6 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun FeeOption(
@@ -103,64 +102,4 @@ fun FeeOption(
       }
     }
   }
-}
-
-@Preview
-@Composable
-fun PreviewFeeOptionSelected() {
-  FeeOption(
-    modifier = Modifier.fillMaxWidth(),
-    leadingText = "Priority",
-    trailingPrimaryText = "~30 mins",
-    trailingSecondaryText = "$0.33 (1,086 sats)",
-    selected = true,
-    enabled = true,
-    infoText = "",
-    onClick = {}
-  )
-}
-
-@Preview
-@Composable
-fun PreviewFeeOptionNotSelected() {
-  FeeOption(
-    modifier = Modifier.fillMaxWidth(),
-    leadingText = "Priority",
-    trailingPrimaryText = "~30 mins",
-    trailingSecondaryText = "$0.33 (1,086 sats)",
-    selected = false,
-    enabled = true,
-    infoText = "",
-    onClick = {}
-  )
-}
-
-@Preview
-@Composable
-fun PreviewFeeOptionDisabled() {
-  FeeOption(
-    modifier = Modifier.fillMaxWidth(),
-    leadingText = "Priority",
-    trailingPrimaryText = "~30 mins",
-    trailingSecondaryText = "$0.33 (1,086 sats)",
-    selected = false,
-    enabled = false,
-    infoText = "Not enough balance",
-    onClick = {}
-  )
-}
-
-@Preview
-@Composable
-internal fun PreviewFeeOptionEnabledWithInfoText() {
-  FeeOption(
-    modifier = Modifier.fillMaxWidth(),
-    leadingText = "Priority",
-    trailingPrimaryText = "~30 mins",
-    trailingSecondaryText = "$0.33 (1,086 sats)",
-    selected = false,
-    enabled = true,
-    infoText = "All fees are equal – we’ve selected the fastest option for you",
-    onClick = {}
-  )
 }

@@ -10,12 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.TabBarModel
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.theme.WalletTheme
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun TabBar(
@@ -63,83 +60,5 @@ fun TabBar(
     ) {
       items()
     }
-  }
-}
-
-@Preview
-@Composable
-fun TabBarTwoItemsPreview() {
-  PreviewWalletTheme {
-    TabBar(
-      items = {
-        TabBarItem(
-          icon = Icon.TabIconHome,
-          selected = true,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconProfile,
-          selected = false,
-          onClick = {}
-        )
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun TabBarThreeItemsPreview() {
-  PreviewWalletTheme {
-    TabBar(
-      items = {
-        TabBarItem(
-          icon = Icon.TabIconHome,
-          selected = false,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconProfile,
-          selected = true,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconProfile,
-          selected = false,
-          onClick = {}
-        )
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
-fun TabBarFourItemsPreview() {
-  PreviewWalletTheme {
-    TabBar(
-      items = {
-        TabBarItem(
-          icon = Icon.TabIconHome,
-          selected = false,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconHome,
-          selected = true,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconProfile,
-          selected = false,
-          onClick = {}
-        )
-        TabBarItem(
-          icon = Icon.TabIconProfile,
-          selected = false,
-          onClick = {}
-        )
-      }
-    )
   }
 }

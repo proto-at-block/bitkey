@@ -25,9 +25,9 @@ kotlin {
       dependencies {
         api(libs.kmp.big.number)
         api(libs.kmp.wire.runtime)
-        api(projects.shared.dbResultPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.platformPublic)
+        api(projects.shared.queueProcessorPublic)
         implementation(projects.shared.featureFlagPublic)
         implementation(libs.kmp.kotlin.serialization.core)
         implementation(libs.kmp.okio)

@@ -1,10 +1,9 @@
 package build.wallet.gradle.logic.extensions
 
+import build.wallet.gradle.logic.android
 import build.wallet.gradle.logic.gradle.debugImplementation
 import build.wallet.gradle.logic.gradle.implementation
 import build.wallet.gradle.logic.gradle.libs
-import com.android.build.api.dsl.CommonExtension
-import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.dependencies
@@ -86,6 +85,3 @@ open class ComposeExtension
       }
     }
   }
-
-private fun Project.android(configure: Action<CommonExtension<*, *, *, *, *, *>>): Unit =
-  extensions.configure("android", configure)

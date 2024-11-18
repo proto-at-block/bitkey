@@ -23,3 +23,6 @@ tracing = { workspace = true }
 bdk_utils = { workspace = true }
 database = { workspace = true }
 types = { workspace = true }
+
+[lints]
+workspace = true

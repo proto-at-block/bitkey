@@ -4,7 +4,6 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.SocRecKeyPurpose
 import build.wallet.crypto.PublicKey
-import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -45,7 +44,7 @@ class RelationshipsKeysDaoFake : RelationshipsKeysDao {
     return Ok(Unit)
   }
 
-  override suspend fun clear(): Result<Unit, DbTransactionError> {
+  override suspend fun clear(): Result<Unit, Error> {
     keys.clear()
     return Ok(Unit)
   }

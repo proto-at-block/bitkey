@@ -2,7 +2,6 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -19,23 +18,23 @@ class SpendingLimitDaoMock(
 
   override fun activeSpendingLimit(): Flow<SpendingLimit?> = activeLimitFlow
 
-  override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, DbError> {
+  override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, Error> {
     return Ok(limits.firstOrNull())
   }
 
-  override suspend fun saveAndSetSpendingLimit(limit: SpendingLimit): Result<Unit, DbError> {
+  override suspend fun saveAndSetSpendingLimit(limit: SpendingLimit): Result<Unit, Error> {
     limits.add(limit)
     activeLimitFlow.emit(limit)
     return Ok(Unit)
   }
 
-  override suspend fun disableSpendingLimit(): Result<Unit, DbError> {
+  override suspend fun disableSpendingLimit(): Result<Unit, Error> {
     clearActiveLimitCalls += Unit
     activeLimitFlow.emit(null)
     return Ok(Unit)
   }
 
-  override suspend fun removeAllLimits(): Result<Unit, DbError> {
+  override suspend fun removeAllLimits(): Result<Unit, Error> {
     removeAllLimitsCalls += Unit
     limits.clear()
     return Ok(Unit)

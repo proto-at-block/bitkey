@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-desktop",
     "components": [
         {
-            "version": "1.6.11",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "material-desktop-1.6.11.jar": "506aed788b6a43f7e2ec44b0d40362b4ac10e09cba8384fb565fbc772d26c869"
+                        "material-desktop-1.7.0.jar": "2425f65005560f65ed7321b2f8209079e4c53085affc8363e86e82362944f442"
                     }
                 }
             ],

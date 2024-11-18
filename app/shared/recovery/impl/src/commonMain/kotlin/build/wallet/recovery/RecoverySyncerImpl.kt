@@ -2,7 +2,6 @@ package build.wallet.recovery
 
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClient
 import build.wallet.logging.log
@@ -73,7 +72,7 @@ class RecoverySyncerImpl(
       }
     }
 
-  override fun recoveryStatus(): Flow<Result<Recovery, DbError>> {
+  override fun recoveryStatus(): Flow<Result<Recovery, Error>> {
     // Return a flow that emits whenever the recovery status changes. This could be an advancement
     // of a local recovery to a new phase, or entering a state where our local recovery attempt
     // was canceled on the server. We do this by listening to changes to both the cached active
@@ -84,11 +83,11 @@ class RecoverySyncerImpl(
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     return recoveryDao.setLocalRecoveryProgress(progress)
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     return recoveryDao.clear()
   }
 }

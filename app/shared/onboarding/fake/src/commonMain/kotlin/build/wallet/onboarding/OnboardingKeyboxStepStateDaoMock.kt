@@ -1,7 +1,6 @@
 package build.wallet.onboarding
 
 import app.cash.turbine.Turbine
-import build.wallet.db.DbError
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
@@ -19,7 +18,7 @@ class OnboardingKeyboxStepStateDaoMock(
   override suspend fun setStateForStep(
     step: OnboardingKeyboxStep,
     state: OnboardingKeyboxStepState,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     val pair = Pair(step, state)
     setStateForStepCalls.add(pair)
     return Ok(Unit)
@@ -35,7 +34,7 @@ class OnboardingKeyboxStepStateDaoMock(
     }
   }
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     clearCalls.add(Unit)
     return Ok(Unit)
   }

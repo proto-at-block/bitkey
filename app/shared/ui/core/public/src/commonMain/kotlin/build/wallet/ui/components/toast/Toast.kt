@@ -34,12 +34,9 @@ import build.wallet.ui.components.icon.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toast.ToastModel
-import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.Font
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import kotlin.time.Duration.Companion.seconds
 
 /*
@@ -70,7 +67,7 @@ fun Toast(model: ToastModel?) {
 }
 
 @Composable
-private fun ToastComposable(model: ToastModel?) {
+internal fun ToastComposable(model: ToastModel?) {
   Column(
     modifier = Modifier
       .fillMaxSize(),
@@ -131,26 +128,6 @@ private fun ToastComposable(model: ToastModel?) {
           fontFamily = FontFamily(Font(Res.font.inter_medium)),
           fontWeight = FontWeight(500),
           color = Color.White
-        )
-      )
-    }
-  }
-}
-
-@Preview
-@Composable
-internal fun ToastPreview() {
-  PreviewWalletTheme {
-    Column {
-      ToastComposable(
-        model = ToastModel(
-          leadingIcon = IconModel(
-            icon = Icon.SmallIconCheckFilled,
-            iconSize = IconSize.Accessory,
-            iconTint = IconTint.Success
-          ),
-          title = "This is a toast",
-          whiteIconStroke = true
         )
       )
     }

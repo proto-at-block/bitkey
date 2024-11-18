@@ -1,5 +1,6 @@
 package build.wallet.statemachine.limit.picker
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.money.BitcoinMoney
@@ -7,7 +8,6 @@ import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 
 /**
  * Spending limit picker state machine
@@ -25,7 +25,7 @@ interface SpendingLimitPickerUiStateMachine : StateMachine<SpendingLimitPickerUi
  * it with hardware.
  */
 data class SpendingLimitPickerUiProps(
-  val accountData: ActiveFullAccountLoadedData,
+  val account: FullAccount,
   val initialLimit: FiatMoney,
   val retreat: Retreat,
   val onSaveLimit: (

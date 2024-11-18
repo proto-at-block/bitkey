@@ -2,65 +2,16 @@ use crate::service::inheritance::error::ServiceError;
 use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
 use crate::service::inheritance::tests::{
     cancel_claim, construct_test_inheritance_service, create_inheritance_package,
-    create_pending_inheritance_claim,
+    create_pending_inheritance_claim, setup_accounts, setup_keys_and_signatures,
 };
 use account::service::tests::{
     construct_test_account_service, create_full_account_for_test, generate_test_authkeys,
 };
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
-use bdk_utils::bdk::bitcoin::secp256k1;
-use bdk_utils::signature::sign_message;
-use rand::thread_rng;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Account, FullAccount};
-use types::account::keys::FullAccountAuthKeys;
-use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId,
-};
-
-async fn setup_accounts() -> (FullAccount, Account) {
-    let account_service = construct_test_account_service().await;
-    let benefactor_account = create_full_account_for_test(
-        &account_service,
-        Network::BitcoinSignet,
-        &generate_test_authkeys().into(),
-    )
-    .await;
-
-    let beneficiary_account = Account::Full(
-        create_full_account_for_test(
-            &account_service,
-            Network::BitcoinSignet,
-            &generate_test_authkeys().into(),
-        )
-        .await,
-    );
-
-    (benefactor_account, beneficiary_account)
-}
-
-fn setup_keys_and_signatures(
-    secp: &Secp256k1<secp256k1::All>,
-) -> (InheritanceClaimAuthKeys, String, String, String) {
-    let (app_auth_seckey, app_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
-    let (hardware_auth_seckey, hardware_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
-    let (_recovery_auth_seckey, recovery_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
-    let auth_keys = InheritanceClaimAuthKeys::FullAccount(FullAccountAuthKeys::new(
-        app_auth_pubkey,
-        hardware_auth_pubkey,
-        Some(recovery_auth_pubkey),
-    ));
-
-    let challenge = "LockInheritanceClaim".to_string()
-        + &hardware_auth_pubkey.to_string()
-        + &app_auth_pubkey.to_string()
-        + &recovery_auth_pubkey.to_string();
-    let app_signature = sign_message(secp, &challenge, &app_auth_seckey);
-    let hardware_signature = sign_message(secp, &challenge, &hardware_auth_seckey);
-
-    (auth_keys, challenge, app_signature, hardware_signature)
-}
+use types::account::entities::Account;
+use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId};
 
 #[tokio::test]
 async fn test_lock_inheritance_claim_success() {
@@ -69,8 +20,7 @@ async fn test_lock_inheritance_claim_success() {
     let (benefactor_account, beneficiary_account) = setup_accounts().await;
 
     let secp = Secp256k1::new();
-    let (auth_keys, challenge, app_signature, hardware_signature) =
-        setup_keys_and_signatures(&secp);
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
 
     let delay_end_time = OffsetDateTime::now_utc() - Duration::minutes(5);
     let pending_claim = create_pending_inheritance_claim(
@@ -93,7 +43,6 @@ async fn test_lock_inheritance_claim_success() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -140,8 +89,7 @@ async fn test_lock_inheritance_claim_before_delay_end_fails() {
     let (benefactor_account, beneficiary_account) = setup_accounts().await;
 
     let secp = Secp256k1::new();
-    let (auth_keys, challenge, app_signature, hardware_signature) =
-        setup_keys_and_signatures(&secp);
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
 
     let pending_claim = create_pending_inheritance_claim(
         &benefactor_account,
@@ -161,7 +109,6 @@ async fn test_lock_inheritance_claim_before_delay_end_fails() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -189,7 +136,6 @@ async fn test_lock_inheritance_claim_no_pending_claim() {
 
     let challenge = "challenge".to_string();
     let app_signature = "app_signature".to_string();
-    let hardware_signature = "hardware_signature".to_string();
 
     let inheritance_claim_id = InheritanceClaimId::gen().expect("generate claim id");
 
@@ -199,7 +145,6 @@ async fn test_lock_inheritance_claim_no_pending_claim() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -221,7 +166,6 @@ async fn test_lock_inheritance_claim_invalid_challenge() {
 
     let challenge = "invalid_challenge".to_string();
     let app_signature = "app_signature".to_string();
-    let hardware_signature = "hardware_signature".to_string();
 
     let pending_claim = create_pending_inheritance_claim(
         &benefactor_account,
@@ -237,7 +181,6 @@ async fn test_lock_inheritance_claim_invalid_challenge() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -255,8 +198,7 @@ async fn test_lock_inheritance_claim_missing_package() {
     let (benefactor_account, beneficiary_account) = setup_accounts().await;
 
     let secp = Secp256k1::new();
-    let (auth_keys, challenge, app_signature, hardware_signature) =
-        setup_keys_and_signatures(&secp);
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
 
     let delay_end_time = OffsetDateTime::now_utc() - Duration::minutes(5);
     let pending_claim = create_pending_inheritance_claim(
@@ -273,7 +215,6 @@ async fn test_lock_inheritance_claim_missing_package() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -291,8 +232,7 @@ async fn test_lock_inheritance_claim_canceled_claim() {
     let (benefactor_account, beneficiary_account) = setup_accounts().await;
 
     let secp = Secp256k1::new();
-    let (auth_keys, challenge, app_signature, hardware_signature) =
-        setup_keys_and_signatures(&secp);
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
 
     let pending_claim = create_pending_inheritance_claim(
         &benefactor_account,
@@ -321,7 +261,6 @@ async fn test_lock_inheritance_claim_canceled_claim() {
         beneficiary_account: beneficiary_account.clone(),
         challenge,
         app_signature,
-        hardware_signature,
     };
     let result = inheritance_service.lock(input).await;
 
@@ -339,8 +278,7 @@ async fn test_lock_inheritance_claim_locked_claim_success() {
     let (benefactor_account, beneficiary_account) = setup_accounts().await;
 
     let secp = Secp256k1::new();
-    let (auth_keys, challenge, app_signature, hardware_signature) =
-        setup_keys_and_signatures(&secp);
+    let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
 
     let delay_end_time = OffsetDateTime::now_utc() - Duration::minutes(5);
     let pending_claim = create_pending_inheritance_claim(
@@ -362,7 +300,6 @@ async fn test_lock_inheritance_claim_locked_claim_success() {
         beneficiary_account,
         challenge,
         app_signature,
-        hardware_signature,
     };
     let locked_claim = inheritance_service
         .lock(input.clone())

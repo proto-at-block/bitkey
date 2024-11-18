@@ -9,16 +9,14 @@ import build.wallet.encrypt.*
 import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
+import build.wallet.frost.ShareGeneratorFactory
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.biometrics.BiometricPrompter
-import build.wallet.platform.config.AppId
-import build.wallet.platform.config.AppVariant
-import build.wallet.platform.config.DeviceOs
-import build.wallet.platform.config.DeviceTokenConfigProvider
+import build.wallet.platform.config.*
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManager
@@ -59,6 +57,7 @@ fun makeAppComponent(
   xChaCha20Poly1305: XChaCha20Poly1305,
   xNonceGenerator: XNonceGenerator,
   firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
+  shareGeneratorFactory: ShareGeneratorFactory,
 ): AppComponentImpl {
   val appId = AppId(NSBundle.mainBundle.bundleIdentifier!!)
   val appVersion =
@@ -66,7 +65,7 @@ fun makeAppComponent(
       val info = NSBundle.mainBundle.infoDictionary
       val version = info?.get("CFBundleShortVersionString")
       val build = info?.get("CFBundleVersion")
-      "$version.$build"
+      AppVersion("$version.$build")
     }
   val platformContext = PlatformContext()
   val fileDirectoryProvider = FileDirectoryProviderImpl(platformContext)
@@ -117,6 +116,7 @@ fun makeAppComponent(
     xChaCha20Poly1305 = xChaCha20Poly1305,
     xNonceGenerator = xNonceGenerator,
     firmwareCommsLogBuffer = firmwareCommsLogBuffer,
-    databaseIntegrityChecker = databaseIntegrityChecker
+    databaseIntegrityChecker = databaseIntegrityChecker,
+    shareGeneratorFactory = shareGeneratorFactory
   )
 }

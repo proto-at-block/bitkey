@@ -12,7 +12,6 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.db.DbError
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
@@ -235,7 +234,7 @@ class AccountDataStateMachineImpl(
   }
 
   @Composable
-  private fun rememberActiveRecovery(): Result<Recovery, DbError> {
+  private fun rememberActiveRecovery(): Result<Recovery, Error> {
     return remember { recoverySyncer.recoveryStatus() }
       .collectAsState(Ok(Loading)).value
   }

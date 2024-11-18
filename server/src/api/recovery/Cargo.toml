@@ -10,10 +10,12 @@ axum = { workspace = true }
 axum-macros = { workspace = true }
 futures = { workspace = true }
 hex = { workspace = true }
+mockall = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
@@ -33,9 +35,10 @@ feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 migration = { workspace = true }
-mockall = { workspace = true }
+mobile_pay = { workspace = true }
 notification = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
+screener = { workspace = true }
 types = { workspace = true, features = ["recovery"] }
 userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
@@ -43,3 +46,6 @@ wsm-rust-client = { workspace = true }
 [dev-dependencies]
 bdk_utils = { workspace = true, features = ["test-helpers"] }
 rstest = { workspace = true }
+
+[lints]
+workspace = true

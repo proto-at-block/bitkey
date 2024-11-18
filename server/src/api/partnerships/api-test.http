@@ -1,0 +1,130 @@
+// common variables
+@TOKEN=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJURVNUIiwiaXNzIjoiVEVTVCIsImNsaWVudF9pZCI6IlRFU1QiLCJvcmlnaW5fanRpIjoiVEVTVCIsImV2ZW50X2lkIjoiVEVTVCIsInRva2VuX3VzZSI6ImFjY2VzcyIsInNjb3BlIjoiYXdzLmNvZ25pdG8uc2lnbmluLnVzZXIuYWRtaW4iLCJhdXRoX3RpbWUiOjE3MjQ3NzA3ODQsImV4cCI6MjM1NTQ5MDc4NCwiaWF0IjoxNzI0NzcwNzg0LCJqdGkiOiJURVNUIiwidXNlcm5hbWUiOiJ1cm46d2FsbGV0LWFjY291bnQ6MDFKNkE1SzRZVjhLOUJZMVNSUkNTMFNHNjAtYXBwIn0.0fpJpTfcToL1tjCzPYBKRJAeWb0zSfi9ySN0IWUZPVU
+@ENDPOINT=http://localhost:8080/api/partnerships
+
+// api params
+
+// location
+@COUNTRY=US
+@CURRENCY=USD
+
+// transfer
+@TRANSFER_PARTNER=TestnetFaucet
+@WALLET_ADDRESS=mkHS9ne12qx9pS9VojpwU5xtRd4T7X7ZUt
+
+// transaction
+@PARTNER_TRANSACTION_ID=123
+@PARTNER_TRANSACTION_TYPE=TRANSFER
+
+// purchase
+@PURCHASE_PARTNER=SignetFaucet
+@PURCHASE_AMOUNT=100
+@PAYMENT_METHOD=CARD
+
+// sale
+@SALE_PARTNER=SignetFaucet
+@CRYPTO_AMOUNT=10
+@FIAT_AMOUNT=100
+@REFUND_ADDRESS=bc1q7a7rjmfvqa5kta4rht54klmelh790xz3yyrwxpv935nm80xkst3sn7h8pr
+@SALE_PAYMENT_METHOD=FIAT_WALLET
+
+// common APIs
+
+### get partner
+GET {{ENDPOINT}}/partners/{{TRANSFER_PARTNER}}
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+### get partner transaction
+GET {{ENDPOINT}}/partners/{{TRANSFER_PARTNER}}/transactions/{{PARTNER_TRANSACTION_ID}}?transaction_type={{PARTNER_TRANSACTION_TYPE}}
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+// transfer APIs
+
+### transfer partners
+POST {{ENDPOINT}}/transfers
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "country": "{{COUNTRY}}"
+}
+
+### transfer redirect
+POST {{ENDPOINT}}/transfers/redirects
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+    "address": "{{WALLET_ADDRESS}}",
+    "partner": "{{TRANSFER_PARTNER}}"
+}
+
+// purchase APIs
+
+### purchase options
+GET {{ENDPOINT}}/purchases/options?country={{COUNTRY}}&fiat_currency={{CURRENCY}}
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+### purchase quotes
+POST {{ENDPOINT}}/purchases/quotes
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "fiat_amount": {{PURCHASE_AMOUNT}},
+  "fiat_currency": "{{CURRENCY}}",
+  "payment_method": "{{PAYMENT_METHOD}}",
+  "country": "{{COUNTRY}}"
+}
+
+### purchase redirect
+POST {{ENDPOINT}}/purchases/redirects
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "address": "{{WALLET_ADDRESS}}",
+  "partner": "{{PURCHASE_PARTNER}}",
+  "fiat_amount": {{PURCHASE_AMOUNT}},
+  "fiat_currency": "{{CURRENCY}}",
+  "payment_method": "{{PAYMENT_METHOD}}"
+}
+
+// sale APIs
+
+### sale quotes
+POST {{ENDPOINT}}/sales/quotes
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "country": "{{COUNTRY}}",
+  "crypto_amount": {{CRYPTO_AMOUNT}},
+  "fiat_currency": "{{CURRENCY}}"
+}
+
+### sale redirect
+POST {{ENDPOINT}}/sales/redirects
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "refund_address": "{{REFUND_ADDRESS}}",
+  "partner": "{{SALE_PARTNER}}",
+  "fiat_amount": {{FIAT_AMOUNT}},
+  "fiat_currency": "{{CURRENCY}}",
+  "payment_method": "{{SALE_PAYMENT_METHOD}}",
+  "transaction_id": "{{PARTNER_TRANSACTION_ID}}"
+}

@@ -96,6 +96,9 @@ run-server *args:
 grind-signet-coins:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron coin-grinder
 
+user-histogram:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron user-histogram
+
 # Run the server in debug mode
 migrate-from-unified-keysets:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- worker migrate-from-unified-keyset

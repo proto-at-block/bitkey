@@ -2,19 +2,10 @@ package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.cloud.store.cloudServiceProvider
-import build.wallet.di.ActivityComponentImpl
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
@@ -27,11 +18,7 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
-import build.wallet.testing.ext.deleteBackupsFromFakeCloud
-import build.wallet.testing.ext.getActiveWallet
-import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.FlakyTest
 import com.github.michaelbull.result.getOrThrow
@@ -43,40 +30,37 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
-  lateinit var appTester: AppTester
-  lateinit var app: ActivityComponentImpl
+  lateinit var app: AppTester
   lateinit var recoveryStateMachine: RecoveryTestingStateMachine
 
   suspend fun setup(initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero()) {
-    appTester = launchNewApp()
-    app = appTester.app
-    appTester.onboardFullAccountWithFakeHardware(delayNotifyDuration = 2.seconds)
+    app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 2.seconds)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
-      val wallet = appTester.getActiveWallet()
-      appTester.treasuryWallet.fund(wallet, initWithTreasuryFunds)
+      val wallet = app.getActiveWallet()
+      app.treasuryWallet.fund(wallet, initWithTreasuryFunds)
     }
     app.appDataDeleter.deleteAll().getOrThrow()
     app.cloudBackupDeleter.delete(cloudServiceProvider())
-    appTester.deleteBackupsFromFakeCloud()
+    app.deleteBackupsFromFakeCloud()
     recoveryStateMachine =
       RecoveryTestingStateMachine(
         app.accountDataStateMachine,
         app.recoveringKeyboxUiStateMachine,
         app.recoverySyncer,
-        app.appComponent.accountService
+        app.accountService
       )
   }
 
   suspend fun resetApp() {
-    appTester = appTester.relaunchApp()
-    app = appTester.app
-    app.appComponent.debugOptionsService.setDelayNotifyDuration(2.seconds)
+    app = app.relaunchApp()
+    app.debugOptionsService.setDelayNotifyDuration(2.seconds)
     recoveryStateMachine =
       RecoveryTestingStateMachine(
         app.accountDataStateMachine,
         app.recoveringKeyboxUiStateMachine,
         app.recoverySyncer,
-        app.appComponent.accountService
+        app.accountService
       )
   }
 
@@ -96,7 +80,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
             .clickPrimaryButton()
           awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-          appTester.completeRecoveryDelayPeriodOnF8e()
+          app.completeRecoveryDelayPeriodOnF8e()
           awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
             .clickPrimaryButton()
           awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -149,7 +133,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeRecoveryDelayPeriodOnF8e()
+        app.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -187,7 +171,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeRecoveryDelayPeriodOnF8e()
+        app.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -237,7 +221,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeRecoveryDelayPeriodOnF8e()
+        app.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -303,7 +287,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       ) {
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeRecoveryDelayPeriodOnF8e()
+        app.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -330,7 +314,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .clickPrimaryButton()
       awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-      appTester.completeRecoveryDelayPeriodOnF8e()
+      app.completeRecoveryDelayPeriodOnF8e()
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -363,12 +347,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           initialDelay = 1.seconds
         }
       ) {
-        val activeWallet = appTester.getActiveWallet()
+        val activeWallet = app.getActiveWallet()
         activeWallet.sync().shouldBeOk()
         val balance = activeWallet.balance().first()
         balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
         // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
-        appTester.returnFundsToTreasury()
+        app.returnFundsToTreasury()
       }
     }
   }

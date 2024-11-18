@@ -12,6 +12,8 @@ import build.wallet.crypto.WsmVerifier
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.url
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform.Android
 import com.github.michaelbull.result.get
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
@@ -28,6 +30,7 @@ import io.ktor.util.appendIfNameAbsent
 class F8eHttpClientImpl(
   private val authTokensRepository: AuthTokensRepository,
   private val proofOfPossessionPluginProvider: ProofOfPossessionPluginProvider,
+  private val deviceInfoProvider: DeviceInfoProvider,
   private val unauthenticatedF8eHttpClient: UnauthenticatedF8eHttpClient,
   private val f8eHttpClientProvider: F8eHttpClientProvider,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
@@ -60,10 +63,12 @@ class F8eHttpClientImpl(
       installAuthPlugin(f8eEnvironment, accountId, authTokenScope)
 
       defaultRequest {
+        val deviceInfo = deviceInfoProvider.getDeviceInfo()
+        val isAndroidEmulator = deviceInfo.devicePlatform == Android && deviceInfo.isEmulator
         // We don't want to replace these two headers if already provided.
         headers.appendIfNameAbsent(HttpHeaders.Accept, Json.toString())
         headers.appendIfNameAbsent(HttpHeaders.ContentType, Json.toString())
-        url(f8eEnvironment.url)
+        url(f8eEnvironment.url(isAndroidEmulator))
       }
 
       HttpResponseValidator {

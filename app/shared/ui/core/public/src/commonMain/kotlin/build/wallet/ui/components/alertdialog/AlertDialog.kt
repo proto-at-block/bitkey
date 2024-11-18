@@ -23,8 +23,6 @@ import build.wallet.ui.model.alert.InputAlertModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
 import androidx.compose.material3.BasicAlertDialog as MaterialBasicAlertDialog
 
@@ -141,38 +139,3 @@ private fun ButtonAlertModel.ButtonStyle.toComposeColor(): Color =
     ButtonAlertModel.ButtonStyle.Default -> Color.Unspecified
     ButtonAlertModel.ButtonStyle.Destructive -> WalletTheme.colors.destructive
   }
-
-@Preview
-@Composable
-internal fun ButtonAlertDialogPreview() {
-  PreviewWalletTheme {
-    AlertDialog(
-      ButtonAlertModel(
-        title = "Alert Title",
-        subline = "Alert Text",
-        onDismiss = {},
-        onSecondaryButtonClick = {},
-        onPrimaryButtonClick = {},
-        primaryButtonText = "Confirm",
-        secondaryButtonText = "Dismiss"
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun InputAlertDialogPreview() {
-  PreviewWalletTheme {
-    AlertDialog(
-      InputAlertModel(
-        title = "Alert Title",
-        subline = "Alert Text",
-        onDismiss = {},
-        onConfirm = {},
-        onCancel = {},
-        value = "3000"
-      )
-    )
-  }
-}

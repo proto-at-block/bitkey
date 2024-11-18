@@ -3,7 +3,6 @@ package build.wallet.recovery
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.crypto.PublicKey
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 
 /**
@@ -26,7 +25,7 @@ interface RecoveryAppAuthPublicKeyProvider {
 sealed class RecoveryAppAuthPublicKeyProviderError : Error() {
   /** Failure when reading the database. Unexpected. */
   data class FailedToReadRecoveryEntity(
-    val dbError: DbError,
+    override val cause: Error,
   ) : RecoveryAppAuthPublicKeyProviderError()
 
   /** Failure when expecting an in-progress recovery. Unexpected. */

@@ -46,7 +46,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     turbines.create<Pair<FiatMoney, FiatMoney>>(
       "on select custom amount"
     )
-  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+  val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
@@ -61,7 +61,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     getPurchaseOptionsF8eClient = getPurchaseOptionsF8eClient,
     getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
     getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
-    partnershipsRepository = partnershipRepositoryMock,
+    partnershipTransactionsService = partnershipTransactionsService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     eventTracker = eventTracker,
     currencyConverter = currencyConverter,
@@ -185,7 +185,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
-      partnershipRepositoryMock.previouslyUsedPartnerIds.value = listOf(PartnerId("used-partner"))
+      partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(PartnerId("used-partner"))
       val quote = Quote(
         fiatCurrency = "USD",
         cryptoAmount = 0.00195701,
@@ -250,7 +250,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
-      partnershipRepositoryMock.previouslyUsedPartnerIds.value = listOf(
+      partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(
         PartnerId("used-1"),
         PartnerId("used-2")
       )
@@ -368,7 +368,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
 
-        partnershipRepositoryMock.createCalls.awaitItem().should { (partnerInfo, type) ->
+        partnershipTransactionsService.createCalls.awaitItem().should { (partnerInfo, type) ->
           type.shouldBe(PartnershipTransactionType.PURCHASE)
           partnerInfo.shouldBe(
             PartnerInfo(

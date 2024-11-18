@@ -25,6 +25,7 @@ pub mod mempool_polling;
 pub mod metrics;
 pub mod scheduled_notification;
 pub mod unified_keyset_migration;
+pub mod user_metrics;
 
 #[derive(Clone, Deserialize)]
 pub struct Config {

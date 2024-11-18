@@ -11,22 +11,22 @@ import io.kotest.core.spec.style.FunSpec
 class AppDataDeleterImplComponentTests : FunSpec({
 
   test("delete app data when has Full Account") {
-    val appTester = launchNewApp()
-    appTester.onboardFullAccountWithFakeHardware()
+    val app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware()
 
-    appTester.app.appDataDeleter.deleteAll().shouldBeOk()
+    app.appDataDeleter.deleteAll().shouldBeOk()
 
-    appTester.app.appUiStateMachine.test(Unit) {
+    app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
 
   test("delete app state when already in empty state") {
-    val appTester = launchNewApp()
-    appTester.app.appDataDeleter.deleteAll().shouldBeOk()
+    val app = launchNewApp()
+    app.appDataDeleter.deleteAll().shouldBeOk()
 
-    appTester.app.appUiStateMachine.test(Unit) {
+    app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
       cancelAndIgnoreRemainingEvents()
     }

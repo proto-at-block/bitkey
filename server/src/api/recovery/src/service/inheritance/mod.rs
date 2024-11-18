@@ -3,12 +3,18 @@ use crate::service::inheritance::error::ServiceError;
 use crate::service::social::relationship::get_recovery_relationships::{
     GetRecoveryRelationshipsInput, GetRecoveryRelationshipsOutput,
 };
-use account::service::Service as AccountService;
+use account::service::{FetchAccountInput, Service as AccountService};
+
+use bdk_utils::DescriptorKeyset;
 use feature_flags::service::Service as FeatureFlagsService;
 use notification::service::Service as NotificationService;
 use repository::recovery::inheritance::InheritanceRepository;
+use screener::service::Service as ScreenerService;
+use std::sync::Arc;
 use tokio::join;
-use types::account::identifiers::AccountId;
+use tracing::{event, instrument, Level};
+use types::account::entities::Account;
+use types::account::identifiers::{AccountId, KeysetId};
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
@@ -21,6 +27,7 @@ pub mod update_inheritance_claim_destination;
 mod error;
 pub mod get_inheritance_claims;
 pub mod lock_inheritance_claim;
+pub mod sign_and_complete_inheritance_claim;
 
 #[cfg(test)]
 mod tests;
@@ -32,6 +39,7 @@ pub struct Service {
     pub notification_service: NotificationService,
     pub account_service: AccountService,
     pub feature_flags_service: FeatureFlagsService,
+    pub screener_service: Arc<ScreenerService>,
 }
 
 impl Service {
@@ -42,6 +50,7 @@ impl Service {
         notification_service: NotificationService,
         account_service: AccountService,
         feature_flags_service: FeatureFlagsService,
+        screener_service: Arc<ScreenerService>,
     ) -> Self {
         Self {
             repository,
@@ -49,7 +58,52 @@ impl Service {
             notification_service,
             account_service,
             feature_flags_service,
+            screener_service,
         }
+    }
+
+    #[instrument(skip(self))]
+    async fn fetch_active_benefactor_descriptor_keyset(
+        &self,
+        recovery_relationship_id: &RecoveryRelationshipId,
+    ) -> Result<(KeysetId, DescriptorKeyset), ServiceError> {
+        let account = self.get_customer_account(recovery_relationship_id).await?;
+        match account {
+            Account::Full(account) => {
+                let active_descriptor_keyset = account
+                    .active_descriptor_keyset()
+                    .ok_or(ServiceError::NoActiveDescriptorKeySet)?;
+
+                let active_keyset_id = account.active_keyset_id;
+
+                Ok((active_keyset_id, active_descriptor_keyset))
+            }
+            _ => Err(ServiceError::IncompatibleAccountType),
+        }
+    }
+
+    #[instrument(skip(self))]
+    async fn get_customer_account(
+        &self,
+        recovery_relationship_id: &RecoveryRelationshipId,
+    ) -> Result<Account, ServiceError> {
+        let relationship = self
+            .recovery_relationship_service
+            .repository
+            .fetch_recovery_relationship(recovery_relationship_id)
+            .await?;
+        let customer_account_id = relationship.common_fields().customer_account_id.clone();
+        let customer_account = self
+            .account_service
+            .fetch_account(FetchAccountInput {
+                account_id: &customer_account_id,
+            })
+            .await
+            .map_err(|err| {
+                event!(Level::ERROR, "Could not fetch account: {:?}", err);
+                ServiceError::MismatchingRecoveryRelationship
+            })?;
+        Ok(customer_account)
     }
 }
 

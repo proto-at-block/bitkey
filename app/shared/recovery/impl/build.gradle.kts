@@ -12,7 +12,6 @@ kotlin {
       dependencies {
         api(projects.shared.databasePublic)
         api(projects.shared.f8eClientPublic)
-        api(projects.shared.coroutinesPublic)
         api(projects.shared.serializationPublic)
         implementation(projects.shared.queueProcessorPublic)
         implementation(projects.shared.relationshipsPublic)

@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-framework-engine-iosx64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-engine-iosx64-5.9.0-metadata.jar": "d4bd5db22f91b0270db827f71b64343d250ca2113e167a7c9ab42fea4b6febb5"
+                        "kotest-framework-engine-iosx64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-framework-engine.klib": "6e7d7330acacbc338f4345bb2ba2bae2dde3f0fddec9fd8bffe2b76120beb543"
+                        "kotest-framework-engine.klib": "54aa4c83ed14fab9ea71efdf2179f364b70109a6b83c6ef4adef96692ebdc1b5"
                     }
                 }
             ],

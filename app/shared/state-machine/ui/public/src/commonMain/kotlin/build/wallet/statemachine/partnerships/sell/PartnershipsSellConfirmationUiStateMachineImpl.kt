@@ -16,7 +16,7 @@ import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionId
-import build.wallet.partnerships.PartnershipTransactionsStatusRepository
+import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.partnerships.PartnershipsSegment
 import build.wallet.statemachine.partnerships.sell.ConfirmationState.*
@@ -24,7 +24,7 @@ import build.wallet.statemachine.send.TransferConfirmationScreenVariant
 import build.wallet.statemachine.send.TransferConfirmationUiProps
 import build.wallet.statemachine.send.TransferConfirmationUiStateMachine
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
-import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachineImpl
+import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -33,8 +33,8 @@ import kotlinx.collections.immutable.toImmutableList
 
 class PartnershipsSellConfirmationUiStateMachineImpl(
   private val transferConfirmationUiStateMachine: TransferConfirmationUiStateMachine,
-  private val feeSelectionUiStateMachineImpl: FeeSelectionUiStateMachineImpl,
-  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val feeSelectionUiStateMachineImpl: FeeSelectionUiStateMachine,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
   private val exchangeRateService: ExchangeRateService,
 ) : PartnershipsSellConfirmationUiStateMachine {
   @Composable
@@ -204,8 +204,8 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
         return@LaunchedEffect
       }
 
-      partnershipsRepository.syncTransaction(
-        fullAccountId = keybox.fullAccountId,
+      partnershipTransactionsService.syncTransaction(
+        accountId = keybox.fullAccountId,
         f8eEnvironment = keybox.config.f8eEnvironment,
         transactionId = transactionId
       )

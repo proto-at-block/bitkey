@@ -1,12 +1,7 @@
 package build.wallet.bitcoin.sync
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
-import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
-import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
-import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
-import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.platform.device.DevicePlatform.Android
+import build.wallet.bitcoin.BitcoinNetworkType.*
 
 /**
  * This extension function here allows us to point to different Mempool Electrum servers based on
@@ -15,7 +10,9 @@ import build.wallet.platform.device.DevicePlatform.Android
  * Specifically, this is mostly used to determine which Electrum node we want users to connect to,
  * if they did not specify one in settings.
  */
-fun BitcoinNetworkType.mempoolElectrumServerDetails(): ElectrumServerDetails {
+fun BitcoinNetworkType.mempoolElectrumServerDetails(
+  isAndroidEmulator: Boolean,
+): ElectrumServerDetails {
   return when (this) {
     BITCOIN ->
       ElectrumServerDetails(
@@ -40,15 +37,10 @@ fun BitcoinNetworkType.mempoolElectrumServerDetails(): ElectrumServerDetails {
         protocol = "tcp",
         // Android emulator puts the host device's localhost IP at 10.0.2.2
         // https://developer.android.com/studio/run/emulator-networking
-        host =
-          if (DeviceInfoProvider.default.let {
-              it.isEmulator && it.devicePlatform == Android
-            }
-          ) {
-            "10.0.2.2"
-          } else {
-            "localhost"
-          },
+        host = when {
+          isAndroidEmulator -> "10.0.2.2"
+          else -> "localhost"
+        },
         port = "8101"
       )
     else -> error("not supported")
@@ -62,7 +54,9 @@ fun BitcoinNetworkType.mempoolElectrumServerDetails(): ElectrumServerDetails {
  * Specifically, this is mostly used to determine which Electrum node we want users to connect to,
  * if they did not specify one in settings.
  */
-fun BitcoinNetworkType.blockstreamElectrumServerDetails(): ElectrumServerDetails {
+fun BitcoinNetworkType.blockstreamElectrumServerDetails(
+  isAndroidEmulator: Boolean,
+): ElectrumServerDetails {
   return when (this) {
     BITCOIN ->
       ElectrumServerDetails(
@@ -88,15 +82,10 @@ fun BitcoinNetworkType.blockstreamElectrumServerDetails(): ElectrumServerDetails
         protocol = "tcp",
         // Android emulator puts the host device's localhost IP at 10.0.2.2
         // https://developer.android.com/studio/run/emulator-networking
-        host =
-          if (DeviceInfoProvider.default.let {
-              it.isEmulator && it.devicePlatform == Android
-            }
-          ) {
-            "10.0.2.2"
-          } else {
-            "localhost"
-          },
+        host = when {
+          isAndroidEmulator -> "10.0.2.2"
+          else -> "localhost"
+        },
         port = "8101"
       )
     else -> error("not supported")

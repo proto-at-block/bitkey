@@ -9,7 +9,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.core.graphics.toColorInt
-import build.wallet.android.platform.impl.R
 import build.wallet.notification.NotificationDismissBroadcastReceiver
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.appVariant
@@ -21,6 +20,7 @@ import build.wallet.platform.config.AppVariant.Team
 import build.wallet.platform.config.TouchpointPlatform.Fcm
 import build.wallet.platform.config.TouchpointPlatform.FcmCustomer
 import build.wallet.platform.config.TouchpointPlatform.FcmTeam
+import build.wallet.shared.platform.impl.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.CoroutineScope
@@ -72,7 +72,7 @@ class WalletFirebaseMessagingService : FirebaseMessagingService() {
             this,
             notificationMessage.channelId ?: getString(R.string.general_channel_id)
           )
-            .setSmallIcon(build.wallet.android.ui.core.R.drawable.small_icon_bitkey)
+            .setSmallIcon(build.wallet.R.drawable.small_icon_bitkey)
             .setColor(notificationMessage.color?.toColorInt() ?: "#000000".toColorInt())
             .setPriority(
               notificationMessage.notificationPriority ?: NotificationCompat.PRIORITY_DEFAULT

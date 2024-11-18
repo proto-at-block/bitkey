@@ -16,8 +16,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 internal fun DataRowTotal(
@@ -83,17 +81,5 @@ private fun DataRowTotal(
     leadingContent()
     Spacer(Modifier.width(16.dp))
     trailingContent()
-  }
-}
-
-@Preview
-@Composable
-private fun DataRowTotal() {
-  PreviewWalletTheme {
-    FormMainContentModel.DataList.Data(
-      title = "Total cost",
-      sideText = "$21.36",
-      secondarySideText = "(0.0010 BTC)"
-    )
   }
 }

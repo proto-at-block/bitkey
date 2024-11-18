@@ -23,7 +23,7 @@ import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.settings.LocaleCountryCodeProvider
 import build.wallet.platform.settings.LocaleCurrencyCodeProvider
-import build.wallet.queueprocessor.Processor
+import build.wallet.queueprocessor.process
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.getOrElse
@@ -40,7 +40,7 @@ class EventTrackerImpl(
   private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,
   private val countryCodeProvider: LocaleCountryCodeProvider,
-  private val eventProcessor: Processor<QueueAnalyticsEvent>,
+  private val eventProcessor: AnalyticsEventProcessor,
   private val hardwareInfoProvider: HardwareInfoProvider,
   private val appInstallationDao: AppInstallationDao,
   private val platformInfoProvider: PlatformInfoProvider,

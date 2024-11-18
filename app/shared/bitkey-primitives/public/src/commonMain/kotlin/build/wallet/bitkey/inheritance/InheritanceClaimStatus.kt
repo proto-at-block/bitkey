@@ -17,5 +17,6 @@ value class InheritanceClaimStatus(val key: String) {
     val PENDING = InheritanceClaimStatus("PENDING")
     val CANCELED = InheritanceClaimStatus("CANCELED")
     val LOCKED = InheritanceClaimStatus("LOCKED")
+    val COMPLETE = InheritanceClaimStatus("COMPLETE")
   }
 }

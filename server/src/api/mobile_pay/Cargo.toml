@@ -43,3 +43,6 @@ wsm-rust-client = { workspace = true }
 mockall = { workspace = true }
 rstest = { workspace = true }
 wsm-common = { workspace = true }
+
+[lints]
+workspace = true

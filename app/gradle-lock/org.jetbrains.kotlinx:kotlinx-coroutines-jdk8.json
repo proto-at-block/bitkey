@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-jdk8",
     "components": [
         {
-            "version": "1.8.1",
+            "version": "1.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-jdk8-1.8.1.jar": "d8cfb4c363c91c773353b115bd4a6b5a04608e7916fe235d3a9d87efcb996c01"
+                        "kotlinx-coroutines-jdk8-1.9.0.jar": "d18138c8c1c34b2ba9af373241e7341376fdf80d1e702dfa90929d320131f37c"
                     }
                 }
             ],

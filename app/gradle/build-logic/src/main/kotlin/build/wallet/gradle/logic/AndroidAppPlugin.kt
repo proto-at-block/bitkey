@@ -3,8 +3,6 @@ package build.wallet.gradle.logic
 import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
-import com.android.build.api.dsl.ApplicationExtension
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -28,6 +26,3 @@ internal class AndroidAppPlugin : Plugin<Project> {
       }
     }
 }
-
-private fun Project.android(configure: Action<ApplicationExtension>): Unit =
-  extensions.configure("android", configure)

@@ -1,6 +1,5 @@
 package build.wallet.coachmark
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.datetime.Instant
@@ -11,12 +10,12 @@ class CoachmarkDaoFake : CoachmarkDao {
   override suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
     expiration: Instant,
-  ): Result<Unit, DbError> {
+  ): Result<Unit, Error> {
     coachmarks = coachmarks + Coachmark(id, false, expiration)
     return Ok(Unit)
   }
 
-  override suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, DbError> {
+  override suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, Error> {
     coachmarks = coachmarks.map {
       if (it.id == id) {
         it.copy(viewed = true)
@@ -27,12 +26,12 @@ class CoachmarkDaoFake : CoachmarkDao {
     return Ok(Unit)
   }
 
-  override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError> =
+  override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, Error> =
     Ok(coachmarks.find { it.id == id })
 
-  override suspend fun getAllCoachmarks(): Result<List<Coachmark>, DbError> = Ok(coachmarks)
+  override suspend fun getAllCoachmarks(): Result<List<Coachmark>, Error> = Ok(coachmarks)
 
-  override suspend fun resetCoachmarks(): Result<Unit, DbError> {
+  override suspend fun resetCoachmarks(): Result<Unit, Error> {
     coachmarks = emptyList()
     return Ok(Unit)
   }

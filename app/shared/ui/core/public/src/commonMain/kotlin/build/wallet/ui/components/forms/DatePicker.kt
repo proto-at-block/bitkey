@@ -21,13 +21,11 @@ import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import androidx.compose.material3.DatePicker as MaterialDatePicker
 import androidx.compose.material3.DatePickerDialog as MaterialDatePickerDialog
 
@@ -108,36 +106,6 @@ private fun DatePickerDialog(
   ) {
     MaterialDatePicker(
       state = datePickerState
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun DatePickerFieldWithNoValuePreview() {
-  PreviewWalletTheme {
-    DatePickerField(
-      model =
-        DatePickerModel(
-          valueStringRepresentation = "",
-          value = null,
-          onValueChange = { }
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-internal fun DatePickerFieldWithNowPreview() {
-  PreviewWalletTheme {
-    DatePickerField(
-      model =
-        DatePickerModel(
-          valueStringRepresentation = "February 8, 2024",
-          value = LocalDate(2024, 2, 8),
-          onValueChange = { }
-        )
     )
   }
 }

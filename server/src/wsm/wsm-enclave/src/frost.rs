@@ -1,8 +1,5 @@
 use crypto::frost::{
-    dkg::{
-        aggregate_shares, equality_check, generate_share_package, share_agg_params, KeygenError,
-        SharePackage,
-    },
+    dkg::{aggregate_shares, equality_check, generate_share_packages, KeygenError, SharePackage},
     KeyCommitments, Participant, ShareDetails,
 };
 
@@ -15,14 +12,22 @@ impl ShareGenerator {
         Self { app_share_package }
     }
 
-    pub fn generate(self) -> Result<PendingEqualityChecker, KeygenError> {
-        let share_package = generate_share_package(Participant::Server, Participant::App)?;
-        let share_agg_params = share_agg_params(&share_package)?;
+    pub fn generate(self) -> Result<(PendingEqualityChecker, SharePackage), KeygenError> {
+        let mut share_packages = generate_share_packages()?;
+
+        let server_share_package = share_packages
+            .pop()
+            .expect("Server share package not found");
+        let app_share_package = share_packages.pop().expect("App share package not found");
+
         // Since secp does verification as part of aggregation, we assume that the app's package is
         // being verified in this call.
-        let share_details = aggregate_shares(&share_agg_params, &self.app_share_package)?;
+        let share_details = aggregate_shares(
+            Participant::Server,
+            &[&server_share_package, &self.app_share_package],
+        )?;
 
-        Ok(PendingEqualityChecker { share_details })
+        Ok((PendingEqualityChecker { share_details }, app_share_package))
     }
 }
 

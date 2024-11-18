@@ -20,15 +20,11 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.progress.LinearProgressIndicator
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.tokens.LabelType
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun EducationScreen(
@@ -109,36 +105,5 @@ private fun EducationItem(model: EducationBodyModel) {
         Button(model = it)
       }
     }
-  }
-}
-
-@Preview
-@Composable
-fun PreviewExplainerScreen() {
-  PreviewWalletTheme {
-    EducationScreen(
-      model =
-        EducationBodyModel(
-          progressPercentage = Progress.Half,
-          onDismiss = {},
-          title = "This is the title of the education screen",
-          subtitle = "This is the subtitle of the education screen",
-          primaryButton =
-            ButtonModel(
-              text = "Primary Button",
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick {}
-            ),
-          secondaryButton =
-            ButtonModel(
-              text = "Secondary Button",
-              size = ButtonModel.Size.Footer,
-              treatment = ButtonModel.Treatment.Secondary,
-              onClick = StandardClick {}
-            ),
-          onClick = {},
-          onBack = {}
-        )
-    )
   }
 }

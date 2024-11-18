@@ -8,6 +8,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
+import build.wallet.money.currency.Currency
 import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
@@ -17,6 +18,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 class ExchangeRateServiceImpl(
@@ -24,6 +28,7 @@ class ExchangeRateServiceImpl(
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val appSessionManager: AppSessionManager,
   private val keyboxDao: KeyboxDao,
+  private val clock: Clock,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
   private val exchangeRatesCache = MutableStateFlow<List<ExchangeRate>>(emptyList())
 
@@ -120,6 +125,19 @@ class ExchangeRateServiceImpl(
     }
   }
 
+  override fun mostRecentRatesSinceDurationForCurrency(
+    duration: Duration,
+    currency: Currency,
+  ): List<ExchangeRate>? {
+    val instant = exchangeRatesCache.value.timeRetrievedForCurrency(currency)
+    return when {
+      // if rates are older than duration or we cant find any for our fiat currency, we don't
+      // use them
+      instant == null || instant <= clock.now() - duration -> null
+      else -> exchangeRates.value
+    }
+  }
+
   /**
    * Pulls latest exchange rates from given f8e environment and stores them
    * in the local database.
@@ -139,5 +157,10 @@ class ExchangeRateServiceImpl(
     return keyboxDao.activeKeybox().map { result ->
       result.get()?.config?.f8eEnvironment
     }
+  }
+
+  private fun List<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {
+    return firstOrNull { it.fromCurrency == currency.textCode || it.toCurrency == currency.textCode }
+      ?.timeRetrieved
   }
 }

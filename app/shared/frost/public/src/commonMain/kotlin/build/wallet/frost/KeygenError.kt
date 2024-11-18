@@ -15,4 +15,10 @@ sealed class KeygenError(
   class InvalidIntermediateShare(cause: Throwable?, message: String?) : KeygenError(cause, message)
 
   class InvalidKeyCommitments(cause: Throwable?, message: String?) : KeygenError(cause, message)
+
+  class InvalidParticipants(cause: Throwable?, message: String?) : KeygenError(cause, message)
+
+  class ShareAggregationFailed(cause: Throwable?, message: String?) : KeygenError(cause, message)
+
+  class VerificationShareGenerationFailed(cause: Throwable?, message: String?) : KeygenError(cause, message)
 }

@@ -5,4 +5,6 @@ import build.wallet.platform.PlatformContext
 expect class PermissionCheckerImpl constructor(
   platformContext: PlatformContext,
   pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
-) : PermissionChecker
+) : PermissionChecker {
+  override fun getPermissionStatus(permission: Permission): PermissionStatus
+}

@@ -12,14 +12,12 @@ import build.wallet.f8e.featureflags.FeatureFlagsF8eClientFake
 import build.wallet.firmware.FirmwareCommsLogBufferMock
 import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.firmware.Teltra
+import build.wallet.frost.ShareGeneratorFactoryImpl
 import build.wallet.logging.dev.LogStoreNoop
 import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.config.AppId
-import build.wallet.platform.config.AppVariant
-import build.wallet.platform.config.DeviceOs
-import build.wallet.platform.config.DeviceTokenConfigProvider
+import build.wallet.platform.config.*
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManagerImpl
 import build.wallet.sqldelight.DatabaseIntegrityCheckerImpl
@@ -44,7 +42,7 @@ fun makeAppComponent(
 ): AppComponentImpl {
   val appId = AppId(value = "build.wallet.cli")
   val appVariant = AppVariant.Development
-  val appVersion = "N/A"
+  val appVersion = AppVersion("N/A")
   val bdkDescriptorSecretKeyGenerator = BdkDescriptorSecretKeyGeneratorImpl()
   val bdkMnemonicGenerator = BdkMnemonicGeneratorImpl()
   val datadogTracer = FakeDatadogTracerImpl()
@@ -98,6 +96,7 @@ fun makeAppComponent(
     xNonceGenerator = XNonceGeneratorImpl(),
     spake2 = Spake2Impl(),
     cryptoBox = CryptoBoxImpl(),
-    databaseIntegrityChecker = DatabaseIntegrityCheckerImpl(fileDirectoryProvider)
+    databaseIntegrityChecker = DatabaseIntegrityCheckerImpl(fileDirectoryProvider),
+    shareGeneratorFactory = ShareGeneratorFactoryImpl()
   )
 }

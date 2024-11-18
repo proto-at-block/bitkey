@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:apkzlib",
     "components": [
         {
-            "version": "8.3.2",
+            "version": "8.5.2",
             "variants": [
                 {
                     "artifacts": {
-                        "apkzlib-8.3.2.jar": "1c1a67d6f4f186427ac166ebaa0dd867f595d5144fc925252b05ffb9d1a156b7"
+                        "apkzlib-8.5.2.jar": "1c1a67d6f4f186427ac166ebaa0dd867f595d5144fc925252b05ffb9d1a156b7"
                     }
                 }
             ],

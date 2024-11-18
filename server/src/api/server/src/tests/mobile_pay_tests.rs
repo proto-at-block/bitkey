@@ -591,7 +591,7 @@ mod get_mobile_pay_tests {
             active: true,
             amount: Money {
                 amount: 400,
-                currency_code: destination_currency_code.clone(),
+                currency_code: destination_currency_code,
             },
             ..Default::default()
         });

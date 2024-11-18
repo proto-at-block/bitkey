@@ -44,24 +44,24 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
       // Onboard a new account, and generate an EAK payload.
       app.onboardFullAccountWithFakeHardware()
 
-      val csek = app.app.csekGenerator.generate()
+      val csek = app.csekGenerator.generate()
 
       val sealedCsek =
-        app.app.nfcTransactor.fakeTransact(
+        app.nfcTransactor.fakeTransact(
           transaction = { session, commands ->
             commands.sealKey(session, csek)
           }
         ).getOrThrow()
 
       val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
-      val xprv = app.app.appComponent.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
+      val xprv = app.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
         .get().shouldNotBeNull()
 
       // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
       //      creation of an emergency access kit PDF. This simulates the same creation so that
       //      the account that restores from it can validate it's the same spending keys.
       val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
-        unsealedData = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
+        unsealedData = EmergencyAccessKitPayloadDecoderImpl().encodeBackup(
           EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
             spendingKeyset = spendingKeys,
             appSpendingKeyXprv = xprv
@@ -70,7 +70,7 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
         key = csek.key
       )
       val validData =
-        EmergencyAccessKitPayloadDecoderImpl.encode(
+        EmergencyAccessKitPayloadDecoderImpl().encode(
           EmergencyAccessKitPayloadV1(
             sealedHwEncryptionKey = sealedCsek,
             sealedActiveSpendingKeys = sealedSpendingKeys
@@ -82,7 +82,7 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
         hardwareSeed = app.fakeHardwareKeyStore.getSeed()
       )
 
-      newApp.app.appUiStateMachine.test(
+      newApp.appUiStateMachine.test(
         Unit,
         useVirtualTime = false,
         turbineTimeout = 10.seconds

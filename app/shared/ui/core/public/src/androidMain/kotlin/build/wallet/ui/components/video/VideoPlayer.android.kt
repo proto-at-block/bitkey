@@ -66,7 +66,9 @@ actual fun VideoPlayer(
           }
         }
         setOnErrorListener { _, what, extra ->
-          log(LogLevel.Warn) { "Error playing video: $what | $extra" }
+          log(LogLevel.Error) {
+            "Error playing video: errorCode=$what, extraCode=$extra, resourcePath='$resourcePath'"
+          }
           true
         }
         if (autoStart) {

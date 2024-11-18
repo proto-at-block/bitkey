@@ -1,12 +1,12 @@
 package build.wallet.statemachine.settings.lite
 
+import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataFake
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.money.currency.AppearancePreferenceProps
@@ -30,9 +30,10 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
     LiteSettingsHomeUiStateMachineImpl(
       appVariant = appVariant,
       appearancePreferenceUiStateMachine =
-        object : AppearancePreferenceUiStateMachine, ScreenStateMachineMock<AppearancePreferenceProps>(
-          "currency-preference"
-        ) {},
+        object : AppearancePreferenceUiStateMachine,
+          ScreenStateMachineMock<AppearancePreferenceProps>(
+            "currency-preference"
+          ) {},
       helpCenterUiStateMachine =
         object : HelpCenterUiStateMachine, ScreenStateMachineMock<HelpCenterUiProps>(
           "help-center"
@@ -56,7 +57,7 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
   val props = LiteSettingsHomeUiProps(
-    accountData = HasActiveLiteAccountDataFake,
+    account = LiteAccountMock,
     homeStatusBannerModel = null,
     onBack = { propsOnBackCalls.add(Unit) }
   )

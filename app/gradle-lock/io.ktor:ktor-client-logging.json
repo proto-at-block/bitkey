@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-logging",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-logging-metadata-2.3.11.jar": "e63ea7beb48ae8dd807017e4c9dc7266d520d434ccc8c9931f238d82f3d7117f"
+                        "ktor-client-logging-metadata-2.3.12.jar": "e63ea7beb48ae8dd807017e4c9dc7266d520d434ccc8c9931f238d82f3d7117f"
                     }
                 }
             ],

@@ -74,6 +74,7 @@ import build.wallet.f8e.socrec.SocRecF8eClientImpl
 import build.wallet.feature.*
 import build.wallet.feature.flags.*
 import build.wallet.firmware.*
+import build.wallet.frost.ShareGeneratorFactory
 import build.wallet.fwup.*
 import build.wallet.inappsecurity.BiometricPreferenceImpl
 import build.wallet.inheritance.*
@@ -86,16 +87,14 @@ import build.wallet.keybox.keys.SpendingKeyGeneratorImpl
 import build.wallet.keybox.wallet.AppSpendingWalletProviderImpl
 import build.wallet.keybox.wallet.KeysetWalletProviderImpl
 import build.wallet.keybox.wallet.WatchingWalletDescriptorProviderImpl
-import build.wallet.ktor.result.client.KtorLogLevelPolicy
-import build.wallet.ktor.result.client.KtorLogLevelPolicyImpl
 import build.wallet.limit.MobilePayServiceImpl
 import build.wallet.limit.MobilePayStatusRepositoryImpl
 import build.wallet.limit.SpendingLimitDaoImpl
 import build.wallet.logging.LogStoreWriterImpl
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.LogWriterContextStoreImpl
+import build.wallet.logging.LoggerInitializer
 import build.wallet.logging.dev.LogStore
-import build.wallet.logging.initializeLogger
 import build.wallet.memfault.MemfaultClientImpl
 import build.wallet.memfault.MemfaultHttpClientImpl
 import build.wallet.money.currency.FiatCurrenciesServiceImpl
@@ -110,12 +109,10 @@ import build.wallet.notifications.*
 import build.wallet.phonenumber.PhoneNumberValidatorImpl
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.config.AppId
-import build.wallet.platform.config.AppVariant
-import build.wallet.platform.config.DeviceOs
-import build.wallet.platform.config.DeviceTokenConfigProvider
+import build.wallet.platform.config.*
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DeviceInfoProviderImpl
 import build.wallet.platform.haptics.HapticsImpl
 import build.wallet.platform.haptics.HapticsPolicyImpl
@@ -128,8 +125,6 @@ import build.wallet.platform.settings.*
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.platform.versions.OsVersionInfoProviderImpl
 import build.wallet.pricechart.BitcoinPriceCardPreferenceImpl
-import build.wallet.queueprocessor.BatcherProcessorImpl
-import build.wallet.queueprocessor.ProcessorImpl
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderImpl
 import build.wallet.recovery.RecoveryDao
@@ -147,17 +142,19 @@ import build.wallet.time.Delayer
 import build.wallet.worker.AppWorkerExecutorImpl
 import build.wallet.worker.AppWorkerProviderImpl
 import co.touchlab.kermit.LogWriter
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
-@Suppress("LargeClass") // TODO(W-583): consider using a DI framework.
+// TODO(W-583): consider using a DI framework.
+@Suppress("LargeClass")
 class AppComponentImpl(
   override val appId: AppId,
   override val appVariant: AppVariant,
   override val delayer: Delayer,
   override val deviceOs: DeviceOs,
-  override val appVersion: String,
+  override val appVersion: AppVersion,
   override val bdkAddressBuilder: BdkAddressBuilder,
   bdkBlockchainFactory: BdkBlockchainFactory,
   bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
@@ -166,6 +163,7 @@ class AppComponentImpl(
   override val bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilder,
   bdkTxBuilderFactory: BdkTxBuilderFactory,
   bdkWalletFactory: BdkWalletFactory,
+  override val shareGeneratorFactory: ShareGeneratorFactory,
   override val datadogRumMonitor: DatadogRumMonitor,
   override val datadogTracer: DatadogTracer,
   deviceTokenConfigProvider: DeviceTokenConfigProvider,
@@ -208,7 +206,6 @@ class AppComponentImpl(
       appVersion,
       osVersionInfoProvider
     ),
-  override val ktorLogLevelPolicy: KtorLogLevelPolicy = KtorLogLevelPolicyImpl(appVariant),
   override val uuidGenerator: UuidGenerator = UuidGeneratorImpl(),
   override val databaseIntegrityChecker: DatabaseIntegrityChecker,
   private val databaseDriverFactory: SqlDriverFactory =
@@ -255,9 +252,11 @@ class AppComponentImpl(
       clock = clock,
       databaseProvider = bitkeyDatabaseProvider
     ),
+  override val deviceInfoProvider: DeviceInfoProvider = DeviceInfoProviderImpl(),
   private val newNetworkReachabilityProvider: NetworkReachabilityProvider =
     NewNetworkReachabilityProviderImpl(
       f8eNetworkReachabilityService = F8eNetworkReachabilityServiceImpl(
+        deviceInfoProvider = deviceInfoProvider,
         unauthenticatedF8eHttpClient = null
       ),
       internetNetworkReachabilityService = internetNetworkReachabilityService,
@@ -270,19 +269,23 @@ class AppComponentImpl(
       appInstallationDao = appInstallationDao,
       countryCodeGuesser = countryCodeGuesser,
       datadogTracer = datadogTracer,
+      deviceInfoProvider = deviceInfoProvider,
       networkReachabilityProvider = newNetworkReachabilityProvider,
       networkingDebugService = networkingDebugService
     ),
-  val f8eNetworkReachabilityService: F8eNetworkReachabilityService =
+  override val appCoroutineScope: CoroutineScope = CoroutineScopes.AppScope,
+  override val f8eNetworkReachabilityService: F8eNetworkReachabilityService =
     F8eNetworkReachabilityServiceImpl(
+      deviceInfoProvider = deviceInfoProvider,
       unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
-        appCoroutineScope = CoroutineScopes.AppScope,
+        appCoroutineScope = appCoroutineScope,
         unauthenticatedF8eHttpClientFactory = UnauthenticatedF8eHttpClientFactory(
           appVariant = appVariant,
           platformInfoProvider = platformInfoProvider,
           appInstallationDao = appInstallationDao,
           countryCodeGuesser = countryCodeGuesser,
           datadogTracer = datadogTracer,
+          deviceInfoProvider = deviceInfoProvider,
           networkReachabilityProvider = null,
           networkingDebugService = networkingDebugService
         )
@@ -296,7 +299,7 @@ class AppComponentImpl(
     ),
   private val unauthenticatedOnlyF8eHttpClient: UnauthenticatedF8eHttpClient =
     UnauthenticatedOnlyF8eHttpClientImpl(
-      appCoroutineScope = CoroutineScopes.AppScope,
+      appCoroutineScope = appCoroutineScope,
       unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
     ),
   override val authF8eClient: AuthF8eClient =
@@ -336,6 +339,7 @@ class AppComponentImpl(
   override val f8eHttpClient: F8eHttpClient =
     F8eHttpClientImpl(
       authTokensRepository = authTokensRepository,
+      deviceInfoProvider = deviceInfoProvider,
       proofOfPossessionPluginProvider = proofOfPossessionPluginProvider,
       unauthenticatedF8eHttpClient = unauthenticatedOnlyF8eHttpClient,
       f8eHttpClientProvider = f8eHttpClientProvider,
@@ -347,21 +351,17 @@ class AppComponentImpl(
   override val xChaCha20Poly1305: XChaCha20Poly1305,
   override val xNonceGenerator: XNonceGenerator,
 ) : AppComponent {
-  override val appCoroutineScope = CoroutineScopes.AppScope
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
   override val logWriterContextStore = LogWriterContextStoreImpl(appInstallationDao)
   private val logStoreWriter = LogStoreWriterImpl(logStore, clock)
 
-  init {
-    initializeLogger(
-      appVariant,
-      appId,
-      appCoroutineScope,
-      logWriterContextStore,
-      logStoreWriter,
-      logWritersProvider
-    )
-  }
+  val loggerInitializer = LoggerInitializer(
+    logWriterContextStore = logWriterContextStore,
+    additionalLogWriters = logWritersProvider(logWriterContextStore) + logStoreWriter,
+    appVariant = appVariant,
+    appId = appId,
+    appCoroutineScope = appCoroutineScope
+  )
 
   override val keyValueStoreFactory = KeyValueStoreFactoryImpl(platformContext, fileManager)
 
@@ -429,15 +429,23 @@ class AppComponentImpl(
   override val inheritanceFeatureFlag: InheritanceFeatureFlag =
     InheritanceFeatureFlag(featureFlagDao)
 
+  override val expectedTransactionsPhase2FeatureFlag =
+    ExpectedTransactionsPhase2FeatureFlag(featureFlagDao)
+
   override val mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao)
 
   override val sellBitcoinFeatureFlag = SellBitcoinFeatureFlag(featureFlagDao)
 
   override val exportToolsFeatureFlag = ExportToolsFeatureFlag(featureFlagDao)
 
-  private val sellBitcoinQuotesEnabledFeatureFlag = SellBitcoinQuotesEnabledFeatureFlag(featureFlagDao)
+  override val sellBitcoinQuotesEnabledFeatureFlag =
+    SellBitcoinQuotesEnabledFeatureFlag(featureFlagDao)
 
-  override val allRemoteFeatureFlags: List<FeatureFlag<out FeatureFlagValue>> =
+  override val sellBitcoinMinAmountFeatureFlag = SellBitcoinMinAmountFeatureFlag(featureFlagDao)
+
+  override val sellBitcoinMaxAmountFeatureFlag = SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
+
+  override val featureFlags: List<FeatureFlag<out FeatureFlagValue>> =
     setOf(
       mobileTestFeatureFlag,
       DoubleMobileTestFeatureFlag(featureFlagDao),
@@ -453,20 +461,17 @@ class AppComponentImpl(
       exportToolsFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
       progressSpinnerForLongNfcOpsFeatureFlag,
-      sellBitcoinQuotesEnabledFeatureFlag
+      sellBitcoinQuotesEnabledFeatureFlag,
+      sellBitcoinMinAmountFeatureFlag,
+      sellBitcoinMaxAmountFeatureFlag,
+      expectedTransactionsPhase2FeatureFlag,
+      feeBumpIsAvailableFeatureFlag,
+      nfcHapticsOnConnectedIsEnabledFeatureFlag,
+      softwareWalletIsEnabledFeatureFlag,
+      firmwareCommsLoggingFeatureFlag
     ).toList()
 
-  private val allLocalFeatureFlags = setOf(
-    feeBumpIsAvailableFeatureFlag,
-    nfcHapticsOnConnectedIsEnabledFeatureFlag,
-    softwareWalletIsEnabledFeatureFlag,
-    firmwareCommsLoggingFeatureFlag
-  )
-
-  override val allFeatureFlags: List<FeatureFlag<*>> =
-    (allLocalFeatureFlags + allRemoteFeatureFlags).toList()
   private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuidGenerator)
-  override val deviceInfoProvider = DeviceInfoProviderImpl()
   override val localeLanguageCodeProvider = LocaleLanguageCodeProviderImpl(platformContext)
   override val featureFlagsF8eClient = featureFlagsF8eClientOverride ?: FeatureFlagsF8eClientImpl(
     f8eHttpClient = f8eHttpClient,
@@ -484,12 +489,12 @@ class AppComponentImpl(
       SerialNumberParserImpl(),
       firmwareDeviceInfoDao
     )
-  override val periodicEventProcessor =
-    BatcherProcessorImpl(
-      queue = EventQueueImpl(bitkeyDatabaseProvider),
-      processor = EventSenderImpl(EventTrackerF8eClientImpl(f8eHttpClient)),
-      frequency = 1.minutes,
-      batchSize = 50
+  private val analyticsEventProcessor =
+    AnalyticsEventProcessorImpl(EventTrackerF8eClientImpl(f8eHttpClient))
+  override val analyticsEventPeriodicProcessor =
+    AnalyticsEventPeriodicProcessorImpl(
+      queue = AnalyticsEventQueueImpl(bitkeyDatabaseProvider),
+      processor = analyticsEventProcessor
     )
 
   override val appSessionManager = AppSessionManagerImpl(clock, uuidGenerator)
@@ -521,7 +526,7 @@ class AppComponentImpl(
     clock = clock,
     countryCodeProvider = localeCountryCodeProvider,
     hardwareInfoProvider = hardwareInfoProvider,
-    eventProcessor = periodicEventProcessor,
+    eventProcessor = analyticsEventProcessor,
     appInstallationDao = appInstallationDao,
     platformInfoProvider = platformInfoProvider,
     appSessionManager = appSessionManager,
@@ -543,7 +548,7 @@ class AppComponentImpl(
   override val memfaultClient =
     MemfaultClientImpl(
       MemfaultHttpClientImpl(
-        logLevelPolicy = ktorLogLevelPolicy,
+        appVariant = appVariant,
         networkReachabilityProvider = networkReachabilityProvider
       )
     )
@@ -566,24 +571,23 @@ class AppComponentImpl(
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       appCoroutineScope
     )
+  private val firmwareTelemetryEventProcessor = FirmwareTelemetryEventProcessorImpl(memfaultClient)
   override val periodicFirmwareTelemetryEventProcessor =
-    BatcherProcessorImpl(
-      queue = FirmwareTelemetryQueueImpl(bitkeyDatabaseProvider),
-      processor = FirmwareTelemetrySenderImpl(memfaultClient),
-      frequency = 1.minutes,
-      batchSize = 10
+    FirmwareTelemetryEventPeriodicProcessorImpl(
+      queue = FirmwareTelemetryEventQueueImpl(bitkeyDatabaseProvider),
+      processor = firmwareTelemetryEventProcessor
     )
+  private val firmwareCoredumpEventProcessor = FirmwareCoredumpEventProcessorImpl(memfaultClient)
   override val periodicFirmwareCoredumpProcessor =
-    BatcherProcessorImpl(
-      queue = FirmwareCoredumpQueueImpl(bitkeyDatabaseProvider),
-      processor = FirmwareCoredumpSenderImpl(memfaultClient),
-      frequency = 1.minutes,
-      batchSize = 10
+    FirmwareCoredumpEventPeriodicProcessorImpl(
+      queue = FirmwareCoredumpEventQueueImpl(bitkeyDatabaseProvider),
+      processor = firmwareCoredumpEventProcessor
     )
   override val firmwareTelemetryUploader =
     FirmwareTelemetryUploaderImpl(
-      firmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
-      firmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
+      appCoroutineScope = appCoroutineScope,
+      firmwareCoredumpProcessor = firmwareCoredumpEventProcessor,
+      firmwareTelemetryProcessor = firmwareTelemetryEventProcessor,
       teltra = teltra
     )
 
@@ -597,16 +601,13 @@ class AppComponentImpl(
       f8eHttpClient = f8eHttpClient
     )
 
-  private val registerWatchAddressSender =
-    RegisterWatchAddressSenderImpl(registerWatchAddressService)
+  internal val registerWatchAddressProcessor =
+    RegisterWatchAddressProcessorImpl(registerWatchAddressService)
 
-  override val registerWatchAddressProcessor =
-    ProcessorImpl(
-      queue = registerWatchAddressQueue,
-      processor = registerWatchAddressSender,
-      retryFrequency = 1.minutes,
-      retryBatchSize = 1
-    )
+  override val registerWatchAddressPeriodicProcessor = RegisterWatchAddressPeriodicProcessorImpl(
+    queue = registerWatchAddressQueue,
+    processor = registerWatchAddressProcessor
+  )
 
   private val fiatMobilePayConfigurationDao =
     MobilePayFiatConfigDaoImpl(bitkeyDatabaseProvider)
@@ -641,12 +642,12 @@ class AppComponentImpl(
     debugOptionsService = debugOptionsService,
     featureFlagsF8eClient = featureFlagsF8eClient,
     clock = clock,
-    remoteFlags = allRemoteFeatureFlags,
+    featureFlags = featureFlags,
     appSessionManager = appSessionManager
   )
 
   override val featureFlagService = FeatureFlagServiceImpl(
-    featureFlags = allFeatureFlags,
+    featureFlags = featureFlags,
     featureFlagSyncer = featureFlagSyncer
   )
 
@@ -699,7 +700,8 @@ class AppComponentImpl(
     exchangeRateDao = exchangeRateDao,
     exchangeRateF8eClient = exchangeRateF8eClient,
     appSessionManager = appSessionManager,
-    keyboxDao = keyboxDao
+    keyboxDao = keyboxDao,
+    clock = clock
   )
 
   override val relationshipsDao = RelationshipsDaoImpl(bitkeyDatabaseProvider)
@@ -769,7 +771,8 @@ class AppComponentImpl(
     relationshipsCrypto = relationshipsCrypto,
     relationshipsCodeBuilder = relationshipsCodeBuilder,
     appSessionManager = appSessionManager,
-    accountService = accountService
+    accountService = accountService,
+    appCoroutineScope = appCoroutineScope
   )
 
   override val socRecService = SocRecServiceImpl(
@@ -844,6 +847,7 @@ class AppComponentImpl(
       bdkBlockchainProvider = bdkBlockchainProvider,
       clock = clock,
       datadogRumMonitor = datadogRumMonitor,
+      deviceInfoProvider = deviceInfoProvider,
       electrumServerSettingProvider = electrumServerSettingProvider,
       electrumReachability = electrumReachability,
       networkReachabilityProvider = networkReachabilityProvider
@@ -852,7 +856,7 @@ class AppComponentImpl(
   override val bitcoinFeeRateEstimator =
     BitcoinFeeRateEstimatorImpl(
       mempoolHttpClient = MempoolHttpClientImpl(
-        logLevelPolicy = ktorLogLevelPolicy,
+        appVariant = appVariant,
         networkReachabilityProvider = networkReachabilityProvider
       ),
       bdkBlockchainProvider = bdkBlockchainProvider
@@ -952,7 +956,8 @@ class AppComponentImpl(
 
   override val bitcoinAddressService = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
-    transactionsService = transactionsService
+    transactionsService = transactionsService,
+    accountService = accountService
   )
 
   override val utxoConsolidationService = UtxoConsolidationServiceImpl(
@@ -1020,7 +1025,7 @@ class AppComponentImpl(
   private val inheritanceRelationshipsProvider = InheritanceRelationshipsAdapter(
     relationshipsService = relationshipsService
   )
-  private val inheritanceMaterialRepository = InheritanceMaterialCreatorImpl(
+  private val inheritanceMaterialRepository = InheritanceCryptoImpl(
     appPrivateKeyDao = appPrivateKeyDao,
     relationships = inheritanceRelationshipsProvider,
     crypto = relationshipsCrypto
@@ -1041,7 +1046,7 @@ class AppComponentImpl(
     inheritanceSyncDao = inheritanceSyncDao,
     inheritanceMaterialF8eClient = inheritanceMaterialF8eClient,
     startInheritanceClaimF8eClient = startInheritanceClaimF8eClient,
-    inheritanceMaterialCreator = inheritanceMaterialRepository,
+    inheritanceCrypto = inheritanceMaterialRepository,
     retrieveInheritanceClaimsF8EClient = retrieveInheritanceClaimsF8eClient,
     inheritanceClaimsDao = inheritanceClaimsDao,
     appSessionManager = appSessionManager,
@@ -1058,10 +1063,10 @@ class AppComponentImpl(
   private val appWorkerProvider = AppWorkerProviderImpl(
     eventTracker = eventTracker,
     networkingDebugService = networkingDebugService,
-    periodicEventProcessor = periodicEventProcessor,
+    periodicEventProcessor = analyticsEventPeriodicProcessor,
     periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
     periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
-    periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor,
+    periodicRegisterWatchAddressProcessor = registerWatchAddressPeriodicProcessor,
     mobilePayFiatConfigSyncWorker = mobilePayFiatConfigService,
     featureFlagSyncWorker = featureFlagService,
     firmwareDataSyncWorker = firmwareDataService,

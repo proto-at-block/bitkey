@@ -1,4 +1,3 @@
-#![forbid(unsafe_code)]
 use std::net::SocketAddr;
 
 use std::sync::Arc;
@@ -14,6 +13,8 @@ use axum::{extract::State, routing::post, Json, Router};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+
+use dependencies::customer_key_share_store::{CustomerKeyShare, CustomerKeyShareStore};
 use serde_json::json;
 use tokio::net::TcpListener;
 use tracing::{event, instrument};
@@ -24,11 +25,14 @@ use wsm_common::bitcoin::bip32::DerivationPath;
 
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
-    AttestationDocResponse, CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse,
-    GetIntegritySigRequest, GetIntegritySigResponse, SignPsbtRequest, SignedPsbt,
+    AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
+    CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse, GetIntegritySigRequest,
+    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
+    SignPsbtRequest, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
-    EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveSignRequest,
+    EnclaveContinueDistributedKeygenRequest, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest,
+    EnclaveInitiateDistributedKeygenRequest, EnclaveSignRequest,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -45,6 +49,7 @@ mod settings;
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState {
     pub customer_key_store: CustomerKeyStore,
+    pub customer_key_share_store: CustomerKeyShareStore,
     pub enclave: Arc<EnclaveClient>,
     pub kms: KmsClient,
     pub cmk_id: String,
@@ -60,6 +65,14 @@ impl From<RouteState> for Router {
             .route("/integrity-sig", get(integrity_sig))
             .route("/generate-integrity-key", get(generate_integrity_key))
             .route("/attestation-doc", get(attestation_doc))
+            .route(
+                "/initiate-distributed-keygen",
+                post(initiate_distributed_keygen),
+            )
+            .route(
+                "/continue-distributed-keygen",
+                post(continue_distributed_keygen),
+            )
             .with_state(state)
     }
 }
@@ -183,6 +196,93 @@ async fn create_key(
                 xpub_sig: spend_key.xpub_sig,
             }))
         }
+    }
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn initiate_distributed_keygen(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<InitiateDistributedKeygenRequest>,
+) -> Result<Json<InitiateDistributedKeygenResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    let dek_id = enclave_client
+        .get_available_dek_id()
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Could not get DEK for new wallet: {e}")))?;
+
+    // Create the root key
+    let enclave_request = EnclaveInitiateDistributedKeygenRequest {
+        root_key_id: root_key_id.clone(),
+        dek_id: dek_id.clone(),
+        network: request.network,
+        sealed_request: request.sealed_request,
+    };
+    let enclave_response = enclave_client
+        .initiate_distributed_keygen(enclave_request)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!(
+                "Could not initiate distributed keygen in enclave: {e}",
+            ))
+        })?;
+
+    let customer_key_share = CustomerKeyShare::new(
+        root_key_id.clone(),
+        enclave_response.wrapped_share_details,
+        enclave_response.wrapped_share_details_nonce,
+        dek_id,
+        enclave_response.aggregate_public_key,
+        request.network,
+    );
+
+    customer_key_share_store
+        .put_customer_key_share(&customer_key_share)
+        .await
+        .map_err(|e| ApiError::ServerError(e.to_string()))?;
+
+    Ok(Json(InitiateDistributedKeygenResponse {
+        root_key_id: root_key_id.clone(),
+        sealed_response: enclave_response.sealed_response,
+        aggregate_public_key: enclave_response.aggregate_public_key,
+    }))
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn continue_distributed_keygen(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<ContinueDistributedKeygenRequest>,
+) -> Result<Json<ContinueDistributedKeygenResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    match customer_key_share_store
+        .get_customer_key_share(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer key shares DDB table: {e}"))
+        })? {
+        Some(cks) => {
+            let enclave_request = EnclaveContinueDistributedKeygenRequest {
+                root_key_id: root_key_id.clone(),
+                dek_id: cks.dek_id,
+                network: request.network,
+                wrapped_share_details: cks.share_details_ciphertext,
+                wrapped_share_details_nonce: cks.share_details_nonce,
+                sealed_request: request.sealed_request,
+            };
+            enclave_client
+                .continue_distributed_keygen(enclave_request)
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Error continuing distributed keygen: {e}"))
+                })?;
+            Ok(Json(ContinueDistributedKeygenResponse {
+                root_key_id: root_key_id.clone(),
+            }))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer key share {root_key_id} not found"
+        ))),
     }
 }
 
@@ -338,7 +438,11 @@ pub async fn axum() -> (TcpListener, Router) {
     tracing::info!("starting main web service");
 
     let mut router = Router::from(RouteState {
-        customer_key_store: CustomerKeyStore::new(ddb, &settings.customer_keys_table_name),
+        customer_key_store: CustomerKeyStore::new(ddb.clone(), &settings.customer_keys_table_name),
+        customer_key_share_store: CustomerKeyShareStore::new(
+            ddb,
+            &settings.customer_key_shares_table_name,
+        ),
         enclave: Arc::new(EnclaveClient::new(dek_store, kms_config, &settings)),
         kms,
         cmk_id: settings.cmk_id.clone(),

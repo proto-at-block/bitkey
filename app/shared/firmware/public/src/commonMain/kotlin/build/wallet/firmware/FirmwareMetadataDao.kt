@@ -1,6 +1,5 @@
 package build.wallet.firmware
 
-import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -9,10 +8,10 @@ interface FirmwareMetadataDao {
   suspend fun setFirmwareMetadata(firmwareMetadata: FirmwareMetadata)
 
   /** Return active [FirmwareMetadata] [Flow]. */
-  fun activeFirmwareMetadata(): Flow<Result<FirmwareMetadata?, DbError>>
+  fun activeFirmwareMetadata(): Flow<Result<FirmwareMetadata?, Error>>
 
   /** Return active [FirmwareMetadata]. */
-  suspend fun getActiveFirmwareMetadata(): Result<FirmwareMetadata?, DbError>
+  suspend fun getActiveFirmwareMetadata(): Result<FirmwareMetadata?, Error>
 
   /** Remove active [FirmwareMetadata]. */
   suspend fun clear(): Result<Unit, Error>

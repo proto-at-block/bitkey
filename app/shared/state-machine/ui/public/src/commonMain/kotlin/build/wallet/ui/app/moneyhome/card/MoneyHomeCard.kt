@@ -1,5 +1,3 @@
-@file:Suppress("TooManyFunctions")
-
 package build.wallet.ui.app.moneyhome.card
 
 import androidx.compose.animation.core.Animatable
@@ -17,16 +15,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
-import build.wallet.Progress
-import build.wallet.bitkey.relationships.*
-import build.wallet.compose.collections.buildImmutableList
-import build.wallet.compose.collections.immutableListOf
-import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.*
-import build.wallet.home.GettingStartedTask.TaskState.Complete
-import build.wallet.home.GettingStartedTask.TaskState.Incomplete
-import build.wallet.pricechart.DataPoint
-import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Scale
@@ -34,28 +22,12 @@ import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPri
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
-import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardModel
-import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardModel
-import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardModel
-import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTaskRowModel
-import build.wallet.statemachine.moneyhome.lite.card.BuyOwnBitkeyMoneyHomeCardModel
-import build.wallet.statemachine.moneyhome.lite.card.WalletsProtectingMoneyHomeCardModel
-import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
-import build.wallet.statemachine.recovery.socrec.RecoveryContactCardModel
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.card.CardContent
 import build.wallet.ui.components.card.GradientCard
 import build.wallet.ui.theme.WalletTheme
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
-import kotlinx.datetime.Instant.Companion.DISTANT_PAST
-import org.jetbrains.compose.ui.tooling.preview.Preview
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.time.Duration
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.DurationUnit.SECONDS
@@ -154,190 +126,6 @@ fun MoneyHomeCard(
   }
 }
 
-@Preview
-@Composable
-fun PreviewMoneyHomePriceCard(isLoading: Boolean = false) {
-  MoneyHomeCard(
-    model =
-      CardModel(
-        title = null,
-        content = BitcoinPrice(
-          isLoading = isLoading,
-          priceChange = "10.00% today",
-          priceDirection = PriceDirection.UP,
-          lastUpdated = "Updated 12:00am",
-          price = "$90,000.00",
-          data = generateChartData(150)
-            .takeUnless { isLoading }
-            ?: immutableListOf()
-        ),
-        style = Outline
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeGettingStarted() {
-  MoneyHomeCard(
-    model =
-      GettingStartedCardModel(
-        animations = null,
-        taskModels =
-          immutableListOf(
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(AddBitcoin, Incomplete),
-              isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(EnableSpendingLimit, Incomplete),
-              isEnabled = false,
-              onClick = {},
-              isRevampEnabled = false
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(InviteTrustedContact, Complete),
-              isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
-            ),
-            GettingStartedTaskRowModel(
-              task = GettingStartedTask(AddAdditionalFingerprint, Incomplete),
-              isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
-            )
-          )
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardDeviceUpdate() {
-  MoneyHomeCard(
-    model =
-      DeviceUpdateCardModel(onUpdateDevice = {})
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardInvitationPending() {
-  MoneyHomeCard(
-    model =
-      RecoveryContactCardModel(
-        contact =
-          Invitation(
-            relationshipId = "foo",
-            trustedContactAlias = TrustedContactAlias("Bela"),
-            code = "token",
-            codeBitLength = 20,
-            expiresAt = DISTANT_FUTURE,
-            roles = setOf(TrustedContactRole.SocialRecoveryContact)
-          ),
-        buttonText = "Pending",
-        onClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardInvitationExpired() {
-  MoneyHomeCard(
-    model =
-      RecoveryContactCardModel(
-        contact =
-          Invitation(
-            relationshipId = "foo",
-            trustedContactAlias = TrustedContactAlias("Bela"),
-            code = "token",
-            codeBitLength = 20,
-            expiresAt = DISTANT_PAST,
-            roles = setOf(TrustedContactRole.SocialRecoveryContact)
-          ),
-        buttonText = "Expired",
-        onClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardReplacementPending() {
-  MoneyHomeCard(
-    model =
-      HardwareRecoveryCardModel(
-        title = "Replacement pending...",
-        subtitle = "2 days remaining",
-        delayPeriodProgress = Progress.Half,
-        delayPeriodRemainingSeconds = 0,
-        onClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardReplacementReady() {
-  MoneyHomeCard(
-    model =
-      HardwareRecoveryCardModel(
-        title = "Replacement Ready",
-        delayPeriodProgress = Progress.Full,
-        delayPeriodRemainingSeconds = 0,
-        onClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardWalletsProtecting() {
-  MoneyHomeCard(
-    model =
-      WalletsProtectingMoneyHomeCardModel(
-        protectedCustomers =
-          immutableListOf(
-            ProtectedCustomer(
-              relationshipId = "",
-              alias = ProtectedCustomerAlias("Alice"),
-              roles = setOf(TrustedContactRole.SocialRecoveryContact)
-            ),
-            ProtectedCustomer(
-              relationshipId = "",
-              alias = ProtectedCustomerAlias("Bob"),
-              roles = setOf(TrustedContactRole.SocialRecoveryContact)
-            )
-          ),
-        onProtectedCustomerClick = {},
-        onAcceptInviteClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
-fun PreviewMoneyHomeCardBuyOwnBitkey() {
-  MoneyHomeCard(
-    model = BuyOwnBitkeyMoneyHomeCardModel(onClick = {})
-  )
-}
-
-@Preview
-@Composable
-fun PreviewCloudBackupHealthCard() {
-  MoneyHomeCard(
-    model = CloudBackupHealthCardModel(
-      title = "Problem with Google\naccount access",
-      onActionClick = {}
-    )
-  )
-}
-
 private fun CardModel.estimatedHeight() =
   listOfNotNull(
     20f, // top padding
@@ -357,12 +145,3 @@ private fun CardModel.estimatedHeight() =
       null
     } // bottom padding if no content
   ).sum()
-
-private fun generateChartData(pointCount: Int): ImmutableList<DataPoint> {
-  return buildImmutableList {
-    for (i in 0 until pointCount) {
-      val y = abs(sin(i * PI / 30) * 20 + cos(i * PI / 15) * 10)
-      add(DataPoint(i.toLong(), y))
-    }
-  }
-}

@@ -52,7 +52,7 @@ tags:
                 text: "CONTINUE"
         - tapOn: "CONTINUE"
         - waitForAnimationToEnd
-- assertVisible: "Home"
+- assertVisible: "Bitkey"
 - assertVisible: "$0.00"
 - tapOn:
     id: "tab-bar-settings"

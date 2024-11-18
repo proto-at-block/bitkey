@@ -11,6 +11,7 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.integration.statemachine.create.beTrustedContactButton
 import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.integration.statemachine.create.walletsYoureProtectingCount
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -20,6 +21,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudBackupFoundModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeCodeBodyModel
@@ -194,6 +196,21 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS
   )
     .clickPrimaryButton()
+  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
+    expectedBodyContentMatch = { body ->
+      // Wait until the "Wallets you're Protecting" card shows a protected customer
+      body.walletsYoureProtectingCount == 1
+    }
+  ) {
+    // Showing Money Home, tap on first row (first protected customer)
+    // of "Wallets you're Protecting" card (which is the first card)
+    cardsModel.cards.count()
+      .shouldBe(2)
+    cardsModel.cards.first()
+      .content.shouldNotBeNull()
+      .shouldBeTypeOf<CardModel.CardContent.DrillList>()
+      .items.first().onClick.shouldNotBeNull().invoke()
+  }
 }
 
 /**
@@ -404,7 +421,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostAppAndCloudRecoveryToM
  * Money Home screen.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(
-  appTester: AppTester,
+  app: AppTester,
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
 ) {
   awaitUntilScreenWithBody<MoneyHomeBodyModel>()
@@ -436,7 +453,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     .clickPrimaryButton()
   awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_PENDING)
 
-  appTester.completeRecoveryDelayPeriodOnF8e()
+  app.completeRecoveryDelayPeriodOnF8e()
 
   awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY)
     .clickPrimaryButton()

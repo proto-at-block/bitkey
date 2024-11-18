@@ -21,3 +21,6 @@ all = ["account", "consent", "privileged_action", "recovery"]
 consent = ["types/consent"]
 privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]
+
+[lints]
+workspace = true

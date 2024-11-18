@@ -8,7 +8,7 @@ import build.wallet.statemachine.recovery.RecoverySegment
 
 fun CloudBackupFailedScreenModel(
   eventTrackerScreenId: EventTrackerScreenId,
-  error: Error,
+  error: Throwable,
   onTryAgain: () -> Unit,
 ) = ErrorFormBodyModel(
   onBack = null,

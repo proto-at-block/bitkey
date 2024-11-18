@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
+import androidx.compose.ui.viewinterop.UIKitView
 import bitkey.shared.ui_core_public.generated.resources.*
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -18,13 +18,14 @@ import kotlinx.coroutines.*
 import org.jetbrains.compose.resources.stringResource
 import platform.AVFoundation.*
 import platform.CoreGraphics.CGRect
+import platform.CoreGraphics.CGRectZero
 import platform.Foundation.NSError
 import platform.Foundation.NSURL
 import platform.QuartzCore.CALayer
 import platform.QuartzCore.CATransaction
-import platform.QuartzCore.kCATransactionDisableActions
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationOpenSettingsURLString
+import platform.UIKit.UIColor
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_get_main_queue
@@ -124,23 +125,25 @@ private fun UIKitScannerView(
   }
 
   UIKitView(
-    modifier = modifier.fillMaxSize(),
-    background = Color.Black,
     factory = {
-      UIView().apply {
-        cameraScannerController.setup(layer)
+      object : UIView(cValue { CGRectZero }) {
+        init {
+          backgroundColor = UIColor.blackColor
+          cameraScannerController.setup(layer)
+        }
+
+        override fun layoutSubviews() {
+          super.layoutSubviews()
+          cameraScannerController.setFrame(bounds)
+        }
       }
     },
+    modifier = modifier.fillMaxSize(),
     onRelease = { cameraScannerController.dispose() },
-    onResize = { view, rect ->
-      CATransaction.apply {
-        begin()
-        setValue(true, kCATransactionDisableActions)
-        view.layer.setFrame(rect)
-        cameraScannerController.setFrame(rect)
-        commit()
-      }
-    }
+    properties = UIKitInteropProperties(
+      isInteractive = false,
+      isNativeAccessibilityEnabled = false
+    )
   )
 }
 
@@ -186,11 +189,20 @@ private class CameraScannerController(
 
     cameraPreview = AVCaptureVideoPreviewLayer(session = captureSession).apply {
       videoGravity = AVLayerVideoGravityResizeAspectFill
+      orientation = AVCaptureVideoOrientationPortrait
+      connection?.setVideoOrientation(orientation)
       frame = viewLayer.bounds
       viewLayer.addSublayer(this)
     }
 
     scope.launch { captureSession.startRunning() }
+  }
+
+  fun setFrame(frame: CValue<CGRect>) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    cameraPreview.setFrame(frame)
+    CATransaction.commit()
   }
 
   fun dispose() {
@@ -202,10 +214,6 @@ private class CameraScannerController(
     } else {
       scope.cancel()
     }
-  }
-
-  fun setFrame(rect: CValue<CGRect>) {
-    cameraPreview.setFrame(rect)
   }
 
   override fun captureOutput(

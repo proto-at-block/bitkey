@@ -31,7 +31,7 @@ where
     T: SpotExchangeRateProvider + 'static,
 {
     let rate = exchange_rate_service
-        .get_latest_rate(rate_provider, money.currency_code.clone())
+        .get_latest_rate(rate_provider, money.currency_code)
         .await?
         .rate;
 
@@ -53,12 +53,12 @@ pub trait SpotExchangeRateProvider: ExchangeRateProvider {
     async fn rate(&self, from: &CurrencyCode, to: &CurrencyCode) -> Result<f64, ExchangeRateError> {
         match from {
             BTC => {
-                let destination_currency: Currency = to.clone().into();
+                let destination_currency: Currency = (*to).into();
 
                 match destination_currency {
                     Currency::Fiat(fiat_currency) => {
                         if !Currency::supported_fiat_currencies().contains(&fiat_currency) {
-                            return Err(UnsupportedDestinationCurrency(to.clone()));
+                            return Err(UnsupportedDestinationCurrency(*to));
                         }
 
                         let response = self.request(to).await?;
@@ -67,7 +67,7 @@ pub trait SpotExchangeRateProvider: ExchangeRateProvider {
                     Currency::Bitcoin(_) => Ok(1.0),
                 }
             }
-            c => Err(UnsupportedSourceCurrency(c.clone())),
+            c => Err(UnsupportedSourceCurrency(*c)),
         }
     }
 

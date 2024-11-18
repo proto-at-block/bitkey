@@ -31,16 +31,16 @@ import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({
-  lateinit var appTester: AppTester
+  lateinit var app: AppTester
 
   beforeTest {
-    appTester = launchNewApp()
+    app = launchNewApp()
   }
 
   test("wallet for active spending keyset")
     .config(tags = setOf(FlakyTest)) {
-      val account = appTester.onboardFullAccountWithFakeHardware()
-      val wallet = appTester.getActiveWallet()
+      val account = app.onboardFullAccountWithFakeHardware()
+      val wallet = app.getActiveWallet()
 
       withClue("wallet and keybox keysets match") {
         wallet.identifier.shouldBe(account.keybox.activeSpendingKeyset.localId)
@@ -64,7 +64,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
           listOf(address1, address2, address3).shouldBeUnique()
         }
 
-        val treasury = appTester.treasuryWallet
+        val treasury = app.treasuryWallet
 
         withClue("fund wallet") {
           val fundingResult = treasury.fund(wallet, BitcoinMoney.sats(10_000))
@@ -107,7 +107,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
               .getOrThrow()
 
           val appAndHwSignedPsbt =
-            appTester.app.nfcTransactor.fakeTransact(
+            app.nfcTransactor.fakeTransact(
               transaction = { session, commands ->
                 commands.signTransaction(
                   session = session,
@@ -118,7 +118,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
             ).getOrThrow()
           appAndHwSignedPsbt.amountSats.shouldBe(5_000UL)
 
-          val bitcoinBlockchain = appTester.app.appComponent.bitcoinBlockchain
+          val bitcoinBlockchain = app.bitcoinBlockchain
           bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
 
           eventually(
@@ -148,6 +148,6 @@ class AppSpendingWalletFunctionalTests : FunSpec({
         transactions.cancelAndIgnoreRemainingEvents()
       }
 
-      appTester.returnFundsToTreasury()
+      app.returnFundsToTreasury()
     }
 })

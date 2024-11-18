@@ -1,6 +1,5 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.db.DbError
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementNotification
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementScreens
 import com.github.michaelbull.result.Result
@@ -30,7 +29,7 @@ class PostSocRecTaskRepositoryImpl(
       }
     }
 
-  override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, DbError> {
+  override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, Error> {
     ongoingSocialRecoverySession.value = value
     return recoveryIncompleteDao.setRecoveryIncomplete(value)
   }

@@ -3,7 +3,6 @@ package build.wallet.statemachine.dev
 import build.wallet.fwup.FirmwareData
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData
 
 /**
  * State machine for the main debug menu list UI. The parent state machine ([DebugMenuStateMachine])
@@ -18,7 +17,6 @@ interface DebugMenuListStateMachine : StateMachine<DebugMenuListProps, BodyModel
  *  context and the config has been modified via config options.
  */
 data class DebugMenuListProps(
-  val accountData: AccountData,
   val firmwareData: FirmwareData?,
   val onSetState: (DebugMenuState) -> Unit,
   val onClose: () -> Unit,

@@ -15,20 +15,11 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
-import build.wallet.bitkey.relationships.ProtectedCustomer
-import build.wallet.bitkey.relationships.ProtectedCustomerAlias
-import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coachmark.CoachmarkIdentifier
-import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.list.ListModel
-import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
-import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
-import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.amount.HeroAmount
 import build.wallet.ui.components.button.Button
@@ -41,14 +32,7 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.refresh.PullRefreshIndicator
 import build.wallet.ui.components.refresh.pullRefresh
 import build.wallet.ui.components.toolbar.ToolbarAccessory
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size
-import build.wallet.ui.model.button.ButtonModel.Treatment
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.tooling.PreviewWalletTheme
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 @Composable
 fun MoneyHomeScreen(
@@ -89,7 +73,7 @@ fun MoneyHomeScreen(
               verticalAlignment = Alignment.CenterVertically
             ) {
               Header(
-                headline = "Home",
+                headline = "Bitkey",
                 headlineTopSpacing = 8.dp,
                 fillsMaxWidth = false
               )
@@ -200,7 +184,7 @@ fun LiteMoneyHomeScreen(
             verticalAlignment = Alignment.CenterVertically
           ) {
             Header(
-              headline = "Home",
+              headline = "Bitkey",
               headlineTopSpacing = 8.dp,
               fillsMaxWidth = false
             )
@@ -295,160 +279,5 @@ private fun Transactions(
     seeAllButtonModel?.let {
       Button(model = seeAllButtonModel)
     }
-  }
-}
-
-@Preview
-@Composable
-fun MoneyHomeScreenFull(
-  hideBalance: Boolean = false,
-  largeBalance: Boolean = false,
-  showSellButton: Boolean = false,
-) {
-  PreviewWalletTheme {
-    MoneyHomeScreen(
-      model =
-        MoneyHomeBodyModel(
-          onSettings = {},
-          hideBalance = hideBalance,
-          onHideBalance = {},
-          balanceModel = if (largeBalance) {
-            MoneyAmountModel(
-              primaryAmount = "$88,888,888.88",
-              secondaryAmount = "153,984,147,317 sats"
-            )
-          } else {
-            MoneyAmountModel(
-              primaryAmount = "$289,745",
-              secondaryAmount = "424,567 sats"
-            )
-          },
-          cardsModel = MoneyHomeCardsModel(cards = emptyImmutableList()),
-          transactionsModel =
-            ListModel(
-              headerText = "Recent activity",
-              sections =
-                immutableListOf(
-                  ListGroupModel(
-                    header = null,
-                    style = ListGroupStyle.NONE,
-                    items =
-                      immutableListOf(
-                        TransactionItemModel(
-                          truncatedRecipientAddress = "1AH7...CkGJ",
-                          date = "Pending",
-                          amount = "+ $11.36",
-                          amountEquivalent = "0.000105 BTC",
-                          transactionType = Incoming,
-                          isPending = false,
-                          onClick = {}
-                        ),
-                        TransactionItemModel(
-                          truncatedRecipientAddress = "2AH7...CkGJ",
-                          date = "Pending",
-                          amount = "$21.36",
-                          amountEquivalent = "0.000205 BTC",
-                          transactionType = Outgoing,
-                          isPending = false,
-                          onClick = {}
-                        ),
-                        TransactionItemModel(
-                          truncatedRecipientAddress = "3AH7...CkGJ",
-                          date = "Pending",
-                          amount = "$31.36",
-                          amountEquivalent = "0.000305 BTC",
-                          transactionType = UtxoConsolidation,
-                          isPending = false,
-                          onClick = {}
-                        )
-                      )
-                  )
-                )
-            ),
-          seeAllButtonModel =
-            ButtonModel(
-              "See All",
-              treatment = Treatment.Secondary,
-              size = Size.Footer,
-              onClick = StandardClick {}
-            ),
-          coachmark = null,
-          buttonsModel =
-            MoneyHomeButtonsModel.MoneyMovementButtonsModel(
-              addButton =
-                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-                  enabled = false,
-                  onClick = {}
-                ),
-              sellButton = if (showSellButton) {
-                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-                  enabled = false,
-                  onClick = {}
-                )
-              } else {
-                null
-              },
-              sendButton =
-                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-                  enabled = true,
-                  onClick = {}
-                ),
-              receiveButton =
-                MoneyHomeButtonsModel.MoneyMovementButtonsModel.Button(
-                  enabled = true,
-                  onClick = {}
-                )
-            ),
-          refresh = {},
-          onRefresh = {},
-          isRefreshing = false,
-          badgedSettingsIcon = true,
-          onOpenPriceDetails = {}
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun MoneyHomeScreenLite() {
-  PreviewWalletTheme {
-    LiteMoneyHomeScreen(
-      model =
-        LiteMoneyHomeBodyModel(
-          onSettings = {},
-          buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
-          protectedCustomers = immutableListOf(
-            ProtectedCustomer(
-              "",
-              ProtectedCustomerAlias("Alice"),
-              setOf(TrustedContactRole.SocialRecoveryContact)
-            )
-          ),
-          badgedSettingsIcon = false,
-          onProtectedCustomerClick = {},
-          onBuyOwnBitkeyClick = {},
-          onAcceptInviteClick = {}
-        )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
-  PreviewWalletTheme {
-    LiteMoneyHomeScreen(
-      model =
-        LiteMoneyHomeBodyModel(
-          onSettings = {},
-          buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
-          protectedCustomers = immutableListOf(),
-          badgedSettingsIcon = true,
-          onProtectedCustomerClick = {},
-          onBuyOwnBitkeyClick = {},
-          onAcceptInviteClick = {}
-        )
-    )
   }
 }

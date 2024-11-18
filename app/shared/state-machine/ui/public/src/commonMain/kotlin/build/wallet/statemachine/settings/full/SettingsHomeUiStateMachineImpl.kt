@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.feature.flags.ExportToolsFeatureFlag
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
@@ -91,7 +92,7 @@ class SettingsHomeUiStateMachineImpl(
               props =
                 SettingsListUiProps(
                   onBack = props.onBack,
-                  f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+                  f8eEnvironment = props.account.config.f8eEnvironment,
                   supportedRows =
                     setOfNotNull(
                       SettingsListUiProps.SettingsListRow.BitkeyDevice {
@@ -157,15 +158,15 @@ class SettingsHomeUiStateMachineImpl(
         mobilePaySettingsUiStateMachine.model(
           props = MobilePaySettingsUiProps(
             onBack = { state = ShowingAllSettingsUiState },
-            accountData = props.accountData
+            account = props.account as FullAccount
           )
         )
 
       is ShowingNotificationPreferencesUiState ->
         notificationPreferencesUiStateMachine.model(
           NotificationPreferencesProps(
-            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-            accountId = props.accountData.account.accountId,
+            f8eEnvironment = props.account.config.f8eEnvironment,
+            accountId = props.account.accountId,
             onBack = { state = ShowingAllSettingsUiState },
             source = Settings,
             onComplete = { state = ShowingAllSettingsUiState }
@@ -175,7 +176,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingRecoveryChannelsUiState ->
         recoveryChannelSettingsUiStateMachine.model(
           RecoveryChannelSettingsProps(
-            props.accountData,
+            account = props.account,
             onBack = { state = ShowingAllSettingsUiState }
           )
         )
@@ -185,7 +186,7 @@ class SettingsHomeUiStateMachineImpl(
           props =
             CustomElectrumServerProps(
               onBack = { state = ShowingAllSettingsUiState },
-              activeNetwork = props.accountData.account.config.bitcoinNetworkType
+              activeNetwork = props.account.config.bitcoinNetworkType
             )
         )
 
@@ -200,7 +201,8 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingBitkeyDeviceSettingsUiState ->
         deviceSettingsUiStateMachine.model(
           props = DeviceSettingsProps(
-            accountData = props.accountData,
+            account = props.account as FullAccount,
+            lostHardwareRecoveryData = props.lostHardwareRecoveryData,
             onBack = { state = ShowingAllSettingsUiState },
             onUnwindToMoneyHome = props.onBack
           )
@@ -210,8 +212,8 @@ class SettingsHomeUiStateMachineImpl(
         feedbackUiStateMachine.model(
           props =
             FeedbackUiProps(
-              f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-              accountId = props.accountData.account.accountId,
+              f8eEnvironment = props.account.config.f8eEnvironment,
+              accountId = props.account.accountId,
               onBack = { state = ShowingAllSettingsUiState }
             )
         )
@@ -227,7 +229,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingTrustedContactsUiState ->
         trustedContactManagementUiStateMachine.model(
           TrustedContactManagementProps(
-            account = props.accountData.account,
+            account = props.account as FullAccount,
             inviteCode = null,
             onExit = { state = ShowingAllSettingsUiState }
           )
@@ -236,7 +238,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingCloudBackupHealthUiState -> {
         cloudBackupHealthDashboardUiStateMachine.model(
           CloudBackupHealthDashboardProps(
-            account = props.accountData.account,
+            account = props.account as FullAccount,
             onExit = { state = ShowingAllSettingsUiState }
           )
         )
@@ -245,7 +247,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingRotateAuthKeyUiState ->
         rotateAuthKeyUIStateMachine.model(
           RotateAuthKeyUIStateMachineProps(
-            account = props.accountData.account,
+            account = props.account as FullAccount,
             origin = RotateAuthKeyUIOrigin.Settings(
               onBack = { state = ShowingAllSettingsUiState }
             )
@@ -254,13 +256,12 @@ class SettingsHomeUiStateMachineImpl(
 
       is ShowingDebugMenuUiState -> debugMenuStateMachine.model(
         DebugMenuProps(
-          accountData = props.accountData,
           onClose = { state = ShowingAllSettingsUiState }
         )
       )
       ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
         BiometricSettingUiProps(
-          keybox = props.accountData.account.keybox,
+          keybox = (props.account as FullAccount).keybox,
           onBack = { state = ShowingAllSettingsUiState }
         )
       )
@@ -274,7 +275,7 @@ class SettingsHomeUiStateMachineImpl(
       )
       ShowingInheritanceUiState -> inheritanceManagementUiStateMachine.model(
         props = InheritanceManagementUiProps(
-          account = props.accountData.account,
+          account = props.account as FullAccount,
           onBack = { state = ShowingAllSettingsUiState }
         )
       )

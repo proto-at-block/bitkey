@@ -11,6 +11,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.P
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
@@ -26,7 +27,6 @@ import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
@@ -107,42 +107,42 @@ class TransactionDetailsUiStateMachineImplTests :
 
     val receivedProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionReceive,
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val sentProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionSend,
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val utxoConsolidationProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionUtxoConsolidation,
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingReceiveProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionReceive.copy(confirmationStatus = Pending),
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingSentProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionSend.copy(confirmationStatus = Pending),
         onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingUtxoConsolidationProps =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction = BitcoinTransactionUtxoConsolidation.copy(
           confirmationStatus = Pending
         ),
@@ -151,7 +151,7 @@ class TransactionDetailsUiStateMachineImplTests :
 
     val pendingSentPropsNoEstimatedConfirmationTime =
       TransactionDetailsUiProps(
-        accountData = ActiveKeyboxLoadedDataMock,
+        account = FullAccountMock,
         transaction =
           BitcoinTransactionSend.copy(
             confirmationStatus = Pending,

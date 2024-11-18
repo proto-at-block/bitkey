@@ -8,51 +8,51 @@ import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import io.kotest.common.runBlocking
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlin.time.Duration.Companion.seconds
 
 class AppFunctionalTests : FunSpec({
 
   test("App re-launches with no access to BDK or F8e") {
-    val appTester = launchNewApp()
+    val app = launchNewApp()
 
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
-    val relaunchedAppTester =
-      appTester.relaunchApp(
+    val relaunchedApp =
+      app.relaunchApp(
         bdkBlockchainFactory = UnreachableBdkBlockchainFactory(),
         f8eEnvironment = F8eEnvironment.Custom("unreachable")
       )
 
-    relaunchedAppTester.app.appUiStateMachine.test(Unit) {
+    relaunchedApp.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
 
   test("BKR-1034 App re-launches with limited access to BDK or F8e") {
-    val appTester = launchNewApp()
+    val app = launchNewApp()
 
-    appTester.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware()
 
     // Limit responses from fromagerie
-    appTester.app.appComponent.networkingDebugService.setFailF8eRequests(value = true)
+    app.networkingDebugService.setFailF8eRequests(value = true)
     val bdkBlockingDelay =
       async {
         delay(5.seconds) // More than the turbine test timeout
       }
-    val relaunchedAppTester =
-      appTester.relaunchApp(
+    val relaunchedApp =
+      app.relaunchApp(
         bdkBlockchainFactory =
           BlockingBdkBlockchainFactory(
             blockingDelay = { bdkBlockingDelay.await() }
           )
       )
 
-    relaunchedAppTester.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    relaunchedApp.appUiStateMachine.test(Unit, useVirtualTime = false) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
       bdkBlockingDelay.cancel()
       cancelAndIgnoreRemainingEvents()

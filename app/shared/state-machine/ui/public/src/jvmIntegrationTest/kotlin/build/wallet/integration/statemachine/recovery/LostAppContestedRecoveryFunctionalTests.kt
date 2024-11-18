@@ -358,14 +358,14 @@ private suspend fun testWithTwoApps(
 
   turbineScope(timeout = 30.seconds) {
     val lostAppAppTester =
-      lostAppApp.app.appUiStateMachine.testIn(
+      lostAppApp.appUiStateMachine.testIn(
         props = Unit,
         turbineTimeout = 20.seconds,
         scope = this
       )
 
     val lostHwAppTester =
-      lostHwApp.app.appUiStateMachine.testIn(
+      lostHwApp.appUiStateMachine.testIn(
         props = Unit,
         turbineTimeout = 20.seconds,
         scope = this

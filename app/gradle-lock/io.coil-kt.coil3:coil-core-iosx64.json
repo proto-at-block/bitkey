@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.coil-kt.coil3:coil-core-iosx64",
+    "components": [
+        {
+            "version": "3.0.0-rc01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-core-iosx64-3.0.0-rc01-metadata.jar": "215e53d482c59bf095aa2f8bdffcab92641220f2467ce591e5922f30f0937963"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "coil-core.klib": "65ecea98ca3d1e07775b1758bf52599091ca4722b213ebbd826af02aa2ebb552"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

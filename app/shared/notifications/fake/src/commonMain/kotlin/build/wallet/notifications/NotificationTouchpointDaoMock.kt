@@ -1,7 +1,6 @@
 package build.wallet.notifications
 
 import app.cash.turbine.Turbine
-import build.wallet.db.DbError
 import build.wallet.email.Email
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
@@ -17,7 +16,7 @@ class NotificationTouchpointDaoMock(
   val clearCalls = turbine("clear touchpoint calls")
   val storeTouchpointCalls = turbine("store touchpoint calls")
 
-  override suspend fun storeTouchpoint(touchpoint: NotificationTouchpoint): Result<Unit, DbError> {
+  override suspend fun storeTouchpoint(touchpoint: NotificationTouchpoint): Result<Unit, Error> {
     storeTouchpointCalls.add(touchpoint)
     when (touchpoint) {
       is PhoneNumberTouchpoint -> phoneNumberFlow.value = touchpoint.value
@@ -34,7 +33,7 @@ class NotificationTouchpointDaoMock(
 
   override fun email(): Flow<Email?> = emailFlow
 
-  override suspend fun clear(): Result<Unit, DbError> {
+  override suspend fun clear(): Result<Unit, Error> {
     reset()
     clearCalls.add(Unit)
     return Ok(Unit)

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-process",
     "components": [
         {
-            "version": "2.8.1",
+            "version": "2.8.5",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-process-2.8.1.aar": "fa6325d0742b929c6c10dd5558c02ba07cf47d8f922c70169cc86c7e1a353977"
+                        "lifecycle-process-2.8.5.aar": "a049060b3b645b6cdadf79b1c13218a2b743d1e1b08173623879810485ed6a87"
                     }
                 }
             ],

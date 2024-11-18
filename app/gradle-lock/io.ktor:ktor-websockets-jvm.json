@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websockets-jvm",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websockets-jvm-2.3.11.jar": "d0307b0effc634963299c3b52f513f78cfb5c5663aeede9dc424b8559b53ebaa"
+                        "ktor-websockets-jvm-2.3.12.jar": "dc35cc539f4dfa5a4ad9b391c14d06527dfac4f64b3e3f050f5143ceb215bca4"
                     }
                 }
             ],

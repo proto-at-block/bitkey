@@ -4,10 +4,8 @@ use super::{
 
 use crate::helpers::validate_signatures;
 use crate::helpers::SignatureType::LockInheritance;
-use account::service::FetchAccountInput;
-use bdk_utils::bdk::descriptor::ExtendedDescriptor;
 use time::OffsetDateTime;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 use types::account::entities::Account;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId, InheritanceClaimLocked,
@@ -22,12 +20,11 @@ pub(crate) struct LockInheritanceClaimInput {
     pub beneficiary_account: Account,
     pub challenge: String,
     pub app_signature: String,
-    pub hardware_signature: String,
 }
 
 impl Service {
     /// This function locks an inheritance claim for a valid benefactor and beneficiary.
-    /// There must be a pending claims between the benefactor and beneficiary.
+    /// There must be a pending claim between the benefactor and beneficiary.
     /// It must be after delay_end_time of the pending claim.
     /// The beneficiary must provide a valid challenge with app and hw signatures.
     /// There must also be a valid & endorsed recovery relationship between the benefactor and beneficiary.
@@ -57,12 +54,7 @@ impl Service {
             &claim.common_fields().recovery_relationship_id,
         )?;
 
-        self.validate_challenge(
-            &claim,
-            &input.challenge,
-            &input.app_signature,
-            &input.hardware_signature,
-        )?;
+        self.validate_challenge(&claim, &input.challenge, &input.app_signature)?;
 
         let locked_claim = match claim {
             InheritanceClaim::Locked(locked_claim) => return Ok(locked_claim),
@@ -92,14 +84,19 @@ impl Service {
 
         let (inheritance_package, benefactor_descriptor_keyset) = tokio::try_join!(
             self.get_inheritance_package(recovery_relationship_id),
-            self.fetch_active_benefactor_descriptor_keyset(pending_claim)
+            self.fetch_active_benefactor_descriptor_keyset(recovery_relationship_id)
         )?;
+
+        let (_, benefactor_descriptor) = benefactor_descriptor_keyset;
+        let benefactor_descriptor = benefactor_descriptor
+            .into_multisig_descriptor()
+            .map_err(ServiceError::BdkUtils)?;
 
         let locked_claim = InheritanceClaimLocked {
             common_fields: pending_claim.common_fields.to_owned(),
             sealed_dek: inheritance_package.sealed_dek,
             sealed_mobile_key: inheritance_package.sealed_mobile_key,
-            benefactor_descriptor_keyset,
+            benefactor_descriptor_keyset: benefactor_descriptor,
             locked_at: OffsetDateTime::now_utc(),
         };
 
@@ -135,49 +132,6 @@ impl Service {
         Ok(pending_claim)
     }
 
-    #[instrument(skip(self, claim))]
-    async fn get_customer_account(
-        &self,
-        claim: &InheritanceClaimPending,
-    ) -> Result<Account, ServiceError> {
-        let relationship = self
-            .recovery_relationship_service
-            .repository
-            .fetch_recovery_relationship(&claim.common_fields.recovery_relationship_id)
-            .await?;
-        let customer_account_id = relationship.common_fields().customer_account_id.clone();
-        let customer_account = self
-            .account_service
-            .fetch_account(FetchAccountInput {
-                account_id: &customer_account_id,
-            })
-            .await
-            .map_err(|err| {
-                event!(Level::ERROR, "Could not fetch account: {:?}", err);
-                ServiceError::MismatchingRecoveryRelationship
-            })?;
-        Ok(customer_account)
-    }
-
-    #[instrument(skip(self, claim))]
-    async fn fetch_active_benefactor_descriptor_keyset(
-        &self,
-        claim: &InheritanceClaimPending,
-    ) -> Result<ExtendedDescriptor, ServiceError> {
-        let account = self.get_customer_account(claim).await?;
-        match account {
-            Account::Full(account) => account
-                .active_descriptor_keyset()
-                .ok_or(ServiceError::NoActiveDescriptorKeySet)
-                .and_then(|keyset| {
-                    keyset
-                        .into_multisig_descriptor()
-                        .map_err(ServiceError::BdkUtils)
-                }),
-            _ => Err(ServiceError::IncompatibleAccountType),
-        }
-    }
-
     #[instrument(skip(self))]
     async fn get_inheritance_package(
         &self,
@@ -190,13 +144,12 @@ impl Service {
             .ok_or(ServiceError::NoInheritancePackage)
     }
 
-    #[instrument(skip(self, claim, challenge, app_signature, hardware_signature))]
+    #[instrument(skip(self, claim, challenge, app_signature))]
     fn validate_challenge(
         &self,
         claim: &InheritanceClaim,
         challenge: &str,
         app_signature: &str,
-        hardware_signature: &str,
     ) -> Result<(), ServiceError> {
         let claim_auth_keys = claim.common_fields().auth_keys.clone();
 
@@ -208,7 +161,7 @@ impl Service {
                 claim_auth_keys.recovery_pubkey,
                 challenge,
                 app_signature,
-                hardware_signature,
+                None,
             )
             .map_err(|_| ServiceError::InvalidChallengeSignature),
             _ => Err(ServiceError::IncompatibleAccountType),

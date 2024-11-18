@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-property-iossimulatorarm64",
     "components": [
         {
-            "version": "5.9.0",
+            "version": "6.0.0.M1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-property-iossimulatorarm64-5.9.0-metadata.jar": "a30b8731b91380d29046042e0a9f3f5cea3d3b63ea1fb509bfd208868ed1529b"
+                        "kotest-property-iossimulatorarm64-6.0.0.M1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-property.klib": "81bf82a6accda8530bb31c1c2ae1e52004591b9e08bee2751a474a1fab1fbb9c"
+                        "kotest-property.klib": "d1e2f6c93311747cccc4d42efe78e62696ef409e7b9e253ae7212c842958eec1"
                     }
                 }
             ],

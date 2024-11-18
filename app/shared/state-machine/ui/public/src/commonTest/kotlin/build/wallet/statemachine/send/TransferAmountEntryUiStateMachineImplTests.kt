@@ -30,6 +30,7 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
@@ -85,7 +86,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       onBack = {},
       initialAmount = FiatMoney.usd(1.0),
       onContinueClick = { onContinueClickCalls += it },
-      exchangeRates = emptyImmutableList()
+      exchangeRates = emptyImmutableList(),
+      allowSendAll = true
     )
 
   beforeTest {
@@ -271,6 +273,31 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         }
         // Emitted because requiresHardware changes to true, but we do not show banner because we have no balance.
         awaitScreenWithBody<TransferAmountBodyModel>()
+      }
+    }
+  }
+
+  test("Should not show smart bar and disable amount hero if spending above balance") {
+    val primaryAmountAboveBalance = balancePrimaryAmount + FiatMoney.usd(0.1)
+    val secondaryAmountAboveBalance = BitcoinMoney(
+      currency = BTC,
+      primaryAmountAboveBalance.value.divide(
+        conversionRate.toBigDecimal(),
+        BTC.decimalMode()
+      )
+    )
+    moneyCalculatorUiStateMachine.emitModel(
+      defaultMoneyCalculatorModel.copy(
+        primaryAmount = primaryAmountAboveBalance,
+        secondaryAmount = secondaryAmountAboveBalance
+      )
+    )
+
+    stateMachine.test(props.copy(allowSendAll = false)) {
+      awaitScreenWithBody<TransferAmountBodyModel> {
+        amountDisabled.shouldBeTrue()
+        primaryButton.shouldBeDisabled()
+        cardModel.shouldBeNull()
       }
     }
   }

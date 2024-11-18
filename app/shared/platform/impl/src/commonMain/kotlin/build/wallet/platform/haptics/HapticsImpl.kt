@@ -5,4 +5,6 @@ import build.wallet.platform.PlatformContext
 expect class HapticsImpl constructor(
   platformContext: PlatformContext,
   hapticsPolicy: HapticsPolicy,
-) : Haptics
+) : Haptics {
+  override suspend fun vibrate(effect: HapticsEffect)
+}

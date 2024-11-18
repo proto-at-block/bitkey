@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-http-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.11",
+            "version": "2.3.12",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-http-iossimulatorarm64-2.3.11-metadata.jar": "8758ae6cf0d66d3aae422001bd383f172386ee266fe89334c1bb6e93f9029887"
+                        "ktor-http-iossimulatorarm64-2.3.12-metadata.jar": "cf45728d1291ef43dc54eb4be18579bef552e8f6ea4a38c28c98af70986c92c9"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-http.klib": "b8b2b5932a85450ed62d8a5d07f8257ec971fd7b007ae0f0f90ae088780240ec"
+                        "ktor-http.klib": "559d8165e2935c265d4939001a7370584edc20bb8ee406a6cfd892ea595a612f"
                     }
                 }
             ],

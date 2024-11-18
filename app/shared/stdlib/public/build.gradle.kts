@@ -14,6 +14,7 @@ kotlin {
        * dependencies on other modules.
        */
       dependencies {
+        api(libs.kmp.kotlin.coroutines)
         api(libs.kmp.kotlin.result)
         api(libs.kmp.okio)
         implementation(libs.kmp.big.number)

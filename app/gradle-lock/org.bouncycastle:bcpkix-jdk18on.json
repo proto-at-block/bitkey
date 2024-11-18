@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcpkix-jdk18on",
+    "components": [
+        {
+            "version": "1.77",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcpkix-jdk18on-1.77.jar": "1ac7fe8efd5b2f38cdc165be5a0675734fe44808dab92707201f03a535d6f1b8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

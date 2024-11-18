@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.MobilePayRevampFeatureFlag
@@ -14,7 +15,6 @@ import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.settings.full.mobilepay.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -42,7 +42,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   val props =
     MobilePayUiProps(
       onBack = {},
-      accountData = ActiveKeyboxLoadedDataMock,
+      account = FullAccountMock,
       onSetLimitClick = { currentLimit ->
         onSetLimitClickCalls += currentLimit
       }

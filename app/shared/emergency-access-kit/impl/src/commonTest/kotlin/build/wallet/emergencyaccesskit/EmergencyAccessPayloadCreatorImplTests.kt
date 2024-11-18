@@ -24,7 +24,8 @@ class EmergencyAccessPayloadCreatorImplTests : FunSpec({
     EmergencyAccessPayloadCreatorImpl(
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      appPrivateKeyDao = appPrivateKeyDao
+      appPrivateKeyDao = appPrivateKeyDao,
+      emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl()
     )
 
   afterTest {

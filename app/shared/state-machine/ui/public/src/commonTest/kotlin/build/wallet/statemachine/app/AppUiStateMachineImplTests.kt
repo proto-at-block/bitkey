@@ -9,6 +9,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.LoadAppServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
@@ -28,13 +29,13 @@ import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardingAccountData
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.keybox.OnboardingKeyboxDataMock
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -179,7 +180,8 @@ class AppUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<HomeUiProps> {
-        accountData.shouldBe(ActiveKeyboxLoadedDataMock)
+        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
     }
   }
@@ -196,7 +198,8 @@ class AppUiStateMachineImplTests : FunSpec({
       loadAppService.appState.value = AppState.Undetermined
 
       awaitScreenWithBodyModelMock<HomeUiProps> {
-        accountData.shouldBe(ActiveKeyboxLoadedDataMock)
+        account.shouldBe(ActiveKeyboxLoadedDataMock.account)
+        lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
     }
   }
@@ -204,7 +207,13 @@ class AppUiStateMachineImplTests : FunSpec({
   test("CreatingAccountData") {
     accountDataStateMachine.emitModel(
       AccountData.NoActiveAccountData.CreatingFullAccountData(
-        createFullAccountData = OnboardingKeyboxDataMock()
+        createFullAccountData = OnboardingAccountData(
+          keybox = KeyboxMock,
+          isSkipCloudBackupInstructions = false,
+          onFoundLiteAccountWithDifferentId = {},
+          onOverwriteFullAccountCloudBackupWarning = {},
+          onOnboardingComplete = {}
+        )
       )
     )
     stateMachine.test(Unit) {

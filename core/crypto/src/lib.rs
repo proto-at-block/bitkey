@@ -9,3 +9,6 @@ pub mod signature_verifier;
 
 #[cfg(feature = "spake2")]
 pub mod spake2;
+
+#[cfg(feature = "noise")]
+pub mod noise;

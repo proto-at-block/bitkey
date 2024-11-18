@@ -12,7 +12,7 @@ import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcException
-import build.wallet.nfc.NfcReaderCapabilityProvider
+import build.wallet.nfc.NfcReaderCapability
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
@@ -82,7 +82,7 @@ interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<
 
 class NfcSessionUIStateMachineImpl(
   private val delayer: Delayer,
-  private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
+  private val nfcReaderCapability: NfcReaderCapability,
   private val enableNfcNavigator: EnableNfcNavigator,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcTransactor: NfcTransactor,
@@ -100,7 +100,7 @@ class NfcSessionUIStateMachineImpl(
   override fun model(props: NfcSessionUIStateMachineProps<*>): ScreenModel {
     var newState by remember {
       mutableStateOf(
-        when (nfcReaderCapabilityProvider.get(props.isHardwareFake).availability()) {
+        when (nfcReaderCapability.availability(props.isHardwareFake)) {
           NotAvailable -> NoNFCMessage
           Disabled -> EnableNFCInstructions
           Enabled -> Searching

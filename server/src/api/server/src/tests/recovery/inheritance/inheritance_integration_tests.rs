@@ -1,11 +1,5 @@
-use axum::body::Body;
-use bdk_utils::bdk::{database::AnyDatabase, Wallet};
-use http::{Method, StatusCode};
-use notification::NotificationPayloadType;
-use rand::thread_rng;
-use std::str::FromStr;
-
 use crate::tests::{
+    gen_services_with_overrides,
     lib::create_phone_touchpoint,
     recovery::shared::{
         assert_notifications, create_beneficiary_account,
@@ -13,12 +7,26 @@ use crate::tests::{
         try_endorse_recovery_relationship, CodeOverride,
     },
 };
+use axum::body::Body;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
+use bdk_utils::bdk::{database::AnyDatabase, FeeRate, SignOptions, Wallet};
 use bdk_utils::signature::sign_message;
+use http::{Method, StatusCode};
+use mockall::mock;
+use notification::NotificationPayloadType;
+use rand::thread_rng;
+use std::collections::HashSet;
+use std::str::FromStr;
+use std::sync::Arc;
 
+use bdk_utils::bdk::bitcoin::psbt::{PartiallySignedTransaction, Psbt};
+use bdk_utils::bdk::wallet::{AddressIndex, AddressInfo};
+use bdk_utils::error::BdkUtilError;
+use bdk_utils::{ElectrumRpcUris, TransactionBroadcasterTrait};
 use recovery::routes::inheritance::{
-    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse, CreateInheritanceClaimRequest,
-    CreateInheritanceClaimResponse, InheritancePackage,
+    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse,
+    CompleteInheritanceClaimResponse, CreateInheritanceClaimRequest,
+    CreateInheritanceClaimResponse, InheritancePackage, LockInheritanceClaimResponse,
     UpdateInheritanceProcessWithDestinationRequest,
     UpdateInheritanceProcessWithDestinationResponse, UploadInheritancePackagesRequest,
     UploadInheritancePackagesResponse,
@@ -43,6 +51,7 @@ use types::{
     },
 };
 
+use crate::tests::lib::create_default_account_with_predefined_wallet;
 use crate::{
     tests::{
         gen_services,
@@ -50,7 +59,7 @@ use crate::{
         requests::{axum::TestClient, CognitoAuthentication},
         TestContext,
     },
-    Bootstrap,
+    Bootstrap, GenServiceOverrides,
 };
 
 enum InheritanceClaimActor {
@@ -130,30 +139,33 @@ pub(super) async fn try_cancel_inheritance_claim(
     None
 }
 
+struct BenefactorBeneficiarySetup {
+    pub benefactor: Account,
+    pub beneficiary: Account,
+    pub recovery_relationship_id: RecoveryRelationshipId,
+    pub benefactor_wallet: Wallet<AnyDatabase>,
+    pub beneficiary_wallet: Option<Wallet<AnyDatabase>>,
+}
+
 async fn setup_benefactor_and_beneficiary_account(
     context: &mut TestContext,
     bootstrap: &Bootstrap,
     client: &TestClient,
     beneficiary_account_type: AccountType,
-) -> (
-    Account,
-    Account,
-    Option<Wallet<AnyDatabase>>,
-    RecoveryRelationshipId,
-) {
-    let benefactor_account = Account::Full(
-        create_full_account(context, &bootstrap.services, Network::BitcoinSignet, None).await,
-    );
-    create_phone_touchpoint(&bootstrap.services, benefactor_account.get_id(), true).await;
+) -> BenefactorBeneficiarySetup {
+    let (benefactor_account, benefactor_wallet) =
+        create_default_account_with_predefined_wallet(context, client, &bootstrap.services).await;
+    let benefactor = Account::Full(benefactor_account);
+    create_phone_touchpoint(&bootstrap.services, benefactor.get_id(), true).await;
 
-    let (beneficiary_account, wallet) =
+    let (beneficiary, beneficiary_wallet) =
         create_beneficiary_account(beneficiary_account_type, context, bootstrap, client).await;
-    create_phone_touchpoint(&bootstrap.services, beneficiary_account.get_id(), true).await;
+    create_phone_touchpoint(&bootstrap.services, beneficiary.get_id(), true).await;
 
     let create_body = try_create_relationship(
         context,
         client,
-        benefactor_account.get_id(),
+        benefactor.get_id(),
         &TrustedContactRole::Beneficiary,
         &CognitoAuthentication::Wallet {
             is_app_signed: true,
@@ -174,8 +186,8 @@ async fn setup_benefactor_and_beneficiary_account(
     try_accept_recovery_relationship_invitation(
         context,
         client,
-        benefactor_account.get_id(),
-        beneficiary_account.get_id(),
+        benefactor.get_id(),
+        beneficiary.get_id(),
         &TrustedContactRole::Beneficiary,
         &CognitoAuthentication::Recovery,
         &create_body.invitation,
@@ -188,7 +200,7 @@ async fn setup_benefactor_and_beneficiary_account(
     try_endorse_recovery_relationship(
         context,
         client,
-        benefactor_account.get_id(),
+        benefactor.get_id(),
         &TrustedContactRole::Beneficiary,
         &recovery_relationship_id,
         "RANDOM_CERT",
@@ -196,12 +208,13 @@ async fn setup_benefactor_and_beneficiary_account(
     )
     .await;
 
-    (
-        benefactor_account,
-        beneficiary_account,
-        wallet,
+    BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
         recovery_relationship_id,
-    )
+        benefactor_wallet,
+        beneficiary_wallet,
+    }
 }
 
 #[rstest]
@@ -218,14 +231,18 @@ async fn start_inheritance_claim_test(
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.clone().router).await;
 
-    let (benefactor, beneficiary, _, recovery_relationship_id) =
-        setup_benefactor_and_beneficiary_account(
-            &mut context,
-            &bootstrap,
-            &client,
-            beneficiary_account_type,
-        )
-        .await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        ..
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        beneficiary_account_type,
+    )
+    .await;
 
     let rotate_to_inheritance_keys = match &beneficiary {
         Account::Full(f) => f.active_auth_keys().unwrap().to_owned(),
@@ -517,14 +534,18 @@ async fn cancel_inheritance_claim(
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.clone().router).await;
 
-    let (benefactor, beneficiary, _, recovery_relationship_id) =
-        setup_benefactor_and_beneficiary_account(
-            &mut context,
-            &bootstrap,
-            &client,
-            AccountType::Full,
-        )
-        .await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        ..
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
     let external_account = Account::Full(
         create_full_account(
             &mut context,
@@ -758,6 +779,7 @@ pub(super) async fn try_update_inheritance_claim<'a>(
     StatusCode::BAD_REQUEST
 )]
 #[tokio::test]
+#[ignore = "Updating inheritance claims with destination is not required for V1"]
 async fn update_inheritance_claim_test(
     #[case] beneficiary_account_type: AccountType,
     #[case] updater: InheritanceClaimActor,
@@ -768,14 +790,18 @@ async fn update_inheritance_claim_test(
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.clone().router).await;
 
-    let (benefactor, beneficiary, _, recovery_relationship_id) =
-        setup_benefactor_and_beneficiary_account(
-            &mut context,
-            &bootstrap,
-            &client,
-            beneficiary_account_type,
-        )
-        .await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        ..
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        beneficiary_account_type,
+    )
+    .await;
     let external_account = Account::Full(
         create_full_account(
             &mut context,
@@ -802,10 +828,9 @@ async fn update_inheritance_claim_test(
     .await;
 
     match response.expect("expected start claim response").claim {
-        BeneficiaryInheritanceClaimView::Canceled(_) => {
-            panic!("Expected a pending claim");
-        }
-        BeneficiaryInheritanceClaimView::Locked(_) => {
+        BeneficiaryInheritanceClaimView::Canceled(_)
+        | BeneficiaryInheritanceClaimView::Locked(_)
+        | BeneficiaryInheritanceClaimView::Completed(_) => {
             panic!("Expected a pending claim");
         }
         BeneficiaryInheritanceClaimView::Pending(pending_claim) => {
@@ -852,14 +877,18 @@ async fn test_lock_inheritance_claim_success() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
-    let (benefactor, beneficiary, _, recovery_relationship_id) =
-        setup_benefactor_and_beneficiary_account(
-            &mut context,
-            &bootstrap,
-            &client,
-            AccountType::Full,
-        )
-        .await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        ..
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
 
     let secp = Secp256k1::new();
     let (app_auth_seckey, app_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
@@ -871,41 +900,18 @@ async fn test_lock_inheritance_claim_success() {
         Some(recovery_auth_pubkey),
     );
 
-    let BeneficiaryInheritanceClaimView::Pending(pending_claim) = try_start_inheritance_claim(
-        &context,
+    let pending_claim = create_lockable_claim(
+        &mut context,
+        bootstrap,
         &client,
-        beneficiary.get_id(),
+        &benefactor,
+        &beneficiary,
         &recovery_relationship_id,
         &auth_keys,
-        StatusCode::OK,
-    )
-    .await
-    .expect("Created inheritance claim")
-    .claim
-    else {
-        panic!("Expected a pending claim");
-    };
-
-    complete_claim_delay_period(bootstrap, &pending_claim).await;
-
-    try_package_upload(
-        &context,
-        &client,
-        benefactor.get_id(),
-        &vec![recovery_relationship_id.clone()],
-        StatusCode::OK,
     )
     .await;
 
-    let challenge = format!(
-        "LockInheritanceClaim{}{}{}",
-        auth_keys.hardware_pubkey,
-        auth_keys.app_pubkey,
-        auth_keys
-            .recovery_pubkey
-            .map(|k| k.to_string())
-            .unwrap_or("".to_string())
-    );
+    let challenge = create_challenge(auth_keys);
     let app_signature = sign_message(&secp, &challenge, &app_auth_seckey);
     let hardware_signature = sign_message(&secp, &challenge, &hardware_auth_seckey);
 
@@ -957,6 +963,19 @@ async fn test_lock_inheritance_claim_success() {
     assert_eq!(actual_response_json, expected_response_json);
 }
 
+fn create_challenge(auth_keys: FullAccountAuthKeys) -> String {
+    let challenge = format!(
+        "LockInheritanceClaim{}{}{}",
+        auth_keys.hardware_pubkey,
+        auth_keys.app_pubkey,
+        auth_keys
+            .recovery_pubkey
+            .map(|k| k.to_string())
+            .unwrap_or("".to_string())
+    );
+    challenge
+}
+
 async fn complete_claim_delay_period(
     bootstrap: Bootstrap,
     pending_claim_view: &BeneficiaryInheritanceClaimViewPending,
@@ -985,7 +1004,11 @@ async fn test_lock_inheritance_claim_lite_account_forbidden() {
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
-    let (_, beneficiary, _, recovery_relationship_id) = setup_benefactor_and_beneficiary_account(
+    let BenefactorBeneficiarySetup {
+        beneficiary,
+        recovery_relationship_id,
+        ..
+    } = setup_benefactor_and_beneficiary_account(
         &mut context,
         &bootstrap,
         &client,
@@ -1013,4 +1036,486 @@ async fn test_lock_inheritance_claim_lite_account_forbidden() {
 
     // assert
     assert_eq!(response.status_code, StatusCode::FORBIDDEN);
+}
+
+mock! {
+    TransactionBroadcaster { }
+    impl TransactionBroadcasterTrait for TransactionBroadcaster {
+        fn broadcast(
+            &self,
+            wallet: Wallet<AnyDatabase>,
+            transaction: &mut Psbt,
+            rpc_uris: &ElectrumRpcUris
+        ) -> Result<(), BdkUtilError>;
+    }
+}
+#[tokio::test]
+async fn test_complete_inheritance_claim_lite_account_forbidden() {
+    // arrange
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+
+    let BenefactorBeneficiarySetup { beneficiary, .. } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Lite,
+    )
+    .await;
+    let keys = create_new_authkeys(&mut context);
+
+    // act
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{}/complete",
+        beneficiary.get_id(),
+        InheritanceClaimId::gen().expect("fake claim id")
+    );
+    let body = json!({ "psbt": "cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA" }).to_string();
+
+    let response = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            beneficiary.get_id().to_string().as_str(),
+            &Method::PUT,
+            Body::from(body),
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            &keys,
+        )
+        .await;
+
+    // assert
+    assert_eq!(response.status_code, StatusCode::FORBIDDEN);
+}
+#[tokio::test]
+async fn test_complete_inheritance_claim_success() {
+    // arrange
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(1)
+        .returning(|_, _, _| Ok(()));
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        benefactor_wallet,
+        beneficiary_wallet,
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
+    let claim_id = create_locked_claim(
+        &mut context,
+        bootstrap,
+        &client,
+        &benefactor,
+        &beneficiary,
+        &recovery_relationship_id,
+    )
+    .await;
+    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+
+    // act
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{claim_id}/complete",
+        beneficiary.get_id()
+    );
+    let body = json!({ "psbt": psbt.to_string() }).to_string();
+    let keys = context
+        .get_authentication_keys_for_account_id(beneficiary.get_id())
+        .expect("Invalid keys for account");
+    let response = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            &beneficiary.get_id().to_string(),
+            &Method::PUT,
+            Body::from(body),
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            &keys,
+        )
+        .await;
+
+    // assert
+    assert_eq!(response.status_code, StatusCode::OK);
+
+    let expected_response_json_without_psbt = json!({
+        "claim": {
+            "status": "COMPLETED",
+            "id": claim_id,
+            "recovery_relationship_id": recovery_relationship_id,
+        }
+    });
+    let actual_response_json: Value =
+        serde_json::from_str(&response.body_string).expect("should be valid json");
+    let mut actual_response_json_without_psbt = actual_response_json.clone();
+    actual_response_json_without_psbt["claim"]
+        .as_object_mut()
+        .unwrap()
+        .remove("psbt");
+
+    let actual_psbt = actual_response_json["claim"]["psbt"]
+        .as_str()
+        .expect("psbt field missing");
+    let actual_psbt = Psbt::from_str(actual_psbt).expect("psbt should be valid");
+
+    assert_eq!(
+        actual_response_json_without_psbt,
+        expected_response_json_without_psbt
+    );
+
+    assert_eq!(actual_psbt.unsigned_tx, psbt.unsigned_tx);
+    actual_psbt.inputs.iter().for_each(|input| {
+        assert!(input.final_script_witness.is_some());
+    });
+}
+
+#[tokio::test]
+async fn test_complete_inheritance_claim_rbf_success() {
+    // arrange
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock
+        .expect_broadcast()
+        .times(2)
+        .returning(|_, _, _| Ok(()));
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        benefactor_wallet,
+        beneficiary_wallet,
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
+    let claim_id = create_locked_claim(
+        &mut context,
+        bootstrap,
+        &client,
+        &benefactor,
+        &beneficiary,
+        &recovery_relationship_id,
+    )
+    .await;
+    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+    let auth = &CognitoAuthentication::Wallet {
+        is_app_signed: true,
+        is_hardware_signed: true,
+    };
+
+    // complete claim
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{claim_id}/complete",
+        beneficiary.get_id()
+    );
+    let keys = context
+        .get_authentication_keys_for_account_id(beneficiary.get_id())
+        .expect("Invalid keys for account");
+    let _ = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            &beneficiary.get_id().to_string(),
+            &Method::PUT,
+            Body::from(json!({ "psbt": psbt.to_string() }).to_string()),
+            auth,
+            &keys,
+        )
+        .await;
+
+    let (rbf_psbt, _) =
+        build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 7.0, true);
+
+    // act
+    let rbf_response = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            &beneficiary.get_id().to_string(),
+            &Method::PUT,
+            Body::from(json!({ "psbt": rbf_psbt.to_string() }).to_string()),
+            auth,
+            &keys,
+        )
+        .await;
+
+    // assert
+    assert_eq!(rbf_response.status_code, StatusCode::OK);
+
+    let actual_response_json: Value =
+        serde_json::from_str(&rbf_response.body_string).expect("should be valid json");
+
+    let actual_psbt = actual_response_json["claim"]["psbt"]
+        .as_str()
+        .expect("psbt field missing");
+    let actual_psbt = Psbt::from_str(actual_psbt).expect("psbt should be valid");
+
+    assert_eq!(actual_psbt.unsigned_tx, rbf_psbt.unsigned_tx);
+}
+
+#[tokio::test]
+async fn test_complete_inheritance_claim_sanctions_failure() {
+    // arrange
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        benefactor_wallet,
+        beneficiary_wallet,
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
+    let claim_id = create_locked_claim(
+        &mut context,
+        bootstrap,
+        &client,
+        &benefactor,
+        &beneficiary,
+        &recovery_relationship_id,
+    )
+    .await;
+    let (psbt, beneficiary_address) =
+        build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, true);
+
+    // add beneficiary to blocked list
+    let blocked_hash_set = HashSet::from([beneficiary_address.to_string()]);
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock.expect_broadcast().times(0);
+    let overrides = GenServiceOverrides::new()
+        .broadcaster(Arc::new(broadcaster_mock))
+        .blocked_addresses(blocked_hash_set);
+    let (_, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    // act
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{claim_id}/complete",
+        beneficiary.get_id()
+    );
+    let body = json!({ "psbt": psbt.to_string() }).to_string();
+    let keys = context
+        .get_authentication_keys_for_account_id(beneficiary.get_id())
+        .expect("Invalid keys for account");
+    let response = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            &beneficiary.get_id().to_string(),
+            &Method::PUT,
+            Body::from(body),
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            &keys,
+        )
+        .await;
+
+    // assert
+    assert_eq!(
+        response.status_code,
+        StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS
+    );
+}
+
+#[tokio::test]
+async fn test_complete_inheritance_claim_unsigned_psbt_fails() {
+    // arrange
+    let mut broadcaster_mock = MockTransactionBroadcaster::new();
+    broadcaster_mock.expect_broadcast().times(0);
+    let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
+    let client = TestClient::new(bootstrap.router.clone()).await;
+    let BenefactorBeneficiarySetup {
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        benefactor_wallet,
+        beneficiary_wallet,
+    } = setup_benefactor_and_beneficiary_account(
+        &mut context,
+        &bootstrap,
+        &client,
+        AccountType::Full,
+    )
+    .await;
+    let claim_id = create_locked_claim(
+        &mut context,
+        bootstrap,
+        &client,
+        &benefactor,
+        &beneficiary,
+        &recovery_relationship_id,
+    )
+    .await;
+    let (psbt, _) = build_sweep_psbt(&benefactor_wallet, beneficiary_wallet.as_ref(), 5.0, false);
+
+    // act
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{claim_id}/complete",
+        beneficiary.get_id()
+    );
+    let body = json!({ "psbt": psbt.to_string() }).to_string();
+    let keys = context
+        .get_authentication_keys_for_account_id(beneficiary.get_id())
+        .expect("Invalid keys for account");
+    let response = client
+        .make_request_with_auth::<CompleteInheritanceClaimResponse>(
+            &uri,
+            &beneficiary.get_id().to_string(),
+            &Method::PUT,
+            Body::from(body),
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            &keys,
+        )
+        .await;
+
+    // assert
+    assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(response
+        .body_string
+        .contains("Input does not only have one signature"));
+}
+
+async fn create_locked_claim(
+    context: &mut TestContext,
+    bootstrap: Bootstrap,
+    client: &TestClient,
+    benefactor: &Account,
+    beneficiary: &Account,
+    recovery_relationship_id: &RecoveryRelationshipId,
+) -> InheritanceClaimId {
+    let secp = Secp256k1::new();
+    let (app_auth_seckey, app_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let (hardware_auth_seckey, hardware_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let (_recovery_auth_seckey, recovery_auth_pubkey) = secp.generate_keypair(&mut thread_rng());
+    let auth_keys = FullAccountAuthKeys::new(
+        app_auth_pubkey,
+        hardware_auth_pubkey,
+        Some(recovery_auth_pubkey),
+    );
+
+    let pending_claim = create_lockable_claim(
+        context,
+        bootstrap,
+        client,
+        benefactor,
+        beneficiary,
+        recovery_relationship_id,
+        &auth_keys,
+    )
+    .await;
+
+    let challenge = create_challenge(auth_keys);
+    let app_signature = sign_message(&secp, &challenge, &app_auth_seckey);
+    let hardware_signature = sign_message(&secp, &challenge, &hardware_auth_seckey);
+
+    // lock claim
+    let uri = format!(
+        "/api/accounts/{}/recovery/inheritance/claims/{}/lock",
+        beneficiary.get_id(),
+        pending_claim.common_fields.id
+    );
+    let body = json!({
+        "recovery_relationship_id": recovery_relationship_id,
+        "challenge": challenge,
+        "app_signature": app_signature,
+        "hardware_signature": hardware_signature,
+    })
+    .to_string();
+    let _ = client
+        .make_request::<LockInheritanceClaimResponse>(&uri, &Method::PUT, Body::from(body))
+        .await;
+    pending_claim.common_fields.id
+}
+
+fn build_sweep_psbt(
+    benefactor_wallet: &Wallet<AnyDatabase>,
+    beneficiary_wallet: Option<&Wallet<AnyDatabase>>,
+    fee: f32,
+    sign: bool,
+) -> (PartiallySignedTransaction, AddressInfo) {
+    let beneficiary_address = beneficiary_wallet
+        .expect("Beneficiary wallet not created")
+        .get_address(AddressIndex::New)
+        .expect("Could not get address");
+
+    let mut builder = benefactor_wallet.build_tx();
+    builder
+        .drain_wallet()
+        .drain_to(beneficiary_address.script_pubkey())
+        .fee_rate(FeeRate::from_sat_per_vb(fee));
+
+    let (mut psbt, _) = builder.finish().expect("Could not build psbt");
+
+    if sign {
+        let _ = benefactor_wallet.sign(
+            &mut psbt,
+            SignOptions {
+                remove_partial_sigs: false,
+                ..SignOptions::default()
+            },
+        );
+    }
+    (psbt, beneficiary_address)
+}
+
+async fn create_lockable_claim(
+    context: &mut TestContext,
+    bootstrap: Bootstrap,
+    client: &TestClient,
+    benefactor: &Account,
+    beneficiary: &Account,
+    recovery_relationship_id: &RecoveryRelationshipId,
+    auth_keys: &FullAccountAuthKeys,
+) -> BeneficiaryInheritanceClaimViewPending {
+    let BeneficiaryInheritanceClaimView::Pending(pending_claim) = try_start_inheritance_claim(
+        context,
+        client,
+        beneficiary.get_id(),
+        recovery_relationship_id,
+        auth_keys,
+        StatusCode::OK,
+    )
+    .await
+    .expect("Created inheritance claim")
+    .claim
+    else {
+        panic!("Expected a pending claim");
+    };
+
+    complete_claim_delay_period(bootstrap, &pending_claim).await;
+
+    try_package_upload(
+        context,
+        client,
+        benefactor.get_id(),
+        &vec![recovery_relationship_id.clone()],
+        StatusCode::OK,
+    )
+    .await;
+    pending_claim
 }

@@ -114,7 +114,7 @@ impl Service {
 
         let new_rate = self
             .spot_rate_cache
-            .entry(currency_code.clone() as u16)
+            .entry(currency_code as u16)
             .or_try_insert_with(async {
                 Self::fetch_latest_rate(&rate_provider, OffsetDateTime::now_utc(), currency_code)
                     .await
@@ -154,7 +154,7 @@ impl Service {
             .map(|currency| {
                 let self_copy = self.clone();
                 let rate_provider_copy = rate_provider.clone();
-                let currency_copy = currency.clone();
+                let currency_copy = currency;
                 async move {
                     match self_copy
                         .get_latest_rate(rate_provider_copy, currency_copy)
@@ -230,10 +230,10 @@ impl Service {
             .map(|timestamp| {
                 let self_copy = self.clone();
                 let rate_provider_copy = rate_provider.clone();
-                let currency_copy = currency.clone();
+                let currency_copy = currency;
                 async move {
                     match self_copy
-                        .fetch_historical_rate(rate_provider_copy, currency_copy.clone(), timestamp)
+                        .fetch_historical_rate(rate_provider_copy, currency_copy, timestamp)
                         .await
                     {
                         Ok(currency_rate) => Some(currency_rate),
@@ -267,7 +267,7 @@ impl Service {
         max_price_points: usize,
     ) -> Result<ExchangeRateChartData, ExchangeRateError> {
         self.get_chart_cache(days)?
-            .entry(ChartCacheKey::new(currency.clone(), days, max_price_points))
+            .entry(ChartCacheKey::new(currency, days, max_price_points))
             .or_try_insert_with(async {
                 rate_provider
                     .chart_data(&currency, days, max_price_points)
@@ -306,7 +306,7 @@ impl Service {
         T: HistoricalExchangeRateProvider,
     {
         let rate = rate_provider
-            .rate(&vec![currency.clone()], time)
+            .rate(&vec![currency], time)
             .await?
             .remove(&currency.to_string())
             .ok_or_else(|| ProviderResponseError::MissingData(T::rate_provider_type()))?;

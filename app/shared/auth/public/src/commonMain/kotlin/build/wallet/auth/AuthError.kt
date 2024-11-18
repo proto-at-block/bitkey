@@ -22,9 +22,9 @@ data class AuthNetworkError(
 /** The api has stated there is a mismatch between the sent key and expected key */
 data object AuthSignatureMismatch : AuthError()
 
-data class FailedToReadAccountStatus(val dbError: Error) : AuthError()
+data class FailedToReadAccountStatus(override val cause: Error) : AuthError()
 
-data class FailedToReadRecoveryStatus(val dbError: Error) : AuthError()
+data class FailedToReadRecoveryStatus(override val cause: Error) : AuthError()
 
 data object AccountMissing : AuthError()
 

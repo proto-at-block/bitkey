@@ -12,7 +12,7 @@ import build.wallet.money.currency.BTC
 import build.wallet.money.currency.CryptoCurrency
 import build.wallet.money.currency.Currency
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
+import build.wallet.money.formatter.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputDisplayText.Substring
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlin.ranges.IntRange.Companion.EMPTY

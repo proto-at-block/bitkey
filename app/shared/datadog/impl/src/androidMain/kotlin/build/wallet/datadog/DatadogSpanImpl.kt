@@ -3,7 +3,7 @@ package build.wallet.datadog
 import com.datadog.trace.api.interceptor.MutableSpan
 import io.opentracing.Span
 
-data class DatadogSpanImpl(
+internal data class DatadogSpanImpl(
   val span: Span,
 ) : DatadogSpan {
   override var resourceName: String? = null

@@ -11,7 +11,6 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.dbResultPublic)
       }
     }
   }

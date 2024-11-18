@@ -4,8 +4,6 @@ import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.Serializable
 
 @Serializable
-internal data class RefreshTrustedContactRequestBody internal constructor(
+internal data class RefreshTrustedContactRequestBody(
   val action: String,
-) : RedactedRequestBody {
-  constructor() : this("Reissue")
-}
+) : RedactedRequestBody
