@@ -30,18 +30,6 @@ resource "aws_iam_role_policy" "ops" {
 }
 
 data "aws_iam_policy_document" "ops" {
-
-  // Allow updating the APNS platform application attributes
-  statement {
-    effect = "Allow"
-    actions = [
-      "sns:SetPlatformApplicationAttributes",
-    ]
-    resources = [
-      "arn:aws:sns:*:*:app/APNS/bitkey-team-ios"
-    ]
-  }
-
   // Allow updating secretsmanager secret values, but NOT reading them
   statement {
     effect = "Allow"

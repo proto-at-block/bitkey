@@ -1,9 +1,6 @@
 package build.wallet.memfault
 
-import build.wallet.ktor.result.HttpError
-import build.wallet.ktor.result.catching
-import build.wallet.ktor.result.readByteString
-import build.wallet.ktor.result.setUnredactedBody
+import build.wallet.ktor.result.*
 import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
 import build.wallet.memfault.MemfaultClient.*
@@ -40,11 +37,10 @@ class MemfaultClientImpl(
         }
       }
       .map { response ->
-        val url =
-          when (response.status) {
-            HttpStatusCode.NoContent -> null
-            else -> (response.body<QueryFwupBundleResponseBody>()).data.url
-          }
+        val url = when (response.status) {
+          HttpStatusCode.OK -> response.bodyResult<QueryFwupBundleResponseBody>().get()?.data?.url
+          else -> null
+        }
         QueryFwupBundleSuccess(url)
       }
   }
