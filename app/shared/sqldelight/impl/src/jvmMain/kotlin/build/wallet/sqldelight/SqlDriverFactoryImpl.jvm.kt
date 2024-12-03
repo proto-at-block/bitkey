@@ -4,7 +4,7 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.File.join
@@ -25,7 +25,7 @@ actual class SqlDriverFactoryImpl actual constructor(
   appVariant: AppVariant,
   databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
-  actual override fun createDriver(
+  actual override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {
@@ -39,7 +39,7 @@ actual class SqlDriverFactoryImpl actual constructor(
         dataBaseSchema.create(driver)
       } catch (e: Exception) {
         if (e.message?.contains("already exists") == true) {
-          log { "Skipped running migrations" }
+          logDebug { "Skipped running migrations" }
           return driver
         }
         throw e

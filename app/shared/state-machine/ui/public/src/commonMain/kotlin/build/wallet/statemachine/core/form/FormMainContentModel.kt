@@ -1,16 +1,21 @@
 package build.wallet.statemachine.core.form
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.statemachine.core.ComposableRenderedModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
+import build.wallet.ui.app.core.form.UpsellContainer
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
@@ -27,6 +32,11 @@ sealed class FormMainContentModel {
     /** The amount of space, or null if it should try to fill as much space as possible. */
     val height: Float? = null,
   ) : FormMainContentModel()
+
+  /**
+   * A basic horizontal divider line.
+   */
+  data object Divider : FormMainContentModel()
 
   /**
    * A display list of text items with a title and subtext with a leading icon aligned to the
@@ -94,7 +104,7 @@ sealed class FormMainContentModel {
     val buttons: ImmutableList<ButtonModel> = emptyImmutableList(),
   ) : FormMainContentModel() {
     init {
-      require(items.isNotEmpty() || total != null)
+      require(items.isNotEmpty())
     }
 
     /**
@@ -134,7 +144,11 @@ sealed class FormMainContentModel {
 
       enum class SideTextTreatment { PRIMARY, SECONDARY, WARNING, STRIKETHROUGH }
 
-      data class Explainer(val title: String, val subtitle: String, val iconButton: IconButtonModel? = null)
+      data class Explainer(
+        val title: String,
+        val subtitle: String,
+        val iconButton: IconButtonModel? = null,
+      )
     }
   }
 
@@ -309,14 +323,41 @@ sealed class FormMainContentModel {
   ) : FormMainContentModel()
 
   /**
-   * A linear progress indicator with multiple labels, evenly spaced along
-   * the bottom of the bar.
+   * A linear progress indicator with labeled icons as "steps".
    */
   data class StepperIndicator(
-    // TODO(W-8034): use Progress type.
-    val progress: Float,
-    val labels: ImmutableList<String>,
-  ) : FormMainContentModel()
+    val steps: ImmutableList<Step>,
+  ) : FormMainContentModel() {
+    /**
+     * A step on the progress indicator. Each step is represented by an icon enclosed
+     * within a circle on the line, with a label underneath the circle.
+     */
+    data class Step(
+      val style: StepStyle,
+      val icon: IconImage?,
+      val label: String,
+    )
+
+    /**
+     * The style to be attributed to the step
+     */
+    enum class StepStyle {
+      /**
+       * The step is in progress; uses bitkeyPrimary for the circle and foreground10 for the next line.
+       */
+      PENDING,
+
+      /**
+       * The step is completed; uses bitkeyPrimary for the circle and next line.
+       */
+      COMPLETED,
+
+      /**
+       * The step is still upcoming; uses foreground10 for the circle and next line.
+       */
+      UPCOMING,
+    }
+  }
 
   data object Loader : FormMainContentModel()
 
@@ -344,4 +385,25 @@ sealed class FormMainContentModel {
   data class CircularTabRow(
     val item: CircularTabRowModel,
   ) : FormMainContentModel()
+
+  /**
+   * An information container with two action buttons and hero icon image.
+   */
+  data class Upsell(
+    val iconModel: IconModel,
+    val title: String,
+    val body: String,
+    val primaryButton: ButtonModel,
+    val secondaryButton: ButtonModel,
+  ) : FormMainContentModel(), ComposableRenderedModel {
+    override val key: String = "upsell"
+
+    @Composable
+    override fun render(modifier: Modifier) {
+      UpsellContainer(
+        modifier = modifier,
+        model = this
+      )
+    }
+  }
 }

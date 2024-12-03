@@ -1,8 +1,7 @@
 package build.wallet.f8e.sync
 
 import build.wallet.bitkey.account.Account
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -34,7 +33,7 @@ class F8eSyncSequencer {
     }
 
     if (lastAccount != null && lastAccount != account) {
-      log(Error) {
+      logError {
         "sync sequencer called with different account while previous coroutine was active. " +
           "Last account: $lastAccount, new account: $account"
       }

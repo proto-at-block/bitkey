@@ -9,7 +9,7 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.get
@@ -28,7 +28,7 @@ class FullAccountCloudBackupRepairerImpl(
     cloudStoreAccount: CloudStoreAccount,
     cloudBackupStatus: CloudBackupStatus,
   ) {
-    log { "Attempting to repair cloud backup issues" }
+    logDebug { "Attempting to repair cloud backup issues" }
 
     val localBackup = cloudBackupDao
       .get(account.accountId.serverId)
@@ -41,7 +41,7 @@ class FullAccountCloudBackupRepairerImpl(
 
     // Ensure local backup is for full account. Should not happen, but to be safe.
     if (!localBackup.isFullAccount()) {
-      log { "Local backup is not for full account" }
+      logWarn { "Local backup is not for full account" }
       return
     }
 
@@ -53,7 +53,7 @@ class FullAccountCloudBackupRepairerImpl(
         uploadMobileKeyBackup(account, cloudStoreAccount, localBackup)
       is MobileKeyBackupStatus.ProblemWithBackup.InvalidBackup -> {
         if (localBackup.accountId != mobileKeyBackupStatus.cloudBackup.accountId) {
-          log { "Local backup account id does not match invalid backup account id" }
+          logWarn { "Local backup account id does not match invalid backup account id" }
           // We cannot safely assume that the customer would want to overwrite the cloud backup,
           // so let the customer resolve this manually.
           // No action taken here.
@@ -86,7 +86,7 @@ class FullAccountCloudBackupRepairerImpl(
     cloudBackupRepository
       .writeBackup(account.accountId, cloudStoreAccount, localBackup, true)
       .onSuccess {
-        log { "Successfully uploaded backup" }
+        logDebug { "Successfully uploaded backup" }
       }
       // Customer will have to resolve this manually
       .logFailure { "Error uploading cloud backup" }
@@ -110,7 +110,7 @@ class FullAccountCloudBackupRepairerImpl(
         emergencyAccessKitRepository.write(cloudStoreAccount, eakData)
       }
       .onSuccess {
-        log { "Successfully uploaded Emergency Access Kit" }
+        logDebug { "Successfully uploaded Emergency Access Kit" }
       }
       // Customer will have to resolve this manually
       .logFailure { "Error uploading Emergency Access Kit" }

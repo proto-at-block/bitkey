@@ -3,7 +3,6 @@ package build.wallet.statemachine.send
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.bitcoin.transactions.toFormattedString
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -11,6 +10,7 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.money.formatter.amountDisplayText
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
+import build.wallet.statemachine.transactions.TransactionDetails
 
 class TransactionDetailsCardUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
@@ -47,12 +47,6 @@ class TransactionDetailsCardUiStateMachineImpl(
       bitcoinAmount = props.transactionDetails.transferAmount,
       fiatAmount = transferFiatAmount
     )
-
-    val amountLabel = if (props.variant is TransferConfirmationScreenVariant.Sell) {
-      "Amount selling"
-    } else {
-      "Recipient receives"
-    }
 
     val transactionDetailModelType =
       when (props.transactionDetails) {
@@ -151,37 +145,6 @@ class TransactionDetailsCardUiStateMachineImpl(
             totalFeeSecondaryText = totalFeeText.secondaryAmountText
           )
         }
-
-        is TransactionDetails.Sell -> {
-          val totalFiatAmount: FiatMoney? =
-            props.exchangeRates?.let {
-              convertedOrZeroWithRates(
-                converter = currencyConverter,
-                fromAmount = totalBitcoinAmount,
-                toCurrency = fiatCurrency,
-                rates = it
-              )
-            } as FiatMoney?
-
-          val totalAmountFormatted = moneyDisplayFormatter.amountDisplayText(
-            bitcoinAmount = totalBitcoinAmount,
-            fiatAmount = totalFiatAmount
-          )
-
-          val feeAmountFormatted = moneyDisplayFormatter.amountDisplayText(
-            bitcoinAmount = props.transactionDetails.feeAmount,
-            fiatAmount = feeFiatAmount
-          )
-
-          TransactionDetailModelType.Sell(
-            transferAmountText = "~${formattedTransferAmountText.primaryAmountText}",
-            transferAmountSecondaryText = formattedTransferAmountText.secondaryAmountText ?: "",
-            totalAmountPrimaryText = totalAmountFormatted.primaryAmountText,
-            totalAmountSecondaryText = totalAmountFormatted.secondaryAmountText ?: "",
-            feeAmountText = feeAmountFormatted.primaryAmountText,
-            feeAmountSecondaryText = feeAmountFormatted.secondaryAmountText ?: ""
-          )
-        }
       }
 
     return TransactionDetailsModel(
@@ -189,10 +152,8 @@ class TransactionDetailsCardUiStateMachineImpl(
         when (props.transactionDetails) {
           is TransactionDetails.Regular -> props.transactionDetails.estimatedTransactionPriority.toFormattedString()
           is TransactionDetails.SpeedUp -> "~10 minutes"
-          is TransactionDetails.Sell -> props.transactionDetails.estimatedTransactionPriority.toFormattedString()
         },
-      transactionDetailModelType = transactionDetailModelType,
-      amountLabel = amountLabel
+      transactionDetailModelType = transactionDetailModelType
     )
   }
 }

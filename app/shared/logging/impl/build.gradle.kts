@@ -13,6 +13,7 @@ kotlin {
         api(libs.kmp.kermit)
         api(projects.shared.accountPublic)
         api(projects.shared.platformPublic)
+        api(projects.shared.firmwarePublic)
       }
     }
     val androidMain by getting {

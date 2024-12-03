@@ -1,9 +1,9 @@
 package build.wallet.nfc
 
 import build.wallet.catchingResult
-import build.wallet.logging.LogLevel
 import build.wallet.logging.NFC_TAG
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcSession.Parameters
 import build.wallet.nfc.interceptors.NfcEffect
 import build.wallet.nfc.interceptors.NfcTransactionInterceptor
@@ -33,11 +33,11 @@ class NfcTransactorImpl(
     parameters: Parameters,
     transaction: TransactionFn<T>,
   ): Result<T, NfcException> {
-    log(tag = NFC_TAG) { "Starting an NFC Transaction" }
+    logDebug(tag = NFC_TAG) { "Starting an NFC Transaction" }
 
     // check if there is an ongoing transaction. if so, return an error
     if (nfcTransactionLock.isLocked) {
-      log(tag = NFC_TAG, level = LogLevel.Warn) {
+      logWarn(tag = NFC_TAG) {
         "NFC transaction already in progress"
       }
 

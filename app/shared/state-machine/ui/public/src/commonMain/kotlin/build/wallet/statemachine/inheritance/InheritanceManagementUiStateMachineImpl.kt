@@ -1,6 +1,7 @@
 package build.wallet.statemachine.inheritance
 
 import androidx.compose.runtime.*
+import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
@@ -11,11 +12,10 @@ import build.wallet.statemachine.inheritance.claims.start.StartClaimUiStateMachi
 import build.wallet.statemachine.inheritance.claims.start.StartClaimUiStateMachineProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.ui.model.Click
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.*
-import build.wallet.ui.model.list.ListItemAccessory.Companion.drillIcon
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -62,51 +62,25 @@ class InheritanceManagementUiStateMachineImpl(
       )
 
       UiState.ManagingInheritance -> {
-        val benefactorsList =
-          ListGroupModel(
-            header = "Inheritance",
-            items = benefactors.pcListItemModel(
-              startClaim = {
-                uiState = UiState.StartingClaim(it)
-              }
-            ),
-            style = ListGroupStyle.CARD_GROUP_DIVIDER,
-            footerButton =
-              ButtonModel(
-                text = "Accept an invite",
-                treatment = ButtonModel.Treatment.Secondary,
-                size = ButtonModel.Size.Footer,
-                onClick = StandardClick {
-                  uiState = UiState.AcceptingInvitation
-                }
-              )
-          )
-
-        val beneficiariesList = ListGroupModel(
-          header = "Beneficiaries",
-          items = beneficiaries.tcListItemModel(
-            inheritanceClaims?.get().orEmpty()
-          ),
-          style = ListGroupStyle.CARD_GROUP_DIVIDER,
-          footerButton =
-            ButtonModel(
-              text = "Add a beneficiary",
-              treatment = ButtonModel.Treatment.Secondary,
-              size = ButtonModel.Size.Footer,
-              onClick = StandardClick {
-                uiState = UiState.InvitingBeneficiary
-              }
-            )
-        )
-
         ManagingInheritanceBodyModel(
           selectedTab = selectedTab,
           onBack = props.onBack,
-          content = listOf(benefactorsList, beneficiariesList),
           onInviteClick = StandardClick {
             uiState = UiState.InvitingBeneficiary
           },
-          onTabRowClick = { tab -> selectedTab = tab }
+          onTabRowClick = { tab -> selectedTab = tab },
+          onAcceptInvitation = { uiState = UiState.AcceptingInvitation },
+          hasPendingBeneficiaries = beneficiaries.any { it is Invitation },
+          beneficiaries = BeneficiaryListModel(
+            beneficiaries = beneficiaries,
+            inheritanceClaims = inheritanceClaims?.get().orEmpty()
+          ),
+          benefactors = BenefactorListModel(
+            benefactors = benefactors,
+            onStartClaimClick = {
+              uiState = UiState.StartingClaim(it)
+            }
+          )
         ).asRootScreen()
       }
       UiState.InvitingBeneficiary -> inviteBeneficiaryUiStateMachine.model(
@@ -135,39 +109,78 @@ class InheritanceManagementUiStateMachineImpl(
   }
 }
 
+@Stable
+fun BenefactorListModel(
+  benefactors: List<ProtectedCustomer>,
+  onStartClaimClick: (RelationshipId) -> Unit,
+): ListGroupModel {
+  return ListGroupModel(
+    items = benefactors.pcListItemModel(
+      startClaim = onStartClaimClick
+    ),
+    style = ListGroupStyle.DIVIDER
+  )
+}
+
+@Stable
+fun BeneficiaryListModel(
+  beneficiaries: ImmutableList<TrustedContact>,
+  inheritanceClaims: List<RelationshipId>,
+): ListGroupModel {
+  return ListGroupModel(
+    items = beneficiaries.tcListItemModel(inheritanceClaims),
+    style = ListGroupStyle.DIVIDER
+  )
+}
+
 private fun List<TrustedContact>.tcListItemModel(pendingClaims: List<RelationshipId>) =
   map { contact ->
     ListItemModel(
-      leadingAccessory =
-        ListItemAccessory.CircularCharacterAccessory(
-          character = contact.trustedContactAlias.alias
-            .first()
-            .uppercaseChar()
-        ),
       title = contact.trustedContactAlias.alias,
-      secondarySideText = "Claim pending".takeIf { contact.id in pendingClaims },
+      leadingAccessory = ListItemAccessory.ContactAvatarAccessory(
+        name = contact.trustedContactAlias.alias
+      ),
+      secondaryText = when {
+        contact.id in pendingClaims -> "Claim pending"
+        contact is Invitation -> "Pending"
+        else -> "Active"
+      },
       sideTextTint = ListItemSideTextTint.SECONDARY,
-      trailingAccessory = drillIcon(tint = IconTint.On30)
+      trailingAccessory = ManageContactButton(
+        onClick = StandardClick {
+        }
+      )
     )
   }.toImmutableList()
 
-fun List<ProtectedCustomer>.pcListItemModel(startClaim: (RelationshipId) -> Unit) =
+private fun List<ProtectedCustomer>.pcListItemModel(startClaim: (RelationshipId) -> Unit) =
   this
     .map {
       ListItemModel(
         title = it.alias.alias,
-        leadingAccessory =
-          ListItemAccessory.CircularCharacterAccessory(
-            character = it.alias.alias
-              .first()
-              .uppercaseChar()
-          ),
-        trailingAccessory = drillIcon(tint = IconTint.On30),
-        onClick = {
-          startClaim(RelationshipId(it.relationshipId))
-        }
+        leadingAccessory = ListItemAccessory.ContactAvatarAccessory(
+          name = it.alias.alias
+        ),
+        secondaryText = "Active",
+        trailingAccessory = ManageContactButton(
+          onClick = StandardClick {
+            startClaim(RelationshipId(it.relationshipId))
+          }
+        )
       )
     }.toImmutableList()
+
+@Stable
+private fun ManageContactButton(onClick: Click): ListItemAccessory {
+  return ListItemAccessory.ButtonAccessory(
+    model = ButtonModel(
+      text = "Manage",
+      treatment = ButtonModel.Treatment.Secondary,
+      size = ButtonModel.Size.Short,
+      onClick = onClick
+    )
+  )
+}
 
 private sealed interface UiState {
   data object ManagingInheritance : UiState

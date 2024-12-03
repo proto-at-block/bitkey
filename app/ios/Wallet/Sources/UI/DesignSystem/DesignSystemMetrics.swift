@@ -18,8 +18,6 @@ public enum DesignSystemMetrics {
 
     public static let verticalPadding = 24.f
 
-    public static let tabBarHeight = 60.f
-
     public static let toolbarHeight = 48.f
 
     public static let textFieldHeight = 56.f

@@ -1,18 +1,20 @@
 package build.wallet.logging
 
+import co.touchlab.kermit.LogWriter
+import co.touchlab.kermit.Severity
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 
-class LogWriterMock : KermitLogWriter() {
+class LogWriterMock : LogWriter() {
   /**
    * Tracks most recently reported Kermit log entry.
    */
   private var latestLogEntry: LogEntry? = null
 
   fun expectLog(
-    severity: KermitSeverity,
+    severity: Severity,
     message: String,
-    tag: String = "build.wallet",
+    tag: String,
     throwable: Throwable? = null,
   ) {
     latestLogEntry.shouldBe(LogEntry(severity, message, tag, throwable))
@@ -28,14 +30,14 @@ class LogWriterMock : KermitLogWriter() {
   }
 
   private data class LogEntry(
-    val severity: KermitSeverity,
+    val severity: Severity,
     val message: String,
     val tag: String,
     val throwable: Throwable?,
   )
 
   override fun log(
-    severity: KermitSeverity,
+    severity: Severity,
     message: String,
     tag: String,
     throwable: Throwable?,

@@ -4,8 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.getPackageInformation
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult
@@ -39,7 +38,7 @@ actual class DeepLinkHandlerImpl actual constructor(
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     val uri =
       Uri.parse(url) ?: run {
-        log(Warn) { "Tried to open an invalid url: $url" }
+        logWarn { "Tried to open an invalid url: $url" }
         return OpenDeeplinkResult.Failed
       }
     intent.setData(uri)

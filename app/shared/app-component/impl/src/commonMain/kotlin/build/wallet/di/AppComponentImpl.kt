@@ -6,6 +6,7 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountServiceImpl
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.account.analytics.AppInstallationDaoImpl
+import build.wallet.activity.TransactionsActivityServiceImpl
 import build.wallet.analytics.events.*
 import build.wallet.auth.*
 import build.wallet.availability.*
@@ -16,17 +17,19 @@ import build.wallet.bitcoin.address.BitcoinAddressServiceImpl
 import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.blockchain.BitcoinBlockchainImpl
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderImpl
+import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
 import build.wallet.bitcoin.export.ExportTransactionsServiceImpl
 import build.wallet.bitcoin.export.ExportWatchingDescriptorServiceImpl
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorImpl
 import build.wallet.bitcoin.fees.MempoolHttpClientImpl
 import build.wallet.bitcoin.keys.ExtendedKeyGeneratorImpl
+import build.wallet.bitcoin.sync.ElectrumConfigServiceImpl
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepositoryImpl
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderImpl
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceImpl
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingCheckerImpl
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoImpl
-import build.wallet.bitcoin.transactions.TransactionsServiceImpl
 import build.wallet.bitcoin.utxo.UtxoConsolidationServiceImpl
 import build.wallet.bitcoin.wallet.SpendingWalletProviderImpl
 import build.wallet.bitcoin.wallet.WatchingWalletProviderImpl
@@ -48,6 +51,7 @@ import build.wallet.f8e.analytics.EventTrackerF8eClientImpl
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClientImpl
 import build.wallet.f8e.client.*
+import build.wallet.f8e.configuration.GetBdkConfigurationF8eClientImpl
 import build.wallet.f8e.debug.NetworkingDebugConfigDao
 import build.wallet.f8e.debug.NetworkingDebugConfigDaoImpl
 import build.wallet.f8e.debug.NetworkingDebugService
@@ -65,6 +69,10 @@ import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClientImpl
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientImpl
 import build.wallet.f8e.notifications.RegisterWatchAddressF8eClientImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClientImpl
+import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClientImpl
+import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClientImpl
+import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClientImpl
+import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClientImpl
 import build.wallet.f8e.recovery.ListKeysetsF8eClientImpl
 import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClientImpl
 import build.wallet.f8e.relationships.RelationshipsF8eClientFake
@@ -106,9 +114,13 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryImpl
 import build.wallet.money.exchange.*
 import build.wallet.nfc.haptics.NfcHapticsImpl
 import build.wallet.notifications.*
+import build.wallet.partnerships.PartnershipPurchaseServiceImpl
+import build.wallet.partnerships.PartnershipTransactionsDaoImpl
+import build.wallet.partnerships.PartnershipTransactionsServiceImpl
 import build.wallet.phonenumber.PhoneNumberValidatorImpl
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.app.AppSessionManagerImpl
 import build.wallet.platform.config.*
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
@@ -218,7 +230,7 @@ class AppComponentImpl(
       databaseIntegrityChecker
     ),
   override val bitkeyDatabaseProvider: BitkeyDatabaseProvider =
-    BitkeyDatabaseProviderImpl(databaseDriverFactory),
+    BitkeyDatabaseProviderImpl(databaseDriverFactory, CoroutineScopes.AppScope),
   private val networkingDebugConfigDao: NetworkingDebugConfigDao =
     NetworkingDebugConfigDaoImpl(bitkeyDatabaseProvider),
   override val networkingDebugService: NetworkingDebugService =
@@ -262,6 +274,7 @@ class AppComponentImpl(
       internetNetworkReachabilityService = internetNetworkReachabilityService,
       networkReachabilityEventDao = networkReachabilityEventDao
     ),
+  private val frostWalletDescriptorFactory: FrostWalletDescriptorFactory,
   private val unauthenticatedF8eHttpClientFactory: UnauthenticatedF8eHttpClientFactory =
     UnauthenticatedF8eHttpClientFactory(
       appVariant = appVariant,
@@ -352,7 +365,12 @@ class AppComponentImpl(
   override val xNonceGenerator: XNonceGenerator,
 ) : AppComponent {
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
-  override val logWriterContextStore = LogWriterContextStoreImpl(appInstallationDao)
+
+  override val firmwareDeviceInfoDao =
+    FirmwareDeviceInfoDaoImpl(bitkeyDatabaseProvider)
+
+  override val logWriterContextStore =
+    LogWriterContextStoreImpl(appInstallationDao, firmwareDeviceInfoDao)
   private val logStoreWriter = LogStoreWriterImpl(logStore, clock)
 
   val loggerInitializer = LoggerInitializer(
@@ -481,8 +499,6 @@ class AppComponentImpl(
     localeLanguageCodeProvider = localeLanguageCodeProvider
   )
 
-  override val firmwareDeviceInfoDao =
-    FirmwareDeviceInfoDaoImpl(bitkeyDatabaseProvider)
   private val hardwareInfoProvider =
     HardwareInfoProviderImpl(
       appInstallationDao,
@@ -548,7 +564,6 @@ class AppComponentImpl(
   override val memfaultClient =
     MemfaultClientImpl(
       MemfaultHttpClientImpl(
-        appVariant = appVariant,
         networkReachabilityProvider = networkReachabilityProvider
       )
     )
@@ -793,7 +808,7 @@ class AppComponentImpl(
   override val socRecStartedChallengeAuthenticationDao =
     SocRecStartedChallengeAuthenticationDaoImpl(
       appPrivateKeyDao = appPrivateKeyDao,
-      databaseProviderImpl = bitkeyDatabaseProvider
+      databaseProvider = bitkeyDatabaseProvider
     )
 
   override val socRecChallengeRepository = SocRecChallengeRepositoryImpl(
@@ -856,7 +871,6 @@ class AppComponentImpl(
   override val bitcoinFeeRateEstimator =
     BitcoinFeeRateEstimatorImpl(
       mempoolHttpClient = MempoolHttpClientImpl(
-        appVariant = appVariant,
         networkReachabilityProvider = networkReachabilityProvider
       ),
       bdkBlockchainProvider = bdkBlockchainProvider
@@ -882,7 +896,8 @@ class AppComponentImpl(
   override val appSpendingWalletProvider = AppSpendingWalletProviderImpl(
     spendingWalletProvider = spendingWalletProvider,
     appPrivateKeyDao = appPrivateKeyDao,
-    descriptorBuilder = bitcoinMultiSigDescriptorBuilder
+    descriptorBuilder = bitcoinMultiSigDescriptorBuilder,
+    frostWalletDescriptorFactory = frostWalletDescriptorFactory
   )
   private val watchingWalletProvider = WatchingWalletProviderImpl(
     bdkWalletProvider = bdkWalletProvider,
@@ -899,10 +914,12 @@ class AppComponentImpl(
   private val watchingWalletDescriptorProvider = WatchingWalletDescriptorProviderImpl(
     descriptorBuilder = bitcoinMultiSigDescriptorBuilder
   )
+
   override val keysetWalletProvider =
     KeysetWalletProviderImpl(
       watchingWalletProvider = watchingWalletProvider,
-      watchingWalletDescriptorProvider = watchingWalletDescriptorProvider
+      watchingWalletDescriptorProvider = watchingWalletDescriptorProvider,
+      frostWalletDescriptorFactory = frostWalletDescriptorFactory
     )
   override val extendedKeyGenerator =
     ExtendedKeyGeneratorImpl(bdkMnemonicGenerator, bdkDescriptorSecretKeyGenerator)
@@ -943,7 +960,7 @@ class AppComponentImpl(
       clock = clock
     )
 
-  override val transactionsService = TransactionsServiceImpl(
+  override val bitcoinWalletService = BitcoinWalletServiceImpl(
     currencyConverter = currencyConverter,
     accountService = accountService,
     appSpendingWalletProvider = appSpendingWalletProvider,
@@ -954,15 +971,50 @@ class AppComponentImpl(
     bitcoinBlockchain = bitcoinBlockchain
   )
 
+  private val getPurchaseQuoteListF8eClient = GetPurchaseQuoteListF8eClientImpl(
+    countryCodeGuesser = countryCodeGuesser,
+    f8eHttpClient = f8eHttpClient
+  )
+
+  private val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientImpl(f8eHttpClient)
+
+  override val partnershipTransactionsService = PartnershipTransactionsServiceImpl(
+    expectedTransactionsFlag = expectedTransactionsPhase2FeatureFlag,
+    accountService = accountService,
+    dao = PartnershipTransactionsDaoImpl(bitkeyDatabaseProvider),
+    getPartnershipTransactionF8eClient = GetPartnershipTransactionF8eClientImpl(f8eHttpClient),
+    clock = clock,
+    appSessionManager = appSessionManager
+  )
+
+  private val getPurchaseOptionsF8eClient =
+    GetPurchaseOptionsF8eClientImpl(countryCodeGuesser, f8eHttpClient)
+
+  override val transactionsActivityService = TransactionsActivityServiceImpl(
+    expectedTransactionsPhase2FeatureFlag = expectedTransactionsPhase2FeatureFlag,
+    partnershipTransactionsService = partnershipTransactionsService,
+    bitcoinWalletService = bitcoinWalletService
+  )
+
   override val bitcoinAddressService = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     accountService = accountService
+  )
+
+  override val partnershipPurchaseService = PartnershipPurchaseServiceImpl(
+    accountService = accountService,
+    bitcoinAddressService = bitcoinAddressService,
+    partnershipTransactionsService = partnershipTransactionsService,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    getPurchaseOptionsF8eClient = getPurchaseOptionsF8eClient,
+    getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
+    getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient
   )
 
   override val utxoConsolidationService = UtxoConsolidationServiceImpl(
     accountService = accountService,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     bitcoinAddressService = bitcoinAddressService,
     bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
     utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag
@@ -993,7 +1045,7 @@ class AppComponentImpl(
     spendingLimitDao = spendingLimitDao,
     mobilePayBalanceF8eClient = mobilePayBalanceF8eClient,
     uuidGenerator = uuidGenerator,
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   override val mobilePaySigningF8eClient = MobilePaySigningF8eClientImpl(f8eHttpClient)
@@ -1004,7 +1056,7 @@ class AppComponentImpl(
     spendingLimitF8eClient = spendingLimitF8eClient,
     mobilePayStatusRepository = mobilePayStatusProvider,
     appSessionManager = appSessionManager,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     accountService = accountService,
     currencyConverter = currencyConverter,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
@@ -1060,6 +1112,15 @@ class AppComponentImpl(
     featureFlag = inheritanceFeatureFlag
   )
 
+  override val electrumConfigService = ElectrumConfigServiceImpl(
+    electrumServerConfigRepository = electrumServerConfigRepository,
+    debugOptionsService = debugOptionsService,
+    getBdkConfigurationF8eClient = GetBdkConfigurationF8eClientImpl(
+      f8eHttpClient,
+      deviceInfoProvider
+    )
+  )
+
   private val appWorkerProvider = AppWorkerProviderImpl(
     eventTracker = eventTracker,
     networkingDebugService = networkingDebugService,
@@ -1073,14 +1134,17 @@ class AppComponentImpl(
     notificationTouchpointSyncWorker = notificationTouchpointService,
     bitcoinAddressRegisterWatchAddressWorker = bitcoinAddressService,
     endorseTrustedContactsWorker = endorseTrustedContactsService,
-    transactionsSyncWorker = transactionsService,
+    bitcoinWalletSyncWorker = bitcoinWalletService,
     exchangeRateSyncWorker = exchangeRateService,
     fiatCurrenciesSyncWorker = fiatCurrenciesService,
     syncRelationshipsWorker = relationshipsService,
     mobilePayBalanceSyncWorker = mobilePayService,
     appFunctionalitySyncWorker = appFunctionalityService,
     inheritanceMaterialSyncWorker = inheritanceMaterialSyncWorker,
-    inheritanceClaimsSyncWorker = inheritanceService
+    inheritanceClaimsSyncWorker = inheritanceService,
+    transactionsActivitySyncWorker = transactionsActivityService,
+    electrumConfigSyncWorker = electrumConfigService,
+    partnershipTransactionsSyncWorker = partnershipTransactionsService
   )
 
   override val appWorkerExecutor = AppWorkerExecutorImpl(

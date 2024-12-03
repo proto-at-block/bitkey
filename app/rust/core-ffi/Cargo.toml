@@ -9,10 +9,11 @@ crate-type = ["cdylib", "lib", "staticlib"]
 name = "core"
 
 [dependencies]
-bitcoin = { workspace = true }
+bitcoin = { workspace = true, features = ["base64"] }
 crypto = { workspace = true, features = ["noise", "spake2"] }
 frost = { path = "../frost" }
 lightning-support = { path = "../lightning-support" }
+miniscript = { workspace = true }
 thiserror = { workspace = true }
 uniffi = { workspace = true }
 wsm-integrity = { workspace = true }

@@ -12,8 +12,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.model.video.VideoStartingPosition.END
 import build.wallet.ui.model.video.VideoStartingPosition.START
@@ -66,7 +65,7 @@ actual fun VideoPlayer(
           }
         }
         setOnErrorListener { _, what, extra ->
-          log(LogLevel.Error) {
+          logError {
             "Error playing video: errorCode=$what, extraCode=$extra, resourcePath='$resourcePath'"
           }
           true

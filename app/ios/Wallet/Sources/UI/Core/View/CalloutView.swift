@@ -31,12 +31,14 @@ public struct CalloutView: View {
                     IconView(
                         model: IconModel(
                             iconImage: .LocalImage(icon: leadingIcon),
-                            iconSize: .accessory,
+                            iconSize: .Accessory(),
                             iconBackgroundType: IconBackgroundTypeTransient(),
+                            iconAlignmentInBackground: .center,
                             iconTint: nil,
                             iconOpacity: 1.00,
                             iconTopSpacing: nil,
-                            text: nil
+                            text: nil,
+                            badge: nil
                         ),
                         colorOverride: theme.titleColor
                     )
@@ -114,39 +116,43 @@ public struct CalloutView: View {
                             IconView(
                                 model: IconModel(
                                     iconImage: .LocalImage(icon: trailingIcon),
-                                    iconSize: .accessory,
+                                    iconSize: .Accessory(),
                                     iconBackgroundType: IconBackgroundTypeSquare(
-                                        size: .large,
+                                        size: .Large(),
                                         color: iconBackgroundColor,
                                         cornerRadius: 12
                                     ),
+                                    iconAlignmentInBackground: .center,
                                     iconTint: nil,
                                     iconOpacity: 1.00,
                                     iconTopSpacing: nil,
-                                    text: nil
+                                    text: nil,
+                                    badge: nil
                                 ),
                                 colorOverride: theme.trailingIconColor
                             )
-                            .frame(iconSize: IconSize.large)
+                            .frame(iconSize: IconSize.Large())
                         }
                     } else {
                         IconView(
                             model: IconModel(
                                 iconImage: .LocalImage(icon: trailingIcon),
-                                iconSize: .accessory,
+                                iconSize: .Accessory(),
                                 iconBackgroundType: IconBackgroundTypeSquare(
-                                    size: .large,
+                                    size: .Large(),
                                     color: iconBackgroundColor,
                                     cornerRadius: 12
                                 ),
+                                iconAlignmentInBackground: .center,
                                 iconTint: nil,
                                 iconOpacity: 1.00,
                                 iconTopSpacing: nil,
-                                text: nil
+                                text: nil,
+                                badge: nil
                             ),
                             colorOverride: theme.trailingIconColor
                         )
-                        .frame(iconSize: IconSize.large)
+                        .frame(iconSize: IconSize.Large())
                     }
                 }
             }
@@ -164,6 +170,7 @@ struct CalloutTheme {
     let titleColor: Color
     let subtitleColor: Color
     let backgroundColor: Color
+    let leadingIconColor: Color
     let trailingIconColor: Color
     let trailingIconBackgroundColor: Color
 }
@@ -176,6 +183,7 @@ extension CalloutModel {
                 titleColor: .calloutDefaultTitle,
                 subtitleColor: .calloutDefaultSubtitle,
                 backgroundColor: .calloutDefaultBackground,
+                leadingIconColor: .calloutDefaultTitle,
                 trailingIconColor: .calloutDefaultTrailingIcon,
                 trailingIconBackgroundColor: .calloutDefaultTrailingIconBackground
             )
@@ -184,6 +192,7 @@ extension CalloutModel {
                 titleColor: .calloutInformationTitle,
                 subtitleColor: .calloutInformationSubtitle,
                 backgroundColor: .calloutInformationBackground,
+                leadingIconColor: .calloutInformationLeadingIcon,
                 trailingIconColor: .calloutInformationTrailingIcon,
                 trailingIconBackgroundColor: .calloutInformationTrailingIconBackground
             )
@@ -192,6 +201,7 @@ extension CalloutModel {
                 titleColor: .calloutSuccessTitle,
                 subtitleColor: .calloutSuccessSubtitle,
                 backgroundColor: .calloutSuccessBackground,
+                leadingIconColor: .calloutSuccessTitle,
                 trailingIconColor: .calloutSuccessTrailingIcon,
                 trailingIconBackgroundColor: .calloutSuccessTrailingIconBackground
             )
@@ -200,6 +210,7 @@ extension CalloutModel {
                 titleColor: .calloutWarningTitle,
                 subtitleColor: .calloutWarningSubtitle,
                 backgroundColor: .calloutWarningBackground,
+                leadingIconColor: .calloutWarningTitle,
                 trailingIconColor: .calloutWarningTrailingIcon,
                 trailingIconBackgroundColor: .calloutWarningTrailingIconBackground
             )
@@ -208,6 +219,7 @@ extension CalloutModel {
                 titleColor: .calloutDangerTitle,
                 subtitleColor: .calloutDangerSubtitle,
                 backgroundColor: .dangerBackground,
+                leadingIconColor: .calloutDangerTitle,
                 trailingIconColor: .calloutDangerTrailingIcon,
                 trailingIconBackgroundColor: .danger
             )

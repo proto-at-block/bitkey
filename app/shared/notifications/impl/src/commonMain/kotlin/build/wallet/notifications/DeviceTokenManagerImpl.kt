@@ -5,7 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClient
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logNetworkFailure
 import build.wallet.notifications.DeviceTokenManagerError.NetworkingError
 import build.wallet.notifications.DeviceTokenManagerError.NoDeviceToken
@@ -29,7 +29,7 @@ class DeviceTokenManagerImpl(
       keyboxDao.getActiveOrOnboardingKeybox().get()
         ?: return Err(DeviceTokenManagerError.NoKeybox)
 
-    log { "Attempting to add device token for active or onboarding keybox" }
+    logDebug { "Attempting to add device token for active or onboarding keybox" }
 
     return addDeviceTokenF8eClient.add(
       f8eEnvironment = keybox.config.f8eEnvironment,
@@ -51,8 +51,6 @@ class DeviceTokenManagerImpl(
     val deviceTokenConfig =
       deviceTokenConfigProvider.config()
         ?: return Err(NoDeviceToken)
-
-    log { "Attempting to add device token for account $fullAccountId" }
 
     return addDeviceTokenF8eClient.add(
       f8eEnvironment = f8eEnvironment,

@@ -2,13 +2,13 @@ package build.wallet.recovery.sweep
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.AppSessionState
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.feature.flags.PromptSweepFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get

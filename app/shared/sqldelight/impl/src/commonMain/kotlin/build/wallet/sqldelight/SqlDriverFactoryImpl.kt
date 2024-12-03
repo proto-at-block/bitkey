@@ -8,7 +8,6 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
-import kotlinx.coroutines.runBlocking
 
 expect class SqlDriverFactoryImpl(
   platformContext: PlatformContext,
@@ -18,41 +17,39 @@ expect class SqlDriverFactoryImpl(
   appVariant: AppVariant,
   databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
-  override fun createDriver(
+  override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver
 }
 
-// TODO(W-5766): remove runBlocking
 @Suppress("ForbiddenMethodCall")
-internal fun loadDbKey(
+internal suspend fun loadDbKey(
   encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   databaseIntegrityChecker: DatabaseIntegrityChecker,
   uuidGenerator: UuidGenerator,
-): String =
-  runBlocking {
-    val suspendSettings = encryptedKeyValueStoreFactory
-      // Changing these values is a breaking change
-      // These should only be changed with a migration plan otherwise data will be lost
-      .getOrCreate(storeName = "SqlCipherStore")
+): String {
+  val suspendSettings = encryptedKeyValueStoreFactory
+    // Changing these values is a breaking change
+    // These should only be changed with a migration plan otherwise data will be lost
+    .getOrCreate(storeName = "SqlCipherStore")
 
-    val databaseEncryptionKey = suspendSettings.getStringOrNull("db-key")
+  val databaseEncryptionKey = suspendSettings.getStringOrNull("db-key")
 
-    // Ensure the database file and encryption keys are in an expected state.
-    val isValid =
-      databaseIntegrityChecker.purgeDatabaseStateIfInvalid(databaseEncryptionKey = databaseEncryptionKey)
+  // Ensure the database file and encryption keys are in an expected state.
+  val isValid =
+    databaseIntegrityChecker.purgeDatabaseStateIfInvalid(databaseEncryptionKey = databaseEncryptionKey)
 
-    if (isValid && databaseEncryptionKey != null) {
-      // If we already have a db key, we're guaranteed to be in a valid state, just return the
-      // key
-      return@runBlocking databaseEncryptionKey
-    } else {
-      // Otherwise, create a new db key.
-      val newKey = uuidGenerator.random()
-      suspendSettings.putString("db-key", newKey)
-      return@runBlocking newKey
-    }
+  return if (isValid && databaseEncryptionKey != null) {
+    // If we already have a db key, we're guaranteed to be in a valid state, just return the
+    // key
+    databaseEncryptionKey
+  } else {
+    // Otherwise, create a new db key.
+    val newKey = uuidGenerator.random()
+    suspendSettings.putString("db-key", newKey)
+    newKey
   }
+}
 
 internal class DbNotEncryptedException(message: String?) : Exception(message)

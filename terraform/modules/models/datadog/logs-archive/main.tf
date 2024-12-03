@@ -79,7 +79,7 @@ resource "aws_iam_role_policy" "logs_policy" {
 data "aws_caller_identity" "current" {}
 
 resource "datadog_logs_archive" "logs_archive" {
-  name         = "main"
+  name         = var.archive_name
   query        = var.log_query
   include_tags = true
   s3_archive {

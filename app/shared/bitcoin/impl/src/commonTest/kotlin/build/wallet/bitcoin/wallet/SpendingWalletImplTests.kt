@@ -1,7 +1,6 @@
 package build.wallet.bitcoin.wallet
 
 import app.cash.turbine.test
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bdk.bindings.BdkAddressBuilderMock
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilderMock
 import build.wallet.bdk.bindings.BdkScriptMock
@@ -13,6 +12,7 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingCheckerFake
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.toUByteList
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec

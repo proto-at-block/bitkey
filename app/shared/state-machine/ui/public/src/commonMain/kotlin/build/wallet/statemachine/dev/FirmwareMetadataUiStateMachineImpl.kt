@@ -11,7 +11,7 @@ import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadataDao
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -41,7 +41,7 @@ class FirmwareMetadataUiStateMachineImpl(
             result
               .onSuccess { metadata ->
                 when (metadata) {
-                  null -> log { "No active metadata found" }
+                  null -> logWarn { "No active metadata found" }
                   else -> state = ShowingMetadataUiState(firmwareMetadata = metadata)
                 }
               }

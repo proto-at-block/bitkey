@@ -10,7 +10,7 @@ import build.wallet.catchingResult
 import build.wallet.crypto.KeyPurpose
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.store.*
@@ -177,7 +177,7 @@ class AppPrivateKeyDaoImpl(
   }
 
   override suspend fun clear(): Result<Unit, Throwable> {
-    log { "Clearing app private keys!" }
+    logWarn { "Clearing app private keys!" }
 
     return secureStore()
       .clearWithResult()

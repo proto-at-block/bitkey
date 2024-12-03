@@ -17,7 +17,7 @@ import build.wallet.datadog.ResourceType.Other
 import build.wallet.datadog.span
 import build.wallet.firmware.*
 import build.wallet.fwup.FwupMode
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import com.github.michaelbull.result.getOrThrow
@@ -162,7 +162,7 @@ private class MetricsNfcCommandsImpl(
   ) = measure("getFingerprintEnrollmentStatus") {
     val result = commands.getFingerprintEnrollmentStatus(session, isEnrollmentContextAware)
     // Log diagnostics
-    log { "Fingerprint enrollment result: $result" }
+    logDebug { "Fingerprint enrollment result: $result" }
     result
   }
 

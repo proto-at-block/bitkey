@@ -19,7 +19,7 @@ class DebugOptionsServiceImplTests : FunSpec({
 
   beforeTest {
     debugOptionsService = DebugOptionsServiceImpl(
-      bitkeyDatabaseProvider = BitkeyDatabaseProviderImpl(sqlDriverFactory),
+      databaseProvider = BitkeyDatabaseProviderImpl(sqlDriverFactory),
       defaultDebugOptionsDecider = defaultDebugOptionsDecider
     )
   }

@@ -3,7 +3,6 @@ package build.wallet.statemachine.settings.full
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.platform.settings.LocaleIdentifierProviderFake
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiProps
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiStateMachineImpl
@@ -15,8 +14,7 @@ class SpendingLimitCardUiStateMachineImplTests : FunSpec({
   val stateMachine =
     SpendingLimitCardUiStateMachineImpl(
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
-      timeZoneFormatter = TimeZoneFormatterMock(),
-      localeIdentifierProvider = LocaleIdentifierProviderFake()
+      timeZoneFormatter = TimeZoneFormatterMock()
     )
 
   val props =

@@ -25,3 +25,10 @@ internal fun PluginManager.apply(plugin: Any) {
 
   apply(pluginId)
 }
+
+/**
+ * Throws if plugin [id] is not applied.
+ */
+internal fun PluginManager.requirePlugin(id: String) {
+  require(hasPlugin(id)) { "Expected '$id' plugin to be applied." }
+}

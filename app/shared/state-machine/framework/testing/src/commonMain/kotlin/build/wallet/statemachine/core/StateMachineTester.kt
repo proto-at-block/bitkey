@@ -7,14 +7,12 @@ import app.cash.molecule.moleculeFlow
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
 import app.cash.turbine.testIn
+import build.wallet.withRealTimeout
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -65,14 +63,8 @@ suspend inline fun <PropsT : Any, ModelT> StateMachine<PropsT, ModelT>.test(
       testInternal(props, turbineTimeout, validate)
     }
   } else {
-    withTimeout(testTimeout) {
-      // It's possible that `useVirtualTime` is false but the test is still running in a TestScope,
-      // in which case the delays will be still skipped. To avoid this, we run the test in a
-      // different dispatcher which cuts the Test dispatcher and prevents delays from being skipped.
-      // Based on https://github.com/Kotlin/kotlinx.coroutines/issues/3179#issuecomment-1132961347.
-      withContext(Dispatchers.Default.limitedParallelism(1)) {
-        testInternal(props, turbineTimeout, validate)
-      }
+    withRealTimeout(testTimeout) {
+      testInternal(props, turbineTimeout, validate)
     }
   }
 }

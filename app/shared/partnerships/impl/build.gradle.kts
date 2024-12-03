@@ -17,10 +17,27 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(projects.shared.timeFake)
+        implementation(projects.shared.accountFake)
         implementation(projects.shared.f8eClientFake)
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.partnershipsFake)
+        implementation(projects.shared.platformFake)
+        implementation(projects.shared.timeFake)
+        implementation(projects.shared.testingPublic)
+      }
+    }
+
+    val commonIntegrationTest by getting {
+      dependencies {
+        implementation(projects.shared.accountFake)
+        implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.integrationTestingPublic)
+        implementation(projects.shared.platformFake)
+        implementation(projects.shared.recoveryFake)
+        implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

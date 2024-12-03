@@ -11,6 +11,7 @@ import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class AccountRepositoryImplComponentTests : FunSpec({
@@ -50,11 +51,13 @@ class AccountRepositoryImplComponentTests : FunSpec({
       .shouldBeOkOfType<SoftwareAccount>()
 
     app.accountService.accountStatus().test {
-      awaitItem().shouldBeOk(ActiveAccount(account))
+      // TODO [W-10001] After we persist software account, we should check for total equality
+      awaitItem().shouldBeOkOfType<ActiveAccount>()
     }
 
     app.accountService.activeAccount().test {
-      awaitItem().shouldBe(account)
+      // TODO [W-10001] After we persist software account, we should check for total equality
+      awaitItem().shouldNotBeNull().accountId.shouldBe(account.accountId)
     }
   }
 })

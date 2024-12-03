@@ -10,23 +10,21 @@ import build.wallet.bitcoin.bdk.transactionId
 import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
-import build.wallet.bitcoin.transactions.TransactionsService
-import build.wallet.bitcoin.transactions.transactionsLoadedData
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.BodyModel
 
 class BitcoinWalletDebugUiStateMachineImpl(
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val bitcoinExplorer: BitcoinExplorer,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : BitcoinWalletDebugUiStateMachine {
   @Composable
   override fun model(props: BitcoinWalletDebugProps): BodyModel {
-    val spendingWallet by remember { transactionsService.spendingWallet() }.collectAsState()
-    val transactionsData by remember { transactionsService.transactionsLoadedData() }
-      .collectAsState(null)
+    val spendingWallet by remember { bitcoinWalletService.spendingWallet() }.collectAsState()
+    val transactionsData by remember { bitcoinWalletService.transactionsData() }.collectAsState()
 
     val utxos = remember(transactionsData) { transactionsData?.utxos }
 

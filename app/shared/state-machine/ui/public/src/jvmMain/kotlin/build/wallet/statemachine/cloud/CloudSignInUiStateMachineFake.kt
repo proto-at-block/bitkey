@@ -10,7 +10,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreServiceProvider
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
@@ -31,7 +31,7 @@ class CloudSignInUiStateMachineFake(
       is State.SigningOut -> {
         LaunchedEffect("sign-out") {
           cloudStoreAccountRepository.clear()
-          log { "Signed out of cloud" }
+          logDebug { "Signed out of cloud" }
           uiState = State.SigningIn
         }
         LoadingModel(props)
@@ -64,7 +64,7 @@ class CloudSignInUiStateMachineFake(
       is State.FinishSignInState -> {
         LaunchedEffect("finish-sign-in") {
           cloudStoreAccountRepository.set(state.account).getOrThrow()
-          log { "Signed in to cloud as ${state.account}" }
+          logDebug { "Signed in to cloud as ${state.account}" }
           props.onSignedIn(state.account)
         }
         LoadingModel(props)

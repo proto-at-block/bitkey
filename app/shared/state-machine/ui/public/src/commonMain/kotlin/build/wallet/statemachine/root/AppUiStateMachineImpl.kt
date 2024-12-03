@@ -6,8 +6,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.LoadAppService
-import build.wallet.logging.LogLevel.Info
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
@@ -369,9 +368,8 @@ class AppUiStateMachineImpl(
   @Composable
   private fun LogScreenModelEffect(screenModel: ScreenModel) {
     DisposableEffect(screenModel.key) {
-      log(
-        level = Info,
-        tag = "Screen"
+      logDebug(
+        tag = "Screen" // This tag is used by a Datadog dashboard.
       ) { "${screenModel.body}" }
 
       onDispose { }

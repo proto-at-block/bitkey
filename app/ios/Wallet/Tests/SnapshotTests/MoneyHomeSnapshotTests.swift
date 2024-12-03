@@ -206,6 +206,44 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         ))
         assertBitkeySnapshots(view: view)
     }
+
+    func test_money_home_with_bitcoin_price_card() {
+        // generate bogus data for the sparkline
+        var data = [KotlinPair<KotlinLong, KotlinDouble>]()
+        for i in 0 ..< 150 {
+            let abs = abs(sin(Double(i) * Double.pi / 30))
+            let cos = cos(Double(i) * Double.pi / 15) * 10
+            let y = abs * 20 + cos
+            data.append(KotlinPair(
+                first: KotlinLong(integerLiteral: i),
+                second: KotlinDouble(double: y)
+            ))
+        }
+
+        let view = MoneyHomeView(
+            viewModel: .snapshotTestFull(cards: [
+                CardModel(
+                    heroImage: nil,
+                    title: nil,
+                    subtitle: nil,
+                    leadingImage: nil,
+                    trailingButton: nil,
+                    content: CardModelCardContentBitcoinPrice(
+                        isLoading: false,
+                        price: "$100,000.12",
+                        priceChange: "4.46% today",
+                        priceDirection: .up,
+                        lastUpdated: "Updated 1:06pm",
+                        data: data
+                    ),
+                    style: CardModel.CardStyleOutline(),
+                    onClick: nil,
+                    animation: nil
+                ),
+            ])
+        )
+        assertBitkeySnapshots(view: view)
+    }
 }
 
 // MARK: -

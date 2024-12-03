@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
@@ -90,6 +91,20 @@ fun MoneyHomeCard(
   }
 
   when (val style = model.style) {
+    CardModel.CardStyle.Plain ->
+      Card(
+        modifier = cardModifier.scale(scale.value),
+        backgroundColor = Color.Unspecified,
+        paddingValues = PaddingValues(0.dp),
+        borderWidth = 0.dp
+      ) {
+        CardContent(
+          modifier = Modifier
+            .fillMaxWidth(),
+          model = model
+        )
+      }
+
     Outline ->
       Card(
         modifier = cardModifier.scale(scale.value),
@@ -137,6 +152,7 @@ private fun CardModel.estimatedHeight() =
           // each row height + spacing in between rows
           (it.items.count() * 56f) + ((it.items.count() - 1) * 12f)
         is BitcoinPrice -> 100f
+        is CardModel.CardContent.PendingClaim -> 104f
       }
     },
     if (content == null) {

@@ -2,8 +2,7 @@ package build.wallet.auth
 
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.catchingResult
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
@@ -110,7 +109,7 @@ class AuthTokenDaoImpl(
         ?.let { RefreshToken(it) }
         ?: return null
 
-    log(LogLevel.Warn) { "Falling back to legacy auth token keys in AuthTokenDao" }
+    logWarn { "Falling back to legacy auth token keys in AuthTokenDao" }
     return AccountAuthTokens(accessToken = legacyAccessToken, refreshToken = legacyRefreshToken)
   }
 

@@ -214,6 +214,8 @@ export class MoneyMovementMonitors extends Construct {
             ...latencyConfig
         })
 
+        const mempoolSlackChannel = "@slack-Block-ext-bitkey-mempool"
+
         new Monitor(this, "mempool-high-mainnet-electrum-latency", {
             query: metric_avg_query(
                 `avg:bdk_utils.electrum_time_to_ping{env:${environment},network:bitcoin,provider:mempool}`,
@@ -237,7 +239,8 @@ export class MoneyMovementMonitors extends Construct {
             message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
-            ...tempLatencyConfig
+            ...tempLatencyConfig,
+            recipients: [mempoolSlackChannel, ...tempLatencyConfig.recipients],
         })
 
         new Monitor(this, "mempool-high-signet-electrum-latency", {
@@ -367,6 +370,7 @@ export class MoneyMovementMonitors extends Construct {
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...electrumNodeMonitoringConfig,
+            recipients: [mempoolSlackChannel, ...electrumNodeMonitoringConfig.recipients],
         });
 
         new Monitor(this, "Mempool aggregate mainnet tip height drift", {
@@ -381,6 +385,7 @@ export class MoneyMovementMonitors extends Construct {
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...electrumNodeMonitoringConfig,
+            recipients: [mempoolSlackChannel, ...electrumNodeMonitoringConfig.recipients],
         });
 
         new Monitor(this, "Blockstream regional mainnet tip height drift", {

@@ -43,6 +43,6 @@ class CloudBackupDaoFake : CloudBackupDao {
     backups.clear()
     returnError = false
   }
-}
 
-fun CloudBackupDaoFake.shouldBeEmpty() = backups.values.forEach { it.value.shouldBeNull() }
+  fun shouldBeEmpty() = backups.values.forEach { it.value.shouldBeNull() }
+}

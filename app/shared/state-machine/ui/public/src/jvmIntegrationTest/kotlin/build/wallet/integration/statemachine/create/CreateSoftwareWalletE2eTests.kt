@@ -15,6 +15,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration.Companion.seconds
 
 class CreateSoftwareWalletE2eTests : FunSpec({
   lateinit var app: AppTester
@@ -32,7 +33,7 @@ class CreateSoftwareWalletE2eTests : FunSpec({
   }
 
   xtest("create software wallet") {
-    app.appUiStateMachine.test(Unit) {
+    app.appUiStateMachine.test(Unit, testTimeout = 60.seconds, turbineTimeout = 20.seconds) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
         .clickSetUpNewWalletButton()
 

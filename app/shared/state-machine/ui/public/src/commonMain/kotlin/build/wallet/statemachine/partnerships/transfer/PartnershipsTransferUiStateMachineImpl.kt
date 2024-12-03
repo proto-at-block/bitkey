@@ -1,11 +1,6 @@
 package build.wallet.statemachine.partnerships.transfer
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.*
@@ -18,8 +13,7 @@ import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType.DEEPLINK
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod.Deeplink
 import build.wallet.partnerships.PartnerRedirectionMethod.Web
@@ -117,7 +111,7 @@ class PartnershipsTransferUiStateMachineImpl(
                 model =
                   IconModel(
                     iconImage = LocalImage(MediumIconQrCode),
-                    iconSize = IconSize.Regular
+                    iconSize = IconSize.Large
                   )
               ),
             title = "Another exchange or wallet",
@@ -272,8 +266,9 @@ class PartnershipsTransferUiStateMachineImpl(
     onBack: () -> Unit,
     onExit: () -> Unit,
   ): SheetModel {
-    val logLevel = if (error != null) LogLevel.Error else LogLevel.Warn
-    log(level = logLevel, throwable = error) { errorMessage }
+    LaunchedEffect("transfer-log-error", error, errorMessage) {
+      logError(throwable = error) { errorMessage }
+    }
     return SheetModel(
       body =
         ErrorFormBodyModel(
@@ -315,7 +310,7 @@ class PartnershipsTransferUiStateMachineImpl(
                           fallbackIcon = Bitcoin
                         )
                     },
-                  iconSize = IconSize.Regular
+                  iconSize = IconSize.Large
                 )
             ),
           title = partner.name,
@@ -330,7 +325,7 @@ class PartnershipsTransferUiStateMachineImpl(
             model =
               IconModel(
                 iconImage = LocalImage(MediumIconQrCode),
-                iconSize = IconSize.Regular
+                iconSize = IconSize.Large
               )
           ),
         title = "Another exchange or wallet",

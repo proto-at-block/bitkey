@@ -18,7 +18,7 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(libs.kmp.molecule.runtime)
         implementation(projects.shared.uiCoreTesting)
       }

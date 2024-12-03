@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import build.wallet.logging.log
+import build.wallet.logging.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
@@ -31,7 +31,7 @@ class GoogleSignInLauncherImpl(
       }
 
     LaunchedEffect("launch-sign-in") {
-      log { "Launching Google Sign In" }
+      logDebug { "Launching Google Sign In" }
       signInRequestLauncher.launch(Unit)
     }
   }

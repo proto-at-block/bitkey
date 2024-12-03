@@ -2,10 +2,10 @@ package build.wallet.statemachine.send.fee
 
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -19,12 +19,12 @@ import kotlinx.collections.immutable.persistentMapOf
 class FeeOptionListUiStateMachineImplTests : FunSpec({
   val feeOptionUiStateMachine = FeeOptionUiStateMachineMock()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val stateMachine = FeeOptionListUiStateMachineImpl(
     feeOptionUiStateMachine = feeOptionUiStateMachine,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   val props = FeeOptionListProps(
@@ -40,7 +40,7 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
-    transactionsService.reset()
+    bitcoinWalletService.reset()
   }
 
   test("list is created with all fees") {

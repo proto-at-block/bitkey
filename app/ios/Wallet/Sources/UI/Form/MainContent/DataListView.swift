@@ -354,13 +354,13 @@ struct DataListView_Previews: PreviewProvider {
                         ),
                     ],
                     total: .init(
-                        withTitle: "Total Cost",
+                        withTitle: "Total",
                         titleIcon: nil,
                         onTitle: nil,
                         sideText: "$20.36",
                         sideTextType: .body2bold,
                         sideTextTreatment: .primary,
-                        secondarySideText: "(0.00010 BTC)",
+                        secondarySideText: "0.00010 BTC",
                         showBottomDivider: false
                     ),
                     buttons: []
@@ -382,20 +382,22 @@ struct DataListView_Previews: PreviewProvider {
                             secondarySideTextType: .bold,
                             secondarySideTextTreatment: .warning,
                             explainer: FormMainContentModel.DataListDataExplainer(
-                                title: "Taking longer than usual",
-                                subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                                title: "Speed up transaction?",
+                                subtitle: "You can speed up this transaction by increasing the network fee.",
                                 iconButton: IconButtonModel(
                                     iconModel: IconModel(
                                         iconImage: .LocalImage(icon: .smalliconinformationfilled),
-                                        iconSize: .xsmall,
+                                        iconSize: .XSmall(),
                                         iconBackgroundType: IconBackgroundTypeCircle(
-                                            circleSize: .xsmall,
+                                            circleSize: .XSmall(),
                                             color: .translucentblack
                                         ),
+                                        iconAlignmentInBackground: .center,
                                         iconTint: nil,
                                         iconOpacity: 0.20,
                                         iconTopSpacing: nil,
-                                        text: nil
+                                        text: nil,
+                                        badge: nil
                                     ),
                                     onClick: StandardClick {},
                                     enabled: true

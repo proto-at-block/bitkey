@@ -3,6 +3,8 @@
       "value": [
           "bitcoin",
           "bitcoinOrange",
+          "bitcoinConsolidation",
+          "bitcoinBadged",
 
           "bitkeyDevice3D",
           "bitkeyDeviceRaised",
@@ -50,6 +52,7 @@
           "smallIconCaretRight",
           "smallIconCaretUp",
           "smallIconCheck",
+          "smallIconCheckInheritance",
           "smallIconCheckbox",
           "smallIconCheckboxSelected",
           "smallIconCheckFilled",
@@ -57,6 +60,7 @@
           "smallIconCircleStroked",
           "smallIconClipboard",
           "smallIconClock",
+          "smallIconClockHands",
           "smallIconCloud",
           "smallIconCloudError",
           "smallIconConsolidation",
@@ -125,7 +129,9 @@
           "calloutArrow",
 
           "tabIconHome",
-          "tabIconProfile"
+          "tabIconProfile",
+
+          "warningBadge"
       ]
     }
 }

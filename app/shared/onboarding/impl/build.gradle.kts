@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.databasePublic)
+        api(projects.shared.debugPublic)
         implementation(projects.shared.frostPublic)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.nfcFake)
@@ -25,7 +26,6 @@ kotlin {
       dependencies {
         implementation(projects.shared.authFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
@@ -34,6 +34,7 @@ kotlin {
 
     val jvmIntegrationTest by getting {
       dependencies {
+        implementation(projects.shared.bitcoinPublic)
         implementation(projects.shared.integrationTestingPublic)
       }
     }

@@ -7,7 +7,7 @@ import build.wallet.catchingResult
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.toPrivateKey
 import build.wallet.encrypt.toPublicKey
-import build.wallet.logging.log
+import build.wallet.logging.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 
@@ -16,8 +16,6 @@ class AppAuthKeyGeneratorImpl(
 ) : AppAuthKeyGenerator {
   override suspend fun generateGlobalAuthKey(): Result<AppKey<AppGlobalAuthKey>, Throwable> =
     binding {
-      log { "Generating app global auth key" }
-
       val secp256k1Keypair = catchingResult { secp256k1KeyGenerator.generateKeypair() }.bind()
 
       AppKey(
@@ -28,8 +26,6 @@ class AppAuthKeyGeneratorImpl(
 
   override suspend fun generateRecoveryAuthKey(): Result<AppKey<AppRecoveryAuthKey>, Throwable> =
     binding {
-      log { "Generating app recovery auth key" }
-
       val secp256k1Keypair = catchingResult { secp256k1KeyGenerator.generateKeypair() }.bind()
 
       AppKey(

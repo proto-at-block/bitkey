@@ -7,7 +7,7 @@ import build.wallet.datadog.DatadogTracer
 import build.wallet.f8e.client.plugins.*
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
@@ -91,7 +91,7 @@ abstract class BaseF8eHttpClientFactory(
           cause is SocketTimeoutException
         }
         modifyRequest {
-          log { "retrying request: $request, retry count $retryCount" }
+          logDebug { "retrying request: $request, retry count $retryCount" }
         }
       }
 

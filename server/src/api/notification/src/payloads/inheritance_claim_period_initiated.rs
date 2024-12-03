@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use time::{macros::format_description, serde::rfc3339, OffsetDateTime};
 use types::recovery::{
@@ -5,11 +7,16 @@ use types::recovery::{
 };
 
 use crate::{
+    clients::iterable::IterableCampaignType,
+    email::EmailPayload,
     entities::NotificationCompositeKey,
     push::{AndroidChannelId, SNSPushPayload},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
+
+const DELAY_END_TIME_FIELD: &str = "delayEndTime";
+const BENEFICIARY_ALIAS_FIELD: &str = "beneficiaryAlias";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct InheritanceClaimPeriodInitiatedPayload {
@@ -37,25 +44,43 @@ impl
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
 
-        let (importance, message) = match payload.recipient_account_role {
+        let (importance, message, campaign_type) = match payload.recipient_account_role {
             RecoveryRelationshipRole::ProtectedCustomer => {
-                (AndroidChannelId::UrgentSecurity, format!(
-                    "[Action required] {} has started an inheritance claim. Confirm you are active to decline the claim.",
-                    payload.trusted_contact_alias
-                ))
+                (AndroidChannelId::UrgentSecurity,
+                    "[Action required] An inheritance claim has been started for your Bitkey wallet. Decline the claim to retain control of your funds.".to_string(),
+                IterableCampaignType::InheritanceClaimInitiatedAsBenefactor
+                )
             }
             RecoveryRelationshipRole::TrustedContact => {
-                (AndroidChannelId::RecoveryAccountSecurity, format!(
-                    "Your inheritance claim has been initiated. Your claim period will end on {}. No further action needed.",
-                    payload.delay_end_time.format(format_description!("[day] [month repr:short] [year]"))?,
-                ))
+                (AndroidChannelId::RecoveryAccountSecurity,
+                    format!(
+                        "Your inheritance claim has been initiated. Your funds will be available for transfer on {}.",
+                        payload.delay_end_time.format(format_description!("[day] [month repr:short] [year]"))?,
+                    ),
+                IterableCampaignType::InheritanceClaimInitiatedAsBeneficiary
+                )
             }
         };
+
+        let calendar_end_date = payload.delay_end_time.to_calendar_date();
+        let formatted_end_date = format!(
+            "{} {} {}",
+            calendar_end_date.2, calendar_end_date.1, calendar_end_date.0
+        );
 
         Ok(NotificationMessage {
             composite_key,
             account_id,
-            email_payload: None, // TODO: W-9755,
+            email_payload: Some(EmailPayload::Iterable {
+                campaign_type,
+                data_fields: HashMap::from([
+                    (DELAY_END_TIME_FIELD.to_string(), formatted_end_date),
+                    (
+                        BENEFICIARY_ALIAS_FIELD.to_string(),
+                        payload.trusted_contact_alias,
+                    ),
+                ]),
+            }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: importance,

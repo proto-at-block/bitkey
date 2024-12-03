@@ -12,7 +12,9 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.*
 import build.wallet.db.DbError
-import build.wallet.logging.log
+import build.wallet.frost.KeyCommitments
+import build.wallet.frost.PublicKey
+import build.wallet.frost.ShareDetails
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -22,12 +24,11 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 
 class AccountDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : AccountDao {
-  private val database by lazy { databaseProvider.database() }
-
   override fun activeAccount(): Flow<Result<Account?, DbError>> {
     return combine(
       activeFullAccount(),
@@ -59,7 +60,7 @@ class AccountDaoImpl(
   }
 
   override suspend fun setActiveAccount(account: Account): Result<Unit, DbError> {
-    return database.awaitTransaction {
+    return databaseProvider.database().awaitTransaction {
       when (account) {
         // TODO(BKR-488): manage active Full Accounts using Account entity.
         is FullAccount -> error("not implemented")
@@ -84,8 +85,7 @@ class AccountDaoImpl(
   }
 
   override suspend fun saveAccountAndBeginOnboarding(account: Account): Result<Unit, DbError> {
-    log { "Saving account to local db" }
-    return database.awaitTransaction {
+    return databaseProvider.database().awaitTransaction {
       when (account) {
         // TODO(BKR-488): manage active Full Accounts using Account entity.
         is FullAccount -> error("not implemented")
@@ -110,7 +110,7 @@ class AccountDaoImpl(
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return database.awaitTransaction {
+    return databaseProvider.database().awaitTransaction {
       liteAccountQueries.clear()
       fullAccountQueries.clear()
       softwareAccountQueries.clear()
@@ -120,45 +120,68 @@ class AccountDaoImpl(
   }
 
   private fun activeLiteAccount(): Flow<Result<LiteAccount?, DbError>> {
-    return database.liteAccountQueries
-      .getActiveLiteAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toLiteAccount() }
+    return flow {
+      databaseProvider.database().liteAccountQueries
+        .getActiveLiteAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toLiteAccount() }
+        .collect(::emit)
+    }
   }
 
   private fun activeFullAccount(): Flow<Result<FullAccount?, DbError>> {
-    return database.fullAccountQueries
-      .getActiveFullAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toFullAccount(database) }
+    return flow {
+      val database = databaseProvider.database()
+      database.fullAccountQueries
+        .getActiveFullAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toFullAccount(database) }
+        .collect(::emit)
+    }
   }
 
   private fun activeSoftwareAccount(): Flow<Result<SoftwareAccount?, DbError>> {
-    return database.softwareAccountQueries
-      .getActiveSoftwareAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toSoftwareAccount() }
+    return flow {
+      databaseProvider.database()
+        .softwareAccountQueries
+        .getActiveSoftwareAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toSoftwareAccount() }
+        .collect(::emit)
+    }
   }
 
   private fun onboardingLiteAccount(): Flow<Result<LiteAccount?, DbError>> {
-    return database.liteAccountQueries
-      .getOnboardingLiteAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toLiteAccount() }
+    return flow {
+      databaseProvider.database()
+        .liteAccountQueries
+        .getOnboardingLiteAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toLiteAccount() }
+        .collect(::emit)
+    }
   }
 
   private fun onboardingFullAccount(): Flow<Result<FullAccount?, DbError>> {
-    return database.fullAccountQueries
-      .getOnboardingFullAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toFullAccount(database) }
+    return flow {
+      val database = databaseProvider.database()
+      database.fullAccountQueries
+        .getOnboardingFullAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toFullAccount(database) }
+        .collect(::emit)
+    }
   }
 
   private fun onboardingSoftwareAccount(): Flow<Result<OnboardingSoftwareAccount?, DbError>> {
-    return database.softwareAccountQueries
-      .getOnboardingSoftwareAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toOnboardingSoftwareAccount() }
+    return flow {
+      databaseProvider.database()
+        .softwareAccountQueries
+        .getOnboardingSoftwareAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toOnboardingSoftwareAccount() }
+        .collect(::emit)
+    }
   }
 }
 
@@ -186,8 +209,25 @@ private fun SoftwareAccountWithKeyboxView.toSoftwareAccount() =
     ),
     keybox = SoftwareKeybox(
       id = keyboxId,
+      networkType = bitcoinNetworkType,
       authKey = appGlobalAuthKey,
-      recoveryAuthKey = appRecoveryAuthKey
+      recoveryAuthKey = appRecoveryAuthKey,
+      // TODO [W-10001]: Persist software account
+      shareDetails = object : ShareDetails {
+        override val secretShare: List<UByte>
+          get() = emptyList()
+        override val keyCommitments: KeyCommitments
+          get() = object : KeyCommitments {
+            override val vssCommitments: List<PublicKey>
+              get() = emptyList()
+            override val aggregatePublicKey: PublicKey
+              get() = object : PublicKey {
+                override fun asString(): String {
+                  return ""
+                }
+              }
+          }
+      }
     )
   )
 

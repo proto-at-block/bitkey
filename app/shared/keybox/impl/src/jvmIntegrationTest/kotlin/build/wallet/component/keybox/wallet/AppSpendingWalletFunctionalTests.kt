@@ -6,6 +6,7 @@ import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Incoming
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
 import build.wallet.testing.AppTester
@@ -68,8 +69,8 @@ class AppSpendingWalletFunctionalTests : FunSpec({
 
         withClue("fund wallet") {
           val fundingResult = treasury.fund(wallet, BitcoinMoney.sats(10_000))
-          println("Sending coins to ${fundingResult.depositAddress}")
-          println("Funding txid ${fundingResult.tx.id}")
+          logTesting { "Sending coins to ${fundingResult.depositAddress}" }
+          logTesting { "Funding txid ${fundingResult.tx.id}" }
 
           wallet.sync().shouldBeOk()
           balance.awaitItem()
@@ -130,14 +131,16 @@ class AppSpendingWalletFunctionalTests : FunSpec({
                   k,
                   throwable,
                 ->
-                println("Still waiting for transaction to propagate... $throwable of type ${throwable::class}")
+                logTesting {
+                  "Still waiting for transaction to propagate... $throwable of type ${throwable::class}"
+                }
               }
             }
           ) {
             val timeTaken = measureTimeMillis {
               wallet.sync().shouldBeOk()
             }
-            println("Sync time: $timeTaken ms")
+            logTesting { "Sync time: $timeTaken ms" }
             balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
           }
 

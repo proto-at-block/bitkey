@@ -2,13 +2,11 @@
 
 package build.wallet.money.exchange
 
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.AppSessionState
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.LogLevel.Debug
-import build.wallet.logging.log
 import build.wallet.money.currency.Currency
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
@@ -147,7 +145,6 @@ class ExchangeRateServiceImpl(
     // Ignore any failures
     exchangeRateF8eClient.getExchangeRates(f8eEnvironment)
       .onSuccess { rates ->
-        log(Debug) { "Fetched exchange rates: $rates" }
         rates.forEach { exchangeRateDao.storeExchangeRate(it) }
       }
   }

@@ -79,9 +79,9 @@ fun DataRowGroupWithTotalPreview() {
             ),
           total =
             Data(
-              title = "Total Cost",
+              title = "Total",
               sideText = "$21.36",
-              secondarySideText = "(0.0010 BTC)",
+              secondarySideText = "0.0010 BTC",
               sideTextType = Data.SideTextType.BODY2BOLD,
               sideTextTreatment = Data.SideTextTreatment.PRIMARY
             )
@@ -109,8 +109,8 @@ fun DataGroupWithLateTransactionPreview() {
                 secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
                 explainer =
                   Data.Explainer(
-                    title = "Taking longer than usual",
-                    subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                    title = "Speed up transaction?",
+                    subtitle = "You can speed up this transaction by increasing the network fee.",
                     iconButton = IconButtonModel(
                       iconModel = IconModel(
                         icon = Icon.SmallIconInformationFilled,

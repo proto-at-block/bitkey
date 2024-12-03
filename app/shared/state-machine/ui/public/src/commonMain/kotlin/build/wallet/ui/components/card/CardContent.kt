@@ -94,6 +94,9 @@ fun CardContent(
         is BitcoinPrice -> {
           BitcoinPriceContent(model = content)
         }
+        is CardModel.CardContent.PendingClaim -> {
+          PendingClaimContent(model = content)
+        }
         null -> {}
       }
     }

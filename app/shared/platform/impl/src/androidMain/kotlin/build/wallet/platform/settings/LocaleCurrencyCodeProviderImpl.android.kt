@@ -1,11 +1,9 @@
 package build.wallet.platform.settings
 
 import build.wallet.catchingResult
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logFailure
 import build.wallet.platform.PlatformContext
 import com.github.michaelbull.result.get
-import com.github.michaelbull.result.onFailure
 import java.util.Currency
 
 actual class LocaleCurrencyCodeProviderImpl actual constructor(
@@ -14,12 +12,7 @@ actual class LocaleCurrencyCodeProviderImpl actual constructor(
   private val currencyCode by lazy {
     val locale = platformContext.appContext.resources.configuration.locales.get(0)
     catchingResult { Currency.getInstance(locale) }
-      .onFailure {
-        log(
-          level = LogLevel.Error,
-          throwable = it
-        ) { "Error getting currency instance for device's default locale" }
-      }
+      .logFailure { "Error getting currency code for locale $locale" }
       .get()
       ?.currencyCode
   }

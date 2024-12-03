@@ -15,9 +15,9 @@ use payloads::{
     privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
     push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
+    recovery_relationship_benefactor_invitation_pending::RecoveryRelationshipBenefactorInvitationPendingPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
-    recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload,
     social_challenge_response_received::SocialChallengeResponseReceivedPayload,
 };
 use queue::sqs::QueueError;
@@ -130,7 +130,7 @@ pub enum NotificationPayloadType {
     InheritanceClaimPeriodInitiated,
     InheritanceClaimCanceled,
     InheritanceClaimPeriodCompleted,
-    RecoveryRelationshipInvitationPending,
+    RecoveryRelationshipBenefactorInvitationPending,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -151,7 +151,7 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::InheritanceClaimPeriodInitiated
             | NotificationPayloadType::InheritanceClaimCanceled
             | NotificationPayloadType::InheritanceClaimPeriodCompleted
-            | NotificationPayloadType::RecoveryRelationshipInvitationPending => {
+            | NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => {
                 NotificationCategory::AccountSecurity
             }
             NotificationPayloadType::ConfirmedPaymentNotification
@@ -277,14 +277,14 @@ impl NotificationPayloadType {
                 );
                 payload.inheritance_claim_period_completed_payload.is_some()
             }
-            NotificationPayloadType::RecoveryRelationshipInvitationPending => {
-                builder.recovery_relationship_invitation_pending_payload(
+            NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => {
+                builder.recovery_relationship_benefactor_invitation_pending_payload(
                     payload
-                        .recovery_relationship_invitation_pending_payload
+                        .recovery_relationship_benefactor_invitation_pending_payload
                         .clone(),
                 );
                 payload
-                    .recovery_relationship_invitation_pending_payload
+                    .recovery_relationship_benefactor_invitation_pending_payload
                     .is_some()
             }
         };
@@ -470,11 +470,11 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
-            NotificationPayloadType::RecoveryRelationshipInvitationPending => {
+            NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => {
                 NotificationMessage::try_from((
                     composite_key,
                     payload
-                        .recovery_relationship_invitation_pending_payload
+                        .recovery_relationship_benefactor_invitation_pending_payload
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
@@ -540,6 +540,6 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub inheritance_claim_period_completed_payload: Option<InheritanceClaimPeriodCompletedPayload>,
     #[serde(default)]
-    pub recovery_relationship_invitation_pending_payload:
-        Option<RecoveryRelationshipInvitationPendingPayload>,
+    pub recovery_relationship_benefactor_invitation_pending_payload:
+        Option<RecoveryRelationshipBenefactorInvitationPendingPayload>,
 }

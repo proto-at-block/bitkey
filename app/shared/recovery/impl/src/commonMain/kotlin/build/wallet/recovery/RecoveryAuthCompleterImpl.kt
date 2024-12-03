@@ -13,7 +13,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.CompleteDelayNotifyF8eClient
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
 import build.wallet.relationships.RelationshipsService
@@ -42,7 +42,7 @@ class RecoveryAuthCompleterImpl(
     sealedCsek: SealedCsek,
     removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> {
-    log { "Rotating auth keys for recovery" }
+    logDebug { "Rotating auth keys for recovery" }
 
     return coroutineBinding {
       // Hack for W-4377; this entire method needs to take at least 2 seconds, so the last step

@@ -14,10 +14,5 @@ kotlin {
         api(projects.shared.bitkeyPrimitivesFake)
       }
     }
-    commonTest {
-      dependencies {
-        implementation(projects.shared.coroutinesTesting)
-      }
-    }
   }
 }

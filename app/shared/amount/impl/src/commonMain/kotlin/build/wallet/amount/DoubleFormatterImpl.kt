@@ -1,9 +1,9 @@
 package build.wallet.amount
 
-import build.wallet.platform.settings.LocaleIdentifierProvider
+import build.wallet.platform.settings.LocaleProvider
 
 expect class DoubleFormatterImpl(
-  localeIdentifierProvider: LocaleIdentifierProvider,
+  localeProvider: LocaleProvider,
 ) : DoubleFormatter {
   override fun format(
     double: Double,

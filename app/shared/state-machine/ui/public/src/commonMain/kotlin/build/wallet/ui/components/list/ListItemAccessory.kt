@@ -2,26 +2,33 @@ package build.wallet.ui.components.list
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.dp
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.bitkey_corian
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.switch.Switch
 import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
-import build.wallet.ui.model.list.ListItemAccessory.CircularCharacterAccessory
-import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
-import build.wallet.ui.model.list.ListItemAccessory.TextAccessory
+import build.wallet.ui.model.list.ListItemAccessory.*
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tooling.LocalIsPreviewTheme
+import org.jetbrains.compose.resources.imageResource
+import kotlin.random.Random
 
 @Composable
 internal fun ListItemAccessory(model: ListItemAccessory) {
@@ -49,8 +56,8 @@ internal fun ListItemAccessory(model: ListItemAccessory) {
         modifier = Modifier.padding(end = 12.dp),
         type = LabelType.Body2Regular
       )
-    is CircularCharacterAccessory ->
-      CircularCharacterAccessory(model)
+    is CircularCharacterAccessory -> CircularCharacterAccessory(model)
+    is ContactAvatarAccessory -> ContactAvatarAccessory(model)
   }
 }
 
@@ -74,6 +81,54 @@ private fun CircularCharacterAccessory(model: CircularCharacterAccessory) {
       Label(
         text = model.character.toString(),
         type = LabelType.Label3
+      )
+    }
+  }
+}
+
+@Composable
+private fun ContactAvatarAccessory(model: ContactAvatarAccessory) {
+  Box(
+    modifier =
+      Modifier
+        .padding(end = 4.dp)
+  ) {
+    val bitmap = imageResource(Res.drawable.bitkey_corian)
+    val offset = if (LocalIsPreviewTheme.current) {
+      0
+    } else {
+      remember(model.initials) {
+        Random.Default.nextInt(-bitmap.height, 0)
+      }
+    }
+    Box(
+      modifier =
+        Modifier
+          .size(54.dp)
+          .drawWithCache {
+            val circlePath = Path().apply {
+              addOval(Rect(Offset.Zero, size))
+            }
+            onDrawWithContent {
+              clipPath(circlePath) {
+                drawImage(
+                  image = bitmap,
+                  topLeft = Offset(
+                    x = 0f,
+                    y = (offset + size.height).coerceAtMost(0f)
+                  )
+                )
+              }
+              drawContent()
+            }
+          },
+      contentAlignment = Alignment.Center
+    ) {
+      Label(
+        text = model.initials,
+        type = LabelType.Label1Bold,
+        color = Color.White,
+        treatment = LabelTreatment.Unspecified
       )
     }
   }

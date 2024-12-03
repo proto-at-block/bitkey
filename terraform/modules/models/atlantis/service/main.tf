@@ -93,6 +93,10 @@ module "atlantis" {
     {
       name  = "ATLANTIS_DISABLE_AUTOPLAN_LABEL"
       value = "no-autoplan"
+    },
+    {
+      name  = "TERRAGRUNT_FORWARD_TF_STDOUT"
+      value = "1"
     }
   ]
 

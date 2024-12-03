@@ -26,7 +26,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.sqldelightTesting)
         api(projects.shared.memfaultFake)
-        api(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
       }
     }
 

@@ -3,7 +3,7 @@ package build.wallet.statemachine.money.currency
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.money.currency.FiatCurrenciesServiceFake
@@ -31,7 +31,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   val moneyDisplayFormatter = MoneyDisplayFormatterFake
   val hideBalancePreference = HideBalancePreferenceFake()
   val bitcoinPriceCardPreference = BitcoinPriceCardPreferenceFake()
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val stateMachine = AppearancePreferenceUiStateMachineImpl(
     bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
@@ -41,7 +41,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     moneyDisplayFormatter = moneyDisplayFormatter,
     hideBalancePreference = hideBalancePreference,
     bitcoinPriceCardPreference = bitcoinPriceCardPreference,
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
@@ -54,7 +54,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     fiatCurrenciesService.reset()
     hideBalancePreference.clear()
     bitcoinPriceCardPreference.clear()
-    transactionsService.reset()
+    bitcoinWalletService.reset()
   }
 
   test("update fiat currency preference") {

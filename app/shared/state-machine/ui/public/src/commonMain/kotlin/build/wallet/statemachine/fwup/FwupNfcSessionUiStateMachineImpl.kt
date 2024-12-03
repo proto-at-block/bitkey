@@ -10,7 +10,7 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
 import build.wallet.fwup.*
 import build.wallet.fwup.FwupFinishResponseStatus.*
-import build.wallet.logging.log
+import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
@@ -180,7 +180,6 @@ class FwupNfcSessionUiStateMachineImpl(
               commands = commands,
               fwupData = props.firmwareData.fwupData,
               updateSequenceId = { sequenceId ->
-                log { "Updating sequence ID: $sequenceId" }
                 setSequenceId(sequenceId)
                 val progress =
                   fwupProgressCalculator.calculateProgress(
@@ -315,10 +314,9 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   private suspend fun getSequenceId(): UInt =
-    fwupDataDao.getSequenceId().getOrElse {
-      log { "Failed to get sequence ID, using 0" }
-      0u
-    }
+    fwupDataDao.getSequenceId()
+      .logFailure { "Failed to get fwup sequence ID, using 0 as default." }
+      .getOrElse { 0u }
 
   private suspend fun setSequenceId(sequenceId: UInt) {
     fwupDataDao.setSequenceId(sequenceId)

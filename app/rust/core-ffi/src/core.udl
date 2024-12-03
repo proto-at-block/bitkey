@@ -1,4 +1,6 @@
-namespace core {};
+namespace core {
+  WalletDescriptor compute_frost_wallet_descriptor(PublicKey agg_public_key, Network network);
+};
 
 [Error]
 enum SecretKeyError {
@@ -215,6 +217,24 @@ interface ShareGenerator {
 [Custom]
 typedef sequence<u8> FrostShare;
 
+[Custom]
+typedef string DescriptorPublicKey;
+
+dictionary WalletDescriptor {
+  DescriptorPublicKey external;
+  DescriptorPublicKey change;
+};
+
+enum FfiNetwork {
+  "Bitcoin",
+  "Testnet",
+  "Signet",
+  "Regtest",
+};
+
+[Custom]
+typedef FfiNetwork Network;
+
 [Error]
 enum NoiseWrapperError {
   "InternalError",
@@ -275,4 +295,26 @@ callback interface HardwareBackedDh {
 enum DhError {
   "InvalidPublicKey",
   "ExchangeFailed"
+};
+
+interface FrostSigner {
+  [Throws=SigningError]
+  constructor(Psbt psbt, ShareDetails share_details);
+  [Throws=SigningError]
+  string sign_psbt_request();
+  [Throws=SigningError]
+  Psbt sign_psbt(string sealed_response);
+};
+
+[Custom]
+typedef string Psbt;
+
+[Error]
+enum SigningError {
+  "InvalidPsbt",
+  "UnableToRetrieveSighash",
+  "InvalidCounterpartyCommitments",
+  "NonceAlreadyUsed",
+  "CommitmentMismatch",
+  "MissingCounterpartyNonces",
 };

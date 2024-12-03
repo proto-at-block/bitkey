@@ -1,7 +1,6 @@
 package build.wallet.fwup
 
 import app.cash.turbine.test
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
@@ -10,6 +9,7 @@ import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
+import build.wallet.platform.app.AppSessionManagerFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get

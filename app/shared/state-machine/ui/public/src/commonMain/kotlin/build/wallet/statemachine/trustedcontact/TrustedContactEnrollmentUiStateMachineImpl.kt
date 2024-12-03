@@ -14,8 +14,7 @@ import build.wallet.bitkey.relationships.IncomingInvitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.crypto.PublicKey
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.relationships.*
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -68,7 +67,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
         LaunchedEffect("retrieve-invitation") {
           relationshipsService.retrieveInvitation(props.account, inviteCode)
             .onFailure {
-              log(LogLevel.Debug) { "Failed to retrieve invite using code [$inviteCode]" }
+              logWarn(throwable = it.cause) { "Failed to retrieve invite using code [$inviteCode]" }
               uiState =
                 State.RetrievingInviteWithF8eFailure(
                   error = it

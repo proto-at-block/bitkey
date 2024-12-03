@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-desktop",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-desktop-1.7.0.jar": "5e40f2fc7bc8cb42243cfa7d73c631a17b3d9874af68841ad3ef778f70663be3"
+                        "animation-desktop-1.7.1.jar": "474e6bd2a6ac2362e5dabd780f93b852768640aa16403b0fc505da88177f97b3"
                     }
                 }
             ],

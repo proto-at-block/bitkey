@@ -27,4 +27,5 @@ data class PartnershipTransaction(
   val created: Instant,
   val updated: Instant,
   val sellWalletAddress: String?,
+  val partnerTransactionUrl: String?,
 )

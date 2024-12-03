@@ -15,9 +15,8 @@ import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
-import build.wallet.logging.LogLevel.Warn
+import build.wallet.logging.*
 import build.wallet.logging.NFC_TAG
-import build.wallet.logging.log
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.rust.firmware.BooleanState
 import build.wallet.rust.firmware.BtcNetwork
@@ -469,7 +468,7 @@ private suspend inline fun <
   val commandName = command::class.simpleName
   var data = emptyList<UByte>()
 
-  log(tag = NFC_TAG) { "NFC Command $commandName started" }
+  logDebug(tag = NFC_TAG) { "NFC Command $commandName started" }
 
   while (true) {
     try {
@@ -477,12 +476,12 @@ private suspend inline fun <
         is DataStateT -> data = session.transceive(getResponse(state))
 
         is ResultStateT -> {
-          log(tag = NFC_TAG) { "NFC Command $commandName succeeded" }
+          logDebug(tag = NFC_TAG) { "NFC Command $commandName succeeded" }
           return generateResult(state)
         }
       }
     } catch (e: Throwable) {
-      log(Warn, tag = NFC_TAG, throwable = e) { "NFC Command $commandName failed" }
+      logWarn(tag = NFC_TAG, throwable = e) { "NFC Command $commandName failed" }
       when (e) {
         is CommandException.Unauthenticated -> throw NfcException.CommandErrorUnauthenticated()
         is CommandException -> throw NfcException.CommandError(cause = e)

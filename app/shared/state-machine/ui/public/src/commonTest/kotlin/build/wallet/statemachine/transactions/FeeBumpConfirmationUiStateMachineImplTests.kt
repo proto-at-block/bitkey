@@ -6,10 +6,10 @@ import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.UtxoConsolidation
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -34,7 +34,7 @@ import io.kotest.matchers.collections.shouldContainExactly
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val stateMachine = FeeBumpConfirmationUiStateMachineImpl(
     transactionDetailsCardUiStateMachine = object : TransactionDetailsCardUiStateMachine,
@@ -54,8 +54,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
                 totalAmountSecondaryText = "totalBitcoinAmountText",
                 totalFeeText = "totalFeeText",
                 totalFeeSecondaryText = "totalFeeBtcText"
-              ),
-            amountLabel = "amountLabel"
+              )
           )
       ) {},
     exchangeRateService = ExchangeRateServiceFake(),
@@ -65,7 +64,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       BodyStateMachineMock<TransferInitiatedUiProps>(
         "transfer-initiated"
       ) {},
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   val props = FeeBumpConfirmationProps(
@@ -83,8 +82,8 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
-    transactionsService.reset()
-    transactionsService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = spendingWallet
   }
 
   test("fee bump happy path") {
@@ -100,7 +99,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitScreenWithBody<LoadingSuccessBodyModel>()
 
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(PsbtMock)
       }
 
@@ -128,7 +127,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitScreenWithBody<LoadingSuccessBodyModel>()
 
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(PsbtMock)
       }
 

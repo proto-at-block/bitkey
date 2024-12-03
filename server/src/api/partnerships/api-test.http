@@ -22,7 +22,7 @@
 @PAYMENT_METHOD=CARD
 
 // sale
-@SALE_PARTNER=SignetFaucet
+@SALE_PARTNER=CashApp
 @CRYPTO_AMOUNT=10
 @FIAT_AMOUNT=100
 @REFUND_ADDRESS=bc1q7a7rjmfvqa5kta4rht54klmelh790xz3yyrwxpv935nm80xkst3sn7h8pr
@@ -37,7 +37,7 @@ Content-Type: application/json
 Accept: application/json
 
 ### get partner transaction
-GET {{ENDPOINT}}/partners/{{TRANSFER_PARTNER}}/transactions/{{PARTNER_TRANSACTION_ID}}?transaction_type={{PARTNER_TRANSACTION_TYPE}}
+GET {{ENDPOINT}}/partners/{{TRANSFER_PARTNER}}/transactions/{{PARTNER_TRANSACTION_ID}}?type={{PARTNER_TRANSACTION_TYPE}}
 Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 Accept: application/json
@@ -125,6 +125,8 @@ Accept: application/json
   "partner": "{{SALE_PARTNER}}",
   "fiat_amount": {{FIAT_AMOUNT}},
   "fiat_currency": "{{CURRENCY}}",
+  "crypto_amount": {{CRYPTO_AMOUNT}},
+  "crypto_currency": "BTC",
   "payment_method": "{{SALE_PAYMENT_METHOD}}",
   "transaction_id": "{{PARTNER_TRANSACTION_ID}}"
 }

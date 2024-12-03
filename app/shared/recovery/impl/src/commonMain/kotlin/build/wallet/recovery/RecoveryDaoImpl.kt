@@ -30,6 +30,7 @@ import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 
 class RecoveryDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
@@ -71,7 +72,8 @@ class RecoveryDaoImpl(
   }
 
   override fun activeRecovery() =
-    databaseProvider.database().recoveryQueries.let { queries ->
+    flow {
+      val queries = databaseProvider.database().recoveryQueries
       combine(
         queries.getLocalRecovery().asFlow(),
         queries.getServerRecovery().asFlow()
@@ -84,6 +86,7 @@ class RecoveryDaoImpl(
             ?: NoActiveRecovery
         }
       }.distinctUntilChanged()
+        .collect(::emit)
     }
 
   override suspend fun clear(): Result<Unit, DbError> {

@@ -46,6 +46,7 @@ fun WalletTheme.iconStyle(
                 IconTint.Green -> colors.positiveForeground
                 IconTint.Warning -> colors.warningForeground
                 IconTint.Success -> colors.calloutSuccessTrailingIconBackground
+                IconTint.Information -> colors.calloutInformationTrailingIconBackground
                 null ->
                   when (color) {
                     Color.Unspecified -> colors.primaryIcon
@@ -74,6 +75,8 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.SmallIconCheckboxSelected,
     Icon.SmallIconSettingsBadged,
     Icon.BitkeyLogo,
+    Icon.BitcoinConsolidation,
+    Icon.BitcoinBadged,
     -> false
 
     else -> true

@@ -2,10 +2,8 @@ package build.wallet.integration.statemachine.partnerships
 
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.partnerships.PartnerId
-import build.wallet.partnerships.PartnerInfo
-import build.wallet.partnerships.PartnerRedirectionMethod
-import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.coroutines.turbine.turbines
+import build.wallet.partnerships.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
@@ -13,25 +11,25 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiPro
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.should
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 
 class PartnerPurchaseFunctionalTests : FunSpec({
+
+  val onPartnerRedirectedCalls =
+    turbines.create<Pair<PartnerRedirectionMethod, PartnershipTransaction>>("onPartnerRedirected")
+
   context("Partnerships purchase flow") {
     val app = launchNewApp()
-    val account = app.onboardFullAccountWithFakeHardware()
-    var capturedRedirectionMethod: PartnerRedirectionMethod? = null
-    var capturedTransaction: PartnershipTransaction? = null
+    app.onboardFullAccountWithFakeHardware()
     val purchaseUiProps = PartnershipsPurchaseUiProps(
-      account = account,
-      keybox = account.keybox,
       onBack = {},
       selectedAmount = null,
       onPartnerRedirected = { redirectionMethod, transaction ->
-        capturedRedirectionMethod = redirectionMethod
-        capturedTransaction = transaction
+        onPartnerRedirectedCalls.add(redirectionMethod to transaction)
       },
       onSelectCustomAmount = { _, _ -> },
       onExit = {}
@@ -119,11 +117,18 @@ class PartnerPurchaseFunctionalTests : FunSpec({
           partnerInfo = PartnerInfo(
             name = "Signet Faucet",
             logoUrl = null,
-            partnerId = PartnerId("SignetFaucet")
+            partnerId = PartnerId("SignetFaucet"),
+            logoBadgedUrl = null
           )
         )
-        assertEquals(expectedRedirectionMethod, capturedRedirectionMethod)
-        assertNotNull(capturedTransaction)
+
+        onPartnerRedirectedCalls.awaitItem().should { (redirectionMethod, transaction) ->
+          redirectionMethod.shouldBe(expectedRedirectionMethod)
+
+          transaction.shouldBeTypeOf<PartnershipTransaction>()
+          transaction.type.shouldBe(PartnershipTransactionType.PURCHASE)
+          transaction.partnerInfo.shouldBe(expectedRedirectionMethod.partnerInfo)
+        }
       }
     }
   }

@@ -1,10 +1,9 @@
 package build.wallet.recovery
 
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClient
-import build.wallet.logging.log
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.recovery.RecoverySyncer.SyncError
 import build.wallet.recovery.RecoverySyncer.SyncError.CouldNotFetchServerRecovery
 import build.wallet.recovery.RecoverySyncer.SyncError.SyncDbError
@@ -38,7 +37,6 @@ class RecoverySyncerImpl(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
   ) {
-    log { "Starting recovery sync polling" }
     scope.launch {
       while (isActive) {
         if (appSessionManager.isAppForegrounded()) {
@@ -59,7 +57,6 @@ class RecoverySyncerImpl(
   ): Result<Unit, SyncError> =
     coroutineBinding {
       syncLock.withLock {
-        log { "Syncing recovery status" }
         val serverRecovery =
           getRecoveryStatusF8eClient.getStatus(f8eEnvironment, fullAccountId)
             .mapError { CouldNotFetchServerRecovery(it) }

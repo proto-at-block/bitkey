@@ -27,7 +27,7 @@ actual class SqlDriverFactoryImpl actual constructor(
   private val appVariant: AppVariant,
   private val databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
-  actual override fun createDriver(
+  actual override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {

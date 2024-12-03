@@ -9,31 +9,32 @@ import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import okio.ByteString.Companion.toByteString
 
 class FwupDataDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FwupDataDao {
-  private val database by lazy { databaseProvider.database() }
+  private suspend fun database() = databaseProvider.database()
 
   override fun fwupData(): Flow<Result<FwupData?, DbError>> {
-    return database
-      .fwupDataQueries
-      .getFwupData()
-      .asFlowOfOneOrNull()
-      .map { result ->
-        result
-          .map { it?.toFwupData() }
-          .logFailure { "Failed to get fwup data" }
-      }
-      .distinctUntilChanged()
+    return flow {
+      databaseProvider.database()
+        .fwupDataQueries
+        .getFwupData()
+        .asFlowOfOneOrNull()
+        .map { result ->
+          result
+            .map { it?.toFwupData() }
+            .logFailure { "Failed to get fwup data" }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun setFwupData(fwupData: FwupData): Result<Unit, DbError> {
-    return database
+    return database()
       .awaitTransaction {
         fwupDataQueries.setFwupData(
           version = fwupData.version,
@@ -49,19 +50,19 @@ class FwupDataDaoImpl(
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return database
+    return database()
       .awaitTransaction { fwupDataQueries.clear() }
       .logFailure { "Failed to clear fwup data" }
   }
 
   override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError> {
-    return database
+    return database()
       .awaitTransaction { fwupDataQueries.setSequenceId(sequenceId.toLong()) }
       .logFailure { "Failed to set sequence ID" }
   }
 
   override suspend fun getSequenceId(): Result<UInt, DbError> {
-    return database
+    return database()
       .awaitTransactionWithResult {
         fwupDataQueries.getSequenceId().executeAsOneOrNull()?.toUInt()
           ?: throw NoSuchElementException("No sequence ID found in the database.")

@@ -12,8 +12,7 @@ import build.wallet.f8e.partnerships.RedirectUrlType
 import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
@@ -246,7 +245,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
                           fallbackIcon = Bitcoin
                         )
                     },
-                  iconSize = IconSize.Regular
+                  iconSize = IconSize.Large
                 )
             ),
           trailingAccessory = IconAccessory(
@@ -317,8 +316,9 @@ class PartnershipsSellOptionsUiStateMachineImpl(
     errorMessage: String,
     onBack: () -> Unit,
   ): ScreenModel {
-    val logLevel = if (error != null) LogLevel.Error else LogLevel.Warn
-    log(level = logLevel, throwable = error) { errorMessage }
+    LaunchedEffect("sell-log-error", error, errorMessage) {
+      logError(throwable = error) { errorMessage }
+    }
     return ScreenModel(
       body =
         ErrorFormBodyModel(
@@ -409,7 +409,8 @@ class PartnershipsSellOptionsUiStateMachineImpl(
       )
       .map { quote ->
         val bitcoinDisplayAmount = moneyFormatter.format(BitcoinMoney.btc(quote.cryptoAmount))
-        val fiatDisplayAmount = moneyFormatter.format(FiatMoney(USD, quote.fiatAmount.toBigDecimal()))
+        val fiatDisplayAmount =
+          moneyFormatter.format(FiatMoney(USD, quote.fiatAmount.toBigDecimal()))
 
         ListItemModel(
           title = quote.partnerInfo.name,
@@ -427,7 +428,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
                       fallbackIcon = Icon.Bitcoin
                     )
                 },
-              iconSize = IconSize.Regular
+              iconSize = IconSize.Large
             )
           ),
           trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30)
@@ -436,7 +437,14 @@ class PartnershipsSellOptionsUiStateMachineImpl(
 
     return SellQuotesFormBodyModel(
       formattedSellAmount = formattedSellAmount,
-      mainContentList = immutableListOf(ListGroup(listGroupModel = ListGroupModel(items = models, style = CARD_ITEM))),
+      mainContentList = immutableListOf(
+        ListGroup(
+          listGroupModel = ListGroupModel(
+            items = models,
+            style = CARD_ITEM
+          )
+        )
+      ),
       id = SellEventTrackerScreenId.SELL_QUOTES_LIST,
       onBack = onBack
     ).asModalFullScreen()

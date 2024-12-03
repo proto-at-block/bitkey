@@ -4,6 +4,7 @@ import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -36,19 +37,19 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
      */
     val treasury = app.treasuryWallet
     val fundingResult = treasury.fund(keyboxWallet, BitcoinMoney.sats(10_000))
-    println("Sending coins to ${fundingResult.depositAddress.address}")
-    println("Funding txid ${fundingResult.tx.id}")
+    logTesting { "Sending coins to ${fundingResult.depositAddress.address}" }
+    logTesting { "Funding txid ${fundingResult.tx.id}" }
 
-    println("Syncing wallet")
+    logTesting { "Syncing wallet" }
     keyboxWallet.sync().shouldBeOk()
 
-    println("Setting up Quickpay for $100")
+    logTesting { "Setting up Mobile Pay for $100" }
     app.setupMobilePay(FiatMoney.usd(100.0))
 
     /**
      * Send the money back to the treasury
      */
-    println("spending coins via server-spend")
+    logTesting { "spending coins via server-spend" }
     val appSignedPsbt =
       keyboxWallet
         .createSignedPsbt(
@@ -70,14 +71,14 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
       success = { /* broadcast succeeded */ },
       failure = { error ->
         if (error.isExpectedRaceError()) {
-          println("F8e won publishing race, continue... Error: ${error.message}")
+          logTesting { "F8e won publishing race, continue... Error: ${error.message}" }
         } else {
           throw error
         }
       }
     )
 
-    println("\uD83C\uDF89 success! \uD83C\uDF89")
+    logTesting { "\uD83C\uDF89 success! \uD83C\uDF89" }
   }
 })
 

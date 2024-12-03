@@ -23,8 +23,8 @@ class OutgoingTransactionDetailDaoImpl(
       .awaitTransaction {
         transactionDetailQueries.insertTransactionDetail(
           transactionId = transactionId,
-          broadcastTimeInstant = broadcastTime,
-          estimatedConfirmationTimeInstant = estimatedConfirmationTime
+          broadcastTime = broadcastTime,
+          estimatedConfirmationTime = estimatedConfirmationTime
         )
         exchangeRates?.forEach {
           historicalExchangeRateQueries.insertHistoricalExchangeRate(

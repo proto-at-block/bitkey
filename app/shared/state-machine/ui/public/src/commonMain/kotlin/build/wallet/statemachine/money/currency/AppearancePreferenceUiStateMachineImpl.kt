@@ -3,8 +3,7 @@ package build.wallet.statemachine.money.currency
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.BitcoinMoney
@@ -35,7 +34,7 @@ class AppearancePreferenceUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val hideBalancePreference: HideBalancePreference,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : AppearancePreferenceUiStateMachine {
   @Composable
   override fun model(props: AppearancePreferenceProps): ScreenModel {
@@ -96,12 +95,12 @@ class AppearancePreferenceUiStateMachineImpl(
     isHideBalanceEnabled: Boolean,
     onFiatCurrencyPreferenceClick: () -> Unit,
   ): ScreenModel {
-    val transactionsData = remember { transactionsService.transactionsData() }
+    val transactionsData = remember { bitcoinWalletService.transactionsData() }
       .collectAsState().value
 
     val btcDisplayAmount = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> BitcoinMoney.zero()
-      is TransactionsData.TransactionsLoadedData -> transactionsData.balance.total
+      null -> BitcoinMoney.zero()
+      else -> transactionsData.balance.total
     }
 
     val isBitcoinPriceCardEnabled by bitcoinPriceCardPreference.isEnabled.collectAsState()

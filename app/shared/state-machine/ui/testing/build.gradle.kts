@@ -16,6 +16,7 @@ kotlin {
         implementation(projects.shared.composeRuntimePublic)
         implementation(projects.shared.stateMachineFrameworkTesting)
         implementation(projects.shared.stateMachineUiPublic)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

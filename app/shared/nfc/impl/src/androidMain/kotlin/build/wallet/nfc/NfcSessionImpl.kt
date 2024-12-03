@@ -2,9 +2,8 @@ package build.wallet.nfc
 
 import android.nfc.TagLostException
 import android.nfc.tech.IsoDep
-import build.wallet.logging.LogLevel
+import build.wallet.logging.*
 import build.wallet.logging.NFC_TAG
-import build.wallet.logging.log
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import kotlinx.coroutines.*
@@ -57,19 +56,19 @@ class NfcSessionImpl(
     try {
       isoDep.value?.close()
     } catch (e: IOException) {
-      log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC session close failed" }
+      logWarn(tag = NFC_TAG, throwable = e) { "NFC session close failed" }
     }
   }
 
   private fun openTag(newTag: IsoDep): IsoDep? {
-    log(tag = NFC_TAG) { "Connecting to NFC tag: ${newTag.tagId()}" }
+    logDebug(tag = NFC_TAG) { "Connecting to NFC tag: ${newTag.tagId()}" }
     try {
       newTag.connect()
     } catch (e: IOException) {
-      log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC connection failed" }
+      logWarn(tag = NFC_TAG, throwable = e) { "NFC connection failed" }
       return null
     } catch (e: SecurityException) {
-      log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC connection failed" }
+      logWarn(tag = NFC_TAG, throwable = e) { "NFC connection failed" }
       return null
     }
     parameters.onTagConnected(this)
@@ -79,13 +78,13 @@ class NfcSessionImpl(
   private fun closeTag() {
     isoDep.update {
       if (it != null) {
-        log(tag = NFC_TAG) { "Closing tag: ${it.tagId()}" }
+        logDebug(tag = NFC_TAG) { "Closing tag: ${it.tagId()}" }
         try {
           it.close()
         } catch (e: IOException) {
-          log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC tag close failed" }
+          logWarn(tag = NFC_TAG, throwable = e) { "NFC tag close failed" }
         } catch (e: SecurityException) {
-          log(tag = NFC_TAG, throwable = e, level = LogLevel.Warn) { "NFC tag close failed" }
+          logWarn(tag = NFC_TAG, throwable = e) { "NFC tag close failed" }
         }
         parameters.onTagDisconnected()
       }

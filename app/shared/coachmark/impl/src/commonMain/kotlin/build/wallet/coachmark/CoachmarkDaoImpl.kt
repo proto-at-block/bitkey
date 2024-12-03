@@ -13,15 +13,12 @@ import kotlinx.datetime.Instant
 class CoachmarkDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : CoachmarkDao {
-  private val database by lazy {
-    databaseProvider.database()
-  }
-
   override suspend fun insertCoachmark(
     id: CoachmarkIdentifier,
     expiration: Instant,
   ): Result<Unit, DbError> =
-    database.coachmarksQueries
+    databaseProvider.database()
+      .coachmarksQueries
       .awaitTransactionWithResult {
         createCoachmark(
           id = id,
@@ -31,13 +28,14 @@ class CoachmarkDaoImpl(
       }
 
   override suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, DbError> =
-    database.coachmarksQueries
+    databaseProvider.database()
+      .coachmarksQueries
       .awaitTransactionWithResult {
         setViewed(true, id)
       }
 
   override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError> =
-    database
+    databaseProvider.database()
       .coachmarksQueries
       .getCoachmark(id)
       .awaitAsOneOrNullResult()
@@ -52,7 +50,7 @@ class CoachmarkDaoImpl(
       }
 
   override suspend fun getAllCoachmarks(): Result<List<Coachmark>, DbError> =
-    database
+    databaseProvider.database()
       .coachmarksQueries
       .getAllCoachmarks()
       .awaitAsListResult()
@@ -67,7 +65,7 @@ class CoachmarkDaoImpl(
       }
 
   override suspend fun resetCoachmarks(): Result<Unit, DbError> =
-    database
+    databaseProvider.database()
       .coachmarksQueries
       .awaitTransactionWithResult {
         reset()

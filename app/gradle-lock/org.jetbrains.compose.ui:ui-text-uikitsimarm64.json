@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-text-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-text-uikitsimarm64-1.7.0-metadata.jar": "2114eae0c365310e561f428c20151c96e6926a3284d96498831f9b66a4433f3b"
+                        "ui-text-uikitsimarm64-1.7.1-metadata.jar": "2114eae0c365310e561f428c20151c96e6926a3284d96498831f9b66a4433f3b"
                     }
                 },
                 {

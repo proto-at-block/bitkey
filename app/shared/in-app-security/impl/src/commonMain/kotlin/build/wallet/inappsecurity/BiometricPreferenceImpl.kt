@@ -12,19 +12,15 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 class BiometricPreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val eventTracker: EventTracker,
 ) : BiometricPreference {
-  private val db by lazy {
-    databaseProvider.database()
-  }
-
   override suspend fun get(): Result<Boolean, DbError> {
-    return db.biometricPreferenceQueries
+    return databaseProvider.database()
+      .biometricPreferenceQueries
       .getBiometricPeference()
       .awaitAsOneOrNullResult()
       .logFailure { "Unable to get Lightning Preference Entity" }
@@ -32,7 +28,8 @@ class BiometricPreferenceImpl(
   }
 
   override suspend fun set(enabled: Boolean): Result<Unit, DbError> {
-    return db.biometricPreferenceQueries
+    return databaseProvider.database()
+      .biometricPreferenceQueries
       .awaitTransactionWithResult {
         setBiometricPreference(enabled)
       }
@@ -46,14 +43,19 @@ class BiometricPreferenceImpl(
   }
 
   override fun isEnabled(): Flow<Boolean> {
-    return db.biometricPreferenceQueries
-      .getBiometricPeference()
-      .asFlowOfOneOrNull()
-      .map { it.get()?.enabled ?: false }
+    return flow {
+      databaseProvider.database()
+        .biometricPreferenceQueries
+        .getBiometricPeference()
+        .asFlowOfOneOrNull()
+        .map { it.get()?.enabled ?: false }
+        .collect(::emit)
+    }
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return db.biometricPreferenceQueries
+    return databaseProvider.database()
+      .biometricPreferenceQueries
       .awaitTransactionWithResult {
         clear()
       }

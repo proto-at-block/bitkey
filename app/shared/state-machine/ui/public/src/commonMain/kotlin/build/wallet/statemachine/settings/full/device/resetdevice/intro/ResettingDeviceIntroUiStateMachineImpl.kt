@@ -3,8 +3,7 @@ package build.wallet.statemachine.settings.full.device.resetdevice.intro
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.bitcoin.balance.BitcoinBalance
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -17,14 +16,16 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.form.*
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceEventTrackerScreenId
@@ -56,7 +57,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val mobilePayService: MobilePayService,
   private val authF8eClient: AuthF8eClient,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : ResettingDeviceIntroUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -67,12 +68,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
       )
     }
 
-    val transactionsData =
-      remember { transactionsService.transactionsData() }.collectAsState().value
-    val transactionsLoadedData = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> null
-      is TransactionsData.TransactionsLoadedData -> transactionsData
-    }
+    val transactionsData = remember { bitcoinWalletService.transactionsData() }.collectAsState().value
 
     val scope = rememberStableCoroutineScope()
 
@@ -109,13 +105,13 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is ScanningState -> {
-        val spendingWallet = remember { transactionsService.spendingWallet() }
+        val spendingWallet = remember { bitcoinWalletService.spendingWallet() }
           .collectAsState()
           .value
 
         InitialDeviceTapModel(
           pubKey = props.fullAccount?.keybox?.activeHwKeyBundle?.authKey?.pubKey,
-          balance = transactionsLoadedData?.balance,
+          balance = transactionsData?.balance,
           isHardwareFake = props.fullAccountConfig.isHardwareFake,
           onTapPairedDevice = { balance ->
             if (balance.untrustedPending.isPositive) {
@@ -194,9 +190,12 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is TransferringFundsState -> {
-        if (transactionsLoadedData?.balance == null || props.fullAccount == null) {
-          log(LogLevel.Error) {
-            "ResettingDeviceIntroUiStateMachineImpl.TransferringFundsState reached without a balance or fullAccount! This should never happen"
+        val shouldNotReach = transactionsData?.balance == null || props.fullAccount == null
+        LaunchedEffect("log-should-not-reach-TransferringFundsState", shouldNotReach) {
+          if (shouldNotReach) {
+            logError {
+              "ResettingDeviceIntroUiStateMachineImpl.TransferringFundsState reached without a balance or fullAccount! This should never happen"
+            }
           }
         }
 
@@ -209,7 +208,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
               uiState = IntroState(shouldUnwindToMoneyHome = true)
             },
             onCancel = { uiState = IntroState() },
-            balance = transactionsLoadedData!!.balance
+            balance = transactionsData!!.balance
           )
         )
       }
@@ -605,7 +604,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
             }
           }
           else -> {
-            log(LogLevel.Error, throwable = error) { "Error checking if device is active: $error" }
+            logError(throwable = error) { "Error checking if device is active: $error" }
             true
           }
         }

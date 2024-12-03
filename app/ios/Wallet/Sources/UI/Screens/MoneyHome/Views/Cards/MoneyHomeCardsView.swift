@@ -17,7 +17,7 @@ public struct MoneyHomeCardsView: View {
 
     public var body: some View {
         VStack {
-            ForEach(viewModel.cards, id: \.title) { cardModel in
+            ForEach(viewModel.cards, id: \.self) { cardModel in
                 CardView(
                     viewModel: cardModel,
                     // If there's only one card, bind the height of this view to the height of the

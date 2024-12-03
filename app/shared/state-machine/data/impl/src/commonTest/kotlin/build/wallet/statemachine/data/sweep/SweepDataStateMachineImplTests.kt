@@ -2,15 +2,16 @@ package build.wallet.statemachine.data.sweep
 
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.Generic
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitcoin.wallet.isAppSignedWithKeyset
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
@@ -54,20 +55,26 @@ class SweepDataStateMachineImplTests : FunSpec({
           }
         return Ok(wallet)
       }
+
+      override suspend fun getSpendingWallet(
+        keybox: SoftwareKeybox,
+      ): Result<SpendingWallet, Throwable> {
+        TODO("Software wallet does not support sweeps yet")
+      }
     }
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val stateMachine =
     SweepDataStateMachineImpl(
       sweepService,
       serverSigner,
       appSpendingWalletProvider,
-      transactionsService
+      bitcoinWalletService
     )
 
   afterTest {
     sweepService.reset()
     serverSigner.reset()
-    transactionsService.reset()
+    bitcoinWalletService.reset()
 
     // Remove spending wallet turbines.
     // We reuse the same keyset mocks for each test. The id of those keysets are used as
@@ -144,14 +151,14 @@ class SweepDataStateMachineImplTests : FunSpec({
       serverSigner.signWithSpecificKeysetCalls.awaitItem()
       serverSigner.signWithSpecificKeysetCalls.awaitItem()
 
-      val psbt1 = transactionsService.broadcastedPsbts.value.single {
+      val psbt1 = bitcoinWalletService.broadcastedPsbts.value.single {
         it.id == expectedSweepPsbts[0].psbt.id
       }
       psbt1.isServerSignedWithKeyset(expectedSweepPsbts[0].sourceKeyset.f8eSpendingKeyset.keysetId)
         .shouldBeTrue()
       psbt1.isAppSignedWithKeyset(expectedSweepPsbts[0].sourceKeyset).shouldBeTrue()
 
-      val psbt2 = transactionsService.broadcastedPsbts.value.single {
+      val psbt2 = bitcoinWalletService.broadcastedPsbts.value.single {
         it.id == expectedSweepPsbts[1].psbt.id
       }
       psbt2.id.shouldBe(expectedSweepPsbts[1].psbt.id)
@@ -200,13 +207,13 @@ class SweepDataStateMachineImplTests : FunSpec({
       serverSigner.signWithSpecificKeysetCalls.awaitItem()
       serverSigner.signWithSpecificKeysetCalls.awaitItem()
 
-      val psbt1 = transactionsService.broadcastedPsbts.value.single {
+      val psbt1 = bitcoinWalletService.broadcastedPsbts.value.single {
         it.id == expectedSweepPsbts[0].psbt.id
       }
       psbt1.base64.shouldContain("hw-signed")
       psbt1.isServerSignedWithKeyset(SpendingKeysetMock.f8eSpendingKeyset.keysetId).shouldBeTrue()
 
-      val psbt2 = transactionsService.broadcastedPsbts.value.single {
+      val psbt2 = bitcoinWalletService.broadcastedPsbts.value.single {
         it.id == expectedSweepPsbts[1].psbt.id
       }
       psbt2.isAppSignedWithKeyset(SpendingKeysetMock2).shouldBeTrue()
@@ -253,7 +260,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     sweepService.prepareSweepResult = Ok(
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
     )
-    transactionsService.broadcastError = Generic(cause = Exception("Dang."), message = null)
+    bitcoinWalletService.broadcastError = Generic(cause = Exception("Dang."), message = null)
 
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()

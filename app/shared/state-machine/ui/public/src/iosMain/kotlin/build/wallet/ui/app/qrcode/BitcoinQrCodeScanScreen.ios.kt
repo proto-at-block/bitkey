@@ -8,11 +8,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import bitkey.shared.ui_core_public.generated.resources.*
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.model.alert.ButtonAlertModel
+import com.rickclephas.kmp.nserrorkt.asThrowable
 import kotlinx.cinterop.*
 import kotlinx.coroutines.*
 import org.jetbrains.compose.resources.stringResource
@@ -167,8 +167,8 @@ private class CameraScannerController(
       val error = alloc<ObjCObjectVar<NSError?>>()
       AVCaptureDeviceInput(device = camera, error = error.ptr).also {
         if (error.value != null || !captureSession.canAddInput(it)) {
-          log(LogLevel.Error) {
-            "Failed to start camera session: ${error.value}"
+          logError(throwable = error.value?.asThrowable()) {
+            "Failed to start camera session"
           }
           return
         }
@@ -183,7 +183,7 @@ private class CameraScannerController(
       metadataOutput.setMetadataObjectsDelegate(this, dispatch_get_main_queue())
       metadataOutput.setMetadataObjectTypes(metadataOutput.availableMetadataObjectTypes)
     } else {
-      log(LogLevel.Error) { "Cannot add metadata output to capture session" }
+      logError { "Cannot add metadata output to capture session" }
       return
     }
 

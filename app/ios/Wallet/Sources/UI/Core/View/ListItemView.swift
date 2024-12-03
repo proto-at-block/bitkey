@@ -344,12 +344,14 @@ struct ListItemView_Preview: PreviewProvider {
                     iconPadding: nil,
                     model: .init(
                         iconImage: .LocalImage(icon: .smalliconwarningfilled),
-                        iconSize: .accessory,
+                        iconSize: .Accessory(),
                         iconBackgroundType: IconBackgroundTypeTransient(),
+                        iconAlignmentInBackground: .center,
                         iconTint: .warning,
                         iconOpacity: nil,
                         iconTopSpacing: nil,
-                        text: nil
+                        text: nil,
+                        badge: nil
                     )
                 ),
                 treatment: .primary,

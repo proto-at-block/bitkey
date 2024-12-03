@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-uikitarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-uikitarm64-1.7.0-metadata.jar": "3b83272facbc4889e8d7c20a251eb981fcc7662c28de007c9ef21ce600e669ee"
+                        "foundation-uikitarm64-1.7.1-metadata.jar": "3b83272facbc4889e8d7c20a251eb981fcc7662c28de007c9ef21ce600e669ee"
                     }
                 },
                 {
                     "artifacts": {
-                        "foundation.klib": "a6e680d33efb851e34dcc10fc3f0f00056aebeb6095e5eb0cb88f1e19942283a"
+                        "foundation.klib": "fa4dab4e26f26de44ceae93a8b0c27267dff671ef215532b8cf82001ac84bcee"
                     }
                 }
             ],

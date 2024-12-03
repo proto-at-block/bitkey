@@ -6,8 +6,7 @@ import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.money.BitcoinMoney
@@ -30,7 +29,7 @@ class TransferAmountEntryUiStateMachineImpl(
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val transferCardUiStateMachine: TransferCardUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
 ) : TransferAmountEntryUiStateMachine {
@@ -67,13 +66,8 @@ class TransferAmountEntryUiStateMachineImpl(
     }.collectAsState()
 
     val bitcoinBalance by remember {
-      transactionsService.transactionsData()
-        .mapAsStateFlow(scope) {
-          when (it) {
-            TransactionsData.LoadingTransactionsData -> ZeroBalance
-            is TransactionsData.TransactionsLoadedData -> it.balance
-          }
-        }
+      bitcoinWalletService.transactionsData()
+        .mapAsStateFlow(scope) { it?.balance ?: ZeroBalance }
     }.collectAsState()
 
     // We convert the bitcoin balance to fiat if we have exchange rates, we don't grab the fiat balance
@@ -207,11 +201,12 @@ class TransferAmountEntryUiStateMachineImpl(
           )
         },
         onHardwareRequiredClick = {
-          sheetState = if (mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable) {
-            SheetState.HardwareRequiredSheetState
-          } else {
-            SheetState.Hidden
-          }
+          sheetState =
+            if (mobilePayAvailability == FunctionalityFeatureStates.FeatureState.Unavailable) {
+              SheetState.HardwareRequiredSheetState
+            } else {
+              SheetState.Hidden
+            }
         }
       )
     )

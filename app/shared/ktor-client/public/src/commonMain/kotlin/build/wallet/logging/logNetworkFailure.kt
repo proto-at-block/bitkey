@@ -26,7 +26,7 @@ inline fun <V, E : NetworkingError> Result<V, E>.logNetworkFailure(
         else -> errorLogLevel
       }
 
-    log(
+    logInternal(
       level = logLevel,
       throwable = error
     ) { "${message()}. $error" }

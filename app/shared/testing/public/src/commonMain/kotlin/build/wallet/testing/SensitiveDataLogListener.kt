@@ -3,7 +3,7 @@ package build.wallet.testing
 import build.wallet.logging.SensitiveDataValidator
 import io.kotest.assertions.assertSoftly
 import io.kotest.core.listeners.ProjectListener
-import io.kotest.matchers.string.shouldNotContain
+import io.kotest.matchers.booleans.shouldBeFalse
 
 internal class SensitiveDataLogListener : ProjectListener {
   override suspend fun afterProject() {
@@ -16,10 +16,7 @@ internal class SensitiveDataLogListener : ProjectListener {
   private fun TestLogStoreWriter.shouldNotContainSensitiveData() {
     assertSoftly {
       logs.forEach { entry ->
-        SensitiveDataValidator.indicators().forEach { indicator ->
-          entry.tag.shouldNotContain(indicator)
-          entry.message.shouldNotContain(indicator)
-        }
+        SensitiveDataValidator.isSensitiveData(entry).shouldBeFalse()
       }
     }
   }

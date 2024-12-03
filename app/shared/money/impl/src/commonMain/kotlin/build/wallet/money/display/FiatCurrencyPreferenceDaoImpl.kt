@@ -9,31 +9,35 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapOr
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 class FiatCurrencyPreferenceDaoImpl(
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : FiatCurrencyPreferenceDao {
-  private val database = databaseProvider.database()
+  private suspend fun database() = databaseProvider.database()
 
   override fun fiatCurrencyPreference(): Flow<FiatCurrency?> {
-    return database.fiatCurrencyPreferenceQueries.fiatCurrencyPreference().asFlowOfOneOrNull()
-      .map { result ->
-        result
-          .logFailure { "Failed to read fiat currency preference" }
-          .mapOr(null) { entity ->
-            entity?.toFiatCurrency()
-          }
-      }
-      .distinctUntilChanged()
+    return flow {
+      databaseProvider.database()
+        .fiatCurrencyPreferenceQueries
+        .fiatCurrencyPreference()
+        .asFlowOfOneOrNull()
+        .map { result ->
+          result
+            .logFailure { "Failed to read fiat currency preference" }
+            .mapOr(null) { entity ->
+              entity?.toFiatCurrency()
+            }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun setFiatCurrencyPreference(
     fiatCurrency: FiatCurrency,
   ): Result<Unit, DbError> {
-    return database
+    return database()
       .awaitTransaction {
         fiatCurrencyPreferenceQueries.setFiatCurrencyPreference(fiatCurrency.textCode)
       }
@@ -41,7 +45,7 @@ class FiatCurrencyPreferenceDaoImpl(
   }
 
   override suspend fun clear() =
-    database
+    database()
       .awaitTransaction { fiatCurrencyPreferenceQueries.clear() }
       .logFailure { "Failed to clear fiat currency preference" }
 }

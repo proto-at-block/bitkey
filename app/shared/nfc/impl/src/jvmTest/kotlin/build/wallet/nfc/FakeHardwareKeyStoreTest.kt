@@ -89,7 +89,6 @@ class FakeHardwareKeyStoreTest : FunSpec({
 
   test("get next spending keypair with no existing keys returns initial keypair") {
     val spendingKey = fakeHardwareKeyStore.getInitialSpendingKeypair(SIGNET)
-    println(spendingKey.publicKey.key.dpub)
     val nextKey = fakeHardwareKeyStore.getNextSpendingKeypair(listOf(), SIGNET)
     nextKey.shouldBeEqual(spendingKey)
   }

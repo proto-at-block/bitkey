@@ -24,7 +24,7 @@ import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
 import build.wallet.google.signin.GoogleSignInClientProviderImpl
 import build.wallet.google.signin.GoogleSignInLauncherImpl
 import build.wallet.google.signin.GoogleSignOutActionImpl
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.nfc.*
 import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.platform.biometrics.BiometricPrompterImpl
@@ -118,19 +118,19 @@ class MainActivity : FragmentActivity() {
       when (savedInstanceState) {
         // When our "isFreshInstance" variable is true, and savedInstance bundle is null, we know it
         // is a completely fresh launch of the app.
-        null -> log(tag = "app_lifecycle") { "Fresh Launch" }
+        null -> logInfo(tag = "app_lifecycle") { "Fresh Launch" }
         // When our "isFreshInstance" variable is true, and savedInstance bundle is not null, we
         // assume the app is launching from after a process death.
-        else -> log(tag = "app_lifecycle") { "Recovering from process death" }
+        else -> logInfo(tag = "app_lifecycle") { "Recovering from process death" }
       }
     } else {
       when (savedInstanceState) {
         // When our "isFreshInstance" variable is false, and savedInstance bundle is null, the app is
         // creating a new instance of the activity
-        null -> log(tag = "app_lifecycle") { "Creating activity instance" }
+        null -> logInfo(tag = "app_lifecycle") { "Creating activity instance" }
         // When our "isFreshInstance" variable is false, and savedInstance bundle is not null, then
         // we know the app is recovering from a configuration change.
-        else -> log(tag = "app_lifecycle") { "Recovering from configuration change" }
+        else -> logInfo(tag = "app_lifecycle") { "Recovering from configuration change" }
       }
     }
   }

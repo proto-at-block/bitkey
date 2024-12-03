@@ -1,11 +1,6 @@
 package build.wallet.statemachine.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext.ACCOUNT_CREATION
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
@@ -26,29 +21,14 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.RectifiableCloudError
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CheckingCloudBackupUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CloudSignInFailedUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CreatingAndSavingBackupUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.FailureUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.RectifiableFailureUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.SealingCsekViaNfcUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingBackupInstructionsUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingBackupLearnMoreUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingCustomerSupportUiState
-import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.SigningIntoCloudUiState
+import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.*
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateFullMessages
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
@@ -190,7 +170,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                 }
 
                 is UnrectifiableCloudBackupError -> {
-                  log(LogLevel.Warn) { "Failed to read cloud backup: $cloudBackupError" }
+                  logError(throwable = cloudBackupError) { "Failed to read cloud backup: $cloudBackupError" }
                   if (cloudBackupError.cause is UnknownAppDataFoundError) {
                     // If unknown app data was found, give the option to overwrite.
                     handleAppDataFound(
@@ -327,7 +307,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
       onBackupClick = {
         when (sealedCsek) {
           null -> csek?.let { goToSealingCsek(it) }
-            ?: log { "Tapped button before CSEK is generated" }
+            ?: logDebug { "Tapped button before CSEK is generated" }
           else -> goToSigningIntoCloud(sealedCsek)
         }
       },

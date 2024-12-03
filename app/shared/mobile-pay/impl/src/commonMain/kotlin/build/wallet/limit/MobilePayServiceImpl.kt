@@ -4,15 +4,12 @@ package build.wallet.limit
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.ensure
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -31,6 +28,7 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
@@ -44,7 +42,7 @@ class MobilePayServiceImpl(
   private val spendingLimitF8eClient: MobilePaySpendingLimitF8eClient,
   private val mobilePayStatusRepository: MobilePayStatusRepository,
   private val appSessionManager: AppSessionManager,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -89,11 +87,12 @@ class MobilePayServiceImpl(
       launch {
         combine(
           // Refresh mobile pay status on every transaction update.
-          transactionsService.transactionsData(),
+          bitcoinWalletService.transactionsData(),
           // Refresh mobile pay status every 30 minutes, so long as we have a loaded wallet.
           syncTicker
         ) { transactionsData, _ ->
-          if (transactionsData is TransactionsLoadedData) {
+          val transactionsLoaded = transactionsData != null
+          if (transactionsLoaded) {
             mobilePayStatusRepository.refreshStatus()
           }
         }.collect()
@@ -140,9 +139,9 @@ class MobilePayServiceImpl(
   override fun getDailySpendingLimitStatus(
     transactionAmount: BitcoinTransactionSendAmount,
   ): DailySpendingLimitStatus {
-    val balance = when (val data = transactionsService.transactionsData().value) {
-      TransactionsData.LoadingTransactionsData -> return RequiresHardware
-      is TransactionsLoadedData -> data.balance
+    val balance = when (val data = bitcoinWalletService.transactionsData().value) {
+      null -> return RequiresHardware
+      else -> data.balance
     }
 
     val amount = when (transactionAmount) {

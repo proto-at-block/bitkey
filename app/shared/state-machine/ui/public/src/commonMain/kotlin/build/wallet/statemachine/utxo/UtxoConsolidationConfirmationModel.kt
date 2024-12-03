@@ -5,12 +5,11 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconConsolidation
+import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.FormMainContentModel.Callout
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
@@ -19,18 +18,13 @@ import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
 import build.wallet.ui.model.callout.CalloutModel
-import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Avatar
-import build.wallet.ui.model.icon.IconSize.Large
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.icon.IconTint.Foreground
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 
@@ -56,27 +50,14 @@ data class UtxoConsolidationConfirmationModel(
     onBack = onBack,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = SmallIconConsolidation,
-        iconSize = Large,
-        iconBackgroundType = Circle(circleSize = Avatar),
-        iconTint = Foreground
+        icon = Bitcoin,
+        iconSize = Avatar
       ),
       headline = "Consolidate UTXOs",
       subline = "Consolidate unspent bitcoin into a single UTXO to reduce future transaction fees.",
-      alignment = CENTER
+      alignment = LEADING
     ),
-    toolbar = ToolbarModel(
-      leadingAccessory =
-        ToolbarAccessoryModel.ButtonAccessory(
-          model =
-            ButtonModel(
-              text = "Cancel",
-              treatment = TertiaryDestructive,
-              size = Compact,
-              onClick = StandardClick(onBack)
-            )
-        )
-    ),
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
     mainContentList = immutableListOfNotNull(
       Callout(
         item = CalloutModel(

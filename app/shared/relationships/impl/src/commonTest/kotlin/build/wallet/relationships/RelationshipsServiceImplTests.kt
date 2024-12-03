@@ -4,7 +4,6 @@ package build.wallet.relationships
 
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
@@ -12,6 +11,7 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.relationships.*
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.InMemorySqlDriverFactory
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec

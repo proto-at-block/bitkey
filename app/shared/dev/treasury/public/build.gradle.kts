@@ -15,10 +15,10 @@ kotlin {
         api(projects.shared.testingPublic)
         implementation(libs.kmp.test.kotest.assertions)
         implementation(projects.shared.bdkBindingsPublic)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.moneyTesting)
         implementation(projects.shared.resultPublic)
         implementation(projects.shared.stdlibPublic)
+        implementation(projects.shared.testingPublic)
       }
     }
 

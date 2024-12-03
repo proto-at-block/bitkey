@@ -14,11 +14,10 @@ import build.wallet.analytics.v1.FingerprintScanStats
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.debug.DebugOptionsService
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.settings.LocaleCountryCodeProvider
@@ -161,8 +160,8 @@ class EventTrackerImpl(
       }
       val appInstallationId =
         appInstallationDao.getOrCreateAppInstallation()
+          .logFailure { "Failed to get App Installation" }
           .getOrElse {
-            log(LogLevel.Error, throwable = it.cause) { "Failed to get App Installation" }
             AppInstallation(localId = "", hardwareSerialNumber = null)
           }.localId
 

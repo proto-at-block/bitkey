@@ -9,7 +9,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.keybox.Keybox
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
@@ -54,7 +53,6 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
     return when (val currentState = state) {
       LoadingTransactionDetails -> {
         LoadingTransactionDetailsModel(
-          keybox = props.account.keybox,
           confirmedPartnerSale = props.confirmedPartnerSale,
           onLoadFailed = { errorData ->
             when (errorData.cause) {
@@ -74,7 +72,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
             state = if (sellWalletAddress != null && cryptoAmount != null) {
               partnerInfo = transaction.partnerInfo
               LoadingTransactionFees(
-                partnerName = transaction.partnerInfo.name,
+                partnerInfo = transaction.partnerInfo,
                 sellWalletAddress = sellWalletAddress,
                 cryptoAmount = cryptoAmount
               )
@@ -100,7 +98,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
           onLoaded = { _, fees ->
             state = LoadedSellConfirmation(
               fullAccount = props.account,
-              partnerName = currentState.partnerName,
+              partnerInfo = currentState.partnerInfo,
               sellWalletAddress = currentState.sellWalletAddress,
               cryptoAmount = currentState.cryptoAmount,
               fees = fees
@@ -113,7 +111,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
       is LoadedSellConfirmation -> {
         transferConfirmationUiStateMachine.model(
           TransferConfirmationUiProps(
-            variant = TransferConfirmationScreenVariant.Sell(currentState.partnerName),
+            variant = TransferConfirmationScreenVariant.Sell(currentState.partnerInfo),
             selectedPriority = FASTEST,
             account = currentState.fullAccount,
             recipientAddress = BitcoinAddress(currentState.sellWalletAddress),
@@ -185,7 +183,6 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
 
   @Composable
   private fun LoadingTransactionDetailsModel(
-    keybox: Keybox,
     confirmedPartnerSale: ConfirmedPartnerSale,
     onLoadFailed: (ErrorData) -> Unit,
     onLoaded: (PartnershipTransaction) -> Unit,
@@ -204,11 +201,7 @@ class PartnershipsSellConfirmationUiStateMachineImpl(
         return@LaunchedEffect
       }
 
-      partnershipTransactionsService.syncTransaction(
-        accountId = keybox.fullAccountId,
-        f8eEnvironment = keybox.config.f8eEnvironment,
-        transactionId = transactionId
-      )
+      partnershipTransactionsService.syncTransaction(transactionId)
         .onSuccess { transaction ->
           if (transaction != null) {
             onLoaded(transaction)
@@ -283,12 +276,12 @@ private sealed interface ConfirmationState {
   /**
    * Loading the transaction fees
    *
-   * @property partnerName - the partner name
+   * @property partnerInfo - the partner info
    * @property sellWalletAddress - the sell wallet address of the partner
    * @property cryptoAmount - the crypto amount to be sent
    */
   data class LoadingTransactionFees(
-    val partnerName: String,
+    val partnerInfo: PartnerInfo,
     val sellWalletAddress: String,
     val cryptoAmount: Double,
   ) : ConfirmationState
@@ -297,14 +290,14 @@ private sealed interface ConfirmationState {
    * The transaction details and fees have been loaded
    *
    * @property fullAccount - the account associated with the transfer
-   * @property partnerName - the partner name
+   * @property partnerInfo - the [PartnerInfo] associated with the partner
    * @property sellWalletAddress - the sell wallet address of the partner
    * @property cryptoAmount - the crypto amount to be sent
    * @property fees - the fees associated with the transfer
    */
   data class LoadedSellConfirmation(
     val fullAccount: FullAccount,
-    val partnerName: String,
+    val partnerInfo: PartnerInfo,
     val sellWalletAddress: String,
     val cryptoAmount: Double,
     val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,

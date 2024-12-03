@@ -1,5 +1,6 @@
 package build.wallet.gradle.logic.extensions
 
+import build.wallet.gradle.logic.ksp.KspExtension
 import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -57,6 +58,11 @@ open class BuildLogicExtension(private val project: Project) {
 
   fun test(action: Action<TestExtension>) {
     action.execute(test)
+  }
+
+  fun ksp(action: Action<KspExtension>) {
+    val extension = project.extensions.getByType<KspExtension>()
+    action.execute(extension)
   }
 }
 

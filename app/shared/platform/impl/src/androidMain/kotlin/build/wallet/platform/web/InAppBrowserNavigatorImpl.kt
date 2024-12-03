@@ -7,8 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.browser.customtabs.CustomTabsIntent
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.getPackageInformation
 
@@ -42,8 +41,8 @@ class InAppBrowserNavigatorImpl(
       intent.setData(Uri.parse(url))
       try {
         platformContext.appContext.startActivity(intent)
-      } catch (_: ActivityNotFoundException) {
-        log(LogLevel.Warn) { "No browsers available" }
+      } catch (error: ActivityNotFoundException) {
+        logWarn(throwable = error) { "No browsers available" }
         onClose()
       }
     }

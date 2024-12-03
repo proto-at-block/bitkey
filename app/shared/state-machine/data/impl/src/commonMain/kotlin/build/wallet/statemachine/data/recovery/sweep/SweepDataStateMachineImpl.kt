@@ -3,9 +3,9 @@
 package build.wallet.statemachine.data.recovery.sweep
 
 import androidx.compose.runtime.*
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -27,7 +27,7 @@ class SweepDataStateMachineImpl(
   private val sweepService: SweepService,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : SweepDataStateMachine {
   private sealed interface State {
     data object GeneratingPsbtsState : State
@@ -195,7 +195,7 @@ class SweepDataStateMachineImpl(
     coroutineBinding {
       val appSignPsbt = appSignPsbt(sweepPsbt).bind()
       val signedPsbt = serverSignPsbt(props, appSignPsbt).bind()
-      transactionsService
+      bitcoinWalletService
         .broadcast(
           psbt = signedPsbt,
           estimatedTransactionPriority = sweepPriority()

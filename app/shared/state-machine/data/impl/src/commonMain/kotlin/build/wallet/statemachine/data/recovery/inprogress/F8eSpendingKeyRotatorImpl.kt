@@ -10,7 +10,6 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
-import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
@@ -26,8 +25,6 @@ class F8eSpendingKeyRotatorImpl(
     appSpendingKey: AppSpendingPublicKey,
     hardwareSpendingKey: HwSpendingPublicKey,
   ): Result<F8eSpendingKeyset, Error> {
-    log { "Rotating f8e spending key" }
-
     return coroutineBinding {
       val f8eSpendingKeyset =
         createAccountKeysetF8eClient

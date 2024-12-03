@@ -6,20 +6,16 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.v1.Action
-import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.partnerships.*
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.*
-import build.wallet.platform.links.AppRestrictions
+import build.wallet.partnerships.PartnershipPurchaseService.NoPurchaseOptionsError
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
@@ -29,9 +25,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.*
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -40,21 +33,14 @@ import kotlinx.coroutines.flow.first
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
-// TODO: W-5675 - defaulting to card for now, but will eventually support other payment methods
-private const val SUPPORTED_PAYMENT_METHOD = "CARD"
-private const val MAX_DISPLAY_OPTIONS = 5
-
 class PartnershipsPurchaseUiStateMachineImpl(
   val moneyDisplayFormatter: MoneyDisplayFormatter,
-  private val getPurchaseOptionsF8eClient: GetPurchaseOptionsF8eClient,
-  private val getPurchaseQuoteListF8eClient: GetPurchaseQuoteListF8eClient,
-  private val getPurchaseRedirectF8eClient: GetPurchaseRedirectF8eClient,
   private val partnershipTransactionsService: PartnershipTransactionsService,
+  private val partnershipPurchaseService: PartnershipPurchaseService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val eventTracker: EventTracker,
   private val exchangeRateService: ExchangeRateService,
   private val currencyConverter: CurrencyConverter,
-  private val bitcoinAddressService: BitcoinAddressService,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
@@ -62,29 +48,28 @@ class PartnershipsPurchaseUiStateMachineImpl(
     var state: PartnershipsPurchaseState by remember {
       mutableStateOf(PurchaseAmountsState.Loading(preSelectedAmount = props.selectedAmount))
     }
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val exchangeRates: ImmutableList<ExchangeRate> by remember {
       mutableStateOf(exchangeRateService.exchangeRates.value.toImmutableList())
     }
     return when (val currentState = state) {
       is PurchaseAmountsState.Loaded -> {
         return selectPurchaseAmountModel(
-          purchaseAmounts = currentState.purchaseAmounts,
+          purchaseAmounts = currentState.purchaseAmounts.displayOptions.toImmutableList(),
           selectedAmount = currentState.selectedAmount,
           moneyDisplayFormatter = moneyDisplayFormatter,
           onSelectAmount = { amount ->
             // deselect amount if it's already selected
             val selectedAmount = amount.takeIf { currentState.selectedAmount != amount }
-            state =
-              PurchaseAmountsState.Loaded(
-                minAmount = currentState.minAmount,
-                maxAmount = currentState.maxAmount,
-                purchaseAmounts = currentState.purchaseAmounts,
-                selectedAmount = selectedAmount
-              )
+            state = PurchaseAmountsState.Loaded(
+              purchaseAmounts = currentState.purchaseAmounts,
+              selectedAmount = selectedAmount
+            )
           },
           onSelectCustomAmount = {
-            props.onSelectCustomAmount(currentState.minAmount, currentState.maxAmount)
+            props.onSelectCustomAmount(
+              currentState.purchaseAmounts.min,
+              currentState.purchaseAmounts.max
+            )
           },
           onNext = {
             state = QuotesState.Loading(it)
@@ -113,24 +98,22 @@ class PartnershipsPurchaseUiStateMachineImpl(
         }
       is PurchaseAmountsState.Loading -> {
         LaunchedEffect("load-partnerships-purchase-amount") {
-          purchaseMethodAmounts(props, fiatCurrency)
+          partnershipPurchaseService.getSuggestedPurchaseAmounts()
             .onFailure { error ->
               state = PurchaseAmountsState.LoadingFailure(error)
             }
             .onSuccess {
-              state =
-                if (isValidPurchaseAmount(
-                    currentState.preSelectedAmount,
-                    fiatCurrency,
-                    it.min,
-                    it.max
-                  )
-                ) {
-                  QuotesState.Loading(currentState.preSelectedAmount)
-                } else {
-                  val displayOptions = it.displayOptions.take(MAX_DISPLAY_OPTIONS).toImmutableList()
-                  PurchaseAmountsState.Loaded(it.min, it.max, displayOptions, it.default)
-                }
+              val preSelectedAmountIsValid = isValidPurchaseAmount(
+                suggestedAmounts = it,
+                purchaseAmount = currentState.preSelectedAmount
+              )
+              state = if (preSelectedAmountIsValid) {
+                // Preselected amount is valid - directly loading purchase quote
+                QuotesState.Loading(currentState.preSelectedAmount)
+              } else {
+                // Preselected amount is not valid - asking customer to select an amount
+                PurchaseAmountsState.Loaded(purchaseAmounts = it, selectedAmount = it.default)
+              }
             }
         }
         loadingModel(
@@ -140,25 +123,25 @@ class PartnershipsPurchaseUiStateMachineImpl(
       }
 
       is QuotesState.Loaded -> {
-        currentState.quotes.forEach { quote ->
-          eventTracker.track(
-            action = Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE,
-            context = PartnerEventTrackerScreenIdContext(quote.partnerInfo)
-          )
+        LaunchedEffect("track-view-quotes", currentState.quotes) {
+          currentState.quotes.forEach { quote ->
+            eventTracker.track(
+              action = Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE,
+              context = PartnerEventTrackerScreenIdContext(quote.partnerInfo)
+            )
+          }
         }
-        return selectPartnerQuoteModel(
+        return selectPartnerPurchaseQuoteModel(
           title = "Purchase ${moneyDisplayFormatter.format(currentState.amount)}",
           subTitle = "Offers show the amount you'll receive after exchange fees. Bitkey does not charge a fee.",
           quotes = currentState.quotes.map {
-            it.toQuoteDisplay(moneyDisplayFormatter, exchangeRates, currencyConverter)
+            it.toQuoteModel(moneyDisplayFormatter, exchangeRates, currencyConverter)
           }.toImmutableList(),
           onSelectPartnerQuote = {
-            state =
-              RedirectState.Loading(
-                amount = currentState.amount,
-                quote = it,
-                paymentMethod = SUPPORTED_PAYMENT_METHOD
-              )
+            state = RedirectState.Loading(
+              amount = currentState.amount,
+              quote = it
+            )
           },
           onClosed = props.onExit,
           previousPartnerIds = currentState.previousPartnerIds
@@ -174,22 +157,16 @@ class PartnershipsPurchaseUiStateMachineImpl(
         )
       is QuotesState.Loading -> {
         LaunchedEffect("load-partnerships-quotes") {
-          getPurchaseQuoteListF8eClient
-            .purchaseQuotes(
-              fullAccountId = props.keybox.fullAccountId,
-              f8eEnvironment = props.keybox.config.f8eEnvironment,
-              fiatAmount = currentState.amount,
-              paymentMethod = SUPPORTED_PAYMENT_METHOD
-            ).onFailure { error ->
+          partnershipPurchaseService.loadPurchaseQuotes(currentState.amount)
+            .onFailure { error ->
               state = QuotesState.LoadingFailure(error = error)
-            }.onSuccess {
-              state =
-                QuotesState.Loaded(
-                  amount = currentState.amount,
-                  paymentMethod = SUPPORTED_PAYMENT_METHOD,
-                  quotes = it.quoteList.toImmutableList(),
-                  previousPartnerIds = partnershipTransactionsService.previouslyUsedPartnerIds.first()
-                )
+            }
+            .onSuccess { quotes ->
+              state = QuotesState.Loaded(
+                amount = currentState.amount,
+                quotes = quotes.toImmutableList(),
+                previousPartnerIds = partnershipTransactionsService.previouslyUsedPartnerIds.first()
+              )
             }
         }
         loadingModel(
@@ -198,39 +175,29 @@ class PartnershipsPurchaseUiStateMachineImpl(
         )
       }
       is RedirectState.Loaded -> {
-        handleRedirect(currentState, props)
+        val redirectInfo = currentState.redirectInfo
+        LaunchedEffect("handle-purchase-redirect", redirectInfo) {
+          props.onPartnerRedirected(redirectInfo.redirectMethod, redirectInfo.transaction)
+        }
         loadingModel(
           id = DepositEventTrackerScreenId.PURCHASE_PARTNER_REDIRECTING,
-          context = PartnerEventTrackerScreenIdContext(currentState.partner),
+          context = PartnerEventTrackerScreenIdContext(redirectInfo.transaction.partnerInfo),
           onExit = props.onExit
         )
       }
       is RedirectState.Loading -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
-          coroutineBinding {
-            val result = fetchRedirectInfo(props, currentState).bind()
-
-            val localTransaction = partnershipTransactionsService.create(
-              partnerInfo = currentState.quote.partnerInfo,
-              type = PartnershipTransactionType.PURCHASE,
-              id = result.redirectInfo.partnerTransactionId
-            ).bind()
-
-            localTransaction to result
-          }.onFailure { error ->
-            state =
-              RedirectState.LoadingFailure(
+          partnershipPurchaseService
+            .preparePurchase(currentState.quote, currentState.amount)
+            .onFailure { error ->
+              state = RedirectState.LoadingFailure(
                 partner = currentState.quote.partnerInfo,
                 error = error
               )
-          }.onSuccess { (transaction, result) ->
-            state =
-              RedirectState.Loaded(
-                partner = currentState.quote.partnerInfo,
-                redirectInfo = result.redirectInfo,
-                localTransaction = transaction
-              )
-          }
+            }
+            .onSuccess {
+              state = RedirectState.Loaded(redirectInfo = it)
+            }
         }
         loadingModel(
           id = DepositEventTrackerScreenId.LOADING_PURCHASE_PARTNER_REDIRECT,
@@ -252,86 +219,22 @@ class PartnershipsPurchaseUiStateMachineImpl(
     }
   }
 
-  private suspend fun fetchRedirectInfo(
-    props: PartnershipsPurchaseUiProps,
-    redirectLoadingState: RedirectState.Loading,
-  ): Result<GetPurchaseRedirectF8eClient.Success, Throwable> =
-    coroutineBinding {
-      bitcoinAddressService.generateAddress()
-        .flatMap { address ->
-          getPurchaseRedirectF8eClient.purchaseRedirect(
-            fullAccountId = props.keybox.fullAccountId,
-            address = address,
-            f8eEnvironment = props.keybox.config.f8eEnvironment,
-            fiatAmount = redirectLoadingState.amount,
-            partner = redirectLoadingState.quote.partnerInfo.partnerId.value,
-            paymentMethod = redirectLoadingState.paymentMethod,
-            quoteId = redirectLoadingState.quote.quoteId
-          )
-        }.bind()
-    }
-
+  /**
+   * Returns true if provided [purchaseAmount] is valid in the context of suggested amounts:
+   * - has the same currency
+   * - is within min and max suggested values
+   */
   private fun isValidPurchaseAmount(
+    suggestedAmounts: SuggestedPurchaseAmounts,
     purchaseAmount: FiatMoney?,
-    currency: FiatCurrency,
-    minAmount: FiatMoney,
-    maxAmount: FiatMoney,
   ): Boolean {
     contract {
       returns(true) implies (purchaseAmount != null)
     }
-
+    val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
     if (purchaseAmount == null) return false
 
-    return purchaseAmount.currency == currency && purchaseAmount.value in minAmount.value..maxAmount.value
-  }
-
-  private fun handleRedirect(
-    redirectLoadedState: RedirectState.Loaded,
-    props: PartnershipsPurchaseUiProps,
-  ) {
-    when (redirectLoadedState.redirectInfo.redirectType) {
-      RedirectUrlType.DEEPLINK -> {
-        props.onPartnerRedirected(
-          PartnerRedirectionMethod.Deeplink(
-            urlString = redirectLoadedState.redirectInfo.url,
-            appRestrictions =
-              redirectLoadedState.redirectInfo.appRestrictions?.let {
-                AppRestrictions(
-                  packageName = it.packageName,
-                  minVersion = it.minVersion
-                )
-              },
-            partnerName = redirectLoadedState.partner.name
-          ),
-          redirectLoadedState.localTransaction
-        )
-      }
-
-      RedirectUrlType.WIDGET -> {
-        props.onPartnerRedirected(
-          PartnerRedirectionMethod.Web(
-            urlString = redirectLoadedState.redirectInfo.url,
-            partnerInfo = redirectLoadedState.partner
-          ),
-          redirectLoadedState.localTransaction
-        )
-      }
-    }
-  }
-
-  private suspend fun purchaseMethodAmounts(
-    props: PartnershipsPurchaseUiProps,
-    fiatCurrency: FiatCurrency,
-  ): Result<PurchaseMethodAmounts, Error> {
-    return getPurchaseOptionsF8eClient
-      .purchaseOptions(
-        fullAccountId = props.keybox.fullAccountId,
-        f8eEnvironment = props.keybox.config.f8eEnvironment,
-        currency = fiatCurrency
-      ).flatMap {
-        it.toPurchaseMethodAmounts(fiatCurrency, SUPPORTED_PAYMENT_METHOD)
-      }
+    return purchaseAmount.currency == fiatCurrency && purchaseAmount.value in suggestedAmounts.min.value..suggestedAmounts.max.value
   }
 }
 
@@ -345,8 +248,9 @@ private fun failureModel(
   onBack: () -> Unit,
   onExit: () -> Unit,
 ): SheetModel {
-  val logLevel = if (error != null) LogLevel.Error else LogLevel.Warn
-  log(level = logLevel, throwable = error) { errorMessage }
+  LaunchedEffect("partnership-log-error", error, errorMessage) {
+    logError(throwable = error) { errorMessage }
+  }
   return SheetModel(
     body =
       ErrorFormBodyModel(
@@ -403,7 +307,8 @@ private sealed interface PartnershipsPurchaseState {
     /**
      * Loading default purchase amounts used for partnerships
      *
-     * @param preSelectedAmount - amount already selected by the user
+     * @param preSelectedAmount - amount already selected by the user. If null, suggested amounts will
+     * be shown.
      */
     data class Loading(val preSelectedAmount: FiatMoney?) : PurchaseAmountsState
 
@@ -411,9 +316,7 @@ private sealed interface PartnershipsPurchaseState {
      * Default purchase amounts have been loaded
      */
     data class Loaded(
-      val minAmount: FiatMoney,
-      val maxAmount: FiatMoney,
-      val purchaseAmounts: ImmutableList<FiatMoney>,
+      val purchaseAmounts: SuggestedPurchaseAmounts,
       val selectedAmount: FiatMoney?,
     ) : PurchaseAmountsState
 
@@ -439,8 +342,7 @@ private sealed interface PartnershipsPurchaseState {
      */
     data class Loaded(
       val amount: FiatMoney,
-      val paymentMethod: String,
-      val quotes: ImmutableList<Quote>,
+      val quotes: ImmutableList<PurchaseQuote>,
       val previousPartnerIds: List<PartnerId>,
     ) : QuotesState
 
@@ -464,8 +366,7 @@ private sealed interface PartnershipsPurchaseState {
      */
     data class Loading(
       val amount: FiatMoney,
-      val quote: Quote,
-      val paymentMethod: String,
+      val quote: PurchaseQuote,
     ) : RedirectState
 
     /**
@@ -474,9 +375,7 @@ private sealed interface PartnershipsPurchaseState {
      * @param redirectInfo - redirect info for the partner
      */
     data class Loaded(
-      val partner: PartnerInfo,
-      val redirectInfo: RedirectInfo,
-      val localTransaction: PartnershipTransaction,
+      val redirectInfo: PurchaseRedirectInfo,
     ) : RedirectState
 
     /**

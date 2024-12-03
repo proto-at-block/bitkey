@@ -2,7 +2,7 @@ package build.wallet
 
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
-import build.wallet.analytics.events.AppSessionManager
+import build.wallet.platform.app.AppSessionManager
 
 class AppLifecycleObserver(
   private val appSessionManager: AppSessionManager,

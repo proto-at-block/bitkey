@@ -3,7 +3,7 @@ package build.wallet.statemachine.ui
 import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.logging.log
+import build.wallet.logging.logTesting
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import io.kotest.assertions.asClue
@@ -30,15 +30,13 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
   crossinline expectedScreenModelMatch: (ScreenModel) -> Boolean = { _ -> true },
   block: ScreenModel.() -> Unit = {},
 ): ScreenModel {
-  log { "Waiting for ScreenModel(${T::class.simpleName}) id=$id" }
-
   // Models that were previously seen but do not match predicate. Used for debugging.
   val previousModels = mutableListOf<ScreenModel>()
 
   val screen =
     try {
       awaitUntil {
-        log { "Saw ${it.toSimpleString()}" }
+        logTesting { "Saw ${it.toSimpleString()}" }
         val matches =
           it.body is T &&
             (id == null || it.body.eventTrackerScreenInfo?.eventTrackerScreenId == id) &&

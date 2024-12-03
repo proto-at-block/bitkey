@@ -1,6 +1,7 @@
 package build.wallet.inheritance
 
 import app.cash.turbine.Turbine
+import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim.PendingClaim
 import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
 import build.wallet.bitkey.keybox.Keybox
@@ -27,6 +28,9 @@ class InheritanceServiceMock(
   var invitation = InvitationFake
 
   override val pendingClaims = MutableStateFlow<Result<List<RelationshipId>, Error>?>(Ok(emptyList()))
+  override val pendingBeneficiaryClaims = MutableStateFlow<List<PendingClaim>>(emptyList())
+  override val lockedBeneficiaryClaims = MutableStateFlow<List<BeneficiaryClaim>>(emptyList())
+
   val relationships = MutableStateFlow(defaultRelationships)
   override val inheritanceRelationships = relationships
 
@@ -58,5 +62,7 @@ class InheritanceServiceMock(
     invitation = InvitationFake
     relationships.value = defaultRelationships
     pendingClaims.value = null
+    pendingBeneficiaryClaims.value = emptyList()
+    lockedBeneficiaryClaims.value = emptyList()
   }
 }

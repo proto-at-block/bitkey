@@ -60,7 +60,6 @@ import build.wallet.ui.app.send.TransferAmountScreen
 import build.wallet.ui.app.settings.SettingsScreen
 import build.wallet.ui.app.settings.electrum.CustomElectrumServerScreen
 import build.wallet.ui.components.status.StatusBanner
-import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.model.TypedUiModelMap
 import build.wallet.ui.model.UiModel
 import build.wallet.ui.model.UiModelMap
@@ -102,7 +101,6 @@ object AppUiModelMap : UiModelMap by TypedUiModelMap(
   UiModel<SplashLockModel> { SplashLockScreen(model = it) },
   // Components
   UiModel<StatusBannerModel> { StatusBanner(model = it) },
-  UiModel<TabBarModel> { TabBar(model = it) },
   // Dev
   UiModel<DebugMenuBodyModel> { DebugMenuScreen(model = it) },
   UiModel<FeatureFlagsBodyModel> { FeatureFlagsScreen(model = it) },

@@ -1,6 +1,5 @@
 package build.wallet.cloud.backup.health
 
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -9,9 +8,9 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
@@ -141,7 +140,7 @@ class CloudBackupHealthRepositoryImpl(
             null -> MobileKeyBackupStatus.ProblemWithBackup.BackupMissing
             else -> {
               if (cloudBackup != localCloudBackup) {
-                log { "Cloud backup does not match local backup" }
+                logWarn { "Cloud backup does not match local backup" }
                 MobileKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
               } else {
                 // TODO(BKR-1155): do we need to perform additional integrity checks?
@@ -155,7 +154,7 @@ class CloudBackupHealthRepositoryImpl(
         },
         failure = {
           // TODO(BKR-1156): handle unknown loading errors
-          log(Warn) { "Failed to read cloud backup during sync: $it" }
+          logWarn { "Failed to read cloud backup during sync: $it" }
           MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
         }
       )

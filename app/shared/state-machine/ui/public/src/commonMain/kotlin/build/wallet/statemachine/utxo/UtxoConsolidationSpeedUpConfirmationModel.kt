@@ -2,20 +2,18 @@ package build.wallet.statemachine.utxo
 
 import build.wallet.analytics.events.screen.id.UtxoConsolidationEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.statemachine.core.Icon.SmallIconConsolidation
+import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.icon.IconSize.Avatar
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import dev.zacsweers.redacted.annotations.Redacted
 
@@ -39,25 +37,17 @@ data class UtxoConsolidationSpeedUpConfirmationModel(
     onBack = onBack,
     header = FormHeaderModel(
       iconModel = IconModel(
-        icon = SmallIconConsolidation,
-        iconSize = IconSize.Avatar
+        icon = Bitcoin,
+        iconSize = Avatar
       ),
       headline = "Speed up your consolidation",
       subline = recipientAddress,
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-      alignment = CENTER
+      alignment = LEADING
     ),
-    toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.ButtonAccessory(
-        model = ButtonModel(
-          text = "Cancel",
-          treatment = TertiaryDestructive,
-          size = Compact,
-          onClick = StandardClick(onCancel)
-        )
-      )
-    ),
+    toolbar = ToolbarModel(BackAccessory(onBack)),
     mainContentList = immutableListOf(
+      FormMainContentModel.Divider,
       DataList(
         items = immutableListOf(
           DataList.Data(
@@ -80,7 +70,7 @@ data class UtxoConsolidationSpeedUpConfirmationModel(
           )
         ),
         total = DataList.Data(
-          title = "Total cost",
+          title = "Total",
           sideText = totalConsolidationCost,
           sideTextType = DataList.Data.SideTextType.BODY2BOLD,
           secondarySideText = totalConsolidationCostSecondaryText

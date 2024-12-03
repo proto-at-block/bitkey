@@ -18,10 +18,10 @@ kotlin {
 
     val commonTest by getting {
       dependencies {
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.inheritanceFake)
         implementation(projects.shared.keyboxFake)
+        implementation(projects.shared.testingPublic)
         api(projects.shared.f8eClientPublic)
       }
     }

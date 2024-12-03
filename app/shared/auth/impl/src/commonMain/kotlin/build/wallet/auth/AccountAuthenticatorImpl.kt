@@ -7,8 +7,6 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.ktor.result.HttpError
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -25,10 +23,6 @@ class AccountAuthenticatorImpl(
     authTokenScope: AuthTokenScope,
   ): Result<AuthData, AuthError> =
     coroutineBinding {
-      log(level = LogLevel.Debug) {
-        "Attempting to authenticate with app auth public key $appAuthPublicKey"
-      }
-
       val signInResponse =
         authF8eClient
           .initiateAuthentication(f8eEnvironment, appAuthPublicKey, authTokenScope)

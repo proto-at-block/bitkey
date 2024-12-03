@@ -14,6 +14,8 @@ package build.wallet.statemachine.core
 enum class Icon {
   Bitcoin,
   BitcoinOrange,
+  BitcoinConsolidation,
+  BitcoinBadged,
   BitkeyDevice3D,
   BitkeyDeviceRaised,
   BitkeyDeviceRaisedSmall,
@@ -53,6 +55,7 @@ enum class Icon {
   SmallIconCaretRight,
   SmallIconCaretUp,
   SmallIconCheck,
+  SmallIconCheckInheritance,
   SmallIconCheckbox,
   SmallIconCheckboxSelected,
   SmallIconCheckFilled,
@@ -60,6 +63,7 @@ enum class Icon {
   SmallIconCircleStroked,
   SmallIconClipboard,
   SmallIconClock,
+  SmallIconClockHands,
   SmallIconCloud,
   SmallIconCloudError,
   SmallIconConsolidation,
@@ -126,4 +130,5 @@ enum class Icon {
   CalloutArrow,
   TabIconHome,
   TabIconProfile,
+  WarningBadge,
 }

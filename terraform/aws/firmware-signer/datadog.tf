@@ -3,25 +3,6 @@ provider "datadog" {
   validate = false
 }
 
-#tfsec:ignore:aws-iam-no-policy-wildcards
-module "dd-log-archive" {
-  count  = var.is_localstack ? 0 : 1
-  source = "../../modules/models/datadog/logs-archive"
-
-  providers = {
-    aws.us_east = aws.us_east
-  }
-
-  bucket_name = "${local.resource_prefix}-dd-logs-archive"
-  log_query   = "*"
-
-  # Depends on dd-base-integration
-  depends_on = [
-    module.dd-base-integration
-  ]
-}
-
-# The API changes for the datadog/logs-archive module so we need to use SSM now
 resource "aws_ssm_parameter" "dd-api-key" {
   name  = "/shared/datadog/api-key"
   type  = "SecureString"

@@ -1,14 +1,12 @@
 package build.wallet.logging
 
-import build.wallet.logging.LogLevel.Assert
-import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Verbose
-import build.wallet.logging.LogLevel.Warn
+import co.touchlab.kermit.Severity
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainOnly
 import io.kotest.matchers.shouldBe
+import co.touchlab.kermit.Logger as KermitLogger
 
 class LoggerTests : FunSpec({
 
@@ -16,7 +14,7 @@ class LoggerTests : FunSpec({
 
   beforeTest {
     Logger.configure(
-      tag = "build.wallet",
+      tag = "DefaultTag",
       minimumLogLevel = Verbose,
       logWriters = listOf(logWriter)
     )
@@ -28,78 +26,171 @@ class LoggerTests : FunSpec({
 
   test("configure") {
     Logger.configure(
-      tag = "build.wallet",
+      tag = "DefaultTag",
       minimumLogLevel = Error,
       logWriters = listOf(logWriter)
     )
 
-    KermitLogger.tag.shouldBe("build.wallet")
+    KermitLogger.tag.shouldBe("DefaultTag")
     KermitLogger.config.run {
-      minSeverity.shouldBe(KermitSeverity.Error)
+      minSeverity.shouldBe(Severity.Error)
       logWriterList.shouldContainOnly(logWriter)
     }
   }
 
-  test("log default") {
-    log { "default" }
+  test("logVerbose with default tag") {
+    logVerbose { "verbose message" }
 
     logWriter.expectLog(
-      tag = "build.wallet",
-      severity = KermitSeverity.Info,
-      message = "default"
+      severity = Severity.Verbose,
+      message = "verbose message",
+      tag = "DefaultTag"
     )
   }
 
-  LogLevel.entries.forEach { logLevel ->
-    test("log severity ${logLevel.name}") {
-      log(logLevel) { "$severity message" }
+  test("logVerbose with custom tag") {
+    logVerbose(tag = "SomeTag") { "verbose message" }
 
-      logWriter.expectLog(
-        severity =
-          when (logLevel) {
-            Verbose -> KermitSeverity.Verbose
-            Debug -> KermitSeverity.Debug
-            Info -> KermitSeverity.Info
-            Warn -> KermitSeverity.Warn
-            Error -> KermitSeverity.Error
-            Assert -> KermitSeverity.Assert
-          },
-        message = "$severity message"
-      )
-    }
+    logWriter.expectLog(
+      severity = Severity.Verbose,
+      message = "verbose message",
+      tag = "SomeTag"
+    )
   }
 
-  test("log with throwable - no level provided") {
+  test("logDebug with default tag") {
+    logDebug { "debug message" }
+
+    logWriter.expectLog(
+      severity = Severity.Debug,
+      message = "debug message",
+      tag = "DefaultTag"
+    )
+  }
+
+  test("logDebug with custom tag") {
+    logDebug(tag = "SomeTag") { "debug message" }
+
+    logWriter.expectLog(
+      severity = Severity.Debug,
+      message = "debug message",
+      tag = "SomeTag"
+    )
+  }
+
+  test("logInfo with default tag") {
+    logInfo { "info message" }
+
+    logWriter.expectLog(
+      severity = Severity.Info,
+      message = "info message",
+      tag = "DefaultTag"
+    )
+  }
+
+  test("logInfo with custom tag") {
+    logInfo(tag = "SomeTag") { "info message" }
+
+    logWriter.expectLog(
+      severity = Severity.Info,
+      message = "info message",
+      tag = "SomeTag"
+    )
+  }
+
+  test("logWarn - with default tag, no throwable") {
+    logWarn { "warn message" }
+
+    logWriter.expectLog(
+      severity = Severity.Warn,
+      message = "warn message",
+      tag = "DefaultTag"
+    )
+  }
+
+  test("logWarn - with custom tag, no throwable") {
+    logWarn(tag = "SomeTag") { "warn message" }
+
+    logWriter.expectLog(
+      severity = Severity.Warn,
+      message = "warn message",
+      tag = "SomeTag"
+    )
+  }
+
+  test("logWarn - with default tag, and with throwable") {
     val myException = Exception("oops")
-
-    log(throwable = myException) { "exception!" }
+    logWarn(throwable = myException) { "warn message" }
 
     logWriter.expectLog(
-      severity = KermitSeverity.Error,
-      message = "exception!",
-      throwable = myException
+      severity = Severity.Warn,
+      message = "warn message",
+      throwable = myException,
+      tag = "DefaultTag"
     )
   }
 
-  test("log with throwable - level provided") {
+  test("logError - with default tag, no throwable") {
+    logError { "error message" }
+
+    logWriter.expectLog(
+      severity = Severity.Error,
+      message = "error message",
+      tag = "DefaultTag"
+    )
+  }
+
+  test("logError - with custom tag, no throwable") {
+    logError(tag = "SomeTag") { "error message" }
+
+    logWriter.expectLog(
+      severity = Severity.Error,
+      message = "error message",
+      tag = "SomeTag"
+    )
+  }
+
+  test("logError - with default tag, and with throwable") {
     val myException = Exception("oops")
-
-    log(Warn, throwable = myException) { "exception!" }
+    logError(throwable = myException) { "error message" }
 
     logWriter.expectLog(
-      severity = KermitSeverity.Warn,
-      message = "exception!",
-      throwable = myException
+      severity = Severity.Error,
+      message = "error message",
+      throwable = myException,
+      tag = "DefaultTag"
     )
   }
 
-  test("log with tag") {
-    log(tag = "jack was here") { "hello!" }
+  test("logAssert - with default tag, no throwable") {
+    logAssert { "assert message" }
 
     logWriter.expectLog(
-      severity = KermitSeverity.Info,
-      tag = "jack was here",
-      message = "hello!"
+      severity = Severity.Assert,
+      message = "assert message",
+      tag = "DefaultTag"
+    )
+  }
+
+  test("logAssert - with custom tag, no throwable") {
+    logAssert(tag = "SomeTag") { "assert message" }
+
+    logWriter.expectLog(
+      severity = Severity.Assert,
+      message = "assert message",
+      tag = "SomeTag"
+    )
+  }
+
+  test("logAssert - with default tag, and with throwable") {
+    val myException = Exception("oops")
+    logAssert(throwable = myException) { "assert message" }
+
+    logWriter.expectLog(
+      severity = Severity.Assert,
+      message = "assert message",
+      throwable = myException,
+      tag = "DefaultTag"
     )
   }
 })

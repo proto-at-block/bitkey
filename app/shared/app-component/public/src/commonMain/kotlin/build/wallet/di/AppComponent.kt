@@ -2,6 +2,7 @@ package build.wallet.di
 
 import build.wallet.account.AccountService
 import build.wallet.account.analytics.AppInstallationDao
+import build.wallet.activity.TransactionsActivityService
 import build.wallet.analytics.events.*
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AppAuthKeyMessageSigner
@@ -24,12 +25,13 @@ import build.wallet.bitcoin.export.ExportTransactionsService
 import build.wallet.bitcoin.export.ExportWatchingDescriptorService
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
+import build.wallet.bitcoin.sync.ElectrumConfigService
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
@@ -81,9 +83,12 @@ import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
+import build.wallet.partnerships.PartnershipPurchaseService
+import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.phonenumber.PhoneNumberValidator
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
@@ -153,6 +158,7 @@ interface AppComponent {
   val delayer: Delayer
   val deviceInfoProvider: DeviceInfoProvider
   val deviceTokenManager: DeviceTokenManager
+  val electrumConfigService: ElectrumConfigService
   val electrumReachability: ElectrumReachability
   val electrumServerConfigRepository: ElectrumServerConfigRepository
   val electrumServerSettingProvider: ElectrumServerSettingProvider
@@ -257,7 +263,7 @@ interface AppComponent {
   val expectedTransactionsPhase2FeatureFlag: ExpectedTransactionsPhase2FeatureFlag
   val biometricPreference: BiometricPreference
   val bitcoinPriceCardPreference: BitcoinPriceCardPreference
-  val transactionsService: TransactionsService
+  val bitcoinWalletService: BitcoinWalletService
   val xChaCha20Poly1305: XChaCha20Poly1305
   val xNonceGenerator: XNonceGenerator
   val mobilePayService: MobilePayService
@@ -275,4 +281,7 @@ interface AppComponent {
   val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag
   val sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag
   val sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag
+  val transactionsActivityService: TransactionsActivityService
+  val partnershipTransactionsService: PartnershipTransactionsService
+  val partnershipPurchaseService: PartnershipPurchaseService
 }

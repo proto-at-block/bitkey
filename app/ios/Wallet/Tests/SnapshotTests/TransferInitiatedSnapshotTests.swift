@@ -59,8 +59,7 @@ private extension FormBodyModel {
             recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
             transactionDetails: TransactionDetailsModel(
                 transactionDetailModelType: transactionDetailModel,
-                transactionSpeedText: "~30 minutes",
-                amountLabel: "amountLabel"
+                transactionSpeedText: "~30 minutes"
             ),
             onDone: {}
         )

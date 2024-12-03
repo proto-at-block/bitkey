@@ -85,7 +85,8 @@ class PartnerTransferFunctionalTests : FunSpec({
           partnerInfo = PartnerInfo(
             name = "Testnet Faucet",
             logoUrl = null,
-            partnerId = PartnerId("TestnetFaucet")
+            partnerId = PartnerId("TestnetFaucet"),
+            logoBadgedUrl = null
           )
         )
         assertEquals(expectedRedirectionMethod, capturedRedirectionMethod)

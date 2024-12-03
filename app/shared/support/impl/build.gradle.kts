@@ -19,7 +19,7 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(projects.shared.emailFake)
+        implementation(projects.shared.contactMethodFake)
         implementation(libs.kmp.test.kotest.framework.engine)
       }
     }

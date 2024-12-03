@@ -6,8 +6,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.doubles.plusOrMinus
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.minutes
 
 class PartnershipTransactionEntityTest : FunSpec({
+  val instantIso8601 = "2024-11-15T18:57:59.718602Z"
+  val instant = Instant.parse(instantIso8601)
   test("Model Conversion") {
     val entity = PartnershipTransactionEntity(
       transactionId = PartnershipTransactionId("test-id"),
@@ -22,9 +25,11 @@ class PartnershipTransactionEntityTest : FunSpec({
       fiatAmount = 3.21,
       fiatCurrency = IsoCurrencyTextCode("USD"),
       paymentMethod = "test-payment-method",
-      created = Instant.fromEpochMilliseconds(248),
-      updated = Instant.fromEpochMilliseconds(842),
-      sellWalletAddress = "test-sell-wallet-address"
+      created = instant,
+      updated = instant + 1.minutes,
+      sellWalletAddress = "test-sell-wallet-address",
+      partnerTransactionUrl = "https://fake-partner.com/transaction/test-id",
+      partnerLogoBadgedUrl = "test-partner-logo-badged-url"
     )
 
     val model = entity.toModel()
@@ -41,9 +46,11 @@ class PartnershipTransactionEntityTest : FunSpec({
     model.fiatAmount.shouldBe(3.21.plusOrMinus(1e-16))
     model.fiatCurrency?.code.shouldBe("USD")
     model.paymentMethod.shouldBe("test-payment-method")
-    model.created.toEpochMilliseconds().shouldBe(248)
-    model.updated.toEpochMilliseconds().shouldBe(842)
+    model.created.shouldBe(instant)
+    model.updated.shouldBe(instant + 1.minutes)
     model.sellWalletAddress.shouldBe("test-sell-wallet-address")
+    model.partnerTransactionUrl.shouldBe("https://fake-partner.com/transaction/test-id")
+    model.partnerInfo.logoBadgedUrl.shouldBe("test-partner-logo-badged-url")
   }
 
   test("Entity Conversion") {
@@ -52,7 +59,8 @@ class PartnershipTransactionEntityTest : FunSpec({
       partnerInfo = PartnerInfo(
         partnerId = PartnerId("test-partner"),
         name = "test-partner-name",
-        logoUrl = "test-partner-logo-url"
+        logoUrl = "test-partner-logo-url",
+        logoBadgedUrl = "test-partner-logo-badged-url"
       ),
       context = "test-context",
       type = PartnershipTransactionType.PURCHASE,
@@ -62,9 +70,10 @@ class PartnershipTransactionEntityTest : FunSpec({
       fiatAmount = 3.21,
       fiatCurrency = IsoCurrencyTextCode("USD"),
       paymentMethod = "test-payment-method",
-      created = Instant.fromEpochMilliseconds(248),
-      updated = Instant.fromEpochMilliseconds(842),
-      sellWalletAddress = "test-sell-wallet-address"
+      created = instant,
+      updated = instant + 1.minutes,
+      sellWalletAddress = "test-sell-wallet-address",
+      partnerTransactionUrl = "https://fake-partner.com/transaction/test-id"
     )
 
     val entity = model.toEntity()
@@ -81,8 +90,9 @@ class PartnershipTransactionEntityTest : FunSpec({
     entity.fiatAmount.shouldBe(3.21.plusOrMinus(1e-16))
     entity.fiatCurrency?.code.shouldBe("USD")
     entity.paymentMethod.shouldBe("test-payment-method")
-    entity.created.toEpochMilliseconds().shouldBe(248)
-    entity.updated.toEpochMilliseconds().shouldBe(842)
+    entity.created.shouldBe(instant)
+    entity.updated.shouldBe(instant + 1.minutes)
     entity.sellWalletAddress.shouldBe("test-sell-wallet-address")
+    entity.partnerTransactionUrl.shouldBe("https://fake-partner.com/transaction/test-id")
   }
 })

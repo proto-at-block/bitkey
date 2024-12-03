@@ -10,15 +10,14 @@ import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationErr
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
-import build.wallet.bitcoin.transactions.TransactionsService
-import build.wallet.bitcoin.transactions.transactionsLoadedData
+import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.send.fee.FeeOptionsUiState.*
@@ -38,7 +37,7 @@ class FeeSelectionUiStateMachineImpl(
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionBaseCalculator: BitcoinTransactionBaseCalculator,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val accountService: AccountService,
 ) : FeeSelectionUiStateMachine {
   @Composable
@@ -208,11 +207,11 @@ class FeeSelectionUiStateMachineImpl(
     ) -> Unit,
   ) {
     LaunchedEffect("fetching-fee-options") {
-      val bitcoinBalance = transactionsService.transactionsLoadedData().first().balance
+      val bitcoinBalance = bitcoinWalletService.getTransactionData().balance
 
       val account = accountService.activeAccount().first()
       if (account !is FullAccount) {
-        log(level = Error) {
+        logError {
           "No active full account found, when fetching fee options. Found account: $account."
         }
         onFeesLoadFailed(NoActiveAccountError)
@@ -220,7 +219,8 @@ class FeeSelectionUiStateMachineImpl(
       }
 
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
-        priorities = props.preselectedPriority?.let { listOf(it) } ?: EstimatedTransactionPriority.entries,
+        priorities = props.preselectedPriority?.let { listOf(it) }
+          ?: EstimatedTransactionPriority.entries,
         account = account,
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount

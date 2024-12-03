@@ -1,8 +1,8 @@
 package build.wallet.statemachine.settings.full.device.resetdevice
 
 import app.cash.turbine.plusAssign
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -34,7 +34,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
 
   val mobilePayService = MobilePayServiceMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val stateMachine = ResettingDeviceIntroUiStateMachineImpl(
     nfcSessionUIStateMachine =
@@ -47,7 +47,7 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
     currencyConverter = CurrencyConverterFake(conversionRate = 3.0),
     mobilePayService = mobilePayService,
     authF8eClient = AuthF8eClientMock(),
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -63,10 +63,10 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
-    transactionsService.reset()
+    bitcoinWalletService.reset()
 
-    transactionsService.spendingWallet.value = spendingWallet
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+    bitcoinWalletService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
   }
 
   test("onBack calls") {

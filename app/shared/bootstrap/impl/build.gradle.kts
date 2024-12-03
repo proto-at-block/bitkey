@@ -19,7 +19,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.accountFake)
         implementation(projects.shared.authFake)
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.featureFlagFake)
       }
     }

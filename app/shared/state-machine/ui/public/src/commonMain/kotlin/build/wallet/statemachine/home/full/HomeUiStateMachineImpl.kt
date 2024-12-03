@@ -246,8 +246,6 @@ class HomeUiStateMachineImpl(
 
       is PresentedScreen.PartnerTransfer -> expectedTransactionNoticeUiStateMachine.model(
         props = ExpectedTransactionNoticeProps(
-          accountId = props.account.accountId,
-          f8eEnvironment = props.account.config.f8eEnvironment,
           partner = presentedScreen.partner,
           event = presentedScreen.event,
           partnerTransactionId = presentedScreen.partnerTransactionId,

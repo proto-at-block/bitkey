@@ -16,6 +16,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS

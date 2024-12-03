@@ -104,12 +104,14 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
           val partner1 = PartnerInfo(
             logoUrl = null,
             name = "Partner 1",
-            partnerId = PartnerId("Partner1")
+            partnerId = PartnerId("Partner1"),
+            logoBadgedUrl = null
           )
           val partner2 = PartnerInfo(
             logoUrl = null,
             name = "Partner 2",
-            partnerId = PartnerId("Partner2")
+            partnerId = PartnerId("Partner2"),
+            logoBadgedUrl = null
           )
           awaitSheetWithBody<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()

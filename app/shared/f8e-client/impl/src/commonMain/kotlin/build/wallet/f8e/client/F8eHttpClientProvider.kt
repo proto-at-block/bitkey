@@ -7,7 +7,7 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.client.plugins.FailF8eRequestsPlugin
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
@@ -89,7 +89,7 @@ class F8eHttpClientProvider(
         cause is SocketTimeoutException
       }
       modifyRequest {
-        log { "retrying request: $request, retry count $retryCount" }
+        logDebug { "retrying request: $request, retry count $retryCount" }
       }
     }
 

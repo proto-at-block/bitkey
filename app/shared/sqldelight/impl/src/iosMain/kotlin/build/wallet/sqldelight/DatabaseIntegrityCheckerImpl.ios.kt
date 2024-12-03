@@ -1,7 +1,6 @@
 package build.wallet.sqldelight
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.databasesDir
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -23,7 +22,7 @@ actual class DatabaseIntegrityCheckerImpl actual constructor(
       val success = nsFileManager.removeItemAtPath(path = dbDirectory, error = null)
 
       if (!success) {
-        log(LogLevel.Error) { "DatabaseIntegrityChecker failed to remove database directory." }
+        logError { "DatabaseIntegrityChecker failed to remove database directory." }
       }
       return false
     }

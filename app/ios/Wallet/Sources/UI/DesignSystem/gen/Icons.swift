@@ -8,6 +8,8 @@ import UIKit
 public extension UIImage {
   static let bitcoin = UIImage(named: "Bitcoin", in: .main, compatibleWith: nil)!
   static let bitcoinOrange = UIImage(named: "BitcoinOrange", in: .main, compatibleWith: nil)!
+  static let bitcoinConsolidation = UIImage(named: "BitcoinConsolidation", in: .main, compatibleWith: nil)!
+  static let bitcoinBadged = UIImage(named: "BitcoinBadged", in: .main, compatibleWith: nil)!
   static let bitkeyDevice3D = UIImage(named: "BitkeyDevice3D", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaised = UIImage(named: "BitkeyDeviceRaised", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaisedSmall = UIImage(named: "BitkeyDeviceRaisedSmall", in: .main, compatibleWith: nil)!
@@ -47,6 +49,7 @@ public extension UIImage {
   static let smallIconCaretRight = UIImage(named: "SmallIconCaretRight", in: .main, compatibleWith: nil)!
   static let smallIconCaretUp = UIImage(named: "SmallIconCaretUp", in: .main, compatibleWith: nil)!
   static let smallIconCheck = UIImage(named: "SmallIconCheck", in: .main, compatibleWith: nil)!
+  static let smallIconCheckInheritance = UIImage(named: "SmallIconCheckInheritance", in: .main, compatibleWith: nil)!
   static let smallIconCheckbox = UIImage(named: "SmallIconCheckbox", in: .main, compatibleWith: nil)!
   static let smallIconCheckboxSelected = UIImage(named: "SmallIconCheckboxSelected", in: .main, compatibleWith: nil)!
   static let smallIconCheckFilled = UIImage(named: "SmallIconCheckFilled", in: .main, compatibleWith: nil)!
@@ -54,6 +57,7 @@ public extension UIImage {
   static let smallIconCircleStroked = UIImage(named: "SmallIconCircleStroked", in: .main, compatibleWith: nil)!
   static let smallIconClipboard = UIImage(named: "SmallIconClipboard", in: .main, compatibleWith: nil)!
   static let smallIconClock = UIImage(named: "SmallIconClock", in: .main, compatibleWith: nil)!
+  static let smallIconClockHands = UIImage(named: "SmallIconClockHands", in: .main, compatibleWith: nil)!
   static let smallIconCloud = UIImage(named: "SmallIconCloud", in: .main, compatibleWith: nil)!
   static let smallIconCloudError = UIImage(named: "SmallIconCloudError", in: .main, compatibleWith: nil)!
   static let smallIconConsolidation = UIImage(named: "SmallIconConsolidation", in: .main, compatibleWith: nil)!
@@ -120,6 +124,7 @@ public extension UIImage {
   static let calloutArrow = UIImage(named: "CalloutArrow", in: .main, compatibleWith: nil)!
   static let tabIconHome = UIImage(named: "TabIconHome", in: .main, compatibleWith: nil)!
   static let tabIconProfile = UIImage(named: "TabIconProfile", in: .main, compatibleWith: nil)!
+  static let warningBadge = UIImage(named: "WarningBadge", in: .main, compatibleWith: nil)!
 }
 
 
@@ -130,6 +135,8 @@ public extension Icon {
         switch self {
         case .bitcoin: return .bitcoin
         case .bitcoinorange: return .bitcoinOrange
+        case .bitcoinconsolidation: return .bitcoinConsolidation
+        case .bitcoinbadged: return .bitcoinBadged
         case .bitkeydevice3d: return .bitkeyDevice3D
         case .bitkeydeviceraised: return .bitkeyDeviceRaised
         case .bitkeydeviceraisedsmall: return .bitkeyDeviceRaisedSmall
@@ -169,6 +176,7 @@ public extension Icon {
         case .smalliconcaretright: return .smallIconCaretRight
         case .smalliconcaretup: return .smallIconCaretUp
         case .smalliconcheck: return .smallIconCheck
+        case .smalliconcheckinheritance: return .smallIconCheckInheritance
         case .smalliconcheckbox: return .smallIconCheckbox
         case .smalliconcheckboxselected: return .smallIconCheckboxSelected
         case .smalliconcheckfilled: return .smallIconCheckFilled
@@ -176,6 +184,7 @@ public extension Icon {
         case .smalliconcirclestroked: return .smallIconCircleStroked
         case .smalliconclipboard: return .smallIconClipboard
         case .smalliconclock: return .smallIconClock
+        case .smalliconclockhands: return .smallIconClockHands
         case .smalliconcloud: return .smallIconCloud
         case .smalliconclouderror: return .smallIconCloudError
         case .smalliconconsolidation: return .smallIconConsolidation
@@ -242,6 +251,7 @@ public extension Icon {
         case .calloutarrow: return .calloutArrow
         case .tabiconhome: return .tabIconHome
         case .tabiconprofile: return .tabIconProfile
+        case .warningbadge: return .warningBadge
         default: fatalError("Unimplemented shared icon: \(self)")
         }
   }

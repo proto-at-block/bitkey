@@ -1,6 +1,6 @@
 package build.wallet.ui.app.moneyhome
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
@@ -14,11 +14,13 @@ import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
+import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -64,6 +66,7 @@ fun MoneyHomeScreenFull(
                           amountEquivalent = "0.000105 BTC",
                           transactionType = Incoming,
                           isPending = false,
+                          isLate = false,
                           onClick = {}
                         ),
                         TransactionItemModel(
@@ -73,6 +76,7 @@ fun MoneyHomeScreenFull(
                           amountEquivalent = "0.000205 BTC",
                           transactionType = Outgoing,
                           isPending = false,
+                          isLate = false,
                           onClick = {}
                         ),
                         TransactionItemModel(
@@ -82,7 +86,19 @@ fun MoneyHomeScreenFull(
                           amountEquivalent = "0.000305 BTC",
                           transactionType = UtxoConsolidation,
                           isPending = false,
+                          isLate = false,
                           onClick = {}
+                        ),
+                        PartnerTransactionItemModel(
+                          title = "Purchase",
+                          date = "July 4",
+                          logoUrl = null,
+                          amount = "$31.36",
+                          amountEquivalent = "0.000305 BTC",
+                          isPending = false,
+                          onClick = {},
+                          sideTextTint = ListItemSideTextTint.GREEN,
+                          isError = false
                         )
                       )
                   )

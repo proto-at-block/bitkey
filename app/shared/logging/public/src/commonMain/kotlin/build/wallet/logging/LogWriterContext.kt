@@ -7,4 +7,5 @@ package build.wallet.logging
 data class LogWriterContext(
   val appInstallationId: String? = null,
   val hardwareSerialNumber: String? = null,
+  val firmwareVersion: String? = null,
 )

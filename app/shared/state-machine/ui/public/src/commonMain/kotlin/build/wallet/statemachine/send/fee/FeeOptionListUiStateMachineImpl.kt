@@ -2,9 +2,8 @@ package build.wallet.statemachine.send.fee
 
 import androidx.compose.runtime.*
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import kotlinx.collections.immutable.toImmutableList
@@ -12,7 +11,7 @@ import kotlinx.collections.immutable.toImmutableList
 class FeeOptionListUiStateMachineImpl(
   private val feeOptionUiStateMachine: FeeOptionUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : FeeOptionListUiStateMachine {
   @Composable
   override fun model(props: FeeOptionListProps): FeeOptionList {
@@ -20,13 +19,10 @@ class FeeOptionListUiStateMachineImpl(
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    val transactionsData = remember { transactionsService.transactionsData() }
+    val transactionsData = remember { bitcoinWalletService.transactionsData() }
       .collectAsState().value
 
-    val bitcoinBalance = when (transactionsData) {
-      TransactionsData.LoadingTransactionsData -> ZeroBalance
-      is TransactionsData.TransactionsLoadedData -> transactionsData.balance
-    }
+    val bitcoinBalance = transactionsData?.balance ?: ZeroBalance
 
     return FeeOptionList(
       options = props.fees.keys.map { priority ->

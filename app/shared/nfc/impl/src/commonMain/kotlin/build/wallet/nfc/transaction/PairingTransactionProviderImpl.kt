@@ -13,8 +13,8 @@ import build.wallet.crypto.PublicKey
 import build.wallet.firmware.FingerprintEnrollmentStatus.*
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.HardwareAttestation
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signChallenge
@@ -92,8 +92,6 @@ class PairingTransactionProviderImpl(
 
           val serialNumber = response.serial
           appInstallationDao.updateAppInstallationHardwareSerialNumber(serialNumber)
-          log { "Hardware serial number from activation: $serialNumber" }
-
           response
         }
         else -> response
@@ -121,14 +119,14 @@ class PairingTransactionProviderImpl(
         batchCert = batchCert
       )
     }.getOrElse {
-      log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify cert chain" }
+      logWarn { "[hardware_attestation_failure] Failed to verify cert chain" }
       return
     }
 
     val challenge = catchingResult {
       hardwareAttestation.generateChallenge()
     }.getOrElse {
-      log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
+      logWarn { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
       return
     }
 
@@ -143,16 +141,16 @@ class PairingTransactionProviderImpl(
     }.getOrElse {
       // TODO(W-6045): Don't look at the message string.
       if (it.cause?.message?.contains("signature invalid") == true) {
-        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify challenge for $serial " }
+        logWarn { "[hardware_attestation_failure] Failed to verify challenge for $serial " }
         return
       } else {
-        log(LogLevel.Warn) {
+        logWarn {
           "[hardware_attestation_failure] NFC flaked or firmware does not support attestation; allowing anyway... for now! Serial: $serial"
         }
         return
       }
     }
 
-    log { "Hardware attestation successful: $serial" }
+    logDebug { "Hardware attestation successful: $serial" }
   }
 }

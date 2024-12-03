@@ -188,6 +188,10 @@
         "light": { "value": "#0C9ADA1A", "comment": "Information callout background color" },
         "dark": { "value": "#0C9ADA1A" }
       },
+      "calloutInformationLeadingIcon": {
+        "light": { "value": "#2690C7FF", "comment": "Information callout icon color" },
+        "dark": { "value": "#2690C7FF" }
+      },
       "calloutInformationTrailingIcon": {
         "light": { "value": "#FFFFFFFF", "comment": "Information callout trailing icon color" },
         "dark": { "value": "#FFFFFFFF" }
@@ -252,6 +256,10 @@
         "light": { "value": "#333442FF", "comment": "Coachmark background color" },
         "dark": { "value": "#333442FF" }
       },
+      "inheritanceSurface": {
+        "light": { "value": "#CFC4CDFF", "comment": "Surface color for inheritance graphics" },
+        "dark": { "value": "#CFC4CDFF" }
+      },
       "bitcoinPrimary": {
         "light": { "value":  "#F7931AFF", "comment": "Primary color used for Bitcoin elements" },
         "dark": { "value":  "#F7931AFF" }
@@ -267,6 +275,14 @@
       "chartElement": {
         "light": { "value": "#E5E5E5FF", "comment": "Chart foreground element color (y-axis labels, dividers, etc.)" },
         "dark": { "value": "#E5E5E5FF" }
+      },
+      "stepperIncompleteLabel": {
+        "light": { "value": "#B2B2B2FF", "comment": "The color used for incomplete labels on the stepper indicator." },
+        "dark": { "value": "#B2B2B2FF" }
+      },
+      "stepperIncomplete": {
+        "light": { "value": "#F2F2F2FF", "comment": "The color used for sections of the stepper indicator that are incomplete/not in progress." },
+        "dark": { "value": "#F2F2F2FF" }
       }
   }
 }

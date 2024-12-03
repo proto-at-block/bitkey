@@ -15,6 +15,8 @@ use crate::{
 };
 
 const TRUSTED_CONTACT_ALIAS_FIELD: &str = "trustedContactAlias";
+const BENEFACTOR_ALIAS_FIELD: &str = "benefactorAlias";
+const BENEFICIARY_ALIAS_FIELD: &str = "beneficiaryAlias";
 
 #[derive(Deserialize, Serialize, Clone, Debug, Default)]
 pub struct RecoveryRelationshipDeletedPayload {
@@ -86,7 +88,7 @@ fn payloads_for_social_recovery(
     );
 
     let email_payload = Some(EmailPayload::Iterable {
-        campaign_type: IterableCampaignType::RecoveryRelationshipDeleted,
+        campaign_type: IterableCampaignType::RecoveryRelationshipDeletedReceivedByProtectedCustomer,
         data_fields: HashMap::from([(
             TRUSTED_CONTACT_ALIAS_FIELD.to_string(),
             trusted_contact_alias,
@@ -117,31 +119,43 @@ fn payloads_for_inheritance(
     Option<SNSPushPayload>,
     Option<SmsPayload>,
 ) {
-    let message = match (acting_account_role, recipient_account_role) {
+    let (message, campaign_type) = match (acting_account_role, recipient_account_role) {
         (
             RecoveryRelationshipRole::ProtectedCustomer,
             RecoveryRelationshipRole::ProtectedCustomer,
         ) => {
-            format!(
-                "You have successfully removed {} as a beneficiary.",
-                trusted_contact_alias
+            (
+                String::from("You removed a beneficiary of your Bitkey wallet. You can add a new beneficiary in the Bitkey app."),
+                IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBenefactor,
             )
         }
         (RecoveryRelationshipRole::ProtectedCustomer, RecoveryRelationshipRole::TrustedContact) => {
-            format!("{} removed you as a beneficiary.", customer_alias)
+            (
+                String::from("You were removed as a beneficiary of a Bitkey wallet. Reach out to your benefactor for more information."),
+                IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBeneficiary,
+            )
         }
         (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::TrustedContact) => {
-            format!(
-                "You have successfully removed {} as a benefactor.",
-                customer_alias
+            (
+                String::from("You removed a benefactor from your Bitkey wallet."),
+                IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary,
             )
         }
         (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::ProtectedCustomer) => {
-            format!("{} removed you as a benefactor.", trusted_contact_alias)
+            (
+                String::from("[Action required] You no longer have an active beneficiary. Add a beneficiary in the Bitkey app."),
+                IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBenefactor,
+            )
         }
     };
 
-    let email_payload = None; // TODO: W-9736
+    let email_payload = Some(EmailPayload::Iterable {
+        campaign_type,
+        data_fields: HashMap::from([
+            (BENEFACTOR_ALIAS_FIELD.to_string(), customer_alias),
+            (BENEFICIARY_ALIAS_FIELD.to_string(), trusted_contact_alias),
+        ]),
+    });
 
     let push_payload = Some(SNSPushPayload {
         message: message.clone(),

@@ -76,12 +76,14 @@ extension SettingsBodyModel {
                             isDisabled: false,
                             specialTrailingIconModel: .init(
                                 iconImage: .LocalImage(icon: .smalliconwarningfilled),
-                                iconSize: .accessory,
+                                iconSize: .Accessory(),
                                 iconBackgroundType: IconBackgroundTypeTransient(),
+                                iconAlignmentInBackground: .center,
                                 iconTint: .warning,
                                 iconOpacity: nil,
                                 iconTopSpacing: nil,
-                                text: nil
+                                text: nil,
+                                badge: nil
                             ), showNewCoachmark: false,
                             onClick: {}
                         ),
@@ -91,12 +93,14 @@ extension SettingsBodyModel {
                             isDisabled: false,
                             specialTrailingIconModel: .init(
                                 iconImage: .LocalImage(icon: .smalliconlock),
-                                iconSize: .accessory,
+                                iconSize: .Accessory(),
                                 iconBackgroundType: IconBackgroundTypeTransient(),
+                                iconAlignmentInBackground: .center,
                                 iconTint: nil,
                                 iconOpacity: nil,
                                 iconTopSpacing: nil,
-                                text: nil
+                                text: nil,
+                                badge: nil
                             ), showNewCoachmark: true,
                             onClick: {}
                         ),

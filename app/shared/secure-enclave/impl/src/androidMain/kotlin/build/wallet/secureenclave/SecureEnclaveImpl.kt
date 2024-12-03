@@ -8,7 +8,7 @@ import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import androidx.annotation.RequiresApi
 import build.wallet.catchingResult
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import com.github.michaelbull.result.getOrThrow
 import java.math.BigInteger
 import java.security.*
@@ -136,7 +136,7 @@ class SecureEnclaveImpl(
         }
         SeKeyPurpose.AGREEMENT -> {
           if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            log { "Key agreement is not supported on Android versions below S" }
+            logWarn { "Key agreement is not supported on Android versions below S" }
           } else {
             properties = properties or KeyProperties.PURPOSE_AGREE_KEY
           }
@@ -306,5 +306,13 @@ class SecureEnclaveImpl(
     keyAgreement.doPhase(publicKey, true)
 
     return keyAgreement.generateSecret("RAW").encoded
+  }
+
+  override fun loadKeyPair(name: String): SeKeyPair {
+    val keyPair = loadSeKeyPair(SeKeyHandle(name))
+    return SeKeyPair(
+      privateKey = SeKeyHandle(name),
+      publicKey = SePublicKey(encodePublicKeyAsSEC1Uncompressed(keyPair.public as ECPublicKey))
+    )
   }
 }

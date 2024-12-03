@@ -33,6 +33,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.secureEnclaveFake)
         implementation(libs.kmp.okio)
       }
     }

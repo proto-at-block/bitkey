@@ -521,8 +521,7 @@ module "ecs_job_blockchain_polling_task_mainnet" {
   })
   secrets          = merge(local.common_secrets, {})
   cpu_architecture = "ARM64"
-  cpu              = 1024
-  memory           = 8192
+  memory           = 1024
 
   desired_count         = var.job_blockchain_desired_count
   wait_for_steady_state = var.wait_for_steady_state

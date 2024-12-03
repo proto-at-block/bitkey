@@ -10,7 +10,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 private fun DataRowTotal() {
   PreviewWalletTheme {
     FormMainContentModel.DataList.Data(
-      title = "Total cost",
+      title = "Total",
       sideText = "$21.36",
       secondarySideText = "(0.0010 BTC)"
     )

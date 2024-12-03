@@ -15,21 +15,8 @@ import build.wallet.ui.model.button.ButtonModel.Size.FitContent
 import build.wallet.ui.model.button.ButtonModel.Size.Floating
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
-import build.wallet.ui.model.button.ButtonModel.Treatment.Black
-import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.button.ButtonModel.Treatment.PrimaryDanger
-import build.wallet.ui.model.button.ButtonModel.Treatment.PrimaryDestructive
-import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
-import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
-import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryNoUnderline
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimaryNoUnderline
-import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
-import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent10
-import build.wallet.ui.model.button.ButtonModel.Treatment.Warning
-import build.wallet.ui.model.button.ButtonModel.Treatment.White
+import build.wallet.ui.model.button.ButtonModel.Size.Short
+import build.wallet.ui.model.button.ButtonModel.Treatment.*
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.theme.WalletTheme.colors
@@ -101,6 +88,7 @@ fun WalletTheme.buttonStyle(
         Floating -> 64.dp
         Footer, Regular -> 52.dp
         FitContent -> null
+        Short -> 40.dp
       },
     minWidth =
       when (size) {
@@ -123,7 +111,7 @@ fun WalletTheme.buttonStyle(
         0.dp
       } else {
         when (size) {
-          Regular, Footer, FitContent -> 16.dp
+          Regular, Footer, FitContent, Short -> 16.dp
           Compact -> 12.dp
           Floating -> 22.dp
         }
@@ -155,6 +143,7 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
 
     White -> Color.Black
     Warning -> colors.warning
+    Accent -> colors.primaryForeground
   }
 }
 
@@ -183,6 +172,7 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
     White -> Color.Black
 
     Warning -> colors.warning
+    Accent -> colors.primaryForeground
   }
 }
 
@@ -205,6 +195,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
     Black -> Color.Black
     White -> Color.White
     Warning -> colors.warningForeground
+    Accent -> colors.coachmarkBackground
   }
 
 @Composable
@@ -231,4 +222,5 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
     Black -> Color.Black.copy(alpha = 0.4F)
     White -> Color.White.copy(alpha = 0.4F)
     Warning -> colors.warningForeground.copy(alpha = 0.4F)
+    Accent -> colors.coachmarkBackground
   }

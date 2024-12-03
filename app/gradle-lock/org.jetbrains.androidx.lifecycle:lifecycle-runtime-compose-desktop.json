@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-desktop",
     "components": [
         {
-            "version": "2.8.3",
+            "version": "2.8.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-desktop-2.8.3.jar": "c1e51a246e69e237e87d289be08bebd8d406ffe9ff60a125e8f2072db6119966"
+                        "lifecycle-runtime-compose-desktop-2.8.4.jar": "c1e51a246e69e237e87d289be08bebd8d406ffe9ff60a125e8f2072db6119966"
                     }
                 }
             ],

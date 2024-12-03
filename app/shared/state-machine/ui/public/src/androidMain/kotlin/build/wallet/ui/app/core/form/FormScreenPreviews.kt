@@ -454,6 +454,7 @@ fun AllTransactionsPreview() {
                   amountEquivalent = "0.000105 BTC",
                   transactionType = Incoming,
                   isPending = true,
+                  isLate = false,
                   onClick = {}
                 ),
                 TransactionItemModel(
@@ -463,6 +464,7 @@ fun AllTransactionsPreview() {
                   amountEquivalent = "0.000205 BTC",
                   transactionType = Outgoing,
                   isPending = true,
+                  isLate = true,
                   onClick = {}
                 )
               )
@@ -479,6 +481,7 @@ fun AllTransactionsPreview() {
                   amountEquivalent = "0.000105 BTC",
                   transactionType = Incoming,
                   isPending = false,
+                  isLate = false,
                   onClick = {}
                 ),
                 TransactionItemModel(
@@ -488,6 +491,7 @@ fun AllTransactionsPreview() {
                   amountEquivalent = "0.000205 BTC",
                   transactionType = Outgoing,
                   isPending = false,
+                  isLate = false,
                   onClick = {}
                 )
               )

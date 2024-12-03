@@ -21,7 +21,6 @@ kotlin {
       dependencies {
         implementation(projects.shared.accountFake)
         implementation(projects.shared.debugFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.timeFake)

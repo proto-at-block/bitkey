@@ -57,7 +57,7 @@ private struct ButtonContentView: View {
     public var body: some View {
         HStack {
             if model.isLoading {
-                RotatingLoadingIcon(size: .small, tint: model.loadingTint)
+                RotatingLoadingIcon(size: .Small(), tint: model.loadingTint)
             } else {
                 model.leadingIcon.map {
                     Image(uiImage: $0.uiImage)

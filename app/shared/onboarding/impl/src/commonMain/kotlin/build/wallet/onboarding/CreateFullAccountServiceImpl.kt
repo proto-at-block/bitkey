@@ -27,7 +27,7 @@ import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.onboarding.CreateFullAccountContext.LiteToFullAccountUpgrade
@@ -88,12 +88,11 @@ class CreateFullAccountServiceImpl(
       )
       when (appKeys) {
         null -> {
-          log { "Generating new app key bundle" }
           appKeysGenerator.generateKeyBundle(networkType).bind()
         }
 
         else -> {
-          log { "Using existing app key bundle" }
+          logDebug { "Using existing app key bundle" }
           appKeys
         }
       }

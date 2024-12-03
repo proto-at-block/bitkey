@@ -13,6 +13,7 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
         Datadog.addUserExtraInfo([
             "app_installation_id": logWriterContext.appInstallationId,
             "hardware_serial_number": logWriterContext.hardwareSerialNumber,
+            "firmware_version": logWriterContext.firmwareVersion,
         ])
         return DatadogLogger.create(
             with: .init(

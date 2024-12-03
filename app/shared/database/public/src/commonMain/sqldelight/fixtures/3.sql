@@ -26,6 +26,6 @@ INSERT INTO partnershipTransactionEntity(
     1.0,
     'fiatCurrency-val',
     'paymentMethod-val',
-    '1',
-    '1'
+    1731695850370,
+    1731695850371
 );

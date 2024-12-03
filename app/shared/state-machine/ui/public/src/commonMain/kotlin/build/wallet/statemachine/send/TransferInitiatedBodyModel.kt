@@ -5,7 +5,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.ui.model.StandardClick
@@ -33,10 +34,10 @@ data class TransferInitiatedBodyModel(
       headline = "Transfer sent",
       subline = recipientAddress,
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-      alignment = CENTER
+      alignment = LEADING
     ),
     toolbar = null,
-    mainContentList = transactionDetails.toDataList(),
+    mainContentList = transactionDetails.toFormContent(),
     primaryButton = ButtonModel(
       text = "Done",
       onClick = StandardClick(onDone),
@@ -46,13 +47,13 @@ data class TransferInitiatedBodyModel(
     eventTrackerShouldTrack = false
   )
 
-private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
+private fun TransactionDetailsModel.toFormContent(): ImmutableList<FormMainContentModel> {
   val mainItems: ImmutableList<Data> =
     when (transactionDetailModelType) {
       is TransactionDetailModelType.Regular ->
         immutableListOf(
           Data(
-            title = "Recipient receives",
+            title = "Amount",
             sideText = transactionDetailModelType.transferAmountText,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
@@ -65,7 +66,7 @@ private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
       is TransactionDetailModelType.SpeedUp ->
         immutableListOf(
           Data(
-            title = "Recipient receives",
+            title = "Amount",
             sideText = transactionDetailModelType.transferAmountText,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
@@ -80,20 +81,10 @@ private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
             secondarySideText = transactionDetailModelType.feeDifferenceSecondaryText
           )
         )
-      is TransactionDetailModelType.Sell ->
-        immutableListOf(
-          Data(
-            title = "Amount selling",
-            sideText = transactionDetailModelType.transferAmountText
-          ),
-          Data(
-            title = "Network Fees",
-            sideText = transactionDetailModelType.feeAmountText
-          )
-        )
     }
 
   return immutableListOf(
+    FormMainContentModel.Divider,
     DataList(
       items =
         immutableListOf(
@@ -107,7 +98,7 @@ private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
       items = mainItems,
       total =
         Data(
-          title = "Total Cost",
+          title = "Total",
           sideText = transactionDetailModelType.totalAmountPrimaryText,
           sideTextType = Data.SideTextType.BODY2BOLD,
           secondarySideText = transactionDetailModelType.totalAmountSecondaryText

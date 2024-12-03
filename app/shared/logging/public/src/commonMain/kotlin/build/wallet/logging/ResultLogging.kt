@@ -8,7 +8,7 @@ import com.github.michaelbull.result.onFailure
  * (which will trigger alerting via Bugsnag and Linear), or, if provided, at a
  * different severity level.
  *
- * Please use the more specific [logF8eFailure] or [logNetworkFailure] for network-related
+ * Please use the more specific or [logNetworkFailure] for network-related
  * operations so we don't get alerted for expected issues with internet connectivity.
  */
 inline fun <V, E : Throwable> Result<V, E>.logFailure(
@@ -16,7 +16,7 @@ inline fun <V, E : Throwable> Result<V, E>.logFailure(
   message: () -> String,
 ): Result<V, E> =
   onFailure { error ->
-    log(
+    logInternal(
       level = logLevel,
       throwable = error
     ) { "${message()}. $error" }

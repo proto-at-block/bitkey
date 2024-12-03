@@ -2,8 +2,6 @@ package build.wallet.feature
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.AppSessionState
 import build.wallet.bitkey.account.Account
 import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
@@ -12,6 +10,8 @@ import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient.F8eFeatureFlag
 import build.wallet.isOk
 import build.wallet.logging.logNetworkFailure
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess

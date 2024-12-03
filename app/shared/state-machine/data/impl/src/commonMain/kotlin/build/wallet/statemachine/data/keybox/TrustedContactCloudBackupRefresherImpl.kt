@@ -15,7 +15,7 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.NeedsUpdate
@@ -71,7 +71,7 @@ class TrustedContactCloudBackupRefresherImpl(
                 fullAccount = fullAccount,
                 hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek
               ).onSuccess {
-                log { "Refreshed cloud backup ${trustedContacts.size}" }
+                logDebug { "Refreshed cloud backup TC count=${trustedContacts.size}" }
               }.bind()
             }
           }
@@ -79,8 +79,6 @@ class TrustedContactCloudBackupRefresherImpl(
       }.collect {
         it.logFailure(LogLevel.Warn) {
           "Failed to refresh cloud backup"
-        }.onSuccess {
-          log { "Cloud backup check succeeded" }
         }
         lastCheckState.value = clock.now()
       }

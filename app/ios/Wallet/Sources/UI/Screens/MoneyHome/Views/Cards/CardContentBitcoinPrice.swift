@@ -29,6 +29,7 @@ struct CardContentBitcoinPrice: View {
                     ModeledText(model: .standard(
                         "Updated 00:00am",
                         font: .body4Regular,
+                        textAlignment: .trailing,
                         textColor: Color.clear
                     ))
                     .loadingBackground()
@@ -36,6 +37,7 @@ struct CardContentBitcoinPrice: View {
                     ModeledText(model: .standard(
                         viewModel.lastUpdated,
                         font: .body4Regular,
+                        textAlignment: .trailing,
                         textColor: Color.foreground30
                     ))
                 }

@@ -38,6 +38,7 @@ update-tag tag="":
   fi
   cd ..
   sed -i.bak -E "s/atlantis_tag[[:space:]]+=.*/atlantis_tag = \"${version}\"/" aws/bitkey/prod/shared/atlantis/service/terragrunt.hcl
+  terragrunt hclfmt
   rm aws/bitkey/prod/shared/atlantis/service/terragrunt.hcl.bak
 
 logs:

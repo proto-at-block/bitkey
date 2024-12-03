@@ -2,10 +2,7 @@ package build.wallet.auth
 
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.onSuccess
 
 class AuthTokensRepositoryImpl(
   private val authTokenDao: AuthTokenDao,
@@ -23,15 +20,6 @@ class AuthTokensRepositoryImpl(
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
-    log(LogLevel.Debug) { "Loading auth tokens for $accountId..." }
-    return authTokenDao
-      .getTokensOfScope(accountId, scope)
-      .onSuccess { tokens ->
-        if (tokens == null) {
-          log(LogLevel.Warn) { "No auth tokens found for $accountId of scope $scope" }
-        } else {
-          log(LogLevel.Debug) { "Found auth tokens for $accountId of scope $scope" }
-        }
-      }
+    return authTokenDao.getTokensOfScope(accountId, scope)
   }
 }

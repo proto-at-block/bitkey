@@ -2,7 +2,6 @@ package build.wallet.relationships
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
@@ -19,6 +18,7 @@ import build.wallet.f8e.sync.F8eSyncSequencer
 import build.wallet.isOk
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.*

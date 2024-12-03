@@ -13,12 +13,6 @@ class ScreenSnapshots : FunSpec({
     }
   }
 
-  test("screen with tab bar") {
-    paparazzi.snapshot {
-      ScreenWithBodyAndTabBarPreview()
-    }
-  }
-
   test("screen with alert") {
     paparazzi.snapshot {
       ScreenWithBodyAndAlertPreview()

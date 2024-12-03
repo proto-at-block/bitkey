@@ -11,60 +11,63 @@ import build.wallet.logging.logFailure
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 class InheritanceClaimsDaoImpl(
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : InheritanceClaimsDao {
-  private val database by lazy {
-    databaseProvider.database()
-  }
-
-  override val pendingBeneficiaryClaims: Flow<Result<List<BeneficiaryClaim.PendingClaim>, DbError>> = database.inheritanceClaimsQueries
-    .getPendingBeneficiaryClaims()
-    .asFlow()
-    .map { query ->
-      database.awaitTransactionWithResult {
-        query.executeAsList().map {
-          BeneficiaryClaim.PendingClaim(
-            claimId = it.claimId,
-            relationshipId = it.relationshipId,
-            delayEndTime = it.delayEndTime,
-            delayStartTime = it.delayStartTime,
-            authKeys = InheritanceClaimKeyset(
-              appPubkey = it.appPubkey,
-              hardwarePubkey = it.hardwarePubkey
-            )
-          )
-        }
-      }
-    }
-    .distinctUntilChanged()
-
-  override val pendingBenefactorClaims: Flow<Result<List<BenefactorClaim.PendingClaim>, DbError>> =
-    database.inheritanceClaimsQueries
-      .getPendingBenefactorClaims()
-      .asFlow()
-      .map { query ->
-        database.awaitTransactionWithResult {
-          query.executeAsList().map {
-            BenefactorClaim.PendingClaim(
-              claimId = it.claimId,
-              relationshipId = it.relationshipId,
-              delayEndTime = it.delayEndTime,
-              delayStartTime = it.delayStartTime
-            )
+  override val pendingBeneficiaryClaims: Flow<Result<List<BeneficiaryClaim.PendingClaim>, DbError>> =
+    flow {
+      val database = databaseProvider.database()
+      database.inheritanceClaimsQueries
+        .getPendingBeneficiaryClaims()
+        .asFlow()
+        .map { query ->
+          database.awaitTransactionWithResult {
+            query.executeAsList().map {
+              BeneficiaryClaim.PendingClaim(
+                claimId = it.claimId,
+                relationshipId = it.relationshipId,
+                delayEndTime = it.delayEndTime,
+                delayStartTime = it.delayStartTime,
+                authKeys = InheritanceClaimKeyset(
+                  appPubkey = it.appPubkey,
+                  hardwarePubkey = it.hardwarePubkey
+                )
+              )
+            }
           }
         }
-      }
-      .distinctUntilChanged()
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
+
+  override val pendingBenefactorClaims: Flow<Result<List<BenefactorClaim.PendingClaim>, DbError>> =
+    flow {
+      val database = databaseProvider.database()
+      database.inheritanceClaimsQueries
+        .getPendingBenefactorClaims()
+        .asFlow()
+        .map { query ->
+          database.awaitTransactionWithResult {
+            query.executeAsList().map {
+              BenefactorClaim.PendingClaim(
+                claimId = it.claimId,
+                relationshipId = it.relationshipId,
+                delayEndTime = it.delayEndTime,
+                delayStartTime = it.delayStartTime
+              )
+            }
+          }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
 
   override suspend fun setInheritanceClaims(
     inheritanceClaims: InheritanceClaims,
   ): Result<Unit, DbError> {
-    return database.awaitTransactionWithResult {
+    return databaseProvider.database().awaitTransactionWithResult {
       // Delete any existing claims
       inheritanceClaimsQueries.clearInheritanceClaims()
 
@@ -97,7 +100,8 @@ class InheritanceClaimsDaoImpl(
   }
 
   override suspend fun clear() =
-    database.inheritanceClaimsQueries
+    databaseProvider.database()
+      .inheritanceClaimsQueries
       .awaitTransaction {
         clearInheritanceClaims()
       }

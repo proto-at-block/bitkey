@@ -2,7 +2,7 @@ package build.wallet.bitcoin.address
 
 import build.wallet.account.AccountServiceFake
 import build.wallet.bdk.bindings.BdkError.Generic
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountIdMock
@@ -30,11 +30,11 @@ class BitcoinAddressServiceImplTests : FunSpec({
   val registerWatchAddressProcessor = object :
     RegisterWatchAddressProcessor,
     Processor<RegisterWatchAddressContext> by processorMock {}
-  val transactionService = TransactionsServiceFake()
+  val transactionService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
   val service = BitcoinAddressServiceImpl(
     registerWatchAddressProcessor = registerWatchAddressProcessor,
-    transactionsService = transactionService,
+    bitcoinWalletService = transactionService,
     accountService = accountService
   )
 

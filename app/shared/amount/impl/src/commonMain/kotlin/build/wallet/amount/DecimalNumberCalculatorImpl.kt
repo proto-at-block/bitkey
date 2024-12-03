@@ -2,10 +2,11 @@ package build.wallet.amount
 
 import build.wallet.amount.Amount.Companion.MAXIMUM
 import build.wallet.amount.Amount.DecimalNumber
+import build.wallet.platform.settings.LocaleProvider
 
 class DecimalNumberCalculatorImpl(
   private val decimalNumberCreator: DecimalNumberCreator,
-  private val decimalSeparatorProvider: DecimalSeparatorProvider,
+  private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
   /** A maximum value this calculator will bound all [append] operations to. */
   private val maximumValue: Double = MAXIMUM.toDouble(),
@@ -19,7 +20,9 @@ class DecimalNumberCalculatorImpl(
       var resultString = amount.numberString
       // Only add another digit if there are less than the maximum fractional digits
       // Otherwise, it is ignored
-      val (_, decimals) = amount.numberString.split(decimalSeparator)
+      val (_, decimals) = amount.numberString.split(
+        localeProvider.currentLocale().decimalSeparator
+      )
       if (decimals.isNotEmpty()) {
         if (decimals.length < amount.maximumFractionDigits) {
           resultString += digit.toString()
@@ -75,14 +78,11 @@ class DecimalNumberCalculatorImpl(
       amount
     } else {
       decimalNumberCreator.create(
-        numberString = amount.numberString + decimalSeparator,
+        numberString = amount.numberString + localeProvider.currentLocale().decimalSeparator,
         maximumFractionDigits = amount.maximumFractionDigits
       )
     }
   }
-
-  private val decimalSeparator
-    get() = decimalSeparatorProvider.decimalSeparator()
 
   private fun DecimalNumber.hasDecimal() = numberString.contains(decimalSeparator)
 }

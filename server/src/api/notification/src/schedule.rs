@@ -17,7 +17,7 @@ pub enum ScheduleNotificationType {
     RecoveryPendingDelayNotify(OffsetDateTime),
     PrivilegedActionPendingDelayNotify(OffsetDateTime),
     InheritanceClaimPeriodInitiated(OffsetDateTime, RecoveryRelationshipRole),
-    RecoveryRelationshipInvitationPending,
+    RecoveryRelationshipBenefactorInvitationPending,
 }
 
 impl ScheduleNotificationType {
@@ -159,14 +159,14 @@ impl ScheduleNotificationType {
                     ),
                 ]
             }
-            ScheduleNotificationType::RecoveryRelationshipInvitationPending => {
+            ScheduleNotificationType::RecoveryRelationshipBenefactorInvitationPending => {
                 vec![(
                     // Starts in 7 days
                     // Sends every week
                     // Ends after a month
                     // =
                     // DAYS 7, 14, ...
-                    NotificationPayloadType::RecoveryRelationshipInvitationPending,
+                    NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
                     now + Duration::days(7),
                     Some(NotificationSchedule {
                         interval: Duration::days(7),

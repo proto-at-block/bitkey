@@ -6,8 +6,8 @@ import build.wallet.bdk.bindings.BdkUtxoMock
 import build.wallet.bdk.bindings.BdkUtxoMock2
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitcoin.utxo.UtxoConsolidationType.ConsolidateAll
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -26,7 +26,7 @@ import io.kotest.matchers.shouldBe
 
 class UtxoConsolidationServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val bitcoinAddressService = BitcoinAddressServiceFake()
   val bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock()
   val spendingWallet = SpendingWalletMock(turbines::create)
@@ -34,7 +34,7 @@ class UtxoConsolidationServiceImplTests : FunSpec({
 
   val utxoConsolidationService = UtxoConsolidationServiceImpl(
     accountService = accountService,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     bitcoinAddressService = bitcoinAddressService,
     bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
     utxoMaxConsolidationCountFeatureFlag = utxoMaxConsolidationCountFeatureFlag
@@ -42,13 +42,13 @@ class UtxoConsolidationServiceImplTests : FunSpec({
 
   beforeTest {
     accountService.reset()
-    transactionsService.reset()
+    bitcoinWalletService.reset()
     bitcoinAddressService.reset()
     utxoMaxConsolidationCountFeatureFlag.reset()
 
     utxoMaxConsolidationCountFeatureFlag.setFlagValue(FeatureFlagValue.DoubleFlag(150.0))
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       utxos = Utxos(
         confirmed = setOf(
           BdkUtxoMock,
@@ -57,7 +57,7 @@ class UtxoConsolidationServiceImplTests : FunSpec({
         unconfirmed = setOf()
       )
     )
-    transactionsService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.spendingWallet.value = spendingWallet
   }
 
   test("prepareUtxoConsolidation happy path") {
@@ -83,7 +83,7 @@ class UtxoConsolidationServiceImplTests : FunSpec({
       )
     }.toSet()
 
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       utxos = Utxos(
         confirmed = confirmedUtxos + setOf(BdkUtxoMock), // Adds a UTXO with value of 1
         unconfirmed = setOf(BdkUtxoMock2)
@@ -117,7 +117,7 @@ class UtxoConsolidationServiceImplTests : FunSpec({
   }
 
   test("no confirmed utxos") {
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       utxos = Utxos(
         confirmed = setOf(),
         unconfirmed = setOf(

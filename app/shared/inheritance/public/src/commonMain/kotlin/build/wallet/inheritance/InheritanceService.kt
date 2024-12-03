@@ -8,6 +8,7 @@ import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -27,6 +28,16 @@ interface InheritanceService {
    * Emits a collection of relationships with currently pending claims.
    */
   val pendingClaims: StateFlow<Result<List<RelationshipId>, Error>?>
+
+  /**
+   * Emits a collection of synced pending beneficiary claims.
+   */
+  val pendingBeneficiaryClaims: Flow<List<BeneficiaryClaim.PendingClaim>>
+
+  /**
+   * Emits a collection of locked beneficiary claims.
+   */
+  val lockedBeneficiaryClaims: Flow<List<BeneficiaryClaim>>
 
   /**
    * Creates an invitation for a trusted contact to become a beneficiary

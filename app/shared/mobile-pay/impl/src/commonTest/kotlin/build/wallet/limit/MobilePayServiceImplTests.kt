@@ -4,14 +4,13 @@ import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.account.AccountStatus.OnboardingAccount
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -29,6 +28,7 @@ import build.wallet.money.FiatMoney.Companion.usd
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -51,7 +51,7 @@ class MobilePayServiceImplTests : FunSpec({
   val spendingLimitDao = SpendingLimitDaoFake()
   val spendingLimitF8eClient = MobilePaySpendingLimitF8eClientMock()
   val mobilePayStatusProvider = MobilePayStatusRepositoryMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val appSessionManager = AppSessionManagerFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
   val accountService = AccountServiceFake()
@@ -80,7 +80,7 @@ class MobilePayServiceImplTests : FunSpec({
   beforeTest {
     spendingLimitDao.reset()
     appSessionManager.reset()
-    transactionsService.reset()
+    bitcoinWalletService.reset()
     accountService.reset()
     currencyConverter.reset()
     fiatCurrencyPreferenceRepository.reset()
@@ -92,7 +92,7 @@ class MobilePayServiceImplTests : FunSpec({
       spendingLimitF8eClient = spendingLimitF8eClient,
       mobilePayStatusRepository = mobilePayStatusProvider,
       appSessionManager = appSessionManager,
-      transactionsService = transactionsService,
+      bitcoinWalletService = bitcoinWalletService,
       accountService = accountService,
       currencyConverter = currencyConverter,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
@@ -109,12 +109,12 @@ class MobilePayServiceImplTests : FunSpec({
 
     mobilePayStatusProvider.refreshStatusCalls.expectNoEvents()
 
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
     mobilePayStatusProvider.refreshStatusCalls.awaitItem()
   }
 
   test("executeWork periodically refreshes mobile pay status") {
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
     runTest {
       backgroundScope.launch {
@@ -134,7 +134,7 @@ class MobilePayServiceImplTests : FunSpec({
 
   test("executeWork periodic sync does not refresh if app is backgrounded") {
     appSessionManager.appDidEnterBackground()
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
     runTest {
       backgroundScope.launch {

@@ -1,11 +1,5 @@
 package build.wallet.f8e.partnerships
 
-import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -47,40 +41,3 @@ data class PaymentMethodOptions(
   @SerialName("max_purchase_amount")
   val maxPurchaseAmount: Double,
 )
-
-fun PurchaseOptions.toPurchaseMethodAmounts(
-  currency: FiatCurrency,
-  paymentMethod: String,
-): Result<PurchaseMethodAmounts, Error> {
-  val cardPaymentOptions =
-    paymentMethods[paymentMethod]
-      ?.let {
-        if (it.displayPurchaseAmounts.isEmpty()) {
-          return Err(NoDisplayAmountsError(paymentMethod))
-        }
-        it
-      } ?: return Err(NoPurchaseOptionsError(paymentMethod))
-
-  val displayOptions =
-    cardPaymentOptions.displayPurchaseAmounts.map { FiatMoney(currency, it.toBigDecimal()) }
-
-  val cardAmounts =
-    PurchaseMethodAmounts(
-      default = FiatMoney(currency, cardPaymentOptions.defaultPurchaseAmount.toBigDecimal()),
-      displayOptions = displayOptions,
-      min = FiatMoney(currency, cardPaymentOptions.minPurchaseAmount.toBigDecimal()),
-      max = FiatMoney(currency, cardPaymentOptions.maxPurchaseAmount.toBigDecimal())
-    )
-  return Ok(cardAmounts)
-}
-
-data class PurchaseMethodAmounts(
-  val default: FiatMoney,
-  val displayOptions: List<FiatMoney>,
-  val min: FiatMoney,
-  val max: FiatMoney,
-)
-
-class NoDisplayAmountsError(paymentMethod: String) : Error("No display amounts available for payment method: $paymentMethod")
-
-class NoPurchaseOptionsError(paymentMethod: String) : Error("No purchase options available for payment method: $paymentMethod")

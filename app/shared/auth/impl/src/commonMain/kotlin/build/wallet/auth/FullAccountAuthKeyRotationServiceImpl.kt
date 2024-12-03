@@ -11,9 +11,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.RotateAuthKeysF8eClient
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
-import build.wallet.logging.logFailure
+import build.wallet.logging.*
 import build.wallet.mapUnit
 import build.wallet.relationships.EndorseTrustedContactsService
 import build.wallet.relationships.RelationshipsService
@@ -69,10 +67,10 @@ class FullAccountAuthKeyRotationServiceImpl(
         is NewKeyValidationSuccessOrContinue.NewKeysValid -> {
           rotateKeysLocally(newKeysValidationResult.newKeys, account)
             .onSuccess {
-              log(LogLevel.Debug) { "Rotated keys authed successfully" }
+              logDebug { "Rotated keys authed successfully" }
             }
             .onFailure {
-              log(LogLevel.Warn) { "Rotated keys failed to auth" }
+              logWarn { "Rotated keys failed to auth" }
             }
             .bind()
         }
@@ -80,10 +78,10 @@ class FullAccountAuthKeyRotationServiceImpl(
         NewKeyValidationSuccessOrContinue.NewKeysInvalid -> {
           validateOldKeys(resumeRequest, account.keybox)
             .onSuccess {
-              log(LogLevel.Debug) { "Pre-rotation keys auth successfully" }
+              logDebug { "Pre-rotation keys auth successfully" }
             }
             .onFailure {
-              log(LogLevel.Warn) { "Pre-rotation keys failed to auth" }
+              logWarn { "Pre-rotation keys failed to auth" }
             }
             .bind<Nothing>()
         }
@@ -117,7 +115,7 @@ class FullAccountAuthKeyRotationServiceImpl(
           ).logFailure {
             "Error rotating keys on server. We'll still try to validate the new keys."
           }.onSuccess {
-            log(LogLevel.Debug) { "Rotated auth keys on server" }
+            logDebug { "Rotated auth keys on server" }
           }
 
           AuthKeyRotationRequest.Resume(request.newKeys)
@@ -298,7 +296,7 @@ class FullAccountAuthKeyRotationServiceImpl(
           )
         }
         .onSuccess {
-          log { "Cloud backup uploaded after rotating auth keys" }
+          logInfo { "Cloud backup uploaded after rotating auth keys" }
         }
         .bind()
 
@@ -349,8 +347,8 @@ class FullAccountAuthKeyRotationServiceImpl(
           it is BestEffortFullAccountCloudBackupUploader.Failure.IgnorableError
         },
         transform = {
-          log(
-            level = LogLevel.Warn,
+          logInternal(
+            level = LogLevel.Debug,
             throwable = it
           ) { "Ignoring cloud backup error" }
         }

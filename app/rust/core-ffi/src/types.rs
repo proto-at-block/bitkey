@@ -1,13 +1,16 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::UniffiCustomTypeConverter;
-use bitcoin::secp256k1::ecdsa::Signature;
+use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::frost::FrostShare;
+use miniscript::DescriptorPublicKey;
 
 trait Stringable: Display + FromStr {}
 impl Stringable for lightning_support::invoice::Sha256 {}
 impl Stringable for crypto::keys::PublicKey {}
 impl Stringable for Signature {}
+impl Stringable for DescriptorPublicKey {}
+impl Stringable for Psbt {}
 
 impl<T> UniffiCustomTypeConverter for T
 where
@@ -35,5 +38,47 @@ impl UniffiCustomTypeConverter for FrostShare {
 
     fn from_custom(obj: Self) -> Self::Builtin {
         obj.serialize().to_vec()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FfiNetwork {
+    Bitcoin,
+    Testnet,
+    Signet,
+    Regtest,
+}
+
+impl From<FfiNetwork> for Network {
+    fn from(network: FfiNetwork) -> Self {
+        match network {
+            FfiNetwork::Bitcoin => Network::Bitcoin,
+            FfiNetwork::Testnet => Network::Testnet,
+            FfiNetwork::Signet => Network::Signet,
+            FfiNetwork::Regtest => Network::Regtest,
+        }
+    }
+}
+
+impl From<Network> for FfiNetwork {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Bitcoin => FfiNetwork::Bitcoin,
+            Network::Testnet => FfiNetwork::Testnet,
+            Network::Signet => FfiNetwork::Signet,
+            _ => FfiNetwork::Regtest,
+        }
+    }
+}
+
+impl UniffiCustomTypeConverter for Network {
+    type Builtin = FfiNetwork;
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self> {
+        Ok(Network::from(val))
+    }
+
+    fn from_custom(obj: Self) -> Self::Builtin {
+        FfiNetwork::from(obj)
     }
 }

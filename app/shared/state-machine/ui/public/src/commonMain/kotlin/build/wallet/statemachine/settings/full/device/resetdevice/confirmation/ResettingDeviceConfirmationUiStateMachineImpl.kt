@@ -5,7 +5,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.form.*
@@ -272,7 +272,7 @@ class ResettingDeviceConfirmationUiStateMachineImpl(
         },
         onSuccess = {
           val firmwareSerial = firmwareDeviceInfoDao.deviceInfo().firstOrNull()?.get()?.serial ?: "failed to retrieve serial number"
-          log { "Bitkey reset successfully with serial number: $firmwareSerial" }
+          logDebug { "Bitkey reset successfully with serial number: $firmwareSerial" }
           if (isDevicePaired) {
             firmwareDeviceInfoDao.clear()
           }

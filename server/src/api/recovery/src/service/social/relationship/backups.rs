@@ -22,4 +22,11 @@ impl Service {
             .await
             .map_err(ServiceError::Database)
     }
+
+    pub async fn get_recovery_backup(&self, account_id: AccountId) -> Result<Backup, ServiceError> {
+        self.repository
+            .fetch_recovery_backup(&account_id)
+            .await
+            .map_err(ServiceError::Database)
+    }
 }

@@ -1,5 +1,7 @@
 package build.wallet.time
 
+import build.wallet.platform.settings.*
+import build.wallet.platform.settings.LocaleProviderFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.TimeZone
@@ -12,20 +14,25 @@ class TimeZoneFormatterTests : FunSpec({
   val ist = TimeZone.India
 
   val clock = ClockFake()
-  val formatter = TimeZoneFormatterImpl()
+  val localeProvider = LocaleProviderFake()
+  val formatter = TimeZoneFormatterImpl(localeProvider)
+
+  beforeTest {
+    localeProvider.reset()
+  }
 
   test("PDT time zone format in en-US") {
+    localeProvider.locale = Locale.EN_US
     formatter.timeZoneShortNameWithHoursOffset(
       timeZone = pdt,
-      localeIdentifier = "en-US",
       clock = clock
     ).shouldBe("PDT (UTC -8)")
   }
 
   test("PDT time zone format in fr-CA") {
+    localeProvider.locale = Locale.FR_CA
     formatter.timeZoneShortNameWithHoursOffset(
       timeZone = pdt,
-      localeIdentifier = "fr-CA",
       clock = clock
     ).shouldBe("HAP (UTC -8)")
   }

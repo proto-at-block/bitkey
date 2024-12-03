@@ -6,41 +6,41 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.DebugOptionsEntity
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.*
 import kotlin.time.Duration
 
 class DebugOptionsServiceImpl(
-  private val bitkeyDatabaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
   private val defaultDebugOptionsDecider: DefaultDebugOptionsDecider,
 ) : DebugOptionsService {
-  private val database by lazy {
-    bitkeyDatabaseProvider.database()
-  }
-
   override fun options(): Flow<DebugOptions> {
-    return database.debugOptionsQueries.options()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.toDebugOptions() ?: defaultDebugOptionsDecider.options }
-      .transformLatest {
-        when {
-          it.isOk -> emit(it.value)
-          it.isErr -> {
-            log(throwable = it.error) { "Error reading debug options from db, using default options." }
+    return flow {
+      databaseProvider.database()
+        .debugOptionsQueries
+        .options()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.toDebugOptions() ?: defaultDebugOptionsDecider.options }
+        .mapLatest {
+          if (it.isOk) {
+            it.value
+          } else {
+            logError(throwable = it.error) {
+              "Error reading debug options from db, using default options."
+            }
             // Fallback on default options
-            emit(defaultDebugOptionsDecider.options)
+            defaultDebugOptionsDecider.options
           }
         }
-      }
-      .distinctUntilChanged()
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun setBitcoinNetworkType(value: BitcoinNetworkType): Result<Unit, Error> {
@@ -78,7 +78,7 @@ class DebugOptionsServiceImpl(
   private suspend fun updateOptions(
     block: (currentOptions: DebugOptions) -> DebugOptions,
   ): Result<Unit, Error> =
-    database.awaitTransaction {
+    databaseProvider.database().awaitTransaction {
       val currentOptions = debugOptionsQueries.options().executeAsOneOrNull()
         ?.toDebugOptions()
         ?: defaultDebugOptionsDecider.options

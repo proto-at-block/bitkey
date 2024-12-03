@@ -12,7 +12,7 @@ class FirmwareCoredumpEventQueueImpl(
 ) : FirmwareCoredumpEventQueue {
   override suspend fun append(item: FirmwareCoredump): Result<Unit, Error> {
     return databaseProvider.database().awaitTransaction {
-      databaseProvider.database().firmwareCoredumpsQueries.append(
+      firmwareCoredumpsQueries.append(
         coredump = item.coredump.toByteArray(),
         serial = item.identifiers.serial,
         swType = item.identifiers.swType,
@@ -46,7 +46,7 @@ class FirmwareCoredumpEventQueueImpl(
     require(num >= 0) { "Requested element count $num is less than zero." }
 
     return databaseProvider.database().firmwareCoredumpsQueries.awaitTransaction {
-      databaseProvider.database().firmwareCoredumpsQueries.removeFirst(num.toLong())
+      removeFirst(num.toLong())
     }
   }
 }

@@ -7,7 +7,6 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.RecoveryTestingStateMachine
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
@@ -118,7 +117,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
     // We do a Lost App + Cloud recovery
     app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete(cloudServiceProvider())
+    app.cloudBackupDeleter.delete()
     app.deleteBackupsFromFakeCloud()
     val recoveryStateMachine =
       RecoveryTestingStateMachine(

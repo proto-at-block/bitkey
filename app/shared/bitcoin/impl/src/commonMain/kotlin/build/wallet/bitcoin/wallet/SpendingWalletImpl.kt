@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.wallet
 
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bdk.bindings.*
 import build.wallet.bdk.bindings.BdkAddressIndex.LAST_UNUSED
 import build.wallet.bdk.bindings.BdkAddressIndex.NEW
@@ -21,6 +20,7 @@ import build.wallet.catchingResult
 import build.wallet.ensure
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok

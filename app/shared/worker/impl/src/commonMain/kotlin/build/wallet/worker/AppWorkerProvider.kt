@@ -1,11 +1,13 @@
 package build.wallet.worker
 
+import build.wallet.activity.TransactionsActivitySyncWorker
 import build.wallet.analytics.events.AnalyticsEventPeriodicProcessor
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_INITIALIZE
 import build.wallet.availability.AppFunctionalitySyncWorker
 import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
-import build.wallet.bitcoin.transactions.TransactionSyncWorker
+import build.wallet.bitcoin.sync.ElectrumServerConfigSyncWorker
+import build.wallet.bitcoin.transactions.BitcoinWalletSyncWorker
 import build.wallet.configuration.MobilePayFiatConfigSyncWorker
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.feature.FeatureFlagSyncWorker
@@ -19,6 +21,7 @@ import build.wallet.money.currency.FiatCurrenciesSyncWorker
 import build.wallet.money.exchange.ExchangeRateSyncWorker
 import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
+import build.wallet.partnerships.PartnershipTransactionsSyncWorker
 import build.wallet.relationships.EndorseTrustedContactsWorker
 import build.wallet.relationships.SyncRelationshipsWorker
 
@@ -47,13 +50,16 @@ class AppWorkerProviderImpl(
   private val notificationTouchpointSyncWorker: NotificationTouchpointSyncWorker,
   private val bitcoinAddressRegisterWatchAddressWorker: BitcoinRegisterWatchAddressWorker,
   private val endorseTrustedContactsWorker: EndorseTrustedContactsWorker,
-  private val transactionsSyncWorker: TransactionSyncWorker,
+  private val bitcoinWalletSyncWorker: BitcoinWalletSyncWorker,
   private val fiatCurrenciesSyncWorker: FiatCurrenciesSyncWorker,
   private val syncRelationshipsWorker: SyncRelationshipsWorker,
   private val mobilePayBalanceSyncWorker: MobilePayBalanceSyncWorker,
   private val appFunctionalitySyncWorker: AppFunctionalitySyncWorker,
   private val inheritanceMaterialSyncWorker: InheritanceMaterialSyncWorker,
   private val inheritanceClaimsSyncWorker: InheritanceClaimsSyncWorker,
+  private val transactionsActivitySyncWorker: TransactionsActivitySyncWorker,
+  private val electrumConfigSyncWorker: ElectrumServerConfigSyncWorker,
+  private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -71,13 +77,16 @@ class AppWorkerProviderImpl(
       notificationTouchpointSyncWorker,
       endorseTrustedContactsWorker,
       bitcoinAddressRegisterWatchAddressWorker,
-      transactionsSyncWorker,
+      bitcoinWalletSyncWorker,
       fiatCurrenciesSyncWorker,
       mobilePayBalanceSyncWorker,
       fiatCurrenciesSyncWorker,
       syncRelationshipsWorker,
       appFunctionalitySyncWorker,
-      inheritanceClaimsSyncWorker
+      inheritanceClaimsSyncWorker,
+      transactionsActivitySyncWorker,
+      electrumConfigSyncWorker,
+      partnershipTransactionsSyncWorker
     )
   }
 }

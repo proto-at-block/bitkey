@@ -9,16 +9,9 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.AppFactorProofOfPossession
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.fold
-import com.github.michaelbull.result.get
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.*
 import io.ktor.client.plugins.api.*
-import io.ktor.util.*
 import okio.ByteString.Companion.encodeUtf8
 
 class ProofOfPossessionPluginConfig {
@@ -64,10 +57,7 @@ val ProofOfPossessionPlugin = createClientPlugin(
           val authKey: PublicKey<out AppAuthKey>? =
             when (appAuthKey) {
               null -> keyboxDao.getAppAuthKey()
-              else -> {
-                log { "Attempting to use provided app auth key for app proof of possession" }
-                appAuthKey
-              }
+              else -> appAuthKey
             }
 
           if (authKey != null) {
@@ -80,8 +70,6 @@ val ProofOfPossessionPlugin = createClientPlugin(
                 )
               }
               .logFailure { "Error signing access token for app proof of possession." }
-          } else {
-            log { "No app auth key found, not including app proof of possession in this request" }
           }
         }
     }
@@ -90,29 +78,22 @@ val ProofOfPossessionPlugin = createClientPlugin(
 
 private suspend fun KeyboxDao.getAppAuthKey(): PublicKey<AppGlobalAuthKey>? {
   return getActiveOrOnboardingKeybox()
+    .logFailure {
+      "Error reading active or onboarding keybox, not creating app proof of possession"
+    }
     .fold(
       success = { keybox ->
         when {
           keybox != null -> {
-            log {
-              "Found active or onboarding keybox, using its app auth key to create app proof of possession"
-            }
             keybox.activeAppKeyBundle.authKey
           }
 
           else -> {
-            log { "No active or onboarding keybox found, not creating app proof of possession" }
             null
           }
         }
       },
-      failure = { error ->
-        log(
-          level = LogLevel.Error,
-          throwable = error
-        ) { "Error reading active or onboarding keybox, not creating app proof of possession" }
-        null
-      }
+      failure = { null }
     )
 }
 

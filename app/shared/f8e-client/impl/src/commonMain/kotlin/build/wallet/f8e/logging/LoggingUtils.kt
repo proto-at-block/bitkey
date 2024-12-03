@@ -1,35 +1,17 @@
 package build.wallet.f8e.logging
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
-import io.ktor.client.call.HttpClientCall
-import io.ktor.client.request.HttpRequest
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.HttpResponseContainer
-import io.ktor.client.statement.request
-import io.ktor.client.utils.EmptyContent
-import io.ktor.http.ContentType
-import io.ktor.http.Headers
-import io.ktor.http.charset
-import io.ktor.http.content.OutgoingContent
-import io.ktor.http.content.TextContent
-import io.ktor.http.contentType
-import io.ktor.util.copyToBoth
-import io.ktor.utils.io.ByteChannel
-import io.ktor.utils.io.ByteReadChannel
-import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.charsets.Charset
-import io.ktor.utils.io.charsets.Charsets
-import io.ktor.utils.io.close
-import io.ktor.utils.io.core.readText
-import io.ktor.utils.io.writeFully
-import io.ktor.utils.io.writer
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.launch
+import build.wallet.logging.logError
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.client.utils.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.util.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.charsets.*
+import io.ktor.utils.io.core.*
+import kotlinx.coroutines.*
 
 /**
  * Using the [request] data, [logRequest] builds a complete
@@ -71,7 +53,7 @@ internal fun logRequestException(
   context: HttpRequestBuilder,
   cause: Throwable,
 ) {
-  log(tag = tag, level = LogLevel.Error) {
+  logError(tag = tag) {
     "REQUEST ${context.url.build()} failed with exception: $cause"
   }
 }

@@ -1,7 +1,8 @@
 package build.wallet.memfault
 
 import build.wallet.ktor.result.*
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
 import build.wallet.memfault.MemfaultClient.*
 import build.wallet.memfault.MemfaultProjectKey.MEMFAULT_PROJECT_KEY
@@ -112,12 +113,10 @@ class MemfaultClientImpl(
               )
             )
           }
-        }.map {
-          it.body<PrepareUploadResponse>()
-        }.getOrElse { error ->
-          log { "Error while preparing coredump: $error" }
-          return Err(error)
         }
+        .map { it.body<PrepareUploadResponse>() }
+        .logFailure { "Error while uploading coredump" }
+        .getOrElse { return Err(it) }
 
     // 2) Actually upload
     client.catching {
@@ -125,16 +124,15 @@ class MemfaultClientImpl(
         header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
         setUnredactedBody(coredump.toByteArray())
       }
-    }.mapBoth(
-      success = {
-        log { "Coredump upload response: $it" }
-        it
-      },
-      failure = {
-        log { "Error while uploading coredump: $it" }
-        Err(it)
-      }
-    )
+    }
+      .logFailure { "Error while uploading coredump" }
+      .mapBoth(
+        success = {
+          logDebug { "Coredump upload response: $it" }
+          it
+        },
+        failure = { Err(it) }
+      )
 
     // 3) Commit upload
     return memfaultHttpClient.client()
@@ -152,7 +150,7 @@ class MemfaultClientImpl(
           )
         }
       }.map {
-        log { "Committed coredump: $it" }
+        logDebug { "Committed coredump: $it" }
       }.logNetworkFailure { "Error while committing coredump upload" }
   }
 }

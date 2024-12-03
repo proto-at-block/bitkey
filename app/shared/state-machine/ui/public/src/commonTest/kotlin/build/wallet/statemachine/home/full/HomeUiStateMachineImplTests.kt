@@ -231,7 +231,8 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("partner sell app link does not invoke with feature flag disabled") {
     sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    Router.route = Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
+    Router.route =
+      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
     stateMachine.test(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
@@ -244,7 +245,8 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("partner sell app link invokes with feature flag enabled") {
     sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    Router.route = Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
+    Router.route =
+      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
 
     stateMachine.test(props) {
       awaitSyncLoopCall()

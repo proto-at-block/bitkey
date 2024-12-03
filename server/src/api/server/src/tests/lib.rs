@@ -3,7 +3,7 @@ use std::sync::RwLock;
 
 use account::service::tests::{
     create_bdk_wallet, create_descriptor_keys, create_full_account_for_test,
-    generate_test_authkeys, TestAuthenticationKeys,
+    default_electrum_rpc_uris, generate_test_authkeys, TestAuthenticationKeys,
 };
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CreateLiteAccountInput,
@@ -20,6 +20,7 @@ use bdk_utils::bdk::{
     miniscript::DescriptorPublicKey, FeeRate,
 };
 use bdk_utils::bdk::{SignOptions, Wallet as BdkWallet};
+use bdk_utils::get_blockchain;
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
 use isocountry::CountryCode;
@@ -157,6 +158,11 @@ async fn create_default_account_with_predefined_wallet_internal(
         &server_dpub.to_string(),
         network.into(),
     );
+
+    let rpc_uris = default_electrum_rpc_uris();
+    let blockchain = get_blockchain(network.into(), &rpc_uris).unwrap();
+    wallet.sync(&blockchain, Default::default()).unwrap();
+
     (account, wallet)
 }
 

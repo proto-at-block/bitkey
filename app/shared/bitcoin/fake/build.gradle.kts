@@ -21,7 +21,6 @@ kotlin {
     commonTest {
       dependencies {
         implementation(libs.kmp.test.kotest.assertions)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.bitcoinTesting) {
           exclude(projects.shared.bitcoinPublic)
         }

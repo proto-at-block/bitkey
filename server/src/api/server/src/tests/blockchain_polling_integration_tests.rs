@@ -14,10 +14,11 @@ use types::{
     notification::{NotificationChannel, NotificationsPreferences},
 };
 
+use super::gen_services_with_overrides;
 use super::lib::create_inactive_spending_keyset_for_account;
+use crate::GenServiceOverrides;
 use crate::{
     tests::{
-        gen_services,
         lib::{create_default_account_with_predefined_wallet, create_full_account},
         requests::{axum::TestClient, worker::TestWorker},
     },
@@ -46,7 +47,7 @@ struct BlockHeader {
 #[tokio::test]
 async fn test_init_block_received_payment() {
     let (mock_server, account, worker, services, mut chain_mock_data) =
-        setup_full_accounts_and_server().await;
+        setup_full_accounts_and_server(true).await;
 
     let notification_service = services.notification_service;
     let sqs_queue = services.sqs;
@@ -139,9 +140,21 @@ async fn test_init_block_received_payment() {
 }
 
 async fn setup_full_accounts_and_server(
+    override_confirmed_tx_flag: bool,
 ) -> (MockServer, FullAccount, TestWorker, Services, ChainMockData) {
     let mock_server = MockServer::start();
-    let (mut context, bootstrap) = gen_services().await;
+    let feature_flag_override = if override_confirmed_tx_flag {
+        vec![(
+            "f8e-confirmed-tx-push-notification".to_owned(),
+            "true".to_owned(),
+        )]
+    } else {
+        vec![]
+    }
+    .into_iter()
+    .collect::<HashMap<String, String>>();
+    let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router.clone()).await;
     let (account_with_payment, _) =
         create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)

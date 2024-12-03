@@ -7,7 +7,6 @@ import dev.zacsweers.redacted.annotations.Redacted
 data class TransactionDetailsModel(
   val transactionDetailModelType: TransactionDetailModelType,
   val transactionSpeedText: String,
-  val amountLabel: String,
 ) : Model()
 
 /**
@@ -17,7 +16,7 @@ data class TransactionDetailsModel(
  * text will be fiat and the secondary will be btc/sats. If we aren't, and fiat is "null", the primary
  * text will be btc/sats and the secondary text will be null.
  *
- * @property transferAmountText the "Recipient receives" amount.
+ * @property transferAmountText the amount.
  * @property totalAmountPrimaryText the net total amount (with fees) that the customer will be spending, in fiat.
  * @property totalAmountSecondaryText the net total amount (with fees) that the customer will be spending, in sats.
  */
@@ -59,17 +58,5 @@ sealed interface TransactionDetailModelType {
     val feeDifferenceSecondaryText: String?,
     val totalFeeText: String,
     val totalFeeSecondaryText: String?,
-  ) : TransactionDetailModelType
-
-  /**
-   * For selling bitcoin directly to an exchange partner.
-   */
-  data class Sell(
-    override val transferAmountText: String,
-    override val transferAmountSecondaryText: String,
-    override val totalAmountPrimaryText: String,
-    override val totalAmountSecondaryText: String?,
-    val feeAmountText: String,
-    val feeAmountSecondaryText: String?,
   ) : TransactionDetailModelType
 }

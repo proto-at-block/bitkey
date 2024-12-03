@@ -13,8 +13,7 @@ import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8eEmailTouchpoint
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8ePhoneNumberTouchpoint
 import build.wallet.ktor.result.*
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.mapUnit
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
@@ -140,7 +139,7 @@ class NotificationTouchpointF8eClientImpl(
               val phoneNumber = phoneNumberValidator.validatePhoneNumber(f8eTouchpoint.phoneNumber)
               when (phoneNumber) {
                 null -> {
-                  log(Error) { "Unable to validate phone number from server" }
+                  logError { "Unable to validate phone number from server" }
                   null
                 }
 

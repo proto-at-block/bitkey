@@ -19,6 +19,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
@@ -169,6 +170,16 @@ class SweepGeneratorImplTests : FunSpec({
         val wallet =
           requireNotNull(wallets[keyset.localId]) {
             "No spending wallet mock found for keyset \"${keyset.localId}\""
+          }
+        return Ok(wallet)
+      }
+
+      override suspend fun getWatchingWallet(
+        softwareKeybox: SoftwareKeybox,
+      ): Result<WatchingWallet, Throwable> {
+        val wallet =
+          requireNotNull(wallets[softwareKeybox.id]) {
+            "No spending wallet mock found for keyset \"${softwareKeybox.id}\""
           }
         return Ok(wallet)
       }

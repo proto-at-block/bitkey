@@ -10,6 +10,7 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
     func test_transfer_confirmation_require_hw_enabled() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantRegular(),
                 requiresHardware: true,
                 confirmButtonEnabled: true
             )
@@ -21,6 +22,7 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
     func test_transfer_confirmation_not_require_hw_enabled() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantRegular(),
                 requiresHardware: false,
                 confirmButtonEnabled: true
             )
@@ -32,6 +34,7 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
     func test_transfer_confirmation_require_hw_disabled() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantRegular(),
                 requiresHardware: true,
                 confirmButtonEnabled: false
             )
@@ -43,6 +46,7 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
     func test_transfer_confirmation_not_require_hw_disabled() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantRegular(),
                 requiresHardware: false,
                 confirmButtonEnabled: false
             )
@@ -54,9 +58,28 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
     func test_transfer_confirmation_with_cta_warning() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantSpeedUp(),
                 requiresHardware: true,
-                confirmButtonEnabled: true,
-                isSpeedUp: true
+                confirmButtonEnabled: true
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
+    func test_transfer_confirmation_sell() {
+        let view = FormView(
+            viewModel: .transferConfirmationModel(
+                displayVariant: TransferConfirmationScreenVariantSell(
+                    partnerInfo: .init(
+                        logoUrl: nil,
+                        logoBadgedUrl: nil,
+                        name: "PartnerX",
+                        partnerId: "test-id"
+                    )
+                ),
+                requiresHardware: true,
+                confirmButtonEnabled: true
             )
         )
 
@@ -70,16 +93,10 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
 private extension FormBodyModel {
 
     static func transferConfirmationModel(
+        displayVariant: TransferConfirmationScreenVariant,
         requiresHardware: Bool,
-        confirmButtonEnabled: Bool,
-        isSpeedUp: Bool = false
+        confirmButtonEnabled: Bool
     ) -> FormBodyModel {
-        let displayVariant: TransferConfirmationScreenVariant = if isSpeedUp {
-            TransferConfirmationScreenVariantSpeedUp()
-        } else {
-            TransferConfirmationScreenVariantRegular()
-        }
-
         return SnapshotTestModels.shared.CreateTransferConfirmationScreenModel(
             onBack: {},
             onCancel: {},
@@ -94,8 +111,7 @@ private extension FormBodyModel {
                     feeAmountText: "$1.36",
                     feeAmountSecondaryText: "0.00002 BTC"
                 ),
-                transactionSpeedText: "~30 minutes",
-                amountLabel: "amountLabel"
+                transactionSpeedText: "~30 minutes"
             ),
             requiresHardware: requiresHardware,
             confirmButtonEnabled: confirmButtonEnabled,

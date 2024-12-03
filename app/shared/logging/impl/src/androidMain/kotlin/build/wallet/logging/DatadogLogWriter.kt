@@ -14,10 +14,12 @@ class DatadogLogWriter(
     Datadog.addUserProperties(
       mapOf(
         "app_installation_id" to logWriterContext.appInstallationId,
-        "hardware_serial_number" to logWriterContext.hardwareSerialNumber
+        "hardware_serial_number" to logWriterContext.hardwareSerialNumber,
+        "firmware_version" to logWriterContext.firmwareVersion
       )
     )
-    Logger.Builder()
+    Logger
+      .Builder()
       .setNetworkInfoEnabled(enabled = true)
       .setBundleWithTraceEnabled(enabled = true)
       .setBundleWithRumEnabled(enabled = true)

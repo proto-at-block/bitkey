@@ -1,7 +1,48 @@
+use std::{collections::VecDeque, str::FromStr};
+
+use bdk_utils::bdk::bitcoin::{
+    consensus::encode::deserialize, Block as BdkBlock, BlockHash, Network,
+};
+use once_cell::sync::Lazy;
+use tracing::{event, Level};
+
 use super::Service;
 use crate::ChainIndexerError;
-use bdk_utils::bdk::bitcoin::{consensus::encode::deserialize, Block as BdkBlock, BlockHash};
-use tracing::{event, Level};
+
+const MAX_BLOCKS: usize = 2000;
+
+const BITCOIN_MAINNET_BLOCK_HASHES: Lazy<Vec<BlockHash>> = Lazy::new(|| {
+    let block_hash_857540 =
+        BlockHash::from_str("0000000000000000000123c63b7e17e420867f551b00ff443500629c01cafe08")
+            .unwrap();
+    let block_hash_859540 =
+        BlockHash::from_str("00000000000000000000f7776ba0a94b5b4bd23e055989d08d2c63d44a450213")
+            .unwrap();
+    let block_hash_861540 =
+        BlockHash::from_str("000000000000000000021afe81f1270585997dc5a6eb232f9e9d1c3d1fe7c564")
+            .unwrap();
+    let block_hash_863540 =
+        BlockHash::from_str("000000000000000000000ef209bf0c4c3ad0fad74efbb91d63b49c5830e9695a")
+            .unwrap();
+    let block_hash_865540 =
+        BlockHash::from_str("0000000000000000000146d5c5d28d02f03e9b0195bc931e88f17e58149e3537")
+            .unwrap();
+    let block_hash_867540 =
+        BlockHash::from_str("00000000000000000001606b7740d170a50d5d688a863defb0dc1980d4e45894")
+            .unwrap();
+    let block_hash_869540 =
+        BlockHash::from_str("00000000000000000001530013b0e655d6f4141b05b71bd3d807c521e5ca75cb")
+            .unwrap();
+    vec![
+        block_hash_857540,
+        block_hash_859540,
+        block_hash_861540,
+        block_hash_863540,
+        block_hash_865540,
+        block_hash_867540,
+        block_hash_869540,
+    ]
+});
 
 impl Service {
     pub async fn get_new_blocks(&self) -> Result<Vec<BdkBlock>, ChainIndexerError> {
@@ -11,24 +52,50 @@ impl Service {
             self.settings.network,
             self.settings.base_url,
         );
-        let tip_hash = self.get_tip_hash().await?;
-        event!(Level::INFO, "Retrieved tip hash {tip_hash} from network");
-        let mut new_blocks = Vec::new();
 
-        if let Some(init_block) = self.repo.fetch_init_block(self.settings.network).await? {
+        let tip_hash_from_mempool = self.get_tip_hash().await?;
+        let tip_hash = if self.settings.network == Network::Bitcoin {
+            let mut ret_block_hash = tip_hash_from_mempool;
+            for block_hash in BITCOIN_MAINNET_BLOCK_HASHES.iter() {
+                if self.repo.fetch(block_hash.to_owned()).await?.is_none() {
+                    ret_block_hash = *block_hash;
+                    break;
+                }
+            }
+            Ok::<BlockHash, ChainIndexerError>(ret_block_hash)
+        } else {
+            Ok(tip_hash_from_mempool)
+        }?;
+
+        event!(Level::INFO, "Retrieved tip hash {tip_hash} from network");
+        let mut new_blocks = VecDeque::with_capacity(MAX_BLOCKS);
+
+        let init_block = self.repo.fetch_init_block(self.settings.network).await?;
+        event!(
+            Level::INFO,
+            "Retrieved init block {init_block:?} from network"
+        );
+        if let Some(init_block) = init_block {
             let mut current_hash = tip_hash;
+            event!(Level::INFO, "Setting current hash to {current_hash}");
             loop {
                 // We've already seen the block, so we've found a common parent with the tip.
-                if self.repo.fetch(current_hash).await?.is_some() {
+                if let Some(block_for_hash) = self.repo.fetch(current_hash).await? {
                     // TODO: to detect re-orgs, we should query the DB for any blocks with a
                     // prev_hash that is equal to the current_hash.
+                    event!(
+                        Level::INFO,
+                        "Found block {block_for_hash:?} for hash {current_hash}",
+                    );
                     break;
                 }
 
+                event!(Level::INFO, "Getting block {current_hash} from network");
                 let new_block = self.get_block(&current_hash).await?;
                 event!(Level::INFO, "Retrieved block {current_hash} from network");
                 let init_block_height = init_block.height;
                 let new_block_height = new_block.bip34_block_height()?;
+                event!(Level::INFO, "New block height: {}", new_block_height);
                 if new_block_height <= init_block_height {
                     // Any blocks below the init block are stale.
                     event!(
@@ -40,7 +107,16 @@ impl Service {
                     break;
                 }
                 current_hash = new_block.header.prev_blockhash;
-                new_blocks.push(new_block);
+                event!(Level::INFO, "Setting current hash to {current_hash}");
+                event!(
+                    Level::INFO,
+                    "Added block {} to new blocks",
+                    new_block.block_hash()
+                );
+                if new_blocks.len() > MAX_BLOCKS {
+                    new_blocks.pop_front();
+                }
+                new_blocks.push_back(new_block);
             }
         } else {
             event!(Level::INFO, "No blocks found in database");
@@ -49,11 +125,12 @@ impl Service {
                 Level::INFO,
                 "Retrieved block {tip_hash} from network and setting it as the init block."
             );
-            new_blocks.push(block);
+            new_blocks.push_back(block);
         }
 
-        new_blocks.reverse();
-        Ok(new_blocks)
+        let blocks = new_blocks.into_iter().rev().collect();
+        event!(Level::INFO, "Reversed new blocks");
+        Ok(blocks)
     }
 
     pub(crate) async fn get_block(

@@ -1,14 +1,12 @@
 package build.wallet.ui.components.screen
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,7 +24,6 @@ import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.sheet.Sheet
 import build.wallet.ui.components.status.backgroundColor
 import build.wallet.ui.components.system.SystemUI
-import build.wallet.ui.components.tabbar.TabBarContainer
 import build.wallet.ui.components.toast.Toast
 import build.wallet.ui.compose.gestures.onTwoFingerDoubleTap
 import build.wallet.ui.compose.gestures.onTwoFingerTripleTap
@@ -56,11 +53,6 @@ fun Screen(
       addSystemBarsPadding = style.addSystemBarsPadding,
       bodyContent = {
         UiModelContent(model = model.body)
-      },
-      tabBarContent = {
-        model.tabBar?.let {
-          UiModelContent(model = it)
-        }
       },
       statusBannerContent = {
         var statusBannerModel by remember {
@@ -111,7 +103,6 @@ internal fun Screen(
   modifier: Modifier = Modifier,
   addSystemBarsPadding: Boolean = false,
   bodyContent: @Composable () -> Unit,
-  tabBarContent: @Composable (() -> Unit)? = null,
   statusBannerContent: @Composable () -> Unit = {},
   toastModel: ToastModel? = null,
   alertModel: AlertModel? = null,
@@ -128,7 +119,6 @@ internal fun Screen(
       toastModel = toastModel,
       statusBannerContent = statusBannerContent,
       bodyContent = bodyContent,
-      tabBarContent = tabBarContent,
       onTwoFingerDoubleTap = onTwoFingerDoubleTap,
       onTwoFingerTripleTap = onTwoFingerTripleTap
     )
@@ -170,7 +160,6 @@ private fun ScreenContents(
   toastModel: ToastModel?,
   statusBannerContent: @Composable () -> Unit,
   bodyContent: @Composable () -> Unit,
-  tabBarContent: @Composable (() -> Unit)? = null,
   onTwoFingerDoubleTap: (() -> Unit)? = null,
   onTwoFingerTripleTap: (() -> Unit)? = null,
 ) {
@@ -195,10 +184,18 @@ private fun ScreenContents(
           onTwoFingerTripleTap?.invoke()
         }
   ) {
-    TabBarContainer(
-      statusBannerContent = statusBannerContent,
-      tabBarContent = tabBarContent,
-      bodyContent = bodyContent
-    )
+    Column(
+      modifier = Modifier
+        .fillMaxSize()
+    ) {
+      statusBannerContent()
+      Box(
+        modifier = Modifier
+          .weight(1F)
+          .animateContentSize()
+      ) {
+        bodyContent()
+      }
+    }
   }
 }

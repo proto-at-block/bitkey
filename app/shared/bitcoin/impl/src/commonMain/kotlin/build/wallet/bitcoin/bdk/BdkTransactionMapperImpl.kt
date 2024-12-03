@@ -14,8 +14,7 @@ import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
@@ -145,7 +144,7 @@ class BdkTransactionMapperImpl(
             }
             is Err -> {
               // Early return null for [recipientAddress] if we were unable to determine [isMine]
-              log(Error, throwable = isMine.error) { "Error calling isMine for wallet script" }
+              logError(throwable = isMine.error) { "Error calling isMine for wallet script" }
               return null
             }
           }
@@ -160,7 +159,7 @@ class BdkTransactionMapperImpl(
     return when (bdkAddress) {
       is Ok -> BitcoinAddress(bdkAddress.value.asString())
       is Err -> {
-        log(Error, throwable = bdkAddress.error) { "Error building bdk address" }
+        logError(throwable = bdkAddress.error) { "Error building bdk address" }
         null
       }
     }

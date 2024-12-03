@@ -1,15 +1,13 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
+import build.wallet.activity.TransactionsActivityService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
-import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
@@ -25,8 +23,6 @@ import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inappsecurity.MoneyHomeHiddenStatus
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProvider
-import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerRedirectionMethod
@@ -52,6 +48,7 @@ import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiPr
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
+import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
@@ -70,14 +67,14 @@ import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiSt
 import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
-import build.wallet.statemachine.transactions.TransactionListUiProps
-import build.wallet.statemachine.transactions.TransactionListUiStateMachine
+import build.wallet.statemachine.transactions.TransactionsActivityProps
+import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.Some
+import build.wallet.statemachine.transactions.TransactionsActivityUiStateMachine
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import com.github.michaelbull.result.onSuccess
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -91,16 +88,16 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val moneyHomeCardsUiStateMachine: MoneyHomeCardsUiStateMachine,
-  private val transactionListUiStateMachine: TransactionListUiStateMachine,
+  private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
-  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
   private val coachmarkService: CoachmarkService,
   private val sweepService: SweepService,
   private val haptics: Haptics,
   private val firmwareDataService: FirmwareDataService,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
+  private val transactionsActivityService: TransactionsActivityService,
   private val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag,
   private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
   private val exchangeRateService: ExchangeRateService,
@@ -110,31 +107,28 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
-        transactionsService.syncTransactions()
+        transactionsActivityService.sync()
         sweepService.checkForSweeps()
         exchangeRateService.requestSync()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
-    val transactionsData = remember { transactionsService.transactionsData() }
+    val transactionsData = remember { bitcoinWalletService.transactionsData() }
       .collectAsState()
       .value
-    val transactions = when (transactionsData) {
-      LoadingTransactionsData -> immutableListOf()
-      is TransactionsLoadedData -> transactionsData.transactions
-    }
 
     val numberOfVisibleTransactions = 5
-
-    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
     val appFunctionalityStatus = remember { appFunctionalityService.status }.collectAsState().value
 
     val hideBalance by remember {
-      moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest {
-          status ->
+      moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest { status ->
         status == MoneyHomeHiddenStatus.HIDDEN
-      }.stateIn(scope = scope, SharingStarted.Eagerly, moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN)
+      }.stateIn(
+        scope = scope,
+        SharingStarted.Eagerly,
+        moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN
+      )
     }.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -142,13 +136,31 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     LaunchedEffect("coachmarks", coachmarkDisplayed) {
       coachmarkService
         .coachmarksToDisplay(
-          setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark, CoachmarkIdentifier.HiddenBalanceCoachmark)
+          setOf(
+            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
+            CoachmarkIdentifier.BiometricUnlockCoachmark,
+            CoachmarkIdentifier.HiddenBalanceCoachmark
+          )
         ).onSuccess {
           coachmarksToDisplay = it
         }
     }
 
     var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
+
+    val transactionsModel = transactionsActivityUiStateMachine.model(
+      props = TransactionsActivityProps(
+        transactionVisibility = Some(numberOfVisibleTransactions),
+        onTransactionClicked = { transaction ->
+          props.setState(
+            ViewingTransactionUiState(
+              transaction = transaction,
+              entryPoint = BALANCE
+            )
+          )
+        }
+      )
+    )
 
     val viewingBalanceModel =
       ScreenModel(
@@ -173,15 +185,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               MoneyAmountModel(
                 primaryAmount =
                   when (transactionsData) {
-                    LoadingTransactionsData -> ""
-                    is TransactionsLoadedData -> when (val balance = transactionsData.fiatBalance) {
+                    null -> ""
+                    else -> when (val balance = transactionsData.fiatBalance) {
                       null -> moneyDisplayFormatter.format(transactionsData.balance.total)
                       else -> moneyDisplayFormatter.format(balance)
                     }
                   },
                 secondaryAmount = when (transactionsData) {
-                  LoadingTransactionsData -> ""
-                  is TransactionsLoadedData -> when (transactionsData.fiatBalance) {
+                  null -> ""
+                  else -> when (transactionsData.fiatBalance) {
                     null -> ""
                     else ->
                       moneyDisplayFormatter.format(transactionsData.balance.total)
@@ -202,26 +214,27 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                 onShowAlert = { alertModel = it },
                 onDismissAlert = { alertModel = null }
               ),
-            transactionsModel = MoneyHomeTransactionsModel(
-              props,
-              transactions = transactions,
-              fiatCurrency,
-              numberOfVisibleTransactions
-            ),
-            seeAllButtonModel =
-              if (transactions.size <= numberOfVisibleTransactions) {
-                null
-              } else {
+            transactionsModel = transactionsModel?.let {
+              ListModel(
+                headerText = "Recent activity",
+                sections = immutableListOf(it.listModel)
+              )
+            },
+            seeAllButtonModel = run {
+              val showSeeAllButton = transactionsModel?.hasMoreTransactions ?: false
+              if (showSeeAllButton) {
                 ButtonModel(
                   text = "See All",
                   treatment = ButtonModel.Treatment.Secondary,
                   size = ButtonModel.Size.Footer,
-                  onClick =
-                    StandardClick {
-                      props.setState(ViewingAllTransactionActivityUiState)
-                    }
+                  onClick = StandardClick {
+                    props.setState(ViewingAllTransactionActivityUiState)
+                  }
                 )
-              },
+              } else {
+                null
+              }
+            },
             coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.HiddenBalanceCoachmark)) {
               CoachmarkModel(
                 identifier = CoachmarkIdentifier.HiddenBalanceCoachmark,
@@ -243,7 +256,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             } else {
               null
             },
-            refresh = { transactionsService.syncTransactions() },
+            refresh = { transactionsActivityService.sync() },
             onRefresh = {
               props.setState(props.state.copy(isRefreshing = true))
             },
@@ -376,7 +389,13 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             accountId = props.account.accountId,
             f8eEnvironment = props.account.config.f8eEnvironment,
             onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
-          )
+          ),
+          pendingClaimCardUiProps =
+            PendingClaimCardUiProps(
+              onClick = {
+                // TODO: Navigate to the confirm inheritance transfer screen
+              }
+            )
         )
     )
   }
@@ -467,37 +486,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   }
 
   @Composable
-  private fun MoneyHomeTransactionsModel(
-    props: MoneyHomeViewingBalanceUiProps,
-    transactions: ImmutableList<BitcoinTransaction>,
-    fiatCurrency: FiatCurrency,
-    numberOfVisibleTransactions: Int,
-  ): ListModel? {
-    return transactionListUiStateMachine.model(
-      props = TransactionListUiProps(
-        transactionVisibility = TransactionListUiProps.TransactionVisibility.Some(
-          numberOfVisibleTransactions
-        ),
-        transactions = transactions,
-        fiatCurrency = fiatCurrency,
-        onTransactionClicked = { transaction ->
-          props.setState(
-            ViewingTransactionUiState(
-              transaction = transaction,
-              entryPoint = BALANCE
-            )
-          )
-        }
-      )
-    )?.let { transactionGroups ->
-      ListModel(
-        headerText = "Recent activity",
-        sections = transactionGroups
-      )
-    }
-  }
-
-  @Composable
   private fun MoneyHomeBottomSheetModel(
     props: MoneyHomeViewingBalanceUiProps,
     onShowAlert: (ButtonAlertModel) -> Unit,
@@ -543,7 +531,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               }
             }
             val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            val spendingLimitsCopy = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
+            val spendingLimitsCopy =
+              SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
             MobilePayOnboardingScreenModel(
               onContinue = { props.setState(SetSpendingLimitFlowUiState) },
               onSetUpLater = {

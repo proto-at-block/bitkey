@@ -5,8 +5,7 @@ import android.os.Build.VERSION_CODES
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Development
 import java.util.concurrent.Executors
@@ -30,7 +29,7 @@ class StrictModeEnablerImpl(
           .reportErrorOnViolation()
           .build()
       )
-      log { "Android Strict mode is enabled." }
+      logDebug { "Android Strict mode is enabled." }
     }
   }
 
@@ -64,9 +63,8 @@ private fun ThreadPolicy.Builder.reportErrorOnViolation(): ThreadPolicy.Builder 
 }
 
 private fun logStrictModeViolation(throwable: Throwable) {
-  log(
+  logWarn(
     tag = STRICT_MODE_TAG,
-    level = LogLevel.Warn,
     throwable = throwable
   ) {
     "Strict mode violation: $throwable"

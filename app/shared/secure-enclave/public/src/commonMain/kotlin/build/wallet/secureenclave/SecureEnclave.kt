@@ -127,4 +127,12 @@ interface SecureEnclave {
     ourPrivateKey: SeKeyHandle,
     peerPublicKey: SePublicKey,
   ): ByteArray
+
+  /**
+   * Load a key pair from the secure enclave.
+   * @param name The name of the key.
+   * @return The key handle.
+   */
+  @Throws(Error::class)
+  fun loadKeyPair(name: String): SeKeyPair
 }

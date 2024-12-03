@@ -6,9 +6,11 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Inco
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outgoing
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.list.ListModel
+import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -31,6 +33,7 @@ fun TransactionListPreview() {
                     amountEquivalent = "0.000305 BTC",
                     transactionType = Outgoing,
                     isPending = false,
+                    isLate = false,
                     onClick = {}
                   ),
                   TransactionItemModel(
@@ -40,6 +43,7 @@ fun TransactionListPreview() {
                     amountEquivalent = "0.00017 BTC",
                     transactionType = Incoming,
                     isPending = false,
+                    isLate = false,
                     onClick = {}
                   )
                 ),
@@ -55,6 +59,7 @@ fun TransactionListPreview() {
                     amountEquivalent = "0.00011 BTC",
                     transactionType = Outgoing,
                     isPending = false,
+                    isLate = false,
                     onClick = {}
                   ),
                   TransactionItemModel(
@@ -64,6 +69,35 @@ fun TransactionListPreview() {
                     amountEquivalent = "0.000305 BTC",
                     transactionType = Outgoing,
                     isPending = false,
+                    isLate = false,
+                    onClick = {}
+                  )
+                ),
+                style = ListGroupStyle.NONE
+              ),
+              ListGroupModel(
+                header = null,
+                immutableListOf(
+                  PartnerTransactionItemModel(
+                    title = "Purchase",
+                    date = "July 21 at 1:25pm",
+                    amount = "$250.00",
+                    amountEquivalent = "0.00011 BTC",
+                    isPending = false,
+                    logoUrl = null,
+                    sideTextTint = ListItemSideTextTint.GREEN,
+                    isError = false,
+                    onClick = {}
+                  ),
+                  PartnerTransactionItemModel(
+                    title = "Purchase",
+                    date = "July 21 at 1:25pm",
+                    amount = null,
+                    amountEquivalent = null,
+                    isPending = true,
+                    logoUrl = "null",
+                    sideTextTint = ListItemSideTextTint.PRIMARY,
+                    isError = false,
                     onClick = {}
                   )
                 ),

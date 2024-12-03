@@ -28,21 +28,6 @@ fun ScreenWithBodyOnlyPreview() {
 
 @Preview
 @Composable
-fun ScreenWithBodyAndTabBarPreview() {
-  PreviewWalletTheme {
-    Screen(
-      bodyContent = {
-        BodyContentForPreview()
-      },
-      tabBarContent = {
-        TabBarContentForPreview()
-      }
-    )
-  }
-}
-
-@Preview
-@Composable
 fun ScreenWithBodyAndAlertPreview() {
   PreviewWalletTheme {
     Screen(
@@ -90,19 +75,6 @@ private fun BodyContentForPreview() {
     contentAlignment = Alignment.Center
   ) {
     Label(text = "Body Content", type = LabelType.Title2)
-  }
-}
-
-@Composable
-private fun TabBarContentForPreview() {
-  Box(
-    modifier =
-      Modifier
-        .background(Color.Yellow)
-        .fillMaxWidth(),
-    contentAlignment = Alignment.Center
-  ) {
-    Label(text = "Tab Bar Content", type = LabelType.Title2)
   }
 }
 

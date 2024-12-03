@@ -11,6 +11,7 @@ kotlin {
   sourceSets {
     val commonMain by getting {
       dependencies {
+        api(projects.shared.debugPublic)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.testingPublic)
       }

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-common",
     "components": [
         {
-            "version": "2.8.3",
+            "version": "2.8.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-common-2.8.3.jar": "97371119dc9e2604ea78c5433307ff0f1472e8862dd7dfef5cade86f4216edca"
+                        "lifecycle-common-2.8.4.jar": "97371119dc9e2604ea78c5433307ff0f1472e8862dd7dfef5cade86f4216edca"
                     }
                 }
             ],

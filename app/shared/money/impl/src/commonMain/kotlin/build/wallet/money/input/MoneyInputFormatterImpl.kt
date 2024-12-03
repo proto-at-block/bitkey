@@ -3,8 +3,8 @@ package build.wallet.money.input
 import build.wallet.amount.Amount
 import build.wallet.amount.Amount.DecimalNumber
 import build.wallet.amount.Amount.WholeNumber
-import build.wallet.amount.DecimalSeparatorProvider
 import build.wallet.amount.DoubleFormatter
+import build.wallet.amount.decimalSeparator
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -14,11 +14,12 @@ import build.wallet.money.currency.Currency
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.formatter.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputDisplayText.Substring
+import build.wallet.platform.settings.LocaleProvider
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlin.ranges.IntRange.Companion.EMPTY
 
 class MoneyInputFormatterImpl(
-  private val decimalSeparatorProvider: DecimalSeparatorProvider,
+  private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
   private val moneyFormatterDefinitions: MoneyFormatterDefinitionsImpl,
 ) : MoneyInputFormatter {
@@ -51,7 +52,8 @@ class MoneyInputFormatterImpl(
             is CryptoCurrency -> BitcoinMoney.btc(inputAmountNumber)
           }
 
-        if (moneyAmount.isWholeNumber && !inputAmount.numberString.contains(decimalSeparator)) {
+        val locale = localeProvider.currentLocale()
+        if (moneyAmount.isWholeNumber && !inputAmount.numberString.contains(locale.decimalSeparator)) {
           // If there's no decimal entry yet, use the "compact" format to show the number
           // i.e. $10 instead of $10.00
           MoneyInputDisplayText(
@@ -86,7 +88,7 @@ class MoneyInputFormatterImpl(
     // Remove any non digit or decimal characters from the display text (remove currency symbols)
     val displayTextNumbersAndDecimal =
       displayText.filter {
-        it.isDigit() || it == decimalSeparator
+        it.isDigit() || it == localeProvider.currentLocale().decimalSeparator
       }
     // Figure out which text needs to be ghosted by getting any leftover display text that's not included
     // in the input text (`inputDecimalAmount` - this represents what the customer has explicitly typed in)
@@ -116,9 +118,6 @@ class MoneyInputFormatterImpl(
       )
     }
   }
-
-  private val decimalSeparator
-    get() = decimalSeparatorProvider.decimalSeparator()
 }
 
 private fun String.lastOccurrenceOf(string: String): IntRange {

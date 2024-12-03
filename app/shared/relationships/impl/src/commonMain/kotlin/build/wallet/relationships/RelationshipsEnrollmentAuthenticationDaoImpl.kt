@@ -14,10 +14,8 @@ import com.github.michaelbull.result.toErrorIfNull
 
 class RelationshipsEnrollmentAuthenticationDaoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : RelationshipsEnrollmentAuthenticationDao {
-  private val database by lazy { databaseProvider.database() }
-
   override suspend fun insert(
     recoveryRelationshipId: String,
     protectedCustomerEnrollmentPakeKey: AppKey<ProtectedCustomerEnrollmentPakeKey>,
@@ -28,8 +26,8 @@ class RelationshipsEnrollmentAuthenticationDaoImpl(
         protectedCustomerEnrollmentPakeKey.publicKey,
         protectedCustomerEnrollmentPakeKey.privateKey
       ).bind()
-      database.awaitTransactionWithResult {
-        database.socRecEnrollmentAuthenticationQueries.insert(
+      databaseProvider.database().awaitTransactionWithResult {
+        socRecEnrollmentAuthenticationQueries.insert(
           recoveryRelationshipId,
           protectedCustomerEnrollmentPakeKey.publicKey,
           pakeCode.bytes
@@ -42,8 +40,8 @@ class RelationshipsEnrollmentAuthenticationDaoImpl(
   ): Result<RelationshipsEnrollmentAuthenticationDao.RelationshipsEnrollmentAuthenticationRow?, Throwable> =
     coroutineBinding {
       val auth =
-        database.awaitTransactionWithResult {
-          database.socRecEnrollmentAuthenticationQueries.getByRelationshipId(
+        databaseProvider.database().awaitTransactionWithResult {
+          socRecEnrollmentAuthenticationQueries.getByRelationshipId(
             recoveryRelationshipId
           ).executeAsOneOrNull()
         }.bind()
@@ -72,14 +70,14 @@ class RelationshipsEnrollmentAuthenticationDaoImpl(
   override suspend fun deleteByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<Unit, DbTransactionError> =
-    database.awaitTransactionWithResult {
-      database.socRecEnrollmentAuthenticationQueries.deleteByRelationshipId(
+    databaseProvider.database().awaitTransactionWithResult {
+      socRecEnrollmentAuthenticationQueries.deleteByRelationshipId(
         recoveryRelationshipId
       )
     }
 
   override suspend fun clear(): Result<Unit, DbTransactionError> =
-    database.awaitTransactionWithResult {
-      database.socRecEnrollmentAuthenticationQueries.clear()
+    databaseProvider.database().awaitTransactionWithResult {
+      socRecEnrollmentAuthenticationQueries.clear()
     }
 }

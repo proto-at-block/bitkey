@@ -1,9 +1,8 @@
 package build.wallet.nfc.interceptors
 
 import build.wallet.catchingResult
-import build.wallet.logging.LogLevel
+import build.wallet.logging.*
 import build.wallet.logging.NFC_TAG
-import build.wallet.logging.log
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.haptics.NfcHaptics
@@ -34,7 +33,7 @@ fun sessionLogger() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       catchingResult { next(session, commands) }
-        .onFailure { log(LogLevel.Info, tag = NFC_TAG, throwable = it) { "NFC Session Error" } }
+        .onFailure { logWarn(tag = NFC_TAG, throwable = it) { "NFC Session Error" } }
         .getOrThrow()
     }
   }

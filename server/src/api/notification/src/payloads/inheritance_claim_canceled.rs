@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use types::recovery::{
@@ -5,11 +7,16 @@ use types::recovery::{
 };
 
 use crate::{
+    clients::iterable::IterableCampaignType,
+    email::EmailPayload,
     entities::NotificationCompositeKey,
     push::{AndroidChannelId, SNSPushPayload},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
+
+const BENEFACTOR_ALIAS_FIELD: &str = "benefactorAlias";
+const BENEFICIARY_ALIAS_FIELD: &str = "beneficiaryAlias";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct InheritanceClaimCanceledPayload {
@@ -29,30 +36,50 @@ impl TryFrom<(NotificationCompositeKey, InheritanceClaimCanceledPayload)> for No
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
 
-        let message = match (payload.acting_account_role, payload.recipient_account_role) {
-            (RecoveryRelationshipRole::ProtectedCustomer, RecoveryRelationshipRole::ProtectedCustomer) => {
-                "The claim has been closed. No further action is needed on your part to keep your funds safe.".to_string()
-            }
-            (RecoveryRelationshipRole::ProtectedCustomer, RecoveryRelationshipRole::TrustedContact) => {
-                format!(
-                    "{} confirmed they are active. Your inheritance case has been closed. No further action is needed.",
-                    payload.customer_alias,
-                )
-            }
-            (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::ProtectedCustomer) => {
-                format!("{} canceled an inheritance claim. No further action is needed on your part to keep your funds safe.", payload.trusted_contact_alias)
-            }
-            (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::TrustedContact) => {
-                format!(
-                    "Your inheritance claim has been canceled. {} has been notified.", payload.customer_alias
-                )
-            }
+        let (message, campaign_type) = match (payload.acting_account_role, payload.recipient_account_role) {
+            (
+                RecoveryRelationshipRole::ProtectedCustomer,
+                RecoveryRelationshipRole::ProtectedCustomer,
+            ) => (
+                "The inheritance claim for your Bitkey wallet is now closed. You will retain full control of your wallet and funds.".to_string(),
+                IterableCampaignType::InheritanceClaimCanceledByBenefactorReceivedByBenefactor,
+            ),
+            (
+                RecoveryRelationshipRole::ProtectedCustomer,
+                RecoveryRelationshipRole::TrustedContact,
+            ) => (
+                "Your inheritance claim has been declined.".to_string(),
+                IterableCampaignType::InheritanceClaimCanceledByBenefactorReceivedByBeneficiary,
+            ),
+            (
+                RecoveryRelationshipRole::TrustedContact,
+                RecoveryRelationshipRole::ProtectedCustomer,
+            ) => (
+                "An inheritance claim for your Bitkey wallet has been canceled. You will retain full control of your wallet and funds.".to_string(),
+                IterableCampaignType::InheritanceClaimCanceledByBeneficiaryReceivedByBenefactor,
+            ),
+            (
+                RecoveryRelationshipRole::TrustedContact,
+                RecoveryRelationshipRole::TrustedContact,
+            ) => (
+                "Your inheritance claim has been canceled.".to_string(),
+                IterableCampaignType::InheritanceClaimCanceledByBeneficiaryReceivedByBeneficiary,
+            ),
         };
 
         Ok(NotificationMessage {
             composite_key,
             account_id,
-            email_payload: None, // TODO: W-9770,
+            email_payload: Some(EmailPayload::Iterable {
+                campaign_type,
+                data_fields: HashMap::from([
+                    (BENEFACTOR_ALIAS_FIELD.to_string(), payload.customer_alias),
+                    (
+                        BENEFICIARY_ALIAS_FIELD.to_string(),
+                        payload.trusted_contact_alias,
+                    ),
+                ]),
+            }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: AndroidChannelId::RecoveryAccountSecurity,

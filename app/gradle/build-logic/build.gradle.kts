@@ -39,6 +39,10 @@ gradlePlugin {
       id = "build.wallet.kmp.rust"
       implementationClass = "build.wallet.gradle.logic.rust.KotlinMultiplatformRustPlugin"
     }
+    create("kspPlugin") {
+      id = "build.wallet.ksp"
+      implementationClass = "build.wallet.gradle.logic.ksp.KspPlugin"
+    }
     create("reproducibleBugsnagAndroidPlugin") {
       id = "build.wallet.android.bugsnag"
       implementationClass = "build.wallet.gradle.logic.reproducible.ReproducibleBugsnagAndroidPlugin"

@@ -44,7 +44,6 @@ kotlin {
         implementation(projects.shared.availabilityFake)
         implementation(projects.shared.authFake)
         implementation(projects.shared.encryptionFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.platformFake)
@@ -73,7 +72,7 @@ kotlin {
 
     val jvmIntegrationTest by getting {
       dependencies {
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.integrationTestingPublic)
       }
     }

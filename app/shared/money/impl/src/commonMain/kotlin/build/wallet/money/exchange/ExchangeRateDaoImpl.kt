@@ -11,9 +11,7 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
 class ExchangeRateDaoImpl(
@@ -74,20 +72,23 @@ class ExchangeRateDaoImpl(
   }
 
   private val allExchangeRates =
-    databaseProvider.database().exchangeRateQueries
-      .allExchangeRates()
-      .asFlowOfList()
-      .transformLatest { queryResult ->
-        queryResult
-          .onSuccess { entities ->
-            emit(entities.map { it.exchangeRate() })
-          }
-          // Don't emit, nor crash on failure. The rate won't be up to date however.
-          .logFailure {
-            "Error reading exchange rate from database"
-          }
-      }
-      .distinctUntilChanged()
+    flow {
+      databaseProvider.database().exchangeRateQueries
+        .allExchangeRates()
+        .asFlowOfList()
+        .transformLatest { queryResult ->
+          queryResult
+            .onSuccess { entities ->
+              emit(entities.map { it.exchangeRate() })
+            }
+            // Don't emit, nor crash on failure. The rate won't be up to date however.
+            .logFailure {
+              "Error reading exchange rate from database"
+            }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
 
   override fun allExchangeRates(): Flow<List<ExchangeRate>> = allExchangeRates
 }

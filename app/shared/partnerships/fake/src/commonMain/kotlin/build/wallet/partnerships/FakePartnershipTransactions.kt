@@ -10,7 +10,8 @@ val FakePartnershipTransaction = PartnershipTransaction(
   partnerInfo = PartnerInfo(
     partnerId = PartnerId("fake-partner"),
     name = "fake-partner-name",
-    logoUrl = null
+    logoUrl = null,
+    logoBadgedUrl = null
   ),
   cryptoAmount = null,
   txid = null,
@@ -19,5 +20,6 @@ val FakePartnershipTransaction = PartnershipTransaction(
   paymentMethod = null,
   created = Instant.DISTANT_PAST,
   updated = Instant.DISTANT_PAST,
-  sellWalletAddress = "tb1q9lzkpxafkn4fapete0wu8skkux4ccsw5tq8sf6"
+  sellWalletAddress = "tb1q9lzkpxafkn4fapete0wu8skkux4ccsw5tq8sf6",
+  partnerTransactionUrl = "https://fake-partner.com/transaction/fake-id"
 )

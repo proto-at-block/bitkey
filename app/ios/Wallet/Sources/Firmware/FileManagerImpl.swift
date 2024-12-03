@@ -123,7 +123,7 @@ public class FileManagerImpl: Shared.FileManager {
 
 private extension Swift.Error {
     func toFileManagerResultErr<V: AnyObject>() -> FileManagerResultErr<V> {
-        return FileManagerResultErr(error: .init(throwable: .init(message: localizedDescription)))
+        return FileManagerResultErr(error: .init(cause: .init(message: localizedDescription)))
     }
 }
 

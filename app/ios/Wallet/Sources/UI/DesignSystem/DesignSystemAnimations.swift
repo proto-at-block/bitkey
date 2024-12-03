@@ -9,4 +9,5 @@ public extension LottieAnimation {
     static let loading = LottieAnimation.named("loading")!
     static let loadingWhite = LottieAnimation.named("loading_white")!
     static let loadingAndSuccess = LottieAnimation.named("loading_and_success")!
+    static let loadingBadge = LottieAnimation.named("loader_badge")!
 }

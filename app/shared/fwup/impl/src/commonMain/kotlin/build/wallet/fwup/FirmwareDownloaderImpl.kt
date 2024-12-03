@@ -7,8 +7,7 @@ import build.wallet.fwup.FirmwareDownloadError.QueryError
 import build.wallet.fwup.FirmwareDownloadError.RemoveDirectoryError
 import build.wallet.fwup.FirmwareDownloadError.UnzipError
 import build.wallet.fwup.FirmwareDownloadError.WriteError
-import build.wallet.logging.LogLevel.Info
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.memfault.MemfaultClient
 import build.wallet.memfault.logMemfaultNetworkFailure
@@ -68,7 +67,7 @@ class FirmwareDownloaderImpl(
           .mapError { DownloadError(it) }
           .bind()
 
-      log(Info) { "Downloaded FWUP bundle" }
+      logDebug { "Downloaded FWUP bundle" }
 
       // Persist and unzip the firmware bundle contents
       fileManager.writeFile(downloadResult.bundleZip.toByteArray(), FWUP_BUNDLE_FILENAME)

@@ -1,11 +1,7 @@
 package build.wallet.f8e.partnerships
 
 import build.wallet.money.currency.code.IsoCurrencyTextCode
-import build.wallet.partnerships.PartnerInfo
-import build.wallet.partnerships.PartnershipTransaction
-import build.wallet.partnerships.PartnershipTransactionId
-import build.wallet.partnerships.PartnershipTransactionStatus
-import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.partnerships.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -36,4 +32,6 @@ data class F8ePartnershipTransaction(
   val paymentMethod: String?,
   @SerialName("sell_wallet_address")
   val sellWalletAddress: String?,
+  @SerialName("partner_transaction_url")
+  val partnerTransactionUrl: String?,
 )

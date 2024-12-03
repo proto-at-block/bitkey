@@ -4,6 +4,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
+import build.wallet.ui.model.icon.IconAlignmentInBackground
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.list.ListItemAccessory.*
@@ -85,7 +86,8 @@ fun ListItemAccessory.disable(): ListItemAccessory {
             iconSize = model.iconSize,
             iconBackgroundType = model.iconBackgroundType,
             iconTint = On30,
-            text = model.text
+            text = model.text,
+            iconAlignmentInBackground = IconAlignmentInBackground.Center
           )
       )
     is SwitchAccessory ->
@@ -99,5 +101,6 @@ fun ListItemAccessory.disable(): ListItemAccessory {
       )
     is TextAccessory -> this
     is CircularCharacterAccessory -> this
+    is ContactAvatarAccessory -> this
   }
 }

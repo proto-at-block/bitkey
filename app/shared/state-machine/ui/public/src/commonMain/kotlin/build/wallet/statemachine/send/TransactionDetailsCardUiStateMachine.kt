@@ -1,8 +1,8 @@
 package build.wallet.statemachine.send
 
-import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.transactions.TransactionDetails
 import kotlinx.collections.immutable.ImmutableList
 
 /**

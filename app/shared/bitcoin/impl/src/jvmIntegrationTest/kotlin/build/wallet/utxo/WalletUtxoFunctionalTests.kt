@@ -2,8 +2,7 @@ package build.wallet.utxo
 
 import app.cash.turbine.test
 import build.wallet.bitcoin.bdk.bitcoinAmount
-import build.wallet.bitcoin.transactions.TransactionsService
-import build.wallet.bitcoin.transactions.transactionsLoadedData
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.Utxos
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.testing.AppTester
@@ -21,22 +20,22 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 
 class WalletUtxoFunctionalTests : FunSpec({
   coroutineTestScope = true
 
   lateinit var app: AppTester
-  lateinit var transactionsService: TransactionsService
+  lateinit var bitcoinWalletService: BitcoinWalletService
 
   beforeTest {
     app = launchNewApp()
-    transactionsService = app.transactionsService
+    bitcoinWalletService = app.bitcoinWalletService
   }
 
   fun utxos(): Flow<Utxos> {
-    return transactionsService.transactionsLoadedData()
-      .map { it.utxos }
+    return bitcoinWalletService.transactionsData()
+      .mapNotNull { it?.utxos }
       .distinctUntilChanged()
   }
 

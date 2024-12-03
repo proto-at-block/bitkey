@@ -2,30 +2,16 @@ package build.wallet.statemachine.cloud.health
 
 import FoundCloudBackupForDifferentAccountModel
 import OverwriteExistingBackupConfirmationAlert
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext.BACKUP_REPAIR
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CREATING_CLOUD_BACKUP
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.PREPARING_CLOUD_BACKUP
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_NOT_SIGNED_IN
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.UPLOADING_CLOUD_BACKUP
-import build.wallet.cloud.backup.CloudBackup
-import build.wallet.cloud.backup.CloudBackupError
-import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.cloud.backup.CloudBackupRepository
-import build.wallet.cloud.backup.CloudBackupV2
-import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.*
+import build.wallet.cloud.backup.*
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.cloud.backup.isFullAccount
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.cloudServiceProvider
@@ -33,33 +19,15 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitData
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CheckingLocalBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CheckingMobileKeyCloudBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CreatingEakBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CreatingMobileKeyBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ErrorCheckingCloudBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ErrorCreatingBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ErrorSigningIntoCloudState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ErrorUploadingBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.FoundBackupForDifferentAccountState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.GeneratingCsekState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ProblemWithBackupState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SealingCsekWithHardwareState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ShowingCustomerSupportUiState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SigningIntoCloudState
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SyncingBackupHealthStatus
-import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.UploadingBackupState
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.*
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
@@ -96,11 +64,11 @@ class RepairCloudBackupStateMachineImpl(
           CloudSignInUiProps(
             forceSignOut = currentState.forceSignOut,
             onSignedIn = { cloudAccount ->
-              log { "Signed into cloud account." }
+              logDebug { "Signed into cloud account." }
               state = CheckingLocalBackupState(cloudAccount)
             },
-            onSignInFailure = {
-              log { "Error signing into cloud account." }
+            onSignInFailure = { cause ->
+              logWarn(throwable = cause) { "Error signing into cloud account." }
               state = ErrorSigningIntoCloudState
             },
             eventTrackerContext = BACKUP_REPAIR
@@ -128,7 +96,7 @@ class RepairCloudBackupStateMachineImpl(
           onTryAgain = {
             // Try signing in again, this time force sign out to allow customer to resign in or
             // switch accounts.
-            log { "Retrying signing into cloud account." }
+            logDebug { "Retrying signing into cloud account." }
             state = SigningIntoCloudState(forceSignOut = true)
           },
           onBack = props.onExit,
@@ -137,14 +105,13 @@ class RepairCloudBackupStateMachineImpl(
 
       is CheckingLocalBackupState -> {
         LaunchedEffect("check-local-backup") {
-          log { "Checking local storage for cloud backup." }
           cloudBackupDao
             .get(props.account.accountId.serverId)
             .onSuccess { localBackup ->
               state = currentState.determineNextState(localBackup)
             }
             .onFailure {
-              log { "Error checking local backup, falling back on creating new backup." }
+              logDebug { "Error checking local backup, falling back on creating new backup." }
               state = GeneratingCsekState(currentState.cloudAccount)
             }
         }
@@ -154,15 +121,13 @@ class RepairCloudBackupStateMachineImpl(
 
       is CheckingMobileKeyCloudBackupState -> {
         LaunchedEffect("check-cloud-backup") {
-          log { "Checking cloud backup" }
-
           cloudBackupRepository
             .readBackup(currentState.cloudAccount)
             .onSuccess { cloudBackup ->
               state = currentState.determineNextState(props, cloudBackup)
             }
+            .logFailure { "Error checking existing cloud backup." }
             .onFailure {
-              log { "Error checking existing cloud backup." }
               state = ErrorCheckingCloudBackupState(
                 cloudAccount = currentState.cloudAccount,
                 mobileKeyBackup = currentState.mobileKeyBackup,
@@ -188,8 +153,6 @@ class RepairCloudBackupStateMachineImpl(
 
       is GeneratingCsekState -> {
         LaunchedEffect("generating-csek") {
-          log { "Generating CSEK" }
-
           val csek = csekGenerator.generate()
           state = SealingCsekWithHardwareState(
             cloudAccount = currentState.cloudAccount,
@@ -262,7 +225,7 @@ class RepairCloudBackupStateMachineImpl(
           onTryAgain = {
             // Try signing in again, this time force sign out to allow customer to resign in or
             // switch accounts.
-            log { "Retrying signing into cloud account." }
+            logDebug { "Retrying signing into cloud account." }
             state = SigningIntoCloudState(forceSignOut = true)
           },
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
@@ -279,7 +242,6 @@ class RepairCloudBackupStateMachineImpl(
 
       is CreatingMobileKeyBackupState -> {
         LaunchedEffect("creating-mobile-key-backup") {
-          log { "Creating mobile key backup" }
           fullAccountCloudBackupCreator
             .create(
               keybox = props.account.keybox,
@@ -304,8 +266,6 @@ class RepairCloudBackupStateMachineImpl(
 
       is CreatingEakBackupState -> {
         LaunchedEffect("creating-eak-backup") {
-          log { "Creating EAK backup" }
-
           // Create the emergency access kit.
           emergencyAccessKitPdfGenerator
             .generate(
@@ -331,8 +291,6 @@ class RepairCloudBackupStateMachineImpl(
 
       is UploadingBackupState -> {
         LaunchedEffect("upload-backup") {
-          log { "Uploading backups to cloud" }
-
           // Uploading Mobile Key backup to cloud
           cloudBackupRepository
             .writeBackup(
@@ -498,7 +456,7 @@ class RepairCloudBackupStateMachineImpl(
       fun determineNextState(foundLocalBackup: CloudBackup?): State {
         when (foundLocalBackup) {
           null -> {
-            log { "No local cloud backup found, creating new backup." }
+            logDebug { "No local cloud backup found, creating new backup." }
             return GeneratingCsekState(cloudAccount)
           }
           is CloudBackupV2 -> {
@@ -510,7 +468,7 @@ class RepairCloudBackupStateMachineImpl(
               )
             } else {
               // Should not happen, let's create a new backup
-              log(Error) {
+              logError {
                 "Found a non-full local account backup for a full account"
               }
               return GeneratingCsekState(cloudAccount)
@@ -539,7 +497,7 @@ class RepairCloudBackupStateMachineImpl(
         foundMobileKeyBackup: CloudBackup?,
       ): State {
         if (foundMobileKeyBackup == null) {
-          log { "No existing cloud backup found, uploading new backup." }
+          logDebug { "No existing cloud backup found, uploading new backup." }
           return UploadingBackupState(cloudAccount, mobileKeyBackup, eakBackup)
         } else {
           when (foundMobileKeyBackup) {
@@ -547,11 +505,11 @@ class RepairCloudBackupStateMachineImpl(
               val sameAccount = foundMobileKeyBackup.accountId == props.account.accountId.serverId
               return if (sameAccount) {
                 // Found a backup for the current account, okay to go ahead and overwrite it.
-                log { "Found a backup for the current account." }
+                logDebug { "Found a backup for the current account." }
                 UploadingBackupState(cloudAccount, mobileKeyBackup, eakBackup)
               } else {
                 // Found a backup for a different account, customer will have an option to overwrite it.
-                log { "Found a backup for a different account." }
+                logWarn { "Found a backup for a different account." }
                 FoundBackupForDifferentAccountState(
                   cloudAccount = cloudAccount,
                   mobileKeyBackup = mobileKeyBackup,

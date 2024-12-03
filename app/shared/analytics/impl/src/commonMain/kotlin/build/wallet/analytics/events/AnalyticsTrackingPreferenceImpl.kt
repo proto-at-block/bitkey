@@ -7,9 +7,7 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.get
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 class AnalyticsTrackingPreferenceImpl(
   private val appVariant: AppVariant,
@@ -46,11 +44,14 @@ class AnalyticsTrackingPreferenceImpl(
     return if (appVariant == AppVariant.Customer) {
       flowOf(true)
     } else {
-      databaseProvider.debugDatabase()
-        .analyticsTrackingDebugConfigQueries
-        .getConfig()
-        .asFlowOfOneOrNull()
-        .map { it.get()?.enabled ?: false }
+      flow {
+        databaseProvider.debugDatabase()
+          .analyticsTrackingDebugConfigQueries
+          .getConfig()
+          .asFlowOfOneOrNull()
+          .map { it.get()?.enabled ?: false }
+          .collect(::emit)
+      }
     }
   }
 }

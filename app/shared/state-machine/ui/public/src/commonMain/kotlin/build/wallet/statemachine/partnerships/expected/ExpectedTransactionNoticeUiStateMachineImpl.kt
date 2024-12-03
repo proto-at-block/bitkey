@@ -2,9 +2,9 @@ package build.wallet.statemachine.partnerships.expected
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_LOADING
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionStatus
@@ -50,7 +50,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
             // Event types can be specified by deep link, so there is a possibility
             // that an unknown event type could be passed in.
             // Log error and safely exit flow so user is not stuck:
-            log(LogLevel.Error) { "Unknown Partnership Event: ${props.event}" }
+            logError { "Unknown Partnership Event: ${props.event}" }
             props.onBack()
           }
         }
@@ -60,14 +60,12 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
           // If no partner transaction ID was specified, we won't be able
           // to look up the transfer status. This state should not happen,
           // However, we will log it as an error and exit the screen safely.
-          log(LogLevel.Error) { "No partner transaction ID specified. Exiting Notice Screen." }
+          logError { "No partner transaction ID specified. Exiting Notice Screen." }
           props.onBack()
         } else {
           delayer
             .withMinimumDelay {
               partnershipTransactionsService.syncTransaction(
-                accountId = props.accountId,
-                f8eEnvironment = props.f8eEnvironment,
                 transactionId = props.partnerTransactionId
               )
             }
@@ -78,7 +76,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
                 )
               } else {
                 // User did not complete a transaction. Exit to home screen.
-                log(LogLevel.Info) { "No partner transaction found. Exiting Notice Screen." }
+                logInfo { "No partner transaction found. Exiting Notice Screen." }
                 props.onBack()
               }
             }

@@ -22,7 +22,7 @@ runs:
   steps:
     - name: Get codestyle bot token
       id: bot-token
-      uses: getsentry/action-github-app-token@97c9e23528286821f97fba885c1b1123284b29cc  # v2
+      uses: getsentry/action-github-app-token@d4b5da6c5e37703f8c3b3e43abb5705b46e159cc # v3
       with:
         app_id: ${{ inputs.app-id }}
         private_key: ${{ inputs.private-key }}
@@ -44,7 +44,7 @@ runs:
         github-token: ${{ steps.bot-token.outputs.token}}
         pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
     - name: Merge PR
-      uses: "pascalgn/automerge-action@22948e0bc22f0aa673800da838595a3e7347e584"  # 0.15.6
+      uses: "pascalgn/automerge-action@d1203c0bf94a827b991e5de69d662e9163304fa0" # 0.16.3
       if: ${{ steps.create-pr.outputs.pull-request-number }}
       env:
         GITHUB_TOKEN: ${{ steps.bot-token.outputs.token}}

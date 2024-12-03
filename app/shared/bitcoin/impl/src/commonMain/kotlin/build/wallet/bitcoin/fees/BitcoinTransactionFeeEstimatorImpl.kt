@@ -7,8 +7,8 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Source
@@ -28,7 +28,7 @@ private const val WITNESS_SIZE_BYTES = 253
 
 class BitcoinTransactionFeeEstimatorImpl(
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val datadogRumMonitor: DatadogRumMonitor,
 ) : BitcoinTransactionFeeEstimator {
   override suspend fun getFeesForTransaction(
@@ -49,7 +49,7 @@ class BitcoinTransactionFeeEstimatorImpl(
           }
           .bind()
 
-      val wallet = transactionsService.spendingWallet().value
+      val wallet = bitcoinWalletService.spendingWallet().value
       ensureNotNull(wallet) { NoSpendingWalletFoundError }
 
       val psbt =

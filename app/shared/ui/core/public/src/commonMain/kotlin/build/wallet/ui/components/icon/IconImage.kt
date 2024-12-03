@@ -4,16 +4,20 @@ package build.wallet.ui.components.icon
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
+import build.wallet.ui.components.loading.LoadingBadge
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.*
@@ -22,7 +26,6 @@ import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.painter
-import androidx.compose.material3.Icon as MaterialIcon
 
 @Composable
 fun Icon(
@@ -46,6 +49,7 @@ fun Icon(
       IconModel(
         LocalImage(icon),
         iconSize = size,
+        iconAlignmentInBackground = IconAlignmentInBackground.Center,
         text = text,
         iconOpacity = opacity
       ),
@@ -69,7 +73,9 @@ fun IconImage(
       color = color,
       tint = iconTint,
       opacity = iconOpacity,
-      text = text
+      text = text,
+      iconAlignmentInBackground = iconAlignmentInBackground,
+      badgeType = model.badge
     )
   }
 }
@@ -80,10 +86,12 @@ fun IconImage(
   iconImage: IconImage,
   size: IconSize,
   background: IconBackgroundType = Transient,
+  iconAlignmentInBackground: IconAlignmentInBackground = IconAlignmentInBackground.Center,
   color: Color = Color.Unspecified,
   tint: IconTint? = null,
   opacity: Float? = null,
   text: String? = null,
+  badgeType: BadgeType? = null,
 ) {
   val style =
     WalletTheme.iconStyle(
@@ -99,7 +107,9 @@ fun IconImage(
         iconBackgroundType = background,
         iconSize = size,
         text = text,
-        iconOpacity = opacity
+        iconOpacity = opacity,
+        iconAlignmentInBackground = iconAlignmentInBackground,
+        badge = badgeType
       ),
     style = style
   )
@@ -121,30 +131,58 @@ fun IconImage(
         ).thenIf(model.iconBackgroundType is Circle || model.iconBackgroundType is Square) {
           Modifier.size(model.totalSize.dp)
         },
-    contentAlignment = Alignment.Center
+    contentAlignment = when (model.iconAlignmentInBackground) {
+      IconAlignmentInBackground.TopStart -> Alignment.TopStart
+      IconAlignmentInBackground.TopCenter -> Alignment.TopCenter
+      IconAlignmentInBackground.TopEnd -> Alignment.TopEnd
+      IconAlignmentInBackground.Start -> Alignment.CenterStart
+      IconAlignmentInBackground.Center -> Alignment.Center
+      IconAlignmentInBackground.End -> Alignment.CenterEnd
+      IconAlignmentInBackground.BottomStart -> Alignment.BottomStart
+      IconAlignmentInBackground.BottomCenter -> Alignment.BottomCenter
+      IconAlignmentInBackground.BottomEnd -> Alignment.BottomEnd
+    }
   ) {
-    when (val image = model.iconImage) {
-      is LocalImage ->
-        MaterialIcon(
-          modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
-          painter = image.icon.painter(),
-          contentDescription = model.text,
+    Box {
+      when (val image = model.iconImage) {
+        is LocalImage ->
+          Icon(
+            modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
+            painter = image.icon.painter(),
+            contentDescription = model.text,
+            tint = style.color
+          )
+
+        is UrlImage ->
+          UrlImage(
+            image = image,
+            iconSize = model.iconSize,
+            imageAlpha = model.iconOpacity,
+            contentDescription = model.text
+          )
+
+        is IconImage.Loader ->
+          LoadingIndicator(
+            modifier = Modifier.size(model.iconSize.dp),
+            color = style.color
+          )
+      }
+
+      when (model.badge) {
+        BadgeType.Loading -> LoadingBadge(
+          modifier = Modifier.padding(bottom = 6.dp, end = 6.dp)
+            .size(IconSize.XSmall.dp)
+            .align(Alignment.BottomEnd)
+        )
+        BadgeType.Error -> Icon(
+          modifier = Modifier.padding(bottom = 4.dp, end = 4.dp)
+            .align(Alignment.BottomEnd),
+          painter = Icon.WarningBadge.painter(),
+          contentDescription = null,
           tint = style.color
         )
-
-      is UrlImage ->
-        UrlImage(
-          image = image,
-          iconSize = model.iconSize,
-          imageAlpha = model.iconOpacity,
-          contentDescription = model.text
-        )
-
-      is IconImage.Loader ->
-        LoadingIndicator(
-          modifier = Modifier.size(model.iconSize.dp),
-          color = style.color
-        )
+        null -> {}
+      }
     }
   }
 }
@@ -168,6 +206,8 @@ private fun Modifier.background(
                 Circle.CircleColor.PrimaryBackground20 -> primary.copy(alpha = .2f)
                 Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
                 Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
+                Circle.CircleColor.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
+                Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
               },
             shape = CircleShape
           )
@@ -181,6 +221,7 @@ private fun Modifier.background(
               Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
               Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
               Square.Color.Danger -> WalletTheme.colors.danger
+              Square.Color.Transparent -> WalletTheme.colors.translucentForeground
             },
             shape = RoundedCornerShape(type.cornerRadius)
           )

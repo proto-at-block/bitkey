@@ -1,22 +1,22 @@
 import kotlinx.datetime.Instant;
 
 CREATE TABLE transactionDetailEntity(
-  transactionId                    TEXT NOT NULL PRIMARY KEY,
-  broadcastTimeInstant             INTEGER AS Instant NOT NULL,
-  estimatedConfirmationTimeInstant INTEGER AS Instant NOT NULL
+  transactionId             TEXT NOT NULL PRIMARY KEY,
+  broadcastTime             TEXT AS Instant NOT NULL,
+  estimatedConfirmationTime TEXT AS Instant NOT NULL
 );
 
 insertTransactionDetail:
-INSERT OR REPLACE INTO transactionDetailEntity(transactionId, broadcastTimeInstant, estimatedConfirmationTimeInstant)
+INSERT OR REPLACE INTO transactionDetailEntity(transactionId, broadcastTime, estimatedConfirmationTime)
 VALUES(?, ?, ?);
 
 broadcastTimeForTransaction:
-SELECT broadcastTimeInstant
+SELECT broadcastTime
 FROM transactionDetailEntity
 WHERE transactionId = ?;
 
 estimatedConfirmationTimeForTransaction:
-SELECT estimatedConfirmationTimeInstant
+SELECT estimatedConfirmationTime
 FROM transactionDetailEntity
 WHERE transactionId = ?;
 

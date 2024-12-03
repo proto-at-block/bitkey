@@ -2,7 +2,6 @@ package build.wallet.inheritance
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
@@ -19,10 +18,10 @@ import build.wallet.f8e.inheritance.UploadInheritanceMaterialF8eClient
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
+import build.wallet.platform.app.AppSessionManager
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -57,6 +56,31 @@ class InheritanceServiceImpl(
     }
   }
     .stateIn(appCoroutineScope, Lazily, null)
+
+  override val pendingBeneficiaryClaims: Flow<List<BeneficiaryClaim.PendingClaim>> =
+    inheritanceClaimsDao
+      .pendingBeneficiaryClaims
+      .mapLatest { it.getOrElse { emptyList() } }
+
+  override val lockedBeneficiaryClaims: Flow<List<BeneficiaryClaim>> =
+    combine(
+      inheritanceFeatureFlag.flagValue(),
+      accountService.activeAccount()
+        .mapNotNull { it as? FullAccount }
+        .distinctUntilChanged()
+    ) { flag, account ->
+      flag to account
+    }.mapLatest { (flag, account) ->
+      if (!flag.isEnabled()) {
+        return@mapLatest emptyList()
+      }
+      val claims = syncInheritanceClaims(account)
+        .get()
+        ?.beneficiaryClaims
+        ?.filter { it is BeneficiaryClaim.LockedClaim }
+
+      claims ?: emptyList()
+    }
 
   override suspend fun executeWork() {
     combine(
@@ -119,12 +143,12 @@ class InheritanceServiceImpl(
         inheritanceCrypto.getInheritanceMaterialHashData(keybox).bind()
 
       if (lastSyncHash == currentMaterialHashData.inheritanceMaterialHash) {
-        log(LogLevel.Debug) { "Inheritance Material is up-to-date. Skipping inheritance material sync" }
+        logDebug { "Inheritance Material is up-to-date. Skipping inheritance material sync" }
         return@coroutineBinding
       }
 
       if (currentMaterialHashData.contacts.isEmpty() && lastSyncHash == null) {
-        log(LogLevel.Debug) {
+        logDebug {
           "No inheritance contacts to sync initial data. Skipping inheritance material sync"
         }
         return@coroutineBinding
@@ -132,7 +156,7 @@ class InheritanceServiceImpl(
 
       val account = accountService.activeAccount().first()
       if (account !is FullAccount) {
-        log(LogLevel.Debug) { "No full-account found. Skipping inheritance material sync" }
+        logDebug { "No full-account found. Skipping inheritance material sync" }
         return@coroutineBinding
       }
 
@@ -144,7 +168,7 @@ class InheritanceServiceImpl(
         inheritanceMaterial = inheritanceMaterial
       ).mapError { Error("Failed inheritance material server-sync", it) }
         .onSuccess {
-          log(LogLevel.Debug) { "Inheritance Material Sync Successful" }
+          logDebug { "Inheritance Material Sync Successful" }
         }
         .bind()
 
@@ -158,7 +182,7 @@ class InheritanceServiceImpl(
   ): Result<BeneficiaryClaim.PendingClaim, Throwable> {
     val account = accountService.activeAccount().first()
     if (account !is FullAccount) {
-      log(LogLevel.Error) { "Start claim cannot be called without full account." }
+      logError { "Start claim cannot be called without full account." }
       return Err(Error("Not a full account"))
     }
 

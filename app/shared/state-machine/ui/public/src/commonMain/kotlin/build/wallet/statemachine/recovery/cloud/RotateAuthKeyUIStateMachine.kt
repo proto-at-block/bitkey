@@ -13,8 +13,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.crypto.PublicKey
 import build.wallet.keybox.keys.AppKeysGenerator
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -221,13 +220,13 @@ class RotateAuthKeyUIStateMachineImpl(
     account = props.account
   ).mapBoth(
     success = { success ->
-      log(LogLevel.Debug) { "Successfully rotated auth keys" }
+      logDebug { "Successfully rotated auth keys" }
       State.AcknowledgingSuccess(
         onAcknowledge = success.onAcknowledge
       )
     },
     failure = { failure ->
-      log(LogLevel.Warn) { "Failed to rotate auth keys" }
+      logWarn { "Failed to rotate auth keys" }
       when (failure) {
         is AuthKeyRotationFailure.Acceptable -> State.PresentingRecoverableFailure(
           newAppAuthKeys = uiState.request.newKeys,

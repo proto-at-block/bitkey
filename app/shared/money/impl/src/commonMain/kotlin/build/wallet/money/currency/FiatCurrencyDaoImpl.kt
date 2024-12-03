@@ -8,31 +8,42 @@ import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.get
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class FiatCurrencyDaoImpl(
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : FiatCurrencyDao {
-  val database by lazy { databaseProvider.database() }
+  private suspend fun database() = databaseProvider.database()
 
   override fun allFiatCurrencies() =
-    database.fiatCurrencyQueries.allFiatCurrencies()
-      .asFlowOfList()
-      .map { result ->
-        result.logFailure { "Failed to read all FiatCurrency values from database" }
-        result.get()?.map { it.toFiatCurrency() } ?: emptyList()
-      }
+    flow {
+      databaseProvider.database()
+        .fiatCurrencyQueries
+        .allFiatCurrencies()
+        .asFlowOfList()
+        .map { result ->
+          result.logFailure { "Failed to read all FiatCurrency values from database" }
+          result.get()?.map { it.toFiatCurrency() } ?: emptyList()
+        }
+        .collect(::emit)
+    }
 
   override fun fiatCurrency(textCode: IsoCurrencyTextCode) =
-    database.fiatCurrencyQueries.getFiatCurrencyByTextCode(textCode)
-      .asFlowOfOneOrNull()
-      .map { result ->
-        result.logFailure { "Failed to read FiatCurrency from database for $textCode" }
-        result.get()?.toFiatCurrency()
-      }
+    flow {
+      databaseProvider.database()
+        .fiatCurrencyQueries
+        .getFiatCurrencyByTextCode(textCode)
+        .asFlowOfOneOrNull()
+        .map { result ->
+          result.logFailure { "Failed to read FiatCurrency from database for $textCode" }
+          result.get()?.toFiatCurrency()
+        }
+        .collect(::emit)
+    }
 
   override suspend fun storeFiatCurrencies(fiatCurrencies: List<FiatCurrency>) {
-    database.fiatCurrencyQueries.awaitTransaction {
+    database().fiatCurrencyQueries.awaitTransaction {
       // First, clear the current currencies
       clear()
 

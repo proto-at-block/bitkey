@@ -38,13 +38,14 @@ class LoggerInitializer(
       initializeLock.withLock {
         if (initialized) return@launch
 
-        val minimumLogLevel: LogLevel = when (appVariant) {
-          Development -> Debug
-          Team -> Debug
-          Beta -> Info
-          Customer -> Info
-          Emergency -> Info
-        }
+        val minimumLogLevel: LogLevel =
+          when (appVariant) {
+            Development -> Debug
+            Team -> Debug
+            Beta -> Info
+            Customer -> Info
+            Emergency -> Info
+          }
 
         logWriterContextStore.syncContext()
         Logger.configure(

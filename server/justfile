@@ -42,9 +42,14 @@ wsm-enclave-eif:
 
 # Start sidecars (inc. dynamodb, jaeger, mysql, ...) in background
 sidecars:
+  export BITCOIND_RPC_USER="test"
+  export BITCOIND_RPC_PASSWORD="test"
+  export BITCOIND_RPC_WALLET_NAME="testwallet"
   docker compose -f docker-compose-sidecars.yml up --wait
   src/wsm/scripts/setup_wsm_local_ddb.sh
   curl -X DELETE -s -o /dev/null http://localhost:8001/tables-purge
+
+  just _setup-treasury
 
 # Stop sidecars
 stop-sidecars:
@@ -252,19 +257,20 @@ bitcoincli := "docker exec server-bitcoind-1 bitcoin-cli -regtest -rpcuser=test 
 _setup-treasury:
   #!/bin/bash
   echo "🔧 Setting up the treasury"
+  export BITCOIND_RPC_WALLET_NAME="testwallet"
   logfile=$(mktemp)
-  {{ bitcoincli }} -named createwallet wallet_name=testwallet blank=true >> $logfile 2>&1
+  {{ bitcoincli }} -named createwallet wallet_name=$BITCOIND_RPC_WALLET_NAME blank=true >> $logfile 2>&1
   status=$?
   if [[ $status -eq 4 ]]; then
     echo "✅ Treasury wallet already exists, skipping descriptor import"
     echo "🔍 Loading wallet..."
-    {{ bitcoincli }} loadwallet testwallet
+    {{ bitcoincli }} loadwallet $BITCOIND_RPC_WALLET_NAME
   elif [[ $status -ne 0 ]]; then
     echo "❌ Failed to create wallet"
     cat $logfile
     exit 1
   else
-    {{ bitcoincli }} -rpcwallet=testwallet importdescriptors '[
+    {{ bitcoincli }} -rpcwallet=$BITCOIND_RPC_WALLET_NAME importdescriptors '[
       {
           "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/0/*)#hhlcx0nt",
           "timestamp": "now",
@@ -281,7 +287,7 @@ _setup-treasury:
     [[ $? -ne 0 ]] && echo "❌ Failed to import descriptors" && cat $logfile && exit 1 || true
     echo "✅ Created treasury wallet"
   fi
-  addr=$({{ bitcoincli }} -rpcwallet=testwallet getnewaddress | xargs)
+  addr=$({{ bitcoincli }} -rpcwallet=$BITCOIND_RPC_WALLET_NAME getnewaddress | xargs)
   echo "⛏️  Mining 101 blocks to the treasury address \"$addr\""
   {{ bitcoincli }} generatetoaddress 101 $addr >> $logfile
   [[ $? -ne 0 ]] && echo "❌ Failed to mine a block" && cat $logfile && exit 1 || true
@@ -306,6 +312,8 @@ _run-api $ROCKET_PORT="8080" $ROCKET_PROFILE="localprod":
   if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
     export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
   fi
+  export REGTEST_ELECTRUM_SERVER_URI=tcp://localhost:18443
+  export REGTEST_ELECTRUM_SERVER_EXTERNAL_URI=tcp://localhost:18443
   cd src/api && ../../target/debug/server server
 
 _integration: build-bins sidecars

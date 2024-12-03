@@ -3,6 +3,7 @@ package build.wallet.di
 import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
 import build.wallet.bdk.BdkMnemonicGeneratorImpl
 import build.wallet.bdk.bindings.*
+import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactoryImpl
 import build.wallet.crypto.Spake2Impl
 import build.wallet.crypto.WsmVerifierImpl
 import build.wallet.datadog.DatadogRumMonitorImpl
@@ -58,6 +59,7 @@ fun makeAppComponent(
   val publicKeyGenerator = Secp256k1KeyGeneratorImpl()
   val wsmVerifier = WsmVerifierImpl()
   val databaseIntegrityChecker = DatabaseIntegrityCheckerImpl(fileDirectoryProvider)
+  val frostWalletDescriptorFactory = FrostWalletDescriptorFactoryImpl()
 
   val logStore = when (appVariant) {
     AppVariant.Development -> LogStoreInMemoryImpl()
@@ -104,6 +106,7 @@ fun makeAppComponent(
     spake2 = Spake2Impl(),
     cryptoBox = CryptoBoxImpl(),
     databaseIntegrityChecker = databaseIntegrityChecker,
-    shareGeneratorFactory = shareGeneratorFactory
+    shareGeneratorFactory = shareGeneratorFactory,
+    frostWalletDescriptorFactory = frostWalletDescriptorFactory
   )
 }

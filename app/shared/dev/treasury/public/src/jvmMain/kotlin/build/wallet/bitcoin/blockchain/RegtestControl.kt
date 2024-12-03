@@ -1,10 +1,13 @@
 package build.wallet.bitcoin.blockchain
 
 import build.wallet.bitcoin.address.BitcoinAddress
-import io.ktor.client.HttpClient
-import io.ktor.client.request.get
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpStatusCode
+import build.wallet.logging.logTesting
+import build.wallet.realDelay
+import build.wallet.withRealTimeout
+import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.json.Json
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient
@@ -39,7 +42,7 @@ class RegtestControl(
         client.generateToAddress(numBlock, mineToAddress.address)
       }
     waitForIndexing(blocks.last())
-    println("Mined $numBlock blocks to ${mineToAddress.address}")
+    logTesting { "RegtestControl: Mined $numBlock blocks to ${mineToAddress.address}" }
   }
 
   override suspend fun mineBlock(
@@ -47,27 +50,27 @@ class RegtestControl(
     mineToAddress: BitcoinAddress,
   ) {
     waitForTxInMempool(txid)
-    println("Found tx $txid in Mempool. Mining block to ${mineToAddress.address}")
+    logTesting { "RegtestControl: Found tx $txid in Mempool. Mining block to ${mineToAddress.address}" }
     val blocks = withContext(Dispatchers.IO) {
       client.generateToAddress(1, mineToAddress.address)
     }
     waitForIndexing(blocks.last())
-    println("Mined blocks to ${mineToAddress.address}")
+    logTesting { "RegtestControl: Mined blocks to ${mineToAddress.address}" }
   }
 
   private suspend fun waitForTxInMempool(txid: String) {
     val url = "$electrumHttpApiUrl/mempool/txids"
     withContext(Dispatchers.Default) {
-      withTimeout(5.seconds) {
+      withRealTimeout(5.seconds) {
         while (isActive) {
           val resp = HttpClient().get(url)
           // Response is just an array of txid strings.
           val txids = Json.decodeFromString<List<String>>(resp.bodyAsText())
 
           if (txids.contains(txid)) {
-            return@withTimeout
+            return@withRealTimeout
           } else {
-            delay(500.milliseconds)
+            realDelay(500.milliseconds)
           }
         }
       }
@@ -77,12 +80,12 @@ class RegtestControl(
   private suspend fun waitForIndexing(blockHash: String) {
     val url = "$electrumHttpApiUrl/block/$blockHash"
     withContext(Dispatchers.Default) {
-      withTimeout(10.seconds) {
+      withRealTimeout(10.seconds) {
         while (isActive) {
           val resp = HttpClient().get(url)
           when (resp.status) {
-            HttpStatusCode.OK -> return@withTimeout
-            HttpStatusCode.NotFound -> delay(500.milliseconds)
+            HttpStatusCode.OK -> return@withRealTimeout
+            HttpStatusCode.NotFound -> realDelay(500.milliseconds)
             else ->
               error(
                 "error calling Electrum API $url: code=${resp.status}: ${resp.bodyAsText()}"

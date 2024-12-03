@@ -7,7 +7,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -21,6 +20,7 @@ import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
 import build.wallet.statemachine.send.SendUiState.*
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
+import build.wallet.statemachine.transactions.TransactionDetails
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap

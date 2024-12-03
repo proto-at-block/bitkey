@@ -16,6 +16,23 @@ sealed interface ListItemAccessory {
     val text = character.toString()
   }
 
+  data class ContactAvatarAccessory(
+    val name: String,
+  ) : ListItemAccessory {
+    val initials = buildString(2) {
+      val letters = name
+        .split(' ')
+        .mapNotNull { part ->
+          part.firstOrNull(Char::isLetter)
+            ?.uppercaseChar()
+        }
+      append(letters.first())
+      if (letters.size > 1) {
+        append(letters.last())
+      }
+    }
+  }
+
   data class IconAccessory(
     /** The padding to apply to the icon on all sides  */
     val iconPadding: Int? = null,

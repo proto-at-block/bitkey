@@ -4,6 +4,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.FiatMoney
+import build.wallet.partnerships.PurchaseQuote
 import com.github.michaelbull.result.Result
 
 interface GetPurchaseQuoteListF8eClient {
@@ -17,5 +18,5 @@ interface GetPurchaseQuoteListF8eClient {
   /**
    * A struct containing a list of partner purchase quotes
    */
-  data class Success(val quoteList: List<Quote>)
+  data class Success(val quoteList: List<PurchaseQuote>)
 }

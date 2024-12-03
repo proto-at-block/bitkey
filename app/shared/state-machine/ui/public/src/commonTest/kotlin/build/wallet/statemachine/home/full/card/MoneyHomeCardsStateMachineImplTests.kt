@@ -20,6 +20,8 @@ import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiProps
+import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
@@ -78,6 +80,11 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       initialModel = null
     ) {}
 
+  val pendingClaimCardUiStateMachine =
+    object : PendingClaimCardUiStateMachine, StateMachineMock<PendingClaimCardUiProps, List<CardModel>>(
+      initialModel = emptyList()
+    ) {}
+
   val stateMachine =
     MoneyHomeCardsUiStateMachineImpl(
       deviceUpdateCardUiStateMachine = deviceUpdateCardUiStateMachine,
@@ -87,7 +94,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       setupHardwareCardUiStateMachine = setupHardwareCardUiStateMachine,
       cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine,
       startSweepCardUiStateMachine = startSweepCardUiStateMachine,
-      bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine
+      bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine,
+      pendingClaimCardUiStateMachine = pendingClaimCardUiStateMachine
     )
 
   val props =
@@ -132,6 +140,9 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         accountId = FullAccountIdMock,
         f8eEnvironment = F8eEnvironment.Development,
         onOpenPriceChart = {}
+      ),
+      pendingClaimCardUiProps = PendingClaimCardUiProps(
+        onClick = null
       )
     )
 

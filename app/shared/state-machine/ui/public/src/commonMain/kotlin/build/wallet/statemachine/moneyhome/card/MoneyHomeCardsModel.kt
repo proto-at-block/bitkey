@@ -1,15 +1,20 @@
 package build.wallet.statemachine.moneyhome.card
 
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
+import build.wallet.statemachine.core.ComposableRenderedModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.ui.components.card.PendingClaimContent
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.collections.immutable.ImmutableList
+import kotlin.time.Duration
 
 /**
  * Model representing cards to be shown in Money Home screen
@@ -45,6 +50,8 @@ data class CardModel(
 ) : Model() {
   /** The style of the card */
   sealed class CardStyle {
+    data object Plain : CardStyle()
+
     data object Outline : CardStyle()
 
     data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle() {
@@ -89,6 +96,23 @@ data class CardModel(
       val lastUpdated: String,
       val data: ImmutableList<DataPoint>,
     ) : CardContent
+
+    data class PendingClaim(
+      val title: String,
+      val subtitle: String,
+      val isPendingClaim: Boolean,
+      val timeRemaining: Duration,
+      val progress: Progress,
+      val onClick: (() -> Unit)?,
+      override val key: String = "pending-claim",
+    ) : CardContent, ComposableRenderedModel {
+      @Composable
+      override fun render(modifier: Modifier) {
+        PendingClaimContent(
+          model = this
+        )
+      }
+    }
   }
 
   /** Describes a set of animation actions that should happen concurrently */

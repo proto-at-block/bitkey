@@ -10,16 +10,18 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.mapOr
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.*
 
 class GettingStartedTaskDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : GettingStartedTaskDao {
   override fun tasks() =
-    databaseProvider.database().gettingStartedTaskQueries
-      .allGettingStartedTasks()
-      .asFlowOfList()
+    flow { emit(databaseProvider.database()) }
+      .flatMapLatest { database ->
+        database.gettingStartedTaskQueries
+          .allGettingStartedTasks()
+          .asFlowOfList()
+      }
       .transformLatest { queryResult ->
         queryResult
           .logFailure { "Failed to read onboarding task from database" }

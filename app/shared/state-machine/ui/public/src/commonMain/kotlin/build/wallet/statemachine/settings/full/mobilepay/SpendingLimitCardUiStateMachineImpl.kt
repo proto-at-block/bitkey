@@ -2,20 +2,17 @@ package build.wallet.statemachine.settings.full.mobilepay
 
 import androidx.compose.runtime.Composable
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.platform.settings.LocaleIdentifierProvider
 import build.wallet.time.TimeZoneFormatter
 
 class SpendingLimitCardUiStateMachineImpl(
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   val timeZoneFormatter: TimeZoneFormatter,
-  val localeIdentifierProvider: LocaleIdentifierProvider,
 ) : SpendingLimitCardUiStateMachine {
   @Composable
   override fun model(props: SpendingLimitCardUiProps): SpendingLimitCardModel {
     val dailyResetTimezone =
       timeZoneFormatter.timeZoneShortName(
-        timeZone = props.spendingLimit.timezone,
-        localeIdentifier = localeIdentifierProvider.localeIdentifier()
+        timeZone = props.spendingLimit.timezone
       )
 
     val spentAmountText =

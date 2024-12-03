@@ -17,7 +17,7 @@ expect class InMemorySqlDriverFactory constructor() : SqlDriverFactory {
   var sqlDriver: SqlDriver?
     private set
 
-  override fun createDriver(
+  override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver

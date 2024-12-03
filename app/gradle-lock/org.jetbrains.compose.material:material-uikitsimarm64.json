@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "material-uikitsimarm64-1.7.0-metadata.jar": "d228b0d369e7d6568b6457c3442173ba6e0b71b75c1f8f89b66e0a93434f3d50"
+                        "material-uikitsimarm64-1.7.1-metadata.jar": "d228b0d369e7d6568b6457c3442173ba6e0b71b75c1f8f89b66e0a93434f3d50"
                     }
                 },
                 {

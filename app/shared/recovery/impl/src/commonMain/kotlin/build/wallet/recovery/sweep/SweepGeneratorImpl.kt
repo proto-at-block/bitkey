@@ -14,7 +14,6 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.keybox.wallet.KeysetWalletProvider
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
@@ -38,7 +37,6 @@ class SweepGeneratorImpl(
     keybox: Keybox,
   ): Result<List<SweepPsbt>, SweepGeneratorError> =
     coroutineBinding {
-      log { "Generating sweep..." }
       // Fetch the full list of known spending keysets for this account from f8e
       val serverKeysets =
         listKeysetsF8eClient.listKeysets(
@@ -83,7 +81,6 @@ class SweepGeneratorImpl(
 
       buildList<SweepPsbt> {
         signableKeysets.forEach { keyset ->
-          log { "Generating psbt for $keyset" }
           // Generate the sweep psbt(s), failing fast on the first non-recoverable error
           buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox).bind()
             ?.let { psbt -> add(psbt) }

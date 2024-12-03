@@ -2,13 +2,13 @@ package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.transactions.TransactionDetails
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -28,8 +28,7 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
                 feeAmountSecondaryText = "feeAmountBtcText",
                 totalAmountPrimaryText = "totalFiatAmountText",
                 totalAmountSecondaryText = "totalBitcoinAmountText"
-              ),
-            amountLabel = "amountLabel"
+              )
           )
       ) {}
 
@@ -64,10 +63,11 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
   test("show regular transaction details: transfer amount, fees paid") {
     stateMachine.test(regularProps) {
       awaitBody<FormBodyModel> {
-        with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.DataList>()) {
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
+        with(mainContentList[2].shouldBeTypeOf<FormMainContentModel.DataList>()) {
           items.size.shouldBe(2)
 
-          items[0].title.shouldBe("Recipient receives")
+          items[0].title.shouldBe("Amount")
           items[1].title.shouldBe("Network Fees")
         }
       }
@@ -90,17 +90,17 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
             totalFeeText = "totalFeeText",
             totalFeeSecondaryText = "totalFeeBtcText"
           ),
-        transactionSpeedText = "transactionSpeedText",
-        amountLabel = "amountLabel"
+        transactionSpeedText = "transactionSpeedText"
       )
     )
 
     stateMachine.test(speedUpProps) {
       awaitBody<FormBodyModel> {
-        with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.DataList>()) {
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
+        with(mainContentList[2].shouldBeTypeOf<FormMainContentModel.DataList>()) {
           items.size.shouldBe(3)
 
-          items[0].title.shouldBe("Recipient receives")
+          items[0].title.shouldBe("Amount")
           items[1].title.shouldBe("Original network fee")
           items[2].title.shouldBe("Speed up network fee")
         }

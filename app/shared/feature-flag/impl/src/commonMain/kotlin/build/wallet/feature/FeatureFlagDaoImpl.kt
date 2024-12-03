@@ -12,17 +12,14 @@ import kotlin.reflect.KClass
 class FeatureFlagDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FeatureFlagDao {
-  private val database by lazy {
-    databaseProvider.database()
-  }
-
   override suspend fun <T : FeatureFlagValue> getFlag(
     featureFlagId: String,
     kClass: KClass<T>,
   ): Result<T?, DbError> {
     return when (kClass) {
       BooleanFlag::class ->
-        database.booleanFeatureFlagQueries
+        databaseProvider.database()
+          .booleanFeatureFlagQueries
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
           .map { getFlagValue ->
@@ -32,7 +29,8 @@ class FeatureFlagDaoImpl(
             }
           }
       FeatureFlagValue.DoubleFlag::class ->
-        database.doubleFeatureFlagQueries
+        databaseProvider.database()
+          .doubleFeatureFlagQueries
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
           .map {
@@ -42,7 +40,8 @@ class FeatureFlagDaoImpl(
             }
           }
       FeatureFlagValue.StringFlag::class ->
-        database.stringFeatureFlagQueries
+        databaseProvider.database()
+          .stringFeatureFlagQueries
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
           .map {
@@ -61,17 +60,20 @@ class FeatureFlagDaoImpl(
   ): Result<Unit, DbError> {
     return when (flagValue) {
       is BooleanFlag ->
-        database.booleanFeatureFlagQueries
+        databaseProvider.database()
+          .booleanFeatureFlagQueries
           .awaitTransaction {
             setFlag(featureFlagId, flagValue.value)
           }
       is FeatureFlagValue.DoubleFlag ->
-        database.doubleFeatureFlagQueries
+        databaseProvider.database()
+          .doubleFeatureFlagQueries
           .awaitTransaction {
             setFlag(featureFlagId, flagValue.value)
           }
       is FeatureFlagValue.StringFlag ->
-        database.stringFeatureFlagQueries
+        databaseProvider.database()
+          .stringFeatureFlagQueries
           .awaitTransaction {
             setFlag(featureFlagId, flagValue.value)
           }
@@ -80,7 +82,7 @@ class FeatureFlagDaoImpl(
   }
 
   override suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, DbError> =
-    database
+    databaseProvider.database()
       .featureFlagOverrideQueries
       .getFlagOverridden(featureFlagId)
       .awaitAsOneOrNullResult()
@@ -90,7 +92,7 @@ class FeatureFlagDaoImpl(
     featureFlagId: String,
     overridden: Boolean,
   ): Result<Unit, DbError> =
-    database
+    databaseProvider.database()
       .featureFlagOverrideQueries
       .awaitTransaction {
         setFlagOverridden(featureFlagId, overridden)

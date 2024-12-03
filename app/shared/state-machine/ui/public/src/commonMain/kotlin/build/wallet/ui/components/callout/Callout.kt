@@ -65,7 +65,7 @@ fun Callout(model: CalloutModel) {
             icon = icon,
             iconSize = IconSize.Accessory
           ),
-          color = style.titleColor
+          color = style.leadingIconColor
         )
       }
       Column(
@@ -128,7 +128,7 @@ fun Callout(model: CalloutModel) {
  * Trailing icon button for callout
  */
 @Composable
-private fun CalloutButton(
+fun CalloutButton(
   icon: Icon,
   iconColor: Color,
   treatment: CalloutModel.Treatment,
@@ -166,6 +166,7 @@ data class CalloutStyle(
   val titleColor: Color,
   val subtitleColor: Color,
   val backgroundColor: Color,
+  val leadingIconColor: Color,
   val trailingIconColor: Color,
   val trailingIconBackgroundColor: Color,
 )
@@ -178,6 +179,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutDefaultTitle,
       subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
       backgroundColor = WalletTheme.colors.calloutDefaultBackground,
+      leadingIconColor = WalletTheme.colors.calloutDefaultTitle,
       trailingIconColor = WalletTheme.colors.calloutDefaultTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutDefaultTrailingIconBackground
     )
@@ -185,6 +187,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutInformationTitle,
       subtitleColor = WalletTheme.colors.calloutInformationSubtitle,
       backgroundColor = WalletTheme.colors.calloutInformationBackground,
+      leadingIconColor = WalletTheme.colors.calloutInformationLeadingIcon,
       trailingIconColor = WalletTheme.colors.calloutInformationTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutInformationTrailingIconBackground
     )
@@ -192,6 +195,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutSuccessTitle,
       subtitleColor = WalletTheme.colors.calloutSuccessSubtitle,
       backgroundColor = WalletTheme.colors.calloutSuccessBackground,
+      leadingIconColor = WalletTheme.colors.calloutSuccessTitle,
       trailingIconColor = WalletTheme.colors.calloutSuccessTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutSuccessTrailingIconBackground
     )
@@ -199,6 +203,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutWarningTitle,
       subtitleColor = WalletTheme.colors.calloutWarningSubtitle,
       backgroundColor = WalletTheme.colors.calloutWarningBackground,
+      leadingIconColor = WalletTheme.colors.calloutWarningTitle,
       trailingIconColor = WalletTheme.colors.calloutWarningTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutWarningTrailingIconBackground
     )
@@ -206,6 +211,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutDangerTitle,
       subtitleColor = WalletTheme.colors.calloutDangerSubtitle,
       backgroundColor = WalletTheme.colors.dangerBackground,
+      leadingIconColor = WalletTheme.colors.calloutDangerTitle,
       trailingIconColor = WalletTheme.colors.calloutDangerTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.danger
     )

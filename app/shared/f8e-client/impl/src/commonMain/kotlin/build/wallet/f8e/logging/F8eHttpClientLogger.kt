@@ -169,7 +169,7 @@ class F8eHttpClientLogger private constructor(
         val logger = context.attributes[F8eCallLogger]
         val log = StringBuilder()
         log.appendResponseException(context.request, cause)
-        logger.logResponseException(log.toString())
+        logger.logResponseException(log.toString(), cause)
         logger.closeResponseLog()
         throw cause
       }

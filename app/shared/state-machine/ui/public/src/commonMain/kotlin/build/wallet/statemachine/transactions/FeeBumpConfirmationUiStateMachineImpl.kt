@@ -5,10 +5,9 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionDetails
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
@@ -29,7 +28,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
   private val exchangeRateService: ExchangeRateService,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : FeeBumpConfirmationUiStateMachine {
   @Composable
   override fun model(props: FeeBumpConfirmationProps): ScreenModel {
@@ -128,7 +127,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
       )
       is State.BroadcastingTransaction -> {
         LaunchedEffect("broadcasting-txn") {
-          transactionsService
+          bitcoinWalletService
             .broadcast(
               psbt = currentState.appAndHwSignedPsbt,
               estimatedTransactionPriority = FASTEST

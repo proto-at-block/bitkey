@@ -1,0 +1,7 @@
+-- Adds partnerTransactionUrl column to partnershipTransactionEntity
+
+-- 1. Add the new partnerTransactionUrl column to the existing partnershipTransactionEntity table
+ALTER TABLE partnershipTransactionEntity ADD COLUMN partnerTransactionUrl TEXT;
+
+-- 2. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

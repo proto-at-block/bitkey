@@ -1,7 +1,6 @@
 package build.wallet.onboarding
 
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.serialization.hex.decodeHexWithResult
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -22,8 +21,6 @@ class OnboardingKeyboxSealedCsekDaoImpl(
 
   override suspend fun get(): Result<SealedCsek?, Throwable> =
     coroutineBinding {
-      log { "Fetching sealed CSEK" }
-
       secureStore()
         .getStringOrNullWithResult(key = KEY_SEALED_CSEK)
         .bind()
@@ -32,16 +29,12 @@ class OnboardingKeyboxSealedCsekDaoImpl(
     }.logFailure { "Failed to get $KEY_SEALED_CSEK from $STORE_NAME" }
 
   override suspend fun set(value: SealedCsek): Result<Unit, Throwable> {
-    log { "Setting sealed CSEK" }
-
     return secureStore()
       .putStringWithResult(key = KEY_SEALED_CSEK, value = value.hex())
       .logFailure { "Failed to set $KEY_SEALED_CSEK in $STORE_NAME" }
   }
 
   override suspend fun clear(): Result<Unit, Throwable> {
-    log { "Clearing sealed CSEK" }
-
     return secureStore()
       .clearWithResult()
       .logFailure { "Failed to clear SealedCsekStore" }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 use types::recovery::{
@@ -5,6 +7,8 @@ use types::recovery::{
 };
 
 use crate::{
+    clients::iterable::IterableCampaignType,
+    email::EmailPayload,
     entities::NotificationCompositeKey,
     push::{AndroidChannelId, SNSPushPayload},
     sms::SmsPayload,
@@ -35,22 +39,24 @@ impl
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
 
-        let message = match payload.recipient_account_role {
-            RecoveryRelationshipRole::ProtectedCustomer => {
-                format!(
-                    "Your inheritance claim is complete. Your funds will be transferred to {}. No further action is needed.",
-                    payload.trusted_contact_alias
-                )
-            }
-            RecoveryRelationshipRole::TrustedContact => {
-                "Your claim period has ended. Your funds are processing and should be available soon.".to_string()
-            }
+        let (message, campaign_type) = match payload.recipient_account_role {
+            RecoveryRelationshipRole::ProtectedCustomer => (
+                "The inheritance claim period for your Bitkey wallet has ended.".to_string(),
+                IterableCampaignType::InheritanceClaimPeriodCompletedAsBenefactor,
+            ),
+            RecoveryRelationshipRole::TrustedContact => (
+                "Your inheritance funds are now available for transfer.".to_string(),
+                IterableCampaignType::InheritanceClaimPeriodCompletedAsBeneficiary,
+            ),
         };
 
         Ok(NotificationMessage {
             composite_key,
             account_id,
-            email_payload: None, // TODO: W-9782,
+            email_payload: Some(EmailPayload::Iterable {
+                campaign_type,
+                data_fields: HashMap::new(),
+            }),
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: AndroidChannelId::RecoveryAccountSecurity,

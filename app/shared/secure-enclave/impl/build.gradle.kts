@@ -26,17 +26,13 @@ kotlin {
       }
     }
 
-    val iosMain by getting {
-      dependencies {
-      }
-    }
-
     val androidInstrumentedTest by getting {
       dependencies {
         implementation(libs.jvm.test.junit)
         implementation(libs.android.test.junit)
         implementation(libs.android.test.junit.ktx)
         implementation(libs.android.test.espresso.core)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

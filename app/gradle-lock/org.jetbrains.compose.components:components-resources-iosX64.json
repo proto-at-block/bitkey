@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-iosX64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iosx64-1.7.0-metadata.jar": "fa3122cd58d3a693c6cb8211ffab7ec8acb98cf172abd2f7a8dc1dd0bc978b31"
+                        "library-iosx64-1.7.1-metadata.jar": "fe8be92c51b5b8d37839793b0ca5e765eb450d6bb850b2422cf3fc82131584c1"
                     }
                 },
                 {

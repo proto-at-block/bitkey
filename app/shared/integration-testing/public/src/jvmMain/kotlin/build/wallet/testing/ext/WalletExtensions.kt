@@ -7,6 +7,7 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.testing.AppTester
 import build.wallet.testing.shouldBeOk
+import build.wallet.withRealTimeout
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -14,7 +15,6 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.timeout
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -46,10 +46,11 @@ suspend fun AppTester.waitForFunds(
  */
 suspend fun AppTester.getActiveWallet(): SpendingWallet {
   getActiveAccount()
-  return transactionsService.spendingWallet()
-    .filterNotNull()
-    .timeout(2.seconds)
-    .first()
+  return withRealTimeout(2.seconds) {
+    bitcoinWalletService.spendingWallet()
+      .filterNotNull()
+      .first()
+  }
 }
 
 /**

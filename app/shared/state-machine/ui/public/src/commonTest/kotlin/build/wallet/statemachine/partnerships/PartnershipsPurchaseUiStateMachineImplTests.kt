@@ -3,18 +3,14 @@ package build.wallet.statemachine.partnerships
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
 import build.wallet.analytics.v1.Action
-import build.wallet.bitcoin.address.BitcoinAddressServiceFake
-import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.*
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.GBP
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.*
+import build.wallet.partnerships.PartnershipPurchaseService.NoPurchaseOptionsError
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.awaitSheetWithBody
@@ -25,6 +21,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.ui.model.list.ListItemModel
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -34,9 +31,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
-  val getPurchaseOptionsF8eClient = GetPurchaseOptionsF8eClientMock(turbines::create)
-  val getPurchaseQuoteListF8eClient = GetPurchaseQuoteListF8eClientMock(turbines::create)
-  val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientMock(turbines::create)
+  val partnershipPurchaseService = PartnershipPurchaseServiceFake()
   val eventTracker = EventTrackerMock(turbines::create)
   val onPartnerRedirectedCalls =
     turbines.create<PartnerRedirectionMethod>(
@@ -58,21 +53,16 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   val stateMachine = PartnershipsPurchaseUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
-    getPurchaseOptionsF8eClient = getPurchaseOptionsF8eClient,
-    getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
-    getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
+    partnershipPurchaseService = partnershipPurchaseService,
     partnershipTransactionsService = partnershipTransactionsService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     eventTracker = eventTracker,
     currencyConverter = currencyConverter,
-    exchangeRateService = ExchangeRateServiceFake(),
-    bitcoinAddressService = BitcoinAddressServiceFake()
+    exchangeRateService = ExchangeRateServiceFake()
   )
 
   fun props(selectedAmount: FiatMoney? = null) =
     PartnershipsPurchaseUiProps(
-      account = FullAccountMock,
-      keybox = KeyboxMock,
       selectedAmount = selectedAmount,
       onPartnerRedirected = { method, _ -> onPartnerRedirectedCalls.add(method) },
       onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
@@ -80,17 +70,20 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       onExit = {}
     )
 
+  beforeTest {
+    partnershipPurchaseService.reset()
+    partnershipTransactionsService.reset()
+  }
+
   afterTest {
     fiatCurrencyPreferenceRepository.reset()
-    getPurchaseQuoteListF8eClient.reset()
     currencyConverter.conversionRate = 3.0
   }
 
   test("no partnerships purchase options") {
-    fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = GBP
+    partnershipPurchaseService.suggestedPurchaseAmounts = Err(NoPurchaseOptionsError("card"))
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -103,7 +96,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase options") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // show purchase amounts
@@ -147,7 +139,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase quotes") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -156,7 +147,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -184,9 +174,9 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("Previously used partner at top of list") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
-      partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(PartnerId("used-partner"))
-      val quote = Quote(
+      partnershipTransactionsService.previouslyUsedPartnerIds.value =
+        listOf(PartnerId("used-partner"))
+      val quote = PurchaseQuote(
         fiatCurrency = "USD",
         cryptoAmount = 0.00195701,
         networkFeeCrypto = 0.0002710900770218228,
@@ -196,21 +186,20 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
           PartnerInfo(
             name = "partner",
             logoUrl = "https://logo.url.example.com",
-            partnerId = PartnerId("partner")
+            partnerId = PartnerId("partner"),
+            logoBadgedUrl = "https://badged-logo.url.example.com"
           ),
         userFeeFiat = 0.0,
         quoteId = "quoteId"
       )
-      getPurchaseQuoteListF8eClient.quotesListResult =
+      partnershipPurchaseService.purchaseQuotes =
         Ok(
-          GetPurchaseQuoteListF8eClient.Success(
-            listOf(
-              quote,
-              quote.copy(
-                partnerInfo = quote.partnerInfo.copy(
-                  name = "previously-used-partner",
-                  partnerId = PartnerId("used-partner")
-                )
+          listOf(
+            quote,
+            quote.copy(
+              partnerInfo = quote.partnerInfo.copy(
+                name = "previously-used-partner",
+                partnerId = PartnerId("used-partner")
               )
             )
           )
@@ -223,7 +212,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -249,12 +237,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("Sorted by crypto amount") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(
         PartnerId("used-1"),
         PartnerId("used-2")
       )
-      val quote = Quote(
+      val quote = PurchaseQuote(
         fiatCurrency = "USD",
         cryptoAmount = 1.0,
         networkFeeCrypto = 0.0002710900770218228,
@@ -264,37 +251,36 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
           PartnerInfo(
             name = "partner-1",
             logoUrl = "https://logo.url.example.com",
-            partnerId = PartnerId("partner-1")
+            partnerId = PartnerId("partner-1"),
+            logoBadgedUrl = "https://badged-logo.url.example.com"
           ),
         userFeeFiat = 0.0,
         quoteId = "quoteId"
       )
-      getPurchaseQuoteListF8eClient.quotesListResult =
+      partnershipPurchaseService.purchaseQuotes =
         Ok(
-          GetPurchaseQuoteListF8eClient.Success(
-            listOf(
-              quote,
-              quote.copy(
-                partnerInfo = quote.partnerInfo.copy(
-                  name = "partner-2",
-                  partnerId = PartnerId("partner-2")
-                ),
-                cryptoAmount = 2.0
+          listOf(
+            quote,
+            quote.copy(
+              partnerInfo = quote.partnerInfo.copy(
+                name = "partner-2",
+                partnerId = PartnerId("partner-2")
               ),
-              quote.copy(
-                partnerInfo = quote.partnerInfo.copy(
-                  name = "used-1",
-                  partnerId = PartnerId("used-1")
-                ),
-                cryptoAmount = .1
+              cryptoAmount = 2.0
+            ),
+            quote.copy(
+              partnerInfo = quote.partnerInfo.copy(
+                name = "used-1",
+                partnerId = PartnerId("used-1")
               ),
-              quote.copy(
-                partnerInfo = quote.partnerInfo.copy(
-                  name = "used-2",
-                  partnerId = PartnerId("used-2")
-                ),
-                cryptoAmount = .2
-              )
+              cryptoAmount = .1
+            ),
+            quote.copy(
+              partnerInfo = quote.partnerInfo.copy(
+                name = "used-2",
+                partnerId = PartnerId("used-2")
+              ),
+              cryptoAmount = .2
             )
           )
         )
@@ -306,7 +292,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -337,7 +322,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase redirect") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -346,7 +330,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -362,30 +345,15 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
 
       // load redirect info
-      getPurchaseRedirectF8eClient.getPurchasePartnersRedirectCall.awaitItem()
       awaitSheetWithBody<FormBodyModel>()
 
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
 
-        partnershipTransactionsService.createCalls.awaitItem().should { (partnerInfo, type) ->
-          type.shouldBe(PartnershipTransactionType.PURCHASE)
-          partnerInfo.shouldBe(
-            PartnerInfo(
-              logoUrl = "https://logo.url.example.com",
-              name = "partner",
-              partnerId = PartnerId("partner")
-            )
-          )
-        }
         onPartnerRedirectedCalls.awaitItem().shouldBe(
           PartnerRedirectionMethod.Web(
-            "http://example.com/redirect_url",
-            partnerInfo = PartnerInfo(
-              logoUrl = "https://logo.url.example.com",
-              name = "partner",
-              partnerId = PartnerId("partner")
-            )
+            urlString = "https://fake-partner.com/purchase",
+            partnerInfo = PartnerInfoFake
           )
         )
       }
@@ -396,11 +364,9 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     val selectedAmount = FiatMoney.usd(123.0)
     stateMachine.test(props(selectedAmount = selectedAmount)) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -428,7 +394,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("select custom amount") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -446,7 +411,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     currencyConverter.conversionRate = null
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -455,7 +419,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes

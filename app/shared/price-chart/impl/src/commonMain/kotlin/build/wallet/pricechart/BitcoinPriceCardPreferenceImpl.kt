@@ -22,20 +22,20 @@ class BitcoinPriceCardPreferenceImpl(
   private val eventTracker: EventTracker,
   appCoroutineScope: CoroutineScope,
 ) : BitcoinPriceCardPreference {
-  private val db by lazy {
-    databaseProvider.database()
-  }
-
-  override val isEnabled: StateFlow<Boolean> by lazy {
-    db.bitcoinPriceCardPreferenceQueries
-      .getBitcoinPriceCardPreference()
-      .asFlowOfOneOrNull()
-      .map { it.get()?.enabled ?: PREF_DEFAULT }
+  override val isEnabled: StateFlow<Boolean> =
+    flow {
+      databaseProvider.database()
+        .bitcoinPriceCardPreferenceQueries
+        .getBitcoinPriceCardPreference()
+        .asFlowOfOneOrNull()
+        .map { it.get()?.enabled ?: PREF_DEFAULT }
+        .collect(::emit)
+    }
       .stateIn(appCoroutineScope, SharingStarted.Eagerly, PREF_DEFAULT)
-  }
 
   override suspend fun get(): Result<Boolean, DbError> {
-    return db.bitcoinPriceCardPreferenceQueries
+    return databaseProvider.database()
+      .bitcoinPriceCardPreferenceQueries
       .getBitcoinPriceCardPreference()
       .awaitAsOneOrNullResult()
       .logFailure { "Unable to get bitcoin price card entity" }
@@ -43,7 +43,8 @@ class BitcoinPriceCardPreferenceImpl(
   }
 
   override suspend fun set(enabled: Boolean): Result<Unit, DbError> {
-    return db.bitcoinPriceCardPreferenceQueries
+    return databaseProvider.database()
+      .bitcoinPriceCardPreferenceQueries
       .awaitTransactionWithResult {
         setBitcoinPriceCardPreference(enabled)
       }.onSuccess {
@@ -56,7 +57,8 @@ class BitcoinPriceCardPreferenceImpl(
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return db.bitcoinPriceCardPreferenceQueries
+    return databaseProvider.database()
+      .bitcoinPriceCardPreferenceQueries
       .awaitTransactionWithResult {
         clear()
       }

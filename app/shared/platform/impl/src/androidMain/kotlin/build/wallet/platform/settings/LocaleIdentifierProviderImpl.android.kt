@@ -2,14 +2,14 @@ package build.wallet.platform.settings
 
 import build.wallet.platform.PlatformContext
 
-actual class LocaleIdentifierProviderImpl actual constructor(
+actual class LocaleProviderImpl actual constructor(
   platformContext: PlatformContext,
-) : LocaleIdentifierProvider {
-  private val locale by lazy {
+) : LocaleProvider {
+  private val javaLocale by lazy {
     platformContext.appContext.resources.configuration.locales.get(0)
   }
 
-  actual override fun localeIdentifier(): String {
-    return locale.toLanguageTag()
+  actual override fun currentLocale(): Locale {
+    return Locale(javaLocale.toLanguageTag())
   }
 }

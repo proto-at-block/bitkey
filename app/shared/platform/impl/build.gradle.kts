@@ -21,7 +21,9 @@ kotlin {
 
     commonTest {
       dependencies {
-        api(projects.shared.platformFake)
+        implementation(projects.shared.platformFake)
+        implementation(projects.shared.testingPublic)
+        implementation(projects.shared.timeFake)
       }
     }
 

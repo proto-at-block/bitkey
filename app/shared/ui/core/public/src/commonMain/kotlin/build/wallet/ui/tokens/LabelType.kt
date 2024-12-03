@@ -32,6 +32,7 @@ enum class LabelType {
   Body4Regular,
   Body4Medium,
   Label1,
+  Label1Bold,
   Label2,
   Label3,
   Keypad,
@@ -195,6 +196,13 @@ fun LabelType.style(baseStyle: TextStyle) =
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = (-0.18).sp
+      )
+    LabelType.Label1Bold ->
+      baseStyle.copy(
+        fontWeight = FontWeight.W700,
+        fontSize = 16.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 0.sp
       )
     LabelType.Label2 ->
       baseStyle.copy(

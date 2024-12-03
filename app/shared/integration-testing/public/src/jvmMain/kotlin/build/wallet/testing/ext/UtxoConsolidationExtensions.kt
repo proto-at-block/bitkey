@@ -14,7 +14,7 @@ suspend fun AppTester.consolidateAllUtxos(): Pair<UtxoConsolidationParams, UtxoC
     .single()
 
   val appAndHardwareSignedPsbt = signPsbtWithHardware(psbt = consolidationParams.appSignedPsbt)
-  val spendingWallet = transactionsService.spendingWallet().value.shouldNotBeNull()
+  val spendingWallet = bitcoinWalletService.spendingWallet().value.shouldNotBeNull()
   val totalBalanceBeforeConsolidation = spendingWallet.balance().first().total
 
   val consolidationTransactionDetail = utxoConsolidationService

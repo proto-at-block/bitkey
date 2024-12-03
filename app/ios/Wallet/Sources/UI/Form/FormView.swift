@@ -102,6 +102,7 @@ struct FormView_Previews: PreviewProvider {
                                 amountEquivalent: "121,075 sats",
                                 transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                 isPending: false,
+                                isLate: false,
                                 onClick: {}
                             ),
                         ],
@@ -120,6 +121,7 @@ struct FormView_Previews: PreviewProvider {
                                 amountEquivalent: "121,075 sats",
                                 transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                 isPending: false,
+                                isLate: false,
                                 onClick: {}
                             ),
                         ],

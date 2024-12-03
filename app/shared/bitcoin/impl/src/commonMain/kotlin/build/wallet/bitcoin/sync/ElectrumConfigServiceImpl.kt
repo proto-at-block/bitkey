@@ -7,8 +7,7 @@ import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.configuration.GetBdkConfigurationF8eClient
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.coroutineScope
@@ -75,7 +74,7 @@ class ElectrumConfigServiceImpl(
         if (bitcoinNetworkType == REGTEST && it.regtest == null) {
           val msg =
             "server did not return regtest electrum details, but regtest network was selected"
-          log(LogLevel.Error) { msg }
+          logError { msg }
           return@flatMap Err(ElectrumServerLookupError(msg, null))
         }
         val electrumServer = when (bitcoinNetworkType) {

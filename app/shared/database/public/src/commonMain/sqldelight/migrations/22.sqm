@@ -1,0 +1,7 @@
+-- Adds partnerLogoBadgedUrl column to partnershipTransactionEntity
+
+-- 1. Add the new partnerLogoBadgedUrl column to the existing partnershipTransactionEntity table
+ALTER TABLE partnershipTransactionEntity ADD COLUMN partnerLogoBadgedUrl TEXT;
+
+-- 2. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

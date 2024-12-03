@@ -21,9 +21,11 @@ CREATE TABLE partnershipTransactionEntity (
     fiatAmount REAL,
     fiatCurrency TEXT AS IsoCurrencyTextCode,
     paymentMethod TEXT,
-    created INTEGER AS Instant NOT NULL,
-    updated INTEGER AS Instant NOT NULL,
-    sellWalletAddress TEXT
+    created TEXT AS Instant NOT NULL,
+    updated TEXT AS Instant NOT NULL,
+    sellWalletAddress TEXT,
+    partnerTransactionUrl TEXT,
+    partnerLogoBadgedUrl TEXT
 );
 
 saveEntity:

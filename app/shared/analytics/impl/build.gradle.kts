@@ -15,6 +15,7 @@ kotlin {
         api(libs.kmp.kotlin.datetime)
         api(projects.shared.accountPublic)
         api(projects.shared.bitcoinPublic)
+        api(projects.shared.debugPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.queueProcessorPublic)
@@ -48,7 +49,6 @@ kotlin {
         implementation(projects.shared.debugFake)
         implementation(projects.shared.queueProcessorFake)
         implementation(projects.shared.sqldelightTesting)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.testingPublic)
       }
     }

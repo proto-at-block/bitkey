@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.PendingAuthKeyRotationAttempt
-import build.wallet.logging.log
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
@@ -20,12 +19,6 @@ class HasActiveFullAccountDataStateMachineImpl(
 ) : HasActiveFullAccountDataStateMachine {
   @Composable
   override fun model(props: HasActiveFullAccountDataProps): HasActiveFullAccountData {
-    LaunchedEffect("log-keybox-config", props.account.config) {
-      log {
-        "Loading active keybox for account ${props.account.accountId}, config ${props.account.config}"
-      }
-    }
-
     /*
      * Only refresh cloud backups if we don't have an active hardware recovery in progress.
      * The CloudBackupRefresher updates the backup whenever a new backup is uploaded or when

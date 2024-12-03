@@ -24,7 +24,7 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.workerFake)
       }
     }

@@ -15,10 +15,11 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Network
 import build.wallet.datadog.ResourceType.Other
-import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
+import build.wallet.logging.logInfo
+import build.wallet.logging.logWarn
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
 import com.github.michaelbull.result.*
@@ -51,10 +52,9 @@ class BdkWalletSyncerImpl(
     networkType: BitcoinNetworkType,
   ): Result<Unit, BdkError> =
     coroutineBinding {
-      log { "Attempting wallet sync..." }
+      logDebug { "Attempting wallet sync..." }
       // Ignore a request if there is already a sync in progress
       if (syncLock.isLocked) {
-        log(Warn) { "Requested sync when one was in progress, ignoring" }
         Ok(Unit).bind()
       }
 
@@ -65,7 +65,7 @@ class BdkWalletSyncerImpl(
         // Check Electrum reachability
         electrumReachability.reachable(electrumServerSetting.server, networkType)
           .onFailure {
-            log(Warn, throwable = it.cause) { "Error Connecting To Primary Electrum Server" }
+            logWarn(throwable = it.cause) { "Error Connecting To Primary Electrum Server" }
             if (electrumServerSetting is Default) {
               datadogRumMonitor.addError(
                 "Error Connecting To Primary Electrum Server",
@@ -155,7 +155,7 @@ class BdkWalletSyncerImpl(
       }
       .logFailure(Warn) { "Error syncing BDK wallet" }
       .onSuccess {
-        log(Info) { "Wallet sync complete" }
+        logInfo { "Wallet sync complete" }
         networkReachabilityProvider.updateNetworkReachabilityForConnection(
           connection = NetworkConnection.ElectrumSyncerNetworkConnection,
           reachability = NetworkReachability.REACHABLE

@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.accountPublic)
         implementation(projects.shared.databasePublic)
+        implementation(projects.shared.debugPublic)
         implementation(projects.shared.f8eClientPublic)
         implementation(projects.shared.serializationPublic)
       }
@@ -29,7 +30,6 @@ kotlin {
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.ktorClientFake)
         implementation(projects.shared.platformFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.f8eClientImpl)
@@ -52,11 +52,11 @@ kotlin {
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.f8eClientFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.recoveryFake)
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

@@ -1,6 +1,6 @@
-use std::str::FromStr;
 use std::sync::Arc;
 use std::vec;
+use std::{env, str::FromStr};
 
 use account::service::{
     tests::{create_descriptor_keys, create_spend_keyset, TestAuthenticationKeys, TestKeypair},
@@ -10,11 +10,19 @@ use authn_authz::routes::{
     AuthRequestKey, AuthenticationRequest, ChallengeResponseParameters, GetTokensRequest,
 };
 use axum::response::IntoResponse;
-use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::secp256k1::Message;
 use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
+use bdk_utils::{
+    bdk::{
+        bitcoin::{hashes::sha256, secp256k1, Amount},
+        blockchain::{rpc::Auth, ConfigurableBlockchain, RpcBlockchain, RpcConfig},
+        wallet::{wallet_name_from_descriptor, AddressIndex},
+        KeychainKind,
+    },
+    treasury_fund_address,
+};
 use comms_verification::TEST_CODE;
 use errors::ApiError;
 use external_identifier::ExternalIdentifier;
@@ -2047,4 +2055,42 @@ async fn software_onboarding_keygen_activation_test() {
         "{}",
         actual_response.body_string
     );
+}
+
+#[test]
+fn test_create_bdk_wallet() {
+    let (_, wallet) = create_spend_keyset(types::account::bitcoin::Network::BitcoinRegtest);
+    treasury_fund_address(
+        &wallet.get_address(AddressIndex::New).unwrap(),
+        Amount::from_sat(50_000),
+    );
+
+    let rpc_config = RpcConfig {
+        url: env::var("REGTEST_ELECTRUM_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+        auth: Auth::UserPass {
+            username: "test".to_string(),
+            password: "test".to_string(),
+        },
+        network: Network::Regtest,
+        wallet_name: wallet_name_from_descriptor(
+            wallet
+                .public_descriptor(KeychainKind::External)
+                .unwrap()
+                .unwrap(),
+            Some(
+                wallet
+                    .public_descriptor(KeychainKind::Internal)
+                    .unwrap()
+                    .unwrap(),
+            ),
+            Network::Regtest,
+            &secp256k1::Secp256k1::new(),
+        )
+        .unwrap(),
+        sync_params: None,
+    };
+    let blockchain = RpcBlockchain::from_config(&rpc_config).unwrap();
+    wallet.sync(&blockchain, Default::default()).unwrap();
+
+    assert_eq!(wallet.get_balance().unwrap().untrusted_pending, 50_000);
 }

@@ -46,15 +46,17 @@ struct IconButton_Preview: PreviewProvider {
             .init(
                 iconModel: .init(
                     iconImage: IconImage.LocalImage(icon: .largeiconsend),
-                    iconSize: .avatar,
+                    iconSize: .Avatar(),
                     iconBackgroundType: IconBackgroundTypeCircle(
-                        circleSize: .avatar,
+                        circleSize: .Avatar(),
                         color: .foreground10
                     ),
+                    iconAlignmentInBackground: .center,
                     iconTint: nil,
                     iconOpacity: nil,
                     iconTopSpacing: nil,
-                    text: "Send"
+                    text: "Send",
+                    badge: nil
                 ),
                 onClick: StandardClick {},
                 enabled: true

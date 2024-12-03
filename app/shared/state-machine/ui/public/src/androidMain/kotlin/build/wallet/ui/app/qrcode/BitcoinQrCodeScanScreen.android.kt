@@ -22,8 +22,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 
 @Composable
@@ -119,8 +118,8 @@ private fun Context.createQrCodeImageAnalysisUseCase(
       useCaseGroup
     )
   } catch (e: IllegalStateException) {
-    log(Error, throwable = e) { "Unable to bind camera because ${e.localizedMessage}" }
+    logError(throwable = e) { "Unable to bind camera because ${e.localizedMessage}" }
   } catch (e: IllegalArgumentException) {
-    log(Error, throwable = e) { "Unable to resolve camera because ${e.localizedMessage}" }
+    logError(throwable = e) { "Unable to resolve camera because ${e.localizedMessage}" }
   }
 }

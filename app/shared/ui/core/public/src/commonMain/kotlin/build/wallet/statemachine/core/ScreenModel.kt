@@ -12,7 +12,6 @@ import build.wallet.ui.model.toast.ToastModel
  * Top-level screen model that renders some content.
  *
  * @property body main content of the screen.
- * @property tabBar bottom navigation tab bar.
  * @property colorMode determines preferred color mode by the screen. For example on NFC screen we
  * want to always use Dark theme.
  * @property presentationStyle defines how the screen should be presented.
@@ -25,7 +24,6 @@ import build.wallet.ui.model.toast.ToastModel
  */
 data class ScreenModel(
   val body: BodyModel,
-  val tabBar: TabBarModel? = null,
   val onTwoFingerDoubleTap: (() -> Unit)? = null,
   val presentationStyle: ScreenPresentationStyle = Root,
   val colorMode: ScreenColorMode = SystemPreference,

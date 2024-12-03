@@ -10,7 +10,7 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        implementation(projects.shared.coroutinesTesting)
+        api(libs.kmp.test.turbine)
         implementation(projects.shared.coachmarkImpl)
       }
     }

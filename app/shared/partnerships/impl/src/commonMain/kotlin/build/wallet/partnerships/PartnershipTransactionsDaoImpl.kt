@@ -7,47 +7,56 @@ import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class PartnershipTransactionsDaoImpl(
-  bitkeyDatabaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : PartnershipTransactionsDao {
-  private val database by lazy { bitkeyDatabaseProvider.database() }
-  private val queries by lazy { database.partnershipTransactionsQueries }
-
   override suspend fun save(
     transaction: PartnershipTransaction,
   ): Result<Unit, DbTransactionError> {
-    return database.awaitTransaction {
-      queries.saveEntity(transaction.toEntity())
+    return databaseProvider.database().awaitTransaction {
+      partnershipTransactionsQueries.saveEntity(transaction.toEntity())
     }
   }
 
   override fun getTransactions(): Flow<Result<List<PartnershipTransaction>, DbTransactionError>> {
-    return queries.getAll()
-      .asFlow()
-      .map { query ->
-        database.awaitTransactionWithResult {
-          query.executeAsList().map { it.toModel() }
+    return flow {
+      val database = databaseProvider.database()
+      database.partnershipTransactionsQueries
+        .getAll()
+        .asFlow()
+        .map { query ->
+          database.awaitTransactionWithResult {
+            query.executeAsList().map { it.toModel() }
+          }
         }
-      }
+        .collect(::emit)
+    }
   }
 
   override fun getPreviouslyUsedPartnerIds(): Flow<Result<List<PartnerId>, DbTransactionError>> {
-    return queries.getPreviouslyUsedPartnerIds()
-      .asFlow()
-      .map { query ->
-        database.awaitTransactionWithResult {
-          query.executeAsList()
+    return flow {
+      val database = databaseProvider.database()
+      database.partnershipTransactionsQueries
+        .getPreviouslyUsedPartnerIds()
+        .asFlow()
+        .map { query ->
+          database.awaitTransactionWithResult {
+            query.executeAsList()
+          }
         }
-      }
+        .collect(::emit)
+    }
   }
 
   override suspend fun getMostRecentByPartner(
     partnerId: PartnerId,
   ): Result<PartnershipTransaction?, DbTransactionError> {
-    return database.awaitTransactionWithResult {
-      queries.getMostRecentTransactionByPartnerId(partnerId)
+    return databaseProvider.database().awaitTransactionWithResult {
+      partnershipTransactionsQueries
+        .getMostRecentTransactionByPartnerId(partnerId)
         .executeAsOneOrNull()
         ?.toModel()
     }
@@ -56,8 +65,9 @@ class PartnershipTransactionsDaoImpl(
   override suspend fun getById(
     id: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, DbTransactionError> {
-    return database.awaitTransactionWithResult {
-      queries.getById(id)
+    return databaseProvider.database().awaitTransactionWithResult {
+      partnershipTransactionsQueries
+        .getById(id)
         .executeAsOneOrNull()
         ?.toModel()
     }
@@ -66,14 +76,14 @@ class PartnershipTransactionsDaoImpl(
   override suspend fun deleteTransaction(
     transactionId: PartnershipTransactionId,
   ): Result<Unit, DbTransactionError> {
-    return database.awaitTransaction {
-      queries.delete(transactionId)
+    return databaseProvider.database().awaitTransaction {
+      partnershipTransactionsQueries.delete(transactionId)
     }
   }
 
   override suspend fun clear(): Result<Unit, DbTransactionError> {
-    return database.awaitTransaction {
-      queries.clear()
+    return databaseProvider.database().awaitTransaction {
+      partnershipTransactionsQueries.clear()
     }
   }
 }

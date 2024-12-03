@@ -1,7 +1,6 @@
 package build.wallet.statemachine.core
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 
 /**
  * Information about the error that caused an error screen to display.
@@ -28,8 +27,7 @@ data class ErrorData(
  */
 fun ErrorData?.log() {
   if (this == null) return
-  log(
-    level = LogLevel.Error,
+  logError(
     tag = segment.id,
     throwable = cause
   ) {

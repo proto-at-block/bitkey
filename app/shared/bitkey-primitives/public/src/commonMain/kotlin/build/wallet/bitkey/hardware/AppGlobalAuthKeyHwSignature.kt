@@ -1,8 +1,7 @@
 package build.wallet.bitkey.hardware
 
 import build.wallet.bitkey.relationships.TrustedContactKeyCertificate
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 
@@ -23,7 +22,7 @@ value class AppGlobalAuthKeyHwSignature(val value: String) {
   init {
     // TODO(BKR-991):
     if (value.isBlank()) {
-      log(Error) {
+      logError {
         "AppGlobalAuthKeyHwSignature must not be blank. " +
           "An outdated database schema is likely used, reinstall the app."
       }

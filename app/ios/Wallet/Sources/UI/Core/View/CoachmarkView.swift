@@ -49,12 +49,14 @@ public struct CoachmarkView: View {
                         model: IconButtonModel(
                             iconModel: .init(
                                 iconImage: IconImage.LocalImage(icon: .smalliconxfilled),
-                                iconSize: .small,
+                                iconSize: .Small(),
                                 iconBackgroundType: IconBackgroundTypeTransient(),
+                                iconAlignmentInBackground: .center,
                                 iconTint: .on60,
                                 iconOpacity: nil,
                                 iconTopSpacing: nil,
-                                text: nil
+                                text: nil,
+                                badge: nil
                             ),
                             onClick: StandardClick {
                                 model.dismiss()

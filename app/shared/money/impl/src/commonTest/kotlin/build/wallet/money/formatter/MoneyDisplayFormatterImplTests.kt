@@ -7,7 +7,7 @@ import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.BitcoinDisplayUnit
-import build.wallet.platform.settings.LocaleIdentifierProviderFake
+import build.wallet.platform.settings.LocaleProviderFake
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -15,7 +15,7 @@ import io.kotest.matchers.shouldBe
 class MoneyDisplayFormatterImplTests : FunSpec({
 
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock()
-  val localeIdentifierProvider = LocaleIdentifierProviderFake()
+  val localeProvider = LocaleProviderFake()
   val formatter =
     MoneyDisplayFormatterImpl(
       bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
@@ -23,7 +23,7 @@ class MoneyDisplayFormatterImplTests : FunSpec({
         MoneyFormatterDefinitionsImpl(
           doubleFormatter =
             DoubleFormatterImpl(
-              localeIdentifierProvider = localeIdentifierProvider
+              localeProvider = localeProvider
             )
         )
     )

@@ -1,4 +1,4 @@
-use notification::payloads::recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload;
+use notification::payloads::recovery_relationship_benefactor_invitation_pending::RecoveryRelationshipBenefactorInvitationPendingPayload;
 use notification::schedule::ScheduleNotificationType;
 use notification::service::ScheduleNotificationsInput;
 use notification::NotificationPayloadBuilder;
@@ -70,20 +70,27 @@ impl Service {
             .persist_recovery_relationship(&relationship)
             .await?;
 
-        self.notification_service
-            .schedule_notifications(ScheduleNotificationsInput {
-                account_id: input.customer_account.id.clone(),
-                notification_type: ScheduleNotificationType::RecoveryRelationshipInvitationPending,
-                payload: NotificationPayloadBuilder::default()
-                    .recovery_relationship_invitation_pending_payload(Some(
-                        RecoveryRelationshipInvitationPendingPayload {
-                            recovery_relationship_id: id,
-                            trusted_contact_alias: input.trusted_contact.alias.clone(),
-                        },
-                    ))
-                    .build()?,
-            })
-            .await?;
+        if input
+            .trusted_contact
+            .roles
+            .contains(&TrustedContactRole::Beneficiary)
+        {
+            self.notification_service
+                .schedule_notifications(ScheduleNotificationsInput {
+                    account_id: input.customer_account.id.clone(),
+                    notification_type:
+                        ScheduleNotificationType::RecoveryRelationshipBenefactorInvitationPending,
+                    payload: NotificationPayloadBuilder::default()
+                        .recovery_relationship_benefactor_invitation_pending_payload(Some(
+                            RecoveryRelationshipBenefactorInvitationPendingPayload {
+                                recovery_relationship_id: id,
+                                trusted_contact_alias: input.trusted_contact.alias.clone(),
+                            },
+                        ))
+                        .build()?,
+                })
+                .await?;
+        }
 
         Ok(relationship)
     }

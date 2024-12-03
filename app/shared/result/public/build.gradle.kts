@@ -14,11 +14,5 @@ kotlin {
         api(libs.kmp.kotlin.result.coroutines)
       }
     }
-
-    commonTest {
-      dependencies {
-        implementation(projects.shared.coroutinesTesting)
-      }
-    }
   }
 }

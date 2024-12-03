@@ -17,7 +17,6 @@ class UuidGeneratorFake(
   private var currentSeed: Int = initialSeed
 
   override fun random(): String {
-    println("generating new $initialSeed")
     return "uuid-$currentSeed".also {
       // Make the next uuid "unique".
       currentSeed += 1

@@ -161,7 +161,6 @@ extension ScreenModel {
                 bitkeyWordMarkAnimationDuration: 0,
                 eventTrackerScreenInfo: nil
             ),
-            tabBar: nil,
             onTwoFingerDoubleTap: nil,
             presentationStyle: .root,
             colorMode: .dark,
@@ -255,6 +254,7 @@ extension ListItemModel {
         amountEquivalent: "121,075 sats",
         transactionType: BitcoinTransactionTransactionTypeOutgoing(),
         isPending: false,
+        isLate: false,
         onClick: {}
     )
 
@@ -265,6 +265,7 @@ extension ListItemModel {
         amountEquivalent: "45,075 sats",
         transactionType: BitcoinTransactionTransactionTypeIncoming(),
         isPending: false,
+        isLate: false,
         onClick: {}
     )
 
@@ -275,6 +276,7 @@ extension ListItemModel {
         amountEquivalent: "45,075 sats",
         transactionType: BitcoinTransactionTransactionTypeUtxoConsolidation(),
         isPending: false,
+        isLate: false,
         onClick: {}
     )
 

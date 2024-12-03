@@ -1,7 +1,6 @@
 package build.wallet.worker
 
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -25,7 +24,7 @@ class AppWorkerExecutorImpl(
     executionLock.withLock {
       if (executedWorkers) {
         // TODO(W-2000): handle Android configuration changes more gracefully.
-        log(level = Warn) {
+        logWarn {
           "Attempted to execute app workers more than once. Ignoring. " +
             "This is likely due to a configuration change on Android, or due to a developer error."
         }

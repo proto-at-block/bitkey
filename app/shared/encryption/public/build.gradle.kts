@@ -16,6 +16,7 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.okio)
+        api(projects.shared.secureEnclavePublic)
         implementation(projects.shared.serializationPublic)
       }
     }

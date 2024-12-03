@@ -11,6 +11,10 @@ import org.gradle.api.Project
  * compile as a Kotlin multiplatform module
  */
 internal class KotlinMultiplatformPlugin : Plugin<Project> {
+  companion object {
+    const val ID = "build.wallet.kmp"
+  }
+
   override fun apply(target: Project) =
     target.run {
       pluginManager.apply("org.jetbrains.kotlin.multiplatform")

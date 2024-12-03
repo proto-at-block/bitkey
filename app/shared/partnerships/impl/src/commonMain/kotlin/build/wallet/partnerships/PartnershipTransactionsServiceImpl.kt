@@ -1,30 +1,87 @@
 package build.wallet.partnerships
 
-import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.F8eEnvironment
+import build.wallet.account.AccountService
+import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.ensure
 import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClient
+import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
 import build.wallet.flatMapIfNotNull
-import build.wallet.ktor.result.HttpError
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.ktor.result.HttpError.ClientError
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
+import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState.FOREGROUND
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import io.ktor.http.*
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class PartnershipTransactionsServiceImpl(
+  private val expectedTransactionsFlag: ExpectedTransactionsPhase2FeatureFlag,
+  private val accountService: AccountService,
   private val dao: PartnershipTransactionsDao,
   private val getPartnershipTransactionF8eClient: GetPartnershipTransactionF8eClient,
   private val clock: Clock,
-) : PartnershipTransactionsService {
-  override val transactions: Flow<List<PartnershipTransaction>> = dao.getTransactions().map {
-    it.logFailure { "Failed to get partnership transactions" }
-      .getOr(emptyList())
+  private val appSessionManager: AppSessionManager,
+) : PartnershipTransactionsService, PartnershipTransactionsSyncWorker {
+  private val syncLock = Mutex()
+  private val transactionsCache = MutableStateFlow<List<PartnershipTransaction>?>(null)
+
+  override suspend fun executeWork() {
+    coroutineScope {
+      launch {
+        dao.getTransactions()
+          .distinctUntilChanged()
+          .collectLatest { result ->
+            result
+              .logFailure { "Failed to get partnership transactions" }
+              .onSuccess { transactions ->
+                // Only emit transactions on success
+                transactionsCache.value = transactions
+              }
+          }
+      }
+
+      // Periodically sync pending transactions (if any).
+      launch {
+        val appSessionState = appSessionManager.appSessionState
+        appSessionState.collectLatest { sessionState ->
+          val appInForeground = sessionState == FOREGROUND
+          if (appInForeground) {
+            expectedTransactionsFlag.flagValue().map { it.value }
+              .collectLatest { expectedTransactionsEnabled ->
+                while (expectedTransactionsEnabled && isActive) {
+                  syncPendingTransactions()
+                  delay(5.seconds)
+                }
+              }
+          }
+        }
+      }
+    }
   }
+
+  override val transactions: Flow<List<PartnershipTransaction>> = transactionsCache.filterNotNull()
+
+  /**
+   * Partnership transactions that have [PENDING] status.
+   */
+  private val pendingTransactions: Flow<List<PartnershipTransaction>> =
+    transactionsCache
+      .mapNotNull { it?.filter { it.status == PENDING } }
+      .distinctUntilChanged()
 
   override val previouslyUsedPartnerIds: Flow<List<PartnerId>> = dao.getPreviouslyUsedPartnerIds()
     .map {
@@ -32,9 +89,19 @@ class PartnershipTransactionsServiceImpl(
         .getOr(emptyList())
     }
 
-  override suspend fun sync() {
-    TODO("W-6471")
-  }
+  override suspend fun syncPendingTransactions(): Result<Unit, Error> =
+    coroutineBinding {
+      syncLock.withLock {
+        val transactions = pendingTransactions.first()
+        if (transactions.isNotEmpty()) {
+          val account = accountService.activeAccount().first()
+          ensure(account is FullAccount) { Error("Expected full account.") }
+          transactions.forEach {
+            syncTransactionWithoutLock(account, it.id).bind()
+          }
+        }
+      }
+    }
 
   override suspend fun clear(): Result<Unit, Error> {
     return dao.clear()
@@ -60,7 +127,8 @@ class PartnershipTransactionsServiceImpl(
       paymentMethod = null,
       created = timestamp,
       updated = timestamp,
-      sellWalletAddress = null
+      sellWalletAddress = null,
+      partnerTransactionUrl = null
     )
 
     return dao.save(transaction).map { transaction }
@@ -83,64 +151,65 @@ class PartnershipTransactionsServiceImpl(
   }
 
   override suspend fun syncTransaction(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error> =
+    coroutineBinding {
+      syncLock.withLock {
+        val account = accountService.activeAccount().first()
+        ensure(account is FullAccount) { Error("Expected full account.") }
+        syncTransactionWithoutLock(account, transactionId).bind()
+      }
+    }
+
+  private suspend fun syncTransactionWithoutLock(
+    account: Account,
     transactionId: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, Error> {
     return dao.getById(transactionId)
       .flatMapIfNotNull { mostRecent ->
-        fetchUpdatedTransaction(
-          accountId = accountId,
-          f8eEnvironment = f8eEnvironment,
-          transaction = mostRecent
-        )
+        coroutineBinding {
+          val new = getPartnershipTransactionF8eClient
+            .getPartnershipTransaction(
+              accountId = account.accountId,
+              f8eEnvironment = account.config.f8eEnvironment,
+              partner = mostRecent.partnerInfo.partnerId,
+              partnershipTransactionId = mostRecent.id,
+              transactionType = mostRecent.type
+            )
+            .bind()
+
+          mostRecent.copy(
+            status = new.status,
+            context = new.context,
+            cryptoAmount = new.cryptoAmount,
+            txid = new.txid,
+            fiatAmount = new.fiatAmount,
+            fiatCurrency = new.fiatCurrency,
+            paymentMethod = new.paymentMethod,
+            updated = clock.now(),
+            sellWalletAddress = new.sellWalletAddress,
+            partnerTransactionUrl = new.partnerTransactionUrl
+          ).also { updated ->
+            dao.save(updated).bind()
+          }
+        }.mapError { error ->
+          when {
+            error is ClientError && error.response.status == HttpStatusCode.NotFound -> {
+              logDebug { "Transaction was not found, removing from local database" }
+              dao.deleteTransaction(mostRecent.id).getErrorOr(error)
+            }
+
+            else -> error.also {
+              logError(throwable = error) { "Failed to fetch updated transaction" }
+            }
+          }
+        }
       }
       // If the update fails because the transaction is not found, emit null, since the transaction does not
       // exist for the partner.
       .recoverIf(
-        predicate = { it is HttpError.ClientError && it.response.status == HttpStatusCode.NotFound },
+        predicate = { it is ClientError && it.response.status == HttpStatusCode.NotFound },
         transform = { null }
       )
-  }
-
-  private suspend fun fetchUpdatedTransaction(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-    transaction: PartnershipTransaction,
-  ): Result<PartnershipTransaction, Error> {
-    return coroutineBinding {
-      val new = getPartnershipTransactionF8eClient.getPartnershipTransaction(
-        accountId = accountId,
-        f8eEnvironment = f8eEnvironment,
-        partner = transaction.partnerInfo.partnerId,
-        partnershipTransactionId = transaction.id,
-        transactionType = transaction.type
-      ).bind()
-
-      transaction.copy(
-        status = new.status,
-        context = new.context,
-        cryptoAmount = new.cryptoAmount,
-        txid = new.txid,
-        fiatAmount = new.fiatAmount,
-        fiatCurrency = new.fiatCurrency,
-        paymentMethod = new.paymentMethod,
-        updated = clock.now(),
-        sellWalletAddress = new.sellWalletAddress
-      ).also { updated ->
-        dao.save(updated).bind()
-      }
-    }.mapError { error ->
-      when {
-        error is HttpError.ClientError && error.response.status == HttpStatusCode.NotFound -> {
-          log(LogLevel.Debug) { "Transaction was not found, removing from local database" }
-          dao.deleteTransaction(transaction.id).getErrorOr(error)
-        }
-
-        else -> error.also {
-          log(LogLevel.Error, throwable = error) { "Failed to fetch updated transaction" }
-        }
-      }
-    }
   }
 }

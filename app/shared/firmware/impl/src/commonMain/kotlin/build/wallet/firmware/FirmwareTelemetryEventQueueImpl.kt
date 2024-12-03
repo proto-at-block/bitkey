@@ -12,7 +12,7 @@ class FirmwareTelemetryEventQueueImpl(
 ) : FirmwareTelemetryEventQueue {
   override suspend fun append(item: FirmwareTelemetryEvent): Result<Unit, Error> {
     return databaseProvider.database().awaitTransaction {
-      databaseProvider.database().firmwareTelemetryQueries.append(
+      firmwareTelemetryQueries.append(
         serial = item.serial,
         event = item.event.toByteArray()
       )

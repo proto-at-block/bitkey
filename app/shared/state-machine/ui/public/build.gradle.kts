@@ -1,14 +1,13 @@
 import build.wallet.gradle.logic.GenerateStateMachineDiagramTask
 import build.wallet.gradle.logic.extensions.allTargets
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.ksp")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.coroutines.native)
   alias(libs.plugins.kotlin.serialization)
-  alias(libs.plugins.ksp)
   id("build.wallet.redacted")
 }
 
@@ -67,7 +66,7 @@ kotlin {
         api(projects.shared.onboardingPublic)
         api(projects.shared.resultPublic)
         api(projects.shared.timePublic)
-        api(projects.shared.phoneNumberPublic)
+        api(projects.shared.contactMethodPublic)
         api(projects.shared.platformPublic)
         api(projects.shared.recoveryPublic)
         api(projects.shared.routerPublic)
@@ -75,7 +74,6 @@ kotlin {
         api(projects.shared.stateMachineFrameworkPublic)
         api(projects.shared.uiCorePublic)
         api(projects.shared.firmwarePublic)
-        api(projects.shared.emailPublic)
         api(projects.shared.workerPublic)
         api(projects.shared.priceChartPublic)
         implementation(projects.shared.supportPublic)
@@ -114,7 +112,6 @@ kotlin {
         implementation(projects.shared.bootstrapFake)
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.cloudStoreFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.datadogFake)
         implementation(projects.shared.debugFake)
         implementation(projects.shared.emergencyAccessKitFake)
@@ -130,9 +127,8 @@ kotlin {
         implementation(projects.shared.notificationsFake)
         implementation(projects.shared.onboardingFake)
         implementation(projects.shared.nfcFake)
-        implementation(projects.shared.emailFake)
         implementation(projects.shared.partnershipsFake)
-        implementation(projects.shared.phoneNumberFake)
+        implementation(projects.shared.contactMethodFake)
         implementation(projects.shared.mobilePayFake)
         implementation(projects.shared.timeFake)
         implementation(projects.shared.platformFake)
@@ -174,26 +170,7 @@ kotlin {
         implementation(projects.shared.cloudStoreFake)
       }
     }
-
-    kotlin.targets
-      .filterIsInstance<KotlinNativeTarget>()
-      .forEach { target ->
-        getByName("${target.name}Main")
-          .kotlin
-          .srcDirs("generated/ksp/${target.name}/${target.name}/kotlin")
-      }
   }
-}
-
-dependencies {
-  kotlin.targets
-    .filterIsInstance<KotlinNativeTarget>()
-    .forEach { target ->
-      add(
-        "ksp${target.name.replaceFirstChar { it.uppercaseChar() }}",
-        projects.gradle.formbodymodelGenerator
-      )
-    }
 }
 
 tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {
@@ -219,4 +196,11 @@ tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {
     ?.trim()
     ?.takeIf { it.isNotBlank() }
     ?.let { file(it) }
+}
+
+buildLogic {
+  ksp {
+    processors(projects.gradle.formbodymodelGenerator)
+    targets(ios = true) // FormBodyModel snapshot generation is only used for iOS builds.
+  }
 }

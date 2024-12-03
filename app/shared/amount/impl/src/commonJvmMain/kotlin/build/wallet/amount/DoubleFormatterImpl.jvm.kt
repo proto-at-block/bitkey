@@ -1,11 +1,11 @@
 package build.wallet.amount
 
-import build.wallet.platform.settings.LocaleIdentifierProvider
+import build.wallet.platform.settings.LocaleProvider
+import build.wallet.platform.settings.toJavaLocale
 import java.text.DecimalFormat
-import java.util.Locale
 
 actual class DoubleFormatterImpl actual constructor(
-  private val localeIdentifierProvider: LocaleIdentifierProvider,
+  private val localeProvider: LocaleProvider,
 ) : DoubleFormatter {
   actual override fun format(
     double: Double,
@@ -13,20 +13,19 @@ actual class DoubleFormatterImpl actual constructor(
     maximumFractionDigits: Int,
     isGroupingUsed: Boolean,
   ): String {
-    val formatter =
-      DecimalFormat.getInstance(locale).also {
-        it.minimumFractionDigits = minimumFractionDigits
-        it.maximumFractionDigits = maximumFractionDigits
-        it.isGroupingUsed = isGroupingUsed
-      }
+    val formatter = decimalFormat().also {
+      it.minimumFractionDigits = minimumFractionDigits
+      it.maximumFractionDigits = maximumFractionDigits
+      it.isGroupingUsed = isGroupingUsed
+    }
     return formatter.format(double)
   }
 
   actual override fun parse(string: String): Double? {
-    return DecimalFormat.getInstance(locale)
+    return decimalFormat()
       .parse(string)?.toDouble()
   }
 
-  private val locale: Locale
-    get() = Locale.forLanguageTag(localeIdentifierProvider.localeIdentifier())
+  private fun decimalFormat() =
+    DecimalFormat.getInstance(localeProvider.currentLocale().toJavaLocale())
 }

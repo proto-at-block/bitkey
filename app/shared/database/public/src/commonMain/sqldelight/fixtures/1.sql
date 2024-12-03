@@ -630,6 +630,6 @@ INSERT INTO transactionDetailEntity (
     estimatedConfirmationTimeInstant
 ) VALUES (
     '1',
-    '1',
-    '1'
+    1731695850370,
+    1731696450370
 );

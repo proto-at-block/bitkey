@@ -2,7 +2,7 @@ package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatterImpl
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
-import build.wallet.platform.settings.LocaleIdentifierProviderFake
+import build.wallet.platform.settings.LocaleProviderFake
 
 // Uses the Impl MoneyDisplayFormatterImpl so we can test real expected display strings in other tests.
 val MoneyDisplayFormatterFake: MoneyDisplayFormatter =
@@ -12,7 +12,7 @@ val MoneyDisplayFormatterFake: MoneyDisplayFormatter =
       MoneyFormatterDefinitionsImpl(
         doubleFormatter =
           DoubleFormatterImpl(
-            localeIdentifierProvider = LocaleIdentifierProviderFake()
+            localeProvider = LocaleProviderFake()
           )
       )
   )

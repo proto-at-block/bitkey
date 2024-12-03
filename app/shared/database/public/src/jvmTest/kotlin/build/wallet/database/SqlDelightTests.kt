@@ -1,4 +1,3 @@
-
 package build.wallet.database
 
 import build.wallet.database.sqldelight.BitkeyDatabase
@@ -8,14 +7,14 @@ import java.io.File
 
 class SqlDelightTests : FunSpec({
 
-  // if this test fails, you probably forgot to commit the .db file
+  /**
+   * If this test fails, you probably forgot to generate and commit the .db file
+   * run `just generate-db-schema`.
+   */
   test("verify correct number of databases") {
     // check number of databases
     val directory = File("src/commonMain/sqldelight/databases")
-    directory.listFiles {
-        _,
-        name,
-      ->
+    directory.listFiles { _, name ->
       name.endsWith(".db")
     }?.size.shouldBe(BitkeyDatabase.Schema.version)
   }
@@ -24,10 +23,7 @@ class SqlDelightTests : FunSpec({
   test("verify correct number of migrations") {
     // check number of migrations
     val directory = File("src/commonMain/sqldelight/migrations")
-    val files = directory.listFiles {
-        _,
-        name,
-      ->
+    val files = directory.listFiles { _, name ->
       name.endsWith(".sqm")
     }
       // No directory found, thus no migrations

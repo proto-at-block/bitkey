@@ -3,8 +3,8 @@ package build.wallet.statemachine.send
 import app.cash.turbine.plusAssign
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -68,13 +68,13 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       ) {}
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val stateMachine = TransferAmountEntryUiStateMachineImpl(
     currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
     moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     transferCardUiStateMachine = transferCardUiStateMachine,
     appFunctionalityService = AppFunctionalityServiceFake()
   )
@@ -91,9 +91,9 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    transactionsService.reset()
+    bitcoinWalletService.reset()
 
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       balance = BitcoinBalanceFake(confirmed = bitcoinBalance)
     )
   }
@@ -111,7 +111,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           .shouldBe(BTC)
       }
 
-      transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
         balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
       )
 
@@ -231,7 +231,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     }
 
     test("Should not show smart bar when user has no balance") {
-      transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
         balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(0.0))
       )
 

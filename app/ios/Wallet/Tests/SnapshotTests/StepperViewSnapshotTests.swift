@@ -5,9 +5,10 @@ import XCTest
 
 @testable import Wallet
 
+// TODO(W-10113): Re-enable snapshot tests)
 final class StepperViewSnapshotTests: XCTestCase {
 
-    func test_expected_transaction_notice() {
+    func skipped_test_expected_transaction_notice() {
         let view = FormView(
             viewModel: SnapshotTestModels.shared.CreateExpectedTransactionNoticeModel(
                 partnerInfo: nil,

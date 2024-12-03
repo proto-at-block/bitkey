@@ -1,22 +1,27 @@
 package build.wallet.sqldelight
 
+import app.cash.sqldelight.db.SqlDriver
 import build.wallet.db.DbQueryError
 import build.wallet.sqldelight.ThrowingSqlDriver.QUERY_ERROR
 import build.wallet.sqldelight.dummy.DummyDataEntity
+import build.wallet.sqldelight.dummy.DummyDataEntityQueries
 import build.wallet.sqldelight.dummy.DummyDatabase
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 
 class QueryFlowsTests : FunSpec({
-  val sqlDriverFactory = inMemorySqlDriver().factory
 
-  val sqlDriver =
-    sqlDriverFactory.createDriver(
-      dataBaseName = "foods.db",
+  lateinit var sqlDriver: SqlDriver
+  lateinit var testDataQueries: DummyDataEntityQueries
+  beforeTest {
+    val sqlDriverFactory = inMemorySqlDriver().factory
+    sqlDriver = sqlDriverFactory.createDriver(
+      dataBaseName = "test.db",
       dataBaseSchema = DummyDatabase.Schema
     )
-  val testDataQueries = DummyDatabase(sqlDriver).dummyDataQueries
+    testDataQueries = DummyDatabase(sqlDriver).dummyDataQueries
+  }
 
   afterTest {
     testDataQueries.clear()

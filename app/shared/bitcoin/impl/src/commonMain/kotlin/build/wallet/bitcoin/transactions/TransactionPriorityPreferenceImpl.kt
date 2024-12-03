@@ -11,12 +11,10 @@ import com.github.michaelbull.result.map
 class TransactionPriorityPreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : TransactionPriorityPreference {
-  private val db by lazy {
-    databaseProvider.database()
-  }
-
   override suspend fun get(): EstimatedTransactionPriority? {
-    return db.priorityPreferenceQueries.getPriorityPreference()
+    return databaseProvider.database()
+      .priorityPreferenceQueries
+      .getPriorityPreference()
       .awaitAsOneOrNullResult()
       .logFailure { "Unable to get priority entity" }
       .map {
@@ -29,12 +27,15 @@ class TransactionPriorityPreferenceImpl(
   }
 
   override suspend fun set(priority: EstimatedTransactionPriority) {
-    db.priorityPreferenceQueries.setPriorityPreference(priority)
+    databaseProvider.database()
+      .priorityPreferenceQueries
+      .setPriorityPreference(priority)
   }
 
   override suspend fun clear(): Result<Unit, Error> {
-    return db.awaitTransaction {
-      priorityPreferenceQueries.clear()
-    }
+    return databaseProvider.database()
+      .awaitTransaction {
+        priorityPreferenceQueries.clear()
+      }
   }
 }

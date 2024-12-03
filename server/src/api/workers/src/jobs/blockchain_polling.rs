@@ -8,7 +8,7 @@ use tracing::{event, instrument, Level};
 use super::WorkerState;
 use crate::error::WorkerError;
 use crate::jobs::helpers::customer_address::{
-    notify_customers_with_addresses, PaymentNotificationType,
+    notify_customers_with_addresses, CustomerNotificationFeatureFlag, PaymentNotificationType,
 };
 
 #[instrument(skip(state))]
@@ -22,7 +22,13 @@ pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result
         if let Err(e) = result {
             event!(Level::ERROR, "Failed to run blockchain polling job: {e}")
         }
+        event!(
+            Level::INFO,
+            "Sleeping for {} seconds",
+            sleep_duration_seconds
+        );
         tokio::time::sleep(sleep_duration).await;
+        event!(Level::INFO, "Done sleeping");
     }
 }
 
@@ -39,6 +45,11 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
     // however, this could result in missed notifications in that case. We plan on updating
     // this job with a cursor so that it can resume where it left off.
     for block in &blocks {
+        event!(
+            Level::INFO,
+            "Adding block {:?} to database",
+            block.block_hash()
+        );
         state.chain_indexer_service.add_block(block).await?;
     }
     event!(Level::INFO, "{} blocks added", blocks.len());
@@ -78,8 +89,13 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
         .unique()
         .collect();
     event!(Level::INFO, "{} addresses found in blocks", addresses.len());
-    notify_customers_with_addresses(state, addresses, PaymentNotificationType::Confirmed, None)
-        .await?;
+    notify_customers_with_addresses(
+        state,
+        addresses,
+        PaymentNotificationType::Confirmed,
+        Some(CustomerNotificationFeatureFlag::ConfirmedTransaction),
+    )
+    .await?;
     event!(Level::INFO, "Ending blockchain polling job");
     Ok(())
 }

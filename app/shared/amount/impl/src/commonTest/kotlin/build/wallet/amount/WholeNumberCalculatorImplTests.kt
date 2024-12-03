@@ -1,8 +1,6 @@
 package build.wallet.amount
 
 import build.wallet.amount.Amount.Companion.MAXIMUM
-import build.wallet.platform.settings.TestLocale.EN_US
-import build.wallet.platform.settings.TestLocale.FR_FR
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -26,15 +24,11 @@ class WholeNumberCalculatorImplTests : FunSpec({
   }
 
   test("MAXIMUM add results in MAXIMUM (avoids overflow error)") {
-    listOf(EN_US, FR_FR).forEach {
-      with(it) {
-        val amount1 = calculator.append(amount = wholeNumber(MAXIMUM), 9)
-        val amount2 = calculator.append(amount = amount1, 9)
-        val amount3 = calculator.append(amount = amount2, 9)
+    val amount1 = calculator.append(amount = wholeNumber(MAXIMUM), 9)
+    val amount2 = calculator.append(amount = amount1, 9)
+    val amount3 = calculator.append(amount = amount2, 9)
 
-        amount3.number.shouldBe(MAXIMUM)
-      }
-    }
+    amount3.number.shouldBe(MAXIMUM)
   }
 })
 

@@ -14,6 +14,7 @@ kotlin {
         api(libs.kmp.kotlin.datetime)
         api(libs.kmp.okio)
         api(projects.shared.accountPublic)
+        api(projects.shared.debugPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.ktorClientPublic)
@@ -35,7 +36,6 @@ kotlin {
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.timeFake)
         implementation(projects.shared.testingPublic)
-        implementation(projects.shared.coroutinesTesting)
       }
     }
   }

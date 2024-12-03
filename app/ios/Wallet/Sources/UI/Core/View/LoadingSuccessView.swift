@@ -47,7 +47,7 @@ struct LoadingSuccessView: View {
                 LottieView(animation: .loadingAndSuccess)
                     .playing(.fromProgress(0, toProgress: 0.3, loopMode: .loop))
                     .getRealtimeAnimationProgress($progress)
-                    .frame(iconSize: .avatar)
+                    .frame(iconSize: .Avatar())
 
             case _ as LoadingSuccessBodyModelStateSuccess:
                 // The `loadingAndSuccess` animation shows both loading and success, and here
@@ -56,7 +56,7 @@ struct LoadingSuccessView: View {
                 // the above `LoadingSuccessBodyModelStateLoading` case left off
                 LottieView(animation: .loadingAndSuccess)
                     .playing(.fromProgress(progress, toProgress: 1, loopMode: .playOnce))
-                    .frame(iconSize: .avatar)
+                    .frame(iconSize: .Avatar())
 
             default:
                 EmptyView()

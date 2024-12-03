@@ -1,0 +1,57 @@
+-- This migration converts the `created` and `updated` columns in the `partnershipTransactionEntity` table
+-- from epoch milliseconds (INTEGER) to ISO-8601 formatted dates (TEXT), ensuring human-readable timestamps
+-- with millisecond precision and UTC timezone indication.
+
+-- 1. Add two new TEXT columns, created_temp and updated_temp, to store ISO-8601 formatted dates.
+ALTER TABLE partnershipTransactionEntity ADD COLUMN created_temp TEXT;
+ALTER TABLE partnershipTransactionEntity ADD COLUMN updated_temp TEXT;
+
+-- 2. Populate created_temp and updated_temp by converting the values in the created and updated columns
+-- from epoch milliseconds (INTEGER) to ISO-8601 format (TEXT). This format includes milliseconds
+-- and the 'Z' suffix for UTC time.
+UPDATE partnershipTransactionEntity
+SET created_temp = strftime('%Y-%m-%dT%H:%M:%S', created / 1000, 'unixepoch') || '.' ||
+                   printf('%03d', created % 1000) || 'Z',
+    updated_temp = strftime('%Y-%m-%dT%H:%M:%S', updated / 1000, 'unixepoch') || '.' ||
+                   printf('%03d', updated % 1000) || 'Z';
+
+-- 3. Recreate the partnershipTransactionEntity table with the created and updated columns now as
+-- ISO-8601 TEXT instead of epoch INTEGER.
+CREATE TABLE partnershipTransactionEntity_new (
+    transactionId TEXT AS PartnershipTransactionId NOT NULL PRIMARY KEY,
+    type TEXT AS PartnershipTransactionType NOT NULL,
+    status TEXT AS PartnershipTransactionStatus,
+    context TEXT,
+    partnerLogoUrl TEXT,
+    partnerName TEXT NOT NULL,
+    partnerId TEXT AS PartnerId NOT NULL,
+    cryptoAmount REAL,
+    txid TEXT,
+    fiatAmount REAL,
+    fiatCurrency TEXT AS IsoCurrencyTextCode,
+    paymentMethod TEXT,
+    created TEXT AS Instant NOT NULL,
+    updated TEXT AS Instant NOT NULL,
+    sellWalletAddress TEXT,
+    partnerTransactionUrl TEXT
+);
+
+-- 4. Copy all rows from the original partnershipTransactionEntity table to the new table, using the
+-- converted values in created_temp and updated_temp as the new created and updated values.
+INSERT INTO partnershipTransactionEntity_new (
+    transactionId, type, status, context, partnerLogoUrl, partnerName, partnerId,
+    cryptoAmount, txid, fiatAmount, fiatCurrency, paymentMethod, created, updated,
+    sellWalletAddress, partnerTransactionUrl
+)
+SELECT
+    transactionId, type, status, context, partnerLogoUrl, partnerName, partnerId,
+    cryptoAmount, txid, fiatAmount, fiatCurrency, paymentMethod,
+    created_temp, updated_temp, sellWalletAddress, partnerTransactionUrl
+FROM partnershipTransactionEntity;
+
+-- 5. Delete the old table and rename the new one
+DROP TABLE partnershipTransactionEntity;
+ALTER TABLE partnershipTransactionEntity_new RENAME TO partnershipTransactionEntity;
+
+-- 6. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

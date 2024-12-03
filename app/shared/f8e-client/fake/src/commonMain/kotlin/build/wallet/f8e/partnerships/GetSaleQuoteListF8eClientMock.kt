@@ -29,7 +29,8 @@ class GetSaleQuoteListF8eClientMock(
               PartnerInfo(
                 name = "partner",
                 logoUrl = "https://logo.url.example.com",
-                partnerId = PartnerId("partner")
+                partnerId = PartnerId("partner"),
+                logoBadgedUrl = "https://badged-logo.url.example.com"
               ),
             fiatAmount = 12.34,
             userFeeFiat = 56.78

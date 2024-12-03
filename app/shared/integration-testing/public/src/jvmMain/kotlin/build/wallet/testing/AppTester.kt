@@ -24,7 +24,7 @@ import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.firmware.TeltraMock
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.money.exchange.ExchangeRateF8eClientMock
 import build.wallet.nfc.*
 import build.wallet.nfc.platform.NfcCommands
@@ -138,6 +138,9 @@ class AppTester(
       isUsingSocRecFakes: Boolean,
       executeWorkers: Boolean = true,
     ): AppTester {
+      // "Disable" default kermit logger until we have our own custom logger setup.
+      // Use Error as minimum log level and use no loger writers to "suppress" logs in meantime.
+      Logger.configure(tag = "", minimumLogLevel = LogLevel.Error, logWriters = emptyList())
       /**
        * Get the `F8eEnvironment` from the environment variables, falling back to local.
        * Should only be used when first setting up the keybox. Once the keybox is set up,
@@ -237,7 +240,7 @@ private fun initPlatform(existingAppDir: String?): PlatformContext {
       val uuid = UUID.randomUUID().toString()
       rootDir.join(uuid)
     }
-  log { "App data directory is $appDir" }
+  logTesting { "App data directory is $appDir" }
   val platformContext = PlatformContext(appDirOverride = appDir)
   val fileDirectoryProvider = FileDirectoryProviderImpl(platformContext)
   Files.createDirectories(Path.of(fileDirectoryProvider.databasesDir()))
@@ -355,7 +358,7 @@ private val inAppBrowserNavigator =
       url: String,
       onClose: () -> Unit,
     ) {
-      log { "Opened URL: $url " }
+      logDebug { "Opened URL: $url " }
       onClose()
     }
 
@@ -369,11 +372,11 @@ private val inAppBrowserNavigator =
 private val systemSettingsLauncher =
   object : SystemSettingsLauncher {
     override fun launchAppSettings() {
-      log { "Launch App Settings" }
+      logDebug { "Launch App Settings" }
     }
 
     override fun launchSecuritySettings() {
-      log { "Launch Security Settings" }
+      logDebug { "Launch Security Settings" }
     }
   }
 

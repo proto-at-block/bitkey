@@ -10,6 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThanOrEqualTo
 import com.github.michaelbull.result.getOrThrow
@@ -36,7 +37,7 @@ class TreasuryWallet(
     waitForConfirmation: Boolean = true,
   ): FundingResult {
     val address = destinationWallet.getNewAddress().unwrap()
-    println("Using Treasury to fund $address with $amount")
+    logTesting { "TreasuryWallet: using Treasury to fund $address with $amount" }
 
     // Retry double-spends caused by concurrent test runs trying to spend from the same
     // UTXO from the treasury.
@@ -51,7 +52,9 @@ class TreasuryWallet(
               k,
               throwable,
             ->
-            println("Iteration $k failed, with cause $throwable of type ${throwable::class}")
+            logTesting {
+              "TreasuryWallet: Iteration $k failed, with cause $throwable of type ${throwable::class}"
+            }
           }
         }
       ) {
@@ -61,9 +64,13 @@ class TreasuryWallet(
     if (waitForConfirmation) {
       // (Regtest only) Advance the blockchain
       blockchainControl.mineBlock(txid = fundingResult.tx.id)
-      println("Successfully broadcast funding transaction, waiting for tx to appear in mempool")
+      logTesting {
+        "TreasuryWallet: Successfully broadcast funding transaction, waiting for tx to appear in mempool"
+      }
     } else {
-      println("Successfully broadcast funding transaction, not waiting for confirmation")
+      logTesting {
+        "TreasuryWallet: Successfully broadcast funding transaction, not waiting for confirmation"
+      }
     }
 
     destinationWallet.balance().test {
@@ -76,7 +83,9 @@ class TreasuryWallet(
               _,
               throwable,
             ->
-            println("Still waiting for transaction to propagate... $throwable of type ${throwable::class}")
+            logTesting {
+              "TreasuryWallet: Still waiting for transaction to propagate... $throwable of type ${throwable::class}"
+            }
           }
         }
       ) {
@@ -84,13 +93,14 @@ class TreasuryWallet(
           destinationWallet.sync()
         }
 
-        println("Sync time: $timeTaken ms")
+        logTesting { "TreasuryWallet: Sync time: $timeTaken ms" }
+
         awaitItem().total.shouldBeGreaterThanOrEqualTo(amount)
       }
       cancelAndIgnoreRemainingEvents()
     }
 
-    println("Treasury funding complete")
+    logTesting { "TreasuryWallet: funding complete" }
 
     return fundingResult
   }
@@ -105,9 +115,12 @@ class TreasuryWallet(
       spendingWallet.sync().getOrThrow()
     }
 
-    println("Sync time: $timeTaken ms")
+    logTesting { "TreasuryWallet: Sync time: $timeTaken ms" }
+
     val treasuryBalance = spendingWallet.balance().first()
-    println("Treasury has Confirmed: ${treasuryBalance.confirmed} UntrustedPending: ${treasuryBalance.untrustedPending} TrustedPending: ${treasuryBalance.trustedPending} sats available")
+    logTesting {
+      "TreasuryWallet: Balance Confirmed: ${treasuryBalance.confirmed} UntrustedPending: ${treasuryBalance.untrustedPending} TrustedPending: ${treasuryBalance.trustedPending} sats available"
+    }
     val treasuryAddress = spendingWallet.getLastUnusedAddress().getOrThrow()
 
     val spendableBalance =

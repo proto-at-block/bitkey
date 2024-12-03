@@ -19,8 +19,7 @@ import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
 import build.wallet.platform.settings.LocaleCountryCodeProvider
 import build.wallet.platform.settings.LocaleLanguageCodeProvider
@@ -68,10 +67,8 @@ class FeatureFlagsF8eClientImpl(
 
     val appInstallation =
       appInstallationDao.getOrCreateAppInstallation()
-        .getOrElse {
-          log(LogLevel.Error, throwable = it.cause) { "Failed to get App Installation" }
-          AppInstallation(localId = "", hardwareSerialNumber = null)
-        }
+        .logFailure { "Failed to get App Installation" }
+        .getOrElse { AppInstallation(localId = "", hardwareSerialNumber = null) }
 
     return httpClient.bodyResult<FeatureFlagsResponse> {
       post(url) {

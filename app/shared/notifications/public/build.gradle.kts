@@ -14,8 +14,7 @@ kotlin {
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
         api(projects.shared.featureFlagPublic)
-        api(projects.shared.phoneNumberPublic)
-        api(projects.shared.emailPublic)
+        api(projects.shared.contactMethodPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.queueProcessorPublic)
       }

@@ -2,7 +2,6 @@ package build.wallet.inheritance
 
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -11,7 +10,6 @@ import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.coroutines.advanceTimeBy
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -22,10 +20,12 @@ import build.wallet.f8e.relationships.Relationships
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.relationships.OutgoingInvitationFake
 import build.wallet.relationships.RelationshipsServiceMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.should
@@ -231,5 +231,34 @@ class InheritanceServiceImplTests : FunSpec({
     // Sync after 60 seconds.
     inheritanceClaimsDao.pendingBeneficiaryClaims.value.shouldBe(Ok(emptyList()))
     inheritanceClaimsDao.pendingBenefactorClaims.value.shouldBe(Ok(emptyList()))
+  }
+
+  test("pendingBeneficiaryClaims flow") {
+    val claims = InheritanceClaims(
+      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
+      benefactorClaims = listOf(BenefactorPendingClaimFake)
+    )
+    inheritanceClaimsF8eClient.response = Ok(claims)
+
+    appCoroutineScope.launch { inheritanceService.executeWork() }
+    appCoroutineScope.runCurrent()
+
+    inheritanceService.pendingBeneficiaryClaims.test {
+      awaitItem().shouldBe(listOf(BeneficiaryPendingClaimFake))
+    }
+  }
+
+  test("lockedBeneficiaryClaims flow") {
+    val claims = InheritanceClaims(
+      beneficiaryClaims = listOf(BeneficiaryLockedClaimFake),
+      benefactorClaims = listOf(BenefactorLockedClaimFake)
+    )
+    inheritanceClaimsF8eClient.response = Ok(claims)
+
+    backgroundScope.launch { inheritanceService.executeWork() }
+
+    inheritanceService.lockedBeneficiaryClaims.test {
+      awaitItem().shouldBe(listOf(BeneficiaryLockedClaimFake))
+    }
   }
 })

@@ -5,8 +5,9 @@ import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logError
+import build.wallet.logging.logVerbose
+import build.wallet.logging.logWarn
 import build.wallet.worker.AppWorker
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
@@ -45,27 +46,27 @@ class InheritanceMaterialSyncWorker(
     keyboxResult: Result<Keybox?, Error>,
   ) {
     if (!flagState.isEnabled()) {
-      log(LogLevel.Debug) { "Skipping Inheritance Material Sync: Feature Disabled" }
+      logVerbose { "Skipping Inheritance Material Sync: Feature Disabled" }
       return
     }
     if (keyboxResult.isErr) {
-      log(LogLevel.Warn, throwable = keyboxResult.error) {
+      logWarn(throwable = keyboxResult.error) {
         "Skipping Inheritance Material Sync: Keybox Error"
       }
       return
     }
     val keybox = keyboxResult.get() ?: run {
-      log(LogLevel.Debug) { "Skipping Inheritance Material Sync: No Keybox" }
+      logVerbose { "Skipping Inheritance Material Sync: No Keybox" }
       return
     }
 
     while (currentCoroutineContext().isActive) {
       inheritanceService.syncInheritanceMaterial(keybox)
         .onFailure {
-          log(LogLevel.Error, throwable = it) { "Failed to sync inheritance material" }
+          logError(throwable = it) { "Failed to sync inheritance material" }
         }
         .onSuccess {
-          log(LogLevel.Verbose) { "Inheritance Material Synced" }
+          logVerbose { "Inheritance Material Synced" }
           return
         }
       delay(1.minutes)

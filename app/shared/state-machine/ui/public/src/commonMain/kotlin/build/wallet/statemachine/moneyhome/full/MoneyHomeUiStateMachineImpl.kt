@@ -1,24 +1,22 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
+import build.wallet.activity.Transaction
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_ALL_TRANSACTIONS
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.PaymentDataParser
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
-import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.PartnershipTransactionStatus
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.pricechart.ChartType
@@ -65,15 +63,11 @@ import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
-import build.wallet.statemachine.transactions.TransactionDetailsUiProps
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachine
-import build.wallet.statemachine.transactions.TransactionListUiProps
-import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.All
-import build.wallet.statemachine.transactions.TransactionListUiStateMachine
+import build.wallet.statemachine.transactions.*
+import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import com.github.michaelbull.result.get
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.launch
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
@@ -81,7 +75,7 @@ class MoneyHomeUiStateMachineImpl(
   private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
   private val sendUiStateMachine: SendUiStateMachine,
   private val transactionDetailsUiStateMachine: TransactionDetailsUiStateMachine,
-  private val transactionListUiStateMachine: TransactionListUiStateMachine,
+  private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
   private val fwupNfcUiStateMachine: FwupNfcUiStateMachine,
   private val lostHardwareUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
@@ -98,9 +92,9 @@ class MoneyHomeUiStateMachineImpl(
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
   private val socRecService: SocRecService,
-  private val transactionsService: TransactionsService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val partnershipsSellUiStateMachine: PartnershipsSellUiStateMachine,
+  private val failedPartnerTransactionUiStateMachine: FailedPartnerTransactionUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -241,29 +235,26 @@ class MoneyHomeUiStateMachineImpl(
       )
 
       ViewingAllTransactionActivityUiState -> {
-        val transactions =
-          when (
-            val transactionsData = remember { transactionsService.transactionsData() }
-              .collectAsState().value
-          ) {
-            TransactionsData.LoadingTransactionsData -> immutableListOf()
-            is TransactionsData.TransactionsLoadedData -> transactionsData.transactions
-          }
-
-        AllTransactionsModel(
-          transactions = transactions,
-          fiatCurrency = fiatCurrency,
-          onTransactionSelected = { transaction ->
-            uiState =
-              ViewingTransactionUiState(
-                transaction = transaction,
-                entryPoint = ACTIVITY
+        ListFormBodyModel(
+          toolbarTitle = "Activity",
+          listGroups = buildImmutableList {
+            transactionsActivityUiStateMachine.model(
+              props = TransactionsActivityProps(
+                transactionVisibility = All,
+                onTransactionClicked = { transaction ->
+                  uiState = ViewingTransactionUiState(
+                    transaction = transaction,
+                    entryPoint = ACTIVITY
+                  )
+                }
               )
+            )?.let { add(it.listModel) }
           },
-          onExit = {
+          onBack = {
             uiState = ViewingBalanceUiState()
-          }
-        )
+          },
+          id = MONEY_HOME_ALL_TRANSACTIONS
+        ).asRootScreen()
       }
 
       is ViewingTransactionUiState -> TransactionDetailsModel(
@@ -409,13 +400,33 @@ class MoneyHomeUiStateMachineImpl(
     props: MoneyHomeUiProps,
     state: ViewingTransactionUiState,
     onClose: (EntryPoint) -> Unit,
-  ) = transactionDetailsUiStateMachine.model(
-    props = TransactionDetailsUiProps(
-      account = props.account,
-      transaction = state.transaction,
-      onClose = { onClose(state.entryPoint) }
-    )
-  )
+  ): ScreenModel {
+    return when (state.transaction) {
+      is Transaction.BitcoinWalletTransaction -> transactionDetailsUiStateMachine.model(
+        props = TransactionDetailsUiProps(
+          account = props.account,
+          transaction = state.transaction,
+          onClose = { onClose(state.entryPoint) }
+        )
+      )
+      is Transaction.PartnershipTransaction -> if (state.transaction.details.status == PartnershipTransactionStatus.FAILED) {
+        failedPartnerTransactionUiStateMachine.model(
+          props = FailedPartnerTransactionProps(
+            transaction = state.transaction,
+            onClose = { onClose(state.entryPoint) }
+          )
+        )
+      } else {
+        transactionDetailsUiStateMachine.model(
+          props = TransactionDetailsUiProps(
+            account = props.account,
+            transaction = state.transaction,
+            onClose = { onClose(state.entryPoint) }
+          )
+        )
+      }
+    }
+  }
 
   @Composable
   private fun HardwareRecoveryModel(
@@ -446,27 +457,6 @@ class MoneyHomeUiStateMachineImpl(
         )
     )
   }
-
-  @Composable
-  private fun AllTransactionsModel(
-    transactions: ImmutableList<BitcoinTransaction>,
-    fiatCurrency: FiatCurrency,
-    onTransactionSelected: (BitcoinTransaction) -> Unit,
-    onExit: () -> Unit,
-  ) = ListFormBodyModel(
-    toolbarTitle = "Activity",
-    listGroups =
-      transactionListUiStateMachine.model(
-        props = TransactionListUiProps(
-          transactionVisibility = All,
-          transactions = transactions,
-          fiatCurrency = fiatCurrency,
-          onTransactionClicked = onTransactionSelected
-        )
-      ) ?: immutableListOf(),
-    onBack = onExit,
-    id = MONEY_HOME_ALL_TRANSACTIONS
-  ).asRootScreen()
 }
 
 sealed interface MoneyHomeUiState {
@@ -554,7 +544,7 @@ sealed interface MoneyHomeUiState {
    * Indicates that we are viewing details for the given transaction.
    */
   data class ViewingTransactionUiState(
-    val transaction: BitcoinTransaction,
+    val transaction: Transaction,
     val entryPoint: EntryPoint,
   ) : MoneyHomeUiState {
     /** Where the details were launched from */

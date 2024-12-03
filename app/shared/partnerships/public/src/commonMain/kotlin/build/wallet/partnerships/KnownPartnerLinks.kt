@@ -26,6 +26,7 @@ enum class KnownPartnerLinks(
       partnerInfo = PartnerInfo(
         partnerId = PartnerId("Coinbase"),
         logoUrl = null,
+        logoBadgedUrl = null,
         name = "Coinbase"
       )
     )

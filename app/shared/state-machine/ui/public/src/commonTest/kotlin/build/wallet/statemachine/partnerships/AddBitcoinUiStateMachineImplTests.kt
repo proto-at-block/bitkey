@@ -6,12 +6,14 @@ import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.*
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
+import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.partnerships.PartnershipPurchaseServiceFake
 import build.wallet.partnerships.PartnershipTransactionsServiceMock
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
@@ -27,10 +29,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class AddBitcoinUiStateMachineImplTests : FunSpec({
-  // turbines
-  val getPurchaseAmountsF8eClient = GetPurchaseOptionsF8eClientMock(turbines::create)
-  val getPurchaseQuoteListF8eClient = GetPurchaseQuoteListF8eClientMock(turbines::create)
-  val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientMock(turbines::create)
+  val partnershipPurchaseService = PartnershipPurchaseServiceFake()
   val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
   val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
   val partnershipTransactionsService = PartnershipTransactionsServiceMock(
@@ -57,15 +56,12 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         ),
       partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
         moneyDisplayFormatter = MoneyDisplayFormatterFake,
-        getPurchaseOptionsF8eClient = getPurchaseAmountsF8eClient,
-        getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
-        getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
+        partnershipPurchaseService = partnershipPurchaseService,
         partnershipTransactionsService = partnershipTransactionsService,
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         eventTracker = eventTracker,
         currencyConverter = CurrencyConverterFake(),
-        exchangeRateService = ExchangeRateServiceFake(),
-        bitcoinAddressService = bitcoinAddressService
+        exchangeRateService = ExchangeRateServiceFake()
       )
     )
 
@@ -104,11 +100,9 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     val purchaseAmount = FiatMoney.Companion.usd(123.0)
     stateMachine.test(props(purchaseAmount = purchaseAmount)) {
       // load purchase amounts
-      getPurchaseAmountsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // load purchase quotes
-      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes

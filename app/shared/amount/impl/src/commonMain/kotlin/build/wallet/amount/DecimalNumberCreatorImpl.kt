@@ -1,9 +1,10 @@
 package build.wallet.amount
 
 import build.wallet.amount.Amount.DecimalNumber
+import build.wallet.platform.settings.LocaleProvider
 
 class DecimalNumberCreatorImpl(
-  private val decimalSeparatorProvider: DecimalSeparatorProvider,
+  private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
 ) : DecimalNumberCreator {
   override fun create(
@@ -29,25 +30,28 @@ class DecimalNumberCreatorImpl(
             )
         },
       maximumFractionDigits = maximumFractionDigits,
-      decimalSeparator = decimalSeparatorProvider.decimalSeparator()
+      decimalSeparator = localeProvider.currentLocale().decimalSeparator
     )
 
   override fun create(
     numberString: String,
     maximumFractionDigits: Int,
   ): DecimalNumber {
+    val decimalSeparator = localeProvider.currentLocale().decimalSeparator
     return DecimalNumber(
-      numberString =
-        numberString.truncatedToMaximumFractionDigits(
-          maximumFractionDigits = maximumFractionDigits
-        ),
+      numberString = numberString.truncatedToMaximumFractionDigits(
+        decimalSeparator = decimalSeparator,
+        maximumFractionDigits = maximumFractionDigits
+      ),
       maximumFractionDigits = maximumFractionDigits,
-      decimalSeparator = decimalSeparatorProvider.decimalSeparator()
+      decimalSeparator = decimalSeparator
     )
   }
 
-  private fun String.truncatedToMaximumFractionDigits(maximumFractionDigits: Int): String {
-    val decimalSeparator = decimalSeparatorProvider.decimalSeparator()
+  private fun String.truncatedToMaximumFractionDigits(
+    decimalSeparator: Char,
+    maximumFractionDigits: Int,
+  ): String {
     val components = this.split(decimalSeparator)
     return if (components.count() > 1) {
       val wholeDigits = components[0]

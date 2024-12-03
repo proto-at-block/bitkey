@@ -44,7 +44,6 @@ kotlin {
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.keyValueStoreFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.testingPublic)
       }
     }

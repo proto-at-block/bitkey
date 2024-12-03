@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-core-uikitarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-uikitarm64-1.7.0-metadata.jar": "d28c14f03abfebfd476b5672ed4808d018cb7375eedc718b407157e486df1f04"
+                        "animation-core-uikitarm64-1.7.1-metadata.jar": "d28c14f03abfebfd476b5672ed4808d018cb7375eedc718b407157e486df1f04"
                     }
                 },
                 {
                     "artifacts": {
-                        "animation-core.klib": "25b7afa91264f955e435c2749ff27c318982180498dabf61ee6e12c8ae0e3e28"
+                        "animation-core.klib": "9eb13ee291302600a9fc6615d5cb3f5a6ae34e14b3ba9c5946ed8435c3f88b7c"
                     }
                 }
             ],

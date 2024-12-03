@@ -9,7 +9,51 @@ struct IconView: View {
     var colorOverride: Color? = nil
 
     var body: some View {
-        ZStack(alignment: .center) {
+        let alignment: Alignment = switch model.iconAlignmentInBackground {
+        case .topstart:
+            .topLeading
+        case .topcenter:
+            .top
+        case .topend:
+            .topTrailing
+        case .start:
+            .leading
+        case .center:
+            .center
+        case .end:
+            .trailing
+        case .bottomstart:
+            .bottomLeading
+        case .bottomcenter:
+            .bottom
+        case .bottomend:
+            .bottomTrailing
+        default:
+            .center
+        }
+
+        let t = if let badgeType = model.badge {
+            switch badgeType {
+            case .loading:
+                AnyView(
+                    BadgeLoadingView(size: IconSize.XSmall())
+                        .padding(.bottom, 6)
+                        .padding(.trailing, 6)
+                )
+            case .error:
+                AnyView(
+                    Image(uiImage: .warningBadge)
+                        .padding(.bottom, 4)
+                        .padding(.trailing, 4)
+                )
+            default:
+                AnyView(EmptyView())
+            }
+        } else {
+            AnyView(EmptyView())
+        }
+
+        ZStack(alignment: alignment) {
             // Background
             switch model.iconBackgroundType {
             case let circle as IconBackgroundTypeCircle:
@@ -28,8 +72,8 @@ struct IconView: View {
             // Content
             icon
                 .foregroundColor(colorOverride ?? model.iconTint?.color ?? .foreground)
-
         }.frame(iconSize: model.totalSize)
+            .overlay(t, alignment: .bottomTrailing)
     }
 
     @ViewBuilder
@@ -85,12 +129,14 @@ struct IconViewPreview: PreviewProvider {
                     url: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg",
                     fallbackIcon: .bitcoin
                 ),
-                iconSize: .small,
+                iconSize: .Small(),
                 iconBackgroundType: IconBackgroundTypeTransient(),
+                iconAlignmentInBackground: .center,
                 iconTint: nil,
                 iconOpacity: nil,
                 iconTopSpacing: nil,
-                text: nil
+                text: nil,
+                badge: nil
             )
         )
     }
@@ -103,6 +149,7 @@ private extension IconBackgroundTypeCircle {
         case .primarybackground20: return .bitkeyPrimary.opacity(0.2)
         case .translucentblack: return .black.opacity(0.1)
         case .translucentwhite: return .white.opacity(0.2)
+        case .information: return .calloutInformationTrailingIconBackground.opacity(0.25)
         default: return .foreground10
         }
     }
@@ -121,6 +168,8 @@ private extension IconBackgroundTypeSquare {
             .calloutWarningTrailingIconBackground
         case .danger:
             .danger
+        case .transparent:
+            SwiftUI.Color.calloutDefaultTrailingIconBackground.opacity(0)
         default:
             .calloutDefaultTrailingIconBackground
         }

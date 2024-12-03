@@ -1,8 +1,8 @@
 package build.wallet.google.signin
 
 import build.wallet.catchingResult
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
+import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -16,7 +16,7 @@ class GoogleSignOutActionImpl(
   private val googleSignInClientProvider: GoogleSignInClientProvider,
 ) : GoogleSignOutAction {
   override suspend fun signOut(): Result<Unit, GoogleSignOutError> {
-    log { "Signing out from Google accounts" }
+    logDebug { "Signing out from Google accounts" }
     return catchingResult {
       withTimeout(10.seconds) {
         withContext(Dispatchers.IO) {
@@ -28,11 +28,11 @@ class GoogleSignOutActionImpl(
       }
     }
       .map {
-        log { "Successfully logged out from Google account and revoked access." }
+        logDebug { "Successfully logged out from Google account and revoked access." }
         // Noop: Sign out action was successful.
       }
+      .logFailure { "Failed to sign out from Google account" }
       .mapError { error ->
-        log(Error, throwable = error) { "Failed to sign out from Google account." }
         GoogleSignOutError("Google Sign Out failed. $error")
       }
   }

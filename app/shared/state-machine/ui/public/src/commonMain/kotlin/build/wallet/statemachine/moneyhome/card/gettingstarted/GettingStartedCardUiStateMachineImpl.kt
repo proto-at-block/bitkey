@@ -7,8 +7,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_WALLET_FUNDED
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.bitcoin.transactions.TransactionsData
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.relationships.Relationships
@@ -20,7 +19,6 @@ import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -40,7 +38,7 @@ class GettingStartedCardUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val eventTracker: EventTracker,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
   private val socRecService: SocRecService,
   private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
@@ -64,14 +62,9 @@ class GettingStartedCardUiStateMachineImpl(
       }
     }
 
-    val transactions =
-      when (
-        val transactionsData = remember { transactionsService.transactionsData() }
-          .collectAsState().value
-      ) {
-        TransactionsData.LoadingTransactionsData -> immutableListOf()
-        is TransactionsData.TransactionsLoadedData -> transactionsData.transactions
-      }
+    val transactionsData = remember { bitcoinWalletService.transactionsData() }
+      .collectAsState().value
+    val transactions = transactionsData?.transactions ?: immutableListOf()
 
     val mobilePayData = remember { mobilePayService.mobilePayData }
       .collectAsState()
@@ -114,7 +107,6 @@ class GettingStartedCardUiStateMachineImpl(
     // Clear tasks when all are complete
     if (uiState.activeTasks.isNotEmpty() && uiState.activeTasks.all { it.state == Complete }) {
       LaunchedEffect("clear-tasks") {
-        log { "Animating getting started tasks out" }
         // First, pause for 1 second to show the completed state.
         delay(1.seconds)
         // Then, animate the card.
@@ -143,7 +135,6 @@ class GettingStartedCardUiStateMachineImpl(
         val totalAnimationDurationInSeconds =
           emphasisAnimationDurationInSeconds + disappearAnimationDurationInSeconds
         delay(totalAnimationDurationInSeconds.seconds)
-        log { "Clearing getting started tasks" }
         gettingStartedTaskDao.clearTasks()
           .onSuccess {
             eventTracker.track(ACTION_APP_GETTINGSTARTED_COMPLETED)

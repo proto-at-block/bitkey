@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-layout-uikitarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-layout-uikitarm64-1.7.0-metadata.jar": "a6a26916d63eb9ad65a3618a72cf405aa21062b598e0895f5040d71cfae8a7b0"
+                        "foundation-layout-uikitarm64-1.7.1-metadata.jar": "a6a26916d63eb9ad65a3618a72cf405aa21062b598e0895f5040d71cfae8a7b0"
                     }
                 },
                 {

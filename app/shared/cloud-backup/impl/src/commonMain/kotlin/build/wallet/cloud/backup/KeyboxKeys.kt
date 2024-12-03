@@ -7,8 +7,7 @@ import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -60,7 +59,7 @@ internal suspend fun Keybox.appKeys(
           appPrivateKeyDao
             .getAppSpendingPrivateKey(publicKey = inactiveKeySet.appKey)
             .onFailure {
-              log(LogLevel.Info) {
+              logWarn {
                 "Missing private spending key for inactive spending public key: ${inactiveKeySet.appKey}"
               }
             }

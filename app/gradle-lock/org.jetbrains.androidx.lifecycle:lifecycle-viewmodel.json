@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel",
     "components": [
         {
-            "version": "2.8.3",
+            "version": "2.8.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-2.8.3.jar": "68544852f766d3224d6c5e0c7c61b83e0d715063af33a26d56ee62688728dfbc"
+                        "lifecycle-viewmodel-2.8.4.jar": "68544852f766d3224d6c5e0c7c61b83e0d715063af33a26d56ee62688728dfbc"
                     }
                 }
             ],

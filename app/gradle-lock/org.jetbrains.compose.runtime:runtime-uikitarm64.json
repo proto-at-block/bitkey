@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-uikitarm64",
     "components": [
         {
-            "version": "1.7.0",
+            "version": "1.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-uikitarm64-1.7.0-metadata.jar": "669db7f61a6ee168452bf22daf3f3df77d0e7ba98b8629208887876b9db7666f"
+                        "runtime-uikitarm64-1.7.1-metadata.jar": "669db7f61a6ee168452bf22daf3f3df77d0e7ba98b8629208887876b9db7666f"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime.klib": "8f0001d7383a0c69e79c3bf93a0b403d24e08a65dc02976186b878b6b5dc4aae"
+                        "runtime.klib": "f4a02e5ced0242558611290fa6487e2501472127da8aad24316cc1c20b7a823e"
                     }
                 }
             ],

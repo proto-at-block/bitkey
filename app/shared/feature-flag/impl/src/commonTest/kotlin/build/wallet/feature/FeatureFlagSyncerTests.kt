@@ -1,12 +1,12 @@
 package build.wallet.feature
 
 import build.wallet.account.AccountServiceFake
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClientFake
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
 import io.kotest.core.coroutines.backgroundScope

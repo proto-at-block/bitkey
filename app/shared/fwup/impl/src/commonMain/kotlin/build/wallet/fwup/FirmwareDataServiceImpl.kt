@@ -1,6 +1,5 @@
 package build.wallet.fwup
 
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.debug.DebugOptionsService
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -10,9 +9,10 @@ import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
+import build.wallet.logging.*
 import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -110,7 +110,7 @@ class FirmwareDataServiceImpl(
         firmwareDeviceInfoDao.setDeviceInfo(firmwareDeviceInfo.copy(version = fwupData.version))
           .bind()
       } else {
-        log { "Firmware device info null after fwup. This should not happen" }
+        logError { "Firmware device info null after fwup. This should not happen" }
       }
 
       fwupDataDao.clear().bind()

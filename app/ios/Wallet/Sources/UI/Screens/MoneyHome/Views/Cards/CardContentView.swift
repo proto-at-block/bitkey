@@ -81,6 +81,8 @@ struct CardContentView: View {
                     switch contentViewModel {
                     case let drillListModel as CardModelCardContentDrillList:
                         CardContentDrillList(viewModel: drillListModel)
+                    case let pendingClaimModel as ComposableRenderedModel:
+                        ComposableRenderedModelView(model: pendingClaimModel)
                     default:
                         fatalError("Unexpected card content model \(viewModel)")
                     }
@@ -158,6 +160,9 @@ private extension View {
     @ViewBuilder
     func padding(style: CardModel.CardStyle, hasContent: Bool) -> some View {
         switch style {
+        case _ as CardModel.CardStylePlain:
+            self
+
         case _ as CardModel.CardStyleOutline:
             if hasContent {
                 self

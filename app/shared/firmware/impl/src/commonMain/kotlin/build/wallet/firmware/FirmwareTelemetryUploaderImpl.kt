@@ -1,6 +1,6 @@
 package build.wallet.firmware
 
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.queueprocessor.process
 import build.wallet.toByteString
 import build.wallet.toUByteList
@@ -30,7 +30,7 @@ class FirmwareTelemetryUploaderImpl(
       val translated =
         teltra.translateBitlogs(eventsBytes.toUByteList(), identifiers)
       if (translated.isEmpty()) {
-        log { "Failed to translate bitlogs" }
+        logWarn { "Failed to translate bitlogs" }
         return@launch
       }
 
@@ -50,7 +50,7 @@ class FirmwareTelemetryUploaderImpl(
     identifiers: TelemetryIdentifiers,
   ) {
     if (coredump.size != coredumpSize && coredump.size != oldCoredumpSize) {
-      log { "Rejecting invalid coredump (${coredump.size} bytes)" }
+      logWarn { "Rejecting invalid coredump (${coredump.size} bytes)" }
       return
     }
     appCoroutineScope.launch {

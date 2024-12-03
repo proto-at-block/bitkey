@@ -1,0 +1,42 @@
+-- This migration converts the `broadcastTimeInstant` and `estimatedConfirmationTimeInstant` columns in the
+-- `transactionDetailEntity` table from epoch milliseconds (INTEGER) to ISO-8601 formatted dates (TEXT),
+-- renaming them to `broadcastTime` and `estimatedConfirmationTime`. This change ensures human-readable timestamps
+-- with millisecond precision and UTC timezone indication.
+
+-- 1. Add two new TEXT columns, broadcastTime_temp and estimatedConfirmationTime_temp, to store ISO-8601 formatted dates.
+ALTER TABLE transactionDetailEntity ADD COLUMN broadcastTime_temp TEXT;
+ALTER TABLE transactionDetailEntity ADD COLUMN estimatedConfirmationTime_temp TEXT;
+
+-- 2. Populate broadcastTime_temp and estimatedConfirmationTime_temp by converting the values in
+-- broadcastTimeInstant and estimatedConfirmationTimeInstant from epoch milliseconds (INTEGER) to ISO-8601 format (TEXT).
+-- This format includes milliseconds and the 'Z' suffix for UTC time.
+UPDATE transactionDetailEntity
+SET broadcastTime_temp = strftime('%Y-%m-%dT%H:%M:%S', broadcastTimeInstant / 1000, 'unixepoch') || '.' ||
+                         printf('%03d', broadcastTimeInstant % 1000) || 'Z',
+    estimatedConfirmationTime_temp = strftime('%Y-%m-%dT%H:%M:%S', estimatedConfirmationTimeInstant / 1000, 'unixepoch') || '.' ||
+                                     printf('%03d', estimatedConfirmationTimeInstant % 1000) || 'Z';
+
+-- 3. Recreate the transactionDetailEntity table with the broadcastTime and estimatedConfirmationTime columns now as
+-- ISO-8601 TEXT instead of epoch INTEGER and using the new column names.
+CREATE TABLE transactionDetailEntity_new (
+    transactionId TEXT NOT NULL PRIMARY KEY,
+    broadcastTime TEXT AS Instant NOT NULL,
+    estimatedConfirmationTime TEXT AS Instant NOT NULL
+);
+
+-- 4. Copy all rows from the original transactionDetailEntity table to the new table, using the converted
+-- values in broadcastTime_temp and estimatedConfirmationTime_temp as the new broadcastTime and
+-- estimatedConfirmationTime values.
+INSERT INTO transactionDetailEntity_new (
+    transactionId, broadcastTime, estimatedConfirmationTime
+)
+SELECT
+    transactionId, broadcastTime_temp, estimatedConfirmationTime_temp
+FROM transactionDetailEntity;
+
+-- 5. Delete the old table and rename the new one
+DROP TABLE transactionDetailEntity;
+ALTER TABLE transactionDetailEntity_new RENAME TO transactionDetailEntity;
+
+-- 6. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

@@ -13,6 +13,7 @@ internal fun PartnershipTransaction.toEntity(): PartnershipTransactionEntity {
     context = context,
     partnerId = partnerInfo.partnerId,
     partnerLogoUrl = partnerInfo.logoUrl,
+    partnerLogoBadgedUrl = partnerInfo.logoBadgedUrl,
     partnerName = partnerInfo.name,
     cryptoAmount = cryptoAmount,
     txid = txid,
@@ -21,7 +22,8 @@ internal fun PartnershipTransaction.toEntity(): PartnershipTransactionEntity {
     paymentMethod = paymentMethod,
     created = created,
     updated = updated,
-    sellWalletAddress = sellWalletAddress
+    sellWalletAddress = sellWalletAddress,
+    partnerTransactionUrl = partnerTransactionUrl
   )
 }
 
@@ -37,7 +39,8 @@ internal fun PartnershipTransactionEntity.toModel(): PartnershipTransaction {
     partnerInfo = PartnerInfo(
       partnerId = partnerId,
       logoUrl = partnerLogoUrl,
-      name = partnerName
+      name = partnerName,
+      logoBadgedUrl = partnerLogoBadgedUrl
     ),
     cryptoAmount = cryptoAmount,
     txid = txid,
@@ -46,6 +49,7 @@ internal fun PartnershipTransactionEntity.toModel(): PartnershipTransaction {
     paymentMethod = paymentMethod,
     created = created,
     updated = updated,
-    sellWalletAddress = sellWalletAddress
+    sellWalletAddress = sellWalletAddress,
+    partnerTransactionUrl = partnerTransactionUrl
   )
 }

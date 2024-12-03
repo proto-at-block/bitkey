@@ -4,7 +4,6 @@ package build.wallet.recovery.sweep
 
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -14,6 +13,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.PromptSweepFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk

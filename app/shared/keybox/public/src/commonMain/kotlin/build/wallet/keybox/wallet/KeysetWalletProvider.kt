@@ -1,6 +1,7 @@
 package build.wallet.keybox.wallet
 
 import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import com.github.michaelbull.result.Result
 
@@ -12,4 +13,6 @@ interface KeysetWalletProvider {
    * This API is mostly used to sync and watch inactive keysets.
    */
   suspend fun getWatchingWallet(keyset: SpendingKeyset): Result<WatchingWallet, Throwable>
+
+  suspend fun getWatchingWallet(softwareKeybox: SoftwareKeybox): Result<WatchingWallet, Throwable>
 }

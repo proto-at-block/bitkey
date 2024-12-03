@@ -1,14 +1,16 @@
 package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.TransactionDetails
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.partnerships.PartnerInfoFake
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.transactions.TransactionDetails
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -97,7 +99,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
   }
 
   context("Show sell transaction detail card") {
-    val sellTransactionDetails = TransactionDetails.Sell(
+    val sellTransactionDetails = TransactionDetails.Regular(
       transferAmount = BitcoinMoney.btc(2.0),
       feeAmount = BitcoinMoney.btc(0.1),
       estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST
@@ -106,15 +108,15 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
     val props = TransactionDetailsCardUiProps(
       transactionDetails = sellTransactionDetails,
       exchangeRates = immutableListOf(),
-      variant = TransferConfirmationScreenVariant.Sell("partnerName")
+      variant = TransferConfirmationScreenVariant.Sell(PartnerInfoFake)
     )
 
     test("Generates correct detail model type with correct transfer amounts") {
       stateMachine.test(props) {
         val transactionDetails = awaitItem().transactionDetailModelType
-          .shouldBeTypeOf<TransactionDetailModelType.Sell>()
+          .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
-        transactionDetails.transferAmountText.shouldBe("~$6.00")
+        transactionDetails.transferAmountText.shouldBe("$6.00")
         transactionDetails.transferAmountSecondaryText.shouldBe("200,000,000 sats")
         transactionDetails.totalAmountPrimaryText.shouldBe("$6.30")
         transactionDetails.totalAmountSecondaryText.shouldBe("210,000,000 sats")
@@ -151,7 +153,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
       val zeroFeeProps = props.copy(transactionDetails = zeroFeeSellDetail)
       stateMachine.test(zeroFeeProps) {
         val transactionDetails = awaitItem().transactionDetailModelType
-          .shouldBeTypeOf<TransactionDetailModelType.Sell>()
+          .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
         transactionDetails.feeAmountText.shouldBe("$0.00")
         transactionDetails.totalAmountPrimaryText.shouldBe("$6.00")
@@ -163,12 +165,12 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
       val propsWithNullRates = props.copy(exchangeRates = null)
       stateMachine.test(propsWithNullRates) {
         val transactionDetails = awaitItem().transactionDetailModelType
-          .shouldBeTypeOf<TransactionDetailModelType.Sell>()
+          .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
-        transactionDetails.transferAmountText.shouldBe("~200,000,000 sats")
-        transactionDetails.transferAmountSecondaryText.shouldBe("")
+        transactionDetails.transferAmountText.shouldBe("200,000,000 sats")
+        transactionDetails.transferAmountSecondaryText.shouldBeNull()
         transactionDetails.totalAmountPrimaryText.shouldBe("210,000,000 sats")
-        transactionDetails.totalAmountSecondaryText.shouldBe("")
+        transactionDetails.totalAmountSecondaryText.shouldBeNull()
         transactionDetails.feeAmountText.shouldBe("10,000,000 sats")
       }
     }

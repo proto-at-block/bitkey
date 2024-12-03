@@ -84,7 +84,7 @@ private struct AddressQrCodeContentView: View {
                             fallbackAddressQrCodeModel: fallbackAddressQrCodeModel
                         )
                     } else {
-                        RotatingLoadingIcon(size: .avatar, tint: .black)
+                        RotatingLoadingIcon(size: .Avatar(), tint: .black)
                     }
                 }
                 .frame(width: qrCodeSize, height: qrCodeSize)
@@ -154,7 +154,7 @@ private struct AddressQrCodeContentQrView: View {
         if let url = URL(string: addressQrImageUrl) {
             AsyncUrlImageView(
                 url: url,
-                size: .avatar,
+                size: .Avatar(),
                 opacity: 1.0,
                 fallbackContent: {
                     FallbackAddressQrCodeContentQrView(addressQrCode: fallbackAddressQrCodeModel)

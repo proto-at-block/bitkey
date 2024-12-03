@@ -1,8 +1,10 @@
 package build.wallet.bitkey.keybox
 
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.crypto.PublicKey
+import build.wallet.frost.ShareDetails
 
 /**
  * A keybox is a collection of keysets.
@@ -12,6 +14,8 @@ import build.wallet.crypto.PublicKey
  */
 data class SoftwareKeybox(
   val id: String,
+  val networkType: BitcoinNetworkType,
   val authKey: PublicKey<AppGlobalAuthKey>,
   val recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
+  val shareDetails: ShareDetails,
 )

@@ -9,13 +9,14 @@ import platform.Foundation.NSError
  * Primarily, instead of accepting Kotlin [Throwable] directly, this function accepts [NSError], and
  * internally maps it to Kotlin [Throwable].
  */
+@Suppress("Unused") // Used by iOS
 inline fun log(
   level: LogLevel,
   tag: String?,
   error: NSError?,
   message: () -> String,
 ) {
-  log(
+  logInternal(
     level = level,
     tag = tag,
     throwable = error?.asThrowable(),

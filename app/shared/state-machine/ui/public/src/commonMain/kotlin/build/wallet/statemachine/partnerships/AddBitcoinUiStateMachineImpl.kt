@@ -62,8 +62,6 @@ class AddBitcoinUiStateMachineImpl(
       is PurchasingUiState ->
         partnershipsPurchaseUiStateMachine.model(
           props = PartnershipsPurchaseUiProps(
-            account = props.account,
-            keybox = props.keybox,
             selectedAmount = currentState.selectedAmount,
             onPartnerRedirected = props.onPartnerRedirected,
             onBack = showBuyOrTransferState,

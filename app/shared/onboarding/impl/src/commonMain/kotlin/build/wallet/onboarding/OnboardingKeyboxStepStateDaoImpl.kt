@@ -8,6 +8,7 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class OnboardingKeyboxStepStateDaoImpl(
@@ -23,10 +24,14 @@ class OnboardingKeyboxStepStateDaoImpl(
   }
 
   override fun stateForStep(step: OnboardingKeyboxStep): Flow<OnboardingKeyboxStepState> {
-    return databaseProvider.database().onboardingKeyboxStepStateQueries
-      .getStateForStep(step)
-      .asFlowOfOneOrNull()
-      .map { it.component1()?.state ?: Incomplete }
+    return flow {
+      databaseProvider.database()
+        .onboardingKeyboxStepStateQueries
+        .getStateForStep(step)
+        .asFlowOfOneOrNull()
+        .map { it.component1()?.state ?: Incomplete }
+        .collect(::emit)
+    }
   }
 
   override suspend fun clear(): Result<Unit, DbError> {

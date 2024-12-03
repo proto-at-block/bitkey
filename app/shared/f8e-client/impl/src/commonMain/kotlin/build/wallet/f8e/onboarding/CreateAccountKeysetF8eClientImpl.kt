@@ -17,7 +17,7 @@ import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.*
-import build.wallet.logging.log
+import build.wallet.logging.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
@@ -68,7 +68,7 @@ class CreateAccountKeysetF8eClientImpl(
 
         if (!verified) {
           // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
-          log {
+          logError {
             "[wsm_integrity_failure] WSM integrity signature verification failed: " +
               "${response.spendingSig} : " +
               "${response.spendingDpub} : " +

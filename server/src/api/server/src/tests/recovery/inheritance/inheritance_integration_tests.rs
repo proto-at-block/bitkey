@@ -315,7 +315,7 @@ async fn start_inheritance_claim_test(
             vec![
                 // The initiated schedule gets split into 1 that gets sent immediately
                 // and a schedule that starts in 7 days
-                NotificationPayloadType::RecoveryRelationshipInvitationPending,
+                NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
             ],
@@ -330,7 +330,10 @@ async fn start_inheritance_claim_test(
                 NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
             ],
-            vec![NotificationPayloadType::InheritanceClaimPeriodInitiated],
+            vec![
+                NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
+                NotificationPayloadType::InheritanceClaimPeriodInitiated,
+            ],
         );
 
         join!(
@@ -660,7 +663,7 @@ async fn cancel_inheritance_claim(
             vec![
                 // The initiated schedule gets split into 1 that gets sent immediately
                 // and a schedule that starts in 7 days
-                NotificationPayloadType::RecoveryRelationshipInvitationPending,
+                NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
             ],
@@ -677,6 +680,7 @@ async fn cancel_inheritance_claim(
                 NotificationPayloadType::InheritanceClaimCanceled,
             ],
             vec![
+                NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
                 NotificationPayloadType::InheritanceClaimCanceled,
             ],

@@ -241,6 +241,11 @@ extension UIColor {
     light: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 0.10196078431372549),
     dark: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 0.10196078431372549)
   )
+  // Information callout icon color
+  public static let calloutInformationLeadingIcon = UIColor(
+    light: UIColor(red: 0.149, green: 0.565, blue: 0.780, alpha: 1),
+    dark: UIColor(red: 0.149, green: 0.565, blue: 0.780, alpha: 1)
+  )
   // Information callout trailing icon color
   public static let calloutInformationTrailingIcon = UIColor(
     light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
@@ -321,6 +326,11 @@ extension UIColor {
     light: UIColor(red: 0.200, green: 0.204, blue: 0.259, alpha: 1),
     dark: UIColor(red: 0.200, green: 0.204, blue: 0.259, alpha: 1)
   )
+  // Surface color for inheritance graphics
+  public static let inheritanceSurface = UIColor(
+    light: UIColor(red: 0.812, green: 0.769, blue: 0.804, alpha: 1),
+    dark: UIColor(red: 0.812, green: 0.769, blue: 0.804, alpha: 1)
+  )
   // Primary color used for Bitcoin elements
   public static let bitcoinPrimary = UIColor(
     light: UIColor(red: 0.969, green: 0.576, blue: 0.102, alpha: 1),
@@ -340,6 +350,16 @@ extension UIColor {
   public static let chartElement = UIColor(
     light: UIColor(red: 0.898, green: 0.898, blue: 0.898, alpha: 1),
     dark: UIColor(red: 0.898, green: 0.898, blue: 0.898, alpha: 1)
+  )
+  // The color used for incomplete labels on the stepper indicator.
+  public static let stepperIncompleteLabel = UIColor(
+    light: UIColor(red: 0.698, green: 0.698, blue: 0.698, alpha: 1),
+    dark: UIColor(red: 0.698, green: 0.698, blue: 0.698, alpha: 1)
+  )
+  // The color used for sections of the stepper indicator that are incomplete/not in progress.
+  public static let stepperIncomplete = UIColor(
+    light: UIColor(red: 0.949, green: 0.949, blue: 0.949, alpha: 1),
+    dark: UIColor(red: 0.949, green: 0.949, blue: 0.949, alpha: 1)
   )
 }
 
@@ -391,6 +411,7 @@ extension Color {
   public static let calloutInformationTitle = Color(from: .calloutInformationTitle)
   public static let calloutInformationSubtitle = Color(from: .calloutInformationSubtitle)
   public static let calloutInformationBackground = Color(from: .calloutInformationBackground)
+  public static let calloutInformationLeadingIcon = Color(from: .calloutInformationLeadingIcon)
   public static let calloutInformationTrailingIcon = Color(from: .calloutInformationTrailingIcon)
   public static let calloutInformationTrailingIconBackground = Color(from: .calloutInformationTrailingIconBackground)
   public static let calloutSuccessTitle = Color(from: .calloutSuccessTitle)
@@ -407,8 +428,11 @@ extension Color {
   public static let calloutDangerSubtitle = Color(from: .calloutDangerSubtitle)
   public static let calloutDangerTrailingIcon = Color(from: .calloutDangerTrailingIcon)
   public static let coachmarkBackground = Color(from: .coachmarkBackground)
+  public static let inheritanceSurface = Color(from: .inheritanceSurface)
   public static let bitcoinPrimary = Color(from: .bitcoinPrimary)
   public static let yourBalancePrimary = Color(from: .yourBalancePrimary)
   public static let loadingBackground = Color(from: .loadingBackground)
   public static let chartElement = Color(from: .chartElement)
+  public static let stepperIncompleteLabel = Color(from: .stepperIncompleteLabel)
+  public static let stepperIncomplete = Color(from: .stepperIncomplete)
 }

@@ -4,11 +4,11 @@ import build.wallet.account.AccountService
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.transactions.toDuration
-import build.wallet.bitcoin.transactions.transactionsLoadedData
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.ensure
@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.first
 
 class UtxoConsolidationServiceImpl(
   private val accountService: AccountService,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val bitcoinAddressService: BitcoinAddressService,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
@@ -34,12 +34,10 @@ class UtxoConsolidationServiceImpl(
       val account = accountService.activeAccount().first()
       ensure(account is FullAccount) { Error("No active full account present.") }
 
-      val wallet = transactionsService.spendingWallet().first()
+      val wallet = bitcoinWalletService.spendingWallet().first()
       ensureNotNull(wallet) { Error("SpendingWallet is null.") }
 
-      val transactionsData = transactionsService.transactionsLoadedData().first()
-
-      val utxos = transactionsData.utxos
+      val utxos = bitcoinWalletService.getTransactionData().utxos
 
       // UTXO Consolidation requires UTXOs from confirmed transactions only.
       val confirmedUtxosCount = utxos.confirmed.size
@@ -109,7 +107,7 @@ class UtxoConsolidationServiceImpl(
     signedConsolidation: Psbt,
   ): Result<UtxoConsolidationTransactionDetail, Error> =
     coroutineBinding {
-      val broadcastDetail = transactionsService
+      val broadcastDetail = bitcoinWalletService
         .broadcast(
           psbt = signedConsolidation,
           estimatedTransactionPriority = consolidationTransactionPriority

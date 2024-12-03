@@ -12,30 +12,33 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class MobilePayFiatConfigDaoImpl(
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : MobilePayFiatConfigDao {
-  private val database by lazy { databaseProvider.database() }
-
   override fun allConfigurations() =
-    database.fiatCurrencyMobilePayConfigurationQueries
-      .getAllFiatCurrencyMobilePayConfigurations()
-      .asFlowOfList()
-      .map { result ->
-        result.logFailure { "Failed to read all FiatMobilePayConfiguration values from database" }
-        result.get()?.associate {
-          val currency = it.toFiatCurrency()
-          currency to it.toFiatMobilePayConfiguration(currency)
-        } ?: emptyMap()
-      }
-      .distinctUntilChanged()
+    flow {
+      databaseProvider.database()
+        .fiatCurrencyMobilePayConfigurationQueries
+        .getAllFiatCurrencyMobilePayConfigurations()
+        .asFlowOfList()
+        .map { result ->
+          result.logFailure { "Failed to read all FiatMobilePayConfiguration values from database" }
+          result.get()?.associate {
+            val currency = it.toFiatCurrency()
+            currency to it.toFiatMobilePayConfiguration(currency)
+          } ?: emptyMap()
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
 
   override suspend fun storeConfigurations(
     configurations: Map<FiatCurrency, MobilePayFiatConfig>,
   ): Result<Unit, DbError> {
-    return database.fiatCurrencyMobilePayConfigurationQueries.awaitTransaction {
+    return databaseProvider.database().fiatCurrencyMobilePayConfigurationQueries.awaitTransaction {
       // First, clear the current values
       clear()
 

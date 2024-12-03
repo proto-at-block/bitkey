@@ -49,6 +49,6 @@ suspend fun AppTester.addSomeFunds(
   amount: BitcoinMoney = BitcoinMoney.sats(10_000L),
   waitForConfirmation: Boolean = true,
 ): FundingResult {
-  val wallet = transactionsService.spendingWallet().filterNotNull().first()
+  val wallet = bitcoinWalletService.spendingWallet().filterNotNull().first()
   return treasuryWallet.fund(wallet, amount, waitForConfirmation)
 }

@@ -2,6 +2,7 @@ package build.wallet.keybox.wallet
 
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -11,6 +12,12 @@ class KeysetWalletProviderMock : KeysetWalletProvider {
 
   override suspend fun getWatchingWallet(
     keyset: SpendingKeyset,
+  ): Result<WatchingWallet, Throwable> {
+    return Ok(watchingWallet)
+  }
+
+  override suspend fun getWatchingWallet(
+    softwareKeybox: SoftwareKeybox,
   ): Result<WatchingWallet, Throwable> {
     return Ok(watchingWallet)
   }

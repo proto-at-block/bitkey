@@ -1,8 +1,8 @@
 package build.wallet.logging.dev
 
-import build.wallet.logging.KermitLogWriter
+import co.touchlab.kermit.LogWriter
 
 /**
- * [KermitLogWriter] that persists logs into [LogStore].
+ * [LogWriter] that persists logs into [LogStore].
  */
-abstract class LogStoreWriter : KermitLogWriter()
+abstract class LogStoreWriter : LogWriter()

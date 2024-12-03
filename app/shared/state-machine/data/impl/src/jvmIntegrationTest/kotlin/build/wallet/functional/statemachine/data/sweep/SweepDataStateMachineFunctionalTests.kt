@@ -6,6 +6,7 @@ import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.encrypt.toSecp256k1PublicKey
+import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.test
@@ -83,7 +84,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         val wallet = app.appSpendingWalletProvider.getSpendingWallet(lostKeyset).getOrThrow()
 
         val funding = app.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000))
-        println("Funded ${funding.depositAddress.address}")
+        logTesting { "Funded ${funding.depositAddress.address}" }
 
         app.setupMobilePay(FiatMoney.usd(100.0))
 

@@ -4,7 +4,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.toWalletTheme
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
+import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.loading.FormLoader
 import build.wallet.ui.components.progress.StepperIndicator
@@ -122,7 +124,7 @@ fun FormScreen(model: FormBodyModel) {
                   mainContent.height?.let { Modifier.height(it.dp) }
                     ?: Modifier.weight(1F)
               )
-
+            is Divider -> Divider()
             is Explainer -> Explainer(statements = mainContent.items)
             is DataList -> DataGroup(rows = mainContent)
             is FeeOptionList -> FeeOptionList(mainContent)
@@ -142,6 +144,7 @@ fun FormScreen(model: FormBodyModel) {
             is Callout -> Callout(model = mainContent.item)
             is Showcase -> Showcase(model = mainContent)
             is CircularTabRow -> CircularTabRow(model = mainContent.item)
+            is Upsell -> mainContent.render(modifier = Modifier)
           }
           if (index < model.mainContentList.lastIndex) {
             Spacer(modifier = Modifier.height(16.dp))

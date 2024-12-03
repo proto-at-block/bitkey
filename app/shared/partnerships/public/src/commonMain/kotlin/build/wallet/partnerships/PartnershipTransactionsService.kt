@@ -1,7 +1,5 @@
 package build.wallet.partnerships
 
-import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
@@ -22,9 +20,9 @@ interface PartnershipTransactionsService {
   val previouslyUsedPartnerIds: Flow<List<PartnerId>>
 
   /**
-   * Synchronizes the local list of partnership transactions with the remote server.
+   * Syncs the status of currently pending transactions (if any).
    */
-  suspend fun sync()
+  suspend fun syncPendingTransactions(): Result<Unit, Error>
 
   /**
    * Deletes all locally known partnership transactions.
@@ -65,8 +63,6 @@ interface PartnershipTransactionsService {
    * be modified.
    */
   suspend fun syncTransaction(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
     transactionId: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, Error>
 }

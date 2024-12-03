@@ -13,7 +13,9 @@ terraform {
 
 inputs = {
   bucket_name = "bitkey-datadog-logs-archive"
-  log_query   = "env:production"
+  # Include prod and team app logs, and production backend logs
+  log_query    = "service:(world.bitkey.team OR world.bitkey.app) OR env:production"
+  archive_name = "bitkey-production"
 }
 
 # This creates an AWS provider targeted to us-east-1. Should extract this somewhere

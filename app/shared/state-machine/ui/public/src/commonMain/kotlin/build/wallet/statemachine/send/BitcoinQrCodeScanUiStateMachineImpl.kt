@@ -6,7 +6,7 @@ import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.isEnabled
@@ -20,7 +20,7 @@ import com.github.michaelbull.result.onSuccess
 
 class BitcoinQrCodeScanUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BitcoinQrCodeUiScanStateMachine {
   @Composable
@@ -35,7 +35,7 @@ class BitcoinQrCodeScanUiStateMachineImpl(
       }
     }
 
-    val spendingWallet = remember { transactionsService.spendingWallet() }
+    val spendingWallet = remember { bitcoinWalletService.spendingWallet() }
       .collectAsState()
       .value
 

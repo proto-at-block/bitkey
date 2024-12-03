@@ -10,7 +10,7 @@ import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
 import build.wallet.bitcoin.invoice.PaymentDataParserMock
 import build.wallet.bitcoin.invoice.validLightningInvoice
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
@@ -45,13 +45,13 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       validBOLT11Invoices = mutableSetOf()
     )
 
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(FeatureFlagDaoFake())
 
   val stateMachine =
     BitcoinQrCodeScanUiStateMachineImpl(
       paymentDataParser = paymentParserMock,
-      transactionsService = transactionsService,
+      bitcoinWalletService = bitcoinWalletService,
       utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
     )
 
@@ -84,8 +84,8 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     utxoConsolidationFeatureFlag.reset()
-    transactionsService.reset()
-    transactionsService.spendingWallet.value = SpendingWalletFake()
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = SpendingWalletFake()
   }
 
   test("Valid Address in QR code should call onRecipientScanned") {

@@ -56,8 +56,7 @@ private fun TransferInitiatedScreen(speedUp: Boolean) {
                 totalAmountPrimaryText = "$21.36",
                 totalAmountSecondaryText = "0.0010 BTC"
               )
-            },
-          amountLabel = "Recipient receives"
+            }
         ),
       onDone = {}
     )

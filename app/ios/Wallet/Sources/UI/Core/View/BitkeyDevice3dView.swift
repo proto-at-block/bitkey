@@ -29,7 +29,7 @@ struct BitkeyDevice3dView: View {
             // Middle of ZStack: a loading icon, only shown while we delay showing the SceneView to
             // let it load
             if isSceneLoading {
-                RotatingLoadingIcon(size: .avatar, tint: .white)
+                RotatingLoadingIcon(size: .Avatar(), tint: .white)
                     .opacity(0.2)
                     .transition(.opacity)
             }
@@ -62,15 +62,17 @@ private struct ToolbarScreenView: View {
                         model: .init(
                             iconModel: .init(
                                 iconImage: .LocalImage(icon: .smalliconx),
-                                iconSize: .accessory,
+                                iconSize: .Accessory(),
                                 iconBackgroundType: IconBackgroundTypeCircle(
-                                    circleSize: .regular,
+                                    circleSize: .Regular(),
                                     color: .translucentwhite
                                 ),
+                                iconAlignmentInBackground: .center,
                                 iconTint: .ontranslucent,
                                 iconOpacity: nil,
                                 iconTopSpacing: nil,
-                                text: nil
+                                text: nil,
+                                badge: nil
                             ),
                             onClick: StandardClick(onClick: onClose),
                             enabled: true

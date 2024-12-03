@@ -1,6 +1,5 @@
 package build.wallet.bitcoin.wallet
 
-import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
@@ -11,6 +10,7 @@ import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker
 import build.wallet.logging.logFailure
+import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 

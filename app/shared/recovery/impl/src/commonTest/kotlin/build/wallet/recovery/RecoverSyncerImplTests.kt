@@ -1,6 +1,5 @@
 package build.wallet.recovery
 
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -8,6 +7,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClientMock
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
+import build.wallet.platform.app.AppSessionManagerFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch

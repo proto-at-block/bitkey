@@ -2,7 +2,7 @@ package build.wallet.limit
 
 import app.cash.turbine.test
 import build.wallet.bitcoin.balance.BitcoinBalance
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -29,12 +29,12 @@ class MobilePayStatusProviderImplTests : FunSpec({
       mobilePayBalance = MobilePayBalanceMock
     )
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val statusProvider = MobilePayStatusRepositoryImpl(
     spendingLimitDao = spendingLimitDao,
     mobilePayBalanceF8eClient = mobilePayBalanceF8eClient,
     uuidGenerator = UuidGeneratorFake(),
-    transactionsService = transactionsService
+    bitcoinWalletService = bitcoinWalletService
   )
 
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100.0))
@@ -42,8 +42,8 @@ class MobilePayStatusProviderImplTests : FunSpec({
   beforeTest {
     mobilePayBalanceF8eClient.reset(MobilePayBalanceMock)
     spendingWallet.reset()
-    transactionsService.reset()
-    transactionsService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = spendingWallet
   }
 
   context("mobile pay was enabled locally") {

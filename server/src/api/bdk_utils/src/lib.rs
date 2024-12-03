@@ -8,8 +8,12 @@ use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::psbt::Psbt;
 use bdk::bitcoin::secp256k1::PublicKey;
 
-use bdk::bitcoin::ScriptBuf;
-use bdk::blockchain::{Blockchain, ElectrumBlockchain};
+use bdk::bitcoin::{Address, Amount, ScriptBuf};
+use bdk::bitcoincore_rpc::RpcApi;
+use bdk::blockchain::rpc::Auth;
+use bdk::blockchain::{
+    Blockchain, ConfigurableBlockchain, ElectrumBlockchain, RpcBlockchain, RpcConfig,
+};
 use bdk::database::{AnyDatabase, BatchDatabase};
 use bdk::descriptor::ExtendedDescriptor;
 use bdk::electrum_client::Client as ElectrumClient;
@@ -517,6 +521,23 @@ impl PsbtWithDerivation for Psbt {
         }
         Some(res)
     }
+}
+
+pub fn treasury_fund_address(address: &Address, amount: Amount) {
+    let treasury_rpc_config = RpcConfig {
+        url: env::var("REGTEST_ELECTRUM_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+        auth: Auth::UserPass {
+            username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
+            password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
+        },
+        network: Network::Regtest,
+        wallet_name: env::var("BITCOIND_RPC_WALLET_NAME").unwrap_or("testwallet".to_string()),
+        sync_params: None,
+    };
+    let treasury_blockchain = RpcBlockchain::from_config(&treasury_rpc_config).unwrap();
+    treasury_blockchain
+        .send_to_address(address, amount, None, None, None, None, None, None)
+        .unwrap();
 }
 
 #[cfg(test)]

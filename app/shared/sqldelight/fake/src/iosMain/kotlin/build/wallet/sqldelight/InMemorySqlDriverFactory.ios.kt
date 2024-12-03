@@ -11,7 +11,7 @@ import app.cash.sqldelight.driver.native.inMemoryDriver
 actual class InMemorySqlDriverFactory : SqlDriverFactory {
   actual var sqlDriver: SqlDriver? = null
 
-  actual override fun createDriver(
+  actual override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {

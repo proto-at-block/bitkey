@@ -3,12 +3,12 @@
 package build.wallet.money.exchange
 
 import app.cash.turbine.test
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.money.currency.USD
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok

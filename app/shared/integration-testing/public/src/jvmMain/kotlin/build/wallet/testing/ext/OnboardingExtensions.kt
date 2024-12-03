@@ -54,7 +54,6 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     appKeys = appKeys,
     hwActivation = hwActivation
   ).getOrThrow()
-  println("Created account ${account.accountId}")
 
   if (shouldSetUpNotifications) {
     val addedTouchpoint =

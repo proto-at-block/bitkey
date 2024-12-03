@@ -18,10 +18,8 @@ import com.github.michaelbull.result.toErrorIfNull
 
 class SocRecStartedChallengeAuthenticationDaoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  databaseProviderImpl: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : SocRecStartedChallengeAuthenticationDao {
-  private val database by lazy { databaseProviderImpl.database() }
-
   override suspend fun insert(
     recoveryRelationshipId: String,
     protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
@@ -32,8 +30,8 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
         protectedCustomerRecoveryPakeKey.publicKey,
         protectedCustomerRecoveryPakeKey.privateKey
       ).bind()
-      database.awaitTransactionWithResult {
-        database.socRecStartedChallengeAuthenticationQueries.insert(
+      databaseProvider.database().awaitTransactionWithResult {
+        socRecStartedChallengeAuthenticationQueries.insert(
           relationshipId = recoveryRelationshipId,
           protectedCustomerRecoveryPakeKey = protectedCustomerRecoveryPakeKey.publicKey,
           pakeCode = pakeCode.bytes
@@ -46,8 +44,8 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
   ): Result<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> =
     coroutineBinding {
       val challengeAuth =
-        database.awaitTransactionWithResult {
-          database.socRecStartedChallengeAuthenticationQueries.getByRelationshipId(
+        databaseProvider.database().awaitTransactionWithResult {
+          socRecStartedChallengeAuthenticationQueries.getByRelationshipId(
             relationshipId = recoveryRelationshipId
           ).executeAsOneOrNull()
         }.bind()
@@ -70,16 +68,16 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
   override suspend fun deleteByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<Unit, DbTransactionError> =
-    database.awaitTransaction {
-      database.socRecStartedChallengeAuthenticationQueries.deleteByRelationshipId(
+    databaseProvider.database().awaitTransaction {
+      socRecStartedChallengeAuthenticationQueries.deleteByRelationshipId(
         relationshipId = recoveryRelationshipId
       )
     }
 
   override suspend fun getAll(): Result<List<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow>, Throwable> =
     coroutineBinding {
-      val challengeAuths = database.awaitTransactionWithResult {
-        database.socRecStartedChallengeAuthenticationQueries
+      val challengeAuths = databaseProvider.database().awaitTransactionWithResult {
+        socRecStartedChallengeAuthenticationQueries
           .getAll()
           .executeAsList()
       }.bind()
@@ -98,8 +96,8 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
     }
 
   override suspend fun clear(): Result<Unit, DbTransactionError> =
-    database.awaitTransaction {
-      database.socRecStartedChallengeAuthenticationQueries.clear()
+    databaseProvider.database().awaitTransaction {
+      socRecStartedChallengeAuthenticationQueries.clear()
     }
 }
 

@@ -1,8 +1,6 @@
 package build.wallet.statemachine.partnerships.expected
 
-import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.HttpBodyError
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.Icon
@@ -41,8 +39,6 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   val onBack = turbines.create<Unit>("on back calls")
   val onViewCalls = turbines.create<PartnerRedirectionMethod>("view in partner app calls")
   val props = ExpectedTransactionNoticeProps(
-    accountId = FullAccountIdMock,
-    f8eEnvironment = F8eEnvironment.Local,
     partner = PartnerId("test-partner-id"),
     receiveTime = LocalDateTime(2024, 4, 23, 12, 1),
     partnerTransactionId = PartnershipTransactionId("test-transaction-id"),
@@ -50,7 +46,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     onViewInPartnerApp = { method -> onViewCalls.add(method) },
     event = PartnershipEvent.TransactionCreated
   )
-  val testPartner = PartnerInfo("test-logo", "Test Partner", PartnerId("test-partner-id"))
+  val testPartner = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("test-partner-id"))
 
   afterTest {
     partnershipTransactionsService.reset()
@@ -78,7 +74,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   test("Known Partner Deeplink") {
     partnershipTransactionsService.updateRecentTransactionStatusResponse = Ok(
       FakePartnershipTransaction.copy(
-        partnerInfo = PartnerInfo("test-logo", "Test Partner", PartnerId("CashApp"))
+        partnerInfo = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("CashApp"))
       )
     )
 
@@ -103,7 +99,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   test("Known Partner Weblink") {
     partnershipTransactionsService.updateRecentTransactionStatusResponse = Ok(
       FakePartnershipTransaction.copy(
-        partnerInfo = PartnerInfo("test-logo", "Test Partner", PartnerId("Coinbase"))
+        partnerInfo = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("Coinbase"))
       )
     )
     stateMachine.test(
@@ -129,7 +125,8 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
       partnerInfo = PartnerInfo(
         partnerId = PartnerId("Coinbase"),
         name = "Test Partner",
-        logoUrl = null
+        logoUrl = null,
+        logoBadgedUrl = null
       )
     ).let(::Ok)
     stateMachine.test(

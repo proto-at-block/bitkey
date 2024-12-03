@@ -113,8 +113,10 @@ class CreateSoftwareWalletServiceImpl(
 
       SoftwareKeybox(
         id = softwareKeyDefinitionId.value,
+        networkType = account.config.bitcoinNetworkType,
         authKey = account.appGlobalAuthKey,
-        recoveryAuthKey = account.recoveryAuthKey
+        recoveryAuthKey = account.recoveryAuthKey,
+        shareDetails
       )
     }.logFailure { "Error creating keybox for software wallet account." }
   }

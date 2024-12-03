@@ -6,21 +6,24 @@ import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
+import build.wallet.partnerships.PartnerInfoFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -52,15 +55,14 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   // Define the initial TransactionDetailsModel
   val initialModel = TransactionDetailsModel(
     transactionSpeedText = "~10 minutes",
-    transactionDetailModelType = TransactionDetailModelType.Sell(
-      transferAmountText = "~$300.00",
+    transactionDetailModelType = TransactionDetailModelType.Regular(
+      transferAmountText = "$300.00",
       totalAmountPrimaryText = "$302.00",
       totalAmountSecondaryText = "546,347 sats",
       feeAmountText = "$2.00",
       feeAmountSecondaryText = "4,791 sats",
       transferAmountSecondaryText = "541,556 sats"
-    ),
-    amountLabel = "Amount selling"
+    )
   )
 
   // Initialize the TransactionDetailsCardUiStateMachine
@@ -76,7 +78,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   // Define the TransferConfirmationUiProps with callbacks connected to the turbine instances
   @Suppress("DEPRECATION")
   val sellProps = TransferConfirmationUiProps(
-    variant = TransferConfirmationScreenVariant.Sell("ExchangeX"),
+    variant = TransferConfirmationScreenVariant.Sell(PartnerInfoFake),
     selectedPriority = FASTEST,
     account = FullAccountMock,
     recipientAddress = someBitcoinAddress,
@@ -96,7 +98,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   // Initialize shared services and dependencies
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
   val appFunctionalityService = AppFunctionalityServiceFake()
@@ -107,7 +109,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     transactionPriorityPreference = transactionPriorityPreference,
     feeOptionListUiStateMachine = feeOptionListUiStateMachine,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     mobilePayService = mobilePayService,
     appFunctionalityService = appFunctionalityService
   )
@@ -116,8 +118,8 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
   beforeTest {
     spendingWallet.reset()
     transactionPriorityPreference.reset()
-    transactionsService.reset()
-    transactionsService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = spendingWallet
     mobilePayService.reset()
   }
 
@@ -129,7 +131,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     onExitCalls = onExitCalls,
     stateMachine = stateMachine,
     spendingWallet = spendingWallet,
-    transactionsService = transactionsService,
+    bitcoinWalletService = bitcoinWalletService,
     transactionPriorityPreference = transactionPriorityPreference,
     mobilePayService = mobilePayService,
     appSignedPsbt = appSignedPsbt,
@@ -156,18 +158,21 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
         header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
-          IconImage.LocalImage(
-            Icon.Bitcoin
+          IconImage.UrlImage(
+            url = "test-partner-logo-url",
+            fallbackIcon = Bitcoin
           )
         )
-        header.shouldNotBeNull().headline.shouldBe("Confirm sale to ExchangeX")
+        header.shouldNotBeNull().headline.shouldBe("Confirm test-partner-name sale")
+
+        mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
 
         // Correct title, no fee selection enabled
-        mainContentList[0]
+        mainContentList[1]
           .shouldNotBeNull()
           .shouldBeTypeOf<DataList>()
           .items[0].apply {
-          title.shouldBe("Est. arrival time")
+          title.shouldBe("Arrival time")
           sideText.shouldBe("~10 minutes")
           secondarySideText.shouldBeNull()
           onClick.shouldBeNull()
@@ -175,23 +180,15 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
         }
 
         // Only show transfer amount and fee.
-        mainContentList[1]
-          .shouldNotBeNull()
-          .shouldBeTypeOf<DataList>()
-          .items[0].apply {
-          title.shouldBe("Send to")
-          sideText.shouldBe("ExchangeX")
-        }
-
         mainContentList[2]
           .shouldNotBeNull()
           .shouldBeTypeOf<DataList>()
           .apply {
             items[0].apply {
-              title.shouldBe("Amount selling")
+              title.shouldBe("Amount")
               onClick.shouldBeNull()
               onTitle.shouldBeNull()
-              sideText.shouldBe("~$300.00")
+              sideText.shouldBe("$300.00")
               secondarySideText.shouldBe("541,556 sats")
             }
             items[1].apply {
@@ -222,7 +219,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainOnly(appAndHwSignedPsbt)
       }
     }

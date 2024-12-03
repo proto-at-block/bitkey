@@ -42,7 +42,6 @@ kotlin {
         implementation(projects.shared.encryptionFake)
         implementation(projects.shared.keyValueStoreFake)
         implementation(projects.shared.keyboxFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.recoveryFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.testingPublic)

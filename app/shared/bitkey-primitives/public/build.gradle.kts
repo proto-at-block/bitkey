@@ -24,6 +24,7 @@ kotlin {
         api(libs.kmp.okio)
         api(projects.shared.bitcoinPrimitivesPublic)
         api(projects.shared.f8ePublic)
+        api(projects.shared.frostPublic)
         implementation(projects.shared.serializationPublic)
       }
     }

@@ -10,10 +10,7 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onSuccess
 import io.ktor.http.Url
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.*
 
 class ElectrumServerConfigRepositoryImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
@@ -121,15 +118,19 @@ class ElectrumServerConfigRepositoryImpl(
     }
 
   private val electrumServerEntity =
-    databaseProvider.database().electrumConfigQueries
-      .loadElectrumConfig()
-      .asFlowOfOneOrNull()
-      .transformLatest { queryResult ->
-        queryResult
-          .onSuccess { entity ->
-            emit(entity)
-          }
-          .logFailure { "Error reading electrum server record from database" }
-      }
-      .distinctUntilChanged()
+    flow {
+      databaseProvider.database()
+        .electrumConfigQueries
+        .loadElectrumConfig()
+        .asFlowOfOneOrNull()
+        .transformLatest { queryResult ->
+          queryResult
+            .onSuccess { entity ->
+              emit(entity)
+            }
+            .logFailure { "Error reading electrum server record from database" }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
 }

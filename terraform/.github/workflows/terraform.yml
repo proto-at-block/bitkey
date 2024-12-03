@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
-      - uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c  # v3
+      - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4
         name: Cache plugin dir
         with:
           path: ~/.tflint.d/plugins
@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
-      - uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c  # v3
+      - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4
         name: Cache plugin dir
         with:
           path: "${{ github.workspace }}/.terraform.d/plugin-cache"
@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
       - name: tfsec
         uses: aquasecurity/tfsec-action@b466648d6e39e7c75324f25d83891162a721f2d6 # v1.0.3
@@ -64,11 +64,11 @@ jobs:
       # in case multiple pushes are happening. Need to use a different ref for push
       # events and pull_request events
       # https://github.com/stefanzweifel/git-auto-commit-action#example-workflow
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{ github.head_ref }}
         if: github.event_name == 'pull_request'
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           ref: ${{ github.ref }}
         if: github.event_name != 'pull_request'

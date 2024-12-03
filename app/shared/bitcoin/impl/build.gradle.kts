@@ -11,12 +11,6 @@ kotlin {
   allTargets()
 
   sourceSets {
-    val androidMain by getting {
-      dependencies {
-        implementation(projects.rust.coreFfi)
-      }
-    }
-
     commonMain {
       dependencies {
         api(libs.kmp.kotlin.datetime)
@@ -27,6 +21,7 @@ kotlin {
         api(projects.shared.bdkBindingsPublic)
         api(projects.shared.cloudBackupPublic)
         api(projects.shared.datadogPublic)
+        api(projects.shared.debugPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.keyboxPublic)
         api(projects.shared.keyValueStorePublic)
@@ -55,7 +50,6 @@ kotlin {
         }
         implementation(projects.shared.bitcoinPrimitivesFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.datadogFake)
         implementation(projects.shared.debugFake)
         implementation(projects.shared.f8eClientFake)
@@ -63,6 +57,7 @@ kotlin {
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.keyValueStoreFake)
         implementation(projects.shared.moneyFake)
+        implementation(projects.shared.partnershipsFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.queueProcessorFake)
         implementation(projects.shared.sqldelightTesting)
@@ -72,10 +67,15 @@ kotlin {
       }
     }
 
+    val commonJvmMain by getting {
+      dependencies {
+        implementation(projects.rust.coreFfi)
+      }
+    }
+
     val jvmIntegrationTest by getting {
       dependencies {
         implementation(libs.kmp.aws.secretsmanager)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.shared.moneyTesting)
       }

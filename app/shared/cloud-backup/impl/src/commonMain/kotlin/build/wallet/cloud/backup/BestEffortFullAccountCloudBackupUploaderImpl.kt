@@ -8,8 +8,8 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.logging.*
 import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -56,7 +56,7 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
         .logFailure(LogLevel.Warn) { "Could not set cloud backup" }
         .mapError { IgnorableError("Error setting cloud backup", it) }
         .onSuccess {
-          log { "Cloud backup stored locally" }
+          logDebug { "Cloud backup stored locally" }
         }
         .bind()
 
@@ -78,7 +78,7 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
         .logFailure(LogLevel.Warn) { "Could not upload cloud backup" }
         .mapError { IgnorableError("Error uploading cloud backup", it) }
         .onSuccess {
-          log { "Cloud backup uploaded" }
+          logDebug { "Cloud backup uploaded" }
         }
         .bind()
     }

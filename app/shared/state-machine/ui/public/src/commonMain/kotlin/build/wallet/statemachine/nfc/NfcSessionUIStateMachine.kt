@@ -41,7 +41,7 @@ class NfcSessionUIStateMachineProps<T>(
   val onConnected: () -> Unit = {},
   val onSuccess: suspend (@UnsafeVariance T) -> Unit,
   val onCancel: () -> Unit,
-  val onInauthenticHardware: () -> Unit = {},
+  val onInauthenticHardware: (Throwable) -> Unit = {},
   val isHardwareFake: Boolean,
   val needsAuthentication: Boolean = true,
   val shouldLock: Boolean = true,
@@ -62,7 +62,7 @@ class NfcSessionUIStateMachineProps<T>(
     eventTrackerContext: NfcEventTrackerScreenIdContext,
     segment: AppSegment? = null,
     actionDescription: String? = null,
-    onInauthenticHardware: () -> Unit = {},
+    onInauthenticHardware: (Throwable) -> Unit = {},
   ) : this(
     session = transaction::session,
     onSuccess = transaction::onSuccess,
@@ -233,7 +233,9 @@ class NfcSessionUIStateMachineImpl(
         NfcErrorFormBodyModel(
           exception = currentState.nfcException,
           onPrimaryButtonClick = props.onCancel,
-          onSecondaryButtonClick = props.onInauthenticHardware,
+          onSecondaryButtonClick = {
+            props.onInauthenticHardware(currentState.nfcException)
+          },
           segment = props.segment,
           actionDescription = props.actionDescription,
           eventTrackerScreenId = NfcEventTrackerScreenId.NFC_FAILURE,

@@ -2,32 +2,29 @@ package build.wallet.statemachine.send
 
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
-import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.statemachine.send.TransferConfirmationScreenVariant.Regular
-import build.wallet.statemachine.send.TransferConfirmationScreenVariant.Sell
-import build.wallet.statemachine.send.TransferConfirmationScreenVariant.SpeedUp
-import build.wallet.ui.model.SheetClosingClick
-import build.wallet.ui.model.StandardClick
+import build.wallet.statemachine.send.TransferConfirmationScreenVariant.*
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
+import build.wallet.ui.model.icon.IconImage.LocalImage
+import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconSize.Avatar
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 
 /**
  * A function which creates the form screen model for the transfer confirmation screen
@@ -36,7 +33,6 @@ import kotlinx.collections.immutable.toImmutableList
  * @param onCancel - Handler for cancelling the transaction
  * @param variant - The variant of the transfer confirmation screen (Regular, SpeedUp, Sale)
  * @param recipientAddress - The recipient address of the transaction represented as a string
- * @param partnerName - The name of the partner exchange (used when variant is Sale)
  * @param transactionDetails [TransactionDetailsModel] - The data associated with the transaction
  * @param requiresHardware - Flag representing if the transaction requires hardware signing
  * @param confirmButtonEnabled - Flag representing if the primary button is enabled
@@ -66,43 +62,39 @@ data class TransferConfirmationScreenModel(
             headline = "Send your transfer",
             subline = recipientAddress,
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-            alignment = CENTER
+            alignment = LEADING
           )
         SpeedUp ->
           FormHeaderModel(
-            icon = LargeIconSpeedometer,
+            icon = Bitcoin,
             headline = "Speed up your transfer to",
             subline = recipientAddress,
             sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-            alignment = CENTER
+            alignment = LEADING
           )
         is Sell ->
           FormHeaderModel(
-            icon = Bitcoin,
-            headline = "Confirm sale to ${variant.partnerName}",
+            iconModel = IconModel(
+              iconImage = when (val url = variant.partnerInfo.logoUrl) {
+                null -> LocalImage(Bitcoin)
+                else -> UrlImage(
+                  url = url,
+                  fallbackIcon = Bitcoin
+                )
+              },
+              iconSize = Avatar
+            ),
+            headline = "Confirm ${variant.partnerInfo.name} sale",
             subline = "Arrival times and fees are estimates.",
-            alignment = CENTER
+            alignment = LEADING
           )
       },
-    toolbar =
-      ToolbarModel(
-        leadingAccessory =
-          ToolbarAccessoryModel.ButtonAccessory(
-            model =
-              ButtonModel(
-                text = "Cancel",
-                treatment = TertiaryDestructive,
-                size = Compact,
-                onClick = StandardClick { onCancel() }
-              )
-          )
-      ),
-    mainContentList =
-      transactionDetails.toDataList(
-        variant = variant,
-        onNetworkFeesClick = onNetworkFeesClick,
-        onArrivalTimeClick = onArrivalTimeClick
-      ),
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onCancel)),
+    mainContentList = transactionDetails.toFormContent(
+      variant = variant,
+      onNetworkFeesClick = onNetworkFeesClick,
+      onArrivalTimeClick = onArrivalTimeClick
+    ),
     ctaWarning = null,
     primaryButton =
       ButtonModel(
@@ -117,35 +109,6 @@ data class TransferConfirmationScreenModel(
         size = Footer
       ),
     id = SendEventTrackerScreenId.SEND_CONFIRMATION,
-    eventTrackerShouldTrack = false
-  )
-
-data class NetworkFeesInfoSheetModel(
-  override val onBack: () -> Unit,
-) : FormBodyModel(
-    onBack = onBack,
-    toolbar = ToolbarModel(
-      leadingAccessory = CloseAccessory(onClick = onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Network Fees")
-    ),
-    header = null,
-    primaryButton = ButtonModel(
-      text = "Got it",
-      size = Footer,
-      onClick = SheetClosingClick(onBack)
-    ),
-    mainContentList = immutableListOf(
-      Explainer(
-        items = immutableListOf(
-          Statement(
-            title = null,
-            body = FEES_EXPLAINER
-          )
-        )
-      )
-    ),
-    renderContext = Sheet,
-    id = SendEventTrackerScreenId.SEND_NETWORK_FEES_INFO_SHEET,
     eventTrackerShouldTrack = false
   )
 
@@ -166,26 +129,17 @@ data class FeeSelectionSheetModel(
     eventTrackerShouldTrack = false
   )
 
-private val FEES_EXPLAINER =
-  """
-  Network fees are small amounts paid by users when sending bitcoin transactions.
-  
-  These fees compensate miners for validating and adding transactions to the blockchain. The higher the fee, the more likely your transaction will be processed quickly, as miners prioritize transactions with higher fees.
-  
-  It’s important to note that these fees do not go to wallet providers. They are solely for supporting the Bitcoin network.
-  """.trimIndent()
-
-private fun TransactionDetailsModel.toDataList(
+private fun TransactionDetailsModel.toFormContent(
   variant: TransferConfirmationScreenVariant,
   onNetworkFeesClick: (() -> Unit)? = null,
   onArrivalTimeClick: (() -> Unit)?,
-): ImmutableList<DataList> {
+): ImmutableList<FormMainContentModel> {
   val mainItems: ImmutableList<DataList.Data> =
     when (transactionDetailModelType) {
       is TransactionDetailModelType.Regular ->
         immutableListOf(
           DataList.Data(
-            title = "Recipient receives",
+            title = "Amount",
             sideText = transactionDetailModelType.transferAmountText,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
@@ -205,7 +159,7 @@ private fun TransactionDetailsModel.toDataList(
       is TransactionDetailModelType.SpeedUp ->
         immutableListOf(
           DataList.Data(
-            title = "Recipient receives",
+            title = "Amount",
             sideText = transactionDetailModelType.transferAmountText,
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
@@ -222,76 +176,32 @@ private fun TransactionDetailsModel.toDataList(
             secondarySideText = transactionDetailModelType.feeDifferenceSecondaryText
           )
         )
-      is TransactionDetailModelType.Sell ->
-        immutableListOf(
-          DataList.Data(
-            title = amountLabel,
-            sideText = transactionDetailModelType.transferAmountText,
-            secondarySideText = transactionDetailModelType.transferAmountSecondaryText
-          ),
-          DataList.Data(
-            title = "Network Fees",
-            onTitle = onNetworkFeesClick,
-            titleIcon =
-              IconModel(
-                icon = SmallIconInformationFilled,
-                iconSize = IconSize.XSmall,
-                iconTint = IconTint.On30
-              ),
-            sideText = transactionDetailModelType.feeAmountText,
-            secondarySideText = transactionDetailModelType.feeAmountSecondaryText
-          )
-        )
     }
 
-  val totalTitleText = when (variant) {
-    Regular, SpeedUp -> "Total Cost"
-    is Sell -> "Total"
-  }
-  val dataLists = mutableListOf<DataList>()
-
-  dataLists.add(
+  return immutableListOf(
+    Divider,
     DataList(
       items = immutableListOf(
         DataList.Data(
           title = when (variant) {
-            Regular -> "Arrival time"
+            Regular, is Sell -> "Arrival time"
             SpeedUp -> "New arrival time"
-            is Sell -> "Est. arrival time"
           },
           sideText = transactionSpeedText,
           onClick = onArrivalTimeClick
         )
       )
-    )
-  )
-
-  if (variant is Sell) {
-    dataLists.add(
-      DataList(
-        items = immutableListOf(
-          DataList.Data(
-            title = "Send to",
-            sideText = variant.partnerName
-          )
-        )
-      )
-    )
-  }
-
-  dataLists.add(
+    ),
     DataList(
       items = mainItems,
       total = DataList.Data(
-        title = totalTitleText,
+        title = "Total",
         sideText = transactionDetailModelType.totalAmountPrimaryText,
         sideTextType = DataList.Data.SideTextType.BODY2BOLD,
         secondarySideText = transactionDetailModelType.totalAmountSecondaryText
       )
     )
   )
-
-  return dataLists.toImmutableList()
 }
 
 sealed interface TransferConfirmationScreenVariant {
@@ -309,6 +219,6 @@ sealed interface TransferConfirmationScreenVariant {
    * Transaction confirmation for the sell flow.
    */
   data class Sell(
-    val partnerName: String,
+    val partnerInfo: PartnerInfo,
   ) : TransferConfirmationScreenVariant
 }

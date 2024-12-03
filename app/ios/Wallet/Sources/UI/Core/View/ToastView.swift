@@ -26,12 +26,14 @@ struct ToastView: View {
                     model:
                     .init(
                         iconImage: .LocalImage(icon: .subtractleft),
-                        iconSize: .accessory,
+                        iconSize: .Accessory(),
                         iconBackgroundType: IconBackgroundTypeTransient(),
+                        iconAlignmentInBackground: .center,
                         iconTint: nil,
                         iconOpacity: 1.00,
                         iconTopSpacing: nil,
-                        text: nil
+                        text: nil,
+                        badge: nil
                     )
                 )
 
@@ -41,12 +43,14 @@ struct ToastView: View {
                     model:
                     .init(
                         iconImage: .LocalImage(icon: .subtractright),
-                        iconSize: .accessory,
+                        iconSize: .Accessory(),
                         iconBackgroundType: IconBackgroundTypeTransient(),
+                        iconAlignmentInBackground: .center,
                         iconTint: nil,
                         iconOpacity: 1.00,
                         iconTopSpacing: nil,
-                        text: nil
+                        text: nil,
+                        badge: nil
                     )
                 )
             }
@@ -92,12 +96,14 @@ struct ToastView_Previews: PreviewProvider {
             model: .init(
                 leadingIcon: IconModel(
                     iconImage: .LocalImage(icon: .smalliconcheckfilled),
-                    iconSize: .accessory,
+                    iconSize: .Accessory(),
                     iconBackgroundType: IconBackgroundTypeTransient(),
+                    iconAlignmentInBackground: .center,
                     iconTint: IconTint.success,
                     iconOpacity: 1.00,
                     iconTopSpacing: nil,
-                    text: nil
+                    text: nil,
+                    badge: nil
                 ),
                 whiteIconStroke: true,
                 title: "Fingerprint deleted",

@@ -1,6 +1,6 @@
 package build.wallet.limit
 
-import build.wallet.bitcoin.transactions.TransactionsService
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.mobilepay.MobilePayBalanceF8eClient
 import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
@@ -15,7 +15,7 @@ class MobilePayStatusRepositoryImpl(
   private val spendingLimitDao: SpendingLimitDao,
   private val mobilePayBalanceF8eClient: MobilePayBalanceF8eClient,
   private val uuidGenerator: UuidGenerator,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : MobilePayStatusRepository {
   // We initialize with null so that we can filter the initialization event when merging.
   private val onDemandRefreshStatusFlow = MutableStateFlow<String?>(null)
@@ -26,7 +26,7 @@ class MobilePayStatusRepositoryImpl(
 
   override fun status(account: FullAccount): Flow<MobilePayStatus> {
     return channelFlow {
-      val wallet = transactionsService.spendingWallet()
+      val wallet = bitcoinWalletService.spendingWallet()
         .filterNotNull()
         .first()
 

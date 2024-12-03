@@ -1,7 +1,6 @@
 package build.wallet.statemachine.account.create.full.onboard.notifications
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -39,7 +38,7 @@ enum class UiErrorHint(val displayString: String = "") {
       try {
         UiErrorHint.valueOf(v)
       } catch (e: IllegalArgumentException) {
-        log(level = LogLevel.Info, throwable = e) { "UiErrorHint for string \"$v\" not found" }
+        logWarn(throwable = e) { "UiErrorHint for string \"$v\" not found" }
         None
       }
   }

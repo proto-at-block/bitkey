@@ -1,7 +1,7 @@
 package build.wallet.f8e.logging
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -31,9 +31,12 @@ internal class HttpClientCallLogger(private val tag: String?) {
     responseHeaderMonitor.complete()
   }
 
-  suspend fun logResponseException(message: String) {
+  suspend fun logResponseException(
+    message: String,
+    cause: Throwable,
+  ) {
     requestLoggedMonitor.join()
-    log(LogLevel.Error, tag = tag) { message.trim() }
+    logError(tag = tag, throwable = cause) { message.trim() }
   }
 
   suspend fun logResponseBody(message: String) {
@@ -46,7 +49,7 @@ internal class HttpClientCallLogger(private val tag: String?) {
 
     try {
       val message = requestLog.trim().toString()
-      if (message.isNotEmpty()) log(tag = tag) { message }
+      if (message.isNotEmpty()) logDebug(tag = tag) { message }
     } finally {
       requestLoggedMonitor.complete()
     }
@@ -57,7 +60,7 @@ internal class HttpClientCallLogger(private val tag: String?) {
 
     requestLoggedMonitor.join()
     val message = responseLog.trim().toString()
-    if (message.isNotEmpty()) log(tag = tag) { message }
+    if (message.isNotEmpty()) logDebug(tag = tag) { message }
 
     closed.compareAndSet(false, true)
   }

@@ -14,8 +14,7 @@ import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.random.UuidGenerator
@@ -180,7 +179,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
     }
 
     if (sealedCsek == null) {
-      log(LogLevel.Error) { "Error sharing EAK - sealed CSEK missing, cannot generate PDF." }
+      logError { "Error sharing EAK - sealed CSEK missing, cannot generate PDF." }
       return
     }
 

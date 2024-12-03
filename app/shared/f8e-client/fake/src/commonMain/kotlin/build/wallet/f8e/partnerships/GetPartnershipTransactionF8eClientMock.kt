@@ -27,4 +27,8 @@ class GetPartnershipTransactionF8eClientMock(
 
     return response
   }
+
+  fun reset() {
+    response = Ok(FakePartnershipTransfer)
+  }
 }

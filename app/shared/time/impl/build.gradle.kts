@@ -8,10 +8,16 @@ kotlin {
   targets(ios = true, jvm = true)
 
   sourceSets {
+    commonMain {
+      dependencies {
+        api(projects.shared.platformPublic)
+      }
+    }
     commonTest {
       dependencies {
-        implementation(projects.shared.timeFake)
+        implementation(projects.shared.platformFake)
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.timeFake)
       }
     }
   }

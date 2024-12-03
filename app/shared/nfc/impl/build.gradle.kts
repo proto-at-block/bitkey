@@ -43,7 +43,6 @@ kotlin {
         implementation(projects.shared.accountFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.cloudBackupFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.nfcFake)
         implementation(projects.shared.platformFake)
         // TODO: extract reusable uuid() - https://github.com/squareup/wallet/pull/13871

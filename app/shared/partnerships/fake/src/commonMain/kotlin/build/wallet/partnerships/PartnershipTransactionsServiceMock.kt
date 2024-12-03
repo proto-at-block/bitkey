@@ -1,13 +1,9 @@
 package build.wallet.partnerships
 
 import app.cash.turbine.Turbine
-import build.wallet.bitkey.f8e.AccountId
-import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flow
 import kotlin.time.Duration
 
 class PartnershipTransactionsServiceMock(
@@ -21,11 +17,12 @@ class PartnershipTransactionsServiceMock(
   var fetchMostRecentResult: Result<PartnershipTransaction?, Error> = Ok(null),
   var updateRecentTransactionStatusResponse: Result<PartnershipTransaction?, Error> = Ok(null),
 ) : PartnershipTransactionsService {
-  override val transactions: Flow<List<PartnershipTransaction>> = flow {}
+  override val transactions = MutableStateFlow<List<PartnershipTransaction>>(emptyList())
   override val previouslyUsedPartnerIds = MutableStateFlow<List<PartnerId>>(emptyList())
 
-  override suspend fun sync() {
+  override suspend fun syncPendingTransactions(): Result<Unit, Error> {
     syncCalls.add(Unit)
+    return Ok(Unit)
   }
 
   override suspend fun clear(): Result<Unit, Error> {
@@ -55,8 +52,6 @@ class PartnershipTransactionsServiceMock(
   }
 
   override suspend fun syncTransaction(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
     transactionId: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, Error> {
     fetchMostRecentCalls.add(transactionId)

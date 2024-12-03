@@ -30,3 +30,11 @@ services:
       - "6832:6832/udp"
       - "16686:16686"
       - "14268:14268"
+
+  bitcoind:
+    extends:
+      file: docker-compose-bitcoin.base.yml
+      service: bitcoind
+
+volumes:
+  bitcoin-data:

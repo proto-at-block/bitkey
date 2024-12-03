@@ -3,12 +3,10 @@ package build.wallet.nfc.interceptors
 import build.wallet.feature.flags.FirmwareCommsLoggingFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.firmware.*
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logFailure
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.toByteString
-import com.github.michaelbull.result.onFailure
 import okio.ByteString
 
 /**
@@ -51,7 +49,7 @@ private class FirmwareTelemetryInterceptor(
   suspend fun persistDeviceInfo(deviceInfo: FirmwareDeviceInfo) {
     firmwareDeviceInfoDao
       .setDeviceInfo(deviceInfo)
-      .onFailure { log(Warn, throwable = it) { "Unable to persist FirmwareDeviceInfo" } }
+      .logFailure { "Error persisting FirmwareDeviceInfo" }
   }
 
   suspend fun uploadTelemetry(

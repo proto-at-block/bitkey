@@ -1,7 +1,7 @@
 package build.wallet.inappsecurity
 
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.AppSessionState
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn

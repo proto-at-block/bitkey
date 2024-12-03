@@ -10,7 +10,7 @@ import build.wallet.fwup.FwupManifestParser.FwupSlot
 import build.wallet.fwup.FwupMode.Delta
 import build.wallet.fwup.FwupMode.Normal
 import build.wallet.fwup.ParseFwupManifestError.UnknownManifestVersion
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -103,10 +103,10 @@ class FwupDataFetcherImpl(
 
   private suspend fun getUpdateType(): Result<FwupMode, ParseFwupManifestError> {
     return if (fileManager.fileExists(regularManifestName)) {
-      log { "Regular manifest exists " }
+      logDebug { "Regular manifest exists " }
       Ok(Normal)
     } else if (fileManager.fileExists(deltaManifestName)) {
-      log { "Delta manifest exists " }
+      logDebug { "Delta manifest exists " }
       Ok(Delta)
     } else {
       Err(UnknownManifestVersion)

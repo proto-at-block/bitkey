@@ -6,7 +6,7 @@ import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupDecodingErr
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.RestoreFromBackupError.CsekMissing
 import build.wallet.cloud.backup.v2.FullAccountKeys
-import build.wallet.logging.log
+import build.wallet.logging.*
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
@@ -19,7 +19,7 @@ class FullAccountCloudBackupRestorerImpl(
   ): Result<AccountRestoration, RestoreFromBackupError> {
     return when (cloudBackup) {
       is CloudBackupV2 -> {
-        log { "Attempting to restore keybox from v2 backup" }
+        logDebug { "Attempting to restore keybox from v2 backup" }
         cloudBackupV2Restorer.restore(cloudBackup)
           .mapError(::mapBackupV2RestoreErrors)
       }

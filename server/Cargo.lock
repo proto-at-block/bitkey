@@ -1286,6 +1286,7 @@ dependencies = [
  "bdk-macros",
  "bip39",
  "bitcoin",
+ "core-rpc",
  "electrum-client",
  "getrandom 0.2.11",
  "js-sys",
@@ -1587,6 +1588,7 @@ dependencies = [
  "bdk_utils",
  "config",
  "database",
+ "once_cell",
  "reqwest",
  "reqwest-middleware",
  "reqwest-retry",
@@ -1764,6 +1766,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
 
 [[package]]
+name = "core-rpc"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26d77079e1b71c2778d6e1daf191adadcd4ff5ec3ccad8298a79061d865b235b"
+dependencies = [
+ "bitcoin-private",
+ "core-rpc-json",
+ "jsonrpc",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "core-rpc-json"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "581898ed9a83f31c64731b1d8ca2dfffcfec14edf1635afacd5234cddbde3a41"
+dependencies = [
+ "bitcoin",
+ "bitcoin-private",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1838,6 +1866,7 @@ dependencies = [
  "crypto_box",
  "hkdf",
  "hmac",
+ "miniscript",
  "rand 0.8.5",
  "secp256k1-zkp",
  "sha2",
@@ -3496,6 +3525,17 @@ dependencies = [
  "pest",
  "pest_derive",
  "serde",
+]
+
+[[package]]
+name = "jsonrpc"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd8d6b3f301ba426b30feca834a2a18d48d5b54e5065496b5c1b05537bee3639"
+dependencies = [
+ "base64 0.13.1",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -5702,7 +5742,7 @@ dependencies = [
 [[package]]
 name = "secp256k1-zkp"
 version = "0.11.0"
-source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings#9651e37abffcfaf9b9307c3317315d947ddcbe57"
+source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings-bitkey#26ce0fced8a85679edbec7ac00c463b571c27961"
 dependencies = [
  "bitcoin-private",
  "rand 0.8.5",
@@ -5713,8 +5753,8 @@ dependencies = [
 
 [[package]]
 name = "secp256k1-zkp-sys"
-version = "0.10.0"
-source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings#9651e37abffcfaf9b9307c3317315d947ddcbe57"
+version = "0.10.1"
+source = "git+https://github.com/wpaulino/rust-secp256k1-zkp.git?branch=frost-bindings-bitkey#26ce0fced8a85679edbec7ac00c463b571c27961"
 dependencies = [
  "cc",
  "secp256k1-sys 0.10.1",
@@ -7525,9 +7565,11 @@ name = "workers"
 version = "0.1.0"
 dependencies = [
  "account",
+ "aes-gcm",
  "aws-config",
  "aws-sdk-sesv2",
  "aws-sdk-sns",
+ "base64 0.21.7",
  "bdk_utils",
  "chain_indexer",
  "ctrlc",
@@ -7541,6 +7583,7 @@ dependencies = [
  "mempool_indexer",
  "notification",
  "notification_validation",
+ "once_cell",
  "queue",
  "recovery",
  "repository",

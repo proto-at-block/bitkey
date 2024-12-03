@@ -10,8 +10,7 @@ import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.fwup.FwupMode
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcException.CanBeRetried
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
@@ -182,7 +181,7 @@ private inline fun <T> retry(block: () -> T): T {
       return block()
     } catch (e: CanBeRetried) {
       if (retries >= MAX_NFC_COMMAND_RETRIES) throw e
-      log(level = LogLevel.Info, tag = "NFC", throwable = e) {
+      logWarn(tag = "NFC", throwable = e) {
         "Retrying NFC command (retry $retries / $MAX_NFC_COMMAND_RETRIES)"
       }
     }

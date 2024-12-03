@@ -2,7 +2,7 @@ package build.wallet.secureenclave
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import build.wallet.logging.log
+import build.wallet.logging.logTesting
 import build.wallet.secureenclave.SeKeyPurpose.AGREEMENT
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -23,7 +23,7 @@ class SecureEnclaveAndroidInstrumentedTest {
       validity = null
     )
     val keyPair = se.generateP256KeyPair(keySpec)
-    log { "Public key: ${keyPair.publicKey.bytes.toHexString()}" }
+    logTesting { "Public key: ${keyPair.publicKey.bytes.toHexString()}" }
   }
 
   @Test
@@ -53,8 +53,8 @@ class SecureEnclaveAndroidInstrumentedTest {
 
     val sharedSecret1 = se.diffieHellman(clientKeyPair.privateKey, serverPublicKey)
     val sharedSecret2 = se.diffieHellman(serverKeyPair.privateKey, clientPublicKey)
-    log { "Shared secret 1: ${sharedSecret1.toHexString()}" }
-    log { "Shared secret 2: ${sharedSecret2.toHexString()}" }
+    logTesting { "Shared secret 1: ${sharedSecret1.toHexString()}" }
+    logTesting { "Shared secret 2: ${sharedSecret2.toHexString()}" }
     assert(sharedSecret1.contentEquals(sharedSecret2))
   }
 

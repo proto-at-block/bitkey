@@ -5,7 +5,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.logging.log
+import build.wallet.logging.logFailure
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
 import build.wallet.store.KeyValueStoreFactory
@@ -47,13 +47,12 @@ class NotificationsPreferencesCachedProviderImpl(
               notificationPreferences = serverPrefs
             )
           }
-        }.onFailure {
-          /**
-           * We assume the local values are sufficient and do not emit an error
-           * [NotificationTouchpointF8eClientImpl] will log the error detail for us
-           */
-          log { "Failed to load prefs. Using cached values." }
         }
+          .logFailure {
+            // We assume the local values are sufficient and do not emit an error
+            // [NotificationTouchpointF8eClientImpl] will log the error detail for us
+            "Failed to load prefs. Using cached values."
+          }
       } else {
         notificationTouchpointF8eClient.getNotificationsPreferences(
           f8eEnvironment = f8eEnvironment,

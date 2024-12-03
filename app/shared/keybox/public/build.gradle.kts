@@ -12,8 +12,6 @@ kotlin {
       dependencies {
         api(projects.shared.bitcoinPublic)
         api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.cloudStorePublic)
-        api(projects.shared.debugPublic)
       }
     }
   }

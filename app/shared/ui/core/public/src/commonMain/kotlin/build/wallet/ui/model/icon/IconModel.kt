@@ -1,9 +1,8 @@
 package build.wallet.ui.model.icon
 
+import androidx.compose.ui.graphics.Color
 import build.wallet.statemachine.core.Icon
-import build.wallet.ui.model.icon.IconBackgroundType.Circle
-import build.wallet.ui.model.icon.IconBackgroundType.Square
-import build.wallet.ui.model.icon.IconBackgroundType.Transient
+import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconSize.Regular
@@ -38,10 +37,12 @@ data class IconModel(
   val iconImage: IconImage,
   val iconSize: IconSize,
   val iconBackgroundType: IconBackgroundType = Transient,
+  val iconAlignmentInBackground: IconAlignmentInBackground = IconAlignmentInBackground.Center,
   val iconTint: IconTint? = null,
   val iconOpacity: Float? = null,
   val iconTopSpacing: Int? = null,
   val text: String? = null,
+  val badge: BadgeType? = null,
 ) {
   val totalSize: IconSize
     get() =
@@ -96,33 +97,28 @@ fun IconModel(
 /**
  * Semantic type that describes size of an icon button.
  */
-enum class IconSize {
-  XSmall,
-  Small,
-  Regular,
-  Large,
-  XLarge,
-  Avatar,
-  Accessory,
-  Keypad,
-  HeaderToolbar,
-  Subtract,
-  ;
+sealed class IconSize(open val value: Int) {
+  data object XSmall : IconSize(12)
 
-  val value: Int
-    get() =
-      when (this) {
-        XSmall -> 12
-        Small -> 24
-        Regular -> 32
-        Large -> 40
-        XLarge -> 80
-        Avatar -> 64
-        Accessory -> 20
-        Keypad -> 30
-        HeaderToolbar -> 24
-        Subtract -> 18
-      }
+  data object Small : IconSize(24)
+
+  data object Regular : IconSize(32)
+
+  data object Large : IconSize(40)
+
+  data object XLarge : IconSize(80)
+
+  data object Avatar : IconSize(64)
+
+  data object Accessory : IconSize(20)
+
+  data object Keypad : IconSize(30)
+
+  data object HeaderToolbar : IconSize(24)
+
+  data object Subtract : IconSize(18)
+
+  data class Custom(override val value: Int) : IconSize(value)
 }
 
 sealed interface IconBackgroundType {
@@ -149,6 +145,11 @@ sealed interface IconBackgroundType {
 
       /** White with a .2 transparency */
       TranslucentWhite,
+
+      /** Pale blue */
+      Information,
+
+      InheritanceSurface,
     }
   }
 
@@ -166,6 +167,7 @@ sealed interface IconBackgroundType {
       Success,
       Warning,
       Danger,
+      Transparent,
     }
   }
 }
@@ -184,4 +186,22 @@ enum class IconTint {
   Green,
   Warning,
   Success,
+  Information,
+}
+
+enum class IconAlignmentInBackground {
+  TopStart,
+  TopCenter,
+  TopEnd,
+  Start,
+  Center,
+  End,
+  BottomStart,
+  BottomCenter,
+  BottomEnd,
+}
+
+enum class BadgeType {
+  Loading,
+  Error,
 }

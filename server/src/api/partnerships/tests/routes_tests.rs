@@ -151,6 +151,7 @@ async fn transfers() {
                 "logo_url": null,
                 "name": "Testnet Faucet",
                 "partner": "TestnetFaucet",
+                "logo_badged_url": null
             }]
     });
     assert_eq!(status, StatusCode::OK);
@@ -230,7 +231,8 @@ async fn quotes() {
                 "partner_info": {
                     "logo_url": null,
                     "name": "Signet Faucet",
-                    "partner": "SignetFaucet"
+                    "partner": "SignetFaucet",
+                    "logo_badged_url": null
                 },
                 "user_fee_fiat": 0.0
             }
@@ -443,7 +445,8 @@ async fn sales_quotes() {
                 "partner_info": {
                     "logo_url": null,
                     "name": "Signet Faucet",
-                    "partner": "SignetFaucet"
+                    "partner": "SignetFaucet",
+                    "logo_badged_url": null
                 },
                 "user_fee_fiat": 0.0
             },
@@ -454,7 +457,8 @@ async fn sales_quotes() {
                 "partner_info": {
                     "logo_url": null,
                     "name": "Testnet Faucet",
-                    "partner": "TestnetFaucet"
+                    "partner": "TestnetFaucet",
+                    "logo_badged_url": null
                 },
                 "user_fee_fiat": 0.0
             }
@@ -511,13 +515,50 @@ async fn sales_quotes_unauthorized_error() {
 }
 
 #[tokio::test]
-async fn sales_redirect() {
+async fn sales_redirect_without_crypto_amount() {
     // arrange
     let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "refund_address": "bc1qxyykaq57n2h23ar8j2xcmv2zd0afsnkxz2rmcxv29vdaqj4mnfdqrus7hy",
         "fiat_amount": 18.12,
         "fiat_currency": "USD",
+        "partner": "SignetFaucet",
+    });
+
+    // act
+    let (status, body) = call_api(
+        app,
+        true,
+        http::Method::POST,
+        "/api/partnerships/sales/redirects",
+        Some(&request_body.to_string()),
+    )
+    .await;
+    let redirect_info = body.get("redirect_info").unwrap();
+
+    // assert
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(redirect_info.get("app_restrictions"), Some(&Value::Null));
+    assert_eq!(
+        redirect_info.get("redirect_type"),
+        Some(&Value::String("WIDGET".to_string()))
+    );
+    assert_eq!(
+        redirect_info.get("url"),
+        Some(&Value::String("https://signetfaucet.com/".to_string()))
+    );
+}
+
+#[tokio::test]
+async fn sales_redirect_with_crypto_amount() {
+    // arrange
+    let app = authed_router(partner_blocklist_overrides("")).await;
+    let request_body = json!({
+        "refund_address": "bc1qxyykaq57n2h23ar8j2xcmv2zd0afsnkxz2rmcxv29vdaqj4mnfdqrus7hy",
+        "fiat_amount": 18.12,
+        "fiat_currency": "USD",
+        "crypto_amount": 0.1,
+        "crypto_currency": "BTC",
         "partner": "SignetFaucet",
     });
 

@@ -1,7 +1,7 @@
 package build.wallet.statemachine.biometric
 
-import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.inappsecurity.BiometricPreferenceFake
+import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.biometrics.BiometricError
 import build.wallet.platform.biometrics.BiometricPrompterMock
 import build.wallet.statemachine.core.SplashBodyModel

@@ -1,6 +1,7 @@
 package build.wallet.availability
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.db.DbError
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
@@ -13,13 +14,15 @@ class NetworkReachabilityEventDaoImpl(
   private val clock: Clock,
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : NetworkReachabilityEventDao {
-  private val database by lazy { databaseProvider.database() }
+  private suspend fun database(): BitkeyDatabase {
+    return databaseProvider.database()
+  }
 
   override suspend fun insertReachabilityEvent(
     connection: NetworkConnection,
     reachability: NetworkReachability,
   ): Result<Unit, DbError> {
-    return database.awaitTransaction {
+    return database().awaitTransaction {
       networkReachabilityEventQueries.insertEvent(
         connection = connection,
         reachability = reachability,
@@ -33,11 +36,11 @@ class NetworkReachabilityEventDaoImpl(
   ): Result<Instant?, DbError> {
     return when (connection) {
       null ->
-        database.networkReachabilityEventQueries.getMostRecentEvent(
+        database().networkReachabilityEventQueries.getMostRecentEvent(
           NetworkReachability.REACHABLE
         )
       else ->
-        database.networkReachabilityEventQueries.getMostRecentEventForConnection(
+        database().networkReachabilityEventQueries.getMostRecentEventForConnection(
           connection,
           NetworkReachability.REACHABLE
         )

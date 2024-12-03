@@ -142,12 +142,14 @@ struct RowView_Preview: PreviewProvider {
             isDisabled: false,
             specialTrailingIconModel: Shared.IconModel(
                 iconImage: IconImage.LocalImage(icon: .smalliconinformationfilled),
-                iconSize: .accessory,
+                iconSize: .Accessory(),
                 iconBackgroundType: IconBackgroundTypeTransient(),
+                iconAlignmentInBackground: .center,
                 iconTint: IconTint.warning,
                 iconOpacity: nil,
                 iconTopSpacing: nil,
-                text: nil
+                text: nil,
+                badge: nil
             ),
             showNewCoachmark: false,
             onClick: {}

@@ -11,8 +11,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.v1.Action.ACTION_HW_FINGERPRINT_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_FINGERPRINT
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentStarted
@@ -192,11 +191,11 @@ class PairNewHardwareUiStateMachineImpl(
             ),
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_FINGERPRINT,
-            onInauthenticHardware = {
+            onInauthenticHardware = { cause ->
               // Inauthentic hardware should be caught on first tap. Instead of ignoring this error,
               // we'll log that it happened and reject the hardware -- even though this state
               // should be unreachable.
-              log(Error) {
+              logError(throwable = cause) {
                 "Detected inauthentic hardware in CompleteFingerprintEnrollmentViaNfcUiState," +
                   "which shouldn't happen"
               }

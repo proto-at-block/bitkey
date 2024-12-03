@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.slf4j:slf4j-simple",
+    "components": [
+        {
+            "version": "2.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "slf4j-simple-2.0.13.jar": "3153fe1d689cffb94f1530b58470c306685ba68844de8857116e3b6ebb81d9f7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

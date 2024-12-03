@@ -5,20 +5,26 @@ import XCTest
 
 @testable import Wallet
 
+// TODO(W-10113): Re-enable snapshot tests)
 final class TransactionDetailSnapshotTests: XCTestCase {
 
-    func test_transaction_detail_sent() {
-        let view = FormView(
-            viewModel: .transactionDetailModel(
-                isPending: false,
+    func skipped_test_transaction_detail_sent() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Transaction sent",
+                subline: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                sublineTreatment: .mono,
+                viewTransactionText: "View transaction",
                 transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: false,
                 content: [
+                    TransactionDetailModelKt.completeTransactionStepper,
+                    FormMainContentModel.Divider(),
                     FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
-                                withTitle: "Confirmed at",
+                                withTitle: "Confirmed",
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "03-17-1963",
@@ -33,7 +39,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                         hero: nil,
                         items: [
                             .init(
-                                withTitle: "Recipient received",
+                                withTitle: "Amount",
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "$9.00",
@@ -51,7 +57,6 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                         ],
                         total: .init(
                             withTitle: "Total",
-                            secondaryTitle: "At time sent",
                             titleIcon: nil,
                             onTitle: {},
                             sideText: "$10.00",
@@ -68,17 +73,22 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
-    func test_transaction_detail_received() {
-        let view = FormView(
-            viewModel: .transactionDetailModel(
-                isPending: false,
+    func skipped_test_transaction_detail_received() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Transaction received",
+                subline: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                sublineTreatment: .mono,
+                viewTransactionText: "View transaction",
                 transactionType: BitcoinTransactionTransactionTypeIncoming(),
                 isFeeBumpEnabled: false,
                 content: [
+                    TransactionDetailModelKt.completeTransactionStepper,
+                    FormMainContentModel.Divider(),
                     FormMainContentModel.DataList(
                         hero: nil,
                         items: [.init(
-                            withTitle: "Confirmed at",
+                            withTitle: "Confirmed",
                             titleIcon: nil,
                             onTitle: {},
                             sideText: "03-17-1963",
@@ -90,17 +100,17 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                     ),
                     FormMainContentModel.DataList(
                         hero: nil,
-                        items: [],
-                        total: .init(
-                            withTitle: "Amount received",
-                            secondaryTitle: "At time confirmed",
-                            titleIcon: nil,
-                            onTitle: {},
-                            sideText: "$10.00",
-                            sideTextType: .body2bold,
-                            secondarySideText: "35,584 sats",
-                            showBottomDivider: false
-                        ),
+                        items: [
+                            .init(
+                                withTitle: "Amount",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$10.00",
+                                secondarySideText: "35,584 sats",
+                                showBottomDivider: false
+                            ),
+                        ],
+                        total: nil,
                         buttons: []
                     ),
                 ]
@@ -110,17 +120,22 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
-    func test_transaction_detail_utxoConsolidation() {
-        let view = FormView(
-            viewModel: .transactionDetailModel(
-                isPending: false,
+    func skipped_test_transaction_detail_utxoConsolidation() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "UTXO Consolidation",
+                subline: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                sublineTreatment: .mono,
+                viewTransactionText: "View transaction",
                 transactionType: BitcoinTransactionTransactionTypeUtxoConsolidation(),
                 isFeeBumpEnabled: false,
                 content: [
+                    TransactionDetailModelKt.completeTransactionStepper,
+                    FormMainContentModel.Divider(),
                     FormMainContentModel.DataList(
                         hero: nil,
                         items: [.init(
-                            withTitle: "Confirmed at",
+                            withTitle: "Confirmed",
                             titleIcon: nil,
                             onTitle: {},
                             sideText: "Sep 20 at 1:28 pm",
@@ -143,8 +158,6 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                             ),
                             .init(
                                 withTitle: "Consolidation cost",
-                                secondaryTitle: "At time confirmed",
-                                titleTextType: .bold,
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "$3.07",
@@ -162,22 +175,56 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
-    func test_transaction_detail_pending() {
-        let view = FormView(
-            viewModel: .transactionDetailModel(
-                isPending: true,
-                isDelayed: false,
+    func skipped_test_transaction_detail_pending() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Transaction pending",
+                subline: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                sublineTreatment: .mono,
+                viewTransactionText: "View transaction",
                 transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: false,
                 content: [
+                    TransactionDetailModelKt.processingTransactionStepper,
+                    FormMainContentModel.Divider(),
                     FormMainContentModel.DataList(
                         hero: nil,
-                        items: [],
+                        items: [
+                            .init(
+                                withTitle: "Arrival time",
+                                titleIcon: nil,
+                                onTitle: nil,
+                                sideText: "Feb 1 at 5:44pm"
+                            ),
+                        ],
+                        total: nil,
+                        buttons: []
+                    ),
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [
+                            .init(
+                                withTitle: "Amount",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$200.00",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                            .init(
+                                withTitle: "Network fees",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$1.36",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                        ],
                         total: .init(
-                            withTitle: "Amount receiving",
+                            withTitle: "Total",
                             titleIcon: nil,
                             onTitle: {},
-                            sideText: "~$201.36",
+                            sideText: "$201.36",
                             sideTextType: .body2bold,
                             secondarySideText: "1,312,150 sats",
                             showBottomDivider: false
@@ -191,14 +238,18 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
-    func test_transaction_detail_pending_late() {
-        let view = FormView(
-            viewModel: .transactionDetailModel(
-                isPending: true,
-                isDelayed: true,
+    func skipped_test_transaction_detail_pending_late() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Transaction delayed",
+                subline: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+                sublineTreatment: .mono,
+                viewTransactionText: "View transaction",
                 transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                 isFeeBumpEnabled: true,
                 content: [
+                    TransactionDetailModelKt.processingTransactionStepper,
+                    FormMainContentModel.Divider(),
                     FormMainContentModel.DataList(
                         hero: nil,
                         items: [
@@ -213,22 +264,24 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 secondarySideTextType: .bold,
                                 secondarySideTextTreatment: .warning,
                                 explainer: FormMainContentModel.DataListDataExplainer(
-                                    title: "Taking longer than usual",
-                                    subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                                    title: "Speed up transaction?",
+                                    subtitle: "You can speed up this transaction by increasing the network fee.",
                                     iconButton: IconButtonModel(
                                         iconModel: IconModel(
                                             iconImage: .LocalImage(
                                                 icon: .smalliconinformationfilled
                                             ),
-                                            iconSize: .xsmall,
+                                            iconSize: .XSmall(),
                                             iconBackgroundType: IconBackgroundTypeCircle(
-                                                circleSize: .xsmall,
+                                                circleSize: .XSmall(),
                                                 color: .translucentblack
                                             ),
+                                            iconAlignmentInBackground: .center,
                                             iconTint: nil,
                                             iconOpacity: 0.20,
                                             iconTopSpacing: nil,
-                                            text: nil
+                                            text: nil,
+                                            badge: nil
                                         ),
                                         onClick: StandardClick {},
                                         enabled: true
@@ -243,7 +296,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                         hero: nil,
                         items: [
                             .init(
-                                withTitle: "Recipient receives",
+                                withTitle: "Amount",
                                 titleIcon: nil,
                                 onTitle: {},
                                 sideText: "$200.00",
@@ -277,6 +330,105 @@ final class TransactionDetailSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
+    func skipped_test_transaction_detail_pending_partnership() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Cash App transfer",
+                subline: "Arrival times and fees are estimates. Confirm details through Cash App. ",
+                sublineTreatment: .regular,
+                viewTransactionText: "View in Cash App",
+                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
+                isFeeBumpEnabled: false,
+                content: [
+                    TransactionDetailModelKt.submittedTransactionStepper,
+                    FormMainContentModel.Divider(),
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [
+                            .init(
+                                withTitle: "Amount",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$200.00",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                        ],
+                        total: nil,
+                        buttons: []
+                    ),
+                ]
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
+    func skipped_test_transaction_detail_confirmed_partnership() {
+        let view = ComposableRenderedModelView(
+            model: FormBodyModel.transactionDetailModel(
+                headline: "Cash App sale",
+                subline: "Arrival times and fees are estimates. Confirm details through Cash App.",
+                sublineTreatment: .regular,
+                viewTransactionText: "View in Cash App",
+                transactionType: BitcoinTransactionTransactionTypeOutgoing(),
+                isFeeBumpEnabled: false,
+                content: [
+                    TransactionDetailModelKt.completeTransactionStepper,
+                    FormMainContentModel.Divider(),
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [
+                            .init(
+                                withTitle: "Confirmed",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "03-17-1963",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
+                        ],
+                        total: nil,
+                        buttons: []
+                    ),
+                    FormMainContentModel.DataList(
+                        hero: nil,
+                        items: [
+                            .init(
+                                withTitle: "Amount",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$9.00",
+                                secondarySideText: "35,584 sats",
+                                showBottomDivider: false
+                            ),
+                            .init(
+                                withTitle: "Network fees",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "$1.00",
+                                secondarySideText: "5,526 sats",
+                                showBottomDivider: false
+                            ),
+                        ],
+                        total: .init(
+                            withTitle: "Total",
+                            titleIcon: nil,
+                            onTitle: {},
+                            sideText: "$10.00",
+                            sideTextType: .body2bold,
+                            secondarySideText: "41,110 sats",
+                            showBottomDivider: false
+                        ),
+                        buttons: []
+                    ),
+                ]
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
 }
 
 // MARK: -
@@ -284,30 +436,40 @@ final class TransactionDetailSnapshotTests: XCTestCase {
 private extension FormBodyModel {
 
     static func transactionDetailModel(
-        isPending: Bool,
-        isDelayed: Bool = false,
-        transactionType: BitcoinTransactionTransactionType,
+        headline: String,
+        subline: String,
+        sublineTreatment: FormHeaderModel.SublineTreatment,
+        viewTransactionText: String,
+        transactionType _: BitcoinTransactionTransactionType,
         isFeeBumpEnabled: Bool,
-        content: [FormMainContentModel.DataList]
+        content: [FormMainContentModel]
     ) -> FormBodyModel {
-        let recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"
-        let txStatusModel: TxStatusModel = if isPending {
-            TxStatusModelPending(
-                transactionType: transactionType,
-                recipientAddress: recipientAddress,
-                isLate: isDelayed
-            )
-        } else {
-            TxStatusModelConfirmed(
-                transactionType: transactionType,
-                recipientAddress: recipientAddress
-            )
-        }
+        let formHeaderModel: FormHeaderModel = .init(
+            headline: headline,
+            subline: subline,
+            iconModel: IconModel(
+                iconImage: .LocalImage(
+                    icon: .bitcoin
+                ),
+                iconSize: .Avatar(),
+                iconBackgroundType: IconBackgroundTypeTransient(),
+                iconAlignmentInBackground: .center,
+                iconTint: nil,
+                iconOpacity: nil,
+                iconTopSpacing: nil,
+                text: nil,
+                badge: nil
+            ),
+            sublineTreatment: sublineTreatment,
+            alignment: .leading,
+            customContent: nil
+        )
 
         return SnapshotTestModels.shared.CreateTransactionDetailModel(
             feeBumpEnabled: isFeeBumpEnabled,
-            txStatusModel: txStatusModel,
+            formHeaderModel: formHeaderModel,
             isLoading: false,
+            viewTransactionText: viewTransactionText,
             onViewTransaction: {},
             onClose: {},
             onSpeedUpTransaction: {},

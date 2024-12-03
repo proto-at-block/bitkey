@@ -8,7 +8,10 @@ import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.fees.FeePolicy
-import build.wallet.bitcoin.transactions.*
+import build.wallet.bitcoin.transactions.BitcoinWalletService
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.bitkey.factor.SigningFactor.F8e
@@ -20,8 +23,8 @@ import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
@@ -36,10 +39,11 @@ import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
+import build.wallet.statemachine.transactions.TransactionDetails
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -55,7 +59,7 @@ class TransferConfirmationUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
-  private val transactionsService: TransactionsService,
+  private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
   private val appFunctionalityService: AppFunctionalityService,
 ) : TransferConfirmationUiStateMachine {
@@ -160,12 +164,12 @@ class TransferConfirmationUiStateMachineImpl(
                     ?: error("This callback should not be invoked without selected priority, this shouldn’t happen")
               )
           },
-          onAppSignError = {
-            log(Error) { "Unable to sign PSBT" }
+          onAppSignError = { cause ->
+            logError(throwable = cause) { "Unable to sign PSBT" }
             uiState = ReceivedBdkErrorUiState
           },
           onPsbtCreateError = { error ->
-            log(Error) { "Unable to create PSBT: $error" }
+            logError(throwable = error) { "Unable to create PSBT: $error" }
             uiState =
               when (error) {
                 is InsufficientFunds -> ReceivedInsufficientFundsErrorUiState
@@ -274,19 +278,7 @@ class TransferConfirmationUiStateMachineImpl(
     val onContinue: () -> Unit,
   ) : FormBodyModel(
       id = null,
-      toolbar =
-        ToolbarModel(
-          leadingAccessory =
-            ToolbarAccessoryModel.ButtonAccessory(
-              model =
-                ButtonModel(
-                  text = "Cancel",
-                  treatment = ButtonModel.Treatment.TertiaryDestructive,
-                  size = ButtonModel.Size.Compact,
-                  onClick = StandardClick(onExit)
-                )
-            )
-        ),
+      toolbar = ToolbarModel(leadingAccessory = BackAccessory(onExit)),
       eventTrackerContext = null,
       onBack = onExit,
       header =
@@ -315,7 +307,7 @@ class TransferConfirmationUiStateMachineImpl(
     onBdkError: () -> Unit,
   ) {
     LaunchedEffect("broadcasting-txn") {
-      transactionsService
+      bitcoinWalletService
         .broadcast(
           psbt = state.twoOfThreeSignedPsbt,
           estimatedTransactionPriority = selectedPriority
@@ -332,7 +324,7 @@ class TransferConfirmationUiStateMachineImpl(
               // On failure, the Server already published the transaction, so no user error is
               // presented. This can happen due to user-configured server settings or network
               // that are unrelated to the broadcast done by the Server.
-              transactionsService.syncTransactions()
+              bitcoinWalletService.sync()
               transactionPriorityPreference.set(props.selectedPriority)
               props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
             }
@@ -348,7 +340,7 @@ class TransferConfirmationUiStateMachineImpl(
     onAppSignSuccess: (
       Map<EstimatedTransactionPriority, Psbt>,
     ) -> Unit,
-    onAppSignError: () -> Unit,
+    onAppSignError: (Throwable) -> Unit,
     onPsbtCreateError: (BdkError) -> Unit,
   ): ScreenModel {
     LaunchedEffect("create-app-signed-psbt") {
@@ -368,7 +360,7 @@ class TransferConfirmationUiStateMachineImpl(
           if (entry.key == selectedPriority && psbtResult.isErr) {
             when (val error = psbtResult.error) {
               is BdkError -> onPsbtCreateError(error)
-              else -> onAppSignError()
+              else -> onAppSignError(error)
             }
           }
 
@@ -400,7 +392,7 @@ class TransferConfirmationUiStateMachineImpl(
           psbt = state.appSignedPsbt
         )
         .onSuccess { appAndServerSignedPsbt ->
-          log { "Successfully signed psbt with server: $appAndServerSignedPsbt" }
+          logDebug { "Successfully signed psbt with server: $appAndServerSignedPsbt" }
           onSignSuccess(appAndServerSignedPsbt)
         }
         .onFailure {
@@ -424,20 +416,11 @@ class TransferConfirmationUiStateMachineImpl(
     val transferBitcoinAmount = BitcoinMoney.sats(state.appSignedPsbt.amountSats.toBigInteger())
     val feeBitcoinAmount = state.appSignedPsbt.fee
 
-    val transactionDetails = when (props.variant) {
-      TransferConfirmationScreenVariant.Regular,
-      TransferConfirmationScreenVariant.SpeedUp,
-      -> TransactionDetails.Regular(
-        transferAmount = transferBitcoinAmount,
-        feeAmount = feeBitcoinAmount,
-        estimatedTransactionPriority = selectedPriority
-      )
-      is TransferConfirmationScreenVariant.Sell -> TransactionDetails.Sell(
-        transferAmount = transferBitcoinAmount,
-        feeAmount = feeBitcoinAmount,
-        estimatedTransactionPriority = selectedPriority
-      )
-    }
+    val transactionDetails = TransactionDetails.Regular(
+      transferAmount = transferBitcoinAmount,
+      feeAmount = feeBitcoinAmount,
+      estimatedTransactionPriority = selectedPriority
+    )
 
     val transactionDetailsCard = transactionDetailsCardUiStateMachine.model(
       props = TransactionDetailsCardUiProps(
@@ -496,7 +479,7 @@ class TransferConfirmationUiStateMachineImpl(
     constructionMethod: SpendingWallet.PsbtConstructionMethod,
   ): Result<Psbt, Throwable> =
     coroutineBinding {
-      val wallet = transactionsService.spendingWallet().value
+      val wallet = bitcoinWalletService.spendingWallet().value
       ensureNotNull(wallet) { Error("No spending wallet found.") }
 
       wallet

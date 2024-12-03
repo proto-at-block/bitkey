@@ -15,8 +15,7 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.mapResult
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.*
@@ -203,7 +202,7 @@ class AccountDataStateMachineImpl(
             when (stillRecovering.factorToRecover) {
               App -> {
                 // TODO(W-4300) remove this hack to prevent app recovery from getting through.
-                log(LogLevel.Error) { "Unexpected app recovery due to data syncing issue W-4300" }
+                logError { "Unexpected app recovery due to data syncing issue W-4300" }
                 null
               }
 

@@ -1,6 +1,6 @@
 package build.wallet.inappsecurity
 
-import build.wallet.analytics.events.AppSessionManagerFake
+import build.wallet.platform.app.AppSessionManagerFake
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

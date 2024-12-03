@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-uikitarm64",
     "components": [
         {
-            "version": "2.8.3",
+            "version": "2.8.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-compose-uikitarm64-2.8.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "lifecycle-runtime-compose-uikitarm64-2.8.4-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {

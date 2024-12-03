@@ -5,18 +5,18 @@ import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.relationships.Relationships
+import build.wallet.realDelay
 import build.wallet.statemachine.core.test
 import build.wallet.testing.AppTester
+import build.wallet.withRealTimeout
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.withClue
 import io.kotest.matchers.nulls.shouldNotBeNull
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -79,18 +79,20 @@ data class TrustedContactFullInvite(
 suspend fun AppTester.awaitRelationships(
   timeout: Duration = 3.seconds,
   predicate: (Relationships) -> Boolean,
-): Relationships =
-  withClue("await for SocRec relationships matching a predicate") {
-    relationshipsService.relationships
-      .filterNotNull()
-      .transform { relationships ->
-        if (predicate(relationships)) {
-          emit(relationships)
+): Relationships {
+  return withRealTimeout(timeout) {
+    withClue("await for SocRec relationships matching a predicate") {
+      relationshipsService.relationships
+        .filterNotNull()
+        .transform { relationships ->
+          if (predicate(relationships)) {
+            emit(relationships)
+          }
         }
-      }
-      .timeout(timeout)
-      .first()
+        .first()
+    }
   }
+}
 
 fun AppTester.getSharedInviteCode(): String {
   val sharedText = lastSharedText.shouldNotBeNull()
@@ -106,7 +108,7 @@ fun AppTester.getSharedInviteCode(): String {
  */
 suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
   withClue("await cloud backup includes relationships $relationshipId") {
-    withTimeout(2.seconds) {
+    withRealTimeout(2.seconds) {
       var backupUpdated = false
       while (isActive && !backupUpdated) {
         val backup = readCloudBackup(CloudStoreAccountFake.ProtectedCustomerFake)
@@ -115,7 +117,7 @@ suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
           (backup as SocRecV1BackupFeatures)
             .fullAccountFields.shouldNotBeNull()
             .socRecSealedDekMap.containsKey(relationshipId)
-        delay(100.milliseconds)
+        realDelay(100.milliseconds)
       }
     }
   }

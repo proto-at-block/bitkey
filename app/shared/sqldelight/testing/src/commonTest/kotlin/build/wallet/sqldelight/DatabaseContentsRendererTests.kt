@@ -1,18 +1,27 @@
 package build.wallet.sqldelight
 
+import app.cash.sqldelight.db.SqlDriver
+import build.wallet.sqldelight.dummy.DummyDataEntityQueries
 import build.wallet.sqldelight.dummy.DummyDatabase
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class DatabaseContentsRendererTests : FunSpec({
-  val sqlDriverFactory = inMemorySqlDriver().factory
 
-  val sqlDriver =
-    sqlDriverFactory.createDriver(
+  lateinit var sqlDriver: SqlDriver
+  lateinit var testDataQueries: DummyDataEntityQueries
+  beforeTest {
+    val sqlDriverFactory = inMemorySqlDriver().factory
+    sqlDriver = sqlDriverFactory.createDriver(
       dataBaseName = "test.db",
       dataBaseSchema = DummyDatabase.Schema
     )
-  val testDataQueries = DummyDatabase(sqlDriver).dummyDataQueries
+    testDataQueries = DummyDatabase(sqlDriver).dummyDataQueries
+  }
+
+  afterTest {
+    sqlDriver.close()
+  }
 
   test("empty database") {
     sqlDriver.databaseContents().renderText()

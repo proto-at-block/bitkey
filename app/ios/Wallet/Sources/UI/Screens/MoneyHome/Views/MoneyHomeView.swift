@@ -202,6 +202,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "45,075 sats",
                                     transactionType: BitcoinTransactionTransactionTypeIncoming(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                                 TransactionItemModelKt.TransactionItemModel(
@@ -211,6 +212,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "49,000 sats",
                                     transactionType: BitcoinTransactionTransactionTypeIncoming(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                             ],
@@ -229,6 +231,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "121,075 sats",
                                     transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                             ],
@@ -287,6 +290,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "45,075 sats",
                                     transactionType: BitcoinTransactionTransactionTypeIncoming(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                                 TransactionItemModelKt.TransactionItemModel(
@@ -296,6 +300,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "49,000 sats",
                                     transactionType: BitcoinTransactionTransactionTypeIncoming(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                             ],
@@ -314,6 +319,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     amountEquivalent: "121,075 sats",
                                     transactionType: BitcoinTransactionTransactionTypeOutgoing(),
                                     isPending: false,
+                                    isLate: false,
                                     onClick: {}
                                 ),
                             ],

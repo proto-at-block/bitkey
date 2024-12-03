@@ -28,9 +28,9 @@ data class SellBitcoinSuccessBodyModel(
     ),
     header = FormHeaderModel(
       headline = if (partnerInfo?.name != null) {
-        "Your bitcoin is on the way to ${partnerInfo.name} to sell"
+        "Your sell order is being sent to ${partnerInfo.name}"
       } else {
-        "Your bitcoin is on the way to sell"
+        "Your sell order is being sent."
       },
       subline = null,
       iconModel = null,

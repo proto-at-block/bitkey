@@ -6,7 +6,8 @@ import build.wallet.money.formatter.AmountDisplayText
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.ui.model.StandardClick
@@ -29,16 +30,17 @@ data class UtxoConsolidationTransactionSentModel(
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onBack)),
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
-      headline = "Transaction sent",
+      headline = "Consolidation started",
       subline = targetAddress,
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-      alignment = CENTER
+      alignment = LEADING
     ),
     mainContentList = immutableListOf(
+      FormMainContentModel.Divider,
       DataList(
         items = immutableListOf(
           Data(
-            title = "Should arrive by",
+            title = "Arrival time",
             sideText = arrivalTime
           )
         )

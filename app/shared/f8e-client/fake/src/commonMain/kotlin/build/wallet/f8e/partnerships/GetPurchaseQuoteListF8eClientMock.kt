@@ -7,6 +7,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PurchaseQuote
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -19,7 +20,7 @@ class GetPurchaseQuoteListF8eClientMock(
     Ok(
       GetPurchaseQuoteListF8eClient.Success(
         listOf(
-          Quote(
+          PurchaseQuote(
             fiatCurrency = "USD",
             cryptoAmount = 0.00195701,
             networkFeeCrypto = 0.0002710900770218228,
@@ -29,7 +30,8 @@ class GetPurchaseQuoteListF8eClientMock(
               PartnerInfo(
                 name = "partner",
                 logoUrl = "https://logo.url.example.com",
-                partnerId = PartnerId("partner")
+                partnerId = PartnerId("partner"),
+                logoBadgedUrl = "https://badged-logo.url.example.com"
               ),
             userFeeFiat = 0.0,
             quoteId = "quoteId"
@@ -38,7 +40,8 @@ class GetPurchaseQuoteListF8eClientMock(
       )
     )
 
-  var quotesListResult: Result<GetPurchaseQuoteListF8eClient.Success, NetworkingError> = successResult
+  var quotesListResult: Result<GetPurchaseQuoteListF8eClient.Success, NetworkingError> =
+    successResult
 
   override suspend fun purchaseQuotes(
     fullAccountId: FullAccountId,

@@ -2,10 +2,10 @@ package build.wallet.bitcoin.fees
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -23,18 +23,18 @@ import io.kotest.matchers.shouldBe
 class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
   val bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock()
   val spendingWallet = SpendingWalletMock(turbines::create)
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val estimator =
     BitcoinTransactionFeeEstimatorImpl(
       bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
-      transactionsService = transactionsService,
+      bitcoinWalletService = bitcoinWalletService,
       datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
     )
 
   beforeTest {
     spendingWallet.reset()
-    transactionsService.reset()
-    transactionsService.spendingWallet.value = spendingWallet
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = spendingWallet
   }
 
   test("estimator returns a filled map of fees") {

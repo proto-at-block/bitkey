@@ -20,7 +20,7 @@ kotlin {
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.sqldelightTesting)
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

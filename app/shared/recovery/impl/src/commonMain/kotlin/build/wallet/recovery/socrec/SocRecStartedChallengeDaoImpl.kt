@@ -9,22 +9,23 @@ import com.github.michaelbull.result.Result
 class SocRecStartedChallengeDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : SocRecStartedChallengeDao {
-  private val database by lazy { databaseProvider.database() }
-
   override suspend fun get(): Result<String?, DbError> {
-    return database
+    return databaseProvider.database()
       .socRecPendingChallengeQueries
       .getPendingChallenge()
       .awaitAsOneOrNullResult()
   }
 
   override suspend fun set(challengeId: String): Result<Unit, DbError> {
-    return database.awaitTransaction {
+    return databaseProvider.database().awaitTransaction {
       socRecPendingChallengeQueries.setPendingChallenge(challengeId)
     }
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return database.awaitTransaction { socRecPendingChallengeQueries.clear() }
+    return databaseProvider.database()
+      .awaitTransaction {
+        socRecPendingChallengeQueries.clear()
+      }
   }
 }

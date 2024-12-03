@@ -96,7 +96,8 @@ class AppContext {
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
             xNonceGenerator: XNonceGeneratorImpl(),
             firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
-            shareGeneratorFactory: ShareGeneratorFactoryImpl()
+            shareGeneratorFactory: ShareGeneratorFactoryImpl(),
+            frostWalletDescriptorFactory: FrostWalletDescriptorFactoryImpl()
         )
 
         self.notificationManager = NotificationManagerImpl(

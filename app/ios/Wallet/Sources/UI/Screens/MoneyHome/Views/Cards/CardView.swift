@@ -90,13 +90,14 @@ private extension View {
     @ViewBuilder
     func background(style: CardModel.CardStyle) -> some View {
         switch style {
+        case _ as CardModel.CardStylePlain:
+            self
         case _ as CardModel.CardStyleOutline:
             self
                 .background(.background)
                 .cornerRadius(16)
                 .shadow(color: .black.opacity(0.10), radius: 1, x: 0, y: 0)
                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 3)
-
         case let gradient as CardModel.CardStyleGradient:
             let backgroundColor = switch gradient.backgroundColor {
             case .some(.warning):
@@ -114,7 +115,6 @@ private extension View {
                     y: 3
                 )
                 .shadow(color: Color(red: 0.74, green: 0.81, blue: 0.94), radius: 0.5, x: 0, y: 0)
-
         default:
             fatalError("Unexpected card style: \(style)")
         }

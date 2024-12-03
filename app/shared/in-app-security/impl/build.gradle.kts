@@ -17,8 +17,9 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.platformFake)
         implementation(projects.shared.sqldelightTesting)
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.inAppSecurityFake)
       }
     }

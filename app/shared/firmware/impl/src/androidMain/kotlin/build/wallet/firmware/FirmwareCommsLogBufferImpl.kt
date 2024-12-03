@@ -1,6 +1,6 @@
 package build.wallet.firmware
 
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.rust.firmware.disableProtoExchangeLogging
 import build.wallet.rust.firmware.enableProtoExchangeLogging
 import build.wallet.rust.firmware.getProtoExchangeLogs
@@ -14,10 +14,10 @@ class FirmwareCommsLogBufferImpl : FirmwareCommsLogBuffer {
 
   override fun configure(enabled: Boolean) {
     if (enabled) {
-      log { "FirmwareCommsLogBufferImpl enabled" }
+      logDebug { "FirmwareCommsLogBufferImpl enabled" }
       enableProtoExchangeLogging()
     } else {
-      log { "FirmwareCommsLogBufferImpl disabled" }
+      logDebug { "FirmwareCommsLogBufferImpl disabled" }
       disableProtoExchangeLogging()
     }
     this.enabled = enabled
@@ -31,7 +31,7 @@ class FirmwareCommsLogBufferImpl : FirmwareCommsLogBuffer {
     }
 
     for (l in getProtoExchangeLogs()) {
-      log(tag = "WCA") { l }
+      logDebug(tag = "WCA") { l }
     }
   }
 }

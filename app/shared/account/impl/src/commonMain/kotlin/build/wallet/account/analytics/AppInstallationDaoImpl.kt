@@ -12,10 +12,9 @@ class AppInstallationDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val uuidGenerator: UuidGenerator,
 ) : AppInstallationDao {
-  private val database by lazy { databaseProvider.database() }
-
   override suspend fun getOrCreateAppInstallation(): Result<AppInstallation, DbError> {
-    return database.appInstallationQueries
+    return databaseProvider.database()
+      .appInstallationQueries
       .awaitTransactionWithResult {
         initializeAppInstallationIfAbsent(uuidGenerator.random())
 
@@ -35,7 +34,8 @@ class AppInstallationDaoImpl(
   override suspend fun updateAppInstallationHardwareSerialNumber(
     serialNumber: String,
   ): Result<Unit, DbError> {
-    return database.appInstallationQueries
+    return databaseProvider.database()
+      .appInstallationQueries
       .awaitTransaction {
         initializeAppInstallationIfAbsent(uuidGenerator.random())
         updateHardwareSerialNumber(serialNumber)

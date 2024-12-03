@@ -10,10 +10,7 @@ import kotlin.time.DurationUnit.SECONDS
 import kotlin.time.toDuration
 
 interface TimeZoneFormatter {
-  fun timeZoneShortName(
-    timeZone: TimeZone,
-    localeIdentifier: String,
-  ): String
+  fun timeZoneShortName(timeZone: TimeZone): String
 }
 
 /**
@@ -22,9 +19,8 @@ interface TimeZoneFormatter {
 fun TimeZoneFormatter.timeZoneShortNameWithHoursOffset(
   timeZone: TimeZone,
   clock: Clock,
-  localeIdentifier: String,
 ): String {
-  val timeZoneShortName = timeZoneShortName(timeZone, localeIdentifier)
+  val timeZoneShortName = timeZoneShortName(timeZone)
   val hoursFromUTC = timeZone.hoursFromUtc(clock)
   return "$timeZoneShortName (UTC $hoursFromUTC)"
 }

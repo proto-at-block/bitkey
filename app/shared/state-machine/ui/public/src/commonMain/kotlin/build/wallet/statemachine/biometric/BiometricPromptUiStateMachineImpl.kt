@@ -1,9 +1,9 @@
 package build.wallet.statemachine.biometric
 
 import androidx.compose.runtime.*
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.AppSessionState
 import build.wallet.inappsecurity.BiometricPreference
+import build.wallet.platform.app.AppSessionManager
+import build.wallet.platform.app.AppSessionState
 import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel

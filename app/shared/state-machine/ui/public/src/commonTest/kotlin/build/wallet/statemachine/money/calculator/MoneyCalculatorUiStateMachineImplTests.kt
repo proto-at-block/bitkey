@@ -1,11 +1,6 @@
 package build.wallet.statemachine.money.calculator
 
-import build.wallet.amount.AmountCalculatorImpl
-import build.wallet.amount.DecimalNumberCalculatorImpl
-import build.wallet.amount.DecimalNumberCreatorImpl
-import build.wallet.amount.DecimalSeparatorProviderImpl
-import build.wallet.amount.DoubleFormatterImpl
-import build.wallet.amount.WholeNumberCalculatorImpl
+import build.wallet.amount.*
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.limit.ONE_BTC_IN_SATOSHIS
 import build.wallet.money.BitcoinMoney
@@ -15,7 +10,7 @@ import build.wallet.money.currency.USD
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.exchange.CurrencyConverterFake
-import build.wallet.platform.settings.LocaleIdentifierProviderFake
+import build.wallet.platform.settings.LocaleProviderFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
@@ -27,7 +22,7 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
 
 class MoneyCalculatorUiStateMachineImplTests : FunSpec({
-  val localeIdentifierProvider = LocaleIdentifierProviderFake()
+  val localeProvider = LocaleProviderFake()
   val defaultMoneyAmountEntryModel =
     MoneyAmountEntryModel(
       primaryAmount = "$1",
@@ -35,36 +30,27 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       secondaryAmount = "1000 sats"
     )
   val moneyAmountEntryUiStateMachineMock =
-    object : MoneyAmountEntryUiStateMachine, StateMachineMock<MoneyAmountEntryProps, MoneyAmountEntryModel>(
-      defaultMoneyAmountEntryModel
-    ) {}
+    object : MoneyAmountEntryUiStateMachine,
+      StateMachineMock<MoneyAmountEntryProps, MoneyAmountEntryModel>(
+        defaultMoneyAmountEntryModel
+      ) {}
 
-  val doubleFormatter =
-    DoubleFormatterImpl(
-      localeIdentifierProvider = localeIdentifierProvider
-    )
-  val decimalSeparatorProvider = DecimalSeparatorProviderImpl(localeIdentifierProvider)
-  val decimalNumberCreator =
-    DecimalNumberCreatorImpl(
-      decimalSeparatorProvider = decimalSeparatorProvider,
-      doubleFormatter
-    )
+  val doubleFormatter = DoubleFormatterImpl(localeProvider)
+  val decimalNumberCreator = DecimalNumberCreatorImpl(localeProvider, doubleFormatter)
   val preferenceDisplayRepository = BitcoinDisplayPreferenceRepositoryMock()
   val stateMachine =
     MoneyCalculatorUiStateMachineImpl(
       bitcoinDisplayPreferenceRepository = preferenceDisplayRepository,
       currencyConverter = CurrencyConverterFake(),
       moneyAmountEntryUiStateMachine = moneyAmountEntryUiStateMachineMock,
-      amountCalculator =
-        AmountCalculatorImpl(
-          decimalNumberCalculator =
-            DecimalNumberCalculatorImpl(
-              decimalNumberCreator,
-              decimalSeparatorProvider,
-              doubleFormatter
-            ),
-          wholeNumberCalculator = WholeNumberCalculatorImpl()
+      amountCalculator = AmountCalculatorImpl(
+        decimalNumberCalculator = DecimalNumberCalculatorImpl(
+          decimalNumberCreator,
+          localeProvider,
+          doubleFormatter
         ),
+        wholeNumberCalculator = WholeNumberCalculatorImpl()
+      ),
       decimalNumberCreator = decimalNumberCreator,
       doubleFormatter
     )

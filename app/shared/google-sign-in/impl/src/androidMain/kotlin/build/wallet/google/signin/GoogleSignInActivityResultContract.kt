@@ -4,30 +4,15 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
 import build.wallet.catchingResult
-import build.wallet.google.signin.GoogleSignInError.AndroidAccountMissing
-import build.wallet.google.signin.GoogleSignInError.ConfigurationError
-import build.wallet.google.signin.GoogleSignInError.GoogleSignInAccountMissing
-import build.wallet.google.signin.GoogleSignInError.NetworkError
-import build.wallet.google.signin.GoogleSignInError.SignInCanceled
-import build.wallet.google.signin.GoogleSignInError.SignInCurrentlyInProgress
-import build.wallet.google.signin.GoogleSignInError.SignInFailed
-import build.wallet.google.signin.GoogleSignInError.UnhandledError
+import build.wallet.google.signin.GoogleSignInError.*
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.LogLevel.Info
-import build.wallet.logging.log
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onFailure
+import build.wallet.logging.logInternal
+import com.github.michaelbull.result.*
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.DEVELOPER_ERROR
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CANCELLED
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_CURRENTLY_IN_PROGRESS
-import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.SIGN_IN_FAILED
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes.*
 import com.google.android.gms.common.api.ApiException
 
 /**
@@ -99,7 +84,7 @@ internal class GoogleSignInActivityResultContract(
             is UnhandledError -> Error
             is GoogleSignInAccountMissing -> Error
           }
-        log(logLevel, throwable = it.cause) { it.message.orEmpty() }
+        logInternal(logLevel, throwable = it.cause) { it.message.orEmpty() }
       }
   }
 }

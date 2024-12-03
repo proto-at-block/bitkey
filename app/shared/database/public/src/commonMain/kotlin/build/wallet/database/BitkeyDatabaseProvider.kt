@@ -10,10 +10,10 @@ interface BitkeyDatabaseProvider {
   /**
    * Provide the default database that is used for customer data.
    */
-  fun database(): BitkeyDatabase
+  suspend fun database(): BitkeyDatabase
 
   /**
    * Provide a database that is used for data related to non-customer debugging.
    */
-  fun debugDatabase(): BitkeyDebugDatabase
+  suspend fun debugDatabase(): BitkeyDebugDatabase
 }

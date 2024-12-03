@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime",
     "components": [
         {
-            "version": "2.8.3",
+            "version": "2.8.4",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-2.8.3.jar": "a054f062e29ea9e11b0bfc0e723c8c3261f133ad70bfd7b6498bcb56a6a41711"
+                        "lifecycle-runtime-2.8.4.jar": "a054f062e29ea9e11b0bfc0e723c8c3261f133ad70bfd7b6498bcb56a6a41711"
                     }
                 }
             ],

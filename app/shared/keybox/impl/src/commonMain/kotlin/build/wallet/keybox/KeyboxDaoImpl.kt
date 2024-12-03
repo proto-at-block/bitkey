@@ -15,7 +15,7 @@ import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.FullAccountView
 import build.wallet.database.sqldelight.SpendingKeysetEntity
 import build.wallet.db.DbError
-import build.wallet.logging.log
+import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -24,29 +24,33 @@ import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 
 class KeyboxDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : KeyboxDao {
-  private val database by lazy { databaseProvider.database() }
-
   override fun activeKeybox(): Flow<Result<Keybox?, DbError>> {
-    return database.fullAccountQueries
-      .getActiveFullAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.fullAccount()?.keybox }
-      .distinctUntilChanged()
+    return flow {
+      databaseProvider.database()
+        .fullAccountQueries
+        .getActiveFullAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.fullAccount()?.keybox }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override fun onboardingKeybox(): Flow<Result<Keybox?, DbError>> {
-    return database.fullAccountQueries
-      .getOnboardingFullAccount()
-      .asFlowOfOneOrNull()
-      .mapResult { it?.fullAccount()?.keybox }
-      .distinctUntilChanged()
+    return flow {
+      databaseProvider.database()
+        .fullAccountQueries
+        .getOnboardingFullAccount()
+        .asFlowOfOneOrNull()
+        .mapResult { it?.fullAccount()?.keybox }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun getActiveOrOnboardingKeybox(): Result<Keybox?, DbError> {
@@ -57,8 +61,8 @@ class KeyboxDaoImpl(
   }
 
   override suspend fun saveKeyboxAsActive(keybox: Keybox): Result<Unit, DbError> {
-    log { "Saving keybox as active: $keybox" }
-    return database
+    logDebug { "Saving keybox as active: $keybox" }
+    return databaseProvider.database()
       .awaitTransaction {
         saveKeybox(keybox)
         fullAccountQueries.setActiveFullAccountId(keybox.fullAccountId)
@@ -67,8 +71,7 @@ class KeyboxDaoImpl(
   }
 
   override suspend fun saveKeyboxAndBeginOnboarding(keybox: Keybox): Result<Unit, DbError> {
-    log { "Saving keybox to local db" }
-    return database
+    return databaseProvider.database()
       .awaitTransaction {
         saveKeybox(keybox)
         fullAccountQueries.setOnboardingFullAccountId(keybox.fullAccountId)
@@ -79,7 +82,7 @@ class KeyboxDaoImpl(
   override suspend fun activateNewKeyboxAndCompleteOnboarding(
     keybox: Keybox,
   ): Result<Unit, DbError> {
-    return database
+    return databaseProvider.database()
       .awaitTransaction {
         fullAccountQueries.setActiveFullAccountId(keybox.fullAccountId)
         fullAccountQueries.clearOnboardingFullAccount()
@@ -92,7 +95,7 @@ class KeyboxDaoImpl(
     keyboxToRotate: Keybox,
     appAuthKeys: AppAuthPublicKeys,
   ): Result<Keybox, DbError> {
-    return database
+    return databaseProvider.database()
       .awaitTransactionWithResult {
         keyboxQueries.rotateAppGlobalAuthKeyHwSignature(
           id = keyboxToRotate.localId,
@@ -116,7 +119,7 @@ class KeyboxDaoImpl(
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
-    return database
+    return databaseProvider.database()
       .awaitTransaction {
         fullAccountQueries.clear()
         keyboxQueries.clear()
@@ -187,7 +190,10 @@ class KeyboxDaoImpl(
     // Get the inactive keysets
     val inactiveKeysets =
       inactiveKeysetIds.map {
-        database.spendingKeysetQueries.keysetById(it).awaitAsOne()
+        databaseProvider.database()
+          .spendingKeysetQueries
+          .keysetById(it)
+          .awaitAsOne()
           .spendingKeyset(networkType)
       }
 

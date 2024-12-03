@@ -4,8 +4,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
 import android.os.Build
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 
 internal fun PackageManager.getPackageInformation(
   packageName: String,
@@ -19,7 +18,7 @@ internal fun PackageManager.getPackageInformation(
       getPackageInfo(packageName, flags)
     }
   } catch (e: NameNotFoundException) {
-    log(Warn, throwable = e) { "$packageName not installed" }
+    logWarn(throwable = e) { "$packageName not installed" }
     null
   }
 }

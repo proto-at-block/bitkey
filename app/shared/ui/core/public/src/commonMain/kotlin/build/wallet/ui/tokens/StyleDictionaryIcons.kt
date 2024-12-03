@@ -8,6 +8,8 @@ import bitkey.shared.ui_core_public.generated.resources.*
 import bitkey.shared.ui_core_public.generated.resources.Res
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.Icon.BitcoinBadged
+import build.wallet.statemachine.core.Icon.BitcoinConsolidation
 import build.wallet.statemachine.core.Icon.BitcoinOrange
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
@@ -50,12 +52,14 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
+import build.wallet.statemachine.core.Icon.SmallIconCheckInheritance
 import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
 import build.wallet.statemachine.core.Icon.SmallIconCheckbox
 import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
+import build.wallet.statemachine.core.Icon.SmallIconClockHands
 import build.wallet.statemachine.core.Icon.SmallIconCloud
 import build.wallet.statemachine.core.Icon.SmallIconCloudError
 import build.wallet.statemachine.core.Icon.SmallIconConsolidation
@@ -121,6 +125,7 @@ import build.wallet.statemachine.core.Icon.SubtractLeft
 import build.wallet.statemachine.core.Icon.SubtractRight
 import build.wallet.statemachine.core.Icon.TabIconHome
 import build.wallet.statemachine.core.Icon.TabIconProfile
+import build.wallet.statemachine.core.Icon.WarningBadge
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -132,6 +137,8 @@ private val Icon.drawableRes: DrawableResource
     when (this) {
       Bitcoin -> Res.drawable.bitcoin
       BitcoinOrange -> Res.drawable.bitcoin_orange
+      BitcoinConsolidation -> Res.drawable.bitcoin_consolidation
+      BitcoinBadged -> Res.drawable.bitcoin_badged
       BitkeyDevice3D -> Res.drawable.bitkey_device_3d
       BitkeyDeviceRaised -> Res.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small
@@ -171,6 +178,7 @@ private val Icon.drawableRes: DrawableResource
       SmallIconCaretRight -> Res.drawable.small_icon_caret_right
       SmallIconCaretUp -> Res.drawable.small_icon_caret_up
       SmallIconCheck -> Res.drawable.small_icon_check
+      SmallIconCheckInheritance -> Res.drawable.small_icon_check_inheritance
       SmallIconCheckbox -> Res.drawable.small_icon_checkbox
       SmallIconCheckboxSelected -> Res.drawable.small_icon_checkbox_selected
       SmallIconCheckFilled -> Res.drawable.small_icon_check_filled
@@ -178,6 +186,7 @@ private val Icon.drawableRes: DrawableResource
       SmallIconCircleStroked -> Res.drawable.small_icon_circle_stroked
       SmallIconClipboard -> Res.drawable.small_icon_clipboard
       SmallIconClock -> Res.drawable.small_icon_clock
+      SmallIconClockHands -> Res.drawable.small_icon_clock_hands
       SmallIconCloud -> Res.drawable.small_icon_cloud
       SmallIconCloudError -> Res.drawable.small_icon_cloud_error
       SmallIconConsolidation -> Res.drawable.small_icon_consolidation
@@ -244,4 +253,5 @@ private val Icon.drawableRes: DrawableResource
       CalloutArrow -> Res.drawable.callout_arrow
       TabIconHome -> Res.drawable.tab_icon_home
       TabIconProfile -> Res.drawable.tab_icon_profile
+      WarningBadge -> Res.drawable.warning_badge
     }

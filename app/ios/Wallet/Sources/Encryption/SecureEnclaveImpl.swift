@@ -228,4 +228,14 @@ public final class SecureEnclaveImpl: Shared.SecureEnclave {
             throw SecureEnclaveErrorImpl(message: "Secure Enclave not available")
         }
     }
+
+    public func loadKeyPair(name: String) throws -> SeKeyPair {
+        let privateKey = try loadPrivateKey(from: name)
+        let publicKeyBytes = try getPublicKeyBytes(from: privateKey)
+
+        return SeKeyPair(
+            privateKey: SeKeyHandle(name: name),
+            publicKey: SePublicKey(bytes: publicKeyBytes.asKotlinByteArray)
+        )
+    }
 }

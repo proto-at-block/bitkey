@@ -1,7 +1,6 @@
 package build.wallet.platform.links
 
-import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.None
 import build.wallet.platform.links.OpenDeeplinkResult.Failed
@@ -18,10 +17,14 @@ actual class DeepLinkHandlerImpl actual constructor(
   ): OpenDeeplinkResult {
     val nsUrl =
       NSURL.URLWithString(url) ?: run {
-        log(Warn) { "Tried to open an invalid url: $url" }
+        logWarn { "Tried to open an invalid url: $url" }
         return Failed
       }
-    UIApplication.sharedApplication.openURL(url = nsUrl, options = emptyMap<Any?, Any?>(), completionHandler = null)
+    UIApplication.sharedApplication.openURL(
+      url = nsUrl,
+      options = emptyMap<Any?, Any?>(),
+      completionHandler = null
+    )
     // We do not check app restrictions on IOS,
     // since there is no way to determine the minimum version
     // installed in the app

@@ -51,8 +51,8 @@ private fun DataRowWithExplainerAndIconButtonPreview() {
         title = "Transaction Details",
         sideText = "bc1q...xyB1",
         explainer = Data.Explainer(
-          title = "Taking longer than usual",
-          subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+          title = "Speed up transaction?",
+          subtitle = "You can speed up this transaction by increasing the network fee.",
           iconButton = IconButtonModel(
             iconModel = IconModel(
               icon = build.wallet.statemachine.core.Icon.SmallIconInformationFilled,

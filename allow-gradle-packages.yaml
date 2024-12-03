@@ -131,6 +131,8 @@ packages:
     reason: "TODO(W-6176): Figure out if this is needed"
   - module_identifier: "org.slf4j:slf4j-api"
     reason: "Github repo https://github.com/qos-ch/slf4j/"
+  - module_identifier: "org.slf4j:slf4j-simple"
+    reason: "Github repo https://github.com/qos-ch/slf4j/"
   - module_identifier: "org.snakeyaml:snakeyaml-engine"
     reason: "TODO(W-6199): Bitbucket repo https://bitbucket.org/snakeyaml/snakeyaml-engine/src"
   - module_identifier: "org.tensorflow:tensorflow-lite-metadata"

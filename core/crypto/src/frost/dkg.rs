@@ -1,21 +1,20 @@
 use bitcoin::secp256k1::{
-    ffi::CPtr,
     serde::{Deserialize, Serialize},
     PublicKey,
 };
 use rand::{rngs::StdRng, RngCore, SeedableRng};
 use secp256k1_zkp::{
     self as zkp,
-    constants::{GENERATOR_X, GENERATOR_Y},
     frost::{
         generate_frost_shares, CoefficientCommitment, FrostPublicKey, FrostShare, VerificationShare,
     },
 };
 use thiserror::Error;
 
-use super::{KeyCommitments, Participant, ParticipantIndex, ShareDetails};
+use super::{KeyCommitments, Participant, ShareDetails, ZkpPublicKey};
 
 static DKG_THRESHOLD: usize = 2;
+static DKG_PARTICIPANTS: usize = 2;
 
 pub fn generate_share_packages() -> Result<Vec<SharePackage>, KeygenError> {
     let mut seed = [0u8; 32];
@@ -90,16 +89,16 @@ pub fn aggregate_shares(
 
     let app_verification_share = VerificationShare::new(
         zkp::SECP256K1,
-        &vss_commitment_refs,
+        &vss_commitments,
         &Participant::App.into(),
-        DKG_THRESHOLD,
+        DKG_PARTICIPANTS,
     )
     .map_err(|_| KeygenError::VerificationShareGenerationFailed)?;
     let server_verification_share = VerificationShare::new(
         zkp::SECP256K1,
-        &vss_commitment_refs,
+        &vss_commitments,
         &Participant::Server.into(),
-        DKG_THRESHOLD,
+        DKG_PARTICIPANTS,
     )
     .map_err(|_| KeygenError::VerificationShareGenerationFailed)?;
 
@@ -159,54 +158,6 @@ pub enum KeygenError {
     ShareAggregationFailed,
     #[error("Unable to generate verification share")]
     VerificationShareGenerationFailed,
-}
-
-struct ZkpPublicKey(zkp::PublicKey);
-// We expose and ingest non-secpZKP publicly outside this crate, so we'd need some way to
-// "translate" between them.
-impl From<PublicKey> for ZkpPublicKey {
-    fn from(value: PublicKey) -> Self {
-        let pubkey_bytes = unsafe { &*value.as_c_ptr() }.underlying_bytes();
-        Self(zkp::PublicKey::from(unsafe {
-            zkp::ffi::PublicKey::from_array_unchecked(pubkey_bytes)
-        }))
-    }
-}
-
-impl From<ZkpPublicKey> for PublicKey {
-    fn from(value: ZkpPublicKey) -> Self {
-        use secp256k1_zkp::ffi::CPtr;
-        let pubkey_bytes = unsafe { &*value.0.as_c_ptr() }.underlying_bytes();
-        Self::from(unsafe {
-            bitcoin::secp256k1::ffi::PublicKey::from_array_unchecked(pubkey_bytes)
-        })
-    }
-}
-
-/// We use participant indices (1, 2, ...) to derive an identity public key.
-impl From<Participant> for zkp::PublicKey {
-    fn from(participant: Participant) -> Self {
-        let generator_point = get_generator_point();
-        let index: ParticipantIndex = participant.into();
-        let mut index_bytes = [0u8; 32];
-        index_bytes[31] = index.0;
-        let participant_index_tweak =
-            zkp::Scalar::from_be_bytes(index_bytes).expect("Scalar should always be valid.");
-
-        generator_point
-            .mul_tweak(zkp::SECP256K1, &participant_index_tweak)
-            .expect("Non-zero scalar multiplication of generator should always be valid.")
-    }
-}
-
-fn get_generator_point() -> zkp::PublicKey {
-    let mut g_bytes = [0u8; 65];
-    g_bytes[0] = 0x04;
-    g_bytes[1..33].copy_from_slice(&GENERATOR_X);
-    g_bytes[33..65].copy_from_slice(&GENERATOR_Y);
-
-    zkp::PublicKey::from_slice(&g_bytes)
-        .expect("Should always succeed since we use the generator point.")
 }
 
 pub mod server {
@@ -299,16 +250,14 @@ pub mod app {
 #[cfg(test)]
 mod tests {
     use rand::{thread_rng, RngCore};
-    use secp256k1_zkp::frost::{
-        CoefficientCommitment, FrostPublicKey, FrostSession, FrostSessionId, VerificationShare,
-    };
+    use secp256k1_zkp::frost::{FrostPublicKey, FrostSession, FrostSessionId, VerificationShare};
     use secp256k1_zkp::{self as zkp};
     use secp256k1_zkp::{new_frost_nonce_pair, Message, Scalar};
 
     use crate::frost::dkg::{equality_check, generate_share_packages};
     use crate::frost::Participant::{self, App, Server};
 
-    use super::{aggregate_shares, app, server, DKG_THRESHOLD};
+    use super::{aggregate_shares, app, server, DKG_PARTICIPANTS};
 
     #[test]
     fn test_equality_check() {
@@ -380,39 +329,23 @@ mod tests {
         ];
         let server_share_details = aggregate_shares(Server, &server_share_packages_to_agg).unwrap();
 
-        let app_vss_commitments = app_share_packages_to_agg
-            .iter()
-            .map(|package| {
-                CoefficientCommitment::from_public_keys(package.coefficient_commitments.clone())
-            })
-            .collect::<Vec<CoefficientCommitment>>();
-        let app_vss_commitments_refs = app_vss_commitments
-            .iter()
-            .collect::<Vec<&CoefficientCommitment>>();
-
         let app_verification_share = VerificationShare::new(
             zkp::SECP256K1,
-            &app_vss_commitments_refs,
+            &app_share_details
+                .key_commitments
+                .aggregate_coefficient_commitment(),
             &Participant::App.into(),
-            DKG_THRESHOLD,
+            DKG_PARTICIPANTS,
         )
         .unwrap();
 
-        let server_vss_commitments = server_share_packages_to_agg
-            .iter()
-            .map(|package| {
-                CoefficientCommitment::from_public_keys(package.coefficient_commitments.clone())
-            })
-            .collect::<Vec<CoefficientCommitment>>();
-        let server_vss_commitments_refs = server_vss_commitments
-            .iter()
-            .collect::<Vec<&CoefficientCommitment>>();
-
         let server_verification_share = VerificationShare::new(
             zkp::SECP256K1,
-            &server_vss_commitments_refs,
+            &app_share_details
+                .key_commitments
+                .aggregate_coefficient_commitment(),
             &Participant::Server.into(),
-            DKG_THRESHOLD,
+            DKG_PARTICIPANTS,
         )
         .unwrap();
 

@@ -14,7 +14,7 @@ kotlin {
         api(projects.shared.resultPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.emailPublic)
+        api(projects.shared.contactMethodPublic)
       }
     }
   }

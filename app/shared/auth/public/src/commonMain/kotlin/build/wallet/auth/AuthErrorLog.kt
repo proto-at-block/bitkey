@@ -2,7 +2,7 @@ package build.wallet.auth
 
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.LogLevel.Warn
-import build.wallet.logging.log
+import build.wallet.logging.logInternal
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 
@@ -13,12 +13,11 @@ import com.github.michaelbull.result.onFailure
  */
 inline fun <V, E : AuthError> Result<V, E>.logAuthFailure(message: () -> String): Result<V, E> =
   onFailure { error ->
-    log(
-      level =
-        when (error) {
-          is AuthProtocolError -> Warn
-          else -> Error
-        },
+    logInternal(
+      level = when (error) {
+        is AuthProtocolError -> Warn
+        else -> Error
+      },
       throwable = error
     ) { "${message()}. $error" }
   }

@@ -19,8 +19,8 @@ class GetTransferPartnerListF8eClientMock(
     Ok(
       Success(
         listOf(
-          PartnerInfo("LogoUrl", "Partner 1", PartnerId("Partner1")),
-          PartnerInfo(null, "Partner 2", PartnerId("Partner2"))
+          PartnerInfo("LogoUrl", "LogoBadgedUrl", "Partner 1", PartnerId("Partner1")),
+          PartnerInfo(null, null, "Partner 2", PartnerId("Partner2"))
         )
       )
     )

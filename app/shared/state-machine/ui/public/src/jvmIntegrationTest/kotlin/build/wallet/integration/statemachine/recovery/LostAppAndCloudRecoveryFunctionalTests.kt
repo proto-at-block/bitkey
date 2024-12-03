@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CL
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
@@ -41,7 +40,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       app.treasuryWallet.fund(wallet, initWithTreasuryFunds)
     }
     app.appDataDeleter.deleteAll().getOrThrow()
-    app.cloudBackupDeleter.delete(cloudServiceProvider())
+    app.cloudBackupDeleter.delete()
     app.deleteBackupsFromFakeCloud()
     recoveryStateMachine =
       RecoveryTestingStateMachine(

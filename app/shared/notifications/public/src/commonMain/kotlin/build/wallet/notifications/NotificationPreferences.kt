@@ -1,7 +1,7 @@
 package build.wallet.notifications
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
+import build.wallet.notifications.NotificationChannel.valueOf
 
 /**
  * Represents the notification channels the user has selected for each category of notifications.
@@ -36,7 +36,7 @@ enum class NotificationChannel {
         valueOf(v)
       } catch (e: IllegalArgumentException) {
         // This should only happen if a new channel was sent from the server
-        log(level = LogLevel.Info, throwable = e) { "NotificationChannel for string \"$v\" not found" }
+        logWarn(throwable = e) { "NotificationChannel for string \"$v\" not found" }
         null
       }
   }

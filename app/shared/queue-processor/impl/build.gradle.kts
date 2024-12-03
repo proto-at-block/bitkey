@@ -19,7 +19,7 @@ kotlin {
     commonTest {
       dependencies {
         api(projects.shared.queueProcessorFake)
-        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.queueProcessorTesting)
       }
     }

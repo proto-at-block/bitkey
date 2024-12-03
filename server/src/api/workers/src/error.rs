@@ -63,6 +63,8 @@ pub enum WorkerError {
     CoinGrinderError(String),
     #[error("Couldn't retrieve mempool data due to error: {0}")]
     MempoolIndexingError(#[from] MempoolIndexerError),
+    #[error("Failed to encrypt output: {0}")]
+    OutputEncryptionError(String),
 }
 
 impl From<WorkerError> for ApiError {
@@ -93,7 +95,8 @@ impl From<WorkerError> for ApiError {
             | WorkerError::ElectrumClientError(_)
             | WorkerError::IncorrectTouchpointType
             | WorkerError::CoinGrinderError(_)
-            | WorkerError::MempoolIndexingError(_) => {
+            | WorkerError::MempoolIndexingError(_)
+            | WorkerError::OutputEncryptionError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             WorkerError::AccountNotFound => ApiError::GenericNotFound(err_msg),

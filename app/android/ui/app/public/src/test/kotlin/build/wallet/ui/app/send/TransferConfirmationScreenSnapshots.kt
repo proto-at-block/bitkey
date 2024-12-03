@@ -4,6 +4,8 @@ package build.wallet.ui.app.send
 
 import androidx.compose.runtime.Composable
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.partnerships.PartnerId
+import build.wallet.partnerships.PartnerInfo
 import build.wallet.statemachine.send.TransactionDetailModelType
 import build.wallet.statemachine.send.TransactionDetailsModel
 import build.wallet.statemachine.send.TransferConfirmationScreenModel
@@ -63,6 +65,23 @@ class TransferConfirmationScreenSnapshots : FunSpec({
       )
     }
   }
+
+  test("transfer confirmation screen - sell") {
+    paparazzi.snapshot {
+      TransferConfirmationScreen(
+        variant = TransferConfirmationScreenVariant.Sell(
+          PartnerInfo(
+            name = "PartnerX",
+            logoUrl = null,
+            partnerId = PartnerId("id"),
+            logoBadgedUrl = null
+          )
+        ),
+        requiresHardware = true,
+        confirmButtonEnabled = true
+      )
+    }
+  }
 })
 
 @Composable
@@ -103,7 +122,7 @@ private fun TransferConfirmationScreen(
               totalAmountSecondaryText = "0.0010 BTC"
             )
           is TransferConfirmationScreenVariant.Sell ->
-            TransactionDetailModelType.Sell(
+            TransactionDetailModelType.Regular(
               transferAmountText = "$20.00",
               feeAmountText = "$1.36",
               feeAmountSecondaryText = "234 sats",
@@ -111,8 +130,7 @@ private fun TransferConfirmationScreen(
               totalAmountSecondaryText = "(0.0010 BTC)",
               transferAmountSecondaryText = "1,234 sats"
             )
-        },
-        amountLabel = "amountLabel"
+        }
       ),
       requiresHardware = requiresHardware,
       confirmButtonEnabled = confirmButtonEnabled,

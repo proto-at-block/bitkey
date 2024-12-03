@@ -560,7 +560,6 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                       },
                       primaryButtonText = "Disable push notifications",
                       onPrimaryButtonClick = {
-                        println("setting DisablingNotificationChannelProofOfHwPossessionUiState")
                         updateState(
                           DisablingNotificationChannelProofOfHwPossessionUiState(
                             NotificationChannel.Push

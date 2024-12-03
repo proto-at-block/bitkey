@@ -12,10 +12,10 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccountRepository
+import build.wallet.debug.AppDataDeleter
+import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.home.GettingStartedTaskDao
-import build.wallet.keybox.AppDataDeleter
-import build.wallet.keybox.CloudBackupDeleter
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.onboarding.CreateFullAccountService

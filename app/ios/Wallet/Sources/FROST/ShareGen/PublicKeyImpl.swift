@@ -8,4 +8,8 @@ public class PublicKeyImpl: Shared.PublicKey {
     public init(corePublicKey: core.PublicKey) {
         self.corePublicKey = corePublicKey
     }
+
+    public func asString() -> String {
+        return corePublicKey
+    }
 }

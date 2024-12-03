@@ -1,7 +1,7 @@
 package build.wallet.analytics.events.screen.id
 
 enum class SettingsEventTrackerScreenId : EventTrackerScreenId {
-  /** The settings tab is showing */
+  /** The settings screen is showing */
   SETTINGS,
 
   /** The customer electrum server screen from Settings is showing  */

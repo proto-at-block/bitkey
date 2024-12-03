@@ -72,7 +72,7 @@ struct AsyncUrlImageView_Previews: PreviewProvider {
             url: URL(
                 string: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg"
             )!,
-            size: .small,
+            size: .Small(),
             opacity: 0.5,
             fallbackContent: {
                 Image(uiImage: .smallIconWarningFilled)

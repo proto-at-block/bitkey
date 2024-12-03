@@ -15,9 +15,9 @@ use notification::{
         recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
         recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
         recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
+        recovery_relationship_benefactor_invitation_pending::RecoveryRelationshipBenefactorInvitationPendingPayload,
         recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
         recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
-        recovery_relationship_invitation_pending::RecoveryRelationshipInvitationPendingPayload,
         social_challenge_response_received::SocialChallengeResponseReceivedPayload,
         test_notification::TestNotificationPayload,
     },
@@ -144,8 +144,8 @@ pub fn to_validator(
                 .inheritance_claim_period_completed_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
-            NotificationPayloadType::RecoveryRelationshipInvitationPending => payload
-                .recovery_relationship_invitation_pending_payload
+            NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => payload
+                .recovery_relationship_benefactor_invitation_pending_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
         };
@@ -429,7 +429,7 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodCompletedPayload {
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for RecoveryRelationshipInvitationPendingPayload {
+impl ValidateNotificationDelivery for RecoveryRelationshipBenefactorInvitationPendingPayload {
     async fn validate_delivery(
         &self,
         state: &NotificationValidationState,

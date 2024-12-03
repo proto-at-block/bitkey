@@ -1,6 +1,7 @@
 package build.wallet.di
 
 import build.wallet.bdk.bindings.*
+import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.crypto.Spake2
 import build.wallet.crypto.WsmVerifier
 import build.wallet.datadog.DatadogRumMonitor
@@ -58,6 +59,7 @@ fun makeAppComponent(
   xNonceGenerator: XNonceGenerator,
   firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
   shareGeneratorFactory: ShareGeneratorFactory,
+  frostWalletDescriptorFactory: FrostWalletDescriptorFactory,
 ): AppComponentImpl {
   val appId = AppId(NSBundle.mainBundle.bundleIdentifier!!)
   val appVersion =
@@ -117,6 +119,7 @@ fun makeAppComponent(
     xNonceGenerator = xNonceGenerator,
     firmwareCommsLogBuffer = firmwareCommsLogBuffer,
     databaseIntegrityChecker = databaseIntegrityChecker,
-    shareGeneratorFactory = shareGeneratorFactory
+    shareGeneratorFactory = shareGeneratorFactory,
+    frostWalletDescriptorFactory = frostWalletDescriptorFactory
   )
 }

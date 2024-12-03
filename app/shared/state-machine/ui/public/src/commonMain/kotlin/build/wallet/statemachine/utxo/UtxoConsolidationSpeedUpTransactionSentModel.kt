@@ -5,7 +5,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
+import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.ui.model.StandardClick
@@ -35,12 +36,13 @@ data class UtxoConsolidationSpeedUpTransactionSentModel(
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onBack)),
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
-      headline = "Transaction sent",
+      headline = "Consolidation started",
       subline = targetAddress,
       sublineTreatment = FormHeaderModel.SublineTreatment.MONO,
-      alignment = CENTER
+      alignment = LEADING
     ),
     mainContentList = immutableListOf(
+      FormMainContentModel.Divider,
       DataList(
         items = immutableListOf(
           Data(
@@ -63,7 +65,7 @@ data class UtxoConsolidationSpeedUpTransactionSentModel(
           )
         ),
         total = Data(
-          title = "Total cost",
+          title = "Total",
           sideText = totalConsolidationCost,
           secondarySideText = totalConsolidationCostSecondaryText
         )

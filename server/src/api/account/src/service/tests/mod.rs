@@ -9,12 +9,12 @@ use bdk_utils::bdk::database::{AnyDatabase, MemoryDatabase};
 use bdk_utils::bdk::descriptor::DescriptorPublicKey;
 use bdk_utils::bdk::keys::{DescriptorSecretKey, KeyMap};
 use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
-use bdk_utils::bdk::{bitcoin, SyncOptions, Wallet};
+use bdk_utils::bdk::{bitcoin, Wallet};
 use bdk_utils::flags::{
     DEFAULT_MAINNET_ELECTRUM_RPC_URI, DEFAULT_SIGNET_ELECTRUM_RPC_URI,
     DEFAULT_TESTNET_ELECTRUM_RPC_URI,
 };
-use bdk_utils::{get_blockchain, DescriptorKeyset, ElectrumRpcUris};
+use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
 use database::ddb;
 use database::ddb::Repository;
 use external_identifier::ExternalIdentifier;
@@ -177,17 +177,14 @@ pub fn create_bdk_wallet(
     );
     let receive_descriptor = keyset.receiving().into_multisig_descriptor().unwrap();
     let change_descriptor = keyset.change().into_multisig_descriptor().unwrap();
-    let wallet = Wallet::new(
+
+    Wallet::new(
         (receive_descriptor, receive_keymap),
         Some((change_descriptor, change_keymap)),
         network,
         AnyDatabase::Memory(MemoryDatabase::new()),
     )
-    .unwrap();
-    let rpc_uris = default_electrum_rpc_uris();
-    let blockchain = get_blockchain(network, &rpc_uris).unwrap();
-    wallet.sync(&blockchain, SyncOptions::default()).unwrap();
-    wallet
+    .unwrap()
 }
 
 pub async fn create_full_account_for_test(

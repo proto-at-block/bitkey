@@ -23,6 +23,7 @@ public struct CircularProgressView: View {
     // Visual
     private let timerDirection: TimerDirection
     private let progressColor: Color
+    private let backgroundColor: Color
     private let strokeWidth: CGFloat
 
     // MARK: - Life Cycle
@@ -32,6 +33,7 @@ public struct CircularProgressView: View {
         direction: TimerDirection,
         remainingDuration: TimeInterval,
         progressColor: Color = .bitkeyPrimary,
+        backgroundColor: Color = Color.foreground10,
         strokeWidth: CGFloat = DesignSystemMetrics.Timer.strokeWidth
     ) {
         let remainingProgress = 1 - Double(progress)
@@ -39,6 +41,7 @@ public struct CircularProgressView: View {
         self.timerDirection = direction
         self.totalDuration = remainingDuration / (remainingProgress == 0 ? 1 : remainingProgress)
         self.progressColor = progressColor
+        self.backgroundColor = backgroundColor
         self.strokeWidth = strokeWidth
     }
 
@@ -48,7 +51,7 @@ public struct CircularProgressView: View {
         ZStack {
             Circle()
                 .stroke(
-                    Color.foreground10,
+                    backgroundColor,
                     lineWidth: strokeWidth
                 )
             Circle()

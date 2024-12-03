@@ -3,10 +3,10 @@ package build.wallet.statemachine.send
 import app.cash.turbine.Turbine
 import app.cash.turbine.test
 import build.wallet.bdk.bindings.BdkError
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.ktor.result.HttpError.NetworkError
@@ -34,7 +34,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   onBackCalls: Turbine<Unit>,
   onExitCalls: Turbine<Unit>,
   spendingWallet: SpendingWalletMock,
-  transactionsService: TransactionsServiceFake,
+  bitcoinWalletService: BitcoinWalletServiceFake,
   transactionPriorityPreference: TransactionPriorityPreferenceFake,
   mobilePayService: MobilePayServiceMock,
   appSignedPsbt: Psbt,
@@ -104,7 +104,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   test("[app & hw] successfully signing, but failing to broadcast presents error") {
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
+    bitcoinWalletService.broadcastError = BdkError.Generic(Exception(""), null)
 
     stateMachine.test(
       props.copy(
@@ -134,7 +134,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(appAndHwSignedPsbt)
       }
 
@@ -179,7 +179,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }
@@ -218,7 +218,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   test("[app & server] successfully signing, but failing to broadcast succeeds") {
     val preferenceToSet = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
-    transactionsService.broadcastError = BdkError.Generic(Exception(""), null)
+    bitcoinWalletService.broadcastError = BdkError.Generic(Exception(""), null)
     mobilePayService.keysetId = FullAccountMock.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId
     mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
     mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
@@ -244,7 +244,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      transactionsService.broadcastedPsbts.test {
+      bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }

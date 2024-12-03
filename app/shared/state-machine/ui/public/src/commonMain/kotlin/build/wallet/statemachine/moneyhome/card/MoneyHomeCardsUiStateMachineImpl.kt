@@ -6,6 +6,7 @@ import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiSt
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
@@ -21,11 +22,16 @@ class MoneyHomeCardsUiStateMachineImpl(
   private val cloudBackupHealthCardUiStateMachine: CloudBackupHealthCardUiStateMachine,
   private val startSweepCardUiStateMachine: StartSweepCardUiStateMachine,
   private val bitcoinPriceCardUiStateMachine: BitcoinPriceCardUiStateMachine,
+  private val pendingClaimCardUiStateMachine: PendingClaimCardUiStateMachine,
 ) : MoneyHomeCardsUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeCardsProps): MoneyHomeCardsModel {
     return MoneyHomeCardsModel(
       cards = buildImmutableList {
+        pendingClaimCardUiStateMachine.model(props.pendingClaimCardUiProps).forEach {
+          add(it)
+        }
+
         add(startSweepCardUiStateMachine.model(props.startSweepCardUiProps))
 
         // Cloud Backup Health warning card if there's an issue with backup

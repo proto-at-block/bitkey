@@ -9,40 +9,45 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
 class NetworkingDebugConfigDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : NetworkingDebugConfigDao {
-  private val database by lazy { databaseProvider.debugDatabase() }
   private val defaultConfig =
     NetworkingDebugConfig(
       failF8eRequests = false
     )
 
   override fun config(): Flow<Result<NetworkingDebugConfig, DbError>> {
-    return database.networkingDebugConfigQueries.getConfig()
-      .asFlowOfOneOrNull()
-      .map { result ->
-        result
-          .logFailure { "Error loading networking debug config" }
-          .map { entity ->
-            NetworkingDebugConfig.fromEntity(entity)
-          }
-      }
+    return flow {
+      databaseProvider.debugDatabase()
+        .networkingDebugConfigQueries
+        .getConfig()
+        .asFlowOfOneOrNull()
+        .map { result ->
+          result
+            .logFailure { "Error loading networking debug config" }
+            .map { entity ->
+              NetworkingDebugConfig.fromEntity(entity)
+            }
+        }
+        .collect(::emit)
+    }
   }
 
   override suspend fun updateConfig(
     update: (NetworkingDebugConfig) -> NetworkingDebugConfig,
   ): Result<Unit, DbError> {
-    return database
+    return databaseProvider.debugDatabase()
       .awaitTransaction {
         val currentConfig =
           NetworkingDebugConfig.fromEntity(
-            entity = database.networkingDebugConfigQueries.getConfig().executeAsOneOrNull()
+            entity = networkingDebugConfigQueries.getConfig().executeAsOneOrNull()
           )
         val updatedConfig = update(currentConfig)
-        database.networkingDebugConfigQueries.setConfig(
+        networkingDebugConfigQueries.setConfig(
           failF8eRequests = updatedConfig.failF8eRequests
         )
       }

@@ -6,8 +6,8 @@ import app.cash.sqldelight.db.SqlPreparedStatement
 import app.cash.sqldelight.logs.LogSqliteDriver
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.LogLevel.Verbose
-import build.wallet.logging.log
+import build.wallet.logging.logError
+import build.wallet.logging.logVerbose
 
 /**
  * Adds logging to this [SqlDriver] instance:
@@ -23,7 +23,7 @@ import build.wallet.logging.log
 fun SqlDriver.withLogging(tag: String? = null): SqlDriver {
   return LogSqliteDriver(
     sqlDriver = SqlDriverWithErrorLogging(delegate = this),
-    logger = { message -> log(Verbose, tag) { message } }
+    logger = { message -> logVerbose(tag, message = { message }) }
   )
 }
 
@@ -49,7 +49,7 @@ private class SqlDriverWithErrorLogging(
         binders = binders
       )
     } catch (e: Throwable) {
-      log(Error, tag, throwable = e) { "Sqlite error executing query \"$sql\"" }
+      logError(tag, throwable = e) { "Sqlite error executing query \"$sql\"" }
       throw e
     }
   }

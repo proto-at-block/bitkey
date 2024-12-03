@@ -9,10 +9,7 @@ import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 import okio.ByteString.Companion.toByteString
 
@@ -35,16 +32,19 @@ class FirmwareMetadataDaoImpl(
   }
 
   override fun activeFirmwareMetadata(): Flow<Result<FirmwareMetadata?, DbError>> {
-    return databaseProvider.database()
-      .firmwareMetadataQueries.getActiveFirmwareMetadata()
-      .asFlowOfOneOrNull()
-      .map { result ->
-        result
-          .map { firmwareMetadataEntity ->
-            firmwareMetadataEntity?.toFirmwareMetadata()
-          }
-      }
-      .distinctUntilChanged()
+    return flow {
+      databaseProvider.database()
+        .firmwareMetadataQueries.getActiveFirmwareMetadata()
+        .asFlowOfOneOrNull()
+        .map { result ->
+          result
+            .map { firmwareMetadataEntity ->
+              firmwareMetadataEntity?.toFirmwareMetadata()
+            }
+        }
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun getActiveFirmwareMetadata(): Result<FirmwareMetadata?, DbError> {

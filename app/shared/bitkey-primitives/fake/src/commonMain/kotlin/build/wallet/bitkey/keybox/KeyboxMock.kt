@@ -12,6 +12,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.f8e.F8eEnvironment.Development
+import build.wallet.frost.AppShareDetailsMock
 
 val KeyboxMock =
   Keybox(
@@ -90,8 +91,10 @@ val OnboardingSoftwareAccountMock =
 
 val SoftwareKeyboxMock = SoftwareKeybox(
   id = "software-keybox-fake-id",
+  networkType = SIGNET,
   authKey = AppGlobalAuthPublicKeyMock,
-  recoveryAuthKey = AppRecoveryAuthPublicKeyMock
+  recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
+  shareDetails = AppShareDetailsMock
 )
 
 val SoftwareAccountMock =

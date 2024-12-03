@@ -67,6 +67,8 @@ data class ButtonModel(
 
     // Styled with an opaque orange background and white text
     Warning,
+
+    Accent,
     ;
 
     val leadingIconSize: IconSize
@@ -87,6 +89,7 @@ data class ButtonModel(
   enum class Size {
     Regular,
     Compact,
+    Short,
     Footer,
     Floating,
     FitContent,

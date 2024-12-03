@@ -60,9 +60,9 @@ use recovery::routes::inheritance::{
 use recovery::routes::relationship::{
     CreateRecoveryRelationshipRequest, CreateRelationshipRequest, CreateRelationshipResponse,
     EndorseRecoveryRelationshipsRequest, EndorseRecoveryRelationshipsResponse,
-    GetRecoveryRelationshipInvitationForCodeResponse, GetRecoveryRelationshipsResponse,
-    UpdateRecoveryRelationshipRequest, UpdateRecoveryRelationshipResponse,
-    UploadRecoveryBackupRequest, UploadRecoveryBackupResponse,
+    GetRecoveryBackupResponse, GetRecoveryRelationshipInvitationForCodeResponse,
+    GetRecoveryRelationshipsResponse, UpdateRecoveryRelationshipRequest,
+    UpdateRecoveryRelationshipResponse, UploadRecoveryBackupRequest, UploadRecoveryBackupResponse,
 };
 use recovery::routes::social_challenge::{
     FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
@@ -1514,7 +1514,7 @@ impl TestClient {
         keys: &TestAuthenticationKeys,
     ) -> Response<UploadRecoveryBackupResponse> {
         Request::builder()
-            .uri(format!("/api/accounts/{account_id}/recovery/backups"))
+            .uri(format!("/api/accounts/{account_id}/recovery/backup"))
             .with_authentication(
                 &CognitoAuthentication::Wallet {
                     is_app_signed: false,
@@ -1528,6 +1528,30 @@ impl TestClient {
                 ),
             )
             .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn fetch_recovery_backup(
+        &self,
+        account_id: &str,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetRecoveryBackupResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/recovery/backup"))
+            .with_authentication(
+                &CognitoAuthentication::Wallet {
+                    is_app_signed: false,
+                    is_hardware_signed: false,
+                },
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .get()
             .call(&self.router)
             .await
     }

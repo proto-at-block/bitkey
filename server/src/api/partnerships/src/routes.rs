@@ -435,6 +435,8 @@ pub struct GetSaleRedirectRequest {
     pub refund_address: Option<String>,
     pub fiat_amount: f64,
     pub fiat_currency: CurrencyCode,
+    pub crypto_amount: Option<f64>,
+    pub crypto_currency: Option<CurrencyCode>,
     pub partner: String,
     pub quote_id: Option<String>,
 }
@@ -458,6 +460,8 @@ async fn get_sales_redirect(
             request.refund_address,
             request.fiat_amount,
             request.fiat_currency,
+            request.crypto_amount,
+            request.crypto_currency,
             request.partner,
             request.quote_id,
         )

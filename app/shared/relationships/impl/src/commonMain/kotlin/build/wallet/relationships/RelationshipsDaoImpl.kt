@@ -10,84 +10,85 @@ import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.*
 
 class RelationshipsDaoImpl(
-  databaseProvider: BitkeyDatabaseProvider,
+  private val databaseProvider: BitkeyDatabaseProvider,
 ) : RelationshipsDao {
-  private val database by lazy { databaseProvider.database() }
-
   override fun relationships(): Flow<Result<Relationships, DbError>> {
-    return combine(
-      database.relationshipsQueries.getTrustedContacts().asFlow(),
-      database.relationshipsQueries.getTrustedContactInvitations().asFlow(),
-      database.relationshipsQueries.getProtectedCustomers().asFlow(),
-      database.relationshipsQueries.getUnendorsedTrustedContacts().asFlow()
-    ) {
-        trustedContactsQuery,
-        trustedContactInvitationsQuery,
-        protectedCustomersQueries,
-        unendorsedTrustedContactsQueries,
-      ->
-      database.awaitTransactionWithResult {
-        val invitations =
-          trustedContactInvitationsQuery.executeAsList().map { invitation ->
-            Invitation(
-              relationshipId = invitation.relationshipId,
-              trustedContactAlias = invitation.trustedContactAlias,
-              code = invitation.token,
-              codeBitLength = invitation.tokenBitLength.toInt(),
-              expiresAt = invitation.expiresAt,
-              roles = invitation.roles
-            )
-          }
-        val unendorsedTrustedContacts =
-          unendorsedTrustedContactsQueries.executeAsList().map { contact ->
-            UnendorsedTrustedContact(
-              relationshipId = contact.relationshipId,
-              trustedContactAlias = contact.trustedContactAlias,
-              enrollmentPakeKey = contact.enrollmentPakeKey,
-              enrollmentKeyConfirmation = contact.enrollmentKeyConfirmation,
-              sealedDelegatedDecryptionKey = XCiphertext(contact.sealedDelegatedDecryptionKey),
-              authenticationState = contact.authenticationState,
-              roles = contact.roles
-            )
-          }
-        val endorsedTrustedContacts =
-          trustedContactsQuery.executeAsList().map { trustedContact ->
-            EndorsedTrustedContact(
-              relationshipId = trustedContact.relationshipId,
-              trustedContactAlias = trustedContact.trustedContactAlias,
-              authenticationState = trustedContact.authenticationState,
-              keyCertificate = EncodedTrustedContactKeyCertificate(trustedContact.certificate)
-                .deserialize()
-                .getOrThrow(),
-              roles = trustedContact.roles
-            )
-          }
-        val protectedProtectedCustomers =
-          protectedCustomersQueries.executeAsList().map { customer ->
-            ProtectedCustomer(
-              relationshipId = customer.relationshipId,
-              alias = customer.alias,
-              roles = customer.roles
-            )
-          }
+    return flow {
+      val database = databaseProvider.database()
+      combine(
+        database.relationshipsQueries.getTrustedContacts().asFlow(),
+        database.relationshipsQueries.getTrustedContactInvitations().asFlow(),
+        database.relationshipsQueries.getProtectedCustomers().asFlow(),
+        database.relationshipsQueries.getUnendorsedTrustedContacts().asFlow()
+      ) {
+          trustedContactsQuery,
+          trustedContactInvitationsQuery,
+          protectedCustomersQueries,
+          unendorsedTrustedContactsQueries,
+        ->
+        database.awaitTransactionWithResult {
+          val invitations =
+            trustedContactInvitationsQuery.executeAsList().map { invitation ->
+              Invitation(
+                relationshipId = invitation.relationshipId,
+                trustedContactAlias = invitation.trustedContactAlias,
+                code = invitation.token,
+                codeBitLength = invitation.tokenBitLength.toInt(),
+                expiresAt = invitation.expiresAt,
+                roles = invitation.roles
+              )
+            }
+          val unendorsedTrustedContacts =
+            unendorsedTrustedContactsQueries.executeAsList().map { contact ->
+              UnendorsedTrustedContact(
+                relationshipId = contact.relationshipId,
+                trustedContactAlias = contact.trustedContactAlias,
+                enrollmentPakeKey = contact.enrollmentPakeKey,
+                enrollmentKeyConfirmation = contact.enrollmentKeyConfirmation,
+                sealedDelegatedDecryptionKey = XCiphertext(contact.sealedDelegatedDecryptionKey),
+                authenticationState = contact.authenticationState,
+                roles = contact.roles
+              )
+            }
+          val endorsedTrustedContacts =
+            trustedContactsQuery.executeAsList().map { trustedContact ->
+              EndorsedTrustedContact(
+                relationshipId = trustedContact.relationshipId,
+                trustedContactAlias = trustedContact.trustedContactAlias,
+                authenticationState = trustedContact.authenticationState,
+                keyCertificate = EncodedTrustedContactKeyCertificate(trustedContact.certificate)
+                  .deserialize()
+                  .getOrThrow(),
+                roles = trustedContact.roles
+              )
+            }
+          val protectedProtectedCustomers =
+            protectedCustomersQueries.executeAsList().map { customer ->
+              ProtectedCustomer(
+                relationshipId = customer.relationshipId,
+                alias = customer.alias,
+                roles = customer.roles
+              )
+            }
 
-        Relationships(
-          invitations = invitations,
-          endorsedTrustedContacts = endorsedTrustedContacts,
-          protectedCustomers = protectedProtectedCustomers.toImmutableList(),
-          unendorsedTrustedContacts = unendorsedTrustedContacts
-        )
+          Relationships(
+            invitations = invitations,
+            endorsedTrustedContacts = endorsedTrustedContacts,
+            protectedCustomers = protectedProtectedCustomers.toImmutableList(),
+            unendorsedTrustedContacts = unendorsedTrustedContacts
+          )
+        }
       }
-    }.distinctUntilChanged()
+        .distinctUntilChanged()
+        .collect(::emit)
+    }
   }
 
   override suspend fun setRelationships(relationships: Relationships): Result<Unit, DbError> {
-    return database.awaitTransactionWithResult {
+    return databaseProvider.database().awaitTransactionWithResult {
       relationships.protectedCustomers.let { customers ->
 
         // Reset customers.
@@ -159,28 +160,33 @@ class RelationshipsDaoImpl(
     recoveryRelationshipId: String,
     authenticationState: TrustedContactAuthenticationState,
   ): Result<Unit, DbError> {
-    return database.relationshipsQueries.awaitTransactionWithResult {
-      setUnendorsedTrustedContactAuthenticationState(
-        relationshipId = recoveryRelationshipId,
-        authenticationState = authenticationState
-      )
-    }
+    return databaseProvider.database()
+      .relationshipsQueries
+      .awaitTransactionWithResult {
+        setUnendorsedTrustedContactAuthenticationState(
+          relationshipId = recoveryRelationshipId,
+          authenticationState = authenticationState
+        )
+      }
   }
 
   override suspend fun setTrustedContactAuthenticationState(
     recoveryRelationshipId: String,
     authenticationState: TrustedContactAuthenticationState,
   ): Result<Unit, DbError> {
-    return database.relationshipsQueries.awaitTransactionWithResult {
-      setTrustedContactAuthenticationState(
-        relationshipId = recoveryRelationshipId,
-        authenticationState = authenticationState
-      )
-    }
+    return databaseProvider.database()
+      .relationshipsQueries
+      .awaitTransactionWithResult {
+        setTrustedContactAuthenticationState(
+          relationshipId = recoveryRelationshipId,
+          authenticationState = authenticationState
+        )
+      }
   }
 
   override suspend fun clear() =
-    database.awaitTransactionWithResult {
-      relationshipsQueries.clear()
-    }
+    databaseProvider.database()
+      .awaitTransactionWithResult {
+        relationshipsQueries.clear()
+      }
 }

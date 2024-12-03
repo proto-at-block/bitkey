@@ -5,7 +5,7 @@ import SwiftUI
 // MARK: -
 
 /**
- * Used to wrap any SwiftUI view of a KMP screen model into a view controller and to add a tab bar as necessary
+ * Used to wrap any SwiftUI view of a KMP screen model into a view controller
  */
 public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperView<T>> {
 
@@ -69,7 +69,6 @@ public struct WrapperView<T: View>: View {
     public var body: some View {
         VStack {
             wrappedView
-            screenModel.tabBar.map { TabBarView(viewModel: $0) }
         }
         // Check for uniqueness of toast id, otherwise we're trying showing a new toast so reset the
         // state flag
@@ -132,7 +131,7 @@ private struct StatusBannerView: View {
                 if viewModel.onClick != nil {
                     Image(uiImage: .smallIconInformationFilled)
                         .resizable()
-                        .frame(iconSize: .xsmall)
+                        .frame(iconSize: .XSmall())
                         .foregroundColor(.warningForeground)
                         .padding(.leading, 4)
                 }
@@ -151,52 +150,6 @@ private struct StatusBannerView: View {
         .padding(.bottom, 16)
         .background(Color.warning)
         .onTapGesture(perform: viewModel.onClick ?? {})
-    }
-
-}
-
-// MARK: -
-
-private struct TabBarView: View {
-
-    let viewModel: TabBarModel
-
-    var body: some View {
-        VStack {
-            Divider()
-                .frame(height: 1)
-                .overlay(Color.foreground10)
-            Spacer()
-            HStack {
-                TabBarItemView(viewModel: viewModel.firstItem)
-                TabBarItemView(viewModel: viewModel.secondItem)
-            }
-            Spacer()
-        }
-        .frame(height: DesignSystemMetrics.tabBarHeight)
-        .background(.background)
-    }
-
-}
-
-// MARK: -
-
-private struct TabBarItemView: View {
-
-    let viewModel: TabBarItem
-
-    var body: some View {
-        Button {
-            viewModel.onClick()
-        } label: {
-            Image(uiImage: viewModel.icon.uiImage)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .tint(viewModel.selected ? .foreground : .foreground30)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ifNonnull(viewModel.testTag) { view, testTag in
-            view.accessibilityIdentifier(testTag)
-        }
     }
 
 }

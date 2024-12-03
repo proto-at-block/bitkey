@@ -2,12 +2,14 @@ use notification::payloads::recovery_relationship_invitation_accepted::RecoveryR
 use notification::service::SendNotificationInput;
 use notification::{NotificationPayloadBuilder, NotificationPayloadType};
 use time::OffsetDateTime;
+use tokio::try_join;
 use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationship, RecoveryRelationshipConnectionFieldsBuilder, RecoveryRelationshipId,
-    RecoveryRelationshipUnendorsedBuilder,
+    RecoveryRelationshipRole, RecoveryRelationshipUnendorsedBuilder,
 };
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 use super::{error::ServiceError, Service};
 
@@ -32,6 +34,24 @@ pub struct AcceptRecoveryRelationshipInvitationInput<'a> {
     pub trusted_contact_enrollment_pake_pubkey: &'a str,
     pub enrollment_pake_confirmation: &'a str,
     pub sealed_delegated_decryption_pubkey: &'a str,
+}
+
+/// The parameters used to send notifications when a recovery relationship invitation is accepted
+///
+/// # Fields
+///
+/// * `customer_account_id` - The ID of the customer account that sent the invitation
+/// * `customer_alias` - The alias of the customer account
+/// * `trusted_contact_account_id` - The ID of the trusted contact account that accepted the invitation
+/// * `trusted_contact_alias` - The alias of the trusted contact account
+/// * `trusted_contact_roles` - The roles assigned to the trusted contact
+
+struct NotificationParams {
+    customer_account_id: AccountId,
+    customer_alias: String,
+    trusted_contact_account_id: AccountId,
+    trusted_contact_alias: String,
+    trusted_contact_roles: Vec<TrustedContactRole>,
 }
 
 impl Service {
@@ -147,22 +167,83 @@ impl Service {
             .persist_recovery_relationship(&RecoveryRelationship::Unendorsed(connection))
             .await?;
 
-        self.notification_service
-            .send_notification(SendNotificationInput {
-                account_id: customer_account_id,
-                payload_type: NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
-                payload: &NotificationPayloadBuilder::default()
-                    .recovery_relationship_invitation_accepted_payload(Some(
-                        RecoveryRelationshipInvitationAcceptedPayload {
-                            trusted_contact_alias: trusted_contact_alias.to_owned(),
-                            trusted_contact_roles: trusted_contact_roles.to_owned(),
-                        },
-                    ))
-                    .build()?,
-                only_touchpoints: None,
-            })
+        let notification_params = NotificationParams {
+            customer_account_id: customer_account_id.to_owned(),
+            customer_alias: input.customer_alias.to_owned(),
+            trusted_contact_account_id: input.trusted_contact_account_id.to_owned(),
+            trusted_contact_alias: trusted_contact_alias.to_owned(),
+            trusted_contact_roles: trusted_contact_roles.to_owned(),
+        };
+        self.send_notification_for_recovery_relationship_invitation_accepted(notification_params)
             .await?;
-
         Ok(relationship)
+    }
+
+    /// Sends notifications to both the customer and trusted contact when a recovery relationship invitation is accepted.
+    /// For beneficiary relationships, both parties receive notifications. For non-beneficiary relationships, only the customer is notified.
+    ///
+    /// # Arguments
+    ///
+    /// * `notification_params` - Contains the account IDs, aliases and roles needed to construct the notification payloads
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), ServiceError>` - Ok if notifications were sent successfully, Err otherwise
+    async fn send_notification_for_recovery_relationship_invitation_accepted(
+        &self,
+        params: NotificationParams,
+    ) -> Result<(), ServiceError> {
+        let create_payload = |recipient_role: RecoveryRelationshipRole| {
+            NotificationPayloadBuilder::default()
+                .recovery_relationship_invitation_accepted_payload(Some(
+                    RecoveryRelationshipInvitationAcceptedPayload {
+                        protected_customer_alias: params.customer_alias.to_owned(),
+                        recipient_account_role: recipient_role,
+                        trusted_contact_alias: params.trusted_contact_alias.to_owned(),
+                        trusted_contact_roles: params.trusted_contact_roles.to_owned(),
+                    },
+                ))
+                .build()
+        };
+
+        if params
+            .trusted_contact_roles
+            .contains(&TrustedContactRole::Beneficiary)
+        {
+            // Send notifications to both benefactor and beneficiary
+            let benefactor_payload = create_payload(RecoveryRelationshipRole::ProtectedCustomer)?;
+            let beneficiary_payload = create_payload(RecoveryRelationshipRole::TrustedContact)?;
+
+            try_join!(
+                self.notification_service
+                    .send_notification(SendNotificationInput {
+                        account_id: &params.customer_account_id,
+                        payload_type:
+                            NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
+                        payload: &benefactor_payload,
+                        only_touchpoints: None,
+                    }),
+                self.notification_service
+                    .send_notification(SendNotificationInput {
+                        account_id: &params.trusted_contact_account_id,
+                        payload_type:
+                            NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
+                        payload: &beneficiary_payload,
+                        only_touchpoints: None,
+                    }),
+            )?;
+        } else {
+            // Send notification only to customer
+            let payload = create_payload(RecoveryRelationshipRole::ProtectedCustomer)?;
+            self.notification_service
+                .send_notification(SendNotificationInput {
+                    account_id: &params.customer_account_id,
+                    payload_type: NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
+                    payload: &payload,
+                    only_touchpoints: None,
+                })
+                .await?;
+        }
+        Ok(())
     }
 }

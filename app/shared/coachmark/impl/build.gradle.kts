@@ -22,8 +22,8 @@ kotlin {
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.timeFake)
         implementation(projects.shared.analyticsFake)
-        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.coachmarkFake)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

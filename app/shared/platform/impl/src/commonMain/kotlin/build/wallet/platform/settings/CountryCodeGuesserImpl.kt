@@ -1,7 +1,6 @@
 package build.wallet.platform.settings
 
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.*
 
 class CountryCodeGuesserImpl(
   private val localeCountryCodeProvider: LocaleCountryCodeProvider,
@@ -12,7 +11,7 @@ class CountryCodeGuesserImpl(
     return telephonyCountryCodeProvider.countryCode().ifEmpty {
       val localeCountryCode = localeCountryCodeProvider.countryCode()
       if (localeCountryCode.isEmpty()) {
-        log(LogLevel.Error) { "Locale country code provider returned empty string" }
+        logError { "Locale country code provider returned empty string" }
       }
       localeCountryCode
     }

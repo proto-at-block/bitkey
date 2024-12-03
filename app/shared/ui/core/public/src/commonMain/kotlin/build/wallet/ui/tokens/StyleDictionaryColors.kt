@@ -147,6 +147,9 @@ interface StyleDictionaryColors {
   // Information callout background color
   val calloutInformationBackground: Color
 
+  // Information callout icon color
+  val calloutInformationLeadingIcon: Color
+
   // Information callout trailing icon color
   val calloutInformationTrailingIcon: Color
 
@@ -195,6 +198,9 @@ interface StyleDictionaryColors {
   // Coachmark background color
   val coachmarkBackground: Color
 
+  // Surface color for inheritance graphics
+  val inheritanceSurface: Color
+
   // Primary color used for Bitcoin elements
   val bitcoinPrimary: Color
 
@@ -206,6 +212,12 @@ interface StyleDictionaryColors {
 
   // Chart foreground element color (y-axis labels, dividers, etc.)
   val chartElement: Color
+
+  // The color used for incomplete labels on the stepper indicator.
+  val stepperIncompleteLabel: Color
+
+  // The color used for sections of the stepper indicator that are incomplete/not in progress.
+  val stepperIncomplete: Color
 }
 
 val lightStyleDictionaryColors =
@@ -257,6 +269,7 @@ val lightStyleDictionaryColors =
     override val calloutInformationTitle: Color = Color(0xff004b73)
     override val calloutInformationSubtitle: Color = Color(0xff004b73)
     override val calloutInformationBackground: Color = Color(0x1a0c9ada)
+    override val calloutInformationLeadingIcon: Color = Color(0xff2690c7)
     override val calloutInformationTrailingIcon: Color = Color(0xffffffff)
     override val calloutInformationTrailingIconBackground: Color = Color(0xff0c9ada)
     override val calloutSuccessTitle: Color = Color(0xff0b5c1f)
@@ -273,10 +286,13 @@ val lightStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
     override val coachmarkBackground: Color = Color(0xff333442)
+    override val inheritanceSurface: Color = Color(0xffcfc4cd)
     override val bitcoinPrimary: Color = Color(0xfff7931a)
     override val yourBalancePrimary: Color = Color(0xff0c9ada)
     override val loadingBackground: Color = Color(0xfff4f4f4)
     override val chartElement: Color = Color(0xffe5e5e5)
+    override val stepperIncompleteLabel: Color = Color(0xffb2b2b2)
+    override val stepperIncomplete: Color = Color(0xfff2f2f2)
   }
 
 val darkStyleDictionaryColors =
@@ -328,6 +344,7 @@ val darkStyleDictionaryColors =
     override val calloutInformationTitle: Color = Color(0xff004b73)
     override val calloutInformationSubtitle: Color = Color(0xff004b73)
     override val calloutInformationBackground: Color = Color(0x1a0c9ada)
+    override val calloutInformationLeadingIcon: Color = Color(0xff2690c7)
     override val calloutInformationTrailingIcon: Color = Color(0xffffffff)
     override val calloutInformationTrailingIconBackground: Color = Color(0xff0c9ada)
     override val calloutSuccessTitle: Color = Color(0xff0b5c1f)
@@ -344,8 +361,11 @@ val darkStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
     override val coachmarkBackground: Color = Color(0xff333442)
+    override val inheritanceSurface: Color = Color(0xffcfc4cd)
     override val bitcoinPrimary: Color = Color(0xfff7931a)
     override val yourBalancePrimary: Color = Color(0xff0c9ada)
     override val loadingBackground: Color = Color(0xfff4f4f4)
     override val chartElement: Color = Color(0xffe5e5e5)
+    override val stepperIncompleteLabel: Color = Color(0xffb2b2b2)
+    override val stepperIncomplete: Color = Color(0xfff2f2f2)
   }

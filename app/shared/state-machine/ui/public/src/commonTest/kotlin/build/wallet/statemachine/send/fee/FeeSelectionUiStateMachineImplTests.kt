@@ -12,13 +12,13 @@ import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -47,7 +47,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
   val bitcoinTransactionBaseCalculator = BitcoinTransactionBaseCalculatorMock(BitcoinMoney.zero())
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val accountService = AccountServiceFake()
 
   val stateMachine =
@@ -56,7 +56,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       transactionBaseCalculator = bitcoinTransactionBaseCalculator,
-      transactionsService = transactionsService,
+      bitcoinWalletService = bitcoinWalletService,
       accountService = accountService
     )
 
@@ -73,11 +73,11 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    transactionsService.reset()
+    bitcoinWalletService.reset()
     accountService.reset()
     accountService.setActiveAccount(FullAccountMock)
 
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
     )
   }
@@ -210,7 +210,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
 
   test("when balance is below transaction + fees,  show insufficient funds screen") {
     bitcoinTransactionBaseCalculator.minimumSatsRequired = BitcoinMoney.btc(1.01)
-    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+    bitcoinWalletService.transactionsData.value = TransactionsDataMock.copy(
       balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
     )
 

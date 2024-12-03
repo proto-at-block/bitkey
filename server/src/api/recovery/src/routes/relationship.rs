@@ -66,8 +66,12 @@ impl RouterBuilder for RouteState {
                 put(endorse_recovery_relationships),
             )
             .route(
-                "/api/accounts/:account_id/recovery/backups",
-                post(upload_recovery_backups),
+                "/api/accounts/:account_id/recovery/backup",
+                post(upload_recovery_backup),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/backup",
+                get(get_recovery_backup),
             )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
@@ -123,7 +127,8 @@ impl From<RouteState> for SwaggerEndpoint {
         get_recovery_relationships,
         get_relationships,
         update_recovery_relationship,
-        upload_recovery_backups,
+        upload_recovery_backup,
+        get_recovery_backup,
     ),
     components(
         schemas(
@@ -183,6 +188,7 @@ impl TryFrom<RecoveryRelationship> for OutboundInvitation {
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct InboundInvitation {
     pub recovery_relationship_id: RecoveryRelationshipId,
+    pub recovery_relationship_roles: Vec<TrustedContactRole>,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
     pub protected_customer_enrollment_pake_pubkey: String,
@@ -195,6 +201,7 @@ impl TryFrom<RecoveryRelationship> for InboundInvitation {
         match value {
             RecoveryRelationship::Invitation(invitation) => Ok(Self {
                 recovery_relationship_id: invitation.common_fields.id,
+                recovery_relationship_roles: invitation.common_fields.trusted_contact_info.roles,
                 expires_at: invitation.expires_at,
                 protected_customer_enrollment_pake_pubkey: invitation
                     .protected_customer_enrollment_pake_pubkey,
@@ -865,7 +872,7 @@ pub struct UploadRecoveryBackupRequest {
 pub struct UploadRecoveryBackupResponse {}
 #[utoipa::path(
     post,
-    path = "/api/accounts/{account_id}/recovery/backups",
+    path = "/api/accounts/{account_id}/recovery/backup",
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
@@ -874,7 +881,7 @@ pub struct UploadRecoveryBackupResponse {}
         (status = 200, description = "Upload successful", body=UploadRecoveryBackupResponse),
     ),
 )]
-pub async fn upload_recovery_backups(
+pub async fn upload_recovery_backup(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
@@ -894,4 +901,42 @@ pub async fn upload_recovery_backups(
         .upload_recovery_backup(account_id, request.recovery_backup_material)
         .await?;
     Ok(Json(UploadRecoveryBackupResponse {}))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetRecoveryBackupResponse {
+    pub recovery_backup_material: String,
+}
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/recovery/backup",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    responses(
+        (status = 200, description = "Found recovery backup", body=GetRecoveryBackupResponse),
+    ),
+)]
+pub async fn get_recovery_backup(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(recovery_relationship_service): State<RecoveryRelationshipService>,
+) -> Result<Json<GetRecoveryBackupResponse>, ApiError> {
+    let account = account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+    let Account::Full(_) = account else {
+        return Err(ApiError::GenericForbidden(
+            "Incorrect calling account type".to_string(),
+        ));
+    };
+    let backup = recovery_relationship_service
+        .get_recovery_backup(account_id)
+        .await?;
+
+    Ok(Json(GetRecoveryBackupResponse {
+        recovery_backup_material: backup.material,
+    }))
 }

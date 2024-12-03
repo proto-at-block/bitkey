@@ -36,7 +36,11 @@ internal object KotestConfiguration : AbstractProjectConfig() {
     // Initialize logger with our own log writers for testing purposes.
     Logger.configure(
       tag = "build.wallet",
-      minimumLogLevel = LogLevel.Debug,
+      /**
+       * Use Info as default logging level for integration tests - anything lower than that is too noisy.
+       * Update this log level for local development/testing purposes as needed.
+       */
+      minimumLogLevel = LogLevel.Info,
       logWriters = listOf(TestLogStoreWriter, platformLogWriter())
     )
   }

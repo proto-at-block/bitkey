@@ -47,6 +47,7 @@ impl From<PaymentNotificationType> for NotificationPayloadType {
 
 pub enum CustomerNotificationFeatureFlag {
     UnconfirmedMempoolTransaction,
+    ConfirmedTransaction,
 }
 
 impl Display for CustomerNotificationFeatureFlag {
@@ -54,6 +55,9 @@ impl Display for CustomerNotificationFeatureFlag {
         match self {
             CustomerNotificationFeatureFlag::UnconfirmedMempoolTransaction => {
                 write!(f, "f8e-mempool-unconfirmed-tx-push-notification")
+            }
+            CustomerNotificationFeatureFlag::ConfirmedTransaction => {
+                write!(f, "f8e-confirmed-tx-push-notification")
             }
         }
     }

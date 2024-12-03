@@ -4,7 +4,7 @@ import app.cash.turbine.test
 import build.wallet.bitcoin.bdk.bitcoinAmount
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.UtxoConsolidation
-import build.wallet.bitcoin.transactions.transactionsLoadedData
+import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.utxo.UtxoConsolidationType.ConsolidateAll
@@ -16,7 +16,6 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
-import build.wallet.time.truncateToMilliseconds
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -133,9 +132,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
         it.subtotal.shouldBe(consolidationAmountAfterFee)
         it.fee.shouldBe(consolidationParams.consolidationCost)
 
-        // The actual broadcast time before it's stored to database has nanoseconds precision.
-        // When we store and read it from the database, we lose some of that precision.
-        it.estimatedConfirmationTime.shouldBe(consolidationTransactionDetail.estimatedConfirmationTime.truncateToMilliseconds())
+        it.estimatedConfirmationTime.shouldBe(consolidationTransactionDetail.estimatedConfirmationTime)
 
         // 2 UTXOs were consolidated into 1 UTXO
         it.inputs.shouldHaveSize(2)
@@ -238,9 +235,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
         it.subtotal.shouldBe(consolidationAmountAfterFee)
         it.fee.shouldBe(consolidationParams.consolidationCost)
 
-        // The actual broadcast time before it's stored to database has nanoseconds precision.
-        // When we store and read it from the database, we lose some of that precision.
-        it.estimatedConfirmationTime.shouldBe(consolidationTransactionDetail.estimatedConfirmationTime.truncateToMilliseconds())
+        it.estimatedConfirmationTime.shouldBe(consolidationTransactionDetail.estimatedConfirmationTime)
 
         // 2 UTXOs were consolidated into 1 UTXO
         it.inputs.shouldHaveSize(2)
@@ -261,8 +256,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
         .shouldBeOk(true)
 
       // Have 2 remaining UTXOs: consolidated UTXO and a UTXO from the unconfirmed transaction.
-      val transactionsData =
-        app.transactionsService.transactionsLoadedData().first()
+      val transactionsData = app.bitcoinWalletService.getTransactionData()
       transactionsData.utxos.should { utxos ->
         utxos.confirmed.shouldBeEmpty() // Consolidation transaction is not confirmed yet.
         utxos.unconfirmed.shouldHaveSize(2)

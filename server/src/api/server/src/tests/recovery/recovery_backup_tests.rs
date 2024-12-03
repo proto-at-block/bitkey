@@ -11,14 +11,16 @@ use crate::tests::{
 use types::account::{bitcoin::Network, entities::Account, AccountType};
 
 #[rstest]
-#[case::create_with_full_account(AccountType::Full, false, StatusCode::OK)]
-#[case::create_with_lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN)]
-#[case::create_with_invalid_account(AccountType::Full, true, StatusCode::NOT_FOUND)]
+#[case::create_with_full_account(AccountType::Full, false, StatusCode::OK, false)]
+#[case::create_with_lite_account(AccountType::Lite, false, StatusCode::FORBIDDEN, false)]
+#[case::create_with_invalid_account(AccountType::Full, true, StatusCode::NOT_FOUND, false)]
+#[case::check_not_found_before_upload(AccountType::Full, false, StatusCode::OK, true)]
 #[tokio::test]
-async fn recovery_backup_upload_test(
+async fn recovery_backup_upload_and_fetch_test(
     #[case] account_type: AccountType,
     #[case] invalid_account: bool,
     #[case] expected_status_code: StatusCode,
+    #[case] check_not_found_before_upload: bool,
 ) {
     // arrange
     let (mut context, bootstrap) = gen_services().await;
@@ -50,6 +52,13 @@ async fn recovery_backup_upload_test(
     } else {
         "INVALID_ACCOUNT_ID".to_string()
     };
+
+    if check_not_found_before_upload {
+        let fetch_response = client.fetch_recovery_backup(&account_id, &keys).await;
+
+        assert_eq!(fetch_response.status_code, StatusCode::NOT_FOUND);
+    }
+
     let create_response = client
         .recovery_backup_upload(
             if !invalid_account {
@@ -72,6 +81,8 @@ async fn recovery_backup_upload_test(
                 create_response.body_string
             );
 
+            let fetch_response = client.fetch_recovery_backup(&account_id, &keys).await;
+
             let backup = bootstrap
                 .services
                 .recovery_relationship_service
@@ -81,7 +92,10 @@ async fn recovery_backup_upload_test(
                 .unwrap();
 
             assert_eq!(backup.account_id, account.get_id().clone());
-            assert_eq!(backup.material, "RANDOM_SEALED_KEY");
+            assert_eq!(
+                fetch_response.body.unwrap().recovery_backup_material,
+                "RANDOM_SEALED_KEY"
+            );
         }
         _ => {
             assert_eq!(create_response.status_code, expected_status_code);

@@ -8,8 +8,8 @@ import build.wallet.analytics.v1.Action.ACTION_APP_WALLET_FUNDED
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.InternetUnreachable
-import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
-import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.f8e.relationships.RelationshipsFake
@@ -58,7 +58,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       turbine = turbines::create
     )
 
-  val transactionsService = TransactionsServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val socRecService = SocRecServiceFake()
 
@@ -77,7 +77,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       appFunctionalityService = appFunctionalityService,
       gettingStartedTaskDao = gettingStartedTaskDao,
       eventTracker = eventTracker,
-      transactionsService = transactionsService,
+      bitcoinWalletService = bitcoinWalletService,
       mobilePayService = mobilePayService,
       socRecService = socRecService,
       mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
@@ -85,7 +85,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     gettingStartedTaskDao.reset()
-    transactionsService.reset()
+    bitcoinWalletService.reset()
     mobilePayService.reset()
     appFunctionalityService.reset()
     socRecService.reset()
@@ -306,7 +306,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           )
       )
 
-      transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+      bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
       awaitItem().shouldNotBeNull().expect(
         tasks =

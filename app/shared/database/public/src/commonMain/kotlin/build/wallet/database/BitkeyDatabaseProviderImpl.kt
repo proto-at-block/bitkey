@@ -1,6 +1,7 @@
 package build.wallet.database
 
 import app.cash.sqldelight.EnumColumnAdapter
+import app.cash.sqldelight.db.SqlDriver
 import build.wallet.analytics.v1.Event
 import build.wallet.bitkey.inheritance.InheritanceMaterialHash
 import build.wallet.bitkey.relationships.TrustedContactRole
@@ -12,32 +13,49 @@ import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.adapter.ByteStringColumnAdapter
-import build.wallet.sqldelight.adapter.InstantColumnAdapter
+import build.wallet.sqldelight.adapter.InstantAsEpochMillisecondsColumnAdapter
+import build.wallet.sqldelight.adapter.InstantAsIso8601ColumnAdapter
 import build.wallet.sqldelight.adapter.WireColumnAdapter
 import build.wallet.sqldelight.withLogging
+import kotlinx.coroutines.*
 
-class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDatabaseProvider {
-  private val sqlDriver by lazy {
-    sqlDriverFactory
-      .createDriver(
-        dataBaseName = "bitkey.db",
-        dataBaseSchema = BitkeyDatabase.Schema
-      )
-      .withLogging(tag = "BitkeyDatabase")
+class BitkeyDatabaseProviderImpl(
+  sqlDriverFactory: SqlDriverFactory,
+  appScope: CoroutineScope = CoroutineScope(SupervisorJob()),
+) : BitkeyDatabaseProvider {
+  private val database: Deferred<BitkeyDatabase> =
+    appScope.async(Dispatchers.IO, CoroutineStart.LAZY) {
+      val driver = sqlDriverFactory
+        .createDriver(
+          dataBaseName = "bitkey.db",
+          dataBaseSchema = BitkeyDatabase.Schema
+        )
+        .withLogging(tag = "BitkeyDatabase")
+      createDatabase(driver)
+    }
+
+  private val debugDatabase: Deferred<BitkeyDebugDatabase> =
+    appScope.async(Dispatchers.IO, CoroutineStart.LAZY) {
+      val driver = sqlDriverFactory
+        .createDriver(
+          dataBaseName = "bitkeyDebug.db",
+          dataBaseSchema = BitkeyDebugDatabase.Schema
+        )
+        .withLogging(tag = "BitkeyDebugDb")
+      BitkeyDebugDatabase(driver = driver)
+    }
+
+  override suspend fun database(): BitkeyDatabase {
+    return database.await()
   }
 
-  private val debugSqlDriver by lazy {
-    sqlDriverFactory
-      .createDriver(
-        dataBaseName = "bitkeyDebug.db",
-        dataBaseSchema = BitkeyDebugDatabase.Schema
-      )
-      .withLogging(tag = "BitkeyDebugDb")
+  override suspend fun debugDatabase(): BitkeyDebugDatabase {
+    return debugDatabase.await()
   }
 
-  private val database by lazy {
-    BitkeyDatabase(
-      driver = sqlDriver,
+  private fun createDatabase(driver: SqlDriver): BitkeyDatabase {
+    return BitkeyDatabase(
+      driver = driver,
       liteAccountEntityAdapter =
         LiteAccountEntity.Adapter(
           accountIdAdapter = LiteAccountIdColumnAdapter,
@@ -90,11 +108,10 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           delayNotifyDurationAdapter = DurationColumnAdapter,
           appGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter
         ),
-      transactionDetailEntityAdapter =
-        TransactionDetailEntity.Adapter(
-          broadcastTimeInstantAdapter = InstantColumnAdapter,
-          estimatedConfirmationTimeInstantAdapter = InstantColumnAdapter
-        ),
+      transactionDetailEntityAdapter = TransactionDetailEntity.Adapter(
+        broadcastTimeAdapter = InstantAsIso8601ColumnAdapter,
+        estimatedConfirmationTimeAdapter = InstantAsIso8601ColumnAdapter
+      ),
       eventEntityAdapter =
         EventEntity.Adapter(
           eventAdapter = WireColumnAdapter(Event.ADAPTER),
@@ -109,11 +126,11 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         ExchangeRateEntity.Adapter(
           fromCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
           toCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
-          timeRetrievedAdapter = InstantColumnAdapter
+          timeRetrievedAdapter = InstantAsEpochMillisecondsColumnAdapter
         ),
       historicalExchangeRateEntityAdapter =
         HistoricalExchangeRateEntity.Adapter(
-          timeAdapter = InstantColumnAdapter,
+          timeAdapter = InstantAsEpochMillisecondsColumnAdapter,
           fromCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter,
           toCurrencyAdapter = IsoCurrencyTextCodeColumnAdapter
         ),
@@ -147,8 +164,8 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       activeServerRecoveryEntityAdapter =
         ActiveServerRecoveryEntity.Adapter(
           accountAdapter = FullAccountColumnAdapter,
-          startTimeAdapter = InstantColumnAdapter,
-          endTimeAdapter = InstantColumnAdapter,
+          startTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          endTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
           destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
@@ -228,7 +245,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       trustedContactInvitationEntityAdapter =
         TrustedContactInvitationEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
-          expiresAtAdapter = InstantColumnAdapter,
+          expiresAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
           rolesAdapter = StringSetAdapter(
             DelegatedColumnAdapter(
               ::TrustedContactRole,
@@ -281,7 +298,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         NetworkReachabilityEventEntity.Adapter(
           connectionAdapter = NetworkConnectionColumnAdapter,
           reachabilityAdapter = EnumColumnAdapter(),
-          timestampAdapter = InstantColumnAdapter
+          timestampAdapter = InstantAsEpochMillisecondsColumnAdapter
         ),
       onboardingKeyboxHwAuthPublicKeyAdapter =
         OnboardingKeyboxHwAuthPublicKey.Adapter(
@@ -306,12 +323,12 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         ),
         typeAdapter = EnumColumnAdapter(),
         statusAdapter = EnumColumnAdapter(),
-        createdAdapter = InstantColumnAdapter,
-        updatedAdapter = InstantColumnAdapter
+        createdAdapter = InstantAsIso8601ColumnAdapter,
+        updatedAdapter = InstantAsIso8601ColumnAdapter
       ),
       coachmarkEntityAdapter = CoachmarkEntity.Adapter(
         idAdapter = EnumColumnAdapter(),
-        expirationAdapter = InstantColumnAdapter
+        expirationAdapter = InstantAsEpochMillisecondsColumnAdapter
       ),
       softwareKeyboxEntityAdapter = SoftwareKeyboxEntity.Adapter(
         accountIdAdapter = SoftwareAccountIdColumnAdapter,
@@ -324,30 +341,20 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           InheritanceMaterialHash::value
         )
           .then(DelegatedColumnAdapter(Long::toInt, Int::toLong)),
-        lastSyncTimestampAdapter = InstantColumnAdapter
+        lastSyncTimestampAdapter = InstantAsEpochMillisecondsColumnAdapter
       ),
       pendingBenefactorClaimEntityAdapter = PendingBenefactorClaimEntity.Adapter(
         claimIdAdapter = InheritanceClaimIdColumnAdapter,
         relationshipIdAdapter = RelationshipIdColumnAdapter,
-        delayEndTimeAdapter = InstantColumnAdapter,
-        delayStartTimeAdapter = InstantColumnAdapter
+        delayEndTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
+        delayStartTimeAdapter = InstantAsEpochMillisecondsColumnAdapter
       ),
       pendingBeneficiaryClaimEntityAdapter = PendingBeneficiaryClaimEntity.Adapter(
         claimIdAdapter = InheritanceClaimIdColumnAdapter,
         relationshipIdAdapter = RelationshipIdColumnAdapter,
-        delayEndTimeAdapter = InstantColumnAdapter,
-        delayStartTimeAdapter = InstantColumnAdapter
+        delayEndTimeAdapter = InstantAsEpochMillisecondsColumnAdapter,
+        delayStartTimeAdapter = InstantAsEpochMillisecondsColumnAdapter
       )
     )
   }
-
-  private val debugDatabase by lazy {
-    BitkeyDebugDatabase(
-      driver = debugSqlDriver
-    )
-  }
-
-  override fun database(): BitkeyDatabase = database
-
-  override fun debugDatabase(): BitkeyDebugDatabase = debugDatabase
 }

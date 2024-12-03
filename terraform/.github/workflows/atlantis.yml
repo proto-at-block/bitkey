@@ -26,9 +26,9 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
-      - uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3
+      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
         with:
           install: true
       - name: Build Image
@@ -54,13 +54,13 @@ jobs:
     needs:
       - build
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
       - name: Update Atlantis tag in code
         run: just update-tag
         working-directory: atlantis
       - name: Make PR
-        uses: peter-evans/create-pull-request@8c75f4ab5fd3ac90814032241d54008c690ed855
+        uses: peter-evans/create-pull-request@28b3f122d69e5d02001a8608ddf946a915413d73
         with:
           commit-message: Update Atlantis image
           title: Update Atlantis image

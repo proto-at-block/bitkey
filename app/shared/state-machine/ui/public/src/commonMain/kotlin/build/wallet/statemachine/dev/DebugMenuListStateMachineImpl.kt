@@ -5,18 +5,16 @@ import build.wallet.account.AccountService
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.debug.AppDataDeleter
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
+import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.f8e.notifications.TestNotificationF8eClient
-import build.wallet.keybox.AppDataDeleter
-import build.wallet.keybox.CloudBackupDeleter
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
+import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
@@ -158,7 +156,7 @@ class DebugMenuListStateMachineImpl(
           forceSignOut = true,
           onSignedIn = { cloudLoggedIn = true },
           onSignInFailure = {
-            log(LogLevel.Warn) { "Failed to sign in to cloud" }
+            logWarn(throwable = it) { "Failed to sign in to cloud" }
             onDone()
           },
           eventTrackerContext = CloudEventTrackerScreenIdContext.DEBUG_MENU
@@ -167,7 +165,7 @@ class DebugMenuListStateMachineImpl(
     }
     LaunchedEffect("delete-app-data-$request)") {
       if (request.deleteAppKeyBackup) {
-        cloudBackupDeleter.delete(cloudServiceProvider())
+        cloudBackupDeleter.delete()
       }
       if (request.deleteAppKey) {
         appDataDeleter.deleteAll()

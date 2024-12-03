@@ -17,9 +17,10 @@ crypto-common = "0.1.6"
 crypto_box = { version = "0.9.1", features = ["chacha20"] }
 hkdf = "0.12.4"
 hmac = "0.12.1"
+miniscript = "10.0"
 p256 = { version = "0.13.2", features = ["arithmetic"], optional = true }
 rand = "0.8.5"
-secp256k1-zkp = { git = "https://github.com/wpaulino/rust-secp256k1-zkp.git", branch = "frost-bindings", features = [
+secp256k1-zkp = { git = "https://github.com/wpaulino/rust-secp256k1-zkp.git", branch = "frost-bindings-bitkey", features = [
   "global-context",
   "rand-std",
   "serde",
@@ -31,6 +32,8 @@ snow = { version = "0.9.6", optional = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+anyhow = "1.0.86"
+bdk = { version = "0.29.0", features = ["rpc"] }
 hex = "0.4.3"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"

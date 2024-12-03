@@ -10,6 +10,7 @@ import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
 import build.wallet.money.FiatMoney
+import build.wallet.partnerships.PurchaseQuote
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -60,6 +61,6 @@ class GetPurchaseQuoteListF8eClientImpl(
 
   @Serializable
   private data class ResponseBody(
-    val quotes: List<Quote>,
+    val quotes: List<PurchaseQuote>,
   ) : RedactedResponseBody
 }

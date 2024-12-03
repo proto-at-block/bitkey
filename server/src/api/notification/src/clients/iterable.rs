@@ -74,14 +74,33 @@ impl From<Config> for IterableClient {
 #[derive(Deserialize, Default, Clone)]
 pub struct ClientConfig {
     pub comms_verification_campaign_id: usize,
+    pub recovery_relationship_benefactor_invitation_pending_campaign_id: usize,
     pub recovery_pending_delay_period_lost_app_campaign_id: usize,
     pub recovery_pending_delay_period_lost_hw_campaign_id: usize,
     pub recovery_completed_delay_period_lost_app_campaign_id: usize,
     pub recovery_completed_delay_period_lost_hw_campaign_id: usize,
     pub recovery_canceled_delay_period_lost_app_campaign_id: usize,
     pub recovery_canceled_delay_period_lost_hw_campaign_id: usize,
-    pub recovery_relationship_invitation_accepted_campaign_id: usize,
+    pub recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id: usize,
+    pub recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id: usize,
+    pub recovery_relationship_invitation_accepted_received_by_protected_customer_campaign_id: usize,
     pub recovery_relationship_deleted_campaign_id: usize,
+    pub recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id:
+        usize,
+    pub recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id:
+        usize,
+    pub recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id:
+        usize,
+    pub recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id:
+        usize,
+    pub inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id: usize,
+    pub inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id: usize,
+    pub inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id: usize,
+    pub inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id: usize,
+    pub inheritance_claim_initiated_as_benefactor_campaign_id: usize,
+    pub inheritance_claim_initiated_as_beneficiary_campaign_id: usize,
+    pub inheritance_claim_period_completed_by_benefactor_campaign_id: usize,
+    pub inheritance_claim_period_completed_by_beneficiary_campaign_id: usize,
     pub social_challenge_response_received_campaign_id: usize,
     pub marketing_channel_id: usize,
     pub transactional_channel_id: usize,
@@ -117,14 +136,29 @@ pub enum IterableClient {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IterableCampaignType {
     CommsVerification,
+    InheritanceClaimCanceledByBeneficiaryReceivedByBeneficiary,
+    InheritanceClaimCanceledByBeneficiaryReceivedByBenefactor,
+    InheritanceClaimCanceledByBenefactorReceivedByBeneficiary,
+    InheritanceClaimCanceledByBenefactorReceivedByBenefactor,
+    InheritanceClaimInitiatedAsBenefactor,
+    InheritanceClaimInitiatedAsBeneficiary,
+    InheritanceClaimPeriodCompletedAsBenefactor,
+    InheritanceClaimPeriodCompletedAsBeneficiary,
     RecoveryPendingDelayPeriodLostApp,
     RecoveryPendingDelayPeriodLostHw,
     RecoveryCompletedDelayPeriodLostApp,
     RecoveryCompletedDelayPeriodLostHw,
     RecoveryCanceledDelayPeriodLostApp,
     RecoveryCanceledDelayPeriodLostHw,
-    RecoveryRelationshipInvitationAccepted,
-    RecoveryRelationshipDeleted,
+    RecoveryRelationshipBenefactorInvitationPending,
+    RecoveryRelationshipInvitationAcceptedReceivedByProtectedCustomer,
+    RecoveryRelationshipInvitationAcceptedReceivedByBeneficiary,
+    RecoveryRelationshipInvitationAcceptedReceivedByBenefactor,
+    RecoveryRelationshipDeletedReceivedByProtectedCustomer,
+    RecoveryRelationshipDeletedByBenefactorReceivedByBenefactor,
+    RecoveryRelationshipDeletedByBenefactorReceivedByBeneficiary,
+    RecoveryRelationshipDeletedByBeneficiaryReceivedByBenefactor,
+    RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary,
     SocialChallengeResponseReceived,
 }
 
@@ -229,6 +263,30 @@ impl IterableClient {
                     IterableCampaignType::CommsVerification => {
                         config.comms_verification_campaign_id
                     }
+                    IterableCampaignType::InheritanceClaimCanceledByBeneficiaryReceivedByBeneficiary => {
+                        config.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimCanceledByBenefactorReceivedByBeneficiary => {
+                        config.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimCanceledByBenefactorReceivedByBenefactor => {
+                        config.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimCanceledByBeneficiaryReceivedByBenefactor => {
+                        config.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimInitiatedAsBenefactor => {
+                        config.inheritance_claim_initiated_as_benefactor_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimInitiatedAsBeneficiary => {
+                        config.inheritance_claim_initiated_as_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimPeriodCompletedAsBenefactor => {
+                        config.inheritance_claim_period_completed_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimPeriodCompletedAsBeneficiary => {
+                        config.inheritance_claim_period_completed_by_beneficiary_campaign_id
+                    }
                     IterableCampaignType::RecoveryPendingDelayPeriodLostApp => {
                         config.recovery_pending_delay_period_lost_app_campaign_id
                     }
@@ -247,11 +305,32 @@ impl IterableClient {
                     IterableCampaignType::RecoveryCanceledDelayPeriodLostHw => {
                         config.recovery_canceled_delay_period_lost_hw_campaign_id
                     }
-                    IterableCampaignType::RecoveryRelationshipInvitationAccepted => {
-                        config.recovery_relationship_invitation_accepted_campaign_id
+                    IterableCampaignType::RecoveryRelationshipBenefactorInvitationPending => {
+                        config.recovery_relationship_benefactor_invitation_pending_campaign_id
                     }
-                    IterableCampaignType::RecoveryRelationshipDeleted => {
+                    IterableCampaignType::RecoveryRelationshipInvitationAcceptedReceivedByBenefactor => {
+                        config.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipInvitationAcceptedReceivedByBeneficiary => {
+                        config.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipInvitationAcceptedReceivedByProtectedCustomer => {
+                        config.recovery_relationship_invitation_accepted_received_by_protected_customer_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipDeletedReceivedByProtectedCustomer => {
                         config.recovery_relationship_deleted_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBenefactor => {
+                        config.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBeneficiary => {
+                        config.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBenefactor => {
+                        config.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id
+                    }
+                    IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary => {
+                        config.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id
                     }
                     IterableCampaignType::SocialChallengeResponseReceived => {
                         config.social_challenge_response_received_campaign_id

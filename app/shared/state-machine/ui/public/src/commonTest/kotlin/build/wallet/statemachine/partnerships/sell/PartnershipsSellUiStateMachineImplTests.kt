@@ -81,7 +81,8 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
     partnerInfo = PartnerInfo(
       partnerId = PartnerId("test-partner"),
       name = "test-partner-name",
-      logoUrl = "test-partner-logo-url"
+      logoUrl = "test-partner-logo-url",
+      logoBadgedUrl = "test-partner-logo-badged-url"
     ),
     context = "test-context",
     type = PartnershipTransactionType.PURCHASE,
@@ -93,7 +94,8 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
     paymentMethod = "test-payment-method",
     created = Instant.fromEpochMilliseconds(248),
     updated = Instant.fromEpochMilliseconds(842),
-    sellWalletAddress = "test-sell-wallet-address"
+    sellWalletAddress = "test-sell-wallet-address",
+    partnerTransactionUrl = "https://fake-partner.com/transaction/test-id"
   )
 
   afterTest {
@@ -113,7 +115,8 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
             PartnerInfo(
               name = "partner",
               logoUrl = "https://logo.url.example.com",
-              partnerId = PartnerId("partner")
+              partnerId = PartnerId("partner"),
+              logoBadgedUrl = "https://logo-badged.url.example.com"
             )
           ),
           transaction
@@ -165,7 +168,8 @@ class PartnershipsSellUiStateMachineImplTests : FunSpec({
             PartnerInfo(
               name = "partner",
               logoUrl = "https://logo.url.example.com",
-              partnerId = PartnerId("partner")
+              partnerId = PartnerId("partner"),
+              logoBadgedUrl = "https://logo-badged.url.example.com"
             )
           ),
           transaction

@@ -8,12 +8,12 @@ import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 data class BitcoinTransaction(
@@ -106,7 +106,7 @@ data class BitcoinTransaction(
   fun truncatedRecipientAddress(): String {
     if (recipientAddress == null) {
       // This should be unexpected, so handle with an empty string and log if it ever occurs.
-      log(Error) { "Missing recipient address for transaction $id" }
+      logError { "Missing recipient address for transaction $id" }
       return ""
     }
 
@@ -116,7 +116,7 @@ data class BitcoinTransaction(
   fun chunkedRecipientAddress(): String {
     if (recipientAddress == null) {
       // This should be unexpected, so handle with an empty string and log if it ever occurs.
-      log(Error) { "Missing recipient address for transaction $id" }
+      logError { "Missing recipient address for transaction $id" }
       return ""
     }
 
@@ -163,7 +163,7 @@ fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails?
   val feeRate = feeRate()
   // This should be unexpected, so we handle with returning null and log and error if it occurs.
   if (recipientAddress == null || fee == null || feeRate == null) {
-    log(Error) { "Missing recipient address or fee information for transaction $id" }
+    logError { "Missing recipient address or fee information for transaction $id" }
     return null
   }
 
@@ -174,4 +174,10 @@ fun BitcoinTransaction.toSpeedUpTransactionDetails(): SpeedUpTransactionDetails?
     sendAmount = this.subtotal,
     transactionType = this.transactionType
   )
+}
+
+fun BitcoinTransaction.isLate(clock: Clock): Boolean {
+  return estimatedConfirmationTime?.let { estimatedTime ->
+    clock.now() > estimatedTime
+  } == true
 }

@@ -49,15 +49,17 @@ private struct ExplainerToolbar: View {
                 .init(
                     iconModel: .init(
                         iconImage: .LocalImage(icon: .smalliconx),
-                        iconSize: .accessory,
+                        iconSize: .Accessory(),
                         iconBackgroundType: IconBackgroundTypeCircle(
-                            circleSize: .regular,
+                            circleSize: .Regular(),
                             color: .foreground10
                         ),
+                        iconAlignmentInBackground: .center,
                         iconTint: nil,
                         iconOpacity: nil,
                         iconTopSpacing: nil,
-                        text: nil
+                        text: nil,
+                        badge: nil
                     ),
                     onClick: StandardClick { viewModel.onDismiss() },
                     enabled: true

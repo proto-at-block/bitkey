@@ -16,25 +16,26 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.*
 
 class SpendingLimitDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : SpendingLimitDao {
   override fun activeSpendingLimit(): Flow<SpendingLimit?> {
-    return databaseProvider.database().spendingLimitQueries.activeLimit()
-      .asFlowOfOneOrNull()
-      .distinctUntilChanged()
-      .transformLatest { result ->
-        val limit = result
-          .logFailure { "Failed to read active spending limit from database" }
-          .flatMap { it?.toSpendingLimit() ?: Ok(null) }
-          .get()
-
-        emit(limit)
-      }
+    return flow {
+      databaseProvider.database()
+        .spendingLimitQueries
+        .activeLimit()
+        .asFlowOfOneOrNull()
+        .distinctUntilChanged()
+        .mapLatest { result ->
+          result
+            .logFailure { "Failed to read active spending limit from database" }
+            .flatMap { it?.toSpendingLimit() ?: Ok(null) }
+            .get()
+        }
+        .collect(::emit)
+    }
   }
 
   override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, DbError> {
