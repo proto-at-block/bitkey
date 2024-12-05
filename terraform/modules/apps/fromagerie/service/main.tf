@@ -40,7 +40,8 @@ locals {
   # S3 Buckets
   ################################################
   buckets = {
-    sanctions_screener_bucket_name = "bitkey-${module.this.id_dot}-sanctions-screener-${var.environment}"
+    sanctions_screener_bucket_name          = "bitkey-${module.this.id_dot}-sanctions-screener-${var.environment}"
+    user_balance_histogram_data_bucket_name = "bitkey-${module.this.id_dot}-user-balance-histogram-data-${var.environment}"
   }
 
   ################################################
@@ -136,6 +137,14 @@ data "aws_secretsmanager_secret" "fromagerie_coingecko_api_key" {
 
 data "aws_secretsmanager_secret" "fromagerie_sq_sdn_s3_uri" {
   name = "${module.this.id}/sq_sdn/s3_uri"
+}
+
+data "aws_secretsmanager_secret" "fromagerie_user_balance_histogram_multiple_fingerprints_data_s3_uri" {
+  name = "${module.this.id}/user_balance_histogram/multiple_fingerprints_data/s3_uri"
+}
+
+data "aws_secretsmanager_secret" "fromagerie_user_balance_histogram_biometrics_data_s3_uri" {
+  name = "${module.this.id}/user_balance_histogram/biometrics_data/s3_uri"
 }
 
 data "aws_secretsmanager_secret" "gcm_firebase_admin_key" {
@@ -299,12 +308,14 @@ module "api_user_balance_histogram" {
   })
   environment = var.environment
   secrets = merge(local.common_secrets, {
-    ITERABLE_API_KEY                = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn
-    TWILIO_ACCOUNT_SID              = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
-    TWILIO_AUTH_TOKEN               = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_AUTH_TOKEN::",
-    TWILIO_KEY_SID                  = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
-    TWILIO_KEY_SECRET               = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
-    HISTOGRAM_OUTPUT_ENCRYPTION_KEY = data.aws_secretsmanager_secret.fromagerie_histogram_output_encryption_key.arn,
+    ITERABLE_API_KEY                  = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn
+    MULTIPLE_FINGERPRINTS_DATA_S3_URI = data.aws_secretsmanager_secret.fromagerie_user_balance_histogram_multiple_fingerprints_data_s3_uri.arn,
+    BIOMETRICS_DATA_S3_URI            = data.aws_secretsmanager_secret.fromagerie_user_balance_histogram_biometrics_data_s3_uri.arn,
+    HISTOGRAM_OUTPUT_ENCRYPTION_KEY   = data.aws_secretsmanager_secret.fromagerie_histogram_output_encryption_key.arn,
+    TWILIO_ACCOUNT_SID                = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
+    TWILIO_AUTH_TOKEN                 = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_AUTH_TOKEN::",
+    TWILIO_KEY_SID                    = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
+    TWILIO_KEY_SECRET                 = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
   })
 }
 
@@ -632,6 +643,17 @@ module "screener_s3_bucket" {
   }
 }
 
+module "user_balance_histogram_data_s3_bucket" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14"
+  // Tag v4.1.0
+
+  bucket = local.buckets.user_balance_histogram_data_bucket_name
+
+  versioning = {
+    enabled = true
+  }
+}
+
 // TODO: Separate policies for each task to only allow them what they need, or maybe don't bother since
 // this is all part of the same app?
 data "aws_iam_policy_document" "api_iam_policy" {
@@ -735,7 +757,8 @@ data "aws_iam_policy_document" "api_iam_policy" {
     ]
 
     resources = [
-      "arn:aws:s3:::${local.buckets.sanctions_screener_bucket_name}/*"
+      "arn:aws:s3:::${local.buckets.sanctions_screener_bucket_name}/*",
+      "arn:aws:s3:::${local.buckets.user_balance_histogram_data_bucket_name}/*"
     ]
   }
 }
