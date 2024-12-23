@@ -147,11 +147,13 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is ReadyToCompleteRecoveryState -> {
         ReadyToCompleteRecoveryData(
-          // Only allow to cancel recovery when it's initiated (while delay period is pending, or has finished).
-          // Once customer attempts to complete recovery, they can't cancel it.
-          // This prevents the app from getting into a bad state in case if some parts of
-          // the completion process have already started, but failed to complete for some reason (F8e or NFC error).
-          canCancelRecovery = props.recovery is InitiatedRecovery,
+          // Only allow to cancel recovery when it's initiated (while delay period is pending, or has finished),
+          // or when the auth keys have been successfully rotated. If a customer is in the process of
+          // rotating auth keys, we don't want to allow them to cancel recovery, since the server may
+          // have already rotated, and the customer would be in a bad state. This prevents a bad state
+          // in case if some parts of the completion process have already started, but failed to complete
+          // for some reason (F8e or NFC error).
+          canCancelRecovery = props.recovery is InitiatedRecovery || props.recovery is RotatedAuthKeys,
           startComplete = {
             scope.launch {
               state =
