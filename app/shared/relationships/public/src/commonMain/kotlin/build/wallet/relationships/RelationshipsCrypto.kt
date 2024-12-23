@@ -128,10 +128,28 @@ interface RelationshipsCrypto {
   ): Result<XCiphertext, RelationshipsCryptoError>
 
   /**
-   * Used by the trusted contact to decrypt the private key encryption key and re-encrypt it with
-   * the PAKE secure channel.
+   * Decrypt a private key encryption key using the delegated decryption key.
+   *
+   * This is used by trusted contacts to unseal a private key encryption key.
+   * In recovery, this will be sent to the protected customer over a secure
+   * channel using [transferPrivateKeyEncryptionKeyEncryption]
+   * In Inheritance, this will be used to decrypt the private key material
+   * to sign a transaction.
    */
   fun decryptPrivateKeyEncryptionKey(
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
+    sealedPrivateKeyEncryptionKey: XCiphertext,
+  ): PrivateKeyEncryptionKey
+
+  /**
+   * Decrypts the private key encryption key and re-encrypt it with the PAKE
+   * secure channel.
+   *
+   * This is used by the trusted contact to transfer their encrypted version
+   * of the private key using the newly created PAKE secure channel
+   * for recovery.
+   */
+  fun transferPrivateKeyEncryptionKeyEncryption(
     password: PakeCode,
     protectedCustomerRecoveryPakeKey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
@@ -145,6 +163,11 @@ interface RelationshipsCrypto {
     password: PakeCode,
     protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     decryptPrivateKeyEncryptionKeyOutput: DecryptPrivateKeyEncryptionKeyOutput,
+    sealedPrivateKeyMaterial: XCiphertext,
+  ): Result<ByteString, RelationshipsCryptoError>
+
+  fun decryptPrivateKeyMaterial(
+    privateKeyEncryptionKey: PrivateKeyEncryptionKey,
     sealedPrivateKeyMaterial: XCiphertext,
   ): Result<ByteString, RelationshipsCryptoError>
 }

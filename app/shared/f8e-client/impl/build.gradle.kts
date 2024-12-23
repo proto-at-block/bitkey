@@ -1,15 +1,16 @@
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 import kotlinx.benchmark.gradle.benchmark
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   id("build.wallet.redacted")
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.kotlinx.benchmark)
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   jvm {
     compilations.create("benchmark") {
@@ -23,6 +24,7 @@ kotlin {
         api(projects.shared.analyticsPublic)
         api(projects.shared.authPublic)
         api(projects.shared.databasePublic)
+        api(projects.shared.datadogPublic)
         api(projects.shared.notificationsPublic)
         api(projects.shared.platformPublic)
         implementation(libs.kmp.ktor.client.content.negotiation)
@@ -30,7 +32,6 @@ kotlin {
         implementation(libs.kmp.ktor.client.core)
         implementation(libs.kmp.ktor.client.json)
         implementation(libs.kmp.kotlin.serialization.json)
-        implementation(projects.shared.datadogPublic)
         implementation(projects.shared.serializationPublic)
         // For SocialRecoveryServiceFake
         implementation(projects.shared.ktorClientFake)

@@ -17,5 +17,10 @@ object InheritanceAppSegment : AppSegment {
      * Beneficiary process to start an inheritance claim
      */
     object Start : AppSegment by childSegment("Start")
+
+    /**
+     * Beneficiary process to complete an inheritance claim
+     */
+    object Complete : AppSegment by childSegment("Complete")
   }
 }

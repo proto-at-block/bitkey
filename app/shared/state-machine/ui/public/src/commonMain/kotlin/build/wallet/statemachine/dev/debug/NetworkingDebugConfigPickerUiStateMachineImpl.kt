@@ -5,6 +5,8 @@ import androidx.compose.runtime.collectAsState
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
@@ -18,6 +20,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class NetworkingDebugConfigPickerUiStateMachineImpl(
   private val networkingDebugService: NetworkingDebugService,
 ) : NetworkingDebugConfigPickerUiStateMachine {

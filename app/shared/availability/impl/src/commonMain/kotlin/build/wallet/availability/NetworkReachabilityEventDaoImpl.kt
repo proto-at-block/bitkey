@@ -3,6 +3,8 @@ package build.wallet.availability
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
@@ -10,6 +12,7 @@ import com.github.michaelbull.result.map
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class NetworkReachabilityEventDaoImpl(
   private val clock: Clock,
   private val databaseProvider: BitkeyDatabaseProvider,

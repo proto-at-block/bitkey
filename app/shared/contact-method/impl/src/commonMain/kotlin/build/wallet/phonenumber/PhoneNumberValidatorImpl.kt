@@ -1,11 +1,14 @@
 package build.wallet.phonenumber
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat.E164
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat.INTERNATIONAL
 import build.wallet.phonenumber.lib.PhoneNumberLibPhoneNumber
 import build.wallet.platform.settings.CountryCodeGuesser
 
+@BitkeyInject(AppScope::class)
 class PhoneNumberValidatorImpl(
   private val countryCodeGuesser: CountryCodeGuesser,
   private val phoneNumberLibBindings: PhoneNumberLibBindings,

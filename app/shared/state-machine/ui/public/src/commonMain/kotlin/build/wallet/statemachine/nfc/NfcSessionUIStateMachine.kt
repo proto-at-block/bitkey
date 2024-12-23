@@ -5,8 +5,9 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.AsyncNfcSigningFeatureFlag
-import build.wallet.feature.flags.ProgressSpinnerForLongNfcOpsFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
@@ -21,9 +22,7 @@ import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.*
-import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Communicating
-import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Searching
-import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Success
+import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
 import build.wallet.time.Delayer
 import com.github.michaelbull.result.onFailure
@@ -80,6 +79,7 @@ class NfcSessionUIStateMachineProps<T>(
 
 interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<*>, ScreenModel>
 
+@BitkeyInject(ActivityScope::class)
 class NfcSessionUIStateMachineImpl(
   private val delayer: Delayer,
   private val nfcReaderCapability: NfcReaderCapability,
@@ -87,7 +87,6 @@ class NfcSessionUIStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcTransactor: NfcTransactor,
   private val asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
-  private val progressSpinnerForLongNfcOpsFeatureFlag: ProgressSpinnerForLongNfcOpsFeatureFlag,
 ) : NfcSessionUIStateMachine {
   /**
    * Text shown under the progress spinner (on Android) or on the iOS NFC Sheet when performing
@@ -108,9 +107,6 @@ class NfcSessionUIStateMachineImpl(
       )
     }
 
-    val shouldShowLongRunningOperation =
-      props.shouldShowLongRunningOperation && progressSpinnerForLongNfcOpsFeatureFlag.isEnabled()
-
     if (newState is InSession) {
       LaunchedEffect("nfc-transaction") {
         nfcTransactor
@@ -123,7 +119,7 @@ class NfcSessionUIStateMachineImpl(
                 skipFirmwareTelemetry = false, // Only true for FWUP.
                 onTagConnected = { session ->
                   props.onConnected()
-                  if (shouldShowLongRunningOperation) {
+                  if (props.shouldShowLongRunningOperation) {
                     session?.message = longRunningOperationText
                   }
                   newState = Communicating
@@ -175,7 +171,7 @@ class NfcSessionUIStateMachineImpl(
           }
 
           is Communicating -> {
-            val text = if (shouldShowLongRunningOperation) {
+            val text = if (props.shouldShowLongRunningOperation) {
               longRunningOperationText
             } else {
               "Connected"
@@ -184,7 +180,7 @@ class NfcSessionUIStateMachineImpl(
               text = text,
               status = ConnectedState(
                 onCancel = props.onCancel,
-                showProgressSpinner = shouldShowLongRunningOperation
+                showProgressSpinner = props.shouldShowLongRunningOperation
               ),
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(

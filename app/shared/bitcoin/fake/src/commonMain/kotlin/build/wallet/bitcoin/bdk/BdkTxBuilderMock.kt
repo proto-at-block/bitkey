@@ -52,6 +52,12 @@ class BdkTxBuilderMock(
     )
   }
 
+  override fun manuallySelectedOnly(): BdkTxBuilder {
+    return BdkTxBuilderMock(
+      finishOutputs = finishOutputs
+    )
+  }
+
   override fun finish(wallet: BdkWallet): BdkResult<BdkTxBuilderResult> {
     val fakePsbt =
       BdkPartiallySignedTransactionMock(

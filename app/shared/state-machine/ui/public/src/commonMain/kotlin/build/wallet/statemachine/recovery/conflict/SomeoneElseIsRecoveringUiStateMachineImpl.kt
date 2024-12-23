@@ -3,6 +3,8 @@ package build.wallet.statemachine.recovery.conflict
 import androidx.compose.runtime.Composable
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -17,6 +19,7 @@ import build.wallet.statemachine.recovery.conflict.model.ShowingSomeoneElseIsRec
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class SomeoneElseIsRecoveringUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val recoveryNotificationVerificationUiStateMachine:

@@ -11,11 +11,13 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator.StepStyle.*
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.loading.LoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingIndicatorPainter
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.theme.WalletTheme
@@ -36,11 +38,20 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
       is IconImage.LocalImage -> step.icon.icon.painter()
       is IconImage.UrlImage -> TODO("UrlImage is not currently supported")
       null -> null
+      IconImage.LoadingBadge -> LoadingBadgePainter(color = circleColor)
     }
 
     StepData(
       painter = painter,
-      circleColor = circleColor
+      circleColor = circleColor,
+      contentTint = when (step.icon) {
+        IconImage.LoadingBadge -> null
+        else -> circleColor
+      },
+      iconSize = when (step.icon) {
+        IconImage.LoadingBadge -> 14.dp
+        else -> 16.dp
+      }
     )
   }
 
@@ -57,7 +68,6 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
       val lineHeight = 8.dp.toPx()
       val circleRadius = 12.dp.toPx()
       val circleStrokeWidth = 2.dp.toPx()
-      val iconSize = 16.dp.toPx()
 
       // Calculate spacing to distribute circles evenly within the inset area
       val insetWidth =
@@ -67,6 +77,7 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
       stepData.forEachIndexed { index, step ->
         // Calculate the center position of each circle
         val circleCenter = Offset(x = circleRadius + circleStrokeWidth / 2 + index * stepSpacing, y = lineY)
+        val iconSize = step.iconSize.toPx()
 
         // Draw the circle outline
         drawCircle(
@@ -88,7 +99,7 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
             draw(
               size = Size(iconSize, iconSize),
               alpha = 1f,
-              colorFilter = ColorFilter.tint(step.circleColor)
+              colorFilter = step.contentTint?.let { ColorFilter.tint(it) }
             )
           }
           canvas.restore()
@@ -139,4 +150,6 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
 private data class StepData(
   val painter: Painter?,
   val circleColor: Color,
+  val contentTint: Color? = circleColor,
+  val iconSize: Dp = 16.dp,
 )

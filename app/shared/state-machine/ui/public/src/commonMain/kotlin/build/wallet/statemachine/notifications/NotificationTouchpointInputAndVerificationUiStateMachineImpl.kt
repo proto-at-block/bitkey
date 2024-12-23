@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
@@ -35,6 +37,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val delayer: Delayer,
   private val emailInputUiStateMachine: EmailInputUiStateMachine,

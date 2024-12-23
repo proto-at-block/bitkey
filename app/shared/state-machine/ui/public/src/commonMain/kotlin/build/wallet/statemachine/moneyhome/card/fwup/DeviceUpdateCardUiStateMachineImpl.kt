@@ -5,11 +5,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_TAP_FWUP_CARD
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.statemachine.moneyhome.card.CardModel
 
+@BitkeyInject(ActivityScope::class)
 class DeviceUpdateCardUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val firmwareDataService: FirmwareDataService,

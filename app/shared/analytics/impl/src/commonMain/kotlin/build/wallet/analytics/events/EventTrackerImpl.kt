@@ -14,6 +14,8 @@ import build.wallet.analytics.v1.FingerprintScanStats
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class EventTrackerImpl(
   private val appCoroutineScope: CoroutineScope,
   private val clock: Clock,

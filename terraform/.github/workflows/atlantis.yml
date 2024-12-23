@@ -60,7 +60,7 @@ jobs:
         run: just update-tag
         working-directory: atlantis
       - name: Make PR
-        uses: peter-evans/create-pull-request@28b3f122d69e5d02001a8608ddf946a915413d73
+        uses: peter-evans/create-pull-request@16e0059bfd236716f0191bfcfa63d9ded4cf325f
         with:
           commit-message: Update Atlantis image
           title: Update Atlantis image

@@ -1,6 +1,5 @@
 package build.wallet.store
 
-import build.wallet.platform.PlatformContext
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManagerImpl
 import build.wallet.platform.data.filesDir
@@ -14,9 +13,8 @@ import java.nio.file.Path
 
 class EncryptedKeyValueStoreFactoryImplTests : FunSpec({
   test("save and load properties") {
-    val directoryProvider = FileDirectoryProviderImpl(PlatformContext())
-    val storeFactory =
-      EncryptedKeyValueStoreFactoryImpl(PlatformContext(), FileManagerImpl(directoryProvider))
+    val directoryProvider = FileDirectoryProviderImpl(null)
+    val storeFactory = EncryptedKeyValueStoreFactoryImpl(FileManagerImpl(directoryProvider))
 
     val dir = directoryProvider.filesDir()
     File(dir).deleteRecursively()
@@ -31,9 +29,8 @@ class EncryptedKeyValueStoreFactoryImplTests : FunSpec({
   }
 
   test("same instance of settings is created") {
-    val directoryProvider = FileDirectoryProviderImpl(PlatformContext())
-    val storeFactory =
-      EncryptedKeyValueStoreFactoryImpl(PlatformContext(), FileManagerImpl(directoryProvider))
+    val directoryProvider = FileDirectoryProviderImpl(null)
+    val storeFactory = EncryptedKeyValueStoreFactoryImpl(FileManagerImpl(directoryProvider))
 
     storeFactory.getOrCreate("foo").shouldBeSameInstanceAs(storeFactory.getOrCreate("foo"))
     storeFactory.getOrCreate("foo").shouldNotBe(storeFactory.getOrCreate("bar"))

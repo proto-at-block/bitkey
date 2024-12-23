@@ -9,6 +9,8 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.relationships.EndorseTrustedContactsF8eClientProvider
 import build.wallet.logging.logFailure
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class EndorseTrustedContactsServiceImpl(
   private val accountService: AccountService,
   private val relationshipsService: RelationshipsService,

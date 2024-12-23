@@ -1,13 +1,25 @@
 package build.wallet.encrypt
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import build.wallet.rust.core.CryptoBox as CoreCryptoBox
 import build.wallet.rust.core.CryptoBoxKeyPair as CoreCryptoBoxKeyPair
 
+@BitkeyInject(AppScope::class)
 class CryptoBoxImpl : CryptoBox {
   override fun generateKeyPair(): CryptoBoxKeyPair =
     CoreCryptoBoxKeyPair().let { keyPair: CoreCryptoBoxKeyPair ->
+      CryptoBoxKeyPair(
+        publicKey = CryptoBoxPublicKey(keyPair.publicKey().toByteString()),
+        privateKey = CryptoBoxPrivateKey(keyPair.secretKey().toByteString())
+      )
+    }
+
+  override fun keypairFromSecretBytes(secretBytes: ByteString): CryptoBoxKeyPair =
+    CoreCryptoBoxKeyPair.fromSecretBytes(secretBytes.toByteArray()).let {
+        keyPair: CoreCryptoBoxKeyPair ->
       CryptoBoxKeyPair(
         publicKey = CryptoBoxPublicKey(keyPair.publicKey().toByteString()),
         privateKey = CryptoBoxPrivateKey(keyPair.secretKey().toByteString())

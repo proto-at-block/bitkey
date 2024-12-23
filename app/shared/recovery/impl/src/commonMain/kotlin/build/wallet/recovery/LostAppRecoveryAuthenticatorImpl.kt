@@ -8,6 +8,8 @@ import build.wallet.auth.logAuthFailure
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError.AccessTokensNotSavedError
@@ -16,6 +18,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class LostAppRecoveryAuthenticatorImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,

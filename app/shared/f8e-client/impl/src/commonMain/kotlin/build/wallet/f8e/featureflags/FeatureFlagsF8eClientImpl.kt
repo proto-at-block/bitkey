@@ -11,6 +11,8 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -35,6 +37,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
+@BitkeyInject(AppScope::class)
 class FeatureFlagsF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val appInstallationDao: AppInstallationDao,

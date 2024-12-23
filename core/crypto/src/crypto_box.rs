@@ -58,6 +58,12 @@ impl CryptoBox {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum CryptoBoxKeyPairError {
+    #[error("Failed to create a new CryptoBoxKeyPair: {0}")]
+    CryptoBoxKeyPairInstantiationError(#[from] TryFromSliceError),
+}
+
 pub struct CryptoBoxKeyPair {
     secret_key_mutex: Mutex<SecretKey>,
 }
@@ -75,6 +81,15 @@ impl CryptoBoxKeyPair {
         Self {
             secret_key_mutex: Mutex::new(secret_key),
         }
+    }
+
+    pub fn from_secret_bytes(secret_bytes: Vec<u8>) -> Result<Self, CryptoBoxKeyPairError> {
+        let secret_key = SecretKey::from_slice(&secret_bytes[..])
+            .map_err(CryptoBoxKeyPairError::CryptoBoxKeyPairInstantiationError)?;
+
+        Ok(Self {
+            secret_key_mutex: Mutex::new(secret_key),
+        })
     }
 
     pub fn public_key(&self) -> Vec<u8> {
@@ -190,6 +205,19 @@ mod tests {
 
         // Check that decryption fails
         assert!(result.is_err(), "Decryption should fail due to wrong key");
+    }
+
+    #[quickcheck]
+    fn test_new_keypair_from_bytes(secret_key: Vec<u8>) {
+        let crypto_box_keypair = CryptoBoxKeyPair::from_secret_bytes(secret_key);
+
+        assert!(
+            crypto_box_keypair.is_ok()
+                || matches!(
+                    crypto_box_keypair,
+                    Err(CryptoBoxKeyPairError::CryptoBoxKeyPairInstantiationError(_))
+                )
+        );
     }
 
     #[quickcheck]

@@ -6,6 +6,8 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 
+@BitkeyInject(AppScope::class)
 class NotificationTouchpointServiceImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val notificationTouchpointDao: NotificationTouchpointDao,

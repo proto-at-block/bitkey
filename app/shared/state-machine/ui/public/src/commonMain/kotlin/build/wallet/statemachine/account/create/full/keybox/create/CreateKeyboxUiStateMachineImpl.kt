@@ -5,6 +5,8 @@ import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScre
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.auth.AccountCreationError
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeys
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.error.F8eError
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.onboarding.AppKeyAlreadyInUseError
@@ -23,6 +25,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class CreateKeyboxUiStateMachineImpl(
   private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
   private val createFullAccountService: CreateFullAccountService,

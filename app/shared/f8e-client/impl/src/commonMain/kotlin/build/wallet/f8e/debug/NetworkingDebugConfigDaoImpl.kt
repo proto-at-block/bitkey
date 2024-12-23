@@ -3,6 +3,8 @@ package build.wallet.f8e.debug
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.NetworkingDebugConfigEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class NetworkingDebugConfigDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : NetworkingDebugConfigDao {

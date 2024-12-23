@@ -7,6 +7,8 @@ import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.f8e.SoftwareKeyDefinitionId
 import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClient
 import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClient
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class CreateSoftwareWalletServiceImpl(
   private val accountService: AccountService,
   private val initiateDistributedKeygenF8eClient: InitiateDistributedKeygenF8eClient,

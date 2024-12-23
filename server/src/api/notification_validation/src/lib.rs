@@ -5,6 +5,7 @@ use notification::{
     payloads::{
         comms_verification::CommsVerificationPayload,
         inheritance_claim_canceled::InheritanceClaimCanceledPayload,
+        inheritance_claim_period_almost_over::InheritanceClaimPeriodAlmostOverPayload,
         inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload,
         inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
         payment::{ConfirmedPaymentPayload, PendingPaymentPayload},
@@ -29,7 +30,7 @@ use repository::{
     recovery::{inheritance::InheritanceRepository, social::SocialRecoveryRepository},
 };
 use serde_json::Value;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime};
 use types::{
     privileged_action::repository::{AuthorizationStrategyRecord, DelayAndNotifyStatus},
     recovery::{inheritance::claim::InheritanceClaim, social::relationship::RecoveryRelationship},
@@ -130,6 +131,10 @@ pub fn to_validator(
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::PrivilegedActionPendingDelayPeriod => payload
                 .privileged_action_pending_delay_period_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::InheritanceClaimPeriodAlmostOver => payload
+                .inheritance_claim_period_almost_over_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::InheritanceClaimPeriodInitiated => payload
@@ -329,13 +334,12 @@ impl ValidateNotificationDelivery for PrivilegedActionCompletedDelayPeriodPayloa
             .await;
 
         if let Ok(privileged_action_instance) = privileged_action_result {
-            match privileged_action_instance.authorization_strategy {
-                AuthorizationStrategyRecord::DelayAndNotify(delay_and_notify_definition) => {
-                    return privileged_action_instance.account_id == *account_id
-                        && OffsetDateTime::now_utc() >= delay_and_notify_definition.delay_end_time
-                        && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
-                }
-                _ => {}
+            if let AuthorizationStrategyRecord::DelayAndNotify(delay_and_notify_definition) =
+                privileged_action_instance.authorization_strategy
+            {
+                return privileged_action_instance.account_id == *account_id
+                    && OffsetDateTime::now_utc() >= delay_and_notify_definition.delay_end_time
+                    && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
             }
         }
         false
@@ -356,13 +360,12 @@ impl ValidateNotificationDelivery for PrivilegedActionPendingDelayPeriodPayload 
             .await;
 
         if let Ok(privileged_action_instance) = privileged_action_result {
-            match privileged_action_instance.authorization_strategy {
-                AuthorizationStrategyRecord::DelayAndNotify(delay_and_notify_definition) => {
-                    return privileged_action_instance.account_id == *account_id
-                        && OffsetDateTime::now_utc() < delay_and_notify_definition.delay_end_time
-                        && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
-                }
-                _ => {}
+            if let AuthorizationStrategyRecord::DelayAndNotify(delay_and_notify_definition) =
+                privileged_action_instance.authorization_strategy
+            {
+                return privileged_action_instance.account_id == *account_id
+                    && OffsetDateTime::now_utc() < delay_and_notify_definition.delay_end_time
+                    && delay_and_notify_definition.status == DelayAndNotifyStatus::Pending;
             }
         }
         false
@@ -382,11 +385,30 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodInitiatedPayload {
             .await;
 
         if let Ok(claim) = claim_result {
-            match claim {
-                InheritanceClaim::Pending(pending_claim) => {
-                    return OffsetDateTime::now_utc() < pending_claim.delay_end_time
-                }
-                _ => {}
+            if let InheritanceClaim::Pending(pending_claim) = claim {
+                return OffsetDateTime::now_utc() < pending_claim.delay_end_time;
+            }
+        }
+        false
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for InheritanceClaimPeriodAlmostOverPayload {
+    async fn validate_delivery(
+        &self,
+        state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
+    ) -> bool {
+        let claim_result = state
+            .inheritance_repository
+            .fetch_inheritance_claim(&self.inheritance_claim_id)
+            .await;
+
+        if let Ok(claim) = claim_result {
+            if let InheritanceClaim::Pending(pending_claim) = claim {
+                return OffsetDateTime::now_utc()
+                    >= (pending_claim.delay_end_time - Duration::days(3));
             }
         }
         false
@@ -417,11 +439,8 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodCompletedPayload {
             .await;
 
         if let Ok(claim) = claim_result {
-            match claim {
-                InheritanceClaim::Pending(pending_claim) => {
-                    return OffsetDateTime::now_utc() >= pending_claim.delay_end_time
-                }
-                _ => {}
+            if let InheritanceClaim::Pending(pending_claim) = claim {
+                return OffsetDateTime::now_utc() >= pending_claim.delay_end_time;
             }
         }
         false

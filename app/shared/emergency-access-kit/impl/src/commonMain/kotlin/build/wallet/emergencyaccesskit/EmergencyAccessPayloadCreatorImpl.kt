@@ -4,6 +4,8 @@ import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadCreator.EmergencyAccessPayloadCreatorError
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import com.github.michaelbull.result.Result
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class EmergencyAccessPayloadCreatorImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,

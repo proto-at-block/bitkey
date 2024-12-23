@@ -10,6 +10,8 @@ import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FingerprintEnrollmentStatus.*
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.HardwareAttestation
@@ -23,6 +25,7 @@ import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.getOrThrow
 
+@BitkeyInject(AppScope::class)
 class PairingTransactionProviderImpl(
   private val csekGenerator: CsekGenerator,
   private val csekDao: CsekDao,

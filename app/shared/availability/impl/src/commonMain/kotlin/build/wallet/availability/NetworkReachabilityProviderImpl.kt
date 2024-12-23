@@ -3,6 +3,8 @@ package build.wallet.availability
 import build.wallet.availability.NetworkConnection.HttpClientNetworkConnection.F8e
 import build.wallet.availability.NetworkReachability.REACHABLE
 import build.wallet.availability.NetworkReachability.UNREACHABLE
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -10,6 +12,7 @@ import io.ktor.client.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
+@BitkeyInject(AppScope::class)
 class NetworkReachabilityProviderImpl(
   private val f8eNetworkReachabilityService: F8eNetworkReachabilityService,
   private val internetNetworkReachabilityService: InternetNetworkReachabilityService,

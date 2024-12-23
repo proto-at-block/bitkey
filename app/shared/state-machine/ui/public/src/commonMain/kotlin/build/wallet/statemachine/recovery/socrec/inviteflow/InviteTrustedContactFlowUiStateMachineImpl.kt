@@ -2,6 +2,8 @@ package build.wallet.statemachine.recovery.socrec.inviteflow
 
 import androidx.compose.runtime.Composable
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.relationships.RelationshipsService
@@ -10,6 +12,7 @@ import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(ActivityScope::class)
 class InviteTrustedContactFlowUiStateMachineImpl(
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
   private val gettingStartedTaskDao: GettingStartedTaskDao,

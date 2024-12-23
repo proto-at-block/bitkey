@@ -8,17 +8,15 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.onSuccess
-import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class BestEffortFullAccountCloudBackupUploaderImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,

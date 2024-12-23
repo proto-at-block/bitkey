@@ -6,10 +6,7 @@ import build.wallet.bdk.bindings.BdkAddressIndex.NEW
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
-import build.wallet.bitcoin.bdk.BdkTransactionMapper
-import build.wallet.bitcoin.bdk.BdkWalletSyncer
-import build.wallet.bitcoin.bdk.bdkNetwork
-import build.wallet.bitcoin.bdk.feePolicy
+import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
@@ -198,7 +195,8 @@ class SpendingWalletImpl(
         is Regular -> createPsbt(
           recipientAddress = constructionType.recipientAddress,
           amount = constructionType.amount,
-          feePolicy = constructionType.feePolicy
+          feePolicy = constructionType.feePolicy,
+          coinSelectionStrategy = constructionType.coinSelectionStrategy
         ).bind()
 
         is DrainAllFromUtxos -> createPsbtFromUtxos(
@@ -247,32 +245,20 @@ class SpendingWalletImpl(
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
     feePolicy: FeePolicy,
+    coinSelectionStrategy: CoinSelectionStrategy,
   ): Result<Psbt, BdkError> =
     coroutineBinding {
       withContext(Dispatchers.BdkIO) {
+        val bdkAddress = bdkAddressBuilder.build(recipientAddress.address, networkType.bdkNetwork)
+          .result
+          .logFailure { "Error creating BdkAddress" }
+          .bind()
+
         val txBuilderResult =
           bdkTxBuilderFactory.txBuilder()
-            .run {
-              val bdkAddress =
-                bdkAddressBuilder.build(recipientAddress.address, networkType.bdkNetwork)
-                  .result
-                  .logFailure { "Error creating BdkAddress" }
-                  .bind()
-
-              when (amount) {
-                is BitcoinTransactionSendAmount.ExactAmount -> {
-                  addRecipient(
-                    script = bdkAddress.scriptPubkey(),
-                    amount = amount.money.fractionalUnitValue
-                  )
-                }
-
-                is BitcoinTransactionSendAmount.SendAll -> {
-                  drainTo(address = bdkAddress).drainWallet()
-                }
-              }
-            }
+            .destination(bdkAddress, amount)
             .feePolicy(feePolicy)
+            .coinSelectionStrategy(coinSelectionStrategy)
             .enableRbf()
             .finish(bdkWallet)
             .result
@@ -370,12 +356,11 @@ private suspend fun BdkPartiallySignedTransaction.toPsbt(
       }
 
       else -> {
-        val amountSats =
-          extractTx().output()
-            .filter { !myWallet.isMine(it.scriptPubkey).result.bind() }
-            .fold(0UL) { acc, output ->
-              acc + output.value
-            }
+        val amountSats = extractTx().output()
+          .filter { !myWallet.isMine(it.scriptPubkey).result.bind() }
+          .fold(0UL) { acc, output ->
+            acc + output.value
+          }
 
         Ok(
           Psbt(
@@ -384,7 +369,9 @@ private suspend fun BdkPartiallySignedTransaction.toPsbt(
             fee = BitcoinMoney.sats(feeSats),
             baseSize = extractTx().size().toLong(),
             numOfInputs = extractTx().input().size,
-            amountSats = amountSats
+            amountSats = amountSats,
+            inputs = extractTx().input().toSet(),
+            outputs = extractTx().output().toSet()
           )
         )
       }

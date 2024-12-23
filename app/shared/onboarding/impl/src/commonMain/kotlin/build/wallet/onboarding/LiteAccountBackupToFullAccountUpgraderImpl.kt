@@ -8,6 +8,8 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorer
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader.UpgradeError
 import build.wallet.platform.random.UuidGenerator
@@ -17,6 +19,7 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import com.github.michaelbull.result.toResultOr
 
+@BitkeyInject(AppScope::class)
 class LiteAccountBackupToFullAccountUpgraderImpl(
   private val liteAccountCloudBackupRestorer: LiteAccountCloudBackupRestorer,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,

@@ -12,6 +12,8 @@ import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
@@ -32,6 +34,7 @@ import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineI
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class AccessCloudBackupUiStateMachineImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,

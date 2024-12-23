@@ -1,8 +1,11 @@
 package build.wallet.amount
 
 import build.wallet.amount.Amount.DecimalNumber
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.settings.LocaleProvider
 
+@BitkeyInject(AppScope::class)
 class DecimalNumberCreatorImpl(
   private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,

@@ -783,6 +783,21 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 )
             }
 
+        case let viewModel as SplashLockModel:
+            if let vc = rootViewController as? SwiftUIWrapperViewController<SplashLockScreenView> {
+                vc.updateWrappedView(
+                    SplashLockScreenView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .none
+            } else {
+                let vc = SwiftUIWrapperViewController(
+                    SplashLockScreenView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(vc: vc, key: bodyModel.key, animation: .none)
+            }
+
         case let viewModel as ComposableRenderedModel:
             if let vc =
                 topViewController as? SwiftUIWrapperViewController<ComposableRenderedScreenView>

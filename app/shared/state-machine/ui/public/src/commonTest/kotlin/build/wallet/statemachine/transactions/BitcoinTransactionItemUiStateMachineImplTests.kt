@@ -44,7 +44,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
       currencyConverter =
         CurrencyConverterFake(
           conversionRate = 3.0,
-          historicalConversionRate = mapOf(BlockTimeFake.timestamp to 4.0)
+          historicalConversionRate = mapOf(BlockTimeFake.timestamp to 4.0, someInstant to 5.0)
         ),
       dateTimeFormatter = DateTimeFormatterMock(timeToFormattedTime),
       timeZoneProvider = timeZoneProvider,
@@ -105,8 +105,8 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
       }
 
       awaitItem().let { // after currency conversion
-        // Should use the current exchange rate
-        it.sideText.shouldBe("\$3.03")
+        // Should use the exchange rate at broadcast time
+        it.sideText.shouldBe("\$5.05")
       }
     }
   }
@@ -126,8 +126,8 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
       }
 
       awaitItem().let { // after currency conversion
-        // Should use the historical exchange rate
-        it.sideText.shouldBe("\$4.04")
+        // Should use the historical exchange rate at broadcast time
+        it.sideText.shouldBe("\$5.05")
       }
     }
   }
@@ -183,8 +183,8 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
       }
 
       awaitItem().let { // after currency conversion
-        // Should use the current exchange rate
-        it.sideText.shouldBe("\$3.03")
+        // Should use the exchange rate at broadcast time
+        it.sideText.shouldBe("\$5.05")
       }
     }
   }

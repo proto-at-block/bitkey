@@ -2,6 +2,7 @@ package build.wallet.inheritance
 
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
+import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -13,28 +14,25 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8EClientFake
+import build.wallet.f8e.inheritance.CompleteInheritanceClaimF8eClientFake
+import build.wallet.f8e.inheritance.LockInheritanceClaimF8eClientFake
 import build.wallet.f8e.inheritance.StartInheritanceClaimF8eFake
 import build.wallet.f8e.inheritance.UploadInheritanceMaterialF8eClientFake
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.setFlagValue
-import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.relationships.OutgoingInvitationFake
 import build.wallet.relationships.RelationshipsServiceMock
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
-import kotlin.time.Duration.Companion.seconds
 
 class InheritanceServiceImplTests : FunSpec({
 
@@ -72,35 +70,31 @@ class InheritanceServiceImplTests : FunSpec({
   )
   val relationshipsService = RelationshipsServiceMock(turbines::create)
   val appCoroutineScope = TestScope()
-
-  val inheritanceClaimsDao = InheritanceClaimsDaoFake()
-  val appSessionManager = AppSessionManagerFake()
-  val inheritanceClaimsF8eClient = RetrieveInheritanceClaimsF8EClientFake()
+  val claimsRepository = InheritanceClaimsRepositoryMock()
   val inheritanceFeatureFlag = InheritanceFeatureFlag(FeatureFlagDaoFake())
 
   val inheritanceService = InheritanceServiceImpl(
     accountService = accountService,
     relationshipsService = relationshipsService,
-    appCoroutineScope = appCoroutineScope,
     inheritanceSyncDao = inheritanceSyncDao,
     inheritanceMaterialF8eClient = inheritanceF8eClient,
     inheritanceCrypto = inheritanceMaterialCreator,
     startInheritanceClaimF8eClient = StartInheritanceClaimF8eFake(),
-    retrieveInheritanceClaimsF8EClient = inheritanceClaimsF8eClient,
-    inheritanceClaimsDao = inheritanceClaimsDao,
-    appSessionManager = appSessionManager,
-    inheritanceFeatureFlag = inheritanceFeatureFlag
+    lockInheritanceClaimF8eClient = LockInheritanceClaimF8eClientFake(),
+    completeInheritanceClaimF8eClient = CompleteInheritanceClaimF8eClientFake(),
+    transactionFactory = InheritanceTransactionFactoryMock(),
+    appAuthKeyMessageSigner = AppAuthKeyMessageSignerMock(),
+    inheritanceClaimsRepository = claimsRepository,
+    clock = ClockFake()
   )
 
   beforeTest {
     accountService.setActiveAccount(FullAccountMock)
     inheritanceSyncDao.hashData = Ok(outdatedHash.inheritanceMaterialHash)
+    inheritanceSyncDao.updateHashResult = Ok(Unit)
     inheritanceMaterialCreator.inheritanceMaterial = Ok(fakeInheritanceMaterial)
     inheritanceMaterialCreator.inheritanceMaterialHash = Ok(newHash)
     inheritanceF8eClient.uploadResponse = Ok(Unit)
-    inheritanceSyncDao.updateHashResult = Ok(Unit)
-    inheritanceClaimsF8eClient.reset()
-    inheritanceClaimsDao.clear()
 
     inheritanceFeatureFlag.setFlagValue(true)
   }
@@ -203,62 +197,15 @@ class InheritanceServiceImplTests : FunSpec({
     }
   }
 
-  test("sync inheritance claims") {
+  test("claims flow") {
     val claims = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
-      benefactorClaims = listOf(BenefactorPendingClaimFake)
+      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake),
+      benefactorClaims = listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake)
     )
-    inheritanceClaimsF8eClient.response = Ok(claims)
+    claimsRepository.claims.value = Ok(claims)
 
-    appCoroutineScope.launch { inheritanceService.executeWork() }
-    appCoroutineScope.runCurrent()
-
-    val updatedClaims = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryLockedClaimFake),
-      benefactorClaims = listOf(BenefactorLockedClaimFake)
-    )
-    inheritanceClaimsF8eClient.response = Ok(updatedClaims)
-
-    appCoroutineScope.runCurrent()
-
-    // We haven't re-synced yet, so there shouldn't be an update.
-    inheritanceClaimsDao.pendingBeneficiaryClaims.value.shouldBe(Ok(listOf(BeneficiaryPendingClaimFake)))
-    inheritanceClaimsDao.pendingBenefactorClaims.value.shouldBe(Ok(listOf(BenefactorPendingClaimFake)))
-
-    appCoroutineScope.advanceTimeBy(60.seconds)
-    appCoroutineScope.runCurrent()
-
-    // Sync after 60 seconds.
-    inheritanceClaimsDao.pendingBeneficiaryClaims.value.shouldBe(Ok(emptyList()))
-    inheritanceClaimsDao.pendingBenefactorClaims.value.shouldBe(Ok(emptyList()))
-  }
-
-  test("pendingBeneficiaryClaims flow") {
-    val claims = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
-      benefactorClaims = listOf(BenefactorPendingClaimFake)
-    )
-    inheritanceClaimsF8eClient.response = Ok(claims)
-
-    appCoroutineScope.launch { inheritanceService.executeWork() }
-    appCoroutineScope.runCurrent()
-
-    inheritanceService.pendingBeneficiaryClaims.test {
-      awaitItem().shouldBe(listOf(BeneficiaryPendingClaimFake))
-    }
-  }
-
-  test("lockedBeneficiaryClaims flow") {
-    val claims = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryLockedClaimFake),
-      benefactorClaims = listOf(BenefactorLockedClaimFake)
-    )
-    inheritanceClaimsF8eClient.response = Ok(claims)
-
-    backgroundScope.launch { inheritanceService.executeWork() }
-
-    inheritanceService.lockedBeneficiaryClaims.test {
-      awaitItem().shouldBe(listOf(BeneficiaryLockedClaimFake))
+    inheritanceService.claims.test {
+      awaitItem().shouldBe(listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake, BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake))
     }
   }
 })

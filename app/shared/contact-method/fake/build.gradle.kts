@@ -1,9 +1,10 @@
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 }

@@ -2,6 +2,8 @@ package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
 import build.wallet.debug.DebugOptions
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -24,6 +26,7 @@ data class LostAppRecoveryHaveNotStartedUiProps(
   val debugOptions: DebugOptions,
 )
 
+@BitkeyInject(ActivityScope::class)
 class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
   private val initiatingLostAppRecoveryUiStateMachine: InitiatingLostAppRecoveryUiStateMachine,
   private val fullAccountCloudBackupRestorationUiStateMachine:

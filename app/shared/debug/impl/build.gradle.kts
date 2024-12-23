@@ -4,6 +4,7 @@ import build.wallet.gradle.logic.extensions.invoke
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {

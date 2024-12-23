@@ -23,6 +23,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -44,7 +45,8 @@ class PartnershipsSellOptionsUiStateMachineImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
     fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
   )
   val sellBitcoinQuotesEnabledFeatureFlag = SellBitcoinQuotesEnabledFeatureFlag(
     featureFlagDao = FeatureFlagDaoFake()
@@ -129,7 +131,7 @@ class PartnershipsSellOptionsUiStateMachineImplTests : FunSpec({
           listGroupModel.items.count().shouldBe(1)
           listGroupModel.items[0].title.shouldBe("partner")
           listGroupModel.items[0].sideText.shouldBe("$12.34")
-          listGroupModel.items[0].secondarySideText.shouldBe("12,345,600 sats")
+          listGroupModel.items[0].secondarySideText.shouldBeNull()
         }
 
         eventTracker.eventCalls.awaitItem().should {

@@ -2,6 +2,8 @@ package build.wallet.statemachine.data.keybox
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
 import build.wallet.onboarding.CreateFullAccountContext.LiteToFullAccountUpgrade
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
@@ -11,6 +13,7 @@ import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.Using
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class HasActiveLiteAccountDataStateMachineImpl(
   private val createFullAccountDataStateMachine: CreateFullAccountDataStateMachine,
   private val keyboxDao: KeyboxDao,

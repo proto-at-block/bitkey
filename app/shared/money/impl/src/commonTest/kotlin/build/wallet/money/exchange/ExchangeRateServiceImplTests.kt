@@ -3,9 +3,11 @@
 package build.wallet.money.exchange
 
 import app.cash.turbine.test
-import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.coroutines.turbine.turbines
-import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.account.AccountServiceFake
+import build.wallet.account.AccountStatus.ActiveAccount
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.money.currency.USD
 import build.wallet.platform.app.AppSessionManagerFake
@@ -21,15 +23,17 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.minutes
 
 class ExchangeRateServiceImplTests : FunSpec({
   coroutineTestScope = true
   val exchangeRateDao = ExchangeRateDaoFake()
-  val exchangeRateF8eClient = ExchangeRateF8eClientMock()
+  val exchangeRateF8eClient = ExchangeRateF8eClientFake()
   val appSessionManager = AppSessionManagerFake()
-  val keyboxDao = KeyboxDaoMock(turbines::create)
+  val accountService = AccountServiceFake()
 
   lateinit var exchangeRateService: ExchangeRateServiceImpl
 
@@ -43,16 +47,16 @@ class ExchangeRateServiceImplTests : FunSpec({
     exchangeRateF8eClient.apply {
       exchangeRates.value = Ok(emptyList())
     }
-    keyboxDao.apply {
+    accountService.apply {
       reset()
-      activeKeybox.value = Ok(KeyboxMock)
+      accountState.value = Ok(ActiveAccount(FullAccountMock))
     }
 
     exchangeRateService = ExchangeRateServiceImpl(
       exchangeRateDao = exchangeRateDao,
       exchangeRateF8eClient = exchangeRateF8eClient,
       appSessionManager = appSessionManager,
-      keyboxDao = keyboxDao,
+      accountService = accountService,
       clock = ClockFake(now = Instant.fromEpochSeconds(500))
     )
   }
@@ -245,6 +249,40 @@ class ExchangeRateServiceImplTests : FunSpec({
 
       exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, USD)
         .shouldBeNull()
+    }
+  }
+
+  test("syncs exchange rates for software accounts") {
+    accountService.accountState.value = Ok(ActiveAccount(SoftwareAccountMock))
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+    runTest {
+      backgroundScope.launch {
+        exchangeRateService.executeWork()
+      }
+
+      runCurrent()
+
+      exchangeRateService.exchangeRates.test {
+        awaitItem().shouldContainExactly(listOf(exchangeRate1))
+      }
+    }
+  }
+
+  test("does not sync exchange rates for lite accounts") {
+    accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+
+    runTest {
+      backgroundScope.launch {
+        exchangeRateService.executeWork()
+      }
+
+      runCurrent()
+
+      exchangeRateService.exchangeRates.test {
+        awaitItem().shouldBeEmpty()
+      }
     }
   }
 })

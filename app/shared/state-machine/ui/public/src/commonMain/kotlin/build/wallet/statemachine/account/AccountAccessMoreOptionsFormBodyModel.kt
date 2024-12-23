@@ -72,10 +72,10 @@ data class AccountAccessMoreOptionsFormBodyModel(
                     iconSize = IconSize.Small
                   )
                 ),
-                title = "Reset an existing device",
+                title = "Wipe an existing device",
                 onClick = onResetExistingDevice,
                 trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-                testTag = "reset-existing-device"
+                testTag = "wipe-existing-device"
               )
             }
           ),

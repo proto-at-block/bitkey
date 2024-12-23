@@ -6,6 +6,8 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -28,6 +30,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class InitiateAccountDelayNotifyF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : InitiateAccountDelayNotifyF8eClient {

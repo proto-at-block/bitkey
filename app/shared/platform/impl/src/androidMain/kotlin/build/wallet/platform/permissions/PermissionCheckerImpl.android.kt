@@ -1,19 +1,21 @@
 package build.wallet.platform.permissions
 
+import android.app.Application
 import android.content.pm.PackageManager.PERMISSION_GRANTED
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.PermissionStatus.Authorized
 import build.wallet.platform.permissions.PermissionStatus.Denied
 
-actual class PermissionCheckerImpl actual constructor(
-  private val platformContext: PlatformContext,
-  pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
+@BitkeyInject(AppScope::class)
+class PermissionCheckerImpl(
+  private val application: Application,
 ) : PermissionChecker {
-  actual override fun getPermissionStatus(permission: Permission): PermissionStatus {
+  override fun getPermissionStatus(permission: Permission): PermissionStatus {
     return if (permission == Permission.PushNotifications && VERSION.SDK_INT < VERSION_CODES.TIRAMISU) {
       oldAndroidPush()
     } else {
@@ -27,7 +29,7 @@ actual class PermissionCheckerImpl actual constructor(
       else ->
         when (
           ContextCompat.checkSelfPermission(
-            platformContext.appContext,
+            application,
             manifestPermission
           )
         ) {
@@ -37,7 +39,7 @@ actual class PermissionCheckerImpl actual constructor(
     }
 
   private fun oldAndroidPush() =
-    if (NotificationManagerCompat.from(platformContext.appContext)
+    if (NotificationManagerCompat.from(application)
         .areNotificationsEnabled()
     ) {
       Authorized

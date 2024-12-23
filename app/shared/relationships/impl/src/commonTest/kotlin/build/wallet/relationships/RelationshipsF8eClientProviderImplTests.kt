@@ -16,7 +16,7 @@ class RelationshipsF8eClientProviderImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val debugOptionsService = DebugOptionsServiceFake()
 
-  val get = RelationshipsF8eClientImpl(
+  val socRecImpl = RelationshipsF8eClientImpl(
     f8eHttpClient = F8eHttpClientMock(WsmVerifierMock())
   )
   val socRecFake = RelationshipsF8eClientFake(
@@ -26,8 +26,8 @@ class RelationshipsF8eClientProviderImplTests : FunSpec({
   val provider = RelationshipsF8eClientProviderImpl(
     accountService = accountService,
     debugOptionsService = debugOptionsService,
-    relationshipsFake = socRecFake,
-    relationshipsF8eClient = get
+    relationshipsF8eClientFake = socRecFake,
+    relationshipsF8eClientImpl = socRecImpl
   )
 
   beforeTest {

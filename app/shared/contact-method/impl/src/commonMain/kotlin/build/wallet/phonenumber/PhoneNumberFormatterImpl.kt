@@ -1,8 +1,11 @@
 package build.wallet.phonenumber
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import kotlin.math.min
 
+@BitkeyInject(AppScope::class)
 class PhoneNumberFormatterImpl(
   private val phoneNumberLibBindings: PhoneNumberLibBindings,
 ) : PhoneNumberFormatter {

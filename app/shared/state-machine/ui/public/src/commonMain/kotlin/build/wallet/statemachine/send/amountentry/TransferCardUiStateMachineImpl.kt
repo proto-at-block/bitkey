@@ -1,31 +1,26 @@
 package build.wallet.statemachine.send.amountentry
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
 import build.wallet.limit.MobilePayService
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.Color.ON60
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.send.TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
 import build.wallet.statemachine.send.TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
 
+@BitkeyInject(ActivityScope::class)
 class TransferCardUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val mobilePayService: MobilePayService,
-  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : TransferCardUiStateMachine {
   @Composable
   override fun model(props: TransferCardUiProps): CardModel? {
@@ -97,8 +92,7 @@ class TransferCardUiStateMachineImpl(
       State.F8eUnavailableBanner -> CardModel(
         title =
           LabelModel.StringWithStyledSubstringModel.from(
-            string = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled())
-              .transferScreenUnavailableWarning,
+            string = "Transfer without hardware unavailable",
             substringToColor = emptyMap()
           ),
         subtitle = null,

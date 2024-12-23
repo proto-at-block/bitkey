@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareFeatureFlag
@@ -32,6 +34,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toast.ToastModel
 
+@BitkeyInject(ActivityScope::class)
 class ManagingFingerprintsUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val editingFingerprintUiStateMachine: EditingFingerprintUiStateMachine,

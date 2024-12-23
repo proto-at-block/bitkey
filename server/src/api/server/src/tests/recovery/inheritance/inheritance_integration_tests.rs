@@ -1,66 +1,78 @@
-use crate::tests::{
-    gen_services_with_overrides,
-    lib::create_phone_touchpoint,
-    recovery::shared::{
-        assert_notifications, create_beneficiary_account,
-        try_accept_recovery_relationship_invitation, try_create_relationship,
-        try_endorse_recovery_relationship, CodeOverride,
-    },
-};
-use axum::body::Body;
-use bdk_utils::bdk::bitcoin::key::Secp256k1;
-use bdk_utils::bdk::{database::AnyDatabase, FeeRate, SignOptions, Wallet};
-use bdk_utils::signature::sign_message;
-use http::{Method, StatusCode};
-use mockall::mock;
-use notification::NotificationPayloadType;
-use rand::thread_rng;
 use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use bdk_utils::bdk::bitcoin::psbt::{PartiallySignedTransaction, Psbt};
-use bdk_utils::bdk::wallet::{AddressIndex, AddressInfo};
-use bdk_utils::error::BdkUtilError;
-use bdk_utils::{ElectrumRpcUris, TransactionBroadcasterTrait};
-use recovery::routes::inheritance::{
-    CancelInheritanceClaimRequest, CancelInheritanceClaimResponse,
-    CompleteInheritanceClaimResponse, CreateInheritanceClaimRequest,
-    CreateInheritanceClaimResponse, InheritancePackage, LockInheritanceClaimResponse,
-    UpdateInheritanceProcessWithDestinationRequest,
-    UpdateInheritanceProcessWithDestinationResponse, UploadInheritancePackagesRequest,
-    UploadInheritancePackagesResponse,
+use axum::body::Body;
+use bdk_utils::{
+    bdk::{
+        bitcoin::{
+            key::Secp256k1,
+            psbt::{PartiallySignedTransaction, Psbt},
+        },
+        database::AnyDatabase,
+        wallet::{AddressIndex, AddressInfo},
+        FeeRate, SignOptions, Wallet,
+    },
+    error::BdkUtilError,
+    signature::sign_message,
+    ElectrumRpcUris, TransactionBroadcasterTrait,
 };
-use recovery::routes::relationship::CreateRelationshipRequest;
+use http::{Method, StatusCode};
+use mockall::mock;
+use notification::NotificationPayloadType;
+use rand::thread_rng;
+use recovery::routes::{
+    inheritance::{
+        CancelInheritanceClaimRequest, CancelInheritanceClaimResponse,
+        CompleteInheritanceClaimResponse, CreateInheritanceClaimRequest,
+        CreateInheritanceClaimResponse, InheritancePackage, LockInheritanceClaimResponse,
+        UpdateInheritanceProcessWithDestinationRequest,
+        UpdateInheritanceProcessWithDestinationResponse, UploadInheritancePackagesRequest,
+        UploadInheritancePackagesResponse,
+    },
+    relationship::CreateRelationshipRequest,
+};
 use rstest::rstest;
 use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use tokio::join;
-use types::account::entities::Account;
-use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimPending};
-use types::recovery::inheritance::router::BeneficiaryInheritanceClaimViewPending;
 use types::{
-    account::{bitcoin::Network, identifiers::AccountId, keys::FullAccountAuthKeys, AccountType},
+    account::{
+        bitcoin::Network, entities::Account, identifiers::AccountId, keys::FullAccountAuthKeys,
+        AccountType,
+    },
     recovery::{
         inheritance::{
-            claim::{InheritanceClaimAuthKeys, InheritanceClaimId, InheritanceDestination},
-            router::{BenefactorInheritanceClaimView, BeneficiaryInheritanceClaimView},
+            claim::{
+                InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId,
+                InheritanceClaimPending, InheritanceDestination,
+            },
+            router::{
+                BenefactorInheritanceClaimView, BeneficiaryInheritanceClaimView,
+                BeneficiaryInheritanceClaimViewPending,
+            },
         },
         social::relationship::RecoveryRelationshipId,
         trusted_contacts::TrustedContactRole,
     },
 };
 
-use crate::tests::lib::create_default_account_with_predefined_wallet;
-use crate::{
-    tests::{
-        gen_services,
-        lib::{create_full_account, create_new_authkeys},
-        requests::{axum::TestClient, CognitoAuthentication},
-        TestContext,
+use crate::tests::{
+    gen_services, gen_services_with_overrides,
+    lib::{create_full_account, create_new_authkeys},
+    recovery::{
+        inheritance::setup_benefactor_and_beneficiary_account,
+        shared::{
+            assert_notifications, try_accept_recovery_relationship_invitation,
+            try_create_relationship, try_endorse_recovery_relationship, CodeOverride,
+        },
     },
-    Bootstrap, GenServiceOverrides,
+    requests::{axum::TestClient, CognitoAuthentication},
+    TestContext,
 };
+use crate::{Bootstrap, GenServiceOverrides};
+
+use super::BenefactorBeneficiarySetup;
 
 enum InheritanceClaimActor {
     Benefactor,
@@ -137,84 +149,6 @@ pub(super) async fn try_cancel_inheritance_claim(
     }
 
     None
-}
-
-struct BenefactorBeneficiarySetup {
-    pub benefactor: Account,
-    pub beneficiary: Account,
-    pub recovery_relationship_id: RecoveryRelationshipId,
-    pub benefactor_wallet: Wallet<AnyDatabase>,
-    pub beneficiary_wallet: Option<Wallet<AnyDatabase>>,
-}
-
-async fn setup_benefactor_and_beneficiary_account(
-    context: &mut TestContext,
-    bootstrap: &Bootstrap,
-    client: &TestClient,
-    beneficiary_account_type: AccountType,
-) -> BenefactorBeneficiarySetup {
-    let (benefactor_account, benefactor_wallet) =
-        create_default_account_with_predefined_wallet(context, client, &bootstrap.services).await;
-    let benefactor = Account::Full(benefactor_account);
-    create_phone_touchpoint(&bootstrap.services, benefactor.get_id(), true).await;
-
-    let (beneficiary, beneficiary_wallet) =
-        create_beneficiary_account(beneficiary_account_type, context, bootstrap, client).await;
-    create_phone_touchpoint(&bootstrap.services, beneficiary.get_id(), true).await;
-
-    let create_body = try_create_relationship(
-        context,
-        client,
-        benefactor.get_id(),
-        &TrustedContactRole::Beneficiary,
-        &CognitoAuthentication::Wallet {
-            is_app_signed: true,
-            is_hardware_signed: true,
-        },
-        StatusCode::OK,
-        1,
-        0,
-    )
-    .await
-    .unwrap();
-
-    let recovery_relationship_id = create_body
-        .invitation
-        .recovery_relationship_info
-        .recovery_relationship_id
-        .clone();
-    try_accept_recovery_relationship_invitation(
-        context,
-        client,
-        benefactor.get_id(),
-        beneficiary.get_id(),
-        &TrustedContactRole::Beneficiary,
-        &CognitoAuthentication::Recovery,
-        &create_body.invitation,
-        CodeOverride::None,
-        StatusCode::OK,
-        1,
-    )
-    .await;
-
-    try_endorse_recovery_relationship(
-        context,
-        client,
-        benefactor.get_id(),
-        &TrustedContactRole::Beneficiary,
-        &recovery_relationship_id,
-        "RANDOM_CERT",
-        StatusCode::OK,
-    )
-    .await;
-
-    BenefactorBeneficiarySetup {
-        benefactor,
-        beneficiary,
-        recovery_relationship_id,
-        benefactor_wallet,
-        beneficiary_wallet,
-    }
 }
 
 #[rstest]
@@ -317,9 +251,13 @@ async fn start_inheritance_claim_test(
                 // and a schedule that starts in 7 days
                 NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
+                NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
             ],
-            vec![NotificationPayloadType::InheritanceClaimPeriodCompleted],
+            vec![
+                NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
+                NotificationPayloadType::InheritanceClaimPeriodCompleted,
+            ],
         );
 
         let (
@@ -665,9 +603,13 @@ async fn cancel_inheritance_claim(
                 // and a schedule that starts in 7 days
                 NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
+                NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
             ],
-            vec![NotificationPayloadType::InheritanceClaimPeriodCompleted],
+            vec![
+                NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
+                NotificationPayloadType::InheritanceClaimPeriodCompleted,
+            ],
         );
 
         let (

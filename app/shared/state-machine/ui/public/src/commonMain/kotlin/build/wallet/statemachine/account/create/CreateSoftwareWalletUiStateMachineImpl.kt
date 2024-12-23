@@ -2,18 +2,19 @@ package build.wallet.statemachine.account.create
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.account.SoftwareAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.CreateSoftwareWalletService
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachineImpl.State.*
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
-import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class CreateSoftwareWalletUiStateMachineImpl(
   private val createSoftwareWalletService: CreateSoftwareWalletService,
   private val notificationPreferencesSetupUiStateMachine:
@@ -42,7 +43,7 @@ class CreateSoftwareWalletUiStateMachineImpl(
         ).asRootScreen()
       }
 
-      is SettingUpNotifications -> {
+      is SettingUpNotifications ->
         notificationPreferencesSetupUiStateMachine.model(
           NotificationPreferencesSetupUiProps(
             accountId = state.account.accountId,
@@ -51,14 +52,25 @@ class CreateSoftwareWalletUiStateMachineImpl(
             onComplete = { uiState = SoftwareWalletCreated(state.account) }
           )
         )
-      }
+
       is SoftwareWalletCreated -> {
+        LaunchedEffect("software-wallet-created") {
+          props.onSuccess(state.account)
+        }
         LoadingSuccessBodyModel(
           message = "Software Wallet Created",
           state = Success,
           id = null
         ).asRootScreen()
       }
+      is SoftwareWalletFailed -> ErrorFormBodyModel(
+        eventTrackerScreenId = null,
+        title = "Failed to create software account, error: ${state.throwable}",
+        primaryButton = ButtonDataModel(
+          text = "Ok",
+          onClick = props.onExit
+        )
+      ).asRootScreen()
     }
   }
 
@@ -67,6 +79,10 @@ class CreateSoftwareWalletUiStateMachineImpl(
 
     data class SoftwareWalletCreated(
       val account: SoftwareAccount,
+    ) : State
+
+    data class SoftwareWalletFailed(
+      val throwable: Throwable?,
     ) : State
 
     data class SettingUpNotifications(

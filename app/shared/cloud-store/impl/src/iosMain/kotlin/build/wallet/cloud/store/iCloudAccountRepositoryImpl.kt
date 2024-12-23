@@ -1,6 +1,8 @@
 package build.wallet.cloud.store
 
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +11,7 @@ import kotlinx.coroutines.withContext
 import platform.Foundation.NSFileManager
 
 @Suppress("ClassName", "unused")
+@BitkeyInject(AppScope::class)
 class iCloudAccountRepositoryImpl : iCloudAccountRepository {
   override fun currentAccount(): Result<iCloudAccount?, CloudStoreAccountError> {
     return catchingResult {

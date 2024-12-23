@@ -1,5 +1,9 @@
 package build.wallet.platform.biometrics
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+
+@BitkeyInject(AppScope::class)
 class BiometricPrompterImpl : BiometricPrompter {
   override val isPrompting: Boolean = false
 

@@ -2,6 +2,8 @@ package build.wallet.emergencyaccesskit
 
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.pdf.*
 import build.wallet.time.DateTimeFormatter
 import com.github.michaelbull.result.Result
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import kotlin.coroutines.cancellation.CancellationException
 
+@BitkeyInject(AppScope::class)
 class EmergencyAccessKitPdfGeneratorImpl(
   private val apkParametersProvider: EmergencyAccessKitApkParametersProvider,
   private val mobileKeyParametersProvider: EmergencyAccessKitMobileKeyParametersProvider,

@@ -1,7 +1,11 @@
 package build.wallet.platform.versions
 
-actual class OsVersionInfoProviderImpl actual constructor() : OsVersionInfoProvider {
-  actual override fun getOsVersion(): String = "N/A"
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-  actual override fun getNamedOsVersion(): String = "N/A"
+@BitkeyInject(AppScope::class)
+class OsVersionInfoProviderImpl : OsVersionInfoProvider {
+  override fun getOsVersion(): String = "N/A"
+
+  override fun getNamedOsVersion(): String = "N/A"
 }

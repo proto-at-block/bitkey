@@ -1,7 +1,11 @@
 package build.wallet.platform.biometrics
 
-actual class BiometricTextProviderImpl : BiometricTextProvider {
-  actual override fun getSettingsTitleText() = "Biometrics"
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-  actual override fun getSettingsSecondaryText(): String = "Use Biometrics to unlock app"
+@BitkeyInject(AppScope::class)
+class BiometricTextProviderImpl : BiometricTextProvider {
+  override fun getSettingsTitleText() = "Biometrics"
+
+  override fun getSettingsSecondaryText(): String = "Use Biometrics to unlock app"
 }

@@ -3,11 +3,14 @@ package build.wallet.statemachine.data.account.create
 import androidx.compose.runtime.*
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.CreatingAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.ReplaceWithLiteAccountRestoreData
 import build.wallet.statemachine.data.account.create.CreateAccountState.*
 
+@BitkeyInject(AppScope::class)
 class CreateFullAccountDataStateMachineImpl : CreateFullAccountDataStateMachine {
   @Composable
   override fun model(props: CreateFullAccountDataProps): CreateFullAccountData {

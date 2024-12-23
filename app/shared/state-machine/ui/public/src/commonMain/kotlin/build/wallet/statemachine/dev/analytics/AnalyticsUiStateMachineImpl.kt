@@ -10,11 +10,14 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.AnalyticsTrackingPreference
 import build.wallet.analytics.events.EventStore
 import build.wallet.analytics.v1.Event
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class AnalyticsUiStateMachineImpl(
   private val eventStore: EventStore,
   private val analyticsTrackingPreference: AnalyticsTrackingPreference,

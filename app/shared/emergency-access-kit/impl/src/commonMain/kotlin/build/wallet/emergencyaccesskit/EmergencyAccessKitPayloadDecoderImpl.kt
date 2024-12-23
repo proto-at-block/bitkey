@@ -10,6 +10,8 @@ import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup.EmergencyAccessKitBackupV1
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder.DecodeError
@@ -22,6 +24,7 @@ import com.github.michaelbull.result.*
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
   override fun encode(payload: EmergencyAccessKitPayload): String {
     when (payload) {

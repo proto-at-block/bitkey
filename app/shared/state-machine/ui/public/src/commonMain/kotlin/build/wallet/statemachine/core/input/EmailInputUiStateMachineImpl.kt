@@ -1,6 +1,8 @@
 package build.wallet.statemachine.core.input
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
 import build.wallet.email.EmailValidator
 import build.wallet.f8e.error.F8eError
@@ -14,6 +16,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 
+@BitkeyInject(ActivityScope::class)
 class EmailInputUiStateMachineImpl(
   private val emailValidator: EmailValidator,
 ) : EmailInputUiStateMachine {

@@ -6,15 +6,12 @@ import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.feature.flags.SellBitcoinFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.limit.MobilePayService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.navigation.v1.NavigationScreenId
-import build.wallet.partnerships.PartnerId
-import build.wallet.partnerships.PartnerRedirectionMethod
-import build.wallet.partnerships.PartnershipEvent
-import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.*
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.router.Route
@@ -43,11 +40,14 @@ import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.status.StatusBannerModel
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class HomeUiStateMachineImpl(
   private val appFunctionalityStatusUiStateMachine: AppFunctionalityStatusUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -66,7 +66,7 @@ class HomeUiStateMachineImpl(
   private val clock: Clock,
   private val timeZoneProvider: TimeZoneProvider,
   private val mobilePayService: MobilePayService,
-  private val sellBitcoinFeatureFlag: SellBitcoinFeatureFlag,
+  private val partnershipTransactionsService: PartnershipTransactionsService,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
@@ -95,32 +95,54 @@ class HomeUiStateMachineImpl(
             // Close any in-app browser if open
             // this can happen when a deeplink is triggered from an in-app browser
             inAppBrowserNavigator.close()
-            uiState =
-              uiState.copy(
-                presentedScreen = PresentedScreen.PartnerTransfer(
-                  partner = route.partner?.let(::PartnerId),
-                  event = route.event?.let(::PartnershipEvent),
-                  partnerTransactionId = route.partnerTransactionId?.let(::PartnershipTransactionId)
-                )
-              )
+            route.partnerTransactionId?.let { transactionId ->
+              launch {
+                val partnershipTransactionId = PartnershipTransactionId(transactionId)
+                // Before acting on the deeplink, verify that the transaction exists in the local database
+                // to prevent potential spoofing-attacks
+                partnershipTransactionsService.getTransactionById(
+                  transactionId = partnershipTransactionId
+                ).get()
+                  ?.let {
+                    uiState =
+                      uiState.copy(
+                        presentedScreen = PresentedScreen.PartnerTransfer(
+                          partner = route.partner?.let(::PartnerId),
+                          event = route.event?.let(::PartnershipEvent),
+                          partnerTransactionId = partnershipTransactionId
+                        )
+                      )
+                  }
+              }
+            }
             return@onRouteChange true
           }
           is Route.PartnerSaleDeeplink -> {
-            if (sellBitcoinFeatureFlag.isEnabled()) {
-              inAppBrowserNavigator.close()
-              uiState = uiState.copy(
-                rootScreen = MoneyHome(
-                  origin = MoneyHomeUiProps.Origin.PartnershipsSell(
-                    partnerId = route.partner?.let(::PartnerId),
-                    event = route.event?.let(::PartnershipEvent),
-                    partnerTransactionId = route.partnerTransactionId?.let(::PartnershipTransactionId)
-                  )
-                )
-              )
-              return@onRouteChange true
-            } else {
-              return@onRouteChange false
+            // Close any in-app browser if open
+            // this can happen when a deeplink is triggered from an in-app browser
+            inAppBrowserNavigator.close()
+            route.partnerTransactionId?.let { transactionId ->
+              launch {
+                val partnershipTransactionId = PartnershipTransactionId(transactionId)
+                // Before acting on the deeplink, verify that the transaction exists in the local database
+                // to prevent potential spoofing-attacks
+                partnershipTransactionsService.getTransactionById(
+                  transactionId = partnershipTransactionId
+                ).get()
+                  ?.let {
+                    uiState = uiState.copy(
+                      rootScreen = MoneyHome(
+                        origin = MoneyHomeUiProps.Origin.PartnershipsSell(
+                          partnerId = route.partner?.let(::PartnerId),
+                          event = route.event?.let(::PartnershipEvent),
+                          partnerTransactionId = partnershipTransactionId
+                        )
+                      )
+                    )
+                  }
+              }
             }
+            return@onRouteChange true
           }
           is Route.NavigationDeeplink -> {
             return@onRouteChange when (route.screen) {

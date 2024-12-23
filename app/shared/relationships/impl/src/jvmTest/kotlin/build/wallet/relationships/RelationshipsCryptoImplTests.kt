@@ -194,7 +194,7 @@ class RelationshipsCryptoImplTests : FunSpec({
     val protectedCustomerRecoveryPakeKey =
       relationshipsCrypto.generateProtectedCustomerRecoveryPakeKey(recoveryCode).getOrThrow()
     val decryptPrivateKeyEncryptionKeyOutput =
-      relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+      relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
         recoveryCode,
         protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
@@ -211,7 +211,7 @@ class RelationshipsCryptoImplTests : FunSpec({
       ).getOrThrow()
     }
     val invalidEncryptedPrivateKeyEncryptionKeyOutput =
-      relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+      relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
         recoveryCode,
         protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
@@ -254,7 +254,7 @@ class RelationshipsCryptoImplTests : FunSpec({
     val protectedCustomerRecoveryPakeKey =
       relationshipsCrypto.generateProtectedCustomerRecoveryPakeKey(recoveryCode).getOrThrow()
     val encryptedPrivateKeyEncryptionKeyOutput =
-      relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+      relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
         recoveryCode,
         protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
@@ -272,7 +272,7 @@ class RelationshipsCryptoImplTests : FunSpec({
       )
 
     // decryptPrivateKeyEncryptionKey
-    relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+    relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
       recoveryCode,
       protectedCustomerRecoveryPakeKey.publicKey,
       keypairWithInvalidPrivateKey as AppKey<DelegatedDecryptionKey>,

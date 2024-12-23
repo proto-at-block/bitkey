@@ -3,6 +3,8 @@ package build.wallet.firmware
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FirmwareMetadataEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.B
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class FirmwareMetadataDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FirmwareMetadataDao {

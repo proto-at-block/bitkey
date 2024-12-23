@@ -2,8 +2,6 @@ package build.wallet.statemachine.home.full
 
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.home.HomeUiBottomSheetId
 import build.wallet.limit.MobilePayEnabledDataMock
@@ -31,8 +29,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   val stateMachine = HomeUiBottomSheetStateMachineImpl(
     homeUiBottomSheetDao = homeUiBottomSheetDao,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-    mobilePayService = mobilePayService,
-    mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
+    mobilePayService = mobilePayService
   )
 
   val onShowSetSpendingLimitFlowCalls = turbines.create<Unit>("onShowSetSpendingLimitFlow calls")
@@ -55,16 +52,16 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
       // Initial state
       awaitItem().shouldBeNull()
       with(awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()) {
-        header?.headline.shouldBe("Re-enable Mobile Pay")
+        header?.headline.shouldBe("Update daily limit")
         header?.sublineModel?.string.shouldBe(
-          "We noticed that you changed your currency from USD to EUR. Please make sure your Mobile Pay amount is correct."
+          "Your currency changed from USD to EUR. It's a good idea to update your daily limit in the new currency."
         )
-        primaryButton?.text.shouldBe("Enable Mobile Pay")
+        primaryButton?.text.shouldBe("Update daily limit")
       }
     }
   }
 
-  test("sheet model onLoaded disables mobile pay") {
+  test("sheet model onLoaded disables transfer settings") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
     stateMachine.test(props) {

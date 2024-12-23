@@ -7,24 +7,14 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Fake
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.signResult
-import build.wallet.firmware.CoredumpFragment
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.EventFragment
-import build.wallet.firmware.FingerprintEnrollmentResult
-import build.wallet.firmware.FingerprintEnrollmentStatus
+import build.wallet.firmware.*
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
-import build.wallet.firmware.SecureBootConfig
-import build.wallet.firmware.UnlockInfo
-import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.platform.NfcCommands
@@ -37,6 +27,8 @@ import okio.ByteString
 import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 
+@Fake
+@BitkeyInject(AppScope::class)
 class NfcCommandsFake(
   private val messageSigner: MessageSigner,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,

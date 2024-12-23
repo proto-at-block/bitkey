@@ -7,13 +7,13 @@ import build.wallet.gradle.logic.gradle.requirePlugin
 import build.wallet.gradle.logic.gradle.sourceSets
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Dependency
 import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.getByType
 
 /**
  * Configures platform-specific KSP code generation. Adds generated KSP code directories to
  * sources (for each added KSP target per available KMP target).
+ *
+ * See https://kotlinlang.org/docs/ksp-multiplatform.html.
  *
  * KSP processors can be configured using `buildLogic` DLS:
  *
@@ -52,8 +52,9 @@ internal class KspPlugin : Plugin<Project> {
       // KMP targets are configured after project is evaluated by our KotlinMultiplatformExtension,
       // so we need to add KSP dependencies and generated source directories in `afterEvaluate` block.
       afterEvaluate {
-        addProcessors(extension.processors.get())
-        addGeneratedDirs()
+        val processors = extension.processors.get()
+        addProcessors(processors)
+        addGeneratedDirs(processors)
       }
     }
   }
@@ -64,19 +65,21 @@ internal class KspPlugin : Plugin<Project> {
    * These generated sources need to be registered in the appropriate source sets (e.g., `jvmMain`,
    * `androidMain`, `iosMain`) so that they are available for compilation.
    */
-  private fun Project.addGeneratedDirs() {
-    val kspGeneratedDir = "${layout.buildDirectory.get()}/generated/ksp"
-    val targets = extensions.getByType(KspExtension::class.java).targets.get()
+  private fun Project.addGeneratedDirs(processors: Set<KspProcessorConfig>) {
+    val hasAndroidSources = processors.any { it.android }
+    val hasJvmSources = processors.any { it.jvm }
+    val hasIosSources = processors.any { it.ios }
 
+    val kspGeneratedDir = "${layout.buildDirectory.get()}/generated/ksp"
     kotlin {
       sourceSets {
-        if (targets.jvm) {
+        if (hasJvmSources) {
           findByName("jvmMain")?.apply {
             kotlin.srcDir("$kspGeneratedDir/jvm/jvmMain/kotlin")
           }
         }
 
-        if (targets.android) {
+        if (hasAndroidSources) {
           findByName("androidMain")?.apply {
             // Add appropriate source directory based on Android build type (release or debug)
             project.android {
@@ -92,7 +95,7 @@ internal class KspPlugin : Plugin<Project> {
           }
         }
 
-        if (targets.ios) {
+        if (hasIosSources) {
           findByName("iosMain")?.apply {
             kotlin.srcDir("$kspGeneratedDir/ios/iosMain/kotlin")
           }
@@ -116,46 +119,49 @@ internal class KspPlugin : Plugin<Project> {
    * Dynamically identifies the available source sets (e.g., `jvmMain`, `androidMain`, `iosMain`)
    * and assigns the corresponding dependencies to them.
    */
-  private fun Project.addProcessors(processors: List<Dependency>) {
-    val targets = extensions.getByType<KspExtension>().targets.get()
-    kotlin {
-      val kspTargets = buildList {
-        sourceSets {
-          if (targets.jvm) {
-            if (findByName("jvmMain") != null) {
-              add("kspJvm")
-            }
-          }
-
-          if (targets.android) {
-            if (findByName("androidMain") != null) {
-              if (configurations.findByName("kspAndroidRelease") != null) {
-                add("kspAndroidRelease")
-              }
-              if (configurations.findByName("kspAndroidDebug") != null) {
-                add("kspAndroidDebug")
+  private fun Project.addProcessors(processors: Set<KspProcessorConfig>) {
+    processors.forEach { processor ->
+      kotlin {
+        val kspTargets = buildList {
+          sourceSets {
+            if (processor.targets.jvm) {
+              jvmMain {
+                add("kspJvm")
               }
             }
-          }
 
-          if (targets.ios) {
-            if (findByName("iosArm64Main") != null) {
-              add("kspIosArm64")
+            if (processor.targets.android) {
+              androidMain {
+                if (configurations.findByName("kspAndroidRelease") != null) {
+                  add("kspAndroidRelease")
+                }
+                if (configurations.findByName("kspAndroidDebug") != null) {
+                  add("kspAndroidDebug")
+                }
+              }
             }
-            if (findByName("iosSimulatorArm64Main") != null) {
-              add("kspIosSimulatorArm64")
-            }
-            if (findByName("iosX64Main") != null) {
-              add("kspIosX64")
+
+            if (processor.targets.ios) {
+              if (findByName("iosArm64Main") != null) {
+                add("kspIosArm64")
+              }
+              if (findByName("iosSimulatorArm64Main") != null) {
+                add("kspIosSimulatorArm64")
+              }
+              if (findByName("iosX64Main") != null) {
+                add("kspIosX64")
+              }
             }
           }
         }
-      }
 
-      project.dependencies {
-        kspTargets.forEach { kspTarget ->
-          processors.forEach { processor ->
-            add(kspTarget, processor)
+        project.dependencies {
+          kspTargets.forEach { kspTarget ->
+            processors.forEach { processor ->
+              processor.deps.forEach { dep ->
+                add(kspTarget, dep)
+              }
+            }
           }
         }
       }

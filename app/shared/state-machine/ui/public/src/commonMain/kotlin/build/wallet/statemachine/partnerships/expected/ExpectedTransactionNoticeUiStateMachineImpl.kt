@@ -2,6 +2,8 @@ package build.wallet.statemachine.partnerships.expected
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_LOADING
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logInfo
@@ -18,6 +20,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class ExpectedTransactionNoticeUiStateMachineImpl(
   private val partnershipTransactionsService: PartnershipTransactionsService,
   private val dateTimeFormatter: DateTimeFormatter,

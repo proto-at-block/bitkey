@@ -1,9 +1,12 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
 import androidx.compose.runtime.Composable
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.time.TimeZoneFormatter
 
+@BitkeyInject(ActivityScope::class)
 class SpendingLimitCardUiStateMachineImpl(
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   val timeZoneFormatter: TimeZoneFormatter,

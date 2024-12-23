@@ -10,6 +10,8 @@ import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationParams
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class UtxoConsolidationUiStateMachineImpl(
   private val accountService: AccountService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,

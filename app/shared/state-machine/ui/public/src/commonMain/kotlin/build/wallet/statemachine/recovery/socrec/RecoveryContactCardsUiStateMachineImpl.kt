@@ -7,6 +7,8 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.button.ButtonModel
@@ -14,6 +16,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.Clock
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryContactCardsUiStateMachineImpl(
   private val clock: Clock,
   private val socRecService: SocRecService,

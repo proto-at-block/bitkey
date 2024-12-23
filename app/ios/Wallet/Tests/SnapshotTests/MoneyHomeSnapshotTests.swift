@@ -315,26 +315,22 @@ private extension CardModel {
             .init(
                 task: .init(id: .enablespendinglimit, state: .incomplete),
                 isEnabled: false,
-                onClick: {},
-                isRevampEnabled: false
+                onClick: {}
             ),
             .init(
                 task: .init(id: .invitetrustedcontact, state: .incomplete),
                 isEnabled: true,
-                onClick: {},
-                isRevampEnabled: false
+                onClick: {}
             ),
             .init(
                 task: .init(id: .addbitcoin, state: .incomplete),
                 isEnabled: true,
-                onClick: {},
-                isRevampEnabled: false
+                onClick: {}
             ),
             .init(
                 task: .init(id: .addadditionalfingerprint, state: .incomplete),
                 isEnabled: true,
-                onClick: {},
-                isRevampEnabled: false
+                onClick: {}
             ),
         ]
     )

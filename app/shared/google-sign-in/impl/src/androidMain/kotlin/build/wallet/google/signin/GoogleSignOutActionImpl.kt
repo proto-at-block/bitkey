@@ -1,6 +1,8 @@
 package build.wallet.google.signin
 
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
@@ -12,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class GoogleSignOutActionImpl(
   private val googleSignInClientProvider: GoogleSignInClientProvider,
 ) : GoogleSignOutAction {

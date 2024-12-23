@@ -1,5 +1,7 @@
 package build.wallet.money.display
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -7,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.stateIn
 
+@BitkeyInject(AppScope::class)
 class BitcoinDisplayPreferenceRepositoryImpl(
   appScope: CoroutineScope,
   private val bitcoinDisplayPreferenceDao: BitcoinDisplayPreferenceDao,

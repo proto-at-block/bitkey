@@ -9,6 +9,8 @@ import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.relationships.RelationshipsCrypto
 import build.wallet.serialization.json.encodeToStringResult
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class FullAccountFieldsCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val csekDao: CsekDao,

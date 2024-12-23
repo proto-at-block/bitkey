@@ -1,12 +1,15 @@
-use crate::service::social::challenge::error::ServiceError as SocialChallengeServiceError;
 use account::error::AccountError;
 use bdk_utils::error::BdkUtilError;
 use comms_verification::error::CommsVerificationError;
 use database::ddb::DatabaseError;
 use errors::{ApiError, ErrorCode};
+use experimentation::error::ExperimentationError;
 use thiserror::Error;
 use tracing::{event, Level};
 use userpool::userpool::UserPoolError;
+
+use crate::service::inheritance::error::ServiceError as InheritanceServiceError;
+use crate::service::social::challenge::error::ServiceError as SocialChallengeServiceError;
 
 #[derive(Debug, Error)]
 pub enum RecoveryError {
@@ -100,6 +103,10 @@ pub enum RecoveryError {
     SocialChallengeService(#[from] SocialChallengeServiceError),
     #[error("Challenge request was not found")]
     ChallengeRequestNotFound,
+    #[error(transparent)]
+    InheritanceService(#[from] InheritanceServiceError),
+    #[error(transparent)]
+    Experimentation(#[from] ExperimentationError),
 }
 
 impl From<RecoveryError> for ApiError {
@@ -119,7 +126,8 @@ impl From<RecoveryError> for ApiError {
             | RecoveryError::MalformedRecoveryAction
             | RecoveryError::MalformedRecoveryRequirements
             | RecoveryError::NoActiveSpendKeysetError
-            | RecoveryError::InvalidRecoveryRelationshipType => {
+            | RecoveryError::InvalidRecoveryRelationshipType
+            | RecoveryError::Experimentation(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             RecoveryError::DelayPeriodNotFinished
@@ -199,6 +207,7 @@ impl From<RecoveryError> for ApiError {
                 field: None,
             },
             RecoveryError::SocialChallengeService(e) => e.into(),
+            RecoveryError::InheritanceService(e) => e.into(),
         }
     }
 }

@@ -1,10 +1,13 @@
 package build.wallet.encrypt
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.toUByteList
 import okio.ByteString.Companion.toByteString
 import java.security.SecureRandom
 import build.wallet.rust.core.SecretKey as CoreSecretKey
 
+@BitkeyInject(AppScope::class)
 class Secp256k1KeyGeneratorImpl : Secp256k1KeyGenerator {
   /**
    * This method initializes a `CoreSecretKey` exposed by `coreFFI` with the underlying byte array

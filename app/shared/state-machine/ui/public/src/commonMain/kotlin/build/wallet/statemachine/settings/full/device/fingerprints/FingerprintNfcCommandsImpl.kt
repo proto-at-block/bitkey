@@ -1,11 +1,14 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 
+@BitkeyInject(ActivityScope::class)
 class FingerprintNfcCommandsImpl : FingerprintNfcCommands {
   override suspend fun prepareForFingerprintEnrollment(
     commands: NfcCommands,

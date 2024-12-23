@@ -1,3 +1,4 @@
+use notification::payloads::inheritance_claim_period_almost_over::InheritanceClaimPeriodAlmostOverPayload;
 use notification::payloads::inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload;
 use notification::payloads::inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload;
 use notification::schedule::ScheduleNotificationType;
@@ -201,6 +202,18 @@ fn generate_notification_payloads(
                     recipient_account_role: RecoveryRelationshipRole::ProtectedCustomer,
                 },
             ))
+            .inheritance_claim_period_almost_over_payload(Some(
+                InheritanceClaimPeriodAlmostOverPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::ProtectedCustomer,
+                    delay_end_time: pending_claim.delay_end_time,
+                },
+            ))
             .build()?,
         NotificationPayloadBuilder::default()
             .inheritance_claim_period_initiated_payload(Some(
@@ -224,6 +237,18 @@ fn generate_notification_payloads(
                         .alias
                         .clone(),
                     recipient_account_role: RecoveryRelationshipRole::TrustedContact,
+                },
+            ))
+            .inheritance_claim_period_almost_over_payload(Some(
+                InheritanceClaimPeriodAlmostOverPayload {
+                    inheritance_claim_id: id.clone(),
+                    trusted_contact_alias: relationship
+                        .common_fields()
+                        .trusted_contact_info
+                        .alias
+                        .clone(),
+                    recipient_account_role: RecoveryRelationshipRole::TrustedContact,
+                    delay_end_time: pending_claim.delay_end_time,
                 },
             ))
             .build()?,

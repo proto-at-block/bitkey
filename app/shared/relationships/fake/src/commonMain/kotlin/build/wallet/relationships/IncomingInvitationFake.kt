@@ -6,5 +6,6 @@ import build.wallet.bitkey.relationships.InvitationFake
 val IncomingInvitationFake = IncomingInvitation(
   relationshipId = InvitationFake.relationshipId,
   code = InvitationFake.code,
-  protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
+  protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey,
+  recoveryRelationshipRoles = InvitationFake.roles
 )

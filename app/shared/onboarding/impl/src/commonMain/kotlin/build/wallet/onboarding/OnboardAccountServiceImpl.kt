@@ -1,6 +1,8 @@
 package build.wallet.onboarding
 
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.onboarding.OnboardAccountStep.CloudBackup
 import build.wallet.onboarding.OnboardAccountStep.NotificationPreferences
@@ -8,6 +10,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class OnboardAccountServiceImpl(
   private val debugOptionsService: DebugOptionsService,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,

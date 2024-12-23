@@ -5,6 +5,8 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaimSerializer
 import build.wallet.bitkey.inheritance.InheritanceClaimId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
@@ -18,6 +20,7 @@ import com.github.michaelbull.result.flatMap
 import io.ktor.client.request.put
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class CompleteInheritanceClaimF8eClientImpl(
   private val f8eClient: F8eHttpClient,
 ) : CompleteInheritanceClaimF8eClient {

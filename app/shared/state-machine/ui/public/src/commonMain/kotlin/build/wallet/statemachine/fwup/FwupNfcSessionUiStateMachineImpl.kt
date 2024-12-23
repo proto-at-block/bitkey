@@ -8,6 +8,8 @@ import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_DEVI
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_UPDATE_IN_PROGRESS_FWUP
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.*
 import build.wallet.fwup.FwupFinishResponseStatus.*
 import build.wallet.logging.logFailure
@@ -37,6 +39,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
+@BitkeyInject(ActivityScope::class)
 class FwupNfcSessionUiStateMachineImpl(
   private val enableNfcNavigator: EnableNfcNavigator,
   private val eventTracker: EventTracker,

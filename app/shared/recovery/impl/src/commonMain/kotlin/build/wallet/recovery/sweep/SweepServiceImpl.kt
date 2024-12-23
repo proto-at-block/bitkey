@@ -4,6 +4,8 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.PromptSweepFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
@@ -22,6 +24,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(AppScope::class)
 class SweepServiceImpl(
   private val accountService: AccountService,
   private val appSessionManager: AppSessionManager,

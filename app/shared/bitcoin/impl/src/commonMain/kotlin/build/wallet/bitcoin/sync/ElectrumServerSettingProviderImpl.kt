@@ -4,10 +4,13 @@ import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class ElectrumServerSettingProviderImpl(
   private val keyboxDao: KeyboxDao,
   private val debugOptionsService: DebugOptionsService,

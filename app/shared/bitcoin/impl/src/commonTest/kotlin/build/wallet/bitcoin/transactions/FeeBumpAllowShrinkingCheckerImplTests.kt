@@ -7,16 +7,12 @@ import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker.AllowShrin
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.SpeedUpAllowShrinkingFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
 import build.wallet.toUByteList
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -24,10 +20,7 @@ import io.kotest.matchers.shouldBe
 import okio.ByteString.Companion.encodeUtf8
 
 class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
-  val allowShrinkingFeatureFlag = SpeedUpAllowShrinkingFeatureFlag(FeatureFlagDaoFake())
-  val feeBumpAllowShrinkingChecker = FeeBumpAllowShrinkingCheckerImpl(
-    allowShrinkingFeatureFlag = allowShrinkingFeatureFlag
-  )
+  val feeBumpAllowShrinkingChecker = FeeBumpAllowShrinkingCheckerImpl()
 
   val transaction = BitcoinTransactionMock(
     txid = "my-txid",
@@ -45,18 +38,6 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
 
   beforeTest {
     wallet.reset()
-    allowShrinkingFeatureFlag.setFlagValue(true)
-  }
-
-  test("transactionSupportsAllowShrinking returns false if flag disabled") {
-    allowShrinkingFeatureFlag.setFlagValue(false)
-
-    val allowShrinking = feeBumpAllowShrinkingChecker.transactionSupportsAllowShrinking(
-      transaction = transaction,
-      walletUnspentOutputs = emptyImmutableList()
-    )
-
-    allowShrinking.shouldBeFalse()
   }
 
   test("transactionSupportsAllowShrinking returns true is allowShrinkingOutput is not null") {
@@ -66,16 +47,6 @@ class FeeBumpAllowShrinkingCheckerImplTests : FunSpec({
     )
 
     allowShrinking.shouldBeTrue()
-  }
-
-  test("allowShrinkingOutput returns null if flag disabled") {
-    allowShrinkingFeatureFlag.setFlagValue(false)
-
-    val allowShrinkingScript = feeBumpAllowShrinkingChecker.allowShrinkingOutputScript(
-      transaction = transaction,
-      walletUnspentOutputs = emptyImmutableList()
-    )
-    allowShrinkingScript.shouldBeNull()
   }
 
   test("allowShrinkingOutput returns null if more than 1 wallet unspent output") {

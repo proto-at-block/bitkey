@@ -16,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Sets the message to "Success" upon a successful transaction.
  */
-fun iosMessages() =
+internal fun iosMessages() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       session.message = "Connected"
@@ -29,7 +29,7 @@ fun iosMessages() =
 /**
  * Logs the start of an NFC session.
  */
-fun sessionLogger() =
+internal fun sessionLogger() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       catchingResult { next(session, commands) }
@@ -42,7 +42,7 @@ fun sessionLogger() =
  * Vibrates the phone software upon a successful transaction,
  * and vibrates more violently upon a failed transaction.
  */
-fun haptics(nfcHaptics: NfcHaptics) =
+internal fun haptics(nfcHaptics: NfcHaptics) =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       session.parameters.onTagConnectedObservers += { nfcHaptics.vibrateConnection() }
@@ -58,7 +58,7 @@ fun haptics(nfcHaptics: NfcHaptics) =
  *
  * @param timeout The timeout to use. (defaults to 60 seconds)
  */
-fun timeoutSession(
+internal fun timeoutSession(
   @Suppress("UNUSED_PARAMETER") timeout: Duration = 60.seconds,
 ) = NfcTransactionInterceptor { next ->
   { session, commands ->
@@ -73,7 +73,7 @@ fun timeoutSession(
 /**
  * Locks the device after any transaction that wasn't cancelled or invalidated.
  */
-fun lockDevice() =
+internal fun lockDevice() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       catchingResult { next(session, commands) }

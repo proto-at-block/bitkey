@@ -3,6 +3,8 @@ package build.wallet.partnerships
 import build.wallet.account.AccountService
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.ensureNotNull
 import build.wallet.f8e.partnerships.*
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.map
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class PartnershipPurchaseServiceImpl(
   private val accountService: AccountService,
   private val bitcoinAddressService: BitcoinAddressService,

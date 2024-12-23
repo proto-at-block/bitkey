@@ -1,5 +1,9 @@
 package build.wallet.email
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+
+@BitkeyInject(AppScope::class)
 class EmailValidatorImpl : EmailValidator {
   /**
    * This is the pattern used in the w3c html email standard

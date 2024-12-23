@@ -1,6 +1,8 @@
 package build.wallet.f8e.mobilepay
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -17,12 +19,13 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapBoth
 import com.ionspin.kotlin.bignum.integer.toBigInteger
-import io.ktor.client.request.get
+import io.ktor.client.request.*
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class MobilePayBalanceF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val fiatCurrencyDao: FiatCurrencyDao,

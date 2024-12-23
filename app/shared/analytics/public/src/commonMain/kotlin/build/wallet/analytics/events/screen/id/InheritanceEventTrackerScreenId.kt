@@ -25,4 +25,39 @@ enum class InheritanceEventTrackerScreenId : EventTrackerScreenId {
    * Manage Inheritance screen.
    */
   ManageInheritance,
+
+  /**
+   * Managing a specific Benefactor.
+   */
+  ManageBenefactor,
+
+  /**
+   * Locking the claim and loading the transaction details.
+   */
+  LoadingClaimDetails,
+
+  /**
+   * Error screen shown when fails to lock/load a claim.
+   */
+  LoadingClaimDetailsFailure,
+
+  /**
+   * Details about the inheritance transfer before the user confirms.
+   */
+  ConfirmClaimTransfer,
+
+  /**
+   * Attempting to send the transaction to the server
+   */
+  StartingTransfer,
+
+  /**
+   * Error screen shown when fails to send the transaction.
+   */
+  TransferFailed,
+
+  /**
+   * Confirmation that the transaction has been sent.
+   */
+  ClaimComplete,
 }

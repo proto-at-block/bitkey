@@ -14,6 +14,8 @@ import build.wallet.bitkey.relationships.IncomingInvitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.crypto.PublicKey
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.relationships.*
@@ -27,6 +29,7 @@ import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class TrustedContactEnrollmentUiStateMachineImpl(
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val deviceInfoProvider: DeviceInfoProvider,

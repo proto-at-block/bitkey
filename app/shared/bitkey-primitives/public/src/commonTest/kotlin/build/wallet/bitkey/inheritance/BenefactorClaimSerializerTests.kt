@@ -37,7 +37,7 @@ class BenefactorClaimSerializerTests : FunSpec({
   """.trimIndent()
   val completeClaim = """
             {
-                "status": "COMPLETE",
+                "status": "COMPLETED",
                 "id": "test-id",
                 "recovery_relationship_id": "test-relationship_id"
             }

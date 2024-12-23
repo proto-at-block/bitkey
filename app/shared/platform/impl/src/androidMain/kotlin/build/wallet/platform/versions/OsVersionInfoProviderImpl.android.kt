@@ -1,13 +1,16 @@
 package build.wallet.platform.versions
 
 import android.os.Build
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class OsVersionInfoProviderImpl actual constructor() : OsVersionInfoProvider {
-  actual override fun getOsVersion(): String {
+@BitkeyInject(AppScope::class)
+class OsVersionInfoProviderImpl : OsVersionInfoProvider {
+  override fun getOsVersion(): String {
     return Build.VERSION.SDK_INT.toString()
   }
 
-  actual override fun getNamedOsVersion(): String {
+  override fun getNamedOsVersion(): String {
     return "Android ${getOsVersion()}"
   }
 }

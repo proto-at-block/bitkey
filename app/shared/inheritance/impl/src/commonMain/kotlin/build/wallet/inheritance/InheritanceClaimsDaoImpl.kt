@@ -3,16 +3,21 @@ package build.wallet.inheritance
 import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaimKeyset
 import build.wallet.bitkey.inheritance.InheritanceClaims
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class InheritanceClaimsDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : InheritanceClaimsDao {
@@ -71,31 +76,41 @@ class InheritanceClaimsDaoImpl(
       // Delete any existing claims
       inheritanceClaimsQueries.clearInheritanceClaims()
 
-      inheritanceClaims.beneficiaryClaims.forEach {
-        when (it) {
-          is BeneficiaryClaim.PendingClaim -> inheritanceClaimsQueries.insertPendingBeneficiaryClaim(
-            claimId = it.claimId,
-            relationshipId = it.relationshipId,
-            delayEndTime = it.delayEndTime,
-            delayStartTime = it.delayStartTime,
-            appPubkey = it.authKeys.appPubkey,
-            hardwarePubkey = it.authKeys.hardwarePubkey
-          )
-          else -> Unit // Only save necessary claims
-        }
+      inheritanceClaims.let { it.beneficiaryClaims + it.benefactorClaims }.forEach {
+        insertClaim(it)
       }
+    }
+  }
 
-      inheritanceClaims.benefactorClaims.forEach {
-        when (it) {
-          is BenefactorClaim.PendingClaim -> inheritanceClaimsQueries.insertPendingBenefactorClaim(
-            claimId = it.claimId,
-            relationshipId = it.relationshipId,
-            delayEndTime = it.delayEndTime,
-            delayStartTime = it.delayStartTime
-          )
-          else -> Unit // Only save necessary claims
-        }
-      }
+  override suspend fun updateInheritanceClaim(
+    inheritanceClaim: InheritanceClaim,
+  ): Result<Unit, Error> {
+    return databaseProvider.database().awaitTransactionWithResult {
+      inheritanceClaimsQueries.deleteClaimById(inheritanceClaim.claimId)
+      insertClaim(inheritanceClaim)
+    }
+  }
+
+  /**
+   * Inserts a claim if it is of a type that is saved locally.
+   */
+  private fun BitkeyDatabase.insertClaim(inheritanceClaim: InheritanceClaim) {
+    when (inheritanceClaim) {
+      is BeneficiaryClaim.PendingClaim -> inheritanceClaimsQueries.insertPendingBeneficiaryClaim(
+        claimId = inheritanceClaim.claimId,
+        relationshipId = inheritanceClaim.relationshipId,
+        delayEndTime = inheritanceClaim.delayEndTime,
+        delayStartTime = inheritanceClaim.delayStartTime,
+        appPubkey = inheritanceClaim.authKeys.appPubkey,
+        hardwarePubkey = inheritanceClaim.authKeys.hardwarePubkey
+      )
+      is BenefactorClaim.PendingClaim -> inheritanceClaimsQueries.insertPendingBenefactorClaim(
+        claimId = inheritanceClaim.claimId,
+        relationshipId = inheritanceClaim.relationshipId,
+        delayEndTime = inheritanceClaim.delayEndTime,
+        delayStartTime = inheritanceClaim.delayStartTime
+      )
+      else -> {} // Only save necessary claims
     }
   }
 

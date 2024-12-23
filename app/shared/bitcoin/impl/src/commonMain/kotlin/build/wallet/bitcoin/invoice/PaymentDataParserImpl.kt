@@ -14,11 +14,14 @@ import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError
 import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError.InvalidBIP21URI
 import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError.InvalidLightningInvoice
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 
+@BitkeyInject(AppScope::class)
 class PaymentDataParserImpl(
   private val bip21InvoiceEncoder: BitcoinInvoiceUrlEncoder,
   private val bitcoinAddressParser: BitcoinAddressParser,

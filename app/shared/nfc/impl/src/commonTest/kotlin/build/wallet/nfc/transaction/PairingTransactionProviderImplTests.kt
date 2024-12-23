@@ -12,7 +12,7 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
-import build.wallet.firmware.HardwareAttestationMock
+import build.wallet.firmware.HardwareAttestationFake
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.platform.random.UuidGeneratorFake
@@ -32,7 +32,7 @@ class PairingTransactionProviderImplTests : FunSpec({
   val csekDao = CsekDaoFake()
   val uuid = UuidGeneratorFake()
   val appInstallationDao = AppInstallationDaoMock()
-  val hardwareAttestation = HardwareAttestationMock()
+  val hardwareAttestation = HardwareAttestationFake()
 
   appInstallationDao.appInstallation =
     AppInstallation(localId = "foo", hardwareSerialNumber = null)

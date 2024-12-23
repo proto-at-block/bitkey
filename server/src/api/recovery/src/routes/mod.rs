@@ -6,6 +6,8 @@ pub mod inheritance;
 pub mod relationship;
 pub mod social_challenge;
 
+pub const INHERITANCE_ENABLED_FLAG_KEY: &str = "inheritance-enabled";
+
 fn deserialize_pake_pubkey<'de, D>(deserializer: D) -> Result<String, D::Error>
 where
     D: Deserializer<'de>,

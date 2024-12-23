@@ -1,6 +1,8 @@
 package build.wallet.phonenumber
 
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat.E164
@@ -11,6 +13,7 @@ import com.google.i18n.phonenumbers.CountryCodeToRegionCodeMap
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
 
+@BitkeyInject(AppScope::class)
 class PhoneNumberLibBindingsImpl : PhoneNumberLibBindings {
   private val countryCodeToRegionCodeMap =
     CountryCodeToRegionCodeMap.getCountryCodeToRegionCodeMap()

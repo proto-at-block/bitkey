@@ -2,6 +2,7 @@ package build.wallet.bootstrap
 
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.SoftwareAccount
 
 /**
  * Represents the initial state of the app. Produced by the [LoadAppService].
@@ -17,6 +18,13 @@ sealed interface AppState {
   data class HasActiveFullAccount(
     val account: FullAccount,
     val pendingAuthKeyRotation: PendingAuthKeyRotationAttempt?,
+  ) : AppState
+
+  /**
+   * Indicates there is an active [SoftwareAccount].
+   */
+  data class HasActiveSoftwareAccount(
+    val account: SoftwareAccount,
   ) : AppState
 
   /**

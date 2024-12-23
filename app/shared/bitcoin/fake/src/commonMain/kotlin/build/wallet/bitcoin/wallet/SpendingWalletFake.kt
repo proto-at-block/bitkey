@@ -221,6 +221,7 @@ class SpendingWalletFake(
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
     feePolicy: FeePolicy,
+    coinSelectionStrategy: CoinSelectionStrategy,
   ): Result<Psbt, Throwable> {
     error("Not supported")
   }

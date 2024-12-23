@@ -3,7 +3,8 @@ package build.wallet.statemachine.send
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.partnerships.PartnerInfo
-import build.wallet.statemachine.core.Icon.*
+import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
@@ -30,20 +31,17 @@ import kotlinx.collections.immutable.ImmutableList
  * A function which creates the form screen model for the transfer confirmation screen
  *
  * @param onBack - Handler for back press
- * @param onCancel - Handler for cancelling the transaction
  * @param variant - The variant of the transfer confirmation screen (Regular, SpeedUp, Sale)
  * @param recipientAddress - The recipient address of the transaction represented as a string
  * @param transactionDetails [TransactionDetailsModel] - The data associated with the transaction
  * @param requiresHardware - Flag representing if the transaction requires hardware signing
  * @param confirmButtonEnabled - Flag representing if the primary button is enabled
- * @param errorOverlayModel - The model for displaying error overlays or sheets
  * @param onConfirmClick - Handler invoked when the primary button is clicked
  * @param onNetworkFeesClick - Handler for network fees click (null when disabled)
  * @param onArrivalTimeClick - Handler for arrival time click (null when disabled)
  */
 data class TransferConfirmationScreenModel(
   override val onBack: () -> Unit,
-  val onCancel: () -> Unit,
   val variant: TransferConfirmationScreenVariant,
   val recipientAddress: String,
   val transactionDetails: TransactionDetailsModel,
@@ -89,7 +87,7 @@ data class TransferConfirmationScreenModel(
             alignment = LEADING
           )
       },
-    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onCancel)),
+    toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
     mainContentList = transactionDetails.toFormContent(
       variant = variant,
       onNetworkFeesClick = onNetworkFeesClick,

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "me.tatarka.inject:kotlin-inject-runtime-kmp-jvm",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime-kmp-jvm-0.7.2.jar": "01e8bb87681da7b53eba616a60ea6d16fab670394df68c85b0adde9eb2a0f3fb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

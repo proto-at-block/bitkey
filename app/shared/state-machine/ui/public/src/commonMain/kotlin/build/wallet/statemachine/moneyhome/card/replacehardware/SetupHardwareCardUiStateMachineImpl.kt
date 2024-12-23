@@ -3,11 +3,14 @@ package build.wallet.statemachine.moneyhome.card.replacehardware
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.*
 import build.wallet.statemachine.moneyhome.card.CardModel
 
+@BitkeyInject(ActivityScope::class)
 class SetupHardwareCardUiStateMachineImpl(
   val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val firmwareDataService: FirmwareDataService,

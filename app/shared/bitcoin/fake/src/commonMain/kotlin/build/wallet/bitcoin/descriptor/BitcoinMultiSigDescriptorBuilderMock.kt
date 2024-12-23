@@ -7,6 +7,22 @@ import build.wallet.bitcoin.keys.ExtendedPrivateKey
 
 class BitcoinMultiSigDescriptorBuilderMock : BitcoinMultiSigDescriptorBuilder {
   override fun spendingReceivingDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): Spending {
+    return Spending("")
+  }
+
+  override fun spendingChangeDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): Spending {
+    return Spending("")
+  }
+
+  override fun spendingReceivingDescriptor(
     appPrivateKey: ExtendedPrivateKey,
     hardwareKey: DescriptorPublicKey,
     serverKey: DescriptorPublicKey,

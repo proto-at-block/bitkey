@@ -1,6 +1,7 @@
 package build.wallet.store
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.getOrThrow
 import com.russhwolf.settings.PropertiesSettings
@@ -13,16 +14,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.util.Properties
+import java.util.*
 
-actual class KeyValueStoreFactoryImpl actual constructor(
-  platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class KeyValueStoreFactoryImpl(
   private val fileManager: FileManager,
 ) : KeyValueStoreFactory {
   private val settings = mutableMapOf<String, SuspendSettings>()
   private val lock = Mutex()
 
-  actual override suspend fun getOrCreate(storeName: String): SuspendSettings {
+  override suspend fun getOrCreate(storeName: String): SuspendSettings {
     return lock.withLock {
       settings.getOrPut(storeName) {
         create(storeName)

@@ -6,6 +6,8 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CL
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.onboarding.OnboardAccountService
 import build.wallet.onboarding.OnboardAccountStep
 import build.wallet.onboarding.OnboardAccountStep.CloudBackup
@@ -20,6 +22,7 @@ import build.wallet.statemachine.notifications.NotificationPreferencesProps.Sour
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class OnboardFullAccountUiStateMachineImpl(
   private val onboardAccountService: OnboardAccountService,
   private val fullAccountCloudSignInAndBackupUiStateMachine:

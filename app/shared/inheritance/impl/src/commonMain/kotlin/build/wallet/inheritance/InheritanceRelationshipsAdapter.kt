@@ -3,6 +3,8 @@ package build.wallet.inheritance
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coroutines.scopes.filterEach
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
@@ -12,6 +14,8 @@ import kotlinx.coroutines.flow.map
  * Adapts the Relationships service's relationship data to to the inheritance
  * data provider interface.
  */
+
+@BitkeyInject(AppScope::class)
 class InheritanceRelationshipsAdapter(
   private val relationshipsService: RelationshipsService,
 ) : InheritanceRelationshipsProvider {

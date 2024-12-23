@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.loading.LoadingBadge
+import build.wallet.ui.components.loading.LoadingBadgePainter
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.*
@@ -166,6 +167,7 @@ fun IconImage(
             modifier = Modifier.size(model.iconSize.dp),
             color = style.color
           )
+        IconImage.LoadingBadge -> LoadingBadgePainter()
       }
 
       when (model.badge) {

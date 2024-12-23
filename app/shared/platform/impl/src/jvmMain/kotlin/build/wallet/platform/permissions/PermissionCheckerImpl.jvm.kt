@@ -1,12 +1,11 @@
 package build.wallet.platform.permissions
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class PermissionCheckerImpl actual constructor(
-  platformContext: PlatformContext,
-  pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
-) : PermissionChecker {
-  actual override fun getPermissionStatus(permission: Permission): PermissionStatus {
+@BitkeyInject(AppScope::class)
+class PermissionCheckerImpl : PermissionChecker {
+  override fun getPermissionStatus(permission: Permission): PermissionStatus {
     return PermissionStatus.NotDetermined
   }
 }

@@ -389,8 +389,12 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
   test("complete recovery with socrec") {
     val recovery = recovery()
+
+    accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
+
     // Move clock ahead of delay period
     clock.advanceBy(2.minutes)
+
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -411,6 +415,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
         recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
@@ -508,6 +513,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
+      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
       recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
@@ -521,6 +527,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
         recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
@@ -618,6 +625,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
+      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
       recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
@@ -631,6 +639,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
         recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
@@ -737,6 +746,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
+      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
       recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
@@ -750,6 +760,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
         recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 
@@ -836,6 +847,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       // Rotate auth keys
+      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
       recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
@@ -849,6 +861,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
         recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
       }
 

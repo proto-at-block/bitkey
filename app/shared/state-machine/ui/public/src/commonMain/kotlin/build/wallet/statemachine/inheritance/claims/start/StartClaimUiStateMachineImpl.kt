@@ -1,14 +1,11 @@
 package build.wallet.statemachine.inheritance.claims.start
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
@@ -17,6 +14,7 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
@@ -26,6 +24,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class StartClaimUiStateMachineImpl(
   private val inheritanceService: InheritanceService,
   private val notificationsStateMachine: EnableNotificationsUiStateMachine,
@@ -72,7 +71,8 @@ class StartClaimUiStateMachineImpl(
             onConfirm = { uiState = State.StartingClaim }
           )
             .asSheetModalScreen { uiState = currentState.copy(confirming = false) }
-            .takeIf { currentState.confirming }
+            .takeIf { currentState.confirming },
+        presentationStyle = ScreenPresentationStyle.ModalFullScreen
       )
       is State.ClaimStarted -> ClaimStartedBodyModel(
         completeTime = dateTimeFormatter.shortDate(
@@ -82,7 +82,10 @@ class StartClaimUiStateMachineImpl(
       ).asModalFullScreen()
       State.PermissionsRequest -> notificationsStateMachine.model(
         EnableNotificationsUiProps(
-          retreat = Retreat(style = RetreatStyle.Close, onRetreat = { uiState = State.ConfirmStartClaim() }),
+          retreat = Retreat(
+            style = RetreatStyle.Close,
+            onRetreat = { uiState = State.ConfirmStartClaim() }
+          ),
           onComplete = { uiState = State.ConfirmStartClaim() },
           eventTrackerContext = PushNotificationEventTrackerScreenIdContext.INHERITANCE_CLAIM,
           rationale = NotificationRationale.Generic

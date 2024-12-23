@@ -3,6 +3,8 @@ package build.wallet.memfault
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.client.installLogging
 import io.ktor.client.*
 import io.ktor.client.plugins.*
@@ -15,6 +17,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.util.*
 import kotlinx.serialization.json.Json
 
+@BitkeyInject(AppScope::class)
 class MemfaultHttpClientImpl(
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : MemfaultHttpClient {

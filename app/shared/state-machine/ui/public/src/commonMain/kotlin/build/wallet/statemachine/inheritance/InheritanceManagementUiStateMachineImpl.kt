@@ -6,8 +6,12 @@ import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
 import build.wallet.statemachine.core.*
+import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachine
+import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineProps
 import build.wallet.statemachine.inheritance.claims.start.StartClaimUiStateMachine
 import build.wallet.statemachine.inheritance.claims.start.StartClaimUiStateMachineProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
@@ -16,15 +20,16 @@ import build.wallet.ui.model.Click
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.*
-import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class InheritanceManagementUiStateMachineImpl(
   private val inviteBeneficiaryUiStateMachine: InviteBeneficiaryUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val inheritanceService: InheritanceService,
   private val startClaimUiStateMachine: StartClaimUiStateMachine,
+  private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
 ) : InheritanceManagementUiStateMachine {
   @Composable
   override fun model(props: InheritanceManagementUiProps): ScreenModel {
@@ -47,21 +52,44 @@ class InheritanceManagementUiStateMachineImpl(
     }
 
     val inheritanceClaims by remember {
-      inheritanceService.pendingClaims
-    }.collectAsState()
+      inheritanceService.relationshipsWithPendingClaim
+    }.collectAsState(emptyList())
 
-    return when (uiState) {
+    val startable by remember {
+      inheritanceService.relationshipsWithNoActiveClaims
+    }.collectAsState(emptyList())
+
+    val completable by remember {
+      inheritanceService.relationshipsWithCompletableClaim
+    }.collectAsState(emptyList())
+
+    val cancelable by remember {
+      inheritanceService.relationshipsWithCancelableClaim
+    }.collectAsState(emptyList())
+
+    return when (val currentState = uiState) {
       // TODO W-9135 W-9383 add inheritance management UI to design spec
       is UiState.StartingClaim -> startClaimUiStateMachine.model(
         StartClaimUiStateMachineProps(
-          relationshipId = (uiState as UiState.StartingClaim).relationshipId,
+          relationshipId = currentState.relationshipId,
+          onExit = {
+            uiState = UiState.ManagingInheritance
+          }
+        )
+      )
+      is UiState.CompletingClaim -> completeClaimUiStateMachine.model(
+        CompleteInheritanceClaimUiStateMachineProps(
+          account = props.account,
+          relationshipId = currentState.relationshipId,
           onExit = {
             uiState = UiState.ManagingInheritance
           }
         )
       )
 
-      UiState.ManagingInheritance -> {
+      is UiState.ManageBenefactorRelationship,
+      UiState.ManagingInheritance,
+      -> {
         ManagingInheritanceBodyModel(
           selectedTab = selectedTab,
           onBack = props.onBack,
@@ -73,15 +101,50 @@ class InheritanceManagementUiStateMachineImpl(
           hasPendingBeneficiaries = beneficiaries.any { it is Invitation },
           beneficiaries = BeneficiaryListModel(
             beneficiaries = beneficiaries,
-            inheritanceClaims = inheritanceClaims?.get().orEmpty()
+            inheritanceClaims = inheritanceClaims
           ),
           benefactors = BenefactorListModel(
             benefactors = benefactors,
-            onStartClaimClick = {
-              uiState = UiState.StartingClaim(it)
+            onManageClick = {
+              uiState = UiState.ManageBenefactorRelationship(it)
             }
           )
-        ).asRootScreen()
+        ).let {
+          if (currentState is UiState.ManageBenefactorRelationship) {
+            ScreenModel(
+              body = it,
+              bottomSheetModel = SheetModel(
+                body = ManageBenefactorBodyModel(
+                  onClose = { uiState = UiState.ManagingInheritance },
+                  onRemoveBenefactor = {
+                    // W-9966: Implement Removal
+                  },
+                  claimControls = when (currentState.relationshipId) {
+                    in startable -> ManageBenefactorBodyModel.ClaimControls.Start(
+                      onClick = {
+                        uiState = UiState.StartingClaim(currentState.relationshipId)
+                      }
+                    )
+                    in completable -> ManageBenefactorBodyModel.ClaimControls.Complete(
+                      onClick = {
+                        uiState = UiState.CompletingClaim(currentState.relationshipId)
+                      }
+                    )
+                    in cancelable -> ManageBenefactorBodyModel.ClaimControls.Cancel(
+                      onClick = {
+                        // W-9977: Implement Cancellation
+                      }
+                    )
+                    else -> ManageBenefactorBodyModel.ClaimControls.None
+                  }
+                ),
+                onClosed = { uiState = UiState.ManagingInheritance }
+              )
+            )
+          } else {
+            it.asRootScreen()
+          }
+        }
       }
       UiState.InvitingBeneficiary -> inviteBeneficiaryUiStateMachine.model(
         InviteBeneficiaryUiProps(
@@ -112,11 +175,11 @@ class InheritanceManagementUiStateMachineImpl(
 @Stable
 fun BenefactorListModel(
   benefactors: List<ProtectedCustomer>,
-  onStartClaimClick: (RelationshipId) -> Unit,
+  onManageClick: (RelationshipId) -> Unit,
 ): ListGroupModel {
   return ListGroupModel(
     items = benefactors.pcListItemModel(
-      startClaim = onStartClaimClick
+      onManageClick = onManageClick
     ),
     style = ListGroupStyle.DIVIDER
   )
@@ -153,7 +216,7 @@ private fun List<TrustedContact>.tcListItemModel(pendingClaims: List<Relationshi
     )
   }.toImmutableList()
 
-private fun List<ProtectedCustomer>.pcListItemModel(startClaim: (RelationshipId) -> Unit) =
+private fun List<ProtectedCustomer>.pcListItemModel(onManageClick: (RelationshipId) -> Unit) =
   this
     .map {
       ListItemModel(
@@ -164,7 +227,7 @@ private fun List<ProtectedCustomer>.pcListItemModel(startClaim: (RelationshipId)
         secondaryText = "Active",
         trailingAccessory = ManageContactButton(
           onClick = StandardClick {
-            startClaim(RelationshipId(it.relationshipId))
+            onManageClick(RelationshipId(it.relationshipId))
           }
         )
       )
@@ -189,7 +252,15 @@ private sealed interface UiState {
 
   data object AcceptingInvitation : UiState
 
+  data class ManageBenefactorRelationship(
+    val relationshipId: RelationshipId,
+  ) : UiState
+
   data class StartingClaim(
+    val relationshipId: RelationshipId,
+  ) : UiState
+
+  data class CompletingClaim(
     val relationshipId: RelationshipId,
   ) : UiState
 }

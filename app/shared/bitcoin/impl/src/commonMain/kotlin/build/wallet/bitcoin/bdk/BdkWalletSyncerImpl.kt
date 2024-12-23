@@ -15,6 +15,8 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Network
 import build.wallet.datadog.ResourceType.Other
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
@@ -32,6 +34,7 @@ import kotlinx.datetime.asTimeSource
 import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
 
+@BitkeyInject(AppScope::class)
 class BdkWalletSyncerImpl(
   private val bdkBlockchainProvider: BdkBlockchainProvider,
   private val clock: Clock,

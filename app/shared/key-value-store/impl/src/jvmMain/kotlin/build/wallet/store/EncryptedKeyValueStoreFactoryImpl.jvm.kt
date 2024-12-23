@@ -2,7 +2,8 @@
 
 package build.wallet.store
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.getOrThrow
 import com.russhwolf.settings.PropertiesSettings
@@ -14,20 +15,21 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.util.Properties
+import java.util.*
 
 /**
  * JVM implementation of [EncryptedKeyValueStoreFactory] baked by Java's [Properties]. Not actually
  * encrypted since we are using JVM for development purposes only, we don't actually ship it.
  */
-actual class EncryptedKeyValueStoreFactoryImpl actual constructor(
-  platformContext: PlatformContext,
+
+@BitkeyInject(AppScope::class)
+class EncryptedKeyValueStoreFactoryImpl(
   private val fileManager: FileManager,
 ) : EncryptedKeyValueStoreFactory {
   private val settings = mutableMapOf<String, SuspendSettings>()
   private val lock = Mutex()
 
-  actual override suspend fun getOrCreate(storeName: String): SuspendSettings {
+  override suspend fun getOrCreate(storeName: String): SuspendSettings {
     return lock.withLock {
       settings.getOrPut(storeName) {
         create(storeName)

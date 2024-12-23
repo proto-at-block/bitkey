@@ -1,6 +1,6 @@
 package build.wallet.inheritance
 
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -8,12 +8,13 @@ import kotlinx.coroutines.flow.Flow
  */
 interface InheritanceCardService {
   /**
-   * Emits a collection of beneficiary claims that should be displayed to the user.
+   * Emits a collection of inheritance cards that should be displayed to the user.
    */
-  val claimCardsToDisplay: Flow<List<BeneficiaryClaim>>
+  val cardsToDisplay: Flow<List<InheritanceClaim>>
 
   /**
-   * Dismisses a pending claim card. User will no longer see the pending claim card
+   * Dismisses a pending beneficiary claim card. User will no longer see the pending claim card
+   * until the claim changes to the locked state
    */
-  suspend fun dismissPendingClaimCard(claimId: String)
+  suspend fun dismissPendingBeneficiaryClaimCard(claimId: String)
 }

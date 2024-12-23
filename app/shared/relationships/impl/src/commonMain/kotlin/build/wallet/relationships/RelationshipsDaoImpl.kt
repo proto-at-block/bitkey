@@ -4,6 +4,8 @@ import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.bitkey.relationships.*
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.sqldelight.awaitTransactionWithResult
@@ -12,6 +14,7 @@ import com.github.michaelbull.result.getOrThrow
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class RelationshipsDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : RelationshipsDao {

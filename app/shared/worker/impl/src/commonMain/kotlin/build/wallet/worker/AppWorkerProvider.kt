@@ -8,7 +8,8 @@ import build.wallet.availability.AppFunctionalitySyncWorker
 import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
 import build.wallet.bitcoin.sync.ElectrumServerConfigSyncWorker
 import build.wallet.bitcoin.transactions.BitcoinWalletSyncWorker
-import build.wallet.configuration.MobilePayFiatConfigSyncWorker
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.feature.FeatureFlagSyncWorker
 import build.wallet.firmware.FirmwareCoredumpEventPeriodicProcessor
@@ -36,6 +37,8 @@ fun interface AppWorkerProvider {
  * Implementation of [AppWorkerProvider] that provides all actual [AppWorker]s that should be
  * executed on application startup.
  */
+
+@BitkeyInject(AppScope::class)
 class AppWorkerProviderImpl(
   private val eventTracker: EventTracker,
   private val exchangeRateSyncWorker: ExchangeRateSyncWorker,
@@ -44,7 +47,6 @@ class AppWorkerProviderImpl(
   private val periodicFirmwareTelemetryProcessor: FirmwareTelemetryEventPeriodicProcessor,
   private val periodicRegisterWatchAddressProcessor: RegisterWatchAddressPeriodicProcessor,
   private val networkingDebugService: NetworkingDebugService,
-  private val mobilePayFiatConfigSyncWorker: MobilePayFiatConfigSyncWorker,
   private val featureFlagSyncWorker: FeatureFlagSyncWorker,
   private val firmwareDataSyncWorker: FirmwareDataSyncWorker,
   private val notificationTouchpointSyncWorker: NotificationTouchpointSyncWorker,
@@ -70,7 +72,6 @@ class AppWorkerProviderImpl(
       AppWorker(periodicFirmwareCoredumpProcessor::start),
       AppWorker(periodicFirmwareTelemetryProcessor::start),
       AppWorker(periodicRegisterWatchAddressProcessor::start),
-      mobilePayFiatConfigSyncWorker,
       featureFlagSyncWorker,
       firmwareDataSyncWorker,
       inheritanceMaterialSyncWorker,
@@ -78,7 +79,6 @@ class AppWorkerProviderImpl(
       endorseTrustedContactsWorker,
       bitcoinAddressRegisterWatchAddressWorker,
       bitcoinWalletSyncWorker,
-      fiatCurrenciesSyncWorker,
       mobilePayBalanceSyncWorker,
       fiatCurrenciesSyncWorker,
       syncRelationshipsWorker,

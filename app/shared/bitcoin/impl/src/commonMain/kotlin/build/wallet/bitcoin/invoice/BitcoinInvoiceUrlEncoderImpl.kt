@@ -6,6 +6,8 @@ import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder.BitcoinInvoiceUrlEn
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder.BitcoinInvoiceUrlEncoderError.InvalidAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder.BitcoinInvoiceUrlEncoderError.InvalidUri
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -15,6 +17,7 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
 
+@BitkeyInject(AppScope::class)
 class BitcoinInvoiceUrlEncoderImpl(
   private val bitcoinAddressParser: BitcoinAddressParser,
   private val lightningInvoiceParser: LightningInvoiceParser,

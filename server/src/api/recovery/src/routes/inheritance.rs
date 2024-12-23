@@ -584,7 +584,6 @@ pub async fn complete_inheritance_claim(
         Arc::new(wsm_client),
         feature_flags_service,
         transaction_broadcaster,
-        rpc_uris.clone(),
     );
 
     let psbt = Psbt::from_str(&request.psbt)

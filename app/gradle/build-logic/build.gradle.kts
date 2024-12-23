@@ -59,6 +59,10 @@ gradlePlugin {
       id = "build.wallet.kotlin.opt-in"
       implementationClass = "build.wallet.gradle.logic.AutomaticKotlinOptInPlugin"
     }
+    create("kmpDiPlugin") {
+      id = "build.wallet.di"
+      implementationClass = "build.wallet.gradle.logic.di.DiPlugin"
+    }
   }
 }
 
@@ -81,6 +85,7 @@ dependencies {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib")
   }
   compileOnly(libs.pluginClasspath.kotlin)
+  compileOnly(libs.pluginClasspath.ksp)
   compileOnly(libs.pluginClasspath.wire)
 
   implementation(libs.pluginClasspath.redacted)

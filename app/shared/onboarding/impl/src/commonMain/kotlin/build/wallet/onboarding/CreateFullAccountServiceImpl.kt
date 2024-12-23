@@ -15,6 +15,8 @@ import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode.APP_AUTH_PUBKEY_IN_USE
@@ -40,6 +42,7 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class CreateFullAccountServiceImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val debugOptionsService: DebugOptionsService,

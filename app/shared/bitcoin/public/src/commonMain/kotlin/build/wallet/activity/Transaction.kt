@@ -10,13 +10,17 @@ import build.wallet.money.BitcoinMoney
  * All transactions activity can be accessed by [TransactionsActivityService].
  */
 sealed interface Transaction {
+  val id: String
+
   /**
    * Represents a Bitcoin wallet on-chain transaction. When [Transaction.BitcoinWalletTransaction] is emitted,
    * it indicates that there is no associated partnership transaction that we know of.
    */
   data class BitcoinWalletTransaction(
     val details: BitcoinTransaction,
-  ) : Transaction
+  ) : Transaction {
+    override val id: String = details.id
+  }
 
   /**
    * Represents a partnership transaction. When [Transaction.PartnershipTransaction] is emitted,
@@ -26,7 +30,9 @@ sealed interface Transaction {
   data class PartnershipTransaction(
     val details: build.wallet.partnerships.PartnershipTransaction,
     val bitcoinTransaction: BitcoinTransaction?,
-  ) : Transaction
+  ) : Transaction {
+    override val id: String = details.id.value
+  }
 }
 
 fun Transaction.PartnershipTransaction.bitcoinTotal(): BitcoinMoney? {

@@ -14,6 +14,7 @@ kotlin {
         api(projects.shared.debugPublic)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.testingPublic)
+        api(projects.shared.bitcoinFake)
       }
     }
   }

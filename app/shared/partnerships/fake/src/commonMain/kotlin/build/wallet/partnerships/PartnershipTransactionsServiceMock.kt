@@ -1,6 +1,7 @@
 package build.wallet.partnerships
 
 import app.cash.turbine.Turbine
+import app.cash.turbine.plusAssign
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,6 +17,7 @@ class PartnershipTransactionsServiceMock(
   var createResponse: Result<PartnershipTransaction, Error> = Ok(FakePartnershipTransaction),
   var fetchMostRecentResult: Result<PartnershipTransaction?, Error> = Ok(null),
   var updateRecentTransactionStatusResponse: Result<PartnershipTransaction?, Error> = Ok(null),
+  val getCalls: Turbine<PartnershipTransactionId>,
 ) : PartnershipTransactionsService {
   override val transactions = MutableStateFlow<List<PartnershipTransaction>>(emptyList())
   override val previouslyUsedPartnerIds = MutableStateFlow<List<PartnerId>>(emptyList())
@@ -56,6 +58,13 @@ class PartnershipTransactionsServiceMock(
   ): Result<PartnershipTransaction?, Error> {
     fetchMostRecentCalls.add(transactionId)
     return fetchMostRecentResult
+  }
+
+  override suspend fun getTransactionById(
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error> {
+    getCalls += transactionId
+    return Ok(transactions.value.find { it.id == transactionId })
   }
 
   fun reset() {

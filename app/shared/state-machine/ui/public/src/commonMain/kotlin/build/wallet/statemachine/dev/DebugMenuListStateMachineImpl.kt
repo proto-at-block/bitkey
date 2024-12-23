@@ -13,6 +13,8 @@ import build.wallet.debug.AppDataDeleter
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
 import build.wallet.debug.cloud.CloudBackupDeleter
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
@@ -30,6 +32,7 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class DebugMenuListStateMachineImpl(
   private val accountService: AccountService,
   private val accountConfigUiStateMachine: AccountConfigUiStateMachine,

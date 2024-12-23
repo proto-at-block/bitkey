@@ -10,6 +10,8 @@ import build.wallet.availability.NetworkConnection.HttpClientNetworkConnection.F
 import build.wallet.availability.NetworkReachability.UNREACHABLE
 import build.wallet.bitkey.account.Account
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.mapResult
 import build.wallet.platform.config.AppVariant
@@ -17,6 +19,7 @@ import build.wallet.platform.config.AppVariant.Emergency
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class AppFunctionalityServiceImpl(
   private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,

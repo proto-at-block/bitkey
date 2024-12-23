@@ -10,8 +10,11 @@ import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.moneyhome.card.CardModel
 
+@BitkeyInject(ActivityScope::class)
 class CloudBackupHealthCardUiStateMachineImpl(
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val appFunctionalityService: AppFunctionalityService,

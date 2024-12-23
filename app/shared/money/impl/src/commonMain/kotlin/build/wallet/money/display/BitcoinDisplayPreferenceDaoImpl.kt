@@ -2,6 +2,8 @@ package build.wallet.money.display
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -9,6 +11,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapOr
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class BitcoinDisplayPreferenceDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : BitcoinDisplayPreferenceDao {

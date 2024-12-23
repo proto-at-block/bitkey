@@ -4,9 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.money.input.MoneyInputFormatter
 
+@BitkeyInject(ActivityScope::class)
 class MoneyAmountEntryUiStateMachineImpl(
   private val moneyInputFormatter: MoneyInputFormatter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,

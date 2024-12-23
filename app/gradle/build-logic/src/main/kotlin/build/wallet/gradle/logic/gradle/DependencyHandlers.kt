@@ -1,5 +1,6 @@
 package build.wallet.gradle.logic.gradle
 
+import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
 import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.ModuleDependency
@@ -53,8 +54,8 @@ internal fun DependencyHandler.addDependency(
 ): Dependency {
   return when (val dep = dependency.unwrappedProvider()) {
     is MinimalExternalModuleDependency -> requireNotNull(add(configurationName, dep.versionedAlias))
-    is ProjectDependency -> requireNotNull(add(configurationName, dep))
-    else -> error("Unsupported $configurationName dependency type: $dep.")
+    is Project, is ProjectDependency -> requireNotNull(add(configurationName, dep))
+    else -> error("Unsupported $configurationName dependency type ${dep::class.simpleName}: $dep.")
   }
 }
 

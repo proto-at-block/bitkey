@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -26,6 +28,7 @@ import kotlinx.collections.immutable.*
 import kotlinx.datetime.LocalDate
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class FeedbackFormUiStateMachineImpl(
   private val delayer: Delayer,
   private val supportTicketRepository: SupportTicketRepository,

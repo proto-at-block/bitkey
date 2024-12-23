@@ -6,9 +6,9 @@ import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import app.cash.sqldelight.driver.native.wrapConnection
 import build.wallet.catchingResult
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
-import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import co.touchlab.sqliter.DatabaseConfiguration
@@ -19,15 +19,15 @@ import com.github.michaelbull.result.getError
 /**
  * Real iOS implementation of the [SqlDriverFactory], uses [NativeSqliteDriver].
  */
-actual class SqlDriverFactoryImpl actual constructor(
-  platformContext: PlatformContext,
-  fileDirectoryProvider: FileDirectoryProvider,
+
+@BitkeyInject(AppScope::class)
+class SqlDriverFactoryImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   private val uuidGenerator: UuidGenerator,
   private val appVariant: AppVariant,
   private val databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
-  actual override suspend fun createDriver(
+  override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {

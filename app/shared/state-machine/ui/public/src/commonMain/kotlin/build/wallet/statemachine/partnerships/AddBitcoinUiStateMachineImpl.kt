@@ -1,6 +1,8 @@
 package build.wallet.statemachine.partnerships
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.partnerships.AddBitcoinUiState.*
@@ -9,6 +11,7 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiSta
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class AddBitcoinUiStateMachineImpl(
   val partnershipsTransferUiStateMachine: PartnershipsTransferUiStateMachine,
   val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine,
@@ -45,14 +48,7 @@ class AddBitcoinUiStateMachineImpl(
             PartnershipsTransferUiProps(
               account = props.account,
               keybox = props.keybox,
-              sellBitcoinEnabled = props.sellBitcoinEnabled,
-              onBack = {
-                if (props.sellBitcoinEnabled) {
-                  props.onExit()
-                } else {
-                  uiState = ShowingBuyOrTransferUiState
-                }
-              },
+              onBack = props.onExit,
               onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
               onPartnerRedirected = props.onPartnerRedirected,
               onExit = props.onExit

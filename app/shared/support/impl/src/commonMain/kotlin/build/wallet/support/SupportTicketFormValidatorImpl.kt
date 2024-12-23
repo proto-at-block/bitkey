@@ -1,7 +1,10 @@
 package build.wallet.support
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.email.EmailValidator
 
+@BitkeyInject(AppScope::class)
 class SupportTicketFormValidatorImpl(
   private val emailValidator: EmailValidator,
 ) : SupportTicketFormValidator {

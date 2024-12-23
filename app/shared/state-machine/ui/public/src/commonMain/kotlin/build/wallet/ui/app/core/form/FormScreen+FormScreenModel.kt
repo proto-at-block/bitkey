@@ -203,8 +203,8 @@ private fun Showcase(model: Showcase) {
               .padding(horizontal = 24.dp)
               .aspectRatio(1f),
           resourcePath = when (content.video) {
-            Showcase.Content.VideoContent.Video.BITKEY_RESET ->
-              Res.getVideoResource("bitkey_reset")
+            Showcase.Content.VideoContent.Video.BITKEY_WIPE ->
+              Res.getVideoResource("bitkey_wipe")
           },
           backgroundColor = Color.White,
           autoStart = false,

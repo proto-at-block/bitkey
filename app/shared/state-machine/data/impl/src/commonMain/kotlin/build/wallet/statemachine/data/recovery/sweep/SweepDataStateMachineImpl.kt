@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalObjCRefinement::class)
-
 package build.wallet.statemachine.data.recovery.sweep
 
 import androidx.compose.runtime.*
@@ -7,6 +5,8 @@ import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.Companion.sweepPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
@@ -19,10 +19,8 @@ import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.*
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlin.experimental.ExperimentalObjCRefinement
-import kotlin.native.HiddenFromObjC
 
-@HiddenFromObjC
+@BitkeyInject(AppScope::class)
 class SweepDataStateMachineImpl(
   private val sweepService: SweepService,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,

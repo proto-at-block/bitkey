@@ -82,7 +82,7 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.android.sqlite.framework,
       libs.android.test.findbugs,
       libs.android.exifinterface,
-      libs.kmp.coil.base,
+      libs.kmp.coil.core,
       libs.jvm.apache.httpclient,
       libs.jvm.apache.commons.lang,
       libs.jvm.bytebuddy.asProvider(),
@@ -108,9 +108,9 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.kmp.okio,
       libs.kmp.test.kotlin.coroutines,
       libs.jvm.asm,
-      libs.jvm.ksp,
       libs.jvm.kotlinpoet.asProvider(),
-      libs.jvm.kotlinpoet.ksp
+      libs.jvm.kotlinpoet.ksp,
+      libs.jvm.ksp.api
     )
 
     dependencyLockingExtension.commonDependencyLockingGroups.kotlinCompiler.pin(

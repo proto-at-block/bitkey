@@ -20,8 +20,8 @@ import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
-import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiProps
-import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiProps
+import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
@@ -80,8 +80,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       initialModel = null
     ) {}
 
-  val pendingClaimCardUiStateMachine =
-    object : PendingClaimCardUiStateMachine, StateMachineMock<PendingClaimCardUiProps, List<CardModel>>(
+  val inheritanceCardUiStateMachine =
+    object : InheritanceCardUiStateMachine, StateMachineMock<InheritanceCardUiProps, List<CardModel>>(
       initialModel = emptyList()
     ) {}
 
@@ -95,7 +95,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine,
       startSweepCardUiStateMachine = startSweepCardUiStateMachine,
       bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine,
-      pendingClaimCardUiStateMachine = pendingClaimCardUiStateMachine
+      inheritanceCardUiStateMachine = inheritanceCardUiStateMachine
     )
 
   val props =
@@ -141,7 +141,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         f8eEnvironment = F8eEnvironment.Development,
         onOpenPriceChart = {}
       ),
-      pendingClaimCardUiProps = PendingClaimCardUiProps(
+      inheritanceCardUiProps = InheritanceCardUiProps(
         onClick = null
       )
     )

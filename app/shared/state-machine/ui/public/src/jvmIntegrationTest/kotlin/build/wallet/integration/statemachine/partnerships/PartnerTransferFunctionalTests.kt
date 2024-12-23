@@ -13,6 +13,8 @@ import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiPro
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.test.assertEquals
@@ -27,7 +29,6 @@ class PartnerTransferFunctionalTests : FunSpec({
     val transferUiProps = PartnershipsTransferUiProps(
       account = account,
       keybox = account.keybox,
-      sellBitcoinEnabled = false,
       onBack = {},
       onAnotherWalletOrExchange = {},
       onPartnerRedirected = { redirectionMethod, transaction ->
@@ -47,7 +48,7 @@ class PartnerTransferFunctionalTests : FunSpec({
         }
 
         val body = sheetModel.body.shouldBeInstanceOf<FormBodyModel>()
-        assertEquals("Select a partner", body.toolbar?.middleAccessory?.title)
+        body.header?.headline.shouldNotBeNull().shouldBe("Receive bitcoin from")
 
         val items = body.mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()

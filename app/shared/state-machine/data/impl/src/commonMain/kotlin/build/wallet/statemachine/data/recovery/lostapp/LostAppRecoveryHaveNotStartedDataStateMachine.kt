@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.AttemptingCloudRecoveryLostAppRecoveryDataData
@@ -32,6 +34,7 @@ data class LostAppRecoveryHaveNotStartedProps(
   val onRollback: () -> Unit,
 )
 
+@BitkeyInject(AppScope::class)
 class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
   private val initiatingLostAppRecoveryDataStateMachine: InitiatingLostAppRecoveryDataStateMachine,
 ) : LostAppRecoveryHaveNotStartedDataStateMachine {

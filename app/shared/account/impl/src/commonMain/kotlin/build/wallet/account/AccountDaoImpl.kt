@@ -12,6 +12,8 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.*
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.frost.KeyCommitments
 import build.wallet.frost.PublicKey
 import build.wallet.frost.ShareDetails
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 
+@BitkeyInject(AppScope::class)
 class AccountDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : AccountDao {

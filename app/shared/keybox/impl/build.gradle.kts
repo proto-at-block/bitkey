@@ -1,13 +1,14 @@
+import build.wallet.gradle.logic.extensions.allTargets
 import build.wallet.gradle.logic.extensions.commonIntegrationTest
 import build.wallet.gradle.logic.extensions.invoke
-import build.wallet.gradle.logic.extensions.targets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   sourceSets {
     commonMain {

@@ -4,8 +4,11 @@ import build.wallet.bitcoin.core.coreFfiNetwork
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitkey.keybox.SoftwareKeybox
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.rust.core.computeFrostWalletDescriptor
 
+@BitkeyInject(AppScope::class)
 class FrostWalletDescriptorFactoryImpl : FrostWalletDescriptorFactory {
   override fun watchingWalletDescriptor(softwareKeybox: SoftwareKeybox): WatchingWalletDescriptor {
     val networkType = softwareKeybox.networkType

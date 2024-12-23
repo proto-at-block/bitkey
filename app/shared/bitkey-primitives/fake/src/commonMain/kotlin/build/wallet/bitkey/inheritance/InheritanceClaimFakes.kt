@@ -31,7 +31,7 @@ val BeneficiaryLockedClaimFake =
     benefactorKeyset = BenefactorDescriptorKeyset("fake-keyset")
   )
 
-val BeneficiaryCompleteClaim = BeneficiaryClaim.CompleteClaim(
+val BeneficiaryCompleteClaimFake = BeneficiaryClaim.CompleteClaim(
   claimId = InheritanceClaimId("claim-benefactor-locked-id"),
   relationshipId = RelationshipId("relationship-benefactor-locked-id")
 )

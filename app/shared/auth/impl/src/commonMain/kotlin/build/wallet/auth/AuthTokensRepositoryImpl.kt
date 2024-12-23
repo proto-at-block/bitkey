@@ -1,9 +1,12 @@
 package build.wallet.auth
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 
+@BitkeyInject(AppScope::class)
 class AuthTokensRepositoryImpl(
   private val authTokenDao: AuthTokenDao,
   private val authTokenRefresher: AppAuthTokenRefresher,

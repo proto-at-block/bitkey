@@ -1,8 +1,9 @@
 import build.wallet.gradle.dependencylocking.util.ifMatches
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   id("build.wallet.sqldelight")
 }
 
@@ -26,7 +27,7 @@ sqldelight {
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   sourceSets {
     commonMain {
@@ -61,7 +62,7 @@ kotlin {
       }
     }
 
-    jvmTest {
+    val commonJvmTest by getting {
       resources.srcDir("${project.projectDir}/src/commonMain/sqldelight")
         .include("databases/*", "fixtures/*")
 

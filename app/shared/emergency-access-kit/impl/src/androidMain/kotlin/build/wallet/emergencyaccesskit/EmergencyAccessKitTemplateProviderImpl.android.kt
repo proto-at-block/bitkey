@@ -1,8 +1,10 @@
 package build.wallet.emergencyaccesskit
 
+import android.app.Application
 import android.content.Context
 import build.wallet.catchingResult
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.shared.emergency.access.kit.impl.R
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -12,15 +14,15 @@ import kotlinx.coroutines.withContext
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-@Suppress("unused")
-actual class EmergencyAccessKitTemplateProviderImpl actual constructor(
-  private val platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class EmergencyAccessKitTemplateProviderImpl(
+  private val application: Application,
 ) : EmergencyAccessKitTemplateProvider {
-  actual override suspend fun pdfTemplateBytes(): Result<ByteString, EmergencyAccessKitTemplateUnavailableError> =
+  override suspend fun pdfTemplateBytes(): Result<ByteString, EmergencyAccessKitTemplateUnavailableError> =
     catchingResult {
       val resourceBytes =
         rawResourceBytes(
-          platformContext.appContext,
+          application,
           R.raw.emergency_access_kit_template_000
         )
       return Ok(resourceBytes)

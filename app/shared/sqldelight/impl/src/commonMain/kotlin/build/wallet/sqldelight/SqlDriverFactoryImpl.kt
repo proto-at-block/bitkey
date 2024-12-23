@@ -1,27 +1,7 @@
 package build.wallet.sqldelight
 
-import app.cash.sqldelight.db.QueryResult
-import app.cash.sqldelight.db.SqlDriver
-import app.cash.sqldelight.db.SqlSchema
-import build.wallet.platform.PlatformContext
-import build.wallet.platform.config.AppVariant
-import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
-
-expect class SqlDriverFactoryImpl(
-  platformContext: PlatformContext,
-  fileDirectoryProvider: FileDirectoryProvider,
-  encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  uuidGenerator: UuidGenerator,
-  appVariant: AppVariant,
-  databaseIntegrityChecker: DatabaseIntegrityChecker,
-) : SqlDriverFactory {
-  override suspend fun createDriver(
-    dataBaseName: String,
-    dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
-  ): SqlDriver
-}
 
 @Suppress("ForbiddenMethodCall")
 internal suspend fun loadDbKey(

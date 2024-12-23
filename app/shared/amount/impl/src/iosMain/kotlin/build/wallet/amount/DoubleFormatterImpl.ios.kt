@@ -1,11 +1,14 @@
 package build.wallet.amount
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.settings.LocaleProvider
 import build.wallet.platform.settings.toNSLocale
 import platform.Foundation.NSNumber
 import platform.Foundation.NSNumberFormatter
 import platform.Foundation.NSNumberFormatterDecimalStyle
 
+@BitkeyInject(AppScope::class)
 actual class DoubleFormatterImpl actual constructor(
   private val localeProvider: LocaleProvider,
 ) : DoubleFormatter {

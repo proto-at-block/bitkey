@@ -72,7 +72,7 @@ extension FormMainContentModel.ShowcaseContentVideoContentVideo {
 
     var videoUrl: URL {
         switch self {
-        case .bitkeyReset:
+        case .bitkeyWipe:
             return .bitkeyResetVideoUrl
         default:
             fatalError(

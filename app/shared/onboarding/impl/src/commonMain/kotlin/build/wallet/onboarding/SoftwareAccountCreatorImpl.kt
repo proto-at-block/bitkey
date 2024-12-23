@@ -10,6 +10,8 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.onboarding.CreateSoftwareAccountF8eClient
 import build.wallet.onboarding.SoftwareAccountCreationError.SoftwareAccountCreationAuthError
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class SoftwareAccountCreatorImpl(
   private val createSoftwareAccountF8eClient: CreateSoftwareAccountF8eClient,
   private val accountAuthenticator: AccountAuthenticator,

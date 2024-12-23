@@ -11,7 +11,7 @@ reqwest = { workspace = true, default-features = false, features = [
   "rustls-tls",
 ] }
 reqwest-middleware = { workspace = true }
-reqwest-tracing = { version = "0.4.7", features = ["opentelemetry_0_21"] }
+reqwest-tracing = { version = "=0.5.2", features = ["opentelemetry_0_21"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

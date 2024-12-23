@@ -5,11 +5,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiState.ViewingFaqUiState
 
+@BitkeyInject(ActivityScope::class)
 class HelpCenterUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : HelpCenterUiStateMachine {

@@ -4,9 +4,13 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.LoadAppService
-import build.wallet.logging.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
+import build.wallet.inappsecurity.BiometricAuthService
+import build.wallet.logging.logDebug
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
@@ -14,6 +18,8 @@ import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
+import build.wallet.statemachine.biometric.BiometricPromptProps
+import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
@@ -21,6 +27,7 @@ import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.home.full.HomeUiProps
@@ -36,8 +43,8 @@ import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitR
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
@@ -46,6 +53,7 @@ import build.wallet.worker.AppWorkerExecutor
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class AppUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val delayer: Delayer,
@@ -66,8 +74,10 @@ class AppUiStateMachineImpl(
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val emergencyAccessKitRecoveryUiStateMachine: EmergencyAccessKitRecoveryUiStateMachine,
   private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
-  private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
+  private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
+  private val biometricAuthService: BiometricAuthService,
+  private val biometricPromptUiStateMachine: BiometricPromptUiStateMachine,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -76,7 +86,7 @@ class AppUiStateMachineImpl(
    * of app startup, before other screens have been shown, and in order to show loading screens
    * back to back.
    */
-  var previousScreenModel: ScreenModel? = null
+  private var previousScreenModel: ScreenModel? = null
 
   @Composable
   override fun model(props: Unit): ScreenModel {
@@ -84,17 +94,29 @@ class AppUiStateMachineImpl(
       appWorkerExecutor.executeAll()
     }
 
-    val appState = produceState<AppState?>(initialValue = null) {
-      value = loadAppService.loadAppState()
-    }.value
+    var softwareAccount by remember { mutableStateOf<SoftwareAccount?>(null) }
     var accountData by remember { mutableStateOf<AccountData?>(null) }
 
-    var screenModel = when (appState) {
+    val appState by produceState<AppState?>(initialValue = null) {
+      value = loadAppService.loadAppState()
+    }
+
+    var screenModel = softwareAccount?.let {
+      HasActiveSoftwareAccountScreenModel(it, isNewlyCreated = true)
+    } ?: when (val appState = appState) {
       null -> AppLoadingScreenModel()
+      is AppState.HasActiveSoftwareAccount -> {
+        HasActiveSoftwareAccountScreenModel(appState.account, isNewlyCreated = false)
+      }
       else -> {
         accountDataStateMachine.model(Unit).let {
           accountData = it
-          AppLoadedDataScreenModel(it)
+          AppLoadedDataScreenModel(
+            accountData = it,
+            onSoftwareWalletCreated = { swAccount ->
+              softwareAccount = swAccount
+            }
+          )
         }
       }
     }
@@ -106,7 +128,8 @@ class AppUiStateMachineImpl(
     // continue to show the Splash screen for more seamless app startup experience
     val shouldContinueToShowSplashScreen = remember(previousScreenModel, screenModel) {
       (previousScreenModel?.body is SplashBodyModel) &&
-        (screenModel.body as? LoadingSuccessBodyModel)?.state == LoadingSuccessBodyModel.State.Loading
+        (screenModel.body as? LoadingSuccessBodyModel)?.state ==
+        LoadingSuccessBodyModel.State.Loading
     }
     if (shouldContinueToShowSplashScreen) {
       screenModel = SplashScreenModel()
@@ -147,7 +170,40 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun AppLoadedDataScreenModel(accountData: AccountData): ScreenModel {
+  private fun HasActiveSoftwareAccountScreenModel(
+    account: SoftwareAccount,
+    isNewlyCreated: Boolean,
+  ): ScreenModel {
+    var shouldShowWelcomeScreenWhenTransitionToActive by remember {
+      mutableStateOf(isNewlyCreated)
+    }
+
+    // If we just created the software account, we want to briefly show a welcome screen.
+    return if (shouldShowWelcomeScreenWhenTransitionToActive) {
+      LaunchedEffect("show-welcome-screen") {
+        delayer.delay(3.seconds)
+        shouldShowWelcomeScreenWhenTransitionToActive = false
+      }
+      LoadingSuccessBodyModel(
+        id = null,
+        message = "Welcome to Bitkey",
+        state = LoadingSuccessBodyModel.State.Success
+      ).asRootScreen()
+    } else {
+      homeUiStateMachine.model(
+        props = HomeUiProps(
+          account = account,
+          lostHardwareRecoveryData = GeneratingNewAppKeysData
+        )
+      )
+    }
+  }
+
+  @Composable
+  private fun AppLoadedDataScreenModel(
+    accountData: AccountData,
+    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
+  ): ScreenModel {
     // Keep track of when to show the "Welcome to Bitkey" screen.
     // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
     var shouldShowWelcomeScreenWhenTransitionToActive by remember {
@@ -160,7 +216,7 @@ class AppUiStateMachineImpl(
 
       is NoActiveAccountData -> {
         shouldShowWelcomeScreenWhenTransitionToActive = true
-        NoActiveAccountDataScreenModel(accountData)
+        NoActiveAccountDataScreenModel(accountData, onSoftwareWalletCreated)
       }
 
       is HasActiveFullAccountData ->
@@ -195,13 +251,17 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun NoActiveAccountDataScreenModel(accountData: NoActiveAccountData): ScreenModel {
+  private fun NoActiveAccountDataScreenModel(
+    accountData: NoActiveAccountData,
+    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
+  ): ScreenModel {
     return when (accountData) {
       is CheckingRecoveryOrOnboarding -> AppLoadingScreenModel()
 
       is GettingStartedData ->
         ChooseAccountAccessScreenModel(
-          chooseAccountAccessData = accountData
+          chooseAccountAccessData = accountData,
+          onSoftwareWalletCreated = onSoftwareWalletCreated
         )
 
       is RecoveringAccountData ->
@@ -260,8 +320,8 @@ class AppUiStateMachineImpl(
         )
 
       is ResettingExistingDeviceData ->
-        resettingDeviceUiStateMachine.model(
-          props = ResettingDeviceProps(
+        wipingDeviceUiStateMachine.model(
+          props = WipingDeviceProps(
             fullAccountConfig = accountData.debugOptions.toFullAccountConfig(),
             onBack = accountData.onExit,
             onSuccess = accountData.onSuccess,
@@ -280,6 +340,9 @@ class AppUiStateMachineImpl(
       mutableStateOf(initialShouldShowWelcomeScreenWhenTransitionToActive)
     }
 
+    val shouldPromptForAuth by remember { biometricAuthService.isBiometricAuthRequired() }
+      .collectAsState()
+
     return when (accountData) {
       is ActiveFullAccountLoadedData ->
         // If we are transitioning from NoActiveAccount to HasActiveFullAccount, we want to briefly
@@ -296,9 +359,15 @@ class AppUiStateMachineImpl(
             state = LoadingSuccessBodyModel.State.Success
           ).asRootScreen()
         } else {
-          HomeScreenModel(
+          val homeScreenModel = HomeScreenModel(
             accountData = accountData
           )
+
+          biometricPromptUiStateMachine.model(
+            props = BiometricPromptProps(
+              shouldPromptForAuth = shouldPromptForAuth
+            )
+          ) ?: homeScreenModel
         }
 
       is HasActiveFullAccountData.RotatingAuthKeys ->
@@ -322,7 +391,8 @@ class AppUiStateMachineImpl(
       else ->
         when {
           previousScreenModel.body is SplashBodyModel ||
-            (previousScreenModel.body as? LoadingSuccessBodyModel)?.state == LoadingSuccessBodyModel.State.Loading
+            (previousScreenModel.body as? LoadingSuccessBodyModel)?.state ==
+            LoadingSuccessBodyModel.State.Loading
           ->
             previousScreenModel
 
@@ -336,20 +406,21 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun SplashScreenModel(): ScreenModel {
-    return SplashBodyModel(
+  private fun SplashScreenModel(): ScreenModel =
+    SplashBodyModel(
       bitkeyWordMarkAnimationDelay = 700.milliseconds,
       bitkeyWordMarkAnimationDuration = 500.milliseconds
     ).asScreen(presentationStyle = ScreenPresentationStyle.FullScreen)
-  }
 
   @Composable
   private fun ChooseAccountAccessScreenModel(
     chooseAccountAccessData: GettingStartedData,
+    onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
   ): ScreenModel =
     chooseAccountAccessUiStateMachine.model(
       props = ChooseAccountAccessUiProps(
-        chooseAccountAccessData = chooseAccountAccessData
+        chooseAccountAccessData = chooseAccountAccessData,
+        onSoftwareWalletCreated = onSoftwareWalletCreated
       )
     )
 
@@ -420,10 +491,9 @@ class AppUiStateMachineImpl(
     }
   }
 
-  private fun BodyModel.errorData(): ErrorData? {
-    return when (this) {
+  private fun BodyModel.errorData(): ErrorData? =
+    when (this) {
       is FormBodyModel -> errorData
       else -> null
     }
-  }
 }

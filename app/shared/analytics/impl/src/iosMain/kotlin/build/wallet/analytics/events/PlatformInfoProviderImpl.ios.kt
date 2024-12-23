@@ -3,14 +3,15 @@ package build.wallet.analytics.events
 import build.wallet.analytics.v1.Client.CLIENT_IOS_APP
 import build.wallet.analytics.v1.OSType.OS_TYPE_IOS
 import build.wallet.analytics.v1.PlatformInfo
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVersion
 import build.wallet.platform.versions.OsVersionInfoProvider
 import platform.UIKit.UIDevice
 
-actual class PlatformInfoProviderImpl actual constructor(
-  platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class PlatformInfoProviderImpl(
   appId: AppId,
   appVersion: AppVersion,
   osVersionInfoProvider: OsVersionInfoProvider,
@@ -28,7 +29,7 @@ actual class PlatformInfoProviderImpl actual constructor(
     )
   }
 
-  actual override fun getPlatformInfo(): PlatformInfo {
+  override fun getPlatformInfo(): PlatformInfo {
     return platformInfoLazy
   }
 }

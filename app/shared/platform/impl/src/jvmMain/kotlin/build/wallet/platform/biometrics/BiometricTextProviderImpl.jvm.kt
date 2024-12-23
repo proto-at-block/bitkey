@@ -1,7 +1,11 @@
 package build.wallet.platform.biometrics
 
-actual class BiometricTextProviderImpl : BiometricTextProvider {
-  actual override fun getSettingsTitleText(): String = "Noop Biometrics"
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-  actual override fun getSettingsSecondaryText(): String = "Noop Biometrics Description"
+@BitkeyInject(AppScope::class)
+class BiometricTextProviderImpl : BiometricTextProvider {
+  override fun getSettingsTitleText(): String = "Noop Biometrics"
+
+  override fun getSettingsSecondaryText(): String = "Noop Biometrics Description"
 }

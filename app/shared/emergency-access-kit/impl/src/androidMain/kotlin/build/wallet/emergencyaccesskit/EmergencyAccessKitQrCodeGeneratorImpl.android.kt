@@ -3,6 +3,8 @@ package build.wallet.emergencyaccesskit
 import android.graphics.Bitmap
 import android.graphics.Color
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -16,8 +18,9 @@ import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import java.io.ByteArrayOutputStream
 
-actual class EmergencyAccessKitQrCodeGeneratorImpl : EmergencyAccessKitQrCodeGenerator {
-  actual override suspend fun imageBytes(
+@BitkeyInject(AppScope::class)
+class EmergencyAccessKitQrCodeGeneratorImpl : EmergencyAccessKitQrCodeGenerator {
+  override suspend fun imageBytes(
     width: Float,
     height: Float,
     contents: String,

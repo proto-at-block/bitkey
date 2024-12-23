@@ -3,6 +3,8 @@ package build.wallet.fwup
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FwupDataEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -12,6 +14,7 @@ import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.*
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class FwupDataDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FwupDataDao {

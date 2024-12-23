@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.account.create.full.hardware.HardwareFingerprintEnrollmentScreenModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -15,6 +17,7 @@ import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFing
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.ShowingFingerprintInstructionsUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiState.StartingEnrollmentUiState
 
+@BitkeyInject(ActivityScope::class)
 class EnrollingFingerprintUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val fingerprintNfcCommands: FingerprintNfcCommands,

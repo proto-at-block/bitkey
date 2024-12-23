@@ -2,6 +2,7 @@ package build.wallet.inheritance
 
 import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,11 @@ interface InheritanceClaimsDao {
    * Sets (overwrites) all inheritances claims in the database.
    */
   suspend fun setInheritanceClaims(inheritanceClaims: InheritanceClaims): Result<Unit, Error>
+
+  /**
+   * Updates a single claim in the database.
+   */
+  suspend fun updateInheritanceClaim(inheritanceClaim: InheritanceClaim): Result<Unit, Error>
 
   /**
    * Clears all details for all claims from the dao

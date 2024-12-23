@@ -48,6 +48,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
 
@@ -86,6 +87,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+  val transactionActivityService = TransactionsActivityServiceFake()
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -107,7 +109,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
       feeRateEstimator = BitcoinFeeRateEstimatorMock(),
       inAppBrowserNavigator = inAppBrowserNavigator,
-      bitcoinWalletService = bitcoinWalletService
+      bitcoinWalletService = bitcoinWalletService,
+      transactionsActivityService = transactionActivityService
     )
 
   val receivedProps =
@@ -194,6 +197,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = spendingWallet
     bitcoinTransactionBumpabilityChecker.isBumpable = false
+    transactionActivityService.reset()
   }
 
   test("pending receive transaction returns correct model") {
@@ -430,7 +434,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           )
           items[1].expect(
             title = "Network fees",
-            sideText = "$0.03",
+            sideText = "$0.04",
             secondarySideText = "1,000,000 sats"
           )
           total
@@ -470,6 +474,35 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         .shouldBe(
           "https://mempool.space/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
         )
+    }
+  }
+
+  test("transaction updates trigger screen updates") {
+    runTest {
+      stateMachine.test(pendingSentProps) {
+        awaitScreenWithBody<TransactionDetailModel> {
+          // Time Details
+          with(content[2].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
+          }
+        }
+
+        transactionActivityService.transactions.value = listOf(sentProps.transaction)
+
+        awaitScreenWithBody<TransactionDetailModel> {
+          // Time Details
+          with(content[2].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
+          }
+        }
+
+        awaitScreenWithBody<TransactionDetailModel> {
+          // Time Details
+          with(content[2].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(title = "Confirmed", sideText = "confirmed-time")
+          }
+        }
+      }
     }
   }
 
@@ -935,7 +968,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             )
             items[1].expect(
               title = "Network fees",
-              sideText = "$0.03",
+              sideText = "$0.04",
               secondarySideText = "1,000,000 sats"
             )
             total

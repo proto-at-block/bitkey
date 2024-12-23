@@ -6,10 +6,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 
-actual class EnableNfcNavigatorImpl : EnableNfcNavigator {
+@BitkeyInject(ActivityScope::class)
+class EnableNfcNavigatorImpl : EnableNfcNavigator {
   @Composable
-  actual override fun navigateToEnableNfc(onReturn: () -> Unit) {
+  override fun navigateToEnableNfc(onReturn: () -> Unit) {
     val launcher =
       rememberLauncherForActivityResult(
         contract = StartActivityForResult(),

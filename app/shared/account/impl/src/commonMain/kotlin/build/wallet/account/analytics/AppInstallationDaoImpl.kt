@@ -2,12 +2,15 @@ package build.wallet.account.analytics
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 
+@BitkeyInject(AppScope::class)
 class AppInstallationDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val uuidGenerator: UuidGenerator,

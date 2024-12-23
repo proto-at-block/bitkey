@@ -15,6 +15,8 @@ import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachineImpl.State.AuthTokensRefreshError
@@ -48,6 +50,7 @@ data class RefreshAuthTokensProps(
   val screenPresentationStyle: ScreenPresentationStyle,
 )
 
+@BitkeyInject(ActivityScope::class)
 class RefreshAuthTokensUiStateMachineImpl(
   private val authTokensRepository: AuthTokensRepository,
 ) : RefreshAuthTokensUiStateMachine {

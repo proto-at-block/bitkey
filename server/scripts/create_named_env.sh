@@ -53,22 +53,41 @@ NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-scr
 SDN_URI_KEY_NAME="${ENV_NAMESPACE}-fromagerie/sq_sdn/s3_uri"
 SDN_CSV_URI="${NAMED_STACK_S3_BUCKET_URI}/sq_sdn.csv"
 
-# Ignore non zero exit codes for the next commands, since describe-secret will return a 0 exit code if the secret does not exist.
-set +e
-secret_exists=$(aws secretsmanager describe-secret --secret-id $SDN_URI_KEY_NAME 2>&1)
-# Set back to strict mode
-set -e
+# User balance histogram
+NAMED_STACK_USER_BALANCE_HISTOGRAM_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-user-balance-histogram-data-development"
 
-echo $secret_exists
-if [[ $secret_exists == *"ResourceNotFoundException"* ]]; then
-  echo "Secret does not exist, creating it"
-  aws secretsmanager create-secret --name $SDN_URI_KEY_NAME --secret-string $SDN_CSV_URI
-  echo "Created new secret: $SDN_URI_KEY_NAME"
-else
-  echo "Secret already exists, updating it"
-  aws secretsmanager put-secret-value --secret-id $SDN_URI_KEY_NAME --secret-string $SDN_CSV_URI
-  echo "Updated existing secret: $SDN_URI_KEY_NAME"
-fi
+# Multiple fingerprints data
+MULTIPLE_FINGERPRINTS_DATA_URI_KEY_NAME="${ENV_NAMESPACE}-fromagerie/user_balance_histogram/multiple_fingerprints_data/s3_uri"
+MULTIPLE_FINGERPRINTS_DATA_URI="${NAMED_STACK_USER_BALANCE_HISTOGRAM_BUCKET_URI}/multiple_fingerprints_data.json"
+
+# Biometrics data
+BIOMETRICS_DATA_URI_KEY_NAME="${ENV_NAMESPACE}-fromagerie/user_balance_histogram/biometrics_data/s3_uri"
+BIOMETRICS_DATA_URI="${NAMED_STACK_USER_BALANCE_HISTOGRAM_BUCKET_URI}/biometrics_data.json"
+
+# Function to manage secret
+manage_secret() {
+    local key_name=$1
+    local uri=$2
+
+    # Ignore non zero exit codes for the next commands, since describe-secret will return a 0 exit code if the secret does not exist.
+    set +e
+    secret_exists=$(aws secretsmanager describe-secret --secret-id "$key_name" 2>&1)
+    # Set back to strict mode
+    set -e
+
+    if [[ $secret_exists == *"ResourceNotFoundException"* ]]; then
+        echo "Secret does not exist, creating: $key_name"
+        aws secretsmanager create-secret --name "$key_name" --secret-string "$uri"
+    else
+        echo "Secret already exists, updating: $key_name"
+        aws secretsmanager put-secret-value --secret-id "$key_name" --secret-string "$uri"
+    fi
+}
+
+# Manage all three secrets
+manage_secret "$SDN_URI_KEY_NAME" "$SDN_CSV_URI"
+manage_secret "$MULTIPLE_FINGERPRINTS_DATA_URI_KEY_NAME" "$MULTIPLE_FINGERPRINTS_DATA_URI"
+manage_secret "$BIOMETRICS_DATA_URI_KEY_NAME" "$BIOMETRICS_DATA_URI"
 
 pushd ${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/api
 export NAMESPACE=$ENV_NAMESPACE
@@ -81,15 +100,34 @@ terragrunt apply \
   -auto-approve
 popd
 
+# Get dev bucket uri from secrets manager
+export AWS_PROFILE=bitkey-development--admin
+
+# Function to copy data from dev to named stack
+copy_s3_data() {
+    local secret_id=$1
+    local dest_uri=$2
+    local description=$3
+
+    local dev_uri=$(aws secretsmanager get-secret-value --secret-id "$secret_id" --query SecretString --output text)
+    echo "Copying $description from $dev_uri to $dest_uri"
+    aws s3 cp "$dev_uri" "$dest_uri"
+}
+
+# S3 bucket URIs
+NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
+NAMED_STACK_USER_BALANCE_HISTOGRAM_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-user-balance-histogram-data-development"
+
 # Copy sanctions list from development to named-stack bucket. We intentionally make this a requirement to ensure that
 # we do not accidentally deploy anything to the public internet that we do not intend to.
 echo "🚀 Copying sanctions list to named stack bucket"
-# Get dev bucket uri from secrets manager
-export AWS_PROFILE=bitkey-development--admin
-DEV_BUCKET_URI=$(aws secretsmanager get-secret-value --secret-id fromagerie/sq_sdn/s3_uri --query SecretString --output text)
-NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
-echo "Copying from $DEV_BUCKET_URI to $NAMED_STACK_S3_BUCKET_URI"
-aws s3 cp $DEV_BUCKET_URI $NAMED_STACK_S3_BUCKET_URI
+copy_s3_data "fromagerie/sq_sdn/s3_uri" "$NAMED_STACK_S3_BUCKET_URI" "sanctions list"
+
+# echo "🚀 Copying fingerprints data to named stack bucket"
+# copy_s3_data "fromagerie/user_balance_histogram/multiple_fingerprints_data/s3_uri" "$NAMED_STACK_USER_BALANCE_HISTOGRAM_S3_BUCKET_URI" "fingerprints data"
+
+# echo "🚀 Copying biometrics data to named stack bucket"
+# copy_s3_data "fromagerie/user_balance_histogram/biometrics_data/s3_uri" "$NAMED_STACK_USER_BALANCE_HISTOGRAM_S3_BUCKET_URI" "biometrics data"
 
 if [[ -z "$IS_CI_RUN" ]] ; then
   if [[ -n "$BUILD_WSM" ]]; then

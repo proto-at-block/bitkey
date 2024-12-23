@@ -12,6 +12,8 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.logFailure
@@ -26,6 +28,7 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 
+@BitkeyInject(AppScope::class)
 class SweepGeneratorImpl(
   private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,

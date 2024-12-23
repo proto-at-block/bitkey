@@ -6,12 +6,12 @@ import build.wallet.store.clearWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
-actual class CloudStoreAccountRepositoryImpl(
+class CloudStoreAccountRepositoryImpl(
   private val keyValueStoreFactory: KeyValueStoreFactory,
 ) : CloudStoreAccountRepository, WritableCloudStoreAccountRepository {
   private suspend fun store() = keyValueStoreFactory.getOrCreate(STORE_NAME)
 
-  actual override suspend fun currentAccount(
+  override suspend fun currentAccount(
     cloudStoreServiceProvider: CloudStoreServiceProvider,
   ): Result<CloudStoreAccount?, CloudStoreAccountError> {
     return store()
@@ -21,7 +21,7 @@ actual class CloudStoreAccountRepositoryImpl(
       .logFailure { "Error loading current cloud store account." }
   }
 
-  actual override suspend fun clear(): Result<Unit, Throwable> {
+  override suspend fun clear(): Result<Unit, Throwable> {
     return store().clearWithResult()
   }
 

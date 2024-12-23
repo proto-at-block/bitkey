@@ -18,12 +18,6 @@ class MobilePayScreenSnapshots : FunSpec({
     }
   }
 
-  test("mobile pay screen - mobile pay enabled, confirmation enabled") {
-    paparazzi.snapshot {
-      MobilePayStatusScreenEnabledWithDialogPreview()
-    }
-  }
-
   test("mobile pay screen with revamp - mobile pay enabled, confirmation enabled") {
     paparazzi.snapshot {
       MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp()

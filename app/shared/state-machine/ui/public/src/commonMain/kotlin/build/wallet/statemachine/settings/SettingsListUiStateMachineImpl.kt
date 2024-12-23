@@ -10,11 +10,10 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
@@ -26,11 +25,11 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.reflect.KClass
 
+@BitkeyInject(ActivityScope::class)
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val coachmarkService: CoachmarkService,
-  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
@@ -108,7 +107,10 @@ class SettingsListUiStateMachineImpl(
     LaunchedEffect("coachmarks") {
       coachmarkService
         .coachmarksToDisplay(
-          coachmarkIds = setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark)
+          coachmarkIds = setOf(
+            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
+            CoachmarkIdentifier.BiometricUnlockCoachmark
+          )
         ).onSuccess {
           coachmarksToDisplay = it
         }
@@ -139,7 +141,7 @@ class SettingsListUiStateMachineImpl(
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
-        is MobilePay -> SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()).settingsPair
+        is MobilePay -> Pair(SmallIconMobileLimit, "Transfers")
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is AppearancePreference -> Pair(SmallIconPaintBrush, "Appearance")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")

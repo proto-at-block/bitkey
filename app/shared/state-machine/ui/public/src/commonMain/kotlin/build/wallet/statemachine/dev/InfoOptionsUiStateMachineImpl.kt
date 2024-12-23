@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDao
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.Clipboard
@@ -17,6 +19,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(ActivityScope::class)
 class InfoOptionsUiStateMachineImpl(
   private val accountService: AccountService,
   private val appInstallationDao: AppInstallationDao,

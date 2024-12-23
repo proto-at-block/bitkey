@@ -7,6 +7,8 @@ import build.wallet.auth.RefreshToken
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.AuthF8eClient.InitiateHardwareAuthenticationSuccess
@@ -23,6 +25,7 @@ import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class AuthF8eClientImpl(
   private val f8eHttpClient: UnauthenticatedF8eHttpClient, // only require unauthenticated calls
 ) : AuthF8eClient {

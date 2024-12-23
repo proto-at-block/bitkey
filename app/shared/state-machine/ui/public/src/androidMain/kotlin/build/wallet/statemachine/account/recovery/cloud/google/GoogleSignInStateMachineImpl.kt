@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.GoogleDrive
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.google.signin.GoogleSignInError
 import build.wallet.google.signin.GoogleSignInError.GoogleSignInAccountMissing
 import build.wallet.google.signin.GoogleSignInError.UnhandledError
@@ -27,6 +29,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 
+@BitkeyInject(ActivityScope::class)
 class GoogleSignInStateMachineImpl(
   private val googleSignInLauncher: GoogleSignInLauncher,
   private val googleSignOutAction: GoogleSignOutAction,

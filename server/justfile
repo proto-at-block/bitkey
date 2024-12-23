@@ -312,8 +312,6 @@ _run-api $ROCKET_PORT="8080" $ROCKET_PROFILE="localprod":
   if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
     export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
   fi
-  export REGTEST_ELECTRUM_SERVER_URI=tcp://localhost:18443
-  export REGTEST_ELECTRUM_SERVER_EXTERNAL_URI=tcp://localhost:18443
   cd src/api && ../../target/debug/server server
 
 _integration: build-bins sidecars

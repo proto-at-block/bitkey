@@ -11,17 +11,11 @@ import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.LocalRecoveryAttemptEntity
 import build.wallet.db.DbError
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ServerRecovery
-import build.wallet.recovery.LocalRecoveryAttemptProgress.AttemptingCompletion
-import build.wallet.recovery.LocalRecoveryAttemptProgress.BackedUpToCloud
-import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
-import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
-import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedAuthKeys
-import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
-import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
-import build.wallet.recovery.Recovery.NoActiveRecovery
-import build.wallet.recovery.Recovery.NoLongerRecovering
-import build.wallet.recovery.Recovery.SomeoneElseIsRecovering
+import build.wallet.recovery.LocalRecoveryAttemptProgress.*
+import build.wallet.recovery.Recovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.MaybeNoLongerRecovering
@@ -32,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 
+@BitkeyInject(AppScope::class)
 class RecoveryDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : RecoveryDao {

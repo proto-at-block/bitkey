@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.onboarding.CreateFullAccountService
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachineImpl.ActivateAccountState.AccountActivationError
@@ -18,6 +20,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class CreateAccountUiStateMachineImpl(
   private val createFullAccountService: CreateFullAccountService,
   private val createKeyboxUiStateMachine: CreateKeyboxUiStateMachine,

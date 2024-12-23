@@ -1,6 +1,8 @@
 package build.wallet.statemachine.fwup
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -13,6 +15,7 @@ import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUi
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState.UpdateErrorBottomSheetState.Showing
 import kotlinx.coroutines.delay
 
+@BitkeyInject(ActivityScope::class)
 class FwupNfcUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
@@ -146,5 +149,6 @@ private sealed interface FwupNfcUiState {
 
   data class InNfcSessionUiState(override val transactionType: FwupTransactionType) : FwupNfcUiState
 
-  data class ReleaseNotesUiState(override val transactionType: FwupTransactionType = FwupTransactionType.StartFromBeginning) : FwupNfcUiState
+  data class ReleaseNotesUiState(override val transactionType: FwupTransactionType = FwupTransactionType.StartFromBeginning) :
+    FwupNfcUiState
 }

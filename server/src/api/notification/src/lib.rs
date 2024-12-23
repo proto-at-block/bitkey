@@ -7,6 +7,7 @@ use errors::ApiError;
 use payloads::{
     comms_verification::CommsVerificationPayload,
     inheritance_claim_canceled::InheritanceClaimCanceledPayload,
+    inheritance_claim_period_almost_over::InheritanceClaimPeriodAlmostOverPayload,
     inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload,
     inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
     payment::PendingPaymentPayload,
@@ -127,6 +128,7 @@ pub enum NotificationPayloadType {
     PrivilegedActionCanceledDelayPeriod,
     PrivilegedActionCompletedDelayPeriod,
     PrivilegedActionPendingDelayPeriod,
+    InheritanceClaimPeriodAlmostOver,
     InheritanceClaimPeriodInitiated,
     InheritanceClaimCanceled,
     InheritanceClaimPeriodCompleted,
@@ -148,6 +150,7 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::PrivilegedActionCanceledDelayPeriod
             | NotificationPayloadType::PrivilegedActionCompletedDelayPeriod
             | NotificationPayloadType::PrivilegedActionPendingDelayPeriod
+            | NotificationPayloadType::InheritanceClaimPeriodAlmostOver
             | NotificationPayloadType::InheritanceClaimPeriodInitiated
             | NotificationPayloadType::InheritanceClaimCanceled
             | NotificationPayloadType::InheritanceClaimPeriodCompleted
@@ -257,6 +260,14 @@ impl NotificationPayloadType {
                 );
                 payload
                     .privileged_action_pending_delay_period_payload
+                    .is_some()
+            }
+            NotificationPayloadType::InheritanceClaimPeriodAlmostOver => {
+                builder.inheritance_claim_period_almost_over_payload(
+                    payload.inheritance_claim_period_almost_over_payload.clone(),
+                );
+                payload
+                    .inheritance_claim_period_almost_over_payload
                     .is_some()
             }
             NotificationPayloadType::InheritanceClaimPeriodInitiated => {
@@ -448,6 +459,14 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
+            NotificationPayloadType::InheritanceClaimPeriodAlmostOver => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .inheritance_claim_period_almost_over_payload
+                        .ok_or(NotificationError::InvalidPayload(payload_type))?,
+                ))
+            }
             NotificationPayloadType::InheritanceClaimPeriodInitiated => {
                 NotificationMessage::try_from((
                     composite_key,
@@ -533,6 +552,9 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub privileged_action_pending_delay_period_payload:
         Option<PrivilegedActionPendingDelayPeriodPayload>,
+    #[serde(default)]
+    pub inheritance_claim_period_almost_over_payload:
+        Option<InheritanceClaimPeriodAlmostOverPayload>,
     #[serde(default)]
     pub inheritance_claim_period_initiated_payload: Option<InheritanceClaimPeriodInitiatedPayload>,
     #[serde(default)]

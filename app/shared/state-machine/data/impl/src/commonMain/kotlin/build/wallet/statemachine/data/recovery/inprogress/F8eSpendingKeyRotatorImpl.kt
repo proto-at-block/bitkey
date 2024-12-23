@@ -7,12 +7,15 @@ import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class F8eSpendingKeyRotatorImpl(
   private val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient,
   private val setActiveSpendingKeysetF8eClient: SetActiveSpendingKeysetF8eClient,

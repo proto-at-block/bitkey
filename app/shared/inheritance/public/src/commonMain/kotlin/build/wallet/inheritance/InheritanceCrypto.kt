@@ -1,8 +1,12 @@
 package build.wallet.inheritance
 
+import build.wallet.bitkey.inheritance.InheritanceKeyset
 import build.wallet.bitkey.inheritance.InheritanceMaterial
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
 
 /**
@@ -30,4 +34,14 @@ interface InheritanceCrypto {
    * [getInheritanceMaterialHashData] as a cache key for this data.
    */
   suspend fun createInheritanceMaterial(keybox: Keybox): Result<InheritanceMaterial, Error>
+
+  /**
+   * Decrypt the sealed inheritance material using the user's delegated
+   * decryption key.
+   */
+  suspend fun decryptInheritanceMaterial(
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
+    sealedDek: XCiphertext,
+    sealedMobileKey: XCiphertext,
+  ): Result<InheritanceKeyset, Error>
 }

@@ -105,6 +105,7 @@ open class FeatureFlag<T : FeatureFlagValue>(
   ) {
     setFlagValue(value)
     setOverridden(overridden)
+    onFlagChanged(value)
   }
 
   /**
@@ -116,4 +117,6 @@ open class FeatureFlag<T : FeatureFlagValue>(
       overridden = false
     )
   }
+
+  open fun onFlagChanged(newValue: T) = Unit
 }

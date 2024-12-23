@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
@@ -17,6 +19,7 @@ import build.wallet.statemachine.recovery.socrec.list.lite.LiteListingTrustedCon
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class LiteTrustedContactManagementUiStateMachineImpl(
   private val liteListingTrustedContactsUiStateMachine: LiteListingTrustedContactsUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,

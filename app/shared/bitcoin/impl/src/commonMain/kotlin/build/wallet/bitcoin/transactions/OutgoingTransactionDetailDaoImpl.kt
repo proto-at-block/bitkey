@@ -2,6 +2,8 @@ package build.wallet.bitcoin.transactions
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.sqldelight.awaitTransaction
@@ -10,6 +12,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class OutgoingTransactionDetailDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : OutgoingTransactionDetailDao {

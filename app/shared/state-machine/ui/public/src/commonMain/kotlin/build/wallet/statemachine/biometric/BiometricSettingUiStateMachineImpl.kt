@@ -7,6 +7,8 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.inappsecurity.BiometricPreference
@@ -43,6 +45,7 @@ import okio.ByteString.Companion.encodeUtf8
 
 const val BIOMETRIC_AUTH_CHALLENGE = "biometric-auth-challenge"
 
+@BitkeyInject(ActivityScope::class)
 class BiometricSettingUiStateMachineImpl(
   private val biometricPreference: BiometricPreference,
   private val biometricTextProvider: BiometricTextProvider,

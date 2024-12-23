@@ -1,6 +1,8 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementScreens
 import build.wallet.relationships.RelationshipsService
@@ -9,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 
+@BitkeyInject(AppScope::class)
 class SocRecServiceImpl(
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   relationshipsService: RelationshipsService,

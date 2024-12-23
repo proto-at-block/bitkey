@@ -24,5 +24,11 @@ kotlin {
         }
       }
     }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.testingPublic)
+      }
+    }
   }
 }

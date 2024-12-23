@@ -5,6 +5,8 @@ import build.wallet.amount.Amount.DecimalNumber
 import build.wallet.amount.Amount.WholeNumber
 import build.wallet.amount.DoubleFormatter
 import build.wallet.amount.decimalSeparator
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -18,6 +20,7 @@ import build.wallet.platform.settings.LocaleProvider
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlin.ranges.IntRange.Companion.EMPTY
 
+@BitkeyInject(AppScope::class)
 class MoneyInputFormatterImpl(
   private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,

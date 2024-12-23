@@ -11,6 +11,8 @@ import build.wallet.analytics.v1.Action.ACTION_APP_EMAIL_RESEND
 import build.wallet.analytics.v1.Action.ACTION_APP_EMAIL_RESEND_SKIP_FOR_NOW
 import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND
 import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.statemachine.core.ScreenModel
@@ -35,6 +37,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class VerificationCodeInputStateMachineImpl(
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,

@@ -100,11 +100,19 @@ sealed interface RecoveryInProgressData {
        * Indicates that delay period has passed and we are now ready to complete recovery with
        * f8e.
        *
+       * @property canCancelRecovery indicates if the recovery can be cancelled by customer.
+       * Customer can cancel recovery if the recovery process has initiated (delay pending or finished),
+       * but the recovery completion has not started. If customer attempts to complete recovery,
+       * and some steps of the recovery completion process have executed, the recovery cannot be cancelled.
+       * This is to prevent the putting the app into an inconsistent state. A specific scenario that this avoids,
+       * is if the app successfully finished auth key rotation during completion, but subsequent completion steps failed.
+       * If customer cancels recovery at that point, they will have rotated auth keys that they cannot use.
        * @property startComplete confirm to complete recovery.
        * Should move to [RotatingAuthKeysWithF8eData].
        * @property cancel confirm to cancel recovery.
        */
       data class ReadyToCompleteRecoveryData(
+        val canCancelRecovery: Boolean,
         val physicalFactor: PhysicalFactor,
         val startComplete: () -> Unit,
         val cancel: () -> Unit,

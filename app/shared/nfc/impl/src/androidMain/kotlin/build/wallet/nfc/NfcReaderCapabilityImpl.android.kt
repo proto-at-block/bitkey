@@ -1,19 +1,23 @@
 package build.wallet.nfc
 
+import android.app.Application
 import android.nfc.NfcAdapter
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
 /**
  * Android implementation of [NfcReaderCapability], uses Android SDK.
  */
-actual class NfcReaderCapabilityImpl actual constructor(
-  private val platformContext: PlatformContext,
+
+@BitkeyInject(AppScope::class)
+class NfcReaderCapabilityImpl(
+  private val application: Application,
 ) : NfcReaderCapability {
-  actual override fun availability(isHardwareFake: Boolean): NfcAvailability {
+  override fun availability(isHardwareFake: Boolean): NfcAvailability {
     if (isHardwareFake) {
       return NfcAvailability.Available.Enabled
     }
-    return when (val nfcAdapter = NfcAdapter.getDefaultAdapter(platformContext.appContext)) {
+    return when (val nfcAdapter = NfcAdapter.getDefaultAdapter(application)) {
       null -> NfcAvailability.NotAvailable
       else ->
         when {

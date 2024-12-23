@@ -1,12 +1,13 @@
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   sourceSets {
     commonMain {
@@ -17,6 +18,7 @@ kotlin {
         api(projects.shared.memfaultPublic)
         api(projects.shared.platformPublic)
         api(projects.shared.loggingPublic)
+        api(projects.shared.serializationPublic)
         implementation(libs.kmp.kotlin.serialization.core)
         implementation(libs.kmp.kotlin.serialization.json)
         implementation(projects.shared.firmwarePublic)

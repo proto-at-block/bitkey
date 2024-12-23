@@ -6,6 +6,8 @@ import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
@@ -14,6 +16,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class LiteToFullAccountUpgraderImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,

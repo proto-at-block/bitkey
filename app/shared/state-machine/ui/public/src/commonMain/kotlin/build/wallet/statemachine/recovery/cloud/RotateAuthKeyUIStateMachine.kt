@@ -12,6 +12,8 @@ import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
@@ -61,6 +63,7 @@ sealed interface RotateAuthKeyUIOrigin {
   data class Settings(val onBack: () -> Unit) : RotateAuthKeyUIOrigin
 }
 
+@BitkeyInject(ActivityScope::class)
 class RotateAuthKeyUIStateMachineImpl(
   val appKeysGenerator: AppKeysGenerator,
   val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,

@@ -10,6 +10,10 @@ import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Fake
+import build.wallet.di.Impl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.SocRecF8eClient
@@ -22,10 +26,11 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.ImmutableList
 import okio.ByteString
 
+@BitkeyInject(AppScope::class)
 class SocRecChallengeRepositoryImpl(
-  private val socRec: SocRecF8eClient,
+  @Impl private val socRecF8eClientImpl: SocRecF8eClient,
   private val relationshipsCrypto: RelationshipsCrypto,
-  private val socRecFake: SocRecF8eClient,
+  @Fake private val socRecF8eClientFake: SocRecF8eClient,
   private val relationshipsCodeBuilder: RelationshipsCodeBuilder,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao,
@@ -120,9 +125,10 @@ class SocRecChallengeRepositoryImpl(
         .bind()
         .map {
           val pakeCode = it.pakeCode
-          val fullCode = relationshipsCodeBuilder.buildRecoveryCode(socialChallenge.counter, pakeCode)
-            .mapError { genErr -> Error(genErr) }
-            .bind()
+          val fullCode =
+            relationshipsCodeBuilder.buildRecoveryCode(socialChallenge.counter, pakeCode)
+              .mapError { genErr -> Error(genErr) }
+              .bind()
           ChallengeAuthentication(
             it.relationshipId,
             fullCode,
@@ -164,9 +170,9 @@ class SocRecChallengeRepositoryImpl(
 
   private fun socRecF8eClient(isUsingSocRecFakes: Boolean): SocRecF8eClient {
     return if (isUsingSocRecFakes) {
-      socRecFake
+      socRecF8eClientFake
     } else {
-      socRec
+      socRecF8eClientImpl
     }
   }
 }

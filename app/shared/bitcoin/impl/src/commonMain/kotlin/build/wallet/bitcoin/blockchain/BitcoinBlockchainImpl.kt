@@ -5,11 +5,14 @@ import build.wallet.bitcoin.bdk.BdkBlockchainProvider
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class BitcoinBlockchainImpl(
   private val bdkBlockchainProvider: BdkBlockchainProvider,
   private val bdkPsbtBuilder: BdkPartiallySignedTransactionBuilder,

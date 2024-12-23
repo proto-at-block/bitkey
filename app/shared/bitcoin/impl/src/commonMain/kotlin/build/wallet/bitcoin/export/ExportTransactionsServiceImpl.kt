@@ -9,6 +9,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitcoin.wallet.WatchingWalletProvider
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.logging.logFailure
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class ExportTransactionsServiceImpl(
   private val accountService: AccountService,
   private val watchingWalletProvider: WatchingWalletProvider,

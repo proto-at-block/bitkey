@@ -1,25 +1,20 @@
 package build.wallet.statemachine.platform.permissions
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus.Denied
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.EnableNotificationsUiState
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.LoadingUiState
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.OpenSettingsUiState
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.ShowingSystemPermissionsUiState
+import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.*
 import build.wallet.statemachine.platform.permissions.NotificationRationale.Generic
 import build.wallet.statemachine.platform.permissions.NotificationRationale.Recovery
 import build.wallet.ui.model.StandardClick
@@ -33,13 +28,14 @@ import platform.UIKit.UIApplicationOpenSettingsURLString
 
 private const val ENABLE_STRING = "Enable"
 
-actual class EnableNotificationsUiStateMachineImpl actual constructor(
+@BitkeyInject(AppScope::class)
+class EnableNotificationsUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val permissionChecker: PermissionChecker,
   private val eventTracker: EventTracker,
 ) : EnableNotificationsUiStateMachine {
   @Composable
-  actual override fun model(props: EnableNotificationsUiProps): BodyModel {
+  override fun model(props: EnableNotificationsUiProps): BodyModel {
     var uiState: UiState by remember { mutableStateOf(LoadingUiState) }
 
     when (uiState) {

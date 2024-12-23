@@ -3,7 +3,6 @@ package build.wallet.integration.statemachine.export
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.export.ExportToolsSelectionModel
 import build.wallet.statemachine.export.view.ExportSheetBodyModel
@@ -32,7 +31,6 @@ class ExportToolsE2ETests : FunSpec({
       app.appWorkerExecutor.executeAll()
     }
     app.onboardFullAccountWithFakeHardware()
-    app.exportToolsFeatureFlag.setFlagValue(true)
 
     app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {

@@ -1,7 +1,10 @@
 package build.wallet.time
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class DurationFormatterImpl : DurationFormatter {
   override fun formatWithWords(duration: Duration): String {
     return duration.toComponents { days, hours, minutes, _, _ ->

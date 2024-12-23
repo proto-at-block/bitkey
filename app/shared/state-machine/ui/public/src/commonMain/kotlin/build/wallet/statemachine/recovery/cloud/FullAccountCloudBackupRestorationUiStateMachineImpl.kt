@@ -28,6 +28,8 @@ import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -59,6 +61,8 @@ import kotlinx.collections.immutable.toImmutableList
 internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 
 // TODO(W-3756): migrate this logic to RecoveringAppFromCloudBackupDataStateMachineImpl.
+
+@BitkeyInject(ActivityScope::class)
 class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,

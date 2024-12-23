@@ -18,6 +18,8 @@ import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
@@ -54,6 +56,7 @@ import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 
+@BitkeyInject(ActivityScope::class)
 class TransferConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
@@ -374,7 +377,7 @@ class TransferConfirmationUiStateMachineImpl(
 
     return LoadingBodyModel(
       message = "Loading transaction...",
-      onBack = props.onExit,
+      onBack = props.onBack,
       id = SendEventTrackerScreenId.SEND_CREATING_PSBT_LOADING,
       eventTrackerShouldTrack = false
     ).asModalFullScreen()
@@ -433,8 +436,7 @@ class TransferConfirmationUiStateMachineImpl(
     val variant = props.variant
 
     return TransferConfirmationScreenModel(
-      onBack = props.onExit,
-      onCancel = props.onExit,
+      onBack = props.onBack,
       variant = variant,
       recipientAddress = props.recipientAddress.chunkedAddress(),
       transactionDetails = transactionDetailsCard,

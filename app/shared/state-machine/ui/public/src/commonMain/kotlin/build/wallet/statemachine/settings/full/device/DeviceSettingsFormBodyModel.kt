@@ -52,7 +52,7 @@ data class DeviceSettingsFormBodyModel(
   val onSyncDeviceInfo: () -> Unit,
   val onReplaceDevice: () -> Unit,
   val onManageReplacement: (() -> Unit)?,
-  val onResetDevice: (() -> Unit)?,
+  val onWipeDevice: (() -> Unit)?,
   override val onBack: () -> Unit,
   val onManageFingerprints: () -> Unit,
   val coachmark: CoachmarkModel?,
@@ -166,10 +166,10 @@ data class DeviceSettingsFormBodyModel(
               onClick = onManageFingerprints
             ),
             ListItemModel(
-              title = "Reset device",
+              title = "Wipe device",
               treatment = ListItemTreatment.SECONDARY,
               trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-              onClick = onResetDevice
+              onClick = onWipeDevice
             )
           ),
           style = ListGroupStyle.CARD_GROUP_DIVIDER

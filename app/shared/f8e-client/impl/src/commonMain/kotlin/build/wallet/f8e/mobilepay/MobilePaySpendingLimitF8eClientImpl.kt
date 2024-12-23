@@ -1,6 +1,8 @@
 package build.wallet.f8e.mobilepay
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -24,6 +26,7 @@ import io.ktor.client.request.put
 import kotlinx.datetime.Clock
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class MobilePaySpendingLimitF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val clock: Clock,

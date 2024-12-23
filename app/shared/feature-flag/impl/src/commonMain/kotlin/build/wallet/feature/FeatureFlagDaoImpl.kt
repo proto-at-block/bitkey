@@ -2,6 +2,8 @@ package build.wallet.feature
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
@@ -9,6 +11,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlin.reflect.KClass
 
+@BitkeyInject(AppScope::class)
 class FeatureFlagDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FeatureFlagDao {

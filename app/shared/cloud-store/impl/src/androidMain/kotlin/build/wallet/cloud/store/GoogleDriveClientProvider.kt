@@ -1,8 +1,10 @@
 package build.wallet.cloud.store
 
 import android.accounts.Account
+import android.app.Application
 import build.wallet.catchingResult
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppId
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -30,9 +32,10 @@ interface GoogleDriveClientProvider {
   ): Result<Drive, GoogleDriveError>
 }
 
+@BitkeyInject(AppScope::class)
 class GoogleDriveClientProviderImpl(
   private val appId: AppId,
-  private val platformContext: PlatformContext,
+  private val application: Application,
 ) : GoogleDriveClientProvider {
   /** Cache of Google Drive API clients for each unique set of credentials. **/
   private val drives = mutableMapOf<DriveCredentials, Drive>()
@@ -79,7 +82,7 @@ class GoogleDriveClientProviderImpl(
     catchingResult {
       val credential =
         GoogleAccountCredential
-          .usingOAuth2(platformContext.appContext, setOf(scope.uri))
+          .usingOAuth2(application, setOf(scope.uri))
           .also {
             it.selectedAccount = androidAccount
           }

@@ -87,20 +87,17 @@ impl<'a> Migration for MigrateTestAccountCognitoUsers<'a> {
                     )
                     .await;
 
-                match result {
-                    Err(e) => {
-                        // Ignore if user doesn't exist (missing ones get created on reauth anyway)
-                        if !matches!(&e, UserPoolError::ChangeUserAttributes(f) if f.is_user_not_found_exception())
-                        {
-                            tracing::error!(
-                                "Account {} failed to change recovery user attributes: {:?}",
-                                &account_id,
-                                &e,
-                            );
-                            return Err(MigrationError::TestAccountCognitoUsers);
-                        }
+                if let Err(e) = result {
+                    // Ignore if user doesn't exist (missing ones get created on reauth anyway)
+                    if !matches!(&e, UserPoolError::ChangeUserAttributes(f) if f.is_user_not_found_exception())
+                    {
+                        tracing::error!(
+                            "Account {} failed to change recovery user attributes: {:?}",
+                            &account_id,
+                            &e,
+                        );
+                        return Err(MigrationError::TestAccountCognitoUsers);
                     }
-                    _ => {}
                 }
             }
 
@@ -116,21 +113,18 @@ impl<'a> Migration for MigrateTestAccountCognitoUsers<'a> {
             for username in usernames {
                 let result = self.userpool_service.sign_out_user(&username).await;
 
-                match result {
-                    Err(e) => {
-                        // Ignore if user doesn't exist (missing ones get created on reauth anyway)
-                        if !matches!(&e, UserPoolError::PerformUserSignOut(f) if f.is_user_not_found_exception())
-                        {
-                            tracing::error!(
-                                "Account {} failed to sign out user {}: {:?}",
-                                &account_id,
-                                &username,
-                                &e,
-                            );
-                            return Err(MigrationError::TestAccountCognitoUsers);
-                        }
+                if let Err(e) = result {
+                    // Ignore if user doesn't exist (missing ones get created on reauth anyway)
+                    if !matches!(&e, UserPoolError::PerformUserSignOut(f) if f.is_user_not_found_exception())
+                    {
+                        tracing::error!(
+                            "Account {} failed to sign out user {}: {:?}",
+                            &account_id,
+                            &username,
+                            &e,
+                        );
+                        return Err(MigrationError::TestAccountCognitoUsers);
                     }
-                    _ => {}
                 }
             }
         }

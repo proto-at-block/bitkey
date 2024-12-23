@@ -1,14 +1,15 @@
 package build.wallet.sqldelight
 
+import android.app.Application
 import androidx.sqlite.db.SupportSQLiteDatabase
 import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
 import build.wallet.catchingResult
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
-import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import com.github.michaelbull.result.getError
@@ -17,17 +18,16 @@ import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 /**
  * Real Android implementation of the [SqlDriverFactory], uses [AndroidSqliteDriver].
  */
-actual class SqlDriverFactoryImpl actual constructor(
-  private val platformContext: PlatformContext,
-  @Suppress("UnusedPrivateProperty")
-  fileDirectoryProvider: FileDirectoryProvider,
+
+@BitkeyInject(AppScope::class)
+class SqlDriverFactoryImpl(
+  private val application: Application,
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   private val uuidGenerator: UuidGenerator,
-  @Suppress("UnusedPrivateProperty")
   private val appVariant: AppVariant,
   private val databaseIntegrityChecker: DatabaseIntegrityChecker,
 ) : SqlDriverFactory {
-  actual override suspend fun createDriver(
+  override suspend fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {
@@ -43,7 +43,7 @@ actual class SqlDriverFactoryImpl actual constructor(
       // Unencrypted db for development
       AndroidSqliteDriver(
         schema = dataBaseSchema,
-        context = platformContext.appContext,
+        context = application,
         name = dataBaseName,
         callback = driverCallback
       )
@@ -52,7 +52,7 @@ actual class SqlDriverFactoryImpl actual constructor(
       // Encrypted db for team and customer
       AndroidSqliteDriver(
         schema = dataBaseSchema,
-        context = platformContext.appContext,
+        context = application,
         name = dataBaseName,
         factory = encryptedFactory,
         callback = driverCallback
@@ -101,7 +101,7 @@ actual class SqlDriverFactoryImpl actual constructor(
     val encryptedDriver =
       AndroidSqliteDriver(
         schema = dataBaseSchema,
-        context = platformContext.appContext,
+        context = application,
         name = dataBaseName,
         factory = encryptedFactory,
         callback = dbCallback
@@ -114,7 +114,7 @@ actual class SqlDriverFactoryImpl actual constructor(
         val clearDriver =
           AndroidSqliteDriver(
             schema = dataBaseSchema,
-            context = platformContext.appContext,
+            context = application,
             name = dataBaseName,
             callback = dbCallback
           )

@@ -33,8 +33,8 @@ import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiSta
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
@@ -82,9 +82,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<ManagingFingerprintsProps>(
           id = "managing fingerprints"
         ) {},
-      resettingDeviceUiStateMachine =
-        object : ResettingDeviceUiStateMachine, ScreenStateMachineMock<ResettingDeviceProps>(
-          "resetting device"
+      wipingDeviceUiStateMachine =
+        object : WipingDeviceUiStateMachine, ScreenStateMachineMock<WipingDeviceProps>(
+          "wiping device"
         ) {},
       coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
       firmwareDataService = firmwareDataService,
@@ -334,7 +334,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Going to manage reset device
-      awaitScreenWithBodyModelMock<ResettingDeviceProps> {
+      awaitScreenWithBodyModelMock<WipingDeviceProps> {
         onBack()
       }
 

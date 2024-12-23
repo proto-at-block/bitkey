@@ -11,6 +11,8 @@ import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.catchingResult
 import build.wallet.crypto.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.*
 import build.wallet.ensure
 import build.wallet.serialization.hex.decodeHexWithResult
@@ -22,6 +24,7 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class RelationshipsCryptoImpl(
   private val symmetricKeyGenerator: SymmetricKeyGenerator,
   private val xChaCha20Poly1305: XChaCha20Poly1305,
@@ -280,24 +283,35 @@ class RelationshipsCryptoImpl(
   }
 
   override fun decryptPrivateKeyEncryptionKey(
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
+    sealedPrivateKeyEncryptionKey: XCiphertext,
+  ): PrivateKeyEncryptionKey {
+    val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
+    if (sealedPrivateKeyEncryptionKeyData.header.version != XCIPHERTEXT_VERSION) {
+      throw RelationshipsCryptoError.UnsupportedXCiphertextVersion
+    }
+    val protectedCustomerIdentityPublicKey = sealedPrivateKeyEncryptionKeyData.publicKey
+      ?: throw RelationshipsCryptoError.PublicKeyMissing
+
+    val privateKeyEncryptionKey = cryptoBox.decrypt(
+      theirPublicKey = CryptoBoxPublicKey(protectedCustomerIdentityPublicKey.value.decodeHex()),
+      myPrivateKey = CryptoBoxPrivateKey(delegatedDecryptionKey.privateKey.bytes),
+      sealedData = sealedPrivateKeyEncryptionKey
+    )
+
+    return PrivateKeyEncryptionKey(SymmetricKeyImpl(privateKeyEncryptionKey))
+  }
+
+  override fun transferPrivateKeyEncryptionKeyEncryption(
     password: PakeCode,
     protectedCustomerRecoveryPakeKey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): Result<DecryptPrivateKeyEncryptionKeyOutput, RelationshipsCryptoError> =
     catchingResult {
-      // Step 1: Decrypt the private key encryption key
-      val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
-      if (sealedPrivateKeyEncryptionKeyData.header.version != XCIPHERTEXT_VERSION) {
-        throw RelationshipsCryptoError.UnsupportedXCiphertextVersion
-      }
-      val protectedCustomerIdentityPublicKey = sealedPrivateKeyEncryptionKeyData.publicKey
-        ?: throw RelationshipsCryptoError.PublicKeyMissing
-
-      val privateKeyEncryptionKey = cryptoBox.decrypt(
-        theirPublicKey = CryptoBoxPublicKey(protectedCustomerIdentityPublicKey.value.decodeHex()),
-        myPrivateKey = CryptoBoxPrivateKey(delegatedDecryptionKey.privateKey.bytes),
-        sealedData = sealedPrivateKeyEncryptionKey
+      val privateKeyEncryptionKey = decryptPrivateKeyEncryptionKey(
+        delegatedDecryptionKey = delegatedDecryptionKey,
+        sealedPrivateKeyEncryptionKey = sealedPrivateKeyEncryptionKey
       )
 
       // Step 2: Establish PAKE secure channel
@@ -313,7 +327,7 @@ class RelationshipsCryptoImpl(
         xChaCha20Poly1305.encrypt(
           key = pakeChannelOutput.encryptionKey,
           nonce = xNonceGenerator.generateXNonce(),
-          plaintext = privateKeyEncryptionKey,
+          plaintext = privateKeyEncryptionKey.raw,
           aad = PAKE_RECOVERY_AAD.encodeUtf8()
         )
       DecryptPrivateKeyEncryptionKeyOutput(
@@ -343,6 +357,19 @@ class RelationshipsCryptoImpl(
       // Step 2: Decrypt the private key material with the private key encryption key
       xChaCha20Poly1305.decrypt(
         key = SymmetricKeyImpl(raw = privateKeyEncryptionKey),
+        ciphertextWithMetadata = sealedPrivateKeyMaterial,
+        aad = PKMAT_AAD.encodeUtf8()
+      )
+    }.mapError { RelationshipsCryptoError.DecryptionFailed(it) }
+
+  override fun decryptPrivateKeyMaterial(
+    privateKeyEncryptionKey: PrivateKeyEncryptionKey,
+    sealedPrivateKeyMaterial: XCiphertext,
+  ): Result<ByteString, RelationshipsCryptoError> =
+    catchingResult {
+      // Step 2: Decrypt the private key material with the private key encryption key
+      xChaCha20Poly1305.decrypt(
+        key = SymmetricKeyImpl(raw = privateKeyEncryptionKey.raw),
         ciphertextWithMetadata = sealedPrivateKeyMaterial,
         aad = PKMAT_AAD.encodeUtf8()
       )

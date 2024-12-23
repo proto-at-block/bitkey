@@ -1,15 +1,15 @@
 package build.wallet.platform.permissions
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.UNAuthorizationStatusExtensions
 import build.wallet.platform.permissions.PermissionStatus.NotDetermined
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import platform.UserNotifications.UNUserNotificationCenter
 
-actual class PushNotificationPermissionStatusProviderImpl actual constructor(
-  platformContext: PlatformContext,
-) : PushNotificationPermissionStatusProvider {
+@BitkeyInject(AppScope::class)
+class PushNotificationPermissionStatusProviderImpl : PushNotificationPermissionStatusProvider {
   private lateinit var statusFlow: MutableStateFlow<PermissionStatus>
 
   init {
@@ -30,9 +30,9 @@ actual class PushNotificationPermissionStatusProviderImpl actual constructor(
     }
   }
 
-  actual override fun pushNotificationStatus(): StateFlow<PermissionStatus> = statusFlow
+  override fun pushNotificationStatus(): StateFlow<PermissionStatus> = statusFlow
 
-  actual override fun updatePushNotificationStatus(status: PermissionStatus) {
+  override fun updatePushNotificationStatus(status: PermissionStatus) {
     statusFlow.tryEmit(status)
   }
 }

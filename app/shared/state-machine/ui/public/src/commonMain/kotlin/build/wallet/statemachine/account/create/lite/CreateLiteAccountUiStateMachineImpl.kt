@@ -12,6 +12,8 @@ import build.wallet.analytics.v1.Action
 import build.wallet.auth.LiteAccountCreator
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
@@ -29,6 +31,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(ActivityScope::class)
 class CreateLiteAccountUiStateMachineImpl(
   private val liteAccountCreator: LiteAccountCreator,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,

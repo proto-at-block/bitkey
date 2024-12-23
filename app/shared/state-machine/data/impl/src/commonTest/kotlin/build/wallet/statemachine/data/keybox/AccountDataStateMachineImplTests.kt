@@ -11,6 +11,7 @@ import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
+import build.wallet.recovery.RecoverySyncFrequency
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
@@ -64,7 +65,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       accountService = accountService,
       recoverySyncer = recoverySyncerMock,
       someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
-      recoverySyncFrequency = 1.minutes,
+      recoverySyncFrequency = RecoverySyncFrequency(1.minutes),
       debugOptionsService = debugOptionsService
     )
 

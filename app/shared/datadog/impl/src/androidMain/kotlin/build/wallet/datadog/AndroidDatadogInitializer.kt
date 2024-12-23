@@ -16,6 +16,7 @@ import com.datadog.android.trace.Trace
 import com.datadog.android.trace.TraceConfiguration
 import io.opentracing.util.GlobalTracer
 
+// TODO: explain why not using DI here
 class AndroidDatadogInitializer(
   private val context: Context,
   private val appVariant: AppVariant,

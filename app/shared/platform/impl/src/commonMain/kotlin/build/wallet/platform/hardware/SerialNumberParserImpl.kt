@@ -1,5 +1,9 @@
 package build.wallet.platform.hardware
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+
+@BitkeyInject(AppScope::class)
 class SerialNumberParserImpl : SerialNumberParser {
   override fun parse(serialNumber: String?): SerialNumberComponents {
     var hwModel: String? = null

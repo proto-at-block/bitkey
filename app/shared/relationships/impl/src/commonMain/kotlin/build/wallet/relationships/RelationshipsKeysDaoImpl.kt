@@ -7,6 +7,8 @@ import build.wallet.bitkey.socrec.SocRecKeyPurpose
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -15,6 +17,7 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import kotlin.reflect.KClass
 
+@BitkeyInject(AppScope::class)
 class RelationshipsKeysDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,

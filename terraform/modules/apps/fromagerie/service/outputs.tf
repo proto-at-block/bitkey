@@ -27,5 +27,5 @@ output "api_migration_security_group_id" {
 }
 
 output "user_balance_histogram_security_group_id" {
-  value = aws_security_group.api_user_balance_histogram.id
+  value = one(aws_security_group.api_user_balance_histogram[*].id)
 }

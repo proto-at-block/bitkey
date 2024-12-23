@@ -3,7 +3,9 @@ package build.wallet.bitcoin.blockchain
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.logging.logTesting
 import build.wallet.realDelay
+import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.withRealTimeout
+import com.github.michaelbull.result.getOrElse
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -65,7 +67,7 @@ class RegtestControl(
         while (isActive) {
           val resp = HttpClient().get(url)
           // Response is just an array of txid strings.
-          val txids = Json.decodeFromString<List<String>>(resp.bodyAsText())
+          val txids = Json.decodeFromStringResult<List<String>>(resp.bodyAsText()).getOrElse { emptyList() }
 
           if (txids.contains(txid)) {
             return@withRealTimeout

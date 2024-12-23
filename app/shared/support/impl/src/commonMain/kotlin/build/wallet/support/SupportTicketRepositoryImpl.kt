@@ -4,12 +4,15 @@ import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.v1.OSType
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.support.CreateTicketDTO
 import build.wallet.f8e.support.SupportTicketF8eClient
 import build.wallet.f8e.support.TicketDebugDataDTO
 import build.wallet.f8e.support.TicketFormFieldDTO
 import build.wallet.feature.FeatureFlag
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore
@@ -19,13 +22,14 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import okio.Buffer
 
+@BitkeyInject(AppScope::class)
 class SupportTicketRepositoryImpl(
   private val supportTicketF8eClient: SupportTicketF8eClient,
   private val logStore: LogStore,
   private val appInstallationDao: AppInstallationDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val platformInfoProvider: PlatformInfoProvider,
-  private val allFeatureFlags: List<FeatureFlag<*>>,
+  private val allFeatureFlags: List<FeatureFlag<out FeatureFlagValue>>,
 ) : SupportTicketRepository {
   override suspend fun createTicket(
     f8eEnvironment: F8eEnvironment,

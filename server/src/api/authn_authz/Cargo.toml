@@ -23,6 +23,7 @@ wsm-rust-client = { workspace = true }
 account = { workspace = true }
 bdk_utils = { workspace = true }
 errors = { workspace = true }
+feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
 types = { workspace = true, features = ["account", "authn_authz"] }

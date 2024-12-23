@@ -24,71 +24,76 @@ struct CardContentView: View {
     // MARK: - View
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Hero Image
-            viewModel.heroImage.map { heroImage in
-                Image(uiImage: heroImage.uiImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: .infinity)
-            }
+        if let calloutModel = viewModel.style as? CardModel.CardStyleCallout {
+            CalloutView(model: calloutModel.model)
+        } else {
+            VStack(spacing: 0) {
+                // Hero Image
+                viewModel.heroImage.map { heroImage in
+                    Image(uiImage: heroImage.uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                }
 
-            // Title + Content
-            VStack {
-                // Title + Subtitle + Leading Image
-                HStack(
-                    spacing: overridenTitleToSubtitleSpacing == nil ? Metrics
-                        .titleSubtitleToIconSpacing : overridenTitleToSubtitleSpacing
-                ) {
-                    viewModel.leadingImage.map {
-                        CardImage(viewModel: $0)
-                            .overlay {
-                                GeometryReader { imageGeoProxy in
-                                    Color.clear
-                                        .onAppear { self.minLabelHeight = imageGeoProxy.size.height
-                                        }
+                // Title + Content
+                VStack {
+                    // Title + Subtitle + Leading Image
+                    HStack(
+                        spacing: overridenTitleToSubtitleSpacing == nil ? Metrics
+                            .titleSubtitleToIconSpacing : overridenTitleToSubtitleSpacing
+                    ) {
+                        viewModel.leadingImage.map {
+                            CardImage(viewModel: $0)
+                                .overlay {
+                                    GeometryReader { imageGeoProxy in
+                                        Color.clear
+                                            .onAppear {
+                                                self.minLabelHeight = imageGeoProxy.size.height
+                                            }
+                                    }
                                 }
-                            }
-                    }
-
-                    VStack(spacing: Metrics.titleToSubtitleSpacing) {
-                        if let title = viewModel.title {
-                            ModeledText(
-                                model: .standard(
-                                    .string(from: title, font: .body2Regular),
-                                    font: .title2
-                                )
-                            )
                         }
 
-                        viewModel.subtitle.map { ModeledText(model: .standard(
-                            $0,
-                            font: .body3Regular,
-                            textColor: .foreground60
-                        )) }
-                    }.frame(minHeight: minLabelHeight)
+                        VStack(spacing: Metrics.titleToSubtitleSpacing) {
+                            if let title = viewModel.title {
+                                ModeledText(
+                                    model: .standard(
+                                        .string(from: title, font: .body2Regular),
+                                        font: .title2
+                                    )
+                                )
+                            }
 
-                    viewModel.trailingButton.map {
-                        ButtonView(
-                            model: $0,
-                            horizontalPadding: Metrics.trailingButtonHorizontalPadding
-                        )
+                            viewModel.subtitle.map { ModeledText(model: .standard(
+                                $0,
+                                font: .body3Regular,
+                                textColor: .foreground60
+                            )) }
+                        }.frame(minHeight: minLabelHeight)
+
+                        viewModel.trailingButton.map {
+                            ButtonView(
+                                model: $0,
+                                horizontalPadding: Metrics.trailingButtonHorizontalPadding
+                            )
+                        }
+                    }
+
+                    // Content
+                    if let contentViewModel = viewModel.content {
+                        switch contentViewModel {
+                        case let drillListModel as CardModelCardContentDrillList:
+                            CardContentDrillList(viewModel: drillListModel)
+                        case let pendingClaimModel as ComposableRenderedModel:
+                            ComposableRenderedModelView(model: pendingClaimModel)
+                        default:
+                            fatalError("Unexpected card content model \(viewModel)")
+                        }
                     }
                 }
-
-                // Content
-                if let contentViewModel = viewModel.content {
-                    switch contentViewModel {
-                    case let drillListModel as CardModelCardContentDrillList:
-                        CardContentDrillList(viewModel: drillListModel)
-                    case let pendingClaimModel as ComposableRenderedModel:
-                        ComposableRenderedModelView(model: pendingClaimModel)
-                    default:
-                        fatalError("Unexpected card content model \(viewModel)")
-                    }
-                }
+                .padding(style: viewModel.style, hasContent: viewModel.content != nil)
             }
-            .padding(style: viewModel.style, hasContent: viewModel.content != nil)
         }
     }
 
@@ -178,6 +183,10 @@ private extension View {
             self
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+
+        case _ as CardModel.CardStyleCallout:
+            self
+                .padding(.horizontal, 16)
 
         default:
             fatalError("Unexpected card style: \(style)")

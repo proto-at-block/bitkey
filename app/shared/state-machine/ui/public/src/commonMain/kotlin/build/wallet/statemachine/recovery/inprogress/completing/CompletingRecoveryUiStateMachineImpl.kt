@@ -8,6 +8,8 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.getEventId
@@ -31,6 +33,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class CompletingRecoveryUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val fullAccountCloudSignInAndBackupUiStateMachine:
@@ -62,8 +65,10 @@ class CompletingRecoveryUiStateMachineImpl(
             DelayAndNotifyNewKeyReady(
               factorToRecover = props.completingRecoveryData.physicalFactor,
               // TODO(W-3420): render accurate fee
-              onStopRecovery = {
-                confirmingCancellation = true
+              onStopRecovery = if (props.completingRecoveryData.canCancelRecovery) {
+                { confirmingCancellation = true }
+              } else {
+                null
               },
               onCompleteRecovery = props.completingRecoveryData.startComplete,
               onExit = props.onExit

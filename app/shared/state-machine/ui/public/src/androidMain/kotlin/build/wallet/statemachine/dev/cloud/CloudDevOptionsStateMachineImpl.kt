@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.cloud.store.GoogleAccountRepository
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.google.signin.GoogleSignInLauncher
 import build.wallet.google.signin.GoogleSignOutAction
 import build.wallet.statemachine.core.BodyModel
@@ -30,6 +32,8 @@ import com.google.android.gms.common.api.Scope
  *
  * Allows to sign in and sign out from Google Account, view account information and granted scopes.
  */
+
+@BitkeyInject(ActivityScope::class)
 class CloudDevOptionsStateMachineImpl(
   private val googleAccountRepository: GoogleAccountRepository,
   private val googleSignInLauncher: GoogleSignInLauncher,

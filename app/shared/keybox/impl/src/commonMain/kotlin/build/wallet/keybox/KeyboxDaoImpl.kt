@@ -15,8 +15,9 @@ import build.wallet.database.sqldelight.BitkeyDatabase
 import build.wallet.database.sqldelight.FullAccountView
 import build.wallet.database.sqldelight.SpendingKeysetEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
-import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -26,6 +27,7 @@ import com.github.michaelbull.result.map
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class KeyboxDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : KeyboxDao {

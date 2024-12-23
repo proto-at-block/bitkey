@@ -1,6 +1,8 @@
 package build.wallet.money.currency
 
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClient
 import com.github.michaelbull.result.onFailure
@@ -9,6 +11,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@BitkeyInject(AppScope::class)
 class FiatCurrenciesServiceImpl(
   private val fiatCurrencyDao: FiatCurrencyDao,
   private val fiatCurrencyDefinitionF8eClient: FiatCurrencyDefinitionF8eClient,

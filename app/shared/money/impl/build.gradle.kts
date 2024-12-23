@@ -1,13 +1,14 @@
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   id("build.wallet.redacted")
   alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   sourceSets {
     commonMain {
@@ -38,6 +39,10 @@ kotlin {
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.workerFake)
+        // TODO: remove dependency on :impl.
+        implementation(projects.shared.amountImpl) {
+          because("Depends on DoubleFormatterImpl")
+        }
       }
     }
   }

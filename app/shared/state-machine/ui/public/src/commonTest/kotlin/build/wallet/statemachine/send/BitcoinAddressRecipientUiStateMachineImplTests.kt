@@ -1,5 +1,6 @@
 package build.wallet.statemachine.send
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.address.BitcoinAddress
@@ -10,10 +11,8 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
 import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.keybox.wallet.KeysetWalletProviderMock
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
 import io.kotest.core.spec.style.FunSpec
@@ -42,13 +41,10 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       validBOLT11Invoices = mutableSetOf()
     )
 
-  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(FeatureFlagDaoFake())
-
   val stateMachine =
     BitcoinAddressRecipientUiStateMachineImpl(
       paymentDataParser = paymentParser,
-      keysetWalletProvider = KeysetWalletProviderMock(),
-      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
+      keysetWalletProvider = KeysetWalletProviderMock()
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -77,10 +73,6 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       }
     )
 
-  beforeTest {
-    utxoConsolidationFeatureFlag.reset()
-  }
-
   test("initial state without default address") {
     stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
@@ -92,10 +84,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("initial state with default address") {
     stateMachine.test(props.copy(address = validAddress)) {
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(validAddress.address)
-        onContinueClick.shouldNotBeNull()
-      }
+      awaitOnContinueNotNull(validAddress.address)
     }
   }
 
@@ -116,10 +105,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(validAddress.address)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(validAddress.address)
-        onContinueClick.shouldNotBeNull()
-      }
+      awaitOnContinueNotNull(validAddress.address)
     }
   }
 
@@ -129,10 +115,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(validInvoiceUrl)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(validInvoiceUrl)
-        onContinueClick.shouldNotBeNull()
-      }
+      awaitOnContinueNotNull(validInvoiceUrl)
     }
   }
 
@@ -141,10 +124,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validAddress.address)
       }
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        onContinueClick.shouldNotBeNull().invoke()
-      }
+      awaitOnContinueNotNull(validAddress.address, click = true)
 
       onRecipientEnteredCalls.awaitItem().shouldBe(validAddress)
     }
@@ -156,9 +136,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(validInvoice.address.address)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        onContinueClick.shouldNotBeNull().invoke()
-      }
+      awaitOnContinueNotNull(validInvoice.address.address, click = true)
 
       onRecipientEnteredCalls.awaitItem().shouldBe(validAddress)
     }
@@ -170,8 +148,15 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(validAddress.address)
       }
 
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        // intermittent model
+        onEnteredTextChanged(validAddress.address)
+        onContinueClick.shouldBeNull()
+      }
+
       val invalidAddress = validAddress.address.dropLast(1)
       awaitBody<BitcoinRecipientAddressScreenModel> {
+        onContinueClick.shouldNotBeNull()
         onEnteredTextChanged(invalidAddress)
       }
       awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
@@ -260,23 +245,6 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
       awaitBody<BitcoinRecipientAddressScreenModel> {
-        warningText.shouldBe("You can’t send to your own address")
-        onContinueClick.shouldBeNull()
-      }
-    }
-  }
-
-  test("cannot continue when self address is entered - utxo consolidation enabled") {
-    utxoConsolidationFeatureFlag.setFlagValue(true)
-
-    stateMachine.test(props) {
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        onEnteredTextChanged(selfAddress.address)
-      }
-
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
         onContinueClick.shouldBeNull()
 
         showSelfSendWarningWithRedirect.shouldBeTrue()
@@ -296,6 +264,13 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       awaitBody<BitcoinRecipientAddressScreenModel> {
         enteredText.shouldBe(someBitcoinAddress.address)
         showPasteButton.shouldBeFalse()
+        onContinueClick.shouldBeNull()
+      }
+
+      awaitBody<BitcoinRecipientAddressScreenModel> {
+        enteredText.shouldBe(someBitcoinAddress.address)
+        showPasteButton.shouldBeFalse()
+        onContinueClick.shouldNotBeNull()
       }
     }
   }
@@ -320,8 +295,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     val invalidAddressInClipboardStateMachine =
       BitcoinAddressRecipientUiStateMachineImpl(
         paymentDataParser = paymentParser,
-        keysetWalletProvider = KeysetWalletProviderMock(),
-        utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
+        keysetWalletProvider = KeysetWalletProviderMock()
       )
     invalidAddressInClipboardStateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
@@ -371,3 +345,22 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private suspend fun ReceiveTurbine<BodyModel>.awaitOnContinueNotNull(
+  address: String,
+  click: Boolean = false,
+) {
+  awaitBody<BitcoinRecipientAddressScreenModel> {
+    enteredText.shouldBe(address)
+    onContinueClick.shouldBeNull()
+  }
+  awaitBody<BitcoinRecipientAddressScreenModel> {
+    enteredText.shouldBe(address)
+    onContinueClick.shouldNotBeNull()
+      .also {
+        if (click) {
+          onContinueClick!!.invoke()
+        }
+      }
+  }
+}

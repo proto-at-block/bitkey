@@ -3,6 +3,8 @@ package build.wallet.statemachine.home.lite
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.core.ScreenModel
@@ -19,6 +21,7 @@ import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class LiteHomeUiStateMachineImpl(
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
   private val liteMoneyHomeUiStateMachine: LiteMoneyHomeUiStateMachine,

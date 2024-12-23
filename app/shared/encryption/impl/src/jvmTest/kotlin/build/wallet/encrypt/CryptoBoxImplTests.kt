@@ -1,6 +1,7 @@
 package build.wallet.encrypt
 
 import build.wallet.rust.core.CryptoBoxException
+import build.wallet.rust.core.CryptoBoxKeyPairException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -85,6 +86,21 @@ class CryptoBoxImplTests : FunSpec({
     // Bob attempts to decrypt
     shouldThrow<CryptoBoxException> {
       cryptoBox.decrypt(aliceKeyPair.publicKey, bobKeyPair.privateKey, modifiedSealedData)
+    }
+  }
+
+  test("new from secret bytes") {
+    val aliceKeyPair = cryptoBox.generateKeyPair()
+    val keyPairFromBytes = cryptoBox.keypairFromSecretBytes(aliceKeyPair.privateKey.bytes)
+
+    aliceKeyPair.publicKey shouldBeEqual keyPairFromBytes.publicKey
+    aliceKeyPair.privateKey shouldBeEqual keyPairFromBytes.privateKey
+  }
+
+  test("invalid secret bytes") {
+    val invalidSecretBytes = "invalid".encodeUtf8()
+    shouldThrow<CryptoBoxKeyPairException> {
+      cryptoBox.keypairFromSecretBytes(invalidSecretBytes)
     }
   }
 

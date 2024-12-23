@@ -18,6 +18,8 @@ import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.RectifiableCloudError
@@ -40,6 +42,7 @@ import com.github.michaelbull.result.onSuccess
 
 const val SAVING_BACKUP_MESSAGE = "Saving backup..."
 
+@BitkeyInject(ActivityScope::class)
 class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,

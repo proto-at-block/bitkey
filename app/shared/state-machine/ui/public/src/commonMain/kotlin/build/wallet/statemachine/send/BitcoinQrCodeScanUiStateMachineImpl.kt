@@ -8,8 +8,8 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -18,10 +18,10 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class BitcoinQrCodeScanUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
   private val bitcoinWalletService: BitcoinWalletService,
-  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BitcoinQrCodeUiScanStateMachine {
   @Composable
   override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
@@ -117,40 +117,28 @@ class BitcoinQrCodeScanUiStateMachineImpl(
     onDoneClick: () -> Unit,
     onGoToUtxoConsolidation: () -> Unit,
   ): ScreenModel {
-    return if (utxoConsolidationFeatureFlag.isEnabled()) {
-      ErrorFormBodyModelWithOptionalErrorData(
-        title = "This is your Bitkey wallet address",
-        subline = LabelModel.LinkSubstringModel.from(
-          string = "The address you entered belongs to this Bitkey wallet. Enter an external address" +
-            " to transfer funds." +
-            "\n\n" +
-            "For UTXO consolidation, go to UTXO Consolidation in Settings.",
-          substringToOnClick = mapOf("UTXO Consolidation" to onGoToUtxoConsolidation),
-          underline = true,
-          bold = false,
-          color = LabelModel.Color.UNSPECIFIED
-        ),
-        primaryButton = ButtonDataModel(
-          text = "Done",
-          onClick = onDoneClick
-        ),
-        toolbar = ToolbarModel(
-          leadingAccessory = BackAccessory(onClick = onDoneClick)
-        ),
-        eventTrackerScreenId = null,
-        errorData = null
-      ).asModalScreen()
-    } else {
-      return ErrorFormBodyModel(
-        title = "You can’t send to your own address",
-        primaryButton =
-          ButtonDataModel(
-            text = "Done",
-            onClick = onDoneClick
-          ),
-        eventTrackerScreenId = null
-      ).asModalScreen()
-    }
+    return ErrorFormBodyModelWithOptionalErrorData(
+      title = "This is your Bitkey wallet address",
+      subline = LabelModel.LinkSubstringModel.from(
+        string = "The address you entered belongs to this Bitkey wallet. Enter an external address" +
+          " to transfer funds." +
+          "\n\n" +
+          "For UTXO consolidation, go to UTXO Consolidation in Settings.",
+        substringToOnClick = mapOf("UTXO Consolidation" to onGoToUtxoConsolidation),
+        underline = true,
+        bold = false,
+        color = LabelModel.Color.UNSPECIFIED
+      ),
+      primaryButton = ButtonDataModel(
+        text = "Done",
+        onClick = onDoneClick
+      ),
+      toolbar = ToolbarModel(
+        leadingAccessory = BackAccessory(onClick = onDoneClick)
+      ),
+      eventTrackerScreenId = null,
+      errorData = null
+    ).asModalScreen()
   }
 
   private suspend fun handlePaymentDataCaptured(

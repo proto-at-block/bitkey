@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment.Custom
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -18,6 +20,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class F8eCustomUrlStateMachineImpl(
   private val debugOptionsService: DebugOptionsService,
 ) : F8eCustomUrlStateMachine {

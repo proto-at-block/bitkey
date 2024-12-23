@@ -1,10 +1,13 @@
 package build.wallet.money.formatter
 
 import build.wallet.amount.DoubleFormatter
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.formatter.FiatMoneyFormatter.CurrencyRepresentationOption.SYMBOL
 import build.wallet.money.formatter.FiatMoneyFormatter.SignOption.SIGNED
 import build.wallet.money.formatter.FiatMoneyFormatter.SignOption.STANDARD
 
+@BitkeyInject(AppScope::class)
 class MoneyFormatterDefinitionsImpl(
   doubleFormatter: DoubleFormatter,
 ) : MoneyFormatterDefinitions {

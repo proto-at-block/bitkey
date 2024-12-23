@@ -4,6 +4,8 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.Account
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
@@ -26,6 +28,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class FeatureFlagSyncerImpl(
   private val accountService: AccountService,
   private val debugOptionsService: DebugOptionsService,

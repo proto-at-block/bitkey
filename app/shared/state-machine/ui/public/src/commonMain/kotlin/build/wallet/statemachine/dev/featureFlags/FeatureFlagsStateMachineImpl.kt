@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.FeatureFlagValue
@@ -20,6 +22,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class FeatureFlagsStateMachineImpl(
   private val booleanFlagItemUiStateMachine: BooleanFlagItemUiStateMachine,
   private val doubleFlagItemUiStateMachine: DoubleFlagItemUiStateMachine,

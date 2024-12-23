@@ -1,5 +1,7 @@
 package build.wallet.logging
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.dev.LogStore
 import build.wallet.logging.dev.LogStore.Entity
 import build.wallet.logging.dev.LogStoreWriter
@@ -12,6 +14,7 @@ import co.touchlab.kermit.Severity.Verbose
 import co.touchlab.kermit.Severity.Warn
 import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class LogStoreWriterImpl(
   private val logStore: LogStore,
   private val clock: Clock,

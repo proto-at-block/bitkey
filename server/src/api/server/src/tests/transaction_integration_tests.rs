@@ -35,7 +35,7 @@ use mockall::mock;
 use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
 use types::account::bitcoin::Network;
-use types::account::identifiers::{AccountId, KeysetId};
+use types::account::identifiers::AccountId;
 use types::account::spend_limit::{Money, SpendingLimit};
 use types::currencies::CurrencyCode::USD;
 use ulid::Ulid;
@@ -326,19 +326,6 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
         response.body_string
     );
     check_psbt(response.body).await;
-
-    // Ensure PSBT caching works, by sending an invalid keyset with the same psbt
-    if vector.expected_status == StatusCode::OK {
-        let response = client
-            .sign_transaction_with_keyset(&account.id, &KeysetId::gen().unwrap(), &request_data)
-            .await;
-        assert_eq!(
-            vector.expected_status, response.status_code,
-            "{}",
-            response.body_string
-        );
-        check_psbt(response.body).await;
-    }
 }
 
 tests! {
@@ -695,7 +682,7 @@ async fn test_fail_sends_to_sanctioned_address() {
 
     assert_eq!(
         response.status_code,
-        StatusCode::BAD_REQUEST,
+        StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS,
         "{}",
         response.body_string
     );
@@ -801,7 +788,9 @@ async fn test_fail_if_signed_with_different_wallet() {
             )
             .await;
         assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
-        assert!(response.body_string.contains("WSM could not sign PSBT"));
+        assert!(response
+            .body_string
+            .contains("Input does not only have one signature"));
     }
 
     // Test PSBT with >1 signatures
@@ -827,7 +816,9 @@ async fn test_fail_if_signed_with_different_wallet() {
             )
             .await;
         assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
-        assert!(response.body_string.contains("WSM could not sign PSBT"));
+        assert!(response
+            .body_string
+            .contains("Input does not only have one signature"));
     }
 
     // Test PSBT with signature that does not belong to wallet
@@ -856,6 +847,6 @@ async fn test_fail_if_signed_with_different_wallet() {
             )
             .await;
         assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
-        assert!(response.body_string.contains("WSM could not sign PSBT"));
+        assert!(response.body_string.contains("Invalid PSBT"));
     }
 }

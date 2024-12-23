@@ -3,6 +3,8 @@ package build.wallet.statemachine.data.recovery.conflict
 import androidx.compose.runtime.*
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError.SpecificClientError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -14,6 +16,7 @@ import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringD
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(AppScope::class)
 class SomeoneElseIsRecoveringDataStateMachineImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val recoverySyncer: RecoverySyncer,

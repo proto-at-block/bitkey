@@ -8,9 +8,12 @@ import build.wallet.bdk.bindings.generateMnemonic
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.bdk.bdkNetwork
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class ExtendedKeyGeneratorImpl(
   private val bdkMnemonicGenerator: BdkMnemonicGenerator,
   private val bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,

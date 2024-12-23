@@ -5,6 +5,8 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
@@ -12,6 +14,7 @@ import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiState
 import build.wallet.statemachine.recovery.socrec.view.*
 import kotlinx.datetime.Clock
 
+@BitkeyInject(ActivityScope::class)
 class ListingTrustedContactsUiStateMachineImpl(
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,

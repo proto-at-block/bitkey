@@ -7,6 +7,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.isFullAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -19,6 +21,7 @@ import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.Sta
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.LoadingCloudBackup
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.SignInFailure
 
+@BitkeyInject(ActivityScope::class)
 class GettingStartedRoutingStateMachineImpl(
   private val accessCloudBackupUiStateMachine: AccessCloudBackupUiStateMachine,
 ) : GettingStartedRoutingStateMachine {

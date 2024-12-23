@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuProps
@@ -22,6 +24,7 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.ui.model.alert.ButtonAlertModel
 
+@BitkeyInject(ActivityScope::class)
 class LiteSettingsHomeUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val appearancePreferenceUiStateMachine: AppearancePreferenceUiStateMachine,

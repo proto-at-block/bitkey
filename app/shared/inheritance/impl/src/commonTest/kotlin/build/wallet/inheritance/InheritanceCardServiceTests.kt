@@ -1,9 +1,7 @@
 package build.wallet.inheritance
 
 import app.cash.turbine.test
-import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
-import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
-import build.wallet.bitkey.inheritance.InheritanceClaimId
+import build.wallet.bitkey.inheritance.*
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.store.KeyValueStoreFactoryFake
 import build.wallet.time.someInstant
@@ -29,41 +27,77 @@ class InheritanceCardServiceTests : FunSpec({
     keyValueStore.clear()
   }
 
-  test("don't display dismissed pending claim card") {
-    inheritanceService.pendingBeneficiaryClaims.value = listOf(BeneficiaryPendingClaimFake)
-    inheritanceCardService.dismissPendingClaimCard("claim-benefactor-pending-id")
+  test("don't display dismissed pending beneficiary claim card") {
+    inheritanceService.claims.value = listOf(BeneficiaryPendingClaimFake)
+    inheritanceCardService.dismissPendingBeneficiaryClaimCard("claim-benefactor-pending-id")
 
-    inheritanceCardService.claimCardsToDisplay.test {
+    inheritanceCardService.cardsToDisplay.test {
       awaitItem().shouldBe(emptyList())
       expectNoEvents()
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test("display pending claim card with one dismissed") {
+  test("display pending beneficiary claim card with one dismissed") {
     val pendingClaimTwo = BeneficiaryPendingClaimFake.copy(
       claimId = InheritanceClaimId("claim-benefactor-pending-id2"),
       delayEndTime = someInstant.plus(360.days)
     )
-    inheritanceService.pendingBeneficiaryClaims.value = listOf(
+    inheritanceService.claims.value = listOf(
       BeneficiaryPendingClaimFake,
       pendingClaimTwo
     )
-    inheritanceCardService.dismissPendingClaimCard("claim-benefactor-pending-id")
+    inheritanceCardService.dismissPendingBeneficiaryClaimCard("claim-benefactor-pending-id")
 
-    inheritanceCardService.claimCardsToDisplay.test {
+    inheritanceCardService.cardsToDisplay.test {
       awaitItem().shouldBe(listOf(pendingClaimTwo))
     }
   }
 
-  test("displays locked claim card even if pending claim card was dismissed") {
-    inheritanceService.lockedBeneficiaryClaims.value = listOf(BeneficiaryLockedClaimFake)
-    inheritanceCardService.dismissPendingClaimCard("claim-benefactor-pending-id")
+  test("displays locked beneficiary claim card even if pending beneficiary claim card was dismissed") {
+    inheritanceService.claims.value = listOf(BeneficiaryLockedClaimFake)
+    inheritanceCardService.dismissPendingBeneficiaryClaimCard("claim-benefactor-pending-id")
 
-    inheritanceCardService.claimCardsToDisplay.test {
+    inheritanceCardService.cardsToDisplay.test {
       awaitItem().shouldBe(
         listOf(
           BeneficiaryLockedClaimFake
+        )
+      )
+    }
+  }
+
+  test("displays pending benefactor claim warning card") {
+    inheritanceService.claims.value = listOf(BenefactorPendingClaimFake)
+
+    inheritanceCardService.cardsToDisplay.test {
+      awaitItem().shouldBe(
+        listOf(
+          BenefactorPendingClaimFake
+        )
+      )
+    }
+  }
+
+  test("displays locked/complete benefactor claim card when complete") {
+    inheritanceService.claims.value = listOf(BenefactorCompleteClaim)
+
+    inheritanceCardService.cardsToDisplay.test {
+      awaitItem().shouldBe(
+        listOf(
+          BenefactorCompleteClaim
+        )
+      )
+    }
+  }
+
+  test("displays locked/compelte benefactor claim card when locked") {
+    inheritanceService.claims.value = listOf(BenefactorLockedClaimFake)
+
+    inheritanceCardService.cardsToDisplay.test {
+      awaitItem().shouldBe(
+        listOf(
+          BenefactorLockedClaimFake
         )
       )
     }

@@ -10,6 +10,8 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.FAILURE
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorer
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorData
@@ -23,6 +25,8 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 /** Restore a lite account via cloud backup */
+
+@BitkeyInject(ActivityScope::class)
 class LiteAccountCloudBackupRestorationUiStateMachineImpl(
   private val liteAccountCloudBackupRestorer: LiteAccountCloudBackupRestorer,
 ) : LiteAccountCloudBackupRestorationUiStateMachine {

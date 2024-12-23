@@ -8,6 +8,8 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.RotateAuthKeysF8eClient
 import build.wallet.keybox.KeyboxDao
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class FullAccountAuthKeyRotationServiceImpl(
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
   private val rotateAuthKeysF8eClient: RotateAuthKeysF8eClient,

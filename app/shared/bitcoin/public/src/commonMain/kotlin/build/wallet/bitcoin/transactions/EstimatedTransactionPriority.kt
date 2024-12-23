@@ -28,6 +28,8 @@ enum class EstimatedTransactionPriority : Comparable<EstimatedTransactionPriorit
 
   companion object {
     fun sweepPriority(): EstimatedTransactionPriority = THIRTY_MINUTES
+
+    fun inheritancePriority(): EstimatedTransactionPriority = SIXTY_MINUTES
   }
 }
 

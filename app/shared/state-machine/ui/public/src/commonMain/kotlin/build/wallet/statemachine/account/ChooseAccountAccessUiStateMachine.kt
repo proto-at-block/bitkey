@@ -1,5 +1,6 @@
 package build.wallet.statemachine.account
 
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
@@ -15,4 +16,5 @@ interface ChooseAccountAccessUiStateMachine : StateMachine<ChooseAccountAccessUi
 
 data class ChooseAccountAccessUiProps(
   val chooseAccountAccessData: NoActiveAccountData.GettingStartedData,
+  val onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
 )

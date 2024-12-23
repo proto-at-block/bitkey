@@ -2,6 +2,8 @@ package build.wallet.f8e.support
 
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -27,6 +29,7 @@ import okio.Buffer
 import okio.Source
 import okio.use
 
+@BitkeyInject(AppScope::class)
 class SupportTicketF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : SupportTicketF8eClient {

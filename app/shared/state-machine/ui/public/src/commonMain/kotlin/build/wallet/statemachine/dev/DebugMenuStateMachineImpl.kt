@@ -2,6 +2,8 @@ package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.DEBUG
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.nfc.NfcException
@@ -23,6 +25,7 @@ import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 
+@BitkeyInject(ActivityScope::class)
 class DebugMenuStateMachineImpl(
   private val analyticsUiStateMachine: AnalyticsUiStateMachine,
   private val bitcoinWalletDebugUiStateMachine: BitcoinWalletDebugUiStateMachine,

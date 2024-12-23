@@ -11,94 +11,81 @@ class AppContext {
     // MARK: - Classes
 
     let appUiStateMachineManager: AppUiStateMachineManager
-    let biometricPromptUiStateMachineManager: BiometricPromptUiStateMachineManager
 
     let notificationManager: NotificationManager
 
-    let appComponent: AppComponentImpl
-    let activityComponent: ActivityComponent
-
-    let bdkAddressBuilder: BdkAddressBuilder
-    let bdkBlockchainFactory: BdkBlockchainFactory
-    let bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory
-    let bdkMnemonicGenerator: BdkMnemonicGenerator
-    let bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator
-    let bdkDescriptorFactory: BdkDescriptorFactory
-    let bdkDescriptorSecretKeyFactory: BdkDescriptorSecretKeyFactory
-    let bdkWalletFactory: BdkWalletFactory
-    let bdkPsbtBuilder: BdkPartiallySignedTransactionBuilder
-    let bdkTxBuilderFactory: BdkTxBuilderFactory
+    let appComponent: IosAppComponent
+    let activityComponent: IosActivityComponent
 
     let deviceTokenProvider: DeviceTokenProvider
     let sharingManager: SharingManagerImpl
-    let datadogTracer: DatadogTracer
-    let secp256k1KeyGenerator: Secp256k1KeyGenerator
-    let biometricsPrompter: BiometricPrompter
 
     // MARK: - Life Cycle
 
     init(appVariant: AppVariant) {
         self.deviceTokenProvider = DeviceTokenProviderImpl()
-
-        self.bdkMnemonicGenerator = BdkMnemonicGeneratorImpl()
-        self.bdkAddressBuilder = BdkAddressBuilderImpl()
-        self.bdkBlockchainFactory = BdkBlockchainFactoryImpl()
-        self.bdkBumpFeeTxBuilderFactory = BdkBumpFeeTxBuilderFactoryImpl()
-        self.bdkDescriptorFactory = BdkDescriptorFactoryImpl()
-        self.bdkDescriptorSecretKeyFactory = BdkDescriptorSecretKeyFactoryImpl()
-        self.bdkDescriptorSecretKeyGenerator = BdkDescriptorSecretKeyGeneratorImpl()
-        self.bdkWalletFactory = BdkWalletFactoryImpl()
-        self.bdkTxBuilderFactory = BdkTxBuilderFactoryImpl()
-        self.bdkPsbtBuilder = BdkPartiallySignedTransactionBuilderImpl()
-        self.datadogTracer = DatadogTracerImpl()
-        self.secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
-        self.biometricsPrompter = BiometricPrompterImpl()
-
-        let iCloudAccountRepository = iCloudAccountRepositoryImpl()
-        let cloudStoreAccountRepository = CloudStoreAccountRepositoryImpl(
-            iCloudAccountRepository: iCloudAccountRepository
-        )
+        self.sharingManager = SharingManagerImpl()
         let datadogRumMonitor = DatadogRumMonitorImpl()
+        let cloudFileStore = CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore())
+        let datadogTracer = DatadogTracerImpl()
+        let secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
+        let biometricsPrompter = BiometricPrompterImpl()
 
-        self.appComponent = AppComponentImplKt.makeAppComponent(
+        let appViewController = HiddenBarNavigationController()
+
+        // Create IosAppComponent with iOS implementations
+        self.appComponent = IosAppComponentCreateComponentKt.create(
             appVariant: appVariant,
-            bdkAddressBuilder: bdkAddressBuilder,
-            bdkBlockchainFactory: bdkBlockchainFactory,
-            bdkBumpFeeTxBuilderFactory: bdkBumpFeeTxBuilderFactory,
-            bdkDescriptorSecretKeyGenerator: bdkDescriptorSecretKeyGenerator,
-            bdkMnemonicGenerator: bdkMnemonicGenerator,
+            bdkAddressBuilder: BdkAddressBuilderImpl(),
+            bdkBlockchainFactory: BdkBlockchainFactoryImpl(),
+            bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactoryImpl(),
+            bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGeneratorImpl(),
+            bdkMnemonicGenerator: BdkMnemonicGeneratorImpl(),
             bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilderImpl(),
-            bdkTxBuilderFactory: bdkTxBuilderFactory,
-            bdkWalletFactory: bdkWalletFactory,
+            bdkTxBuilderFactory: BdkTxBuilderFactoryImpl(),
+            bdkWalletFactory: BdkWalletFactoryImpl(),
             biometricPrompter: biometricsPrompter,
+            cloudFileStore: cloudFileStore,
+            cryptoBox: CryptoBoxImpl(),
             datadogRumMonitor: datadogRumMonitor,
-            datadogTracer: DatadogTracerImpl(),
+            datadogTracer: datadogTracer,
             deviceTokenConfigProvider: DeviceTokenConfigProviderImpl(
                 deviceTokenProvider: deviceTokenProvider,
-                appVariant: AppVariant.current()
+                appVariant: appVariant
             ),
             fileManagerProvider: { FileManagerImpl(fileDirectoryProvider: $0) },
-            logWritersProvider: { [
-                DatadogLogWriter(logWriterContextStore: $0, minSeverity: .info),
-            ] },
-            messageSigner: MessageSignerImpl(),
-            phoneNumberLibBindings: PhoneNumberLibBindingsImpl(),
-            signatureVerifier: SignatureVerifierImpl(),
-            secp256k1KeyGenerator: secp256k1KeyGenerator,
-            teltra: TeltraImpl(),
+            firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
+            frostWalletDescriptorFactory: FrostWalletDescriptorFactoryImpl(),
             hardwareAttestation: HardwareAttestationImpl(),
-            deviceOs: DeviceOs.ios,
-            wsmVerifier: WsmVerifierImpl(),
-            cryptoBox: CryptoBoxImpl(),
+            inAppBrowserNavigator: InAppBrowserNavigatorImpl(
+                appViewController: appViewController
+            ),
+            lightningInvoiceParser: LightningInvoiceParserImpl(),
+            logWritersProvider: { context in [DatadogLogWriter(
+                logWriterContextStore: context,
+                minSeverity: .info
+            )] },
+            messageSigner: MessageSignerImpl(),
+            nfcCommandsImpl: NfcCommandsImpl(),
+            nfcSessionProvider: NfcSessionProviderImpl(),
+            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
+            phoneNumberLibBindings: PhoneNumberLibBindingsImpl(),
+            secp256k1KeyGenerator: secp256k1KeyGenerator,
+            shareGeneratorFactory: ShareGeneratorFactoryImpl(),
+            sharingManager: sharingManager,
+            signatureVerifier: SignatureVerifierImpl(),
             spake2: Spake2Impl(),
             symmetricKeyEncryptor: SymmetricKeyEncryptorImpl(),
             symmetricKeyGenerator: SymmetricKeyGeneratorImpl(),
+            systemSettingsLauncher: SystemSettingsLauncherImpl(),
+            teltra: TeltraImpl(),
+            wsmVerifier: WsmVerifierImpl(),
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
-            xNonceGenerator: XNonceGeneratorImpl(),
-            firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
-            shareGeneratorFactory: ShareGeneratorFactoryImpl(),
-            frostWalletDescriptorFactory: FrostWalletDescriptorFactoryImpl()
+            xNonceGenerator: XNonceGeneratorImpl()
         )
+
+        // Create IosActivityComponent
+        self.activityComponent = appComponent.activityComponent()
 
         self.notificationManager = NotificationManagerImpl(
             appVariant: appComponent.appVariant,
@@ -109,68 +96,12 @@ class AppContext {
                 .pushNotificationPermissionStatusProvider
         )
 
-        let fakeHardwareKeyStore = FakeHardwareKeyStoreImpl(
-            bdkMnemonicGenerator: self.bdkMnemonicGenerator,
-            bdkDescriptorSecretKeyGenerator: self.bdkDescriptorSecretKeyGenerator,
-            secp256k1KeyGenerator: self.secp256k1KeyGenerator,
-            encryptedKeyValueStoreFactory: appComponent.secureStoreFactory
-        )
-
-        let fakeHardwareSpendingWalletProvider = FakeHardwareSpendingWalletProvider(
-            spendingWalletProvider: appComponent.spendingWalletProvider,
-            descriptorBuilder: appComponent.bitcoinMultiSigDescriptorBuilder,
-            fakeHardwareKeyStore: fakeHardwareKeyStore
-        )
-
-        let nfcCommandsProvider = NfcCommandsProvider(
-            real: NfcCommandsImpl(),
-            fake: NfcCommandsFake(
-                messageSigner: appComponent.messageSigner,
-                fakeHardwareKeyStore: fakeHardwareKeyStore,
-                fakeHardwareSpendingWalletProvider: fakeHardwareSpendingWalletProvider
-            )
-        )
-
-        self.sharingManager = SharingManagerImpl()
-        let appViewController = HiddenBarNavigationController()
-
-        self.activityComponent = ActivityComponentImpl(
-            appComponent: appComponent,
-            cloudKeyValueStore: CloudKeyValueStoreImpl(
-                iCloudKeyValueStore: iCloudKeyValueStoreImpl(clock: appComponent.clock)
-            ),
-            cloudFileStore: CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore()),
-            cloudSignInUiStateMachine: CloudSignInUiStateMachineImpl(
-                cloudStoreAccountRepository: cloudStoreAccountRepository,
-                delayer: appComponent.delayer
-            ),
-            cloudDevOptionsStateMachine: CloudDevOptionsStateMachineImpl(
-                iCloudAccountRepository: iCloudAccountRepository
-            ),
-            cloudStoreAccountRepository: cloudStoreAccountRepository,
-            datadogRumMonitor: DatadogRumMonitorImpl(),
-            lightningInvoiceParser: LightningInvoiceParserImpl(),
-            sharingManager: sharingManager,
-            systemSettingsLauncher: SystemSettingsLauncherImpl(),
-            inAppBrowserNavigator: InAppBrowserNavigatorImpl(appViewController: appViewController),
-            nfcCommandsProvider: nfcCommandsProvider,
-            nfcSessionProvider: NfcSessionProviderImpl(),
-            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
-            biometricPrompter: biometricsPrompter
-        )
-
         self.appUiStateMachineManager = AppUiStateMachineManagerImpl(
             appUiStateMachine: activityComponent.appUiStateMachine as! AppUiStateMachineImpl,
             appViewController: appViewController,
             context: .init(
                 qrCodeScannerViewControllerFactory: QRCodeScannerViewControllerFactoryImpl()
             )
-        )
-
-        self.biometricPromptUiStateMachineManager = BiometricPromptUiStateMachineManager(
-            biometricPromptUiStateMachine: activityComponent
-                .biometricPromptUiStateMachine as! BiometricPromptUiStateMachineImpl,
-            appViewController: HiddenBarNavigationController()
         )
     }
 }

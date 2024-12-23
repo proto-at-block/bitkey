@@ -1,6 +1,5 @@
 package build.wallet.statemachine.biometric
 
-import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.biometrics.BiometricError
 import build.wallet.platform.biometrics.BiometricPrompterMock
@@ -14,23 +13,19 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class BiometricPromptUiStateMachineImplTests : FunSpec({
   val biometricPrompter = BiometricPrompterMock()
-  val biometricPreference = BiometricPreferenceFake()
   val appSessionManager = AppSessionManagerFake()
 
   val biometricPromptUiStateMachine = BiometricPromptUiStateMachineImpl(
     appSessionManager = appSessionManager,
-    biometricPrompter = biometricPrompter,
-    biometricPreference = biometricPreference
+    biometricPrompter = biometricPrompter
   )
 
   beforeEach {
     biometricPrompter.reset()
-    biometricPreference.reset()
   }
 
   test("auth prompt is shown when app is in foreground") {
-    biometricPreference.set(true)
-    biometricPromptUiStateMachine.test(Unit) {
+    biometricPromptUiStateMachine.test(BiometricPromptProps(shouldPromptForAuth = true)) {
       // showing the splash screen and authenticating
       awaitItem().shouldNotBeNull()
         .body
@@ -54,10 +49,9 @@ class BiometricPromptUiStateMachineImplTests : FunSpec({
   }
 
   test("lock screen is shown once auth has failed") {
-    biometricPreference.set(true)
     biometricPrompter.promptError = BiometricError.AuthenticationFailed()
 
-    biometricPromptUiStateMachine.test(Unit) {
+    biometricPromptUiStateMachine.test(BiometricPromptProps(shouldPromptForAuth = true)) {
       // showing the splash screen and failing to auth
       awaitItem().shouldNotBeNull()
         .body
@@ -71,15 +65,7 @@ class BiometricPromptUiStateMachineImplTests : FunSpec({
   }
 
   test("proceeds to null value when biometric preference is disabled") {
-    biometricPreference.set(false)
-    biometricPrompter.promptError = BiometricError.AuthenticationFailed()
-
-    biometricPromptUiStateMachine.test(Unit) {
-      // showing the splash screen and skipping auth
-      awaitItem().shouldNotBeNull()
-        .body
-        .shouldBeInstanceOf<SplashBodyModel>()
-
+    biometricPromptUiStateMachine.test(BiometricPromptProps(shouldPromptForAuth = false)) {
       // null model once auth has been skipped
       awaitItem().shouldBeNull()
     }

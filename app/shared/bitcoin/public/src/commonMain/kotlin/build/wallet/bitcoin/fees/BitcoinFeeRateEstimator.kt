@@ -2,7 +2,6 @@ package build.wallet.bitcoin.fees
 
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
 
 interface BitcoinFeeRateEstimator {
@@ -21,10 +20,16 @@ interface BitcoinFeeRateEstimator {
   /**
    * Get estimated fee rates for all transaction priorities
    *
-   * @return A map of fee rates where the key is the [EstimatedTransactionPriority] and the value
+   * @return An object of fee rates where the param is the [EstimatedTransactionPriority] and the value
    * is the fee rate as a [FeeRate].
    */
   suspend fun getEstimatedFeeRates(
     networkType: BitcoinNetworkType,
-  ): Result<Map<EstimatedTransactionPriority, FeeRate>, NetworkingError>
+  ): Result<FeeRatesByPriority, Error>
 }
+
+class FeeRatesByPriority(
+  val fastestFeeRate: FeeRate,
+  val halfHourFeeRate: FeeRate,
+  val hourFeeRate: FeeRate,
+)

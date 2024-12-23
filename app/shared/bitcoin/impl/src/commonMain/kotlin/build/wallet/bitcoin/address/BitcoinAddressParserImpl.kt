@@ -8,6 +8,8 @@ import build.wallet.bitcoin.address.BitcoinAddressParser.BitcoinAddressParserErr
 import build.wallet.bitcoin.address.BitcoinAddressParser.BitcoinAddressParserError.InvalidNetwork
 import build.wallet.bitcoin.address.BitcoinAddressParser.BitcoinAddressParserError.InvalidScript
 import build.wallet.bitcoin.bdk.bdkNetwork
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -15,6 +17,7 @@ import com.github.michaelbull.result.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class BitcoinAddressParserImpl(
   val addressBuilder: BdkAddressBuilder,
 ) : BitcoinAddressParser {

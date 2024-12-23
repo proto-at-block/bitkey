@@ -2,15 +2,16 @@ package build.wallet.cloud.backup
 
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
-import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupDecodingError
-import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
-import build.wallet.cloud.backup.RestoreFromBackupError.CsekMissing
+import build.wallet.cloud.backup.RestoreFromBackupError.*
 import build.wallet.cloud.backup.v2.FullAccountKeys
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class FullAccountCloudBackupRestorerImpl(
   private val cloudBackupV2Restorer: CloudBackupV2Restorer,
 ) : FullAccountCloudBackupRestorer {

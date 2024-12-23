@@ -9,6 +9,8 @@ import build.wallet.analytics.v1.Action.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -43,6 +45,7 @@ data class RecoveryInProgressUiProps(
   val onComplete: (() -> Unit)? = null,
 )
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryInProgressUiStateMachineImpl(
   private val completingRecoveryUiStateMachine: CompletingRecoveryUiStateMachine,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,

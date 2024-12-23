@@ -6,6 +6,8 @@ import androidx.compose.runtime.remember
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.*
 import build.wallet.f8e.name
@@ -20,6 +22,7 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class F8eEnvironmentPickerUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugOptionsService: DebugOptionsService,

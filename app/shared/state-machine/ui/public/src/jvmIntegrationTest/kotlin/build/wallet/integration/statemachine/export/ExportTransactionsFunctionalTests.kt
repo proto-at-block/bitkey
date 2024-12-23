@@ -7,7 +7,6 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.setFlagValue
 import build.wallet.integration.statemachine.recovery.RecoveryTestingStateMachine
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.money.BitcoinMoney.Companion.btc
@@ -41,7 +40,6 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
   beforeTest {
     app = launchNewApp()
-    app.utxoConsolidationFeatureFlag.setFlagValue(true)
   }
 
   test("e2e – export external, internal, and consolidation transactions") {

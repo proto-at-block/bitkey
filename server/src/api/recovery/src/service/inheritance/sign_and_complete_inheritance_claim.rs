@@ -6,7 +6,7 @@ use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 use bdk_utils::ElectrumRpcUris;
-use mobile_pay::signing_processor::{SignerBroadcaster, SigningValidator};
+use mobile_pay::signing_processor::{Broadcaster, Signer, SigningValidator};
 use mobile_pay::spend_rules::SpendRuleSet;
 use time::OffsetDateTime;
 use tracing::instrument;
@@ -83,11 +83,15 @@ impl Service {
             self.screener_service.clone(),
         );
 
-        let signed_psbt = input
+        let mut broadcaster = input
             .signing_processor
             .validate(&input.psbt, rules)?
-            .sign_and_broadcast_transaction(&descriptor, &keyset_id)
+            .sign_transaction(&input.rpc_uris, &descriptor, &keyset_id)
             .await?;
+
+        let signed_psbt = broadcaster.finalized_psbt();
+
+        broadcaster.broadcast_transaction(&input.rpc_uris, &descriptor)?;
 
         // If the following fails, the transaction would have been broadcast
         // but the claim would remain locked.

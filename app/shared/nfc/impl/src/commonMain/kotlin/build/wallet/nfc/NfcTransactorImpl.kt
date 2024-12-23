@@ -7,7 +7,6 @@ import build.wallet.logging.logWarn
 import build.wallet.nfc.NfcSession.Parameters
 import build.wallet.nfc.interceptors.NfcEffect
 import build.wallet.nfc.interceptors.NfcTransactionInterceptor
-import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.nfc.platform.NfcSessionProvider
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
@@ -16,7 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class NfcTransactorImpl(
+internal class NfcTransactorImpl(
   private val commandsProvider: NfcCommandsProvider,
   private val sessionProvider: NfcSessionProvider,
   private val interceptors: List<NfcTransactionInterceptor>,

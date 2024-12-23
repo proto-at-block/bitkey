@@ -1,17 +1,17 @@
 package build.wallet.platform.links
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logWarn
-import build.wallet.platform.PlatformContext
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.None
 import build.wallet.platform.links.OpenDeeplinkResult.Failed
 import build.wallet.platform.links.OpenDeeplinkResult.Opened
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 
-actual class DeepLinkHandlerImpl actual constructor(
-  platformContext: PlatformContext,
-) : DeepLinkHandler {
-  actual override fun openDeeplink(
+@BitkeyInject(AppScope::class)
+class DeepLinkHandlerImpl : DeepLinkHandler {
+  override fun openDeeplink(
     url: String,
     appRestrictions: AppRestrictions?,
   ): OpenDeeplinkResult {

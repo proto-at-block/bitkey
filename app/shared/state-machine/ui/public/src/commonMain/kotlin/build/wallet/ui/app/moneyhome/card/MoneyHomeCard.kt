@@ -138,6 +138,12 @@ fun MoneyHomeCard(
           model = model
         )
       }
+
+    is CardModel.CardStyle.Callout ->
+      CardContent(
+        modifier = cardModifier.scale(scale.value),
+        model = model
+      )
   }
 }
 

@@ -1,5 +1,6 @@
 package build.wallet.statemachine.account.create
 
+import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -10,5 +11,5 @@ interface CreateSoftwareWalletUiStateMachine : StateMachine<CreateSoftwareWallet
 
 data class CreateSoftwareWalletProps(
   val onExit: () -> Unit,
-  val onSuccess: () -> Unit,
+  val onSuccess: (SoftwareAccount) -> Unit,
 )

@@ -585,6 +585,7 @@ style:
     active: true
     imports:
       - "io.ktor.client.request.setBody"
+      - "io.ktor.client.call.body"
   ForbiddenMethodCall:
     active: true
     methods:

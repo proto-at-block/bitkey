@@ -1,7 +1,11 @@
 use crate::spend_rules::errors::{SpendRuleCheckError, SpendRuleCheckErrors};
+use crate::util::MobilepayDatetimeError;
 use bdk_utils::bdk::bitcoin::psbt::PsbtParseError;
 use bdk_utils::error::BdkUtilError;
+use database::ddb::DatabaseError;
 use errors::ApiError;
+use exchange_rate::error::ExchangeRateError;
+use std::error::Error;
 use thiserror::Error;
 use types::account::identifiers::KeysetId;
 
@@ -11,7 +15,7 @@ pub enum SigningError {
     ServerSigningDisabled,
     #[error("Attempted to sign with server when user has Mobile Pay turned off")]
     MobilePayDisabled,
-    #[error(transparent)]
+    #[error("Bdk utils error: {0}")]
     BdkUtils(#[from] BdkUtilError),
     #[error("Could not decode psbt due to error: {0}")]
     InvalidPsbt(String),
@@ -27,20 +31,31 @@ pub enum SigningError {
     NoActiveSpendKeyset,
     #[error("Psbt was not broadcasted because it wasn't fully signed")]
     CannotBroadcastNonFullySignedPsbt,
+    #[error("Mobilepay settings not found")]
+    MissingMobilePaySettings,
+    #[error("Could not get spending records: {0}")]
+    CouldNotGetSpendingRecords(String),
+    #[error(transparent)]
+    ExchangeRate(#[from] ExchangeRateError),
+    #[error(transparent)]
+    DatabaseError(#[from] DatabaseError),
+    #[error(transparent)]
+    MobilePayDatetimeError(#[from] MobilepayDatetimeError),
 }
 
 impl From<SigningError> for ApiError {
     fn from(error: SigningError) -> Self {
         let err_msg = error.to_string();
+
+        let source = error.source();
+        if let Some(source) = source {
+            if let Some(bdk_error) = source.downcast_ref::<BdkUtilError>() {
+                return bdk_error.into();
+            }
+        }
         match error {
             SigningError::ServerSigningDisabled | SigningError::MobilePayDisabled => {
                 ApiError::GenericForbidden(err_msg)
-            }
-            SigningError::BdkUtils(_)
-            | SigningError::PsbtSigning(_)
-            | SigningError::NoSpendKeyset(_)
-            | SigningError::NoActiveSpendKeyset => {
-                ApiError::GenericInternalApplicationError(err_msg)
             }
             SigningError::InvalidPsbt(_)
             | SigningError::PsbtParsingFailed(_)
@@ -48,16 +63,17 @@ impl From<SigningError> for ApiError {
                 ApiError::GenericBadRequest(err_msg)
             }
             SigningError::SpendRuleCheckFailed(errors) => {
-                if errors
-                    .0
-                    .iter()
-                    .any(|e| matches!(e, SpendRuleCheckError::OutputsBelongToSanctionedIndividuals))
+                if errors.has_error(&SpendRuleCheckError::SpendLimitInactive) {
+                    ApiError::GenericForbidden(err_msg)
+                } else if errors
+                    .has_error(&SpendRuleCheckError::OutputsBelongToSanctionedIndividuals)
                 {
                     ApiError::GenericUnavailableForLegalReasons(err_msg)
                 } else {
                     ApiError::GenericBadRequest(err_msg)
                 }
             }
+            _ => ApiError::GenericInternalApplicationError(err_msg),
         }
     }
 }

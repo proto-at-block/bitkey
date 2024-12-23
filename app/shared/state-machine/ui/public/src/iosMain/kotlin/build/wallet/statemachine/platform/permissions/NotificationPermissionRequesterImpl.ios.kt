@@ -2,6 +2,8 @@ package build.wallet.statemachine.platform.permissions
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.PermissionStatus.Authorized
 import build.wallet.platform.permissions.PermissionStatus.Denied
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
@@ -15,11 +17,12 @@ import platform.darwin.dispatch_get_main_queue
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
-actual class NotificationPermissionRequesterImpl actual constructor(
+@BitkeyInject(AppScope::class)
+class NotificationPermissionRequesterImpl(
   private val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
 ) : NotificationPermissionRequester {
   @Composable
-  actual override fun requestNotificationPermission(
+  override fun requestNotificationPermission(
     onGranted: () -> Unit,
     onDeclined: () -> Unit,
   ) {

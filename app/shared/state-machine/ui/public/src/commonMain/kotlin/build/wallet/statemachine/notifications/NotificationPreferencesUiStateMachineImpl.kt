@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class NotificationPreferencesUiStateMachineImpl(
   private val permissionChecker: PermissionChecker,
   private val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider,

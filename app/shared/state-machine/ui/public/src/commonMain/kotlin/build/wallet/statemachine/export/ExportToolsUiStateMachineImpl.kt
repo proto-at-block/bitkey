@@ -3,6 +3,8 @@ package build.wallet.statemachine.export
 import androidx.compose.runtime.*
 import build.wallet.bitcoin.export.ExportTransactionsService
 import build.wallet.bitcoin.export.ExportWatchingDescriptorService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.sharing.SharingManager
@@ -12,6 +14,7 @@ import build.wallet.statemachine.export.view.*
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class ExportToolsUiStateMachineImpl(
   private val sharingManager: SharingManager,
   private val exportWatchingDescriptorService: ExportWatchingDescriptorService,

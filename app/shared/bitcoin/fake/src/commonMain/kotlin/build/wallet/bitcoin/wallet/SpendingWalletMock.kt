@@ -118,6 +118,7 @@ class SpendingWalletMock(
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
     feePolicy: FeePolicy,
+    coinSelectionStrategy: CoinSelectionStrategy,
   ): Result<Psbt, Throwable> {
     createPsbtResult?.let { return it }
     createPsbtResults[recipientAddress]?.let { return it }

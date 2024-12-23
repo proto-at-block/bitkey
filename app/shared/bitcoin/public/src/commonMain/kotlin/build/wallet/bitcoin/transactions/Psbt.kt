@@ -1,5 +1,7 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bdk.bindings.BdkTxIn
+import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.Money
 import build.wallet.money.currency.BTC
@@ -20,6 +22,10 @@ data class Psbt(
   val numOfInputs: Int,
   /** Amount of sats to send in transaction */
   val amountSats: ULong,
+  /** The inputs associated with the transaction */
+  val inputs: Set<BdkTxIn> = emptySet(),
+  /** The outputs associated with the transaction */
+  val outputs: Set<BdkTxOut> = emptySet(),
 ) {
   /** Amount of bitcoin to send in transaction */
   val amountBtc: BitcoinMoney get() = BitcoinMoney.sats(amountSats.toLong())

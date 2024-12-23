@@ -38,6 +38,13 @@ INSERT OR REPLACE INTO pendingBenefactorClaimEntity (
     ?, ?, ?, ?
 );
 
+deleteClaimById {
+    DELETE FROM pendingBeneficiaryClaimEntity
+    WHERE claimId = :claimId;
+    DELETE FROM pendingBenefactorClaimEntity
+    WHERE claimId = :claimId;
+}
+
 getPendingBenefactorClaims:
 SELECT * FROM pendingBenefactorClaimEntity
 ORDER BY claimId;

@@ -1,6 +1,8 @@
 package build.wallet.fwup
 
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadata
@@ -9,8 +11,8 @@ import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.UpToDate
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataFetcher.FwupDataFetcherError.DownloadError
-import build.wallet.logging.*
 import build.wallet.logging.LogLevel
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Ok
@@ -27,6 +29,7 @@ import kotlinx.datetime.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 
+@BitkeyInject(AppScope::class)
 class FirmwareDataServiceImpl(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val fwupDataFetcher: FwupDataFetcher,

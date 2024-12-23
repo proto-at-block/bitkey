@@ -2,6 +2,7 @@ use bitcoin::bip32::{DerivationPath, ExtendedPubKey};
 use bitcoin::Network;
 use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct KmsRequest {
@@ -97,6 +98,21 @@ pub struct EnclaveContinueDistributedKeygenRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveGeneratePartialSignaturesRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub wrapped_share_details: String,
+    pub wrapped_share_details_nonce: String,
+    pub sealed_request: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveGeneratePartialSignaturesResponse {
+    pub sealed_response: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveContinueDistributedKeygenResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -107,6 +123,26 @@ pub struct EnclaveDeriveKeyRequest {
     pub key_nonce: String,
     pub derivation_path: DerivationPath,
     pub network: Option<Network>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveCreateSelfSovereignBackupRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub wrapped_share_details: String,
+    pub wrapped_share_details_nonce: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveCreateSelfSovereignBackupResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]

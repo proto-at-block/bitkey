@@ -1,7 +1,6 @@
 package build.wallet.ios
 
 import androidx.compose.ui.window.ComposeUIViewController
-import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
 import build.wallet.ui.app.App
 import build.wallet.ui.app.AppUiModelMap
@@ -13,7 +12,6 @@ import platform.UIKit.UIViewController
 @Suppress("unused") // Used by iOS
 class ComposeIosAppUIController(
   private val appUiStateMachine: AppUiStateMachine,
-  private val biometricPromptUiStateMachine: BiometricPromptUiStateMachine,
 ) {
   val viewController: UIViewController = ComposeUIViewController {
 
@@ -21,12 +19,5 @@ class ComposeIosAppUIController(
       model = appUiStateMachine.model(Unit),
       uiModelMap = AppUiModelMap
     )
-
-    biometricPromptUiStateMachine.model(Unit)?.let {
-      App(
-        model = it,
-        uiModelMap = AppUiModelMap
-      )
-    }
   }
 }

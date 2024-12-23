@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -18,6 +20,7 @@ import build.wallet.support.SupportTicketRepository
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class FeedbackUiStateMachineImpl(
   private val supportTicketRepository: SupportTicketRepository,
   private val feedbackFormUiStateMachine: FeedbackFormUiStateMachine,

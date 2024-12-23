@@ -1,6 +1,8 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.limit.SpendingLimit
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
@@ -9,6 +11,7 @@ import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl.State.SettingSpendingLimitUiState
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl.State.ShowingMobilePayStatusUiState
 
+@BitkeyInject(ActivityScope::class)
 class MobilePaySettingsUiStateMachineImpl(
   private val mobilePayStatusUiStateMachine: MobilePayStatusUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,

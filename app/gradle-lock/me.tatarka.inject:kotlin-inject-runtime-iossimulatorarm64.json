@@ -1,0 +1,23 @@
+{
+    "module-identifier": "me.tatarka.inject:kotlin-inject-runtime-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime-iossimulatorarm64-0.7.2-metadata.jar": "2b14da425a71f89b51c0196948aed9409f2e7086b17e684b49d8d211da4785d8"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime.klib": "f3a939da9bce4f90a4af430f477efe5f7a4b58657025ebb884ed8c692aa71e93"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

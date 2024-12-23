@@ -41,7 +41,7 @@ sealed interface AccountData {
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
       val startEmergencyAccessRecovery: () -> Unit,
-      val resetExistingDevice: () -> Unit,
+      val wipeExistingDevice: () -> Unit,
       val isNavigatingBack: Boolean,
     ) : NoActiveAccountData
 

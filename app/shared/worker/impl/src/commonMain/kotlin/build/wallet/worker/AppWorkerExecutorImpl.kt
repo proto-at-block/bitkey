@@ -1,5 +1,7 @@
 package build.wallet.worker
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logWarn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -10,6 +12,8 @@ import kotlinx.coroutines.sync.withLock
  * Implementation of [AppWorkerExecutor] that executes all [AppWorker]s provided by
  * an [AppWorkerProvider].
  */
+
+@BitkeyInject(AppScope::class)
 class AppWorkerExecutorImpl(
   private val appScope: CoroutineScope,
   private val workerProvider: AppWorkerProvider,

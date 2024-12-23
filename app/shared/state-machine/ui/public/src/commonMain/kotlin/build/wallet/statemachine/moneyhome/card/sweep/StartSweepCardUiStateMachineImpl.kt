@@ -3,6 +3,8 @@ package build.wallet.statemachine.moneyhome.card.sweep
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
@@ -11,6 +13,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Warning
 
+@BitkeyInject(ActivityScope::class)
 class StartSweepCardUiStateMachineImpl(
   private val sweepService: SweepService,
 ) : StartSweepCardUiStateMachine {

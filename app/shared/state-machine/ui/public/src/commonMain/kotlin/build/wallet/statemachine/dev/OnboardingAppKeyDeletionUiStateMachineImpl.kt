@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.platform.config.AppVariant
 import build.wallet.ui.model.StandardClick
@@ -16,6 +18,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 
+@BitkeyInject(ActivityScope::class)
 class OnboardingAppKeyDeletionUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,

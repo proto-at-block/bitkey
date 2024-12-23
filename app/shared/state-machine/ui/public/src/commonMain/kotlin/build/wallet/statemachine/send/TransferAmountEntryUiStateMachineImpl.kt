@@ -9,6 +9,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.coroutines.scopes.mapAsStateFlow
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -24,6 +26,7 @@ import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 import build.wallet.statemachine.send.amountentry.TransferCardUiProps
 import build.wallet.statemachine.send.amountentry.TransferCardUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class TransferAmountEntryUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,

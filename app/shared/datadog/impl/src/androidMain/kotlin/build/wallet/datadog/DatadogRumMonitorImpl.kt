@@ -1,7 +1,10 @@
 package build.wallet.datadog
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.datadog.android.rum.GlobalRumMonitor
 
+@BitkeyInject(AppScope::class)
 class DatadogRumMonitorImpl : DatadogRumMonitor {
   override fun startView(
     key: String,

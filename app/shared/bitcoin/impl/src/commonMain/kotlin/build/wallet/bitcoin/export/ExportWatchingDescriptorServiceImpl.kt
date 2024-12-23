@@ -3,12 +3,15 @@ package build.wallet.bitcoin.export
 import build.wallet.account.AccountService
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.keybox.wallet.WatchingWalletDescriptorProvider
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class ExportWatchingDescriptorServiceImpl(
   private val accountService: AccountService,
   private val watchingWalletDescriptorProvider: WatchingWalletDescriptorProvider,

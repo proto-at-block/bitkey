@@ -113,12 +113,14 @@ fun Callout(model: CalloutModel) {
         }
       }
       model.trailingIcon?.let { trailingIcon ->
-        CalloutButton(
-          trailingIcon,
-          style.trailingIconColor,
-          model.treatment,
-          model.onClick
-        )
+        Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+          CalloutButton(
+            trailingIcon,
+            style.trailingIconColor,
+            model.treatment,
+            model.onClick
+          )
+        }
       }
     }
   }

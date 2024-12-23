@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.keypad.KeypadModel
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -32,7 +31,6 @@ data class SpendingLimitPickerModel(
     onBack: () -> Unit,
     toolbarModel: ToolbarModel,
     entryMode: EntryMode,
-    spendingLimitsCopy: SpendingLimitsCopy,
     setLimitButtonEnabled: Boolean,
     setLimitButtonLoading: Boolean,
     onSetLimitClick: () -> Unit,
@@ -49,7 +47,7 @@ data class SpendingLimitPickerModel(
     entryMode = entryMode,
     setLimitButtonModel =
       BitkeyInteractionButtonModel(
-        text = spendingLimitsCopy.setDailyLimitCta,
+        text = "Confirm daily limit",
         size = Footer,
         isEnabled = setLimitButtonEnabled,
         isLoading = setLimitButtonLoading,

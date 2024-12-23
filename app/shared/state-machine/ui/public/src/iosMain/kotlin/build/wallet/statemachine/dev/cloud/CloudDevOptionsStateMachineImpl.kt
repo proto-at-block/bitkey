@@ -1,13 +1,10 @@
 package build.wallet.statemachine.dev.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.cloud.store.iCloudAccountRepository
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.DebugMenuBodyModel
 import build.wallet.ui.model.list.ListGroupModel
@@ -20,6 +17,8 @@ import com.github.michaelbull.result.get
  *
  * Allows to view iCloud account information and status.
  */
+
+@BitkeyInject(ActivityScope::class)
 class CloudDevOptionsStateMachineImpl(
   private val iCloudAccountRepository: iCloudAccountRepository,
 ) : CloudDevOptionsStateMachine {

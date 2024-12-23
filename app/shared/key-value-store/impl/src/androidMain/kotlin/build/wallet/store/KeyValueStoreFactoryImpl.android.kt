@@ -1,9 +1,10 @@
 package build.wallet.store
 
+import android.app.Application
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
-import build.wallet.platform.PlatformContext
-import build.wallet.platform.data.FileManager
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.datastore.DataStoreSettings
 
@@ -15,14 +16,15 @@ import com.russhwolf.settings.datastore.DataStoreSettings
  *
  * See https://developer.android.com/topic/libraries/architecture/datastore#preferences-create
  */
-actual class KeyValueStoreFactoryImpl actual constructor(
-  private val platformContext: PlatformContext,
-  fileManager: FileManager,
+
+@BitkeyInject(AppScope::class)
+class KeyValueStoreFactoryImpl(
+  private val application: Application,
 ) : KeyValueStoreFactory {
-  actual override suspend fun getOrCreate(storeName: String): SuspendSettings {
+  override suspend fun getOrCreate(storeName: String): SuspendSettings {
     val dataStoreHolder = dataStores.getOrPut(key = storeName) { DataStoreHolder(storeName) }
     return DataStoreSettings(
-      datastore = with(dataStoreHolder) { platformContext.appContext.dataStore }
+      datastore = with(dataStoreHolder) { application.dataStore }
     )
   }
 

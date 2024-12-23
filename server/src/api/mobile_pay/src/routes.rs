@@ -11,41 +11,41 @@ use axum::{
     Json, Router,
 };
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
-use bdk_utils::bdk::SignOptions;
 use bdk_utils::generate_electrum_rpc_uris;
-use bdk_utils::{DescriptorKeyset, TransactionBroadcasterTrait};
+use bdk_utils::TransactionBroadcasterTrait;
+use errors::ApiError;
 use errors::ErrorCode::NoSpendingLimitExists;
-use errors::{ApiError, RouteError};
-use exchange_rate::currency_conversion::sats_for;
 use exchange_rate::service::Service as ExchangeRateService;
 use experimentation::claims::ExperimentationClaims;
 use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
-use instrumentation::metrics::KeyValue;
 use screener::service::Service as ScreenerService;
 use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::FullAccount;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::account::spend_limit::{Money, SpendingLimit};
+use types::account::spending::SpendingKeyDefinition;
 use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
-use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
-use types::exchange_rate::local_rate_provider::LocalRateProvider;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::{SigningService, WsmClient};
 
-use crate::daily_spend_record::entities::{DailySpendingRecord, SpendingEntry};
 use crate::daily_spend_record::service::Service as DailySpendRecordService;
-use crate::entities::{Features, Settings};
+use crate::entities::Settings;
+use crate::error::SigningError;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
-use crate::spend_rules::SpendRuleSet;
+use crate::signing_processor::SigningProcessor;
+use crate::signing_strategies::SigningStrategyFactory;
 use crate::util::total_sats_spent_today;
-use crate::{metrics as mobile_pay_metrics, SERVER_SIGNING_ENABLED};
+use crate::{
+    get_mobile_pay_spending_record, metrics as mobile_pay_metrics, sats_for_limit,
+    SERVER_SIGNING_ENABLED,
+};
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -76,6 +76,10 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/keysets/:keyset_id/sign-transaction",
                 post(sign_transaction_with_keyset),
+            )
+            .route(
+                "/api/accounts/:account_id/generate-partial-signatures",
+                post(generate_partial_signatures_with_key_share),
             )
             .route(
                 "/api/accounts/:account_id/mobile-pay",
@@ -164,195 +168,46 @@ async fn sign_transaction_maybe_broadcast_impl(
     context_key: Option<ContextKey>,
 ) -> Result<SignTransactionResponse, ApiError> {
     // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
-    let is_mobile_pay_enabled = SERVER_SIGNING_ENABLED
+    if !SERVER_SIGNING_ENABLED
         .resolver(&feature_flags_service)
-        .resolve();
-
-    if !is_mobile_pay_enabled {
-        let msg = "Signing with Bitkey's servers is currently disabled.";
-        error!("{msg}");
-        return Err(ApiError::GenericForbidden(msg.to_string()));
+        .resolve()
+    {
+        return Err(SigningError::ServerSigningDisabled.into());
     }
 
-    let signing_start_time = OffsetDateTime::now_utc();
     tracing::Span::current().record(
         "active_keyset_id",
-        &full_account.active_keyset_id.to_string(),
+        full_account.active_keyset_id.to_string(),
     );
-    tracing::Span::current().record("keyset_id", &keyset_id.to_string());
+    tracing::Span::current().record("keyset_id", keyset_id.to_string());
 
-    let psbt = Psbt::from_str(&request.psbt)
-        .map_err(|err| RouteError::InvalidPsbt(err.to_string(), request.psbt.clone()))?;
-
-    // if we've already signed the psbt, return it from the cache
-    // do not update account state or spend time checking it against rules
-    // idempotency is important here
-    if let Some(signed_psbt) = signed_psbt_cache_service
-        .get(psbt.unsigned_tx.txid())
-        .await?
-    {
-        return Ok(SignTransactionResponse {
-            tx: signed_psbt.psbt.to_string(),
-        });
-    }
+    let psbt = Psbt::from_str(&request.psbt).map_err(SigningError::from)?;
 
     let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
 
-    let requested_descriptor: DescriptorKeyset = full_account
-        .spending_keysets
-        .get(keyset_id)
-        .ok_or_else(|| RouteError::NoSpendKeysetError(keyset_id.to_string()))?
-        .to_owned()
-        .into();
-
-    // don't need to sync the wallet since we keep track of outflows in the spending records
-
-    let unsynced_source_wallet = requested_descriptor.generate_wallet(false, &rpc_uris)?;
-
-    let is_mobile_pay = *keyset_id == full_account.active_keyset_id;
-
-    let updated_spending_record = if is_mobile_pay {
-        // TODO [W-4400]: Move limit enforcement here to its own rule for SpendRuleSet, and clean-up
-        // duplicated access to spending limit.
-        if !full_account.is_spending_limit_active() {
-            let msg = "Attempted to sign with Mobile Pay when user has Mobile Pay turned off.";
-            error!("{msg}");
-            return Err(ApiError::GenericForbidden(msg.to_string()));
-        }
-        let limit = full_account
-            .spending_limit
-            .clone()
-            .ok_or(RouteError::MissingMobilePaySettings)?;
-
-        let daily_limit_sats = sats_for_limit(&limit, &config, &exchange_rate_service).await?;
-
-        let mobile_pay_spending_record =
-            get_mobile_pay_spending_record(&full_account.id, &daily_spend_record_service).await?;
-
-        // bundle up yesterday and today's spending records for spend rule checking
-        let spending_entries = mobile_pay_spending_record.spending_entries();
-
-        let features = Features {
-            settings: Settings { limit },
-            daily_limit_sats,
-        };
-
-        SpendRuleSet::mobile_pay(
-            &unsynced_source_wallet,
-            &features,
-            &spending_entries,
-            screener_service,
-        )
-        .check_spend_rules(&psbt)
-        .map_err(|reasons| {
-            let error_message = format!(
-                "Transaction failed to pass mobile pay spend rules: {}",
-                reasons.first().expect("should be at least one error")
-            );
-            event!(Level::INFO, error_message);
-            ApiError::GenericBadRequest(error_message)
-        })?;
-
-        let mut today_spending_record = mobile_pay_spending_record.today;
-        today_spending_record.update_with_psbt(&unsynced_source_wallet, &psbt);
-
-        Some(today_spending_record)
-    } else {
-        // !is_mobile_pay
-
-        let active_descriptor: DescriptorKeyset = full_account
-            .active_spending_keyset()
-            .ok_or(RouteError::NoActiveSpendKeyset)?
-            .to_owned()
-            .into();
-
-        // W-9888: A full sync is required here, because we don't have derivation path information in
-        // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
-        let active_wallet = active_descriptor.generate_wallet(true, &rpc_uris)?;
-
-        SpendRuleSet::sweep(&unsynced_source_wallet, &active_wallet, screener_service)
-            .check_spend_rules(&psbt)
-            .map_err(|reasons| {
-                let error_message = format!(
-                    "Transaction failed to pass sweep spend rules: {}",
-                    reasons.first().expect("should be at least one error")
-                );
-                event!(Level::INFO, error_message);
-                ApiError::GenericBadRequest(error_message)
-            })?;
-
-        None
-    };
-
-    // currently, wsm constructs a BDK wallet to do its signing, so we need to construct external and internal descriptors for it
-    let receiving = requested_descriptor
-        .receiving()
-        .into_multisig_descriptor()?;
-    let change = requested_descriptor.change().into_multisig_descriptor()?;
-
-    let result = wsm_client
-        .sign_psbt(
-            &keyset_id.to_string(),
-            &receiving.to_string(),
-            &change.to_string(),
-            &request.psbt,
-        )
-        .await
-        .map_err(|err| {
-            event!(
-                Level::INFO,
-                "Could not sign PSBT with WSM due to error: {}",
-                err.to_string()
-            );
-            ApiError::GenericInternalApplicationError("WSM could not sign PSBT".to_string())
-        })?;
-
-    let mut signed_psbt = Psbt::from_str(&result.psbt)
-        .map_err(|err| RouteError::InvalidPsbt(err.to_string(), result.psbt.clone()))?;
-
-    mobile_pay_metrics::TIME_TO_COSIGN.record(
-        (OffsetDateTime::now_utc() - signing_start_time).whole_milliseconds() as u64,
-        &[KeyValue::new(
-            mobile_pay_metrics::IS_MOBILE_PAY,
-            is_mobile_pay,
-        )],
+    let signing_processor = SigningProcessor::new(
+        Arc::new(wsm_client),
+        feature_flags_service,
+        transaction_broadcaster,
     );
 
-    let psbt_fully_signed = unsynced_source_wallet
-        .finalize_psbt(&mut signed_psbt, SignOptions::default())
-        .map_err(|err| RouteError::InvalidPsbt(err.to_string(), result.psbt.clone()))?;
+    let signing_strategy_factory = SigningStrategyFactory::new(
+        signing_processor,
+        screener_service,
+        exchange_rate_service,
+        daily_spend_record_service,
+        signed_psbt_cache_service,
+    );
 
-    // Once the PSBT has been signed by WSM, update the daily spending record if it needs updating
-    if let Some(today_spending_record) = updated_spending_record {
-        daily_spend_record_service
-            .save_daily_spending_record(today_spending_record)
-            .await?;
-    }
+    let signing_strategy = signing_strategy_factory
+        .construct_strategy(full_account, config, keyset_id, psbt, &rpc_uris)
+        .await?;
 
-    // Note: If there's a failure between updating the daily spending record and updating the cache,
-    // the customer will consume some of their spending budget without actually being able to make the spend
-    // TODO: [W-3292] make the cache update and the spending record update transactional.
+    let signed_psbt = signing_strategy.execute().await?;
 
-    // Save the PSBT to cache so if the client retries the request, we can return the same signed
-    // PSBT. We do not want to do this for sweep transactions because the cache path is only used
-    // for avoiding double-counting Mobile Pay spend limits, and does not apply to sweeps.
-    if is_mobile_pay {
-        signed_psbt_cache_service.put(signed_psbt.clone()).await?;
-    }
-
-    if psbt_fully_signed {
-        let broadcast_start_time = OffsetDateTime::now_utc();
-        transaction_broadcaster.broadcast(unsynced_source_wallet, &mut signed_psbt, &rpc_uris)?;
-        mobile_pay_metrics::TIME_TO_BROADCAST.record(
-            (OffsetDateTime::now_utc() - broadcast_start_time).whole_milliseconds() as u64,
-            &[KeyValue::new(
-                mobile_pay_metrics::IS_MOBILE_PAY,
-                is_mobile_pay,
-            )],
-        );
-    }
-
-    Ok(SignTransactionResponse { tx: result.psbt })
+    Ok(SignTransactionResponse {
+        tx: signed_psbt.to_string(),
+    })
 }
 
 #[instrument(
@@ -422,6 +277,88 @@ async fn sign_transaction_with_keyset(
     .await?;
 
     Ok(Json(response))
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GeneratePartialSignaturesRequest {
+    pub sealed_request: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GeneratePartialSignaturesResponse {
+    pub sealed_response: String,
+}
+
+/// Generates partial signatures for a Software Account.
+///
+/// This endpoint consumes a sealed request containing: (1) A base64-encoded PSBT, and (2) A list of
+/// public signing commitments for each of the inputs in the PSBT. It returns a sealed response
+/// containing the partial signatures, which the App would be responsible for aggregating, finalizing,
+/// and broadcasting.
+#[utoipa::path(
+    post,
+    path = "/api/accounts/:account_id/generate-partial-signatures",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = GeneratePartialSignaturesRequest,
+    responses(
+        (status = 200, description = "Partial signatures were generated for client", body=GeneratePartialSignaturesResponse),
+        (status = 404, description = "An active key definition was not found for the account."),
+        (status = 500, description = "Failed to generate partial signatures in WSM"),
+    ),
+)]
+#[instrument(err, level = "INFO", skip(account_service, wsm_client, request,))]
+async fn generate_partial_signatures_with_key_share(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<GeneratePartialSignaturesRequest>,
+) -> Result<Json<GeneratePartialSignaturesResponse>, ApiError> {
+    let account = account_service
+        .fetch_software_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let active_key_definition_id =
+        account
+            .active_key_definition_id
+            .ok_or(ApiError::GenericNotFound(
+                "Active key definition id not found. Was distributed key completed?".to_string(),
+            ))?;
+
+    let Some(key_definition) = account
+        .spending_key_definitions
+        .get(&active_key_definition_id)
+    else {
+        return Err(ApiError::GenericNotFound(
+            "Key definition not found".to_string(),
+        ));
+    };
+
+    let SpendingKeyDefinition::DistributedKey(distributed_key) = key_definition else {
+        return Err(ApiError::GenericBadRequest(
+            "Key definition is not a distributed key".to_string(),
+        ));
+    };
+
+    let wsm_response = wsm_client
+        .generate_partial_signatures(
+            &active_key_definition_id.to_string(),
+            distributed_key.network.into(),
+            &request.sealed_request,
+        )
+        .await
+        .map_err(|e| {
+            let msg = "Failed to generate partial signatures in WSM";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    Ok(Json(GeneratePartialSignaturesResponse {
+        sealed_response: wsm_response.sealed_response,
+    }))
 }
 
 #[instrument(
@@ -666,7 +603,13 @@ async fn get_mobile_pay_for_account(
         _ => SpendingLimit {
             active: limit.active,
             amount: Money {
-                amount: sats_for_limit(&limit, &config, &exchange_rate_service).await?,
+                amount: sats_for_limit(&limit, &config, &exchange_rate_service)
+                    .await
+                    .map_err(|_| {
+                        ApiError::GenericInternalApplicationError(
+                            "Could not convert limit to sats".to_string(),
+                        )
+                    })?,
                 currency_code: BTC,
             },
             time_zone_offset: limit.time_zone_offset,
@@ -739,109 +682,4 @@ async fn delete_mobile_pay_for_account(
         .await?;
 
     Ok(())
-}
-/// Data structure used to represent [`DailySpendingRecord`]s that are relevant to Mobile Pay.
-///
-/// Currently, 3AM is the start of each Mobile Pay window, so "yesterday's" spending record may
-/// still be relevant. See [`get_mobile_pay_spending_record`] for more information.
-struct MobilePaySpendingRecord {
-    yesterday: DailySpendingRecord,
-    today: DailySpendingRecord,
-}
-
-impl MobilePaySpendingRecord {
-    /// Returns a flattened list of [`SpendingEntry`] from yesterday and today.
-    fn spending_entries(&self) -> Vec<&SpendingEntry> {
-        vec![
-            self.yesterday.get_spending_entries(),
-            self.today.get_spending_entries(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect()
-    }
-}
-
-enum RateProvider {
-    Local(LocalRateProvider),
-    Coingecko(CoingeckoRateProvider),
-}
-
-fn select_exchange_rate_provider(config: &Config) -> RateProvider {
-    if config.use_local_currency_exchange {
-        RateProvider::Local(LocalRateProvider::new())
-    } else {
-        RateProvider::Coingecko(CoingeckoRateProvider::new())
-    }
-}
-
-async fn sats_for_limit(
-    limit: &SpendingLimit,
-    config: &Config,
-    exchange_rate_service: &ExchangeRateService,
-) -> Result<u64, ApiError> {
-    match select_exchange_rate_provider(config) {
-        RateProvider::Local(provider) => {
-            sats_for(exchange_rate_service, provider, &limit.amount).await
-        }
-        RateProvider::Coingecko(provider) => {
-            sats_for(exchange_rate_service, provider, &limit.amount).await
-        }
-    }
-    .map_err(|_| {
-        ApiError::GenericInternalApplicationError("Could not convert limit to sats".to_string())
-    })
-}
-
-async fn get_mobile_pay_spending_record(
-    account_id: &AccountId,
-    daily_spend_record_service: &DailySpendRecordService,
-) -> Result<MobilePaySpendingRecord, ApiError> {
-    // If a spend is before the daily roll-over, we'll need to check yesterday's spending record as well
-    let yesterday_spending_record = daily_spend_record_service
-        .fetch_or_create_daily_spending_record(
-            account_id,
-            OffsetDateTime::now_utc()
-                .checked_sub(Duration::days(1))
-                .ok_or(ApiError::GenericInternalApplicationError(
-                    "arithmetic error subtracting date".to_string(),
-                ))?
-                .date(),
-        )
-        .await?;
-    let today_spending_record = daily_spend_record_service
-        .fetch_or_create_daily_spending_record(account_id, OffsetDateTime::now_utc().date())
-        .await?;
-
-    Ok(MobilePaySpendingRecord {
-        yesterday: yesterday_spending_record,
-        today: today_spending_record,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use std::env;
-
-    use crate::routes::{select_exchange_rate_provider, Config, RateProvider};
-
-    #[test]
-    fn test_select_exchange_rate_provider() {
-        env::set_var("COINGECKO_API_KEY", "");
-        // Return LocalRateProvider
-        match select_exchange_rate_provider(&Config {
-            use_local_currency_exchange: true,
-        }) {
-            RateProvider::Local(_provider) => {}
-            _ => assert!(false, "Unexpected exchange rate provider returned"),
-        }
-
-        // Return CoingeckoRatePRovider
-        match select_exchange_rate_provider(&Config {
-            use_local_currency_exchange: false,
-        }) {
-            RateProvider::Coingecko(_provider) => {}
-            _ => assert!(false, "Unexpected exchange rate provider returned"),
-        }
-    }
 }

@@ -9,24 +9,24 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.WsmVerifier
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.url
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
 import com.github.michaelbull.result.get
-import io.ktor.client.HttpClient
-import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.plugins.HttpResponseValidator
-import io.ktor.client.plugins.auth.Auth
-import io.ktor.client.plugins.auth.providers.BearerTokens
-import io.ktor.client.plugins.auth.providers.bearer
-import io.ktor.client.plugins.defaultRequest
+import io.ktor.client.*
+import io.ktor.client.engine.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.auth.*
+import io.ktor.client.plugins.auth.providers.*
+import io.ktor.http.*
 import io.ktor.http.ContentType.Application.Json
-import io.ktor.http.HttpHeaders
-import io.ktor.util.appendIfNameAbsent
+import io.ktor.util.*
 
+@BitkeyInject(AppScope::class, boundTypes = [F8eHttpClient::class])
 class F8eHttpClientImpl(
   private val authTokensRepository: AuthTokensRepository,
   private val proofOfPossessionPluginProvider: ProofOfPossessionPluginProvider,

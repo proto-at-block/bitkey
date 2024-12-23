@@ -8,6 +8,8 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.AppFactorProofOfPossession
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.keybox.KeyboxDao
@@ -19,6 +21,7 @@ import okio.ByteString.Companion.encodeUtf8
 /**
  * Adds proof-of-possession headers for HW if provided, and for App if access tokens exist.
  */
+@BitkeyInject(AppScope::class)
 class ProofOfPossessionPluginProvider(
   private val authTokensRepository: AuthTokensRepository,
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,

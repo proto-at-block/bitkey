@@ -7,6 +7,9 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Fake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -40,6 +43,8 @@ import kotlin.time.Duration.Companion.seconds
  * @param backgroundScope - the scope to use for background tasks
  * @param clock - the clock to use getting the current time
  */
+@Fake
+@BitkeyInject(AppScope::class)
 class RelationshipsF8eClientFake(
   private val uuidGenerator: UuidGenerator,
   private val backgroundScope: CoroutineScope,
@@ -91,7 +96,8 @@ class RelationshipsF8eClientFake(
       incoming = IncomingInvitation(
         relationshipId = outgoing.relationshipId,
         code = outgoing.code,
-        protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
+        protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey,
+        recoveryRelationshipRoles = roles
       )
     )
     invitations += invitation
@@ -177,7 +183,8 @@ class RelationshipsF8eClientFake(
       IncomingInvitation(
         relationshipId = uuidGenerator.random(),
         code = genServerInviteCode(),
-        protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef")
+        protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef"),
+        recoveryRelationshipRoles = setOf()
       )
     )
   }

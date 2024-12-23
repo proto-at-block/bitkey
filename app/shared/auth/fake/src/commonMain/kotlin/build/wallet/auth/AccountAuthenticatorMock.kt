@@ -9,6 +9,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClientMock
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
@@ -28,6 +29,9 @@ class AccountAuthenticatorMock(
           )
       )
     )
+
+  val defaultErrorAuthResult: Result<AuthData, AuthError> =
+    Err(AuthProtocolError("error"))
 
   var authResults: MutableList<Result<AuthData, AuthError>> = mutableListOf(defaultAuthResult)
   val authCalls = turbine("auth calls")

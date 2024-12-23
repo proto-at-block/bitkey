@@ -1,7 +1,10 @@
 package build.wallet.fwup
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlin.math.round
 
+@BitkeyInject(AppScope::class)
 class FwupProgressCalculatorImpl : FwupProgressCalculator {
   override fun calculateProgress(
     sequenceId: UInt,

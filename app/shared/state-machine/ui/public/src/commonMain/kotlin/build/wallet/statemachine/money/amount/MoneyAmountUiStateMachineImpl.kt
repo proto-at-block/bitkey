@@ -4,10 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrNull
 
+@BitkeyInject(ActivityScope::class)
 class MoneyAmountUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,

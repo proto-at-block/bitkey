@@ -4,13 +4,15 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.toPrivateKey
 import build.wallet.encrypt.toPublicKey
-import build.wallet.logging.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 
+@BitkeyInject(AppScope::class)
 class AppAuthKeyGeneratorImpl(
   private val secp256k1KeyGenerator: Secp256k1KeyGenerator,
 ) : AppAuthKeyGenerator {

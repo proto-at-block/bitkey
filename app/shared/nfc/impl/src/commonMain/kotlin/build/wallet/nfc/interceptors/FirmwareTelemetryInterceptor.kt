@@ -1,6 +1,7 @@
 package build.wallet.nfc.interceptors
 
-import build.wallet.feature.flags.FirmwareCommsLoggingFeatureFlag
+import build.wallet.feature.FeatureFlag
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.isEnabled
 import build.wallet.firmware.*
 import build.wallet.logging.logFailure
@@ -12,11 +13,11 @@ import okio.ByteString
 /**
  * Collects firmware telemetry and (1) persists it locally and (2) uploads it to Memfault.
  */
-fun collectFirmwareTelemetry(
+internal fun collectFirmwareTelemetry(
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   firmwareTelemetryUploader: FirmwareTelemetryUploader,
   firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
-  firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag,
+  firmwareCommsLoggingFeatureFlag: FeatureFlag<BooleanFlag>,
 ) = NfcTransactionInterceptor { next ->
   val interceptor = FirmwareTelemetryInterceptor(firmwareDeviceInfoDao, firmwareTelemetryUploader)
 

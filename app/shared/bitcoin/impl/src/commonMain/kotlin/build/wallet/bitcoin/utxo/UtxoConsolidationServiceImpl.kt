@@ -11,6 +11,8 @@ import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.transactions.toDuration
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.ensureNotNull
 import build.wallet.feature.flags.UtxoMaxConsolidationCountFeatureFlag
@@ -20,6 +22,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class UtxoConsolidationServiceImpl(
   private val accountService: AccountService,
   private val bitcoinWalletService: BitcoinWalletService,

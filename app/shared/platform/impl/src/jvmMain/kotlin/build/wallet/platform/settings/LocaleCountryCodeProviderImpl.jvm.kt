@@ -1,9 +1,9 @@
 package build.wallet.platform.settings
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class LocaleCountryCodeProviderImpl actual constructor(
-  platformContext: PlatformContext,
-) : LocaleCountryCodeProvider {
-  actual override fun countryCode(): String = "US"
+@BitkeyInject(AppScope::class)
+class LocaleCountryCodeProviderImpl : LocaleCountryCodeProvider {
+  override fun countryCode(): String = "US"
 }

@@ -157,6 +157,12 @@ impl ScheduleNotificationType {
                         *delay_end_time,
                         None,
                     ),
+                    (
+                        // Sends once at delay end
+                        NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
+                        *delay_end_time - Duration::days(3),
+                        None,
+                    ),
                 ]
             }
             ScheduleNotificationType::RecoveryRelationshipBenefactorInvitationPending => {

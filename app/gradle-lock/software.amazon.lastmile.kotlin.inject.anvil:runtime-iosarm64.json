@@ -1,0 +1,23 @@
+{
+    "module-identifier": "software.amazon.lastmile.kotlin.inject.anvil:runtime-iosarm64",
+    "components": [
+        {
+            "version": "0.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-iosarm64-metadata.jar": "6cf1a23b78301e15155bc01b4c4eb2a84f6301178a9de473d3707a686fdbed34"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime.klib": "072a67baf97d662d3138b5c3f0b176592be7c220e70a43acf411b33b8a921bff"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

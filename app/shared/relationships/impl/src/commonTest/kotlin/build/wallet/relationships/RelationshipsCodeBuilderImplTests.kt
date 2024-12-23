@@ -1,7 +1,6 @@
 package build.wallet.relationships
 
 import build.wallet.bitkey.relationships.PakeCode
-import build.wallet.serialization.Base32Encoding
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -14,9 +13,7 @@ import okio.ByteString.Companion.toByteString
 
 class RelationshipsCodeBuilderImplTests : FunSpec({
 
-  val builder = RelationshipsCodeBuilderImpl(
-    base32Encoding = Base32Encoding()
-  )
+  val builder = RelationshipsCodeBuilderImpl()
 
   test("test buildInviteCode") {
     val serverPart = "abc123"

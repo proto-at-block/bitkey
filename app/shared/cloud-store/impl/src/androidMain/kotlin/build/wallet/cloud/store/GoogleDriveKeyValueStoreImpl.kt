@@ -2,6 +2,8 @@ package build.wallet.cloud.store
 
 import android.accounts.Account
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
@@ -24,6 +26,7 @@ import okio.Buffer
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class GoogleDriveKeyValueStoreImpl(
   private val googleDriveClientProvider: GoogleDriveClientProvider,
 ) : GoogleDriveKeyValueStore {

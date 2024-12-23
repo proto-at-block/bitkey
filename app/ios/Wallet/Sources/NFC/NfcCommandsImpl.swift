@@ -235,7 +235,9 @@ public final class NfcCommandsImpl: NfcCommands {
             fee: psbt.fee,
             baseSize: psbt.baseSize,
             numOfInputs: psbt.numOfInputs,
-            amountSats: psbt.amountSats
+            amountSats: psbt.amountSats,
+            inputs: psbt.inputs,
+            outputs: psbt.outputs
         )
     }
 

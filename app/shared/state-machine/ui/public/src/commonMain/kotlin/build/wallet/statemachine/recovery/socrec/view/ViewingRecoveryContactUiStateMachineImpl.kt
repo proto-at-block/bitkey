@@ -9,12 +9,15 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILE
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachineImpl.State.Removing
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachineImpl.State.Viewing
 
+@BitkeyInject(ActivityScope::class)
 class ViewingRecoveryContactUiStateMachineImpl(
   private val removeTrustedContactUiStateMachine: RemoveTrustedContactUiStateMachine,
 ) : ViewingRecoveryContactUiStateMachine {

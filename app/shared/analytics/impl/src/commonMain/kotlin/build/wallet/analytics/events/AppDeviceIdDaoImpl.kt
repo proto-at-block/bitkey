@@ -1,5 +1,7 @@
 package build.wallet.analytics.events
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -11,6 +13,8 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 /**
  * A dao for storing and retrieving the AppDeviceID.
  */
+
+@BitkeyInject(AppScope::class)
 class AppDeviceIdDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
   private val uuidGenerator: UuidGenerator,

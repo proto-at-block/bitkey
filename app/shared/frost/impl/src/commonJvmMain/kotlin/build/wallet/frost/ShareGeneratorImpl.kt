@@ -2,7 +2,7 @@ package build.wallet.frost
 
 import build.wallet.rust.core.ShareGenerator as FfiShareGenerator
 
-data class ShareGeneratorImpl(
+internal data class ShareGeneratorImpl(
   private val shareGenerator: FfiShareGenerator = FfiShareGenerator(),
 ) : ShareGenerator {
   override fun generate(): KeygenResult<SealedRequest> =

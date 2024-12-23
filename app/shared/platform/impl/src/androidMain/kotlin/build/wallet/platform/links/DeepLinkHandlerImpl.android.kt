@@ -1,26 +1,29 @@
 package build.wallet.platform.links
 
+import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
-import build.wallet.platform.PlatformContext
 import build.wallet.platform.getPackageInformation
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.None
 import build.wallet.platform.links.OpenDeeplinkResult.Opened
 
-actual class DeepLinkHandlerImpl actual constructor(
-  val platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class DeepLinkHandlerImpl(
+  private val application: Application,
 ) : DeepLinkHandler {
-  actual override fun openDeeplink(
+  override fun openDeeplink(
     url: String,
     appRestrictions: AppRestrictions?,
   ): OpenDeeplinkResult {
     val appRestrictionResult: AppRestrictionResult =
       if (appRestrictions != null) {
-        val packageManger = platformContext.appContext.packageManager
+        val packageManger = application.packageManager
         val packageInfo = packageManger.getPackageInformation(appRestrictions.packageName)
         if (packageInfo != null && VERSION.SDK_INT >= VERSION_CODES.P) {
           appRestrictionResult(
@@ -42,7 +45,7 @@ actual class DeepLinkHandlerImpl actual constructor(
         return OpenDeeplinkResult.Failed
       }
     intent.setData(uri)
-    platformContext.appContext.startActivity(intent)
+    application.startActivity(intent)
     return Opened(appRestrictionResult)
   }
 }

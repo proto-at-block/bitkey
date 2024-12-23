@@ -1,15 +1,18 @@
 package build.wallet.platform.settings
 
-import build.wallet.platform.PlatformContext
+import android.app.Application
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class LocaleCountryCodeProviderImpl actual constructor(
-  platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class LocaleCountryCodeProviderImpl(
+  application: Application,
 ) : LocaleCountryCodeProvider {
   private val countryCode by lazy {
-    platformContext.appContext.resources.configuration.locales.get(0).country
+    application.resources.configuration.locales.get(0).country
   }
 
-  actual override fun countryCode(): String {
+  override fun countryCode(): String {
     return countryCode
   }
 }

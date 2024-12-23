@@ -3,6 +3,8 @@ package build.wallet.partnerships
 import build.wallet.account.AccountService
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClient
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
@@ -16,7 +18,7 @@ import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState.FOREGROUND
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import io.ktor.http.*
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -28,6 +30,7 @@ import kotlinx.datetime.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class PartnershipTransactionsServiceImpl(
   private val expectedTransactionsFlag: ExpectedTransactionsPhase2FeatureFlag,
   private val accountService: AccountService,
@@ -80,7 +83,7 @@ class PartnershipTransactionsServiceImpl(
    */
   private val pendingTransactions: Flow<List<PartnershipTransaction>> =
     transactionsCache
-      .mapNotNull { it?.filter { it.status == PENDING } }
+      .mapNotNull { it?.filter { it.status == PENDING || it.status == null } }
       .distinctUntilChanged()
 
   override val previouslyUsedPartnerIds: Flow<List<PartnerId>> = dao.getPreviouslyUsedPartnerIds()
@@ -161,6 +164,13 @@ class PartnershipTransactionsServiceImpl(
       }
     }
 
+  override suspend fun getTransactionById(
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error> =
+    coroutineBinding {
+      dao.getById(transactionId).bind()
+    }
+
   private suspend fun syncTransactionWithoutLock(
     account: Account,
     transactionId: PartnershipTransactionId,
@@ -188,7 +198,8 @@ class PartnershipTransactionsServiceImpl(
             paymentMethod = new.paymentMethod,
             updated = clock.now(),
             sellWalletAddress = new.sellWalletAddress,
-            partnerTransactionUrl = new.partnerTransactionUrl
+            partnerTransactionUrl = new.partnerTransactionUrl,
+            partnerInfo = new.partnerInfo
           ).also { updated ->
             dao.save(updated).bind()
           }

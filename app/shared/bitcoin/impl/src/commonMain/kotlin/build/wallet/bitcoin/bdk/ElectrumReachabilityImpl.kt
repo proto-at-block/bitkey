@@ -7,12 +7,15 @@ import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError
 import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.chainHash
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class ElectrumReachabilityImpl(
   private val bdkBlockchainProvider: BdkBlockchainProvider,
 ) : ElectrumReachability {

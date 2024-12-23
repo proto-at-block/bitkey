@@ -5,9 +5,6 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
@@ -21,7 +18,6 @@ import kotlinx.datetime.Instant
 class TransferCardUiStateMachineImplTests : FunSpec({
   val appFunctionalityService = AppFunctionalityServiceFake()
   val mobilePayService = MobilePayServiceMock(turbines::create)
-  val flag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
   val props = TransferCardUiProps(
     bitcoinBalance = BitcoinBalanceFake,
@@ -33,14 +29,12 @@ class TransferCardUiStateMachineImplTests : FunSpec({
 
   val stateMachine = TransferCardUiStateMachineImpl(
     appFunctionalityService = appFunctionalityService,
-    mobilePayService = mobilePayService,
-    mobilePayRevampFeatureFlag = flag
+    mobilePayService = mobilePayService
   )
 
   beforeTest {
     appFunctionalityService.reset()
     mobilePayService.reset()
-    flag.reset()
   }
 
   test("transfer state is AmountEqualOrAboveBalanceUiState") {
@@ -75,29 +69,7 @@ class TransferCardUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("transfer state is AmountBelowBalanceUiState and f8e is unreachable") {
-    appFunctionalityService.status.value = AppFunctionalityStatus.LimitedFunctionality(
-      cause = F8eUnreachable(lastReachableTime = Instant.DISTANT_PAST)
-    )
-    mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
-
-    stateMachine.test(
-      props.copy(
-        transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
-      )
-    ) {
-      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem()
-
-      awaitItem().shouldNotBeNull()
-        .title
-        .shouldNotBeNull()
-        .string
-        .shouldBe("Mobile Pay Unavailable")
-    }
-  }
-
-  test("transfer state is AmountBelowBalanceUiState, f8e is unreachable, revamp is enabled") {
-    flag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+  test("transfer state is AmountBelowBalanceUiState, f8e is unreachable") {
     appFunctionalityService.status.value = AppFunctionalityStatus.LimitedFunctionality(
       cause = F8eUnreachable(lastReachableTime = Instant.DISTANT_PAST)
     )

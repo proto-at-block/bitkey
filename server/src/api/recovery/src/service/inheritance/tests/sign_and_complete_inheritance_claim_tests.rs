@@ -7,43 +7,85 @@ use account::service::tests::default_electrum_rpc_uris;
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
-use bdk_utils::DescriptorKeyset;
+use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
 use mobile_pay::error::SigningError;
-use mobile_pay::signing_processor::{SignerBroadcaster, SigningValidator};
+use mobile_pay::signing_processor::{Broadcaster, Signer, SigningValidator};
 use mobile_pay::spend_rules::errors::SpendRuleCheckError;
 use mobile_pay::spend_rules::SpendRuleSet;
 use mockall::mock;
 use rstest::{fixture, rstest};
 use std::str::FromStr;
 use types::account::identifiers::KeysetId;
+
 mock! {
     SigningProcessorBroadcaster {}
+    impl Broadcaster for SigningProcessorBroadcaster {
+        fn broadcast_transaction(
+            &mut self,
+            rpc_uris: &ElectrumRpcUris,
+            source_descriptor: &DescriptorKeyset,
+        ) -> Result<(), SigningError>;
+
+        fn finalized_psbt(&self) -> Psbt;
+    }
+}
+
+mock! {
+    SigningProcessorSigner {}
     #[async_trait]
-    impl SignerBroadcaster for SigningProcessorBroadcaster {
-        async fn sign_and_broadcast_transaction(
+    impl Signer for SigningProcessorSigner {
+        type SigningProcessor = MockSigningProcessorBroadcaster;
+        async fn sign_transaction(
             &self,
+            rpc_uris: &ElectrumRpcUris,
             source_descriptor: &DescriptorKeyset,
             keyset_id: &KeysetId,
-        ) -> Result<Psbt, SigningError>;
+        ) -> Result<<MockSigningProcessorSigner as Signer>::SigningProcessor , SigningError>;
     }
 }
 
 mock! {
     SigningProcessor {}
     impl SigningValidator for SigningProcessor {
-        type Signer = MockSigningProcessorBroadcaster;
+        type SigningProcessor = MockSigningProcessorSigner;
 
         fn validate<'a>(
             &self,
             psbt: &Psbt,
             spend_rule_set: SpendRuleSet<'a>,
-        ) -> Result<<MockSigningProcessor as SigningValidator>::Signer, SigningError>;
+        ) -> Result<<MockSigningProcessor as SigningValidator>::SigningProcessor, SigningError>;
     }
 }
 
 #[fixture]
 fn requested_psbt() -> Psbt {
     Psbt::from_str("cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA").expect("Failed to parse PSBT")
+}
+
+fn create_mock_signing_processor(requested_psbt: &Psbt) -> MockSigningProcessor {
+    let mut signing_processor_broadcaster = MockSigningProcessorBroadcaster::new();
+    let valid_psbt = requested_psbt.clone();
+    signing_processor_broadcaster
+        .expect_broadcast_transaction()
+        .times(1)
+        .return_once(move |_, _| Ok(()));
+    signing_processor_broadcaster
+        .expect_finalized_psbt()
+        .times(1)
+        .return_once(move || valid_psbt);
+
+    let mut signing_processor_signer = MockSigningProcessorSigner::new();
+    signing_processor_signer
+        .expect_sign_transaction()
+        .times(1)
+        .return_once(move |_, _, _| Ok(signing_processor_broadcaster));
+
+    let mut signing_processor = MockSigningProcessor::new();
+    signing_processor
+        .expect_validate()
+        .times(1)
+        .return_once(move |_, _| Ok(signing_processor_signer));
+    signing_processor
 }
 
 #[rstest]
@@ -56,17 +98,7 @@ async fn test_sign_and_complete_claim_success(requested_psbt: Psbt) {
     let locked_claim = create_locked_claim(&benefactor_account, &beneficiary_account).await;
     let rpc_uris = default_electrum_rpc_uris();
 
-    let mut signing_processor_broadcaster = MockSigningProcessorBroadcaster::new();
-    let valid_psbt = requested_psbt.clone();
-    signing_processor_broadcaster
-        .expect_sign_and_broadcast_transaction()
-        .times(1)
-        .return_once(move |_, _| Ok(valid_psbt));
-    let mut signing_processor = MockSigningProcessor::new();
-    signing_processor
-        .expect_validate()
-        .times(1)
-        .return_once(move |_, _| Ok(signing_processor_broadcaster));
+    let signing_processor = create_mock_signing_processor(&requested_psbt);
 
     // act
     let result = inheritance_service
@@ -102,17 +134,7 @@ async fn test_sign_and_complete_claim_existing_psbt_rbf_success(requested_psbt: 
     let completed_claim = create_completed_claim(&locked_claim).await;
     let rpc_uris = default_electrum_rpc_uris();
 
-    let mut signing_processor_broadcaster = MockSigningProcessorBroadcaster::new();
-    let valid_psbt = requested_psbt.clone();
-    signing_processor_broadcaster
-        .expect_sign_and_broadcast_transaction()
-        .times(1)
-        .return_once(move |_, _| Ok(valid_psbt));
-    let mut signing_processor = MockSigningProcessor::new();
-    signing_processor
-        .expect_validate()
-        .times(1)
-        .return_once(move |_, _| Ok(signing_processor_broadcaster));
+    let signing_processor = create_mock_signing_processor(&requested_psbt);
 
     // act
     let result = inheritance_service

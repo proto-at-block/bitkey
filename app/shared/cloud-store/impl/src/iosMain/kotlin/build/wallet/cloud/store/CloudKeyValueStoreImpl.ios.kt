@@ -1,11 +1,14 @@
 package build.wallet.cloud.store
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 
-actual class CloudKeyValueStoreImpl(
+@BitkeyInject(AppScope::class)
+class CloudKeyValueStoreImpl(
   private val iCloudKeyValueStore: iCloudKeyValueStore,
 ) : CloudKeyValueStore {
-  actual override suspend fun setString(
+  override suspend fun setString(
     account: CloudStoreAccount,
     key: String,
     value: String,
@@ -16,7 +19,7 @@ actual class CloudKeyValueStoreImpl(
     }
   }
 
-  actual override suspend fun getString(
+  override suspend fun getString(
     account: CloudStoreAccount,
     key: String,
   ): Result<String?, CloudError> {
@@ -26,7 +29,7 @@ actual class CloudKeyValueStoreImpl(
     }
   }
 
-  actual override suspend fun removeString(
+  override suspend fun removeString(
     account: CloudStoreAccount,
     key: String,
   ): Result<Unit, CloudError> {

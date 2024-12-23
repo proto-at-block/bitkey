@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.relationships.Invitation
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
 import build.wallet.relationships.RelationshipsService
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
 
+@BitkeyInject(ActivityScope::class)
 class RemoveTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val clock: Clock,

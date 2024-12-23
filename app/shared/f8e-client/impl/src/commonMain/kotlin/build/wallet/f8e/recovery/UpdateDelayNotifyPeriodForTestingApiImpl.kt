@@ -1,6 +1,8 @@
 package build.wallet.f8e.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -15,6 +17,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class UpdateDelayNotifyPeriodForTestingApiImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : UpdateDelayNotifyPeriodForTestingApi {

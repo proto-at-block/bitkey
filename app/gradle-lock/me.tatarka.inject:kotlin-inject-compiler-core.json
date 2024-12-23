@@ -1,0 +1,18 @@
+{
+    "module-identifier": "me.tatarka.inject:kotlin-inject-compiler-core",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-inject-compiler-core-0.7.2.jar": "33d37a8c8f0398a23bf1361cd91fac516237bc67138c40a6f44039f85089dc65"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

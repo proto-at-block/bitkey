@@ -4,6 +4,8 @@ import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.plugins.FailF8eRequestsPlugin
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
@@ -25,6 +27,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class F8eHttpClientProvider(
   private val appId: AppId,
   private val appVersion: AppVersion,
@@ -80,7 +83,7 @@ class F8eHttpClientProvider(
     }
 
     config.install(HttpTimeout) {
-      socketTimeoutMillis = 15.seconds.inWholeMilliseconds
+      socketTimeoutMillis = 60.seconds.inWholeMilliseconds
     }
 
     config.install(HttpRequestRetry) {

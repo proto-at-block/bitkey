@@ -3,6 +3,8 @@ package build.wallet.statemachine.recovery.socrec.view
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE
 import build.wallet.auth.AuthTokenScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
@@ -12,6 +14,7 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class ViewingProtectedCustomerUiStateMachineImpl(
   private val relationshipsService: RelationshipsService,
 ) : ViewingProtectedCustomerUiStateMachine {

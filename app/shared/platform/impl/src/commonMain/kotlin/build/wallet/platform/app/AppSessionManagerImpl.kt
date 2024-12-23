@@ -1,5 +1,7 @@
 package build.wallet.platform.app
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logDebug
 import build.wallet.platform.random.UuidGenerator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,6 +10,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(AppScope::class)
 class AppSessionManagerImpl(
   private val clock: Clock,
   private val uuidGenerator: UuidGenerator,

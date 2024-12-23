@@ -1,0 +1,18 @@
+{
+    "module-identifier": "me.tatarka.inject:kotlin-inject-runtime",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime-metadata-0.7.2.jar": "ee56b5fe86e167ca8d94cbc22d10f0887baccab59c095cb81d48299fc84b5617"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

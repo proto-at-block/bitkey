@@ -4,6 +4,8 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -18,6 +20,7 @@ import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class InitiateDistributedKeygenF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : InitiateDistributedKeygenF8eClient {

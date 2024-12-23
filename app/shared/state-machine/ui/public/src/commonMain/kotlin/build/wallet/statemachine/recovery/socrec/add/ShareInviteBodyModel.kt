@@ -19,6 +19,10 @@ data class ShareInviteBodyModel(
    */
   val trustedContactName: String,
   /**
+   * Boolean indicating whether we are inviting a beneficiary
+   */
+  val isBeneficiary: Boolean,
+  /**
    * Invoked when the user has successfully invited their shared contact.
    */
   val onShareComplete: () -> Unit,
@@ -32,7 +36,7 @@ data class ShareInviteBodyModel(
     toolbar = ToolbarModel(),
     header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
-      headline = "Finally, invite $trustedContactName to be your Trusted Contact",
+      headline = "Finally, invite $trustedContactName" + (if (!isBeneficiary) " to be your Trusted Contact" else ""),
       subline =
         """
         To accept the invite, they’ll need to download the Bitkey app and enter your invite code.

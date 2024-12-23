@@ -11,6 +11,8 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
@@ -26,6 +28,7 @@ import kotlinx.coroutines.flow.*
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class RelationshipsServiceImpl(
   private val relationshipsF8eClientProvider: RelationshipsF8eClientProvider,
   private val relationshipsDao: RelationshipsDao,
@@ -146,7 +149,10 @@ class RelationshipsServiceImpl(
               enrollmentPakeCode
             )
             .mapError {
-              Error("Failed to insert into relationshipsEnrollmentAuthenticationDao", it)
+              Error(
+                "Failed to insert into relationshipsEnrollmentAuthenticationDao",
+                it
+              )
             }
             .flatMap {
               relationshipsCodeBuilder.buildInviteCode(

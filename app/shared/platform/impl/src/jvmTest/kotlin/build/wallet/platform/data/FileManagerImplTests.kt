@@ -1,6 +1,5 @@
 package build.wallet.platform.data
 
-import build.wallet.platform.PlatformContext
 import build.wallet.testing.shouldBeErrOfType
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -9,7 +8,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class FileManagerImplTests : FunSpec({
-  val fileDirectoryProvider = FileDirectoryProviderImpl(PlatformContext())
+  val fileDirectoryProvider = FileDirectoryProviderImpl(null)
   val fileManager = FileManagerImpl(fileDirectoryProvider)
 
   test("zip slip attack is prevented") {

@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import build.wallet.bitcoin.transactions.toFormattedString
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
@@ -12,6 +14,7 @@ import build.wallet.money.formatter.amountDisplayText
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
 import build.wallet.statemachine.transactions.TransactionDetails
 
+@BitkeyInject(ActivityScope::class)
 class TransactionDetailsCardUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,

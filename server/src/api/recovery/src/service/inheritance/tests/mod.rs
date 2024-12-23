@@ -1,5 +1,6 @@
 mod create_inheritance_claim_tests;
 mod lock_inheritance_claim_tests;
+mod recreate_pending_claims_for_beneficiary_tests;
 mod sign_and_complete_inheritance_claim_tests;
 
 use crate::service::inheritance;
@@ -35,8 +36,9 @@ use types::account::bitcoin::Network;
 use types::account::entities::{Account, FullAccount};
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy,
-    InheritanceClaimCompleted, InheritanceClaimLocked, InheritanceClaimPending,
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
+    InheritanceClaimCanceledBy, InheritanceClaimCompleted, InheritanceClaimLocked,
+    InheritanceClaimPending,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::social::relationship::{
@@ -227,6 +229,27 @@ pub async fn create_completed_claim(
         completed_claim
     } else {
         panic!("Expected completed claim");
+    }
+}
+
+pub async fn create_canceled_claim(
+    pending_claim: &InheritanceClaimPending,
+    canceled_by: InheritanceClaimCanceledBy,
+) -> InheritanceClaimCanceled {
+    let inheritance_repository = construct_inheritance_repository().await;
+    let canceled_claim = InheritanceClaim::Canceled(InheritanceClaimCanceled {
+        common_fields: pending_claim.common_fields.clone(),
+        canceled_by,
+    });
+    let claim = inheritance_repository
+        .persist_inheritance_claim(&canceled_claim)
+        .await
+        .expect("persist claim");
+
+    if let InheritanceClaim::Canceled(canceled_claim) = claim {
+        canceled_claim
+    } else {
+        panic!("Expected canceled claim");
     }
 }
 

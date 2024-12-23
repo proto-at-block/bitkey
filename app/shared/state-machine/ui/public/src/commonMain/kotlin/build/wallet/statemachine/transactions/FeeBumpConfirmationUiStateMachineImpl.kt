@@ -8,6 +8,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateService
@@ -23,6 +25,7 @@ import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class FeeBumpConfirmationUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val exchangeRateService: ExchangeRateService,
@@ -70,7 +73,6 @@ class FeeBumpConfirmationUiStateMachineImpl(
         return when (props.speedUpTransactionDetails.transactionType) {
           Outgoing -> TransferConfirmationScreenModel(
             onBack = props.onExit,
-            onCancel = props.onExit,
             variant = TransferConfirmationScreenVariant.SpeedUp,
             recipientAddress = props.speedUpTransactionDetails.recipientAddress.chunkedAddress(),
             transactionDetails = transactionDetailsCard,

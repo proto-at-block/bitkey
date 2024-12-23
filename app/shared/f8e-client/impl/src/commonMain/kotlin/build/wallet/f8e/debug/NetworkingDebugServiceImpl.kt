@@ -1,5 +1,7 @@
 package build.wallet.f8e.debug
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -8,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class NetworkingDebugServiceImpl(
   private val networkingDebugConfigDao: NetworkingDebugConfigDao,
 ) : NetworkingDebugService {

@@ -1,6 +1,7 @@
 use bitcoin::Network;
 use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 
 use crate::derivation::WSMSupportedDomain;
 
@@ -26,8 +27,35 @@ pub struct ContinueDistributedKeygenRequest {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct ContinueDistributedKeygenResponse {
+pub struct ContinueDistributedKeygenResponse {}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CreateSelfSovereignBackupRequest {
     pub root_key_id: String,
+    pub network: Network,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct CreateSelfSovereignBackupResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GeneratePartialSignaturesRequest {
+    pub root_key_id: String,
+    pub sealed_request: String,
+    pub network: Network,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GeneratePartialSignaturesResponse {
+    pub sealed_response: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]

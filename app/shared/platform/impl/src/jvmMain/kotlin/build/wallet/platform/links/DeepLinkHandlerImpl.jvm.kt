@@ -1,13 +1,14 @@
 package build.wallet.platform.links
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class DeepLinkHandlerImpl actual constructor(platformContext: PlatformContext) :
-  DeepLinkHandler {
-    actual override fun openDeeplink(
-      url: String,
-      appRestrictions: AppRestrictions?,
-    ): OpenDeeplinkResult {
-      TODO("Implement for JVM if needed")
-    }
+@BitkeyInject(AppScope::class)
+class DeepLinkHandlerImpl : DeepLinkHandler {
+  override fun openDeeplink(
+    url: String,
+    appRestrictions: AppRestrictions?,
+  ): OpenDeeplinkResult {
+    TODO("Implement for JVM if needed")
   }
+}

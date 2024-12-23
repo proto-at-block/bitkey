@@ -3,7 +3,9 @@ package build.wallet.inheritance
 import app.cash.turbine.Turbine
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim.PendingClaim
+import build.wallet.bitkey.inheritance.BeneficiaryCompleteClaimFake
 import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.immutableListOf
@@ -16,6 +18,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class InheritanceServiceMock(
   val syncCalls: Turbine<Keybox>,
   var syncResult: Result<Unit, Error> = Ok(Unit),
+  var loadApprovedClaimResult: Result<InheritanceTransactionDetails, Error> =
+    Ok(InheritanceTransactionDetailsFake),
+  var completeClaimResult: Result<BeneficiaryClaim.CompleteClaim, Error> =
+    Ok(BeneficiaryCompleteClaimFake),
   var startClaimResult: Result<PendingClaim, Error> = Ok(BeneficiaryPendingClaimFake),
 ) : InheritanceService {
   private val defaultRelationships = Relationships(
@@ -27,9 +33,11 @@ class InheritanceServiceMock(
 
   var invitation = InvitationFake
 
-  override val pendingClaims = MutableStateFlow<Result<List<RelationshipId>, Error>?>(Ok(emptyList()))
-  override val pendingBeneficiaryClaims = MutableStateFlow<List<PendingClaim>>(emptyList())
-  override val lockedBeneficiaryClaims = MutableStateFlow<List<BeneficiaryClaim>>(emptyList())
+  override val claims = MutableStateFlow<List<InheritanceClaim>>(emptyList())
+  override val relationshipsWithPendingClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
+  override val relationshipsWithNoActiveClaims = MutableStateFlow<List<RelationshipId>>(emptyList())
+  override val relationshipsWithCancelableClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
+  override val relationshipsWithCompletableClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
 
   val relationships = MutableStateFlow(defaultRelationships)
   override val inheritanceRelationships = relationships
@@ -58,11 +66,23 @@ class InheritanceServiceMock(
     return startClaimResult
   }
 
+  override suspend fun loadApprovedClaim(
+    relationshipId: RelationshipId,
+  ): Result<InheritanceTransactionDetails, Throwable> {
+    return loadApprovedClaimResult
+  }
+
+  override suspend fun completeClaimTransfer(
+    relationshipId: RelationshipId,
+    details: InheritanceTransactionDetails,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable> {
+    return completeClaimResult
+  }
+
   fun reset() {
     invitation = InvitationFake
     relationships.value = defaultRelationships
-    pendingClaims.value = null
-    pendingBeneficiaryClaims.value = emptyList()
-    lockedBeneficiaryClaims.value = emptyList()
+    relationshipsWithPendingClaim.value = emptyList()
+    claims.value = emptyList()
   }
 }

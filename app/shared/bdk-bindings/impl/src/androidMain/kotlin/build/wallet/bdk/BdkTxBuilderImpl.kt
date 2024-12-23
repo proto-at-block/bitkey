@@ -50,6 +50,10 @@ internal class BdkTxBuilderImpl(
     return BdkTxBuilderImpl(ffiTxBuilder.enableRbf())
   }
 
+  override fun manuallySelectedOnly(): BdkTxBuilder {
+    return BdkTxBuilderImpl(ffiTxBuilder.manuallySelectedOnly())
+  }
+
   override fun finish(wallet: BdkWallet): BdkResult<BdkTxBuilderResult> {
     require(wallet is BdkWalletImpl)
     return runCatchingBdkError {

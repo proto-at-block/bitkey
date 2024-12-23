@@ -2,9 +2,9 @@ package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.feature.flags.ExportToolsFeatureFlag
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
@@ -49,6 +49,7 @@ import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
 
+@BitkeyInject(ActivityScope::class)
 class SettingsHomeUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val mobilePaySettingsUiStateMachine: MobilePaySettingsUiStateMachine,
@@ -67,11 +68,9 @@ class SettingsHomeUiStateMachineImpl(
   private val biometricSettingUiStateMachine: BiometricSettingUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
-  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val inheritanceFeatureFlag: InheritanceFeatureFlag,
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
-  private val exportToolsFeatureFlag: ExportToolsFeatureFlag,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -136,13 +135,13 @@ class SettingsHomeUiStateMachineImpl(
                       },
                       SettingsListUiProps.SettingsListRow.UtxoConsolidation {
                         state = ShowingUtxoConsolidationUiState
-                      }.takeIf { utxoConsolidationFeatureFlag.isEnabled() },
+                      },
                       SettingsListUiProps.SettingsListRow.InheritanceManagement {
                         state = ShowingInheritanceUiState
                       }.takeIf { inheritanceFeatureFlag.isEnabled() },
                       SettingsListUiProps.SettingsListRow.ExportTools {
                         state = ShowingExportToolsUiState
-                      }.takeIf { exportToolsFeatureFlag.isEnabled() }
+                      }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null }

@@ -1,3 +1,4 @@
+use account::error::AccountError;
 use bdk_utils::error::BdkUtilError;
 use errors::ApiError;
 use mobile_pay::error::SigningError;
@@ -15,6 +16,8 @@ pub enum ServiceError {
     #[error(transparent)]
     BdkUtils(#[from] BdkUtilError),
     #[error(transparent)]
+    Account(#[from] AccountError),
+    #[error(transparent)]
     InvalidAddress(#[from] bdk_utils::bdk::bitcoin::address::Error),
     #[error("Trusted contact's alias cannot be blank")]
     BlankTrustedContactAlias,
@@ -26,6 +29,8 @@ pub enum ServiceError {
     MismatchingRecoveryRelationship,
     #[error("Pending claim exists between benefactor and beneficiary")]
     PendingClaimExists,
+    #[error("Multiple pending claims found between benefactor and beneficiary")]
+    MultiplePendingClaims,
     #[error("Pending claim not found between benefactor and beneficiary")]
     PendingClaimNotFound,
     #[error("Locked claim not found between benefactor and beneficiary")]
@@ -38,6 +43,8 @@ pub enum ServiceError {
     InvalidRelationship,
     #[error("Invalid state for claim cancellation")]
     InvalidClaimStateForCancellation,
+    #[error("Invalid state for claim recreation")]
+    InvalidClaimStateForRecreation,
     #[error("Incompatible account type")]
     IncompatibleAccountType,
     #[error("Active descriptor key set not found")]
@@ -76,7 +83,9 @@ impl From<ServiceError> for ApiError {
             ServiceError::GenerateId(_)
             | ServiceError::Database(_)
             | ServiceError::BdkUtils(_)
+            | ServiceError::Account(_)
             | ServiceError::InvalidPackage
+            | ServiceError::MultiplePendingClaims
             | ServiceError::NoInheritancePackage
             | ServiceError::NoActiveDescriptorKeySet
             | ServiceError::ClaimLockFailed
@@ -92,6 +101,7 @@ impl From<ServiceError> for ApiError {
             | ServiceError::InvalidRelationship
             | ServiceError::LockedClaimNotFound
             | ServiceError::InvalidClaimStateForCancellation
+            | ServiceError::InvalidClaimStateForRecreation
             | ServiceError::PendingClaimNotFound
             | ServiceError::IncompatibleAccountType
             | ServiceError::InvalidAddress(_)
@@ -100,6 +110,7 @@ impl From<ServiceError> for ApiError {
             ServiceError::InvalidChallengeSignature => ApiError::GenericUnauthorized(err_msg),
             ServiceError::Notification(e) => e.into(),
             ServiceError::PsbtSigningFailed(e) => e.into(),
+            ServiceError::Account(e) => e.into(),
         }
     }
 }

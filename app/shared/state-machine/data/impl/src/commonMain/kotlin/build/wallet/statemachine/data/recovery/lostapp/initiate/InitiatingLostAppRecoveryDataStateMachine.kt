@@ -10,6 +10,8 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -55,6 +57,7 @@ data class InitiatingLostAppRecoveryProps(
   val onRollback: () -> Unit,
 )
 
+@BitkeyInject(AppScope::class)
 class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val authF8eClient: AuthF8eClient,

@@ -2,6 +2,8 @@ package build.wallet.statemachine.recovery.socrec
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
@@ -18,6 +20,7 @@ import build.wallet.statemachine.recovery.socrec.list.full.ListingTrustedContact
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class TrustedContactManagementUiStateMachineImpl(
   private val listingTrustedContactsUiStateMachine: ListingTrustedContactsUiStateMachine,
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,

@@ -10,6 +10,8 @@ import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -71,6 +73,7 @@ import com.github.michaelbull.result.get
 import kotlinx.coroutines.launch
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
+@BitkeyInject(ActivityScope::class)
 class MoneyHomeUiStateMachineImpl(
   private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
   private val sendUiStateMachine: SendUiStateMachine,

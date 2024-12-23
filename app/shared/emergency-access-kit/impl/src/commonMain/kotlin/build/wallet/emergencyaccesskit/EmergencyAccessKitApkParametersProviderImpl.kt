@@ -1,5 +1,9 @@
 package build.wallet.emergencyaccesskit
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+
+@BitkeyInject(AppScope::class)
 class EmergencyAccessKitApkParametersProviderImpl(
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
 ) : EmergencyAccessKitApkParametersProvider {

@@ -355,4 +355,6 @@ pub enum SigningError {
     CommitmentMismatch { expected: u32, got: u32 },
     #[error("Missing counterparty nonces")]
     MissingCounterpartyNonces,
+    #[error("Unable to finalize PSBT: {errors:?}")]
+    UnableToFinalizePsbt { errors: Vec<String> },
 }

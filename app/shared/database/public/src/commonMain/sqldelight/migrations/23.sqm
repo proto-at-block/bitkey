@@ -1,0 +1,5 @@
+-- Drop table since its no longer used
+
+DROP TABLE fiatCurrencyMobilePayConfigurationEntity;
+
+PRAGMA foreign_key_check;

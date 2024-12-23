@@ -2,6 +2,8 @@ package build.wallet.statemachine.moneyhome.lite
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -13,6 +15,7 @@ import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerPr
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class LiteMoneyHomeUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,

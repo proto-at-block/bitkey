@@ -10,6 +10,7 @@ use authn_authz::routes::{
     AuthRequestKey, AuthenticationRequest, ChallengeResponseParameters, GetTokensRequest,
 };
 use axum::response::IntoResponse;
+use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::secp256k1::Message;
 use bdk_utils::bdk::bitcoin::Network;
@@ -24,6 +25,8 @@ use bdk_utils::{
     treasury_fund_address,
 };
 use comms_verification::TEST_CODE;
+use crypto::ssb::server::SelfSovereignBackup;
+use crypto::ssb::testapp::{decrypt_ssb, generate_lka_lkn};
 use errors::ApiError;
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
@@ -33,7 +36,7 @@ use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
     AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
     CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    InititateDistributedKeygenRequest, UpgradeAccountRequest,
+    CreateSelfSovereignBackupRequest, InititateDistributedKeygenRequest, UpgradeAccountRequest,
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use serde_json::{json, Value};
@@ -1952,7 +1955,6 @@ async fn software_onboarding_keygen_activation_test() {
 
     let (app_share_package, sealed_request) = {
         // Fake app
-        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
         use crypto::frost::dkg::app::initiate_dkg;
 
         let initiate_result = initiate_dkg().unwrap();
@@ -1987,7 +1989,6 @@ async fn software_onboarding_keygen_activation_test() {
 
     let sealed_request = {
         // Fake app
-        use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
         use crypto::frost::dkg::{app::continue_dkg, SharePackage};
         use crypto::frost::KeyCommitments;
 
@@ -2055,6 +2056,56 @@ async fn software_onboarding_keygen_activation_test() {
         "{}",
         actual_response.body_string
     );
+
+    let (lka, lkn) = generate_lka_lkn();
+    let sealed_request = json!(
+        {
+            "lka_pub": b64.encode(lka.public_key().to_sec1_bytes()),
+            "lkn_pub": b64.encode(lkn.public_key().to_sec1_bytes()),
+        }
+    );
+    let request = CreateSelfSovereignBackupRequest {
+        sealed_request: serde_json::to_vec(&sealed_request).unwrap(),
+        noise_session: vec![],
+    };
+
+    let actual_response = client
+        .create_self_sovereign_backup(&account_id.to_string(), &request)
+        .await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let sealed_response = serde_json::from_slice::<serde_json::Value>(
+        actual_response.body.unwrap().sealed_response.as_slice(),
+    )
+    .unwrap();
+    let eph_pub = b64
+        .decode(sealed_response.get("eph_pub").unwrap().as_str().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let nonce = b64
+        .decode(sealed_response.get("nonce").unwrap().as_str().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let ciphertext = b64
+        .decode(sealed_response.get("ciphertext").unwrap().as_str().unwrap())
+        .unwrap();
+    decrypt_ssb(
+        lka,
+        lkn,
+        SelfSovereignBackup {
+            eph_pub,
+            nonce,
+            ciphertext,
+        },
+    )
+    .unwrap();
 }
 
 #[test]
@@ -2066,7 +2117,7 @@ fn test_create_bdk_wallet() {
     );
 
     let rpc_config = RpcConfig {
-        url: env::var("REGTEST_ELECTRUM_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
         auth: Auth::UserPass {
             username: "test".to_string(),
             password: "test".to_string(),

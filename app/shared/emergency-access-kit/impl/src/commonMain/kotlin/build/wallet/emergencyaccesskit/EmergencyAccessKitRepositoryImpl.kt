@@ -3,6 +3,8 @@ package build.wallet.emergencyaccesskit
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.RectifiableCloudError
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.UnrectifiableCloudError
 import build.wallet.logging.logFailure
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class EmergencyAccessKitRepositoryImpl(
   private val cloudFileStore: CloudFileStore,
 ) : EmergencyAccessKitRepository {

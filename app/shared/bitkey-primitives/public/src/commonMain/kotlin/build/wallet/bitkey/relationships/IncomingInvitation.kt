@@ -11,4 +11,5 @@ data class IncomingInvitation(
   @Redacted
   val code: String,
   val protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
+  val recoveryRelationshipRoles: Set<TrustedContactRole>,
 )

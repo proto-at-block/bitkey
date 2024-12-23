@@ -65,4 +65,11 @@ interface PartnershipTransactionsService {
   suspend fun syncTransaction(
     transactionId: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, Error>
+
+  /**
+   * Retrieve the transaction with the given ID from the DB
+   */
+  suspend fun getTransactionById(
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error>
 }

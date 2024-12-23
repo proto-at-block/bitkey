@@ -303,6 +303,20 @@ class RelationshipsCryptoFake(
     }
 
   override fun decryptPrivateKeyEncryptionKey(
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
+    sealedPrivateKeyEncryptionKey: XCiphertext,
+  ): PrivateKeyEncryptionKey {
+    TODO("Not yet implemented")
+  }
+
+  override fun decryptPrivateKeyMaterial(
+    privateKeyEncryptionKey: PrivateKeyEncryptionKey,
+    sealedPrivateKeyMaterial: XCiphertext,
+  ): Result<ByteString, RelationshipsCryptoError> {
+    TODO("Not yet implemented")
+  }
+
+  override fun transferPrivateKeyEncryptionKeyEncryption(
     password: PakeCode,
     protectedCustomerRecoveryPakeKey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
     delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,

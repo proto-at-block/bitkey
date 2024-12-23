@@ -1,0 +1,18 @@
+{
+    "module-identifier": "me.tatarka.inject:ast-core",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ast-core-0.7.2.jar": "53821977cc2b2a1054105e745c22e50b9c8584de64d36e71595928a0aad74a58"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -8,9 +8,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.Progress
 import build.wallet.asProgress
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
 import com.github.michaelbull.result.getOrElse
 
+@BitkeyInject(ActivityScope::class)
 class EducationUiStateMachineImpl : EducationUiStateMachine {
   @Composable
   override fun model(props: EducationUiProps): ScreenModel {

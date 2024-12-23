@@ -5,6 +5,8 @@ import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.CsekDao
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup.EmergencyAccessKitBackupV1
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.AccountRestoration
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError
@@ -17,6 +19,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class EmergencyAccessPayloadRestorerImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
@@ -48,7 +51,7 @@ class EmergencyAccessPayloadRestorerImpl(
           val backup =
             emergencyAccessKitPayloadDecoder.decodeDecryptedBackup(encodedBackup)
               .mapError { InvalidBackup(cause = it) }
-              .bind()
+              .bind() as EmergencyAccessKitBackupV1
 
           ensure(backup is EmergencyAccessKitBackupV1) {
             InvalidBackup(Error("Expected backup to be of type EmergencyAccessKitBackupV1."))
@@ -62,7 +65,7 @@ class EmergencyAccessPayloadRestorerImpl(
             )
           )
             .mapError {
-              EmergencyAccessPayloadRestorerError.AppPrivateKeyStorageFailed(cause = it)
+              AppPrivateKeyStorageFailed(cause = it)
             }
             .bind()
 

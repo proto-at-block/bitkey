@@ -9,6 +9,8 @@ import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer
@@ -31,6 +33,7 @@ import build.wallet.toUByteList
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapBoth
 
+@BitkeyInject(ActivityScope::class)
 class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private val clipboard: Clipboard,
   private val payloadDecoder: EmergencyAccessKitPayloadDecoder,

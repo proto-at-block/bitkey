@@ -5,7 +5,10 @@ import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkNetwork
 import build.wallet.bdk.bindings.BdkResult
 import build.wallet.bdk.bindings.BdkScript
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
+@BitkeyInject(AppScope::class)
 class BdkAddressBuilderImpl : BdkAddressBuilder {
   override fun build(
     address: String,

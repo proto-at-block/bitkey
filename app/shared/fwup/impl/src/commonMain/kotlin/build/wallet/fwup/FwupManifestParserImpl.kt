@@ -2,7 +2,8 @@
 
 package build.wallet.fwup
 
-import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FwupManifestParser.FwupSlot
 import build.wallet.fwup.FwupManifestParser.FwupSlot.A
 import build.wallet.fwup.FwupManifestParser.FwupSlot.B
@@ -12,6 +13,7 @@ import build.wallet.fwup.FwupMode.Normal
 import build.wallet.fwup.ParseFwupManifestError.NoUpdateNeeded
 import build.wallet.fwup.ParseFwupManifestError.ParsingError
 import build.wallet.fwup.ParseFwupManifestError.UnknownManifestVersion
+import build.wallet.serialization.json.decodeFromStringResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -20,6 +22,7 @@ import com.github.michaelbull.result.mapError
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+@BitkeyInject(AppScope::class)
 class FwupManifestParserImpl : FwupManifestParser {
   companion object {
     private const val CURRENT_FWUP_MANIFEST_VERSION = "0.0.1"
@@ -43,7 +46,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
-      catchingResult { Json.decodeFromString<FwupManifest>(manifestJson) }
+      Json.decodeFromStringResult<FwupManifest>(manifestJson)
         .mapError { ParsingError(it) }
         .getOrElse { return Err(it) }
 
@@ -91,7 +94,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
-      catchingResult { Json.decodeFromString<FwupDeltaManifest>(manifestJson) }
+      Json.decodeFromStringResult<FwupDeltaManifest>(manifestJson)
         .mapError { ParsingError(it) }
         .getOrElse { return Err(it) }
 

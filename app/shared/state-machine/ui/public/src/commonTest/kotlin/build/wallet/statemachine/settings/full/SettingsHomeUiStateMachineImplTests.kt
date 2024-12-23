@@ -3,9 +3,7 @@ package build.wallet.statemachine.settings.full
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.ExportToolsFeatureFlag
 import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
@@ -56,7 +54,6 @@ import build.wallet.statemachine.status.StatusBannerModelMock
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -76,9 +73,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     )
 
   val featureFlagDao = FeatureFlagDaoFake()
-  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(featureFlagDao)
   val inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao)
-  val exportToolsFeatureFlag = ExportToolsFeatureFlag(featureFlagDao)
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
     SettingsHomeUiStateMachineImpl(
@@ -115,13 +110,11 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       firmwareDataService = firmwareDataService,
       utxoConsolidationUiStateMachine = object : UtxoConsolidationUiStateMachine,
         ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
-      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag,
       inheritanceManagementUiStateMachine = object : InheritanceManagementUiStateMachine,
         ScreenStateMachineMock<InheritanceManagementUiProps>("inheritance-management") {},
       inheritanceFeatureFlag = inheritanceFeatureFlag,
       exportToolsUiStateMachine = object : ExportToolsUiStateMachine,
-        ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {},
-      exportToolsFeatureFlag = exportToolsFeatureFlag
+        ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {}
     )
 
   beforeTest {
@@ -157,7 +150,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.TrustedContacts::class,
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
-              SettingsListUiProps.SettingsListRow.Biometric::class
+              SettingsListUiProps.SettingsListRow.Biometric::class,
+              SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
+              SettingsListUiProps.SettingsListRow.ExportTools::class
             )
           )
       }
@@ -184,7 +179,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
               SettingsListUiProps.SettingsListRow.Biometric::class,
-              SettingsListUiProps.SettingsListRow.InheritanceManagement::class
+              SettingsListUiProps.SettingsListRow.InheritanceManagement::class,
+              SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
+              SettingsListUiProps.SettingsListRow.ExportTools::class
             )
           )
       }
@@ -372,30 +369,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         awaitScreenWithBodyModelMock<SettingsListUiProps> {
           supportedRows.none { it is DebugMenu }
         }
-      }
-    }
-  }
-
-  test("show UTXO Consolidation row when the feature flag is enabled") {
-    utxoConsolidationFeatureFlag.setFlagValue(true)
-
-    stateMachine().test(props) {
-      awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows
-          .any { it is SettingsListUiProps.SettingsListRow.UtxoConsolidation }
-          .shouldBeTrue()
-      }
-    }
-  }
-
-  test("show Export Tools row when the feature flag is enabled") {
-    exportToolsFeatureFlag.setFlagValue(true)
-
-    stateMachine().test(props) {
-      awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows
-          .any { it is SettingsListUiProps.SettingsListRow.ExportTools }
-          .shouldBeTrue()
       }
     }
   }

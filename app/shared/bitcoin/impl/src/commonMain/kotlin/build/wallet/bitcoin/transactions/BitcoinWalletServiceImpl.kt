@@ -8,14 +8,21 @@ import build.wallet.account.AccountStatus
 import build.wallet.account.AccountStatus.*
 import build.wallet.asLoadableValue
 import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
+import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceImpl.Balances.LoadedBalance
 import build.wallet.bitcoin.utxo.Utxos
+import build.wallet.bitcoin.wallet.CoinSelectionStrategy
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.ensureNotNull
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.money.FiatMoney
@@ -25,16 +32,14 @@ import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.fold
-import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(AppScope::class)
 class BitcoinWalletServiceImpl(
   private val currencyConverter: CurrencyConverter,
   private val accountService: AccountService,
@@ -44,6 +49,7 @@ class BitcoinWalletServiceImpl(
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val exchangeRateService: ExchangeRateService,
+  private val feeRateEstimator: BitcoinFeeRateEstimator,
 ) : BitcoinWalletService, BitcoinWalletSyncWorker {
   private val spendingWallet = MutableStateFlow<SpendingWallet?>(null)
   private val transactionsData = MutableStateFlow<TransactionsData?>(null)
@@ -229,6 +235,71 @@ class BitcoinWalletServiceImpl(
 
       broadcastDetail
     }.logFailure { "Error broadcasting transaction" }
+
+  override suspend fun createPsbtsForSendAmount(
+    sendAmount: BitcoinTransactionSendAmount,
+    recipientAddress: BitcoinAddress,
+  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error> =
+    coroutineBinding {
+      val wallet = spendingWallet.value
+      ensureNotNull(wallet) { Error("No spending wallet found.") }
+
+      val balance = when (val data = transactionsData.value) {
+        null -> null
+        else -> data.balance
+      }
+      ensureNotNull(balance) { Error("No balance available") }
+
+      val feeRates = feeRateEstimator.getEstimatedFeeRates(wallet.networkType)
+        .bind()
+
+      // Build the slowest psbt we support
+      val sixtyMinutesPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.hourFeeRate),
+          coinSelectionStrategy = CoinSelectionStrategy.Default
+        )
+      ).mapError { Error("Error creating PSBT for 60 minutes") }
+        .bind()
+
+      // BDK's default coin selection isn't deterministic so we need to use the inputs from the
+      // previous PSBTs to ensure that the same inputs are used for the next PSBTs.
+
+      // Build the next fastest psbt using the outpoints of the previous psbt
+      val thirtyMinutesPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.halfHourFeeRate),
+          coinSelectionStrategy = CoinSelectionStrategy.Preselected(sixtyMinutesPsbt.inputs)
+        )
+      ).getOrElse {
+        return@coroutineBinding mapOf(EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt)
+      }
+
+      // Build the fastest psbt using the outpoints of the previous psbt
+      val fastestPsbt = wallet.createSignedPsbt(
+        constructionType = SpendingWallet.PsbtConstructionMethod.Regular(
+          recipientAddress = recipientAddress,
+          amount = sendAmount,
+          feePolicy = FeePolicy.Rate(feeRate = feeRates.fastestFeeRate),
+          coinSelectionStrategy = CoinSelectionStrategy.Preselected(thirtyMinutesPsbt.inputs)
+        )
+      ).getOrElse {
+        return@coroutineBinding mapOf(
+          EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt,
+          EstimatedTransactionPriority.THIRTY_MINUTES to thirtyMinutesPsbt
+        )
+      }
+
+      mapOf(
+        EstimatedTransactionPriority.SIXTY_MINUTES to sixtyMinutesPsbt,
+        EstimatedTransactionPriority.THIRTY_MINUTES to thirtyMinutesPsbt,
+        EstimatedTransactionPriority.FASTEST to fastestPsbt
+      )
+    }
 
   /**
    * A simple private wrapper around bitcoin and fiat balances.

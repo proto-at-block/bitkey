@@ -8,7 +8,7 @@ import io.matthewnelson.encoding.core.Encoder.Companion.encodeToString
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-class Base32Encoding {
+object Base32Encoding {
   // Crockford Base32 encoding settings
   private val base32Crockford = Base32Crockford {
     // Don't use hyphens
@@ -39,7 +39,5 @@ class Base32Encoding {
     }
   }
 
-  companion object {
-    const val BITS_PER_CHAR = 5
-  }
+  const val BITS_PER_CHAR = 5
 }

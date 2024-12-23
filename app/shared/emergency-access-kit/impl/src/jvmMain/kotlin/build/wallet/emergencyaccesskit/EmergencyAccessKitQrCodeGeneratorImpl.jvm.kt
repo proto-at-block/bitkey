@@ -1,12 +1,15 @@
 package build.wallet.emergencyaccesskit
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import okio.ByteString
 
-actual class EmergencyAccessKitQrCodeGeneratorImpl actual constructor() : EmergencyAccessKitQrCodeGenerator {
+@BitkeyInject(AppScope::class)
+class EmergencyAccessKitQrCodeGeneratorImpl : EmergencyAccessKitQrCodeGenerator {
   // TODO("TODO: BKR-693, implement JVM version of this")
-  actual override suspend fun imageBytes(
+  override suspend fun imageBytes(
     width: Float,
     height: Float,
     contents: String,

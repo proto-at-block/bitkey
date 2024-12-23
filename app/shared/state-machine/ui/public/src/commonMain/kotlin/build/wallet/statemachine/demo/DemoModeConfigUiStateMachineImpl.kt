@@ -3,10 +3,13 @@ package build.wallet.statemachine.demo
 import androidx.compose.runtime.*
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class DemoModeConfigUiStateMachineImpl(
   private val demoModeCodeEntryUiStateMachine: DemoModeCodeEntryUiStateMachineImpl,
   private val debugOptionsService: DebugOptionsService,

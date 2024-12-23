@@ -11,6 +11,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
@@ -36,6 +38,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(AppScope::class)
 class MobilePayServiceImpl(
   private val eventTracker: EventTracker,
   private val spendingLimitDao: SpendingLimitDao,

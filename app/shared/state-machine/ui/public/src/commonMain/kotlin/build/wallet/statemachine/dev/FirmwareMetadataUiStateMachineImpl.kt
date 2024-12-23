@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadata
@@ -25,6 +27,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import com.github.michaelbull.result.onSuccess
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(ActivityScope::class)
 class FirmwareMetadataUiStateMachineImpl(
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val firmwareMetadataDao: FirmwareMetadataDao,

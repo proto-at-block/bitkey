@@ -1,6 +1,8 @@
 package build.wallet.bitcoin.transactions
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
@@ -8,6 +10,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 
+@BitkeyInject(AppScope::class)
 class TransactionPriorityPreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : TransactionPriorityPreference {

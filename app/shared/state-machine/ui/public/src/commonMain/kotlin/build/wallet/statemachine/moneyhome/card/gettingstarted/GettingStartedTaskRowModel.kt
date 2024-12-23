@@ -1,18 +1,11 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
-import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
-import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
-import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
+import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
-import build.wallet.statemachine.core.Icon.SmallIconFingerprint
-import build.wallet.statemachine.core.Icon.SmallIconPlusStroked
-import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
-import build.wallet.statemachine.limit.SpendingLimitsCopy
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -24,14 +17,13 @@ data class GettingStartedTaskRowModel(
   val task: GettingStartedTask,
   val isEnabled: Boolean,
   val onClick: () -> Unit,
-  val isRevampEnabled: Boolean,
 ) {
   val listItemModel: ListItemModel
     get() {
       val (title: String, icon: Icon) =
         when (task.id) {
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
-          EnableSpendingLimit -> SpendingLimitsCopy.get(isRevampEnabled).gettingStartedCardPair
+          EnableSpendingLimit -> Pair("Customize transfer settings", SmallIconMobileLimit)
           InviteTrustedContact -> Pair("Invite a Trusted Contact", SmallIconShieldPerson)
           AddAdditionalFingerprint -> Pair("Add additional fingerprint", SmallIconFingerprint)
         }

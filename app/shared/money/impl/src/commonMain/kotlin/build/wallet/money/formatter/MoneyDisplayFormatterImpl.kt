@@ -1,11 +1,14 @@
 package build.wallet.money.formatter
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.BitcoinDisplayUnit
 
+@BitkeyInject(AppScope::class)
 class MoneyDisplayFormatterImpl(
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val moneyFormatterDefinitions: MoneyFormatterDefinitions,

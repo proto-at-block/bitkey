@@ -6,6 +6,8 @@ import build.wallet.bdk.bindings.BdkWalletFactory
 import build.wallet.bdk.bindings.wallet
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor
 import build.wallet.bitcoin.wallet.WalletDescriptor
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -17,6 +19,8 @@ import okio.ByteString.Companion.encodeUtf8
  * Creates and caches [BdkWallet] instances. This class should be initialized
  * as a singleton in the DI graph.
  */
+
+@BitkeyInject(AppScope::class)
 class BdkWalletProviderImpl(
   private val bdkWalletFactory: BdkWalletFactory,
   private val bdkDatabaseConfigProvider: BdkDatabaseConfigProvider,

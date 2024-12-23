@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package build.wallet.ktor.result
 
 import build.wallet.catchingResult

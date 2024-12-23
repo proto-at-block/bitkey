@@ -1,12 +1,15 @@
 package build.wallet.notifications
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.AddressAndKeysetId
 import build.wallet.f8e.notifications.RegisterWatchAddressF8eClient
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
+@BitkeyInject(AppScope::class)
 class RegisterWatchAddressProcessorImpl(
   private val registerWatchAddressF8eClient: RegisterWatchAddressF8eClient,
 ) : RegisterWatchAddressProcessor {

@@ -18,6 +18,8 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeypair
 import build.wallet.bitkey.spending.SpendingPrivateKey
 import build.wallet.bitkey.spending.SpendingPublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.nfc.FakeHardwareKeyStore.FakeHwSpendingPrivateKey
@@ -26,6 +28,7 @@ import build.wallet.store.getOrPutString
 import com.github.michaelbull.result.getOrThrow
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class FakeHardwareKeyStoreImpl(
   private val bdkMnemonicGenerator: BdkMnemonicGenerator,
   private val bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,

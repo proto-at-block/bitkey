@@ -1,14 +1,14 @@
 package build.wallet.platform.data
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import platform.Foundation.NSApplicationSupportDirectory
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
 
-actual class FileDirectoryProviderImpl actual constructor(
-  platformContext: PlatformContext,
-) : FileDirectoryProvider {
-  actual override fun appDir(): String {
+@BitkeyInject(AppScope::class)
+class FileDirectoryProviderImpl : FileDirectoryProvider {
+  override fun appDir(): String {
     val paths =
       NSSearchPathForDirectoriesInDomains(
         directory = NSApplicationSupportDirectory,

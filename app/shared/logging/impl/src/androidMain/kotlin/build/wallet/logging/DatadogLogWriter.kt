@@ -1,14 +1,18 @@
 package build.wallet.logging
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 import com.datadog.android.Datadog
 import com.datadog.android.log.Logger
 
+@BitkeyInject(AppScope::class)
 class DatadogLogWriter(
   private val logWriterContextStore: LogWriterContextStore,
-  private val minSeverity: Severity = Severity.Info,
 ) : LogWriter() {
+  private val minSeverity = Severity.Info
+
   private val datadogLogger: Logger by lazy {
     val logWriterContext = logWriterContextStore.get()
     Datadog.addUserProperties(

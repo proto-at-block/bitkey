@@ -3,6 +3,8 @@ package build.wallet.debug.cloud
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.config.AppVariant
@@ -10,6 +12,7 @@ import build.wallet.platform.config.AppVariant.Customer
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(AppScope::class)
 class CloudBackupDeleterImpl(
   private val appVariant: AppVariant,
   private val cloudBackupRepository: CloudBackupRepository,

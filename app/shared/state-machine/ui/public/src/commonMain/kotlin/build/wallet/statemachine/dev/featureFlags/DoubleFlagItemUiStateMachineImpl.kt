@@ -4,10 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 
+@BitkeyInject(ActivityScope::class)
 class DoubleFlagItemUiStateMachineImpl : DoubleFlagItemUiStateMachine {
   @Composable
   override fun model(props: DoubleFlagItemUiProps): ListItemModel {

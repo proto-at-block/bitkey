@@ -1,11 +1,14 @@
 package build.wallet.platform.device
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlinx.cinterop.*
 import platform.posix.uname
 import platform.posix.utsname
 
-actual class DeviceInfoProviderImpl : DeviceInfoProvider {
-  actual override fun getDeviceInfo() =
+@BitkeyInject(AppScope::class)
+class DeviceInfoProviderImpl : DeviceInfoProvider {
+  override fun getDeviceInfo() =
     DeviceInfo(
       deviceModel = getDeviceModel(),
       devicePlatform = DevicePlatform.IOS,

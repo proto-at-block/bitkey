@@ -8,12 +8,15 @@ import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationF8eError
 import build.wallet.auth.LiteAccountCreationError.LiteAccountKeyGenerationError
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.onboarding.CreateLiteAccountF8eClient
 import build.wallet.keybox.keys.AppKeysGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class LiteAccountCreatorImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val accountService: AccountService,

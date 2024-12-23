@@ -1,12 +1,11 @@
 package build.wallet.bdk
 
-import build.wallet.bdk.bindings.BdkDescriptor
-import build.wallet.bdk.bindings.BdkDescriptorFactory
-import build.wallet.bdk.bindings.BdkDescriptorSecretKey
-import build.wallet.bdk.bindings.BdkKeychainKind
-import build.wallet.bdk.bindings.BdkNetwork
+import build.wallet.bdk.bindings.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import org.bitcoindevkit.Descriptor
 
+@BitkeyInject(AppScope::class)
 class BdkDescriptorFactoryImpl : BdkDescriptorFactory {
   override fun bip84(
     secretsKey: BdkDescriptorSecretKey,

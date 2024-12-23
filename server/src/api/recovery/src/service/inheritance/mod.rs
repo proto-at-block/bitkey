@@ -24,9 +24,10 @@ pub mod create_inheritance_claim;
 pub mod packages;
 pub mod update_inheritance_claim_destination;
 
-mod error;
+pub(crate) mod error;
 pub mod get_inheritance_claims;
 pub mod lock_inheritance_claim;
+pub mod recreate_pending_claims_for_beneficiary;
 pub mod sign_and_complete_inheritance_claim;
 
 #[cfg(test)]
@@ -133,6 +134,38 @@ async fn fetch_relationships_and_claim(
             .fetch_inheritance_claim(inheritance_claim_id)
     );
     Ok((relationships_result?, claim_result?))
+}
+
+/// This function fetches all pending inheritance claims for a given beneficiary account
+///
+/// # Arguments
+///
+/// * `service` - The inheritance service object
+/// * `beneficiary_account_id` - The beneficiary account id
+///
+async fn fetch_pending_claims_as_beneficiary(
+    service: &Service,
+    beneficiary_account_id: &AccountId,
+) -> Result<Vec<InheritanceClaim>, ServiceError> {
+    let endorsed_relationship_ids = service
+        .recovery_relationship_service
+        .get_recovery_relationships(GetRecoveryRelationshipsInput {
+            account_id: beneficiary_account_id,
+            trusted_contact_role_filter: Some(Beneficiary),
+        })
+        .await?
+        .customers
+        .into_iter()
+        .filter_map(|r| match r {
+            RecoveryRelationship::Endorsed(r) => Some(r.common_fields.id.clone()),
+            _ => None,
+        })
+        .collect();
+    let claims = service
+        .repository
+        .fetch_pending_claims_for_recovery_relationship_ids(endorsed_relationship_ids)
+        .await?;
+    Ok(claims)
 }
 
 fn filter_endorsed_relationship(

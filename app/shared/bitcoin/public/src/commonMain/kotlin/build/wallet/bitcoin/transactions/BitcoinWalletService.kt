@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.wallet.SpendingWallet
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +37,17 @@ interface BitcoinWalletService {
     psbt: Psbt,
     estimatedTransactionPriority: EstimatedTransactionPriority,
   ): Result<BroadcastDetail, Error>
+
+  /**
+   * Create a PSBTs for the given send amount in all the [EstimatedTransactionPriority]s available.
+   *
+   * @param sendAmount - the amount to send
+   * @param recipientAddress - the address to send to
+   */
+  suspend fun createPsbtsForSendAmount(
+    sendAmount: BitcoinTransactionSendAmount,
+    recipientAddress: BitcoinAddress,
+  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error>
 }
 
 suspend fun BitcoinWalletService.getTransactionData(): TransactionsData =

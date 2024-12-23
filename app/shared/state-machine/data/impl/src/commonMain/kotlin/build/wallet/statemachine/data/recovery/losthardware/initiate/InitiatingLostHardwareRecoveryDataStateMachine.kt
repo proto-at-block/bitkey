@@ -6,6 +6,8 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -36,6 +38,7 @@ data class InitiatingLostHardwareRecoveryProps(
   val account: FullAccount,
 )
 
+@BitkeyInject(AppScope::class)
 class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,

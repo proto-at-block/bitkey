@@ -19,6 +19,10 @@ data class SaveContactBodyModel(
    */
   val trustedContactName: String,
   /**
+   * Boolean indicating whether we are saving an inheritance beneficiary
+   */
+  val isBeneficiary: Boolean,
+  /**
    * Invoked when the user agrees to save with bitkey.
    */
   val onSave: () -> Unit,
@@ -34,11 +38,11 @@ data class SaveContactBodyModel(
     ),
     header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
-      headline = "Save $trustedContactName as a Trusted Contact",
-      subline = "Adding a Trusted Contact requires your Bitkey device since it impacts the security of your wallet."
+      headline = if (isBeneficiary) "Save Beneficiary" else "Save $trustedContactName as a Trusted Contact",
+      subline = "Adding a " + (if (isBeneficiary) "Beneficiary" else "Trusted Contact") + " requires your Bitkey device since it impacts the security of your wallet."
     ),
     primaryButton = BitkeyInteractionButtonModel(
-      text = "Save Trusted Contact",
+      text = "Save " + if (isBeneficiary) "Beneficiary" else "Trusted Contact",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSave)
     )

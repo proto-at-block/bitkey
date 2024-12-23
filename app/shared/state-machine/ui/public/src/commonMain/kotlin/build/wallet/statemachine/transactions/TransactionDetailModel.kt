@@ -182,7 +182,7 @@ val processingTransactionStepper: StepperIndicator = StepperIndicator(
     ),
     StepperIndicator.Step(
       style = StepStyle.PENDING,
-      icon = IconImage.Loader,
+      icon = IconImage.LoadingBadge,
       label = "Processing"
     ),
     StepperIndicator.Step(

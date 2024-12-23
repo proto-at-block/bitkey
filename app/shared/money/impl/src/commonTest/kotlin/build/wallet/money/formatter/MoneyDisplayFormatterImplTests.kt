@@ -16,17 +16,12 @@ class MoneyDisplayFormatterImplTests : FunSpec({
 
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock()
   val localeProvider = LocaleProviderFake()
-  val formatter =
-    MoneyDisplayFormatterImpl(
-      bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
-      moneyFormatterDefinitions =
-        MoneyFormatterDefinitionsImpl(
-          doubleFormatter =
-            DoubleFormatterImpl(
-              localeProvider = localeProvider
-            )
-        )
+  val formatter = MoneyDisplayFormatterImpl(
+    bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
+    moneyFormatterDefinitions = MoneyFormatterDefinitionsImpl(
+      doubleFormatter = DoubleFormatterImpl(localeProvider)
     )
+  )
 
   test("Format standard fiat") {
     val value = 1.toBigDecimal()

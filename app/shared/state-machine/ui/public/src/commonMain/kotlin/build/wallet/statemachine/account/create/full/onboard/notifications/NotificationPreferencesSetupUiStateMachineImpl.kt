@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.*
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
@@ -35,6 +37,7 @@ import build.wallet.statemachine.platform.permissions.NotificationPermissionRequ
 import build.wallet.ui.model.alert.ButtonAlertModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class NotificationPreferencesSetupUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val notificationPermissionRequester: NotificationPermissionRequester,

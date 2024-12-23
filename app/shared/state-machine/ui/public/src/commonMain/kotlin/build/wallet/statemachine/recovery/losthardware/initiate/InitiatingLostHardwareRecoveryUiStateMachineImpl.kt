@@ -8,6 +8,8 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.v1.Action.ACTION_APP_HW_RECOVERY_STARTED
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -29,6 +31,7 @@ import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 
+@BitkeyInject(ActivityScope::class)
 class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   private val pairNewHardwareUiStateMachine: PairNewHardwareUiStateMachine,
   private val eventTracker: EventTracker,

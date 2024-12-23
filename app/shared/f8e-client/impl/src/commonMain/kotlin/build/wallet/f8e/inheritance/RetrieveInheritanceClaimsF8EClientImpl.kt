@@ -3,6 +3,8 @@ package build.wallet.f8e.inheritance
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.inheritance.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -14,6 +16,7 @@ import io.ktor.client.request.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class RetrieveInheritanceClaimsF8EClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : RetrieveInheritanceClaimsF8eClient {

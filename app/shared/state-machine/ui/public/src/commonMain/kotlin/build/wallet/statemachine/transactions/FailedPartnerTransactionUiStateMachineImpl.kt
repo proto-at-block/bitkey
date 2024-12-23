@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -32,6 +34,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class FailedPartnerTransactionUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,

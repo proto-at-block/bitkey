@@ -35,10 +35,6 @@ public final class QRCodeScannerViewControllerImpl: UIViewController, QRCodeScan
 
     // MARK: - UIViewController
 
-    override public var preferredStatusBarStyle: UIStatusBarStyle {
-        return .lightContent
-    }
-
     override public func loadView() {
         view = mainView
     }

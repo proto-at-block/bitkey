@@ -4,23 +4,23 @@ import build.wallet.bdk.bindings.estimateFee
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.targetBlocks
-import build.wallet.ktor.result.NetworkingError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.logging.logNetworkFailure
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import dev.zacsweers.redacted.annotations.Unredacted
-import io.ktor.client.request.get
+import io.ktor.client.request.*
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class BitcoinFeeRateEstimatorImpl(
   private val mempoolHttpClient: MempoolHttpClient,
   private val bdkBlockchainProvider: BdkBlockchainProvider,
@@ -60,37 +60,44 @@ class BitcoinFeeRateEstimatorImpl(
 
   override suspend fun getEstimatedFeeRates(
     networkType: BitcoinNetworkType,
-  ): Result<Map<EstimatedTransactionPriority, FeeRate>, NetworkingError> {
-    return mempoolHttpClient.client(networkType)
-      .bodyResult<Response> { get("api/v1/fees/recommended") }
-      .map { response ->
-        Ok(
-          mapOf(
-            FASTEST to FeeRate(response.fastestFee),
-            THIRTY_MINUTES to FeeRate(response.halfHourFee),
-            SIXTY_MINUTES to FeeRate(response.hourFee)
-          )
-        )
-      }
-      .logNetworkFailure { "Failed to get fee rate" }
-      .getOrElse { networkingError ->
-        val fallbackRate = FeeRate.Fallback
-        val feeRateMap = mutableMapOf<EstimatedTransactionPriority, FeeRate>()
-
-        bdkBlockchainProvider.blockchain().result.map { blockchain ->
-          EstimatedTransactionPriority.values().forEach { priority ->
-            blockchain.estimateFee(priority.targetBlocks())
+  ): Result<FeeRatesByPriority, Error> =
+    coroutineBinding {
+      mempoolHttpClient.client(networkType)
+        .bodyResult<Response> { get("api/v1/fees/recommended") }
+        .logNetworkFailure { "Failed to get fee rates" }
+        .fold(
+          success = {
+            FeeRatesByPriority(
+              fastestFeeRate = FeeRate(it.fastestFee),
+              halfHourFeeRate = FeeRate(it.halfHourFee),
+              hourFeeRate = FeeRate(it.hourFee)
+            )
+          },
+          failure = {
+            val feeRateMap = mutableMapOf<EstimatedTransactionPriority, FeeRate>()
+            val blockchain = bdkBlockchainProvider.blockchain()
               .result
-              .fold(
-                success = { feeRate -> feeRateMap[priority] = FeeRate(feeRate) },
-                failure = { feeRateMap[priority] = fallbackRate }
-              )
-          }
-        }.getOrElse { networkingError }
+              .bind()
 
-        Ok(feeRateMap)
-      }
-  }
+            EstimatedTransactionPriority.entries
+              .scan(mutableMapOf<EstimatedTransactionPriority, FeeRate>()) { feeRates, priority ->
+                blockchain.estimateFee(priority.targetBlocks())
+                  .result
+                  .fold(
+                    success = { feeRate -> feeRates[priority] = FeeRate(feeRate) },
+                    failure = { feeRates[priority] = FeeRate.Fallback }
+                  )
+                feeRates
+              }
+
+            FeeRatesByPriority(
+              fastestFeeRate = feeRateMap[FASTEST] ?: FeeRate.Fallback,
+              halfHourFeeRate = feeRateMap[THIRTY_MINUTES] ?: FeeRate.Fallback,
+              hourFeeRate = feeRateMap[SIXTY_MINUTES] ?: FeeRate.Fallback
+            )
+          }
+        )
+    }
 
   /** Represents the response from mempool */
   @Unredacted

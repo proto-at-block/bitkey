@@ -8,6 +8,8 @@ import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingPrivateKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.getOrThrow
 
 /**
@@ -15,6 +17,7 @@ import com.github.michaelbull.result.getOrThrow
  * Descriptor for this wallet uses public app and f8e spending keys and private fake hardware
  * spending key from [FakeHardwareKeyStore].
  */
+@BitkeyInject(AppScope::class)
 class FakeHardwareSpendingWalletProvider(
   private val spendingWalletProvider: SpendingWalletProvider,
   private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,

@@ -2,6 +2,7 @@ import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
@@ -70,7 +71,10 @@ kotlin {
 
     val jvmMain by getting {
       dependencies {
+        implementation(projects.shared.cloudStoreFake)
         implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.moneyFake)
+        implementation(projects.shared.platformFake)
       }
     }
   }

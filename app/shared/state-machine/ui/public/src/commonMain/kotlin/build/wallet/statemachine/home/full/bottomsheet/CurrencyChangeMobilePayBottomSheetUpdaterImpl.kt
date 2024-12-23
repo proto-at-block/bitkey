@@ -1,5 +1,7 @@
 package build.wallet.statemachine.home.full.bottomsheet
 
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.home.HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY
 import build.wallet.limit.MobilePayData
@@ -8,6 +10,7 @@ import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.money.currency.FiatCurrency
 import kotlinx.coroutines.flow.firstOrNull
 
+@BitkeyInject(ActivityScope::class)
 class CurrencyChangeMobilePayBottomSheetUpdaterImpl(
   private val homeUiBottomSheetDao: HomeUiBottomSheetDao,
 ) : CurrencyChangeMobilePayBottomSheetUpdater {

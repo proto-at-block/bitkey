@@ -5,6 +5,32 @@ import build.wallet.bitcoin.keys.ExtendedPrivateKey
 
 interface BitcoinMultiSigDescriptorBuilder {
   /**
+   * Re-build a descriptor for receiving keysets, replacing the public key.
+   *
+   * @param descriptorKeyset The pre-built descriptor keyset to modify.
+   * @param publicKey The public key, found in the descriptor, that should be replaced.
+   * @param privateKey The private key to replace the public key.
+   */
+  fun spendingReceivingDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): BitcoinDescriptor.Spending
+
+  /**
+   * Re-build a descriptor for change keysets, replacing the public key.
+   *
+   * @param descriptorKeyset The pre-built descriptor keyset to modify.
+   * @param publicKey The public key, found in the descriptor, that should be replaced.
+   * @param privateKey The private key to replace the public key.
+   */
+  fun spendingChangeDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): BitcoinDescriptor.Spending
+
+  /**
    * Created 2-of-3 spending (with app private key) multisig descriptor for receiving.
    * Includes the private key of the app, meaning the app can sign transactions
    * associated with descriptor.

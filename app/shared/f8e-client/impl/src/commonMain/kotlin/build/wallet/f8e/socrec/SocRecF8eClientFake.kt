@@ -5,6 +5,9 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.bitkey.socrec.*
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Fake
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
@@ -17,7 +20,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrThrow
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 import kotlin.random.Random
@@ -27,6 +30,8 @@ import kotlin.random.Random
  *
  * @param uuidGenerator - the uuid to use for generating random ids
  */
+@Fake
+@BitkeyInject(AppScope::class)
 class SocRecF8eClientFake(
   private val uuidGenerator: UuidGenerator,
 ) : SocRecF8eClient {
@@ -60,7 +65,9 @@ class SocRecF8eClientFake(
     challenges.add(
       FakeServerChallenge(
         response = challenge,
-        protectedCustomerRecoveryPakePubkey = relationshipsCrypto.generateProtectedCustomerRecoveryPakeKey(pakeCode)
+        protectedCustomerRecoveryPakePubkey = relationshipsCrypto.generateProtectedCustomerRecoveryPakeKey(
+          pakeCode
+        )
           .getOrThrow().publicKey,
         sealedDek = "sealed-dek"
       )

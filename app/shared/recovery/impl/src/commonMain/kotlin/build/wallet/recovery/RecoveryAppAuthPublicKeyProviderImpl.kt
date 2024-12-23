@@ -3,6 +3,8 @@ package build.wallet.recovery
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.FailedToReadRecoveryEntity
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.NoRecoveryInProgress
 import com.github.michaelbull.result.Err
@@ -12,6 +14,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class RecoveryAppAuthPublicKeyProviderImpl(
   val recoveryDao: RecoveryDao,
 ) : RecoveryAppAuthPublicKeyProvider {

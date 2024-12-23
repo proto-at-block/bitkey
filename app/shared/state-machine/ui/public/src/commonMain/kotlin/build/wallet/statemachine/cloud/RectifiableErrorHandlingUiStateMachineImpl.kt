@@ -2,6 +2,8 @@ package build.wallet.statemachine.cloud
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.AttemptingRectificationState
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.ShowingExplanationState
 import build.wallet.statemachine.core.ButtonDataModel
@@ -10,6 +12,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 
+@BitkeyInject(ActivityScope::class)
 class RectifiableErrorHandlingUiStateMachineImpl(
   private val cloudBackupRectificationNavigator: CloudBackupRectificationNavigator,
 ) : RectifiableErrorHandlingUiStateMachine {

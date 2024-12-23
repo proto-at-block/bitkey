@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.dev.LogStore
@@ -17,6 +19,7 @@ import build.wallet.time.TimeZoneProvider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class LogsUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val logStore: LogStore,

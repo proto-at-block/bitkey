@@ -3,9 +3,12 @@ package build.wallet.keybox.wallet
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
 import build.wallet.bitcoin.wallet.WatchingWalletDescriptor
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class WatchingWalletDescriptorProviderImpl(
   private val descriptorBuilder: BitcoinMultiSigDescriptorBuilder,
 ) : WatchingWalletDescriptorProvider {

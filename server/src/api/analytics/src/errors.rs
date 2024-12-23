@@ -1,6 +1,6 @@
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
-use http::StatusCode;
 use serde_json::json;
 use strum_macros::Display;
 use thiserror::Error;

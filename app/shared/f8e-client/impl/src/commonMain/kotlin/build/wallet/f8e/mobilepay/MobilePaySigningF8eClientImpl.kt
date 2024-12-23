@@ -2,6 +2,8 @@ package build.wallet.f8e.mobilepay
 
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.ktor.result.NetworkingError
@@ -15,6 +17,7 @@ import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class MobilePaySigningF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : MobilePaySigningF8eClient {

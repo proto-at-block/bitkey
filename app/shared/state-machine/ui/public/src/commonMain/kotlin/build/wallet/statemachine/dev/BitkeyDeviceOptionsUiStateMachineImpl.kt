@@ -2,6 +2,8 @@ package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
 import build.wallet.platform.config.AppVariant
 import build.wallet.ui.model.StandardClick
@@ -13,6 +15,7 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
 import build.wallet.ui.model.list.ListItemModel
 
+@BitkeyInject(ActivityScope::class)
 class BitkeyDeviceOptionsUiStateMachineImpl(
   private val appVariant: AppVariant,
 ) : BitkeyDeviceOptionsUiStateMachine {

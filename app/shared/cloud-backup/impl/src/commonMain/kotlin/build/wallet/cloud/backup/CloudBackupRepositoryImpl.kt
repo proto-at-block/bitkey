@@ -9,6 +9,8 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logFailure
 import build.wallet.serialization.json.decodeFromStringResult
@@ -18,6 +20,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.serialization.json.Json
 
+@BitkeyInject(AppScope::class)
 class CloudBackupRepositoryImpl(
   private val cloudKeyValueStore: CloudKeyValueStore,
   private val cloudBackupDao: CloudBackupDao,

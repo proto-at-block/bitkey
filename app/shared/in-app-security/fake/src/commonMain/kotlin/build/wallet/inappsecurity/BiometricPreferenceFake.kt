@@ -3,22 +3,22 @@ package build.wallet.inappsecurity
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class BiometricPreferenceFake : BiometricPreference {
-  private var preference = false
+  private var preference = MutableStateFlow(false)
 
   override suspend fun get(): Result<Boolean, Error> {
-    return Ok(preference)
+    return Ok(preference.value)
   }
 
   override suspend fun set(enabled: Boolean): Result<Unit, Error> {
-    this.preference = enabled
+    this.preference.value = enabled
     return Ok(Unit)
   }
 
   override fun isEnabled(): Flow<Boolean> {
-    return flowOf(preference)
+    return preference
   }
 
   override suspend fun clear(): Result<Unit, Error> {
@@ -27,6 +27,6 @@ class BiometricPreferenceFake : BiometricPreference {
   }
 
   fun reset() {
-    preference = false
+    preference.value = false
   }
 }

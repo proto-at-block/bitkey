@@ -12,6 +12,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.card.PendingClaimContent
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlin.time.Duration
@@ -59,6 +60,8 @@ data class CardModel(
         Warning,
       }
     }
+
+    data class Callout(val model: CalloutModel) : CardStyle()
   }
 
   /** The optional image for the card */

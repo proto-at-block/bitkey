@@ -22,7 +22,7 @@ fun mergeAndSortTransactions(
 /**
  * Merges a list of partnership and bitcoin transactions using the following rules:
  * 1. If partnershipTransaction.txid == bitcoinTransaction.id, the transactions are merged
- * 2. If the crypto amounts, [status], and type (i.e. send/receive) are the same, and only ONE match is found,
+ * 2. If the crypto amounts and type (i.e. send/receive) are the same, and only ONE match is found,
  *    the transactions are merged.
  */
 fun mergeTransactions(
@@ -58,7 +58,7 @@ fun mergeTransactions(
     }
   }
 
-  // Step 2: Additional matching based on amount, status, and type
+  // Step 2: Additional matching based on amount and type
   for (partnershipTransaction in partnershipTransactions) {
     if (!unmatchedPartnershipTransactionIds.contains(partnershipTransaction.id)) {
       continue
@@ -68,11 +68,10 @@ fun mergeTransactions(
       val isUnmatched = unmatchedBitcoinTransactionIds.contains(bitcoinTransaction.id)
       val amountMatched =
         partnershipTransaction.cryptoAmount?.toBigDecimal() == bitcoinTransaction.subtotal.value
-      val statusIsEqual = partnershipTransaction.status() == bitcoinTransaction.status()
       val transactionTypeIsEqual =
         transactionTypeIsEqual(partnershipTransaction.type, bitcoinTransaction.transactionType)
 
-      isUnmatched && amountMatched && statusIsEqual && transactionTypeIsEqual
+      isUnmatched && amountMatched && transactionTypeIsEqual
     }
 
     if (potentialMatches.size == 1) {
@@ -109,8 +108,8 @@ fun mergeTransactions(
 
 /**
  * Sorts a list of [Transaction]s according to the following rules:
- * 1. First, transactions are bucketed by status (failed -> pending -> completed)
- * 2. Then, within each status, we bucket by whether we have a confirmation time or not.
+ * 1. First, transactions are bucketed by status (pending -> completed & failed)
+ * 2. Then, within each of these buckets, we group by whether we have a confirmation time or not.
  *    - Fallback to the appropriate sorting bucket depending on transaction type
  *        - for Canceled transactions, sort by created_at
  *        - for Pending transactions, sort partnerships by created_at, onChain by id
@@ -125,9 +124,8 @@ fun sortTransactions(transactions: List<Transaction>): List<Transaction> {
       // Primary sorting by status order: Failed (0), Pending (1), Completed (2)
       { transaction ->
         when (transaction.status()) {
-          TransactionStatus.FAILED -> 0
-          TransactionStatus.PENDING -> 1
-          TransactionStatus.CONFIRMED -> 2
+          TransactionStatus.PENDING -> 0
+          TransactionStatus.CONFIRMED, TransactionStatus.FAILED -> 1
         }
       },
       { transaction ->

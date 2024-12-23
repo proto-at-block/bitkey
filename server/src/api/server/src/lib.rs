@@ -497,11 +497,13 @@ impl BootstrapBuilder {
 
         let delay_notify_state = recovery::routes::delay_notify::RouteState(
             self.services.account_service.clone(),
+            self.services.inheritance_service.clone(),
             self.services.notification_service.clone(),
             self.services.comms_verification_service.clone(),
             self.services.userpool_service.clone(),
             self.services.recovery_service.clone(),
             self.services.social_challenge_service.clone(),
+            self.services.feature_flags_service.clone(),
         );
 
         let inheritance_state = recovery::routes::inheritance::RouteState(
@@ -553,6 +555,7 @@ impl BootstrapBuilder {
             self.services.userpool_service.clone(),
             self.services.account_service.clone(),
             self.services.wsm_client.clone(),
+            self.services.feature_flags_service.clone(),
         );
 
         let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();

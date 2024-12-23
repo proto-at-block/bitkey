@@ -525,7 +525,7 @@ impl PsbtWithDerivation for Psbt {
 
 pub fn treasury_fund_address(address: &Address, amount: Amount) {
     let treasury_rpc_config = RpcConfig {
-        url: env::var("REGTEST_ELECTRUM_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
         auth: Auth::UserPass {
             username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
             password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),

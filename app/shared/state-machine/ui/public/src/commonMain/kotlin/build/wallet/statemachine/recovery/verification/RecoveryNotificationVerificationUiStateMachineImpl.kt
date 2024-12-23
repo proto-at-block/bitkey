@@ -6,6 +6,8 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_VERIFICATION_ENTRY
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.CANCELLING_SOMEONE_ELSE_IS_RECOVERING_COMMS_VERIFICATION_ENTRY
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
 import build.wallet.ktor.result.HttpError
@@ -22,6 +24,7 @@ import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerif
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryNotificationVerificationUiStateMachineImpl(
   private val verificationCodeInputStateMachine: VerificationCodeInputStateMachine,
   private val notificationTouchpointService: NotificationTouchpointService,

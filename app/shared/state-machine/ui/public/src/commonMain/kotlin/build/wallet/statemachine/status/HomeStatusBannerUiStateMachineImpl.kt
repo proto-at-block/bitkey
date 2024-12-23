@@ -7,6 +7,8 @@ import androidx.compose.runtime.remember
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.availability.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.isThisYear
@@ -15,6 +17,7 @@ import build.wallet.ui.model.status.StatusBannerModel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class HomeStatusBannerUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val dateTimeFormatter: DateTimeFormatter,

@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup:kotlinpoet-ksp",
     "components": [
         {
-            "version": "1.18.1",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinpoet-ksp-1.18.1.jar": "9e64db5ff6df28961fb906f1301d0c6240ea4aef514b36f76f6fe3478fc75e61"
+                        "kotlinpoet-ksp-2.0.0.jar": "7169fe1f3275e17d15c4ef30bf8cd06bd056f8791a207b4451b414374404e638"
                     }
                 }
             ],

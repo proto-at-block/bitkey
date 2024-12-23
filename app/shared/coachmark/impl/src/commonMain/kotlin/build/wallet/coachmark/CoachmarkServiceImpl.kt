@@ -4,6 +4,8 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.EventTracker
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
 import build.wallet.feature.isEnabled
 import com.github.michaelbull.result.Result
@@ -13,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.days
 
+@BitkeyInject(AppScope::class)
 class CoachmarkServiceImpl(
   private val coachmarkDao: CoachmarkDao,
   private val accountService: AccountService,

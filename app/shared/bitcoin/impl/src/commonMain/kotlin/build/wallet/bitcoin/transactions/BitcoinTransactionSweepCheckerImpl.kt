@@ -5,12 +5,15 @@ import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.transactions.BitcoinTransactionSweepChecker.TransactionError
 import build.wallet.bitcoin.transactions.BitcoinTransactionSweepChecker.TransactionError.MultipleOutputsError
 import build.wallet.bitcoin.transactions.BitcoinTransactionSweepChecker.TransactionError.WalletNotEmptyError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.isOk
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 import kotlinx.collections.immutable.ImmutableList
 
+@BitkeyInject(AppScope::class)
 class BitcoinTransactionSweepCheckerImpl : BitcoinTransactionSweepChecker {
   override fun isSweep(
     transaction: BitcoinTransaction,

@@ -9,7 +9,6 @@ import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.utxo.UtxoConsolidationType.ConsolidateAll
 import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -35,7 +34,6 @@ class UtxoConsolidationFunctionalTests : FunSpec({
 
   beforeTest {
     app = launchNewApp()
-    app.utxoConsolidationFeatureFlag.setFlagValue(true)
     utxoConsolidationService = app.utxoConsolidationService
   }
 

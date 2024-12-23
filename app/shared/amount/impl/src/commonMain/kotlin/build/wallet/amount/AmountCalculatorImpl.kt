@@ -1,5 +1,9 @@
 package build.wallet.amount
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+
+@BitkeyInject(AppScope::class)
 class AmountCalculatorImpl(
   private val decimalNumberCalculator: DecimalNumberCalculator,
   private val wholeNumberCalculator: WholeNumberCalculator,

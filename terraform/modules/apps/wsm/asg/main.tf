@@ -104,6 +104,11 @@ module "alb" {
         path    = "/health-check"
         timeout = 5
       }
+      stickiness = {
+        enabled         = true
+        type            = "lb_cookie"
+        cookie_duration = 604800
+      }
     }
   ]
   https_listeners = [

@@ -106,14 +106,13 @@ interface WatchingWallet {
    *
    * @param recipientAddress The address to send the funds to.
    * @param amount the amount to send - either exact or drain.
-   * @param feeRate the fee rate to use for the transaction.
-   * @param exactFee the exact fee to use for the transaction.
-   *
-   * TODO(W-3862): use a sealed interface for fee and feeRate
+   * @param feePolicy the fee policy to use.
+   * @param coinSelectionStrategy the coin selection strategy to use for psbt construction
    */
   suspend fun createPsbt(
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
     feePolicy: FeePolicy,
+    coinSelectionStrategy: CoinSelectionStrategy = CoinSelectionStrategy.Default,
   ): Result<Psbt, Throwable>
 }

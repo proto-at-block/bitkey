@@ -6,6 +6,8 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.notifications.*
 import build.wallet.platform.permissions.Permission.PushNotifications
@@ -35,6 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryChannelSettingsUiStateMachineImpl(
   private val permissionChecker: PermissionChecker,
   private val notificationsPreferencesCachedProvider: NotificationsPreferencesCachedProvider,

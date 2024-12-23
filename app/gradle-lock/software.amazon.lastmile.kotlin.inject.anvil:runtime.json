@@ -1,0 +1,18 @@
+{
+    "module-identifier": "software.amazon.lastmile.kotlin.inject.anvil:runtime",
+    "components": [
+        {
+            "version": "0.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-metadata.jar": "6c677537ea2247dfdd59db1e256deb0be36a896c7671250174e87fc15d8ea275"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

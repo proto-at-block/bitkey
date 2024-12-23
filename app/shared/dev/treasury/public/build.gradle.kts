@@ -13,6 +13,7 @@ kotlin {
         api(projects.shared.bitcoinPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.testingPublic)
+        api(projects.shared.serializationPublic)
         implementation(libs.kmp.test.kotest.assertions)
         implementation(projects.shared.bdkBindingsPublic)
         implementation(projects.shared.moneyTesting)

@@ -1,6 +1,8 @@
 package build.wallet.f8e.onboarding
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -14,6 +16,7 @@ import com.github.michaelbull.result.recoverIf
 import io.ktor.client.request.delete
 import io.ktor.http.HttpStatusCode
 
+@BitkeyInject(AppScope::class)
 class DeleteOnboardingFullAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : DeleteOnboardingFullAccountF8eClient {

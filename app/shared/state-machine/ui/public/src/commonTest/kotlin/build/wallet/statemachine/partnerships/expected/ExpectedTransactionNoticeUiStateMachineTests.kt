@@ -26,10 +26,11 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   val dateTimeFormatter = DateTimeFormatterMock()
   val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
-    createCalls = turbines.create("create calls"),
     syncCalls = turbines.create("sync calls"),
+    createCalls = turbines.create("create calls"),
     fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
   )
   val stateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
     dateTimeFormatter = dateTimeFormatter,

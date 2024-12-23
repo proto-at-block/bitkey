@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use database::{
     aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata, operation::get_item::GetItemOutput, types::KeysAndAttributes,
+        error::ProvideErrorMetadata,
+        operation::get_item::GetItemOutput,
+        types::{AttributeValue, KeysAndAttributes},
     },
     ddb::{try_from_item, try_from_items, try_to_attribute_val, DatabaseError, Repository},
 };
@@ -20,6 +22,8 @@ use super::{
     InheritanceRepository, InheritanceRow, PARTITION_KEY, RECOVERY_RELATIONSHIP_ID_IDX,
     RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY,
 };
+
+const INHERITANCE_CLAIM_PENDING_STATUS: &str = "PENDING";
 
 impl InheritanceRepository {
     async fn fetch(&self, partition_key: impl Serialize) -> Result<GetItemOutput, DatabaseError> {
@@ -66,6 +70,56 @@ impl InheritanceRepository {
             event!(Level::WARN, "claim {id} not found in the database");
             Err(DatabaseError::ObjectNotFound(database_object))
         }
+    }
+
+    #[instrument(skip(self))]
+    pub async fn fetch_pending_claims_for_recovery_relationship_ids(
+        &self,
+        recovery_relationship_ids: Vec<RecoveryRelationshipId>,
+    ) -> Result<Vec<InheritanceClaim>, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+        let base_query = self
+            .connection
+            .client
+            .query()
+            .table_name(table_name)
+            .index_name(RECOVERY_RELATIONSHIP_ID_IDX)
+            .key_condition_expression(format!(
+                "{} = :{}",
+                RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY,
+                RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY
+            ))
+            .filter_expression("#status = :status")
+            .expression_attribute_names("#status", "status")
+            .expression_attribute_values(
+                ":status",
+                AttributeValue::S(INHERITANCE_CLAIM_PENDING_STATUS.to_string()),
+            );
+
+        let mut claims = Vec::new();
+        for recovery_relationship_id in recovery_relationship_ids {
+            let item_output = base_query.clone()
+                .expression_attribute_values(format!(":{}", RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY), try_to_attribute_val(recovery_relationship_id, database_object)?)
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not query inheritance claim with recovery relationship id index: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+            let Some(inheritance_item) = item_output.items().first() else {
+                continue;
+            };
+            let inheritance_claim: InheritanceClaim =
+                try_from_item(inheritance_item.clone(), database_object)?;
+            claims.push(inheritance_claim);
+        }
+        Ok(claims)
     }
 
     #[instrument(skip(self))]

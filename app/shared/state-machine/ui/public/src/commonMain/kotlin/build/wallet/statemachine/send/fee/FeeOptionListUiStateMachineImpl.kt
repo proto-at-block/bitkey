@@ -4,10 +4,13 @@ import androidx.compose.runtime.*
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class FeeOptionListUiStateMachineImpl(
   private val feeOptionUiStateMachine: FeeOptionUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,

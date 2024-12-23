@@ -3,6 +3,8 @@ package build.wallet.statemachine.auth
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.auth.AccessToken
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.transaction.SignAccountIdAndAuthData
@@ -12,6 +14,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 
+@BitkeyInject(ActivityScope::class)
 class ProofOfPossessionNfcStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val refreshAuthTokensUiStateMachine: RefreshAuthTokensUiStateMachine,

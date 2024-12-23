@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.phonenumber.PhoneNumber
@@ -23,6 +25,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 
+@BitkeyInject(ActivityScope::class)
 class PhoneNumberInputUiStateMachineImpl(
   private val phoneNumberFormatter: PhoneNumberFormatter,
   private val phoneNumberValidator: PhoneNumberValidator,

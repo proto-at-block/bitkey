@@ -3,6 +3,7 @@ import build.wallet.gradle.logic.gradle.exclude
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   alias(libs.plugins.kotlin.serialization)
 }
 
@@ -28,6 +29,8 @@ kotlin {
           because("Depends on PeriodicProcessorImpl")
         }
         implementation(libs.kmp.settings)
+        // TODO: break impl dependency.
+        implementation(projects.shared.queueProcessorImpl)
       }
     }
 

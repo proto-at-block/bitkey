@@ -1,10 +1,13 @@
 package build.wallet.nfc
 
-import android.content.Context
+import android.app.Application
 import android.nfc.NfcAdapter
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
+@BitkeyInject(AppScope::class)
 class AndroidNfcAdapterProvider(
-  context: Context,
+  application: Application,
 ) : NfcAdapterProvider {
-  override val nfcAdapter: NfcAdapter? = NfcAdapter.getDefaultAdapter(context)
+  override val nfcAdapter: NfcAdapter? = NfcAdapter.getDefaultAdapter(application)
 }

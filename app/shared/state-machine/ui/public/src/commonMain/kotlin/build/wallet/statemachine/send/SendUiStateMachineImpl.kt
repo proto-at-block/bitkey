@@ -7,6 +7,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
@@ -27,6 +29,7 @@ import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(ActivityScope::class)
 class SendUiStateMachineImpl(
   private val bitcoinAddressRecipientUiStateMachine: BitcoinAddressRecipientUiStateMachine,
   private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
@@ -169,7 +172,7 @@ class SendUiStateMachineImpl(
                 transferMoney =
                   when (val amount = state.sendAmount) {
                     is ExactAmount -> amount.money
-                    is SendAll -> FiatMoney.zero(fiatCurrency)
+                    is SendAll -> defaultAmountEntryAmount
                   }
               )
             },
@@ -221,7 +224,7 @@ class SendUiStateMachineImpl(
                     transferMoney =
                       when (val amount = state.sendAmount) {
                         is ExactAmount -> amount.money
-                        is SendAll -> FiatMoney.zero(fiatCurrency)
+                        is SendAll -> defaultAmountEntryAmount
                       }
                   )
               },

@@ -5,6 +5,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.BitcoinPriceChartScreenId
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -31,6 +33,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
 import kotlin.time.Duration.Companion.milliseconds
 
+@BitkeyInject(ActivityScope::class)
 class BitcoinPriceChartUiStateMachineImpl(
   private val clock: Clock,
   private val haptics: Haptics,

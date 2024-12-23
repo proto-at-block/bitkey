@@ -5,9 +5,10 @@ package build.wallet.debug
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.DebugOptionsEntity
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.logging.*
-import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -16,6 +17,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class DebugOptionsServiceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val defaultDebugOptionsDecider: DefaultDebugOptionsDecider,

@@ -47,16 +47,16 @@ fun WalletTheme.iconStyle(
                 IconTint.Warning -> colors.warningForeground
                 IconTint.Success -> colors.calloutSuccessTrailingIconBackground
                 IconTint.Information -> colors.calloutInformationTrailingIconBackground
-                null ->
-                  when (color) {
-                    Color.Unspecified -> colors.primaryIcon
-                    else -> color
-                  }
+                null -> when (color) {
+                  Color.Unspecified -> colors.primaryIcon
+                  else -> color
+                }
               }
             else -> Color.Unspecified
           }
 
         is UrlImage, IconImage.Loader -> color
+        IconImage.LoadingBadge -> Color.Unspecified
       }
   )
 }

@@ -5,13 +5,15 @@ import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.logging.*
-import build.wallet.logging.logFailure
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class AppAuthTokenRefresherImpl(
   private val authTokenDao: AuthTokenDao,
   private val accountAuthenticator: AccountAuthenticator,

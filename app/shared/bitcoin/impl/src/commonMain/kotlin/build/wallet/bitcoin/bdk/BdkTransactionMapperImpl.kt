@@ -12,17 +12,17 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.get
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(AppScope::class)
 class BdkTransactionMapperImpl(
   private val bdkAddressBuilder: BdkAddressBuilder,
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
-  private val utxoConsolidationFeatureFlag: UtxoConsolidationFeatureFlag,
 ) : BdkTransactionMapper {
   override suspend fun createTransaction(
     bdkTransaction: BdkTransactionDetails,
@@ -57,11 +57,8 @@ class BdkTransactionMapperImpl(
     val transactionWeight = bdkTransaction.transaction?.weight()
     val vsize = bdkTransaction.transaction?.vsize()
 
-    val isUtxoConsolidation = if (utxoConsolidationFeatureFlag.isEnabled()) {
+    val isUtxoConsolidation =
       bdkTransaction.transaction?.isUtxoConsolidation(bdkWallet, sent) ?: false
-    } else {
-      false
-    }
 
     val total =
       if (isZeroSumTransaction || isUtxoConsolidation) {

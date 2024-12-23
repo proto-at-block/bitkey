@@ -3,7 +3,7 @@ mod types;
 use crate::types::FfiNetwork;
 use bitcoin::{psbt::Psbt, secp256k1::ecdsa::Signature, Network};
 use crypto::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
-use crypto::crypto_box::{CryptoBox, CryptoBoxError, CryptoBoxKeyPair};
+use crypto::crypto_box::{CryptoBox, CryptoBoxError, CryptoBoxKeyPair, CryptoBoxKeyPairError};
 use crypto::ecdh::Secp256k1SharedSecret;
 use crypto::frost::{signing::SigningError, FrostShare};
 use crypto::hkdf::{Hkdf, HkdfError};

@@ -1,21 +1,13 @@
 package build.wallet.statemachine.status
 
 import build.wallet.analytics.events.screen.id.AppFunctionalityEventTrackerScreenId
-import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.ConnectivityCause
-import build.wallet.availability.EmergencyAccessMode
-import build.wallet.availability.F8eUnreachable
-import build.wallet.availability.FunctionalityFeatureStates
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.OutOfDate
-import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
-import build.wallet.availability.InternetUnreachable
+import build.wallet.availability.*
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -34,7 +26,6 @@ data class AppFunctionalityStatusBodyModel(
   val status: AppFunctionalityStatus.LimitedFunctionality,
   val cause: ConnectivityCause,
   val dateFormatter: (Instant) -> String,
-  val isRevampOn: Boolean,
   val onClose: () -> Unit,
 ) : FormBodyModel(
     id = AppFunctionalityEventTrackerScreenId.APP_FUNCTIONALITY_STATUS,
@@ -58,8 +49,7 @@ data class AppFunctionalityStatusBodyModel(
         listGroupModel = ListGroupModel(
           style = ListGroupStyle.CARD_GROUP,
           items = status.featureStates.listItemModels(
-            dateFormatter = dateFormatter,
-            isRevampOn = isRevampOn
+            dateFormatter = dateFormatter
           )
         )
       )
@@ -69,7 +59,6 @@ data class AppFunctionalityStatusBodyModel(
 
 fun FunctionalityFeatureStates.listItemModels(
   dateFormatter: (Instant) -> String,
-  isRevampOn: Boolean,
 ): ImmutableList<ListItemModel> {
   // first step: Create our list of ListItemModels and group them by their availability
   // this creates a map of "Available", "Unavailable", and "OutOfDate" to a list of ListItemModels
@@ -78,7 +67,7 @@ fun FunctionalityFeatureStates.listItemModels(
       receive.listItemModel("Receive", dateFormatter),
       fiatExchangeRates.listItemModel("Currency Rates", dateFormatter),
       send.listItemModel("Send", dateFormatter),
-      mobilePay.listItemModel(SpendingLimitsCopy.get(isRevampOn).title, dateFormatter),
+      mobilePay.listItemModel("Transfer without hardware", dateFormatter),
       customElectrumServer.listItemModel("Custom Electrum Server", dateFormatter),
       securityAndRecovery.listItemModel("Recover Lost Keys", dateFormatter)
     ).groupBy {

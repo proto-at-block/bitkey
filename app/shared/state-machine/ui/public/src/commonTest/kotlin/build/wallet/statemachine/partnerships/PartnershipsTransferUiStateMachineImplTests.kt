@@ -40,7 +40,8 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
     fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
   )
   val eventTracker = EventTrackerMock(turbines::create)
 
@@ -58,7 +59,6 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     PartnershipsTransferUiProps(
       account = FullAccountMock,
       keybox = KeyboxMock,
-      sellBitcoinEnabled = false,
       onBack = {
         onBack.add(Unit)
       },
@@ -167,7 +167,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
   test("unable to load partners renders error sheet with another exchange option") {
     getTransferPartnerListF8eClient.partnersResult = Err(HttpError.NetworkError(Error("Network error")))
-    stateMachine.test(props().copy(sellBitcoinEnabled = true)) {
+    stateMachine.test(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()

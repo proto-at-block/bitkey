@@ -9,35 +9,21 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.TaskStackBuilder
 import androidx.core.graphics.toColorInt
+import build.wallet.di.AndroidAppComponent
 import build.wallet.notification.NotificationDismissBroadcastReceiver
-import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.appVariant
-import build.wallet.platform.config.AppVariant.Beta
-import build.wallet.platform.config.AppVariant.Customer
-import build.wallet.platform.config.AppVariant.Development
-import build.wallet.platform.config.AppVariant.Emergency
-import build.wallet.platform.config.AppVariant.Team
-import build.wallet.platform.config.TouchpointPlatform.Fcm
-import build.wallet.platform.config.TouchpointPlatform.FcmCustomer
-import build.wallet.platform.config.TouchpointPlatform.FcmTeam
+import build.wallet.platform.config.AppVariant.*
+import build.wallet.platform.config.TouchpointPlatform.*
 import build.wallet.shared.platform.impl.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class WalletFirebaseMessagingService : FirebaseMessagingService() {
-  lateinit var deviceTokenManager: DeviceTokenManager
-
-  lateinit var appCoroutineScope: CoroutineScope
+  lateinit var appComponent: AndroidAppComponent
 
   override fun onCreate() {
-    val appComponent =
-      (application as BitkeyApplication)
-        .appComponent
-
-    deviceTokenManager = appComponent.deviceTokenManager
-    appCoroutineScope = appComponent.appCoroutineScope
+    appComponent = (application as BitkeyApplication).appComponent
     super.onCreate()
   }
 
@@ -98,8 +84,8 @@ class WalletFirebaseMessagingService : FirebaseMessagingService() {
   }
 
   override fun onNewToken(token: String) {
-    appCoroutineScope.launch {
-      deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
+    appComponent.appCoroutineScope.launch {
+      appComponent.deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = token,
         touchpointPlatform =
           when (appVariant) {

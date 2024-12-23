@@ -14,6 +14,7 @@ once_cell = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true, features = ["base64"] }
 strum = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }

@@ -1,7 +1,10 @@
 package build.wallet.firmware
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.rust.firmware.Attestation as AttestationCore
 
+@BitkeyInject(AppScope::class)
 class HardwareAttestationImpl : HardwareAttestation {
   override fun verifyCertChain(
     identityCert: List<UByte>,

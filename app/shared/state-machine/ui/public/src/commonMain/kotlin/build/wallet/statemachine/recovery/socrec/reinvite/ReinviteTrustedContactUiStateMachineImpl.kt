@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.clipboard.Clipboard
@@ -22,6 +24,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class ReinviteTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val sharingManager: SharingManager,
@@ -127,6 +130,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
       is State.ShareState ->
         ShareInviteBodyModel(
           trustedContactName = current.invitation.invitation.trustedContactAlias.alias,
+          isBeneficiary = false,
           onShareComplete = {
             // We need to watch the clipboard on Android because we don't get
             // a callback from the share sheet when they use the copy action

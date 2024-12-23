@@ -2,6 +2,8 @@ package build.wallet.auth
 
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -10,6 +12,7 @@ import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class AuthTokenDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : AuthTokenDao {

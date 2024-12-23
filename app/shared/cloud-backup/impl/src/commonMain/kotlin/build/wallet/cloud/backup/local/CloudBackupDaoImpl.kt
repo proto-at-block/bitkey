@@ -2,6 +2,8 @@ package build.wallet.cloud.backup.local
 
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.serialization.json.encodeToStringResult
@@ -24,6 +26,8 @@ import kotlinx.serialization.json.Json
  * Implementation of [CloudBackupDao] which encodes/decodes encrypted [CloudBackup] as JSON
  * and persists it locally using [EncryptedKeyValueStoreFactory].
  */
+
+@BitkeyInject(AppScope::class)
 class CloudBackupDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : CloudBackupDao {

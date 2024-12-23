@@ -6,11 +6,14 @@ import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiStateMachineImpl.State.CustomElectrumServerDisabledUiState
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiStateMachineImpl.State.CustomElectrumServerEnabledUiState
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 
+@BitkeyInject(ActivityScope::class)
 class CustomElectrumServerUiStateMachineImpl(
   private val electrumConfigService: ElectrumConfigService,
 ) : CustomElectrumServerUiStateMachine {

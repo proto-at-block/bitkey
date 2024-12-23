@@ -2,10 +2,13 @@ package build.wallet.encrypt
 
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import build.wallet.rust.core.Hkdf as CoreHkdf
 
+@BitkeyInject(AppScope::class)
 class HkdfImpl : Hkdf {
   override fun deriveKey(
     ikm: ByteString,

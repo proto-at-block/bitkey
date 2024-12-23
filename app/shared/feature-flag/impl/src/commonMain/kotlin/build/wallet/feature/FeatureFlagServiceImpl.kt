@@ -1,14 +1,21 @@
 package build.wallet.feature
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.ComposeUiFeatureFlag
+import build.wallet.platform.config.AppVariant
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
 
+@BitkeyInject(AppScope::class)
 class FeatureFlagServiceImpl(
   private val featureFlags: List<FeatureFlag<out FeatureFlagValue>>,
   private val featureFlagSyncer: FeatureFlagSyncer,
+  private val appVariant: AppVariant,
 ) : FeatureFlagService, FeatureFlagSyncWorker {
   private val featureFlagsInitializedState = MutableStateFlow(false)
   override val flagsInitialized: StateFlow<Boolean> = featureFlagsInitializedState
@@ -25,6 +32,17 @@ class FeatureFlagServiceImpl(
     featureFlagSyncer.sync()
 
     return Ok(Unit)
+  }
+
+  override fun initComposeUiFeatureFlag() {
+    if (appVariant == AppVariant.Development || appVariant == AppVariant.Team) {
+      runBlocking {
+        featureFlags
+          .filterIsInstance<ComposeUiFeatureFlag>()
+          .firstOrNull()
+          ?.initializeFromDao()
+      }
+    }
   }
 
   override suspend fun executeWork() {

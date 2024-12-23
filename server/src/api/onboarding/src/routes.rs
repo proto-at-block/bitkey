@@ -59,6 +59,7 @@ use recovery::repository::RecoveryRepository;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::{
@@ -167,12 +168,16 @@ impl RouterBuilder for RouteState {
                 post(initiate_distributed_keygen),
             )
             .route(
-                "/api/accounts/:account_id/distributed-keygen/:keyset_id",
+                "/api/accounts/:account_id/distributed-keygen/:key_definition_id",
                 put(continue_distributed_keygen),
             )
             .route(
                 "/api/accounts/:account_id/spending-key-definition",
                 put(activate_spending_key_definition),
+            )
+            .route(
+                "/api/accounts/:account_id/self-sovereign-backup",
+                post(create_self_sovereign_backup),
             )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
@@ -226,6 +231,7 @@ impl From<RouteState> for SwaggerEndpoint {
         initiate_distributed_keygen,
         continue_distributed_keygen,
         activate_spending_key_definition,
+        create_self_sovereign_backup,
     ),
     components(
         schemas(
@@ -280,6 +286,8 @@ impl From<RouteState> for SwaggerEndpoint {
             ContinueDistributedKeygenResponse,
             ActivateSpendingKeyDefinitionRequest,
             ActivateSpendingKeyDefinitionResponse,
+            CreateSelfSovereignBackupRequest,
+            CreateSelfSovereignBackupResponse,
         ),
     ),
     tags(
@@ -949,7 +957,7 @@ pub async fn create_account(
     })?;
 
     // provide the generated account ID once we have it
-    tracing::Span::current().record("account_id", &account_id.to_string());
+    tracing::Span::current().record("account_id", account_id.to_string());
 
     // Create Cognito users
     let (app_auth_pubkey, hardware_auth_pubkey, recovery_auth_pubkey) = request.auth_keys();
@@ -1644,6 +1652,91 @@ pub async fn continue_distributed_keygen(
         .await?;
 
     Ok(Json(ContinueDistributedKeygenResponse {}))
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreateSelfSovereignBackupRequest {
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreateSelfSovereignBackupResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
+}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/self-sovereign-backup",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("key_definition_id" = KeyDefinitionId, Path, description = "KeyDefinitionId"),
+    ),
+    request_body = CreateSelfSovereignBackupRequest,
+    responses(
+        (status = 200, description = "Created self-sovereign backup", body=CreateSelfSovereignBackupResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn create_self_sovereign_backup(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<CreateSelfSovereignBackupRequest>,
+) -> Result<Json<CreateSelfSovereignBackupResponse>, ApiError> {
+    let account = account_service
+        .fetch_software_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    let key_definition_id = account
+        .active_key_definition_id
+        .ok_or(RouteError::NoActiveSpendKeyset)?;
+
+    let Some(key_definition) = account.spending_key_definitions.get(&key_definition_id) else {
+        return Err(ApiError::GenericNotFound(
+            "Key definition not found".to_string(),
+        ));
+    };
+
+    let SpendingKeyDefinition::DistributedKey(distributed_key) = key_definition else {
+        return Err(ApiError::GenericBadRequest(
+            "Key definition is not a distributed key".to_string(),
+        ));
+    };
+
+    if !distributed_key.dkg_complete {
+        return Err(ApiError::GenericConflict(
+            "Keygen is not complete for key definition".to_string(),
+        ));
+    }
+
+    let response = wsm_client
+        .create_self_sovereign_backup(
+            &key_definition_id.to_string(),
+            distributed_key.network.into(),
+            request.sealed_request,
+            request.noise_session,
+        )
+        .await
+        .map_err(|e| {
+            let msg = "Failed to create self-sovereign backup in WSM";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    Ok(Json(CreateSelfSovereignBackupResponse {
+        sealed_response: response.sealed_response,
+    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]

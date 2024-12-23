@@ -8,6 +8,8 @@ import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.database.adapters.*
 import build.wallet.database.adapters.bitkey.*
 import build.wallet.database.sqldelight.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
@@ -19,6 +21,7 @@ import build.wallet.sqldelight.adapter.WireColumnAdapter
 import build.wallet.sqldelight.withLogging
 import kotlinx.coroutines.*
 
+@BitkeyInject(AppScope::class)
 class BitkeyDatabaseProviderImpl(
   sqlDriverFactory: SqlDriverFactory,
   appScope: CoroutineScope = CoroutineScope(SupervisorJob()),
@@ -226,11 +229,6 @@ class BitkeyDatabaseProviderImpl(
       fiatCurrencyEntityAdapter =
         FiatCurrencyEntity.Adapter(
           textCodeAdapter = IsoCurrencyTextCodeColumnAdapter
-        ),
-      fiatCurrencyMobilePayConfigurationEntityAdapter =
-        FiatCurrencyMobilePayConfigurationEntity.Adapter(
-          textCodeAdapter = IsoCurrencyTextCodeColumnAdapter,
-          snapValuesAdapter = MobilePaySnapValueColumnAdapter
         ),
       protectedCustomerEntityAdapter =
         ProtectedCustomerEntity.Adapter(

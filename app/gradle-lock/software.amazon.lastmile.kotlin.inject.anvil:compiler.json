@@ -1,0 +1,18 @@
+{
+    "module-identifier": "software.amazon.lastmile.kotlin.inject.anvil:compiler",
+    "components": [
+        {
+            "version": "0.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compiler-0.1.0.jar": "3aab6895b314fad84834584111bbe4215c437af9f28a8e8bff4956a2681270de"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

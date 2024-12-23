@@ -8,6 +8,8 @@ import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudB
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.*
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.relationships.RelationshipsService
@@ -15,6 +17,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class FullAccountCloudBackupCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val fullAccountFieldsCreator: FullAccountFieldsCreator,

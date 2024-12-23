@@ -1,11 +1,11 @@
 package build.wallet.platform.settings
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class LocaleCurrencyCodeProviderImpl actual constructor(
-  platformContext: PlatformContext,
-) : LocaleCurrencyCodeProvider {
-  actual override fun localeCurrencyCode(): String? {
+@BitkeyInject(AppScope::class)
+class LocaleCurrencyCodeProviderImpl : LocaleCurrencyCodeProvider {
+  override fun localeCurrencyCode(): String {
     return "USD"
   }
 }

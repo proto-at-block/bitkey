@@ -5,6 +5,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.SellEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.partnerships.GetSaleQuoteListF8eClient
 import build.wallet.f8e.partnerships.GetSellRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectInfo
@@ -16,7 +18,6 @@ import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.currency.USD
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
@@ -59,6 +60,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class PartnershipsSellOptionsUiStateMachineImpl(
   private val getSaleQuoteListF8eClient: GetSaleQuoteListF8eClient,
   private val getSellRedirectF8eClient: GetSellRedirectF8eClient,
@@ -153,6 +155,7 @@ class PartnershipsSellOptionsUiStateMachineImpl(
             return ListSaleQuotesModel(
               formattedSellAmount,
               quotes = currentState.quotes,
+              fiatCurrency = fiatCurrency,
               onSelectPartnerQuote = { currentState.onPartnerSelected(it.partnerInfo) },
               onBack = props.onBack
             )
@@ -400,22 +403,21 @@ class PartnershipsSellOptionsUiStateMachineImpl(
   private fun ListSaleQuotesModel(
     formattedSellAmount: String,
     quotes: ImmutableList<SaleQuote>,
+    fiatCurrency: FiatCurrency,
     onSelectPartnerQuote: (SaleQuote) -> Unit,
     onBack: () -> Unit,
   ): ScreenModel {
     val models = quotes
       .sortedWith(
-        compareByDescending { it.cryptoAmount }
+        compareByDescending { it.fiatAmount }
       )
       .map { quote ->
-        val bitcoinDisplayAmount = moneyFormatter.format(BitcoinMoney.btc(quote.cryptoAmount))
         val fiatDisplayAmount =
-          moneyFormatter.format(FiatMoney(USD, quote.fiatAmount.toBigDecimal()))
+          moneyFormatter.format(FiatMoney(fiatCurrency, quote.fiatAmount.toBigDecimal()))
 
         ListItemModel(
           title = quote.partnerInfo.name,
           sideText = fiatDisplayAmount,
-          secondarySideText = bitcoinDisplayAmount,
           onClick = { onSelectPartnerQuote(quote) },
           leadingAccessory = IconAccessory(
             model = IconModel(

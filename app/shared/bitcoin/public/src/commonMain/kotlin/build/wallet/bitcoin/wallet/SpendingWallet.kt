@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.wallet
 
+import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.FeePolicy
@@ -45,6 +46,7 @@ interface SpendingWallet : WatchingWallet {
       val recipientAddress: BitcoinAddress,
       val amount: BitcoinTransactionSendAmount,
       val feePolicy: FeePolicy,
+      val coinSelectionStrategy: CoinSelectionStrategy = CoinSelectionStrategy.Default,
     ) : PsbtConstructionMethod
 
     /**
@@ -76,4 +78,24 @@ interface SpendingWallet : WatchingWallet {
       val feeRate: FeeRate,
     ) : PsbtConstructionMethod
   }
+}
+
+/**
+ * Specifies the coin selection strategy to be used when building a [Psbt].
+ */
+sealed interface CoinSelectionStrategy {
+  /**
+   * Default coin selection strategy - let's the BDK choose from all available inputs
+   */
+  data object Default : CoinSelectionStrategy
+
+  /**
+   * Strict coin selection strategy - only use the provided [inputs]
+   */
+  data class Strict(val inputs: Set<BdkTxIn>) : CoinSelectionStrategy
+
+  /**
+   * Preselected coin selection strategy - use the provided [inputs] and let the BDK pull in more if needed
+   */
+  data class Preselected(val inputs: Set<BdkTxIn>) : CoinSelectionStrategy
 }

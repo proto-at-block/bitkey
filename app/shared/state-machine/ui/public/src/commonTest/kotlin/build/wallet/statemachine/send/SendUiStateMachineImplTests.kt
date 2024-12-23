@@ -325,5 +325,26 @@ class SendUiStateMachineImplTests : FunSpec({
         }
       }
     }
+
+    test("going back to amount entry without exchange rates initializes with btc currency") {
+      rateSyncer.exchangeRates.value = listOf()
+      stateMachine.test(props) {
+        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+          onRecipientEntered(someBitcoinAddress)
+        }
+
+        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+          onContinueClick(ContinueTransferParams(SendAll))
+        }
+
+        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+          onBack()
+        }
+
+        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+          initialAmount.currency.shouldBe(BTC)
+        }
+      }
+    }
   }
 })

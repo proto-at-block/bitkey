@@ -32,7 +32,7 @@ instrumentation = { workspace = true }
 
 [dev-dependencies]
 authn_authz = { workspace = true }
-http = "0.2.11"
+http = { workspace = true }
 http-body-util = "0.1.0"
 jwt-authorizer = { workspace = true }
 tower = { workspace = true, features = ["util"] }

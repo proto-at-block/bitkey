@@ -9,6 +9,8 @@ import build.wallet.bitkey.relationships.ChallengeWrapper
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.cloud.backup.v2.FullAccountKeys
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
 import build.wallet.logging.logFailure
 import build.wallet.notifications.DeviceTokenManager
@@ -34,6 +36,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryChallengeUiStateMachineImpl(
   private val crypto: RelationshipsCrypto,
   private val enableNotificationsUiStateMachine: EnableNotificationsUiStateMachine,

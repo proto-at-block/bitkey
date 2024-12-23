@@ -120,7 +120,7 @@ impl InheritanceRepository {
                 TransactWriteItem::builder()
                     .condition_check(
                         ConditionCheck::builder()
-                            .table_name(&recovery_table_name.clone())
+                            .table_name(recovery_table_name.clone())
                             .key(
                                 RELATIONSHIP_PARTITION_KEY.to_string(),
                                 try_to_attribute_val(package.recovery_relationship_id.to_string(), DatabaseObject::SocialRecovery)?,

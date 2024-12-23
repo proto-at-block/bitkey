@@ -5,8 +5,11 @@ import build.wallet.bdk.bindings.BdkNetwork
 import build.wallet.bdk.bindings.BdkResult
 import build.wallet.bdk.bindings.BdkWallet
 import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import org.bitcoindevkit.Descriptor
 
+@BitkeyInject(AppScope::class)
 class BdkWalletFactoryImpl : BdkWalletFactory {
   override fun walletBlocking(
     descriptor: String,

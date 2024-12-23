@@ -33,6 +33,7 @@ locals {
     recovery_table_name              = "${module.this.id_dot}.account_recovery"
     privileged_action_table_name     = "${module.this.id_dot}.privileged_action"
     inheritance_table_name           = "${module.this.id_dot}.inheritance"
+    promotion_code_table_name        = "${module.this.id_dot}.promotion_code"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -92,6 +93,7 @@ locals {
     CONSENT_TABLE               = local.tables.consent_table_name
     PRIVILEGED_ACTION_TABLE     = local.tables.privileged_action_table_name
     INHERITANCE_TABLE           = local.tables.inheritance_table_name
+    PROMOTION_CODE_TABLE        = local.tables.promotion_code_table_name
   }
 
   ###############################################
@@ -182,6 +184,7 @@ module "dynamodb_tables" {
   consent_table_name               = local.tables.consent_table_name
   privileged_action_table_name     = local.tables.privileged_action_table_name
   inheritance_table_name           = local.tables.inheritance_table_name
+  promotion_code_table_name        = local.tables.promotion_code_table_name
 }
 
 module "ecs_api" {
@@ -293,6 +296,7 @@ resource "aws_ecs_task_definition" "api_migration" {
 }
 
 module "api_user_balance_histogram" {
+  count      = var.enable_job_user_balance_histogram ? 1 : 0
   source     = "../../../pieces/ecs-containers"
   name       = "${var.name}-user-balance-histogram"
   image_name = var.image_name
@@ -320,6 +324,7 @@ module "api_user_balance_histogram" {
 }
 
 resource "aws_security_group" "api_user_balance_histogram" {
+  count       = var.enable_job_user_balance_histogram ? 1 : 0
   name        = "${module.this.id}-user-balance-histogram"
   description = "user balance histogram task security group"
   vpc_id      = module.lookup_vpc.vpc_id
@@ -333,10 +338,12 @@ resource "aws_security_group" "api_user_balance_histogram" {
 }
 
 resource "aws_cloudwatch_log_group" "user_balance_histogram" {
-  name = var.namespace == "default" ? "${var.name}-user-balance-histogram" : "${var.namespace}/${var.name}-user-balance-histogram"
+  count = var.enable_job_user_balance_histogram ? 1 : 0
+  name  = var.namespace == "default" ? "${var.name}-user-balance-histogram" : "${var.namespace}/${var.name}-user-balance-histogram"
 }
 
 module "api_user_balance_histogram_iam" {
+  count     = var.enable_job_user_balance_histogram ? 1 : 0
   source    = "../../../pieces/ecs-iam-roles"
   namespace = var.namespace
   name      = "${var.name}-user-balance-histogram"
@@ -344,12 +351,13 @@ module "api_user_balance_histogram_iam" {
 
 # User balance histogram task definition
 resource "aws_ecs_task_definition" "api_user_balance_histogram" {
+  count                    = var.enable_job_user_balance_histogram ? 1 : 0
   family                   = "${module.this.id}-user-balance-histogram"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  execution_role_arn       = module.api_user_balance_histogram_iam.exec_role_arn
-  task_role_arn            = module.api_user_balance_histogram_iam.task_role_arn
-  container_definitions    = jsonencode(module.api_user_balance_histogram.containers)
+  execution_role_arn       = one(module.api_user_balance_histogram_iam[*].exec_role_arn)
+  task_role_arn            = one(module.api_user_balance_histogram_iam[*].task_role_arn)
+  container_definitions    = jsonencode(one(module.api_user_balance_histogram[*].containers))
   cpu                      = 512
   memory                   = 1024
   runtime_platform {
@@ -644,14 +652,20 @@ module "screener_s3_bucket" {
 }
 
 module "user_balance_histogram_data_s3_bucket" {
+  count  = var.enable_job_user_balance_histogram ? 1 : 0
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14"
   // Tag v4.1.0
 
   bucket = local.buckets.user_balance_histogram_data_bucket_name
-
   versioning = {
     enabled = true
   }
+}
+
+// TODO: Remove this once we've moved all the resources to the new module
+moved {
+  from = module.user_balance_histogram_data_s3_bucket.aws_s3_bucket.this[0]
+  to   = module.user_balance_histogram_data_s3_bucket[0].aws_s3_bucket.this[0]
 }
 
 // TODO: Separate policies for each task to only allow them what they need, or maybe don't bother since
@@ -819,7 +833,8 @@ resource "aws_iam_role_policy" "task_api_migration" {
 }
 
 resource "aws_iam_role_policy" "task_api_user_balance_histogram" {
-  role   = module.api_user_balance_histogram_iam.task_role_name
+  count  = var.enable_job_user_balance_histogram ? 1 : 0
+  role   = one(module.api_user_balance_histogram_iam[*].task_role_name)
   policy = data.aws_iam_policy_document.api_iam_policy.json
 }
 
@@ -891,7 +906,8 @@ resource "aws_iam_role_policy" "task_api_migration_secrets" {
 }
 
 resource "aws_iam_role_policy" "task_api_user_balance_histogram_secrets" {
-  role   = module.api_user_balance_histogram_iam.exec_role_name
+  count  = var.enable_job_user_balance_histogram ? 1 : 0
+  role   = one(module.api_user_balance_histogram_iam[*].exec_role_name)
   policy = data.aws_iam_policy_document.secrets_iam_policy.json
 }
 
@@ -972,9 +988,10 @@ module "task_api_migration_table_policy" {
 }
 
 module "task_api_user_balance_histogram_table_policy" {
+  count  = var.enable_job_user_balance_histogram ? 1 : 0
   source = "../../../pieces/dynamodb-iam-policy"
 
-  role        = module.api_user_balance_histogram_iam.task_role_name
+  role        = one(module.api_user_balance_histogram_iam[*].task_role_name)
   table_names = local.table_name_list
 }
 

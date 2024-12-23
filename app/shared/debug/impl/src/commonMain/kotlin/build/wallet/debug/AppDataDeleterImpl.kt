@@ -9,6 +9,8 @@ import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.fwup.FwupDataDao
@@ -35,6 +37,7 @@ import build.wallet.relationships.RelationshipsKeysDao
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class AppDataDeleterImpl(
   private val appVariant: AppVariant,
   private val appPrivateKeyDao: AppPrivateKeyDao,

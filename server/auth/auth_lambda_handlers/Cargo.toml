@@ -26,7 +26,7 @@ tokio = { version = "1.36.0", features = ["full"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 # NOTE: the following crate is not part of the SDK, but it is maintained by AWS.
 base64 = "0.22.0"
-lambda_runtime = "0.11.3"
+lambda_runtime = "0.13.0"
 rand = "0.8.5"
 secp256k1 = { version = "0.28.2", features = ["hashes", "serde"] }
 

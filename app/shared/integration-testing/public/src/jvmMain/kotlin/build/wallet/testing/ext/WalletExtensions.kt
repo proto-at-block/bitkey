@@ -22,6 +22,7 @@ import kotlin.time.Duration.Companion.seconds
  * waiting for non-zero balance by default.
  */
 suspend fun AppTester.waitForFunds(
+  wallet: SpendingWallet? = null,
   balancePredicate: (BitcoinBalance) -> Boolean = { it.total.isPositive },
 ): BitcoinBalance {
   lateinit var balance: BitcoinBalance
@@ -32,7 +33,7 @@ suspend fun AppTester.waitForFunds(
       initialDelay = 1.seconds
     }
   ) {
-    val activeWallet = getActiveWallet()
+    val activeWallet = wallet ?: getActiveWallet()
     activeWallet.sync().shouldBeOk()
     balance = activeWallet.balance().first()
     balancePredicate(balance).shouldBeTrue()

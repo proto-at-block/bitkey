@@ -39,9 +39,7 @@ extension EmergencyAccessKitPdfGeneratorImpl {
             apkParametersProvider: EmergencyAccessKitApkParametersProviderFake(),
             mobileKeyParametersProvider: EmergencyAccessKitMobileKeyParametersProviderFake(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
-            templateProvider: EmergencyAccessKitTemplateProviderImpl(
-                platformContext: PlatformContext()
-            ),
+            templateProvider: EmergencyAccessKitTemplateProviderImpl(),
             backupDateProvider: EmergencyAccessKitBackupDateProviderFake(),
             dateTimeFormatter: DateTimeFormatterImpl(),
             qrCodeGenerator: EmergencyAccessKitQrCodeGeneratorImpl()

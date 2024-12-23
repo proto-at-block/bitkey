@@ -5,6 +5,8 @@ import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.client.installLogging
 import io.ktor.client.*
 import io.ktor.client.plugins.*
@@ -16,6 +18,7 @@ import io.ktor.http.ContentType.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.Json
 
+@BitkeyInject(AppScope::class)
 class MempoolHttpClientImpl(
   private val networkReachabilityProvider: NetworkReachabilityProvider,
 ) : MempoolHttpClient {

@@ -92,4 +92,24 @@ class BitcoinMultiSigDescriptorBuilderImplTests : FunSpec({
       )
     }
   }
+
+  test("Rebuild Receiving Descriptor") {
+    descriptorBuilder.spendingReceivingDescriptor(
+      descriptorKeyset = "wsh(sortedmulti(2,[deadbeef/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKappdpub/*,hw-pub/*,server-pub/*))",
+      publicKey = DescriptorPublicKey(dpub = "[deadbeef/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKappdpub/*"),
+      privateKey = ExtendedPrivateKey(xprv = "app-xprv/*", mnemonic = "app-mnemonic")
+    ).raw.shouldBe(
+      "wsh(sortedmulti(2,app-xprv/0/*,hw-pub/0/*,server-pub/0/*))"
+    )
+  }
+
+  test("Rebuild Change Descriptor") {
+    descriptorBuilder.spendingChangeDescriptor(
+      descriptorKeyset = "wsh(sortedmulti(2,[deadbeef/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKappdpub/*,hw-pub/*,server-pub/*))",
+      publicKey = DescriptorPublicKey(dpub = "[deadbeef/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKappdpub/*"),
+      privateKey = ExtendedPrivateKey(xprv = "app-xprv/*", mnemonic = "app-mnemonic")
+    ).raw.shouldBe(
+      "wsh(sortedmulti(2,app-xprv/1/*,hw-pub/1/*,server-pub/1/*))"
+    )
+  }
 })

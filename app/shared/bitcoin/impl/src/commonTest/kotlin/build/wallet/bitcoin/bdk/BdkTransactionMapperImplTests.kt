@@ -10,9 +10,6 @@ import build.wallet.bitcoin.wallet.shouldBeOutgoing
 import build.wallet.bitcoin.wallet.shouldBePending
 import build.wallet.bitcoin.wallet.shouldBeUtxoConsolidation
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.time.someInstant
 import build.wallet.toUByteList
@@ -32,11 +29,9 @@ class BdkTransactionMapperImplTests : FunSpec({
   val bdkAddressBuilder = BdkAddressBuilderMock(turbines::create)
   val outgoingTransactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
   val bdkWallet = BdkWalletMock(turbines::create)
-  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(FeatureFlagDaoFake())
   val mapper = BdkTransactionMapperImpl(
     bdkAddressBuilder = bdkAddressBuilder,
-    outgoingTransactionDetailDao = outgoingTransactionDetailDao,
-    utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
+    outgoingTransactionDetailDao = outgoingTransactionDetailDao
   )
   val timestamp = someInstant
   val estimatedConfirmationTime = someInstant.plus(10.toDuration(DurationUnit.MINUTES))
@@ -45,9 +40,6 @@ class BdkTransactionMapperImplTests : FunSpec({
     outgoingTransactionDetailDao.reset()
     bdkAddressBuilder.reset()
     bdkWallet.reset()
-    utxoConsolidationFeatureFlag.reset()
-
-    utxoConsolidationFeatureFlag.setFlagValue(true)
   }
 
   suspend fun BdkTransactionMapper.createTransaction(
@@ -164,33 +156,6 @@ class BdkTransactionMapperImplTests : FunSpec({
     transaction.total.fractionalUnitValue.shouldBe(1000.toBigInteger())
 
     transaction.recipientAddress.shouldNotBeNull().address.shouldBe(expectedAddress)
-  }
-
-  test("utxo consolidation is considered outgoing when feature flag is disabled") {
-    utxoConsolidationFeatureFlag.setFlagValue(false)
-
-    val expectedAddress = someBitcoinAddress.address
-    bdkAddressBuilder.buildFromScriptReturn = BdkAddressMock(expectedAddress)
-
-    val script = BdkScriptMock()
-
-    val txOut = listOf(
-      BdkTxOutMock.copy(scriptPubkey = script)
-    )
-    val utxoConsolidation = makeTransactionDetails(
-      received = 900,
-      fee = 100,
-      sent = 1000,
-      transaction = BdkTransactionMock(output = txOut)
-    )
-
-    bdkWallet.isMineResultMap = mapOf(
-      script to true
-    )
-    mapper.createTransaction(utxoConsolidation)
-      .shouldBeOutgoing()
-
-    bdkWallet.isMineCalls.awaitItem().shouldBe(script)
   }
 
   test("To address extracted and built for incoming") {

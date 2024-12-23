@@ -10,6 +10,8 @@ import build.wallet.catchingResult
 import build.wallet.crypto.KeyPurpose
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
@@ -28,6 +30,8 @@ import okio.ByteString.Companion.decodeHex
  * Maintains a dictionary of all stored private keys, using the associated
  * public key as the identifier.
  */
+
+@BitkeyInject(AppScope::class)
 class AppPrivateKeyDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : AppPrivateKeyDao {

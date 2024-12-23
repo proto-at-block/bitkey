@@ -1,11 +1,14 @@
 package build.wallet.analytics.events
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 
+@BitkeyInject(AppScope::class)
 class AnalyticsEventQueueImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : AnalyticsEventQueue {

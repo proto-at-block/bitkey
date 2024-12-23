@@ -1,6 +1,8 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
@@ -11,6 +13,7 @@ import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class LostHardwareRecoveryUiStateMachineImpl(
   private val initiatingLostHardwareRecoveryUiStateMachine:
     InitiatingLostHardwareRecoveryUiStateMachine,

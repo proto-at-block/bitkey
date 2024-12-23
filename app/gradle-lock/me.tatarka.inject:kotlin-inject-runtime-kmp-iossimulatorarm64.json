@@ -1,0 +1,23 @@
+{
+    "module-identifier": "me.tatarka.inject:kotlin-inject-runtime-kmp-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime-kmp-iossimulatorarm64-0.7.2-metadata.jar": "2b14da425a71f89b51c0196948aed9409f2e7086b17e684b49d8d211da4785d8"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-inject-runtime-kmp.klib": "1a3b1d6a6395818945dc67a59a1fe9d6aa1b1dedd5ca191b9df5cc2f44bfae0b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

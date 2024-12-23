@@ -2,6 +2,8 @@ package build.wallet.coachmark
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitAsOneOrNullResult
@@ -10,6 +12,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class CoachmarkDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : CoachmarkDao {

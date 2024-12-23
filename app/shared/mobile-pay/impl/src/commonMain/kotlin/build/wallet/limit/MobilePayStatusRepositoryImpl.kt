@@ -2,6 +2,8 @@ package build.wallet.limit
 
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.mobilepay.MobilePayBalanceF8eClient
 import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
 import build.wallet.ktor.result.HttpError
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class MobilePayStatusRepositoryImpl(
   private val spendingLimitDao: SpendingLimitDao,
   private val mobilePayBalanceF8eClient: MobilePayBalanceF8eClient,

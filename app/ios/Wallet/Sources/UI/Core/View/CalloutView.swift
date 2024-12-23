@@ -77,7 +77,7 @@ public struct CalloutView: View {
                         .foregroundStyle(theme.subtitleColor)
                         .background(
                             GeometryReader { geometry in
-                                EmptyView()
+                                Color.clear
                                     .onAppear {
                                         let isSubtitleMultiLine = geometry.size
                                             .height > CGFloat(subtitleFontLineHeight)
@@ -95,7 +95,9 @@ public struct CalloutView: View {
                         )
                     }
                 }
+            }
 
+            HStack {
                 if let trailingIcon = self.model.trailingIcon {
                     let iconBackgroundColor = switch self.model.treatment {
                     case .default_:
@@ -156,8 +158,8 @@ public struct CalloutView: View {
                     }
                 }
             }
-            .padding(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
         }
+        .padding(EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16))
         .background(
             theme.backgroundColor,
             in: RoundedCorners(radius: 16, corners: .allCorners)

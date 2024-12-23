@@ -10,9 +10,9 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.relationships.Relationships
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class GettingStartedCardUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
@@ -41,7 +42,6 @@ class GettingStartedCardUiStateMachineImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
   private val socRecService: SocRecService,
-  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : GettingStartedCardUiStateMachine {
   @Composable
   override fun model(props: GettingStartedCardUiProps): CardModel? {
@@ -151,8 +151,7 @@ class GettingStartedCardUiStateMachineImpl(
             GettingStartedTaskRowModel(
               task = it,
               isEnabled = it.isEnabled(appFunctionalityStatus),
-              onClick = { it.onClick(props, appFunctionalityStatus) },
-              isRevampEnabled = mobilePayRevampFeatureFlag.isEnabled()
+              onClick = { it.onClick(props, appFunctionalityStatus) }
             )
           }.toImmutableList()
       )

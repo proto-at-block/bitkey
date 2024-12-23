@@ -1,9 +1,11 @@
 import build.wallet.gradle.logic.GenerateStateMachineDiagramTask
 import build.wallet.gradle.logic.extensions.allTargets
+import build.wallet.gradle.logic.ksp.KspProcessorConfig
 
 plugins {
   id("build.wallet.kmp")
   id("build.wallet.ksp")
+  id("build.wallet.di")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.coroutines.native)
@@ -148,6 +150,10 @@ kotlin {
         implementation(projects.shared.platformFake)
         implementation(projects.shared.coachmarkFake)
         implementation(projects.shared.inheritanceFake)
+        // TODO: remove dependency on :impl.
+        implementation(projects.shared.amountImpl) {
+          because("Depends on DoubleFormatterImpl")
+        }
       }
     }
 
@@ -200,7 +206,13 @@ tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {
 
 buildLogic {
   ksp {
-    processors(projects.gradle.formbodymodelGenerator)
-    targets(ios = true) // FormBodyModel snapshot generation is only used for iOS builds.
+    processors(
+      KspProcessorConfig(
+        deps = listOf(projects.gradle.formbodymodelGenerator),
+        android = false,
+        jvm = false,
+        ios = true
+      )
+    )
   }
 }

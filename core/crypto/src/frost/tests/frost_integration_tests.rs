@@ -34,7 +34,44 @@ fn test_dkg_and_receive_funds() {
         server_share_packages.first().unwrap(),
     ];
 
+    let server_share_packages_to_agg = vec![
+        server_share_packages.get(1).unwrap(),
+        app_share_packages.get(1).unwrap(),
+    ];
+
     let app_share_details = aggregate_shares(App, &app_share_packages_to_agg).unwrap();
+    let server_share_details = aggregate_shares(Server, &server_share_packages_to_agg).unwrap();
+
+    // We manually compute the aggregate public key from the verification shares and assert that the one in the share details is correct.
+    let app_verification_share = VerificationShare::new(
+        zkp::SECP256K1,
+        &app_share_details
+            .key_commitments
+            .aggregate_coefficient_commitment(),
+        &Participant::App.into(),
+        2,
+    )
+    .unwrap();
+    let server_verification_share = VerificationShare::new(
+        zkp::SECP256K1,
+        &server_share_details
+            .key_commitments
+            .aggregate_coefficient_commitment(),
+        &Participant::Server.into(),
+        2,
+    )
+    .unwrap();
+
+    let aggregate_pubkey = FrostPublicKey::from_verification_shares(
+        zkp::SECP256K1,
+        &[&app_verification_share, &server_verification_share],
+        &[&Participant::App.into(), &Participant::Server.into()],
+    );
+
+    assert_eq!(
+        app_share_details.key_commitments.aggregate_public_key,
+        ZkpPublicKey(aggregate_pubkey.public_key(zkp::SECP256K1)).into()
+    );
 
     let (wallet, rpc_config) =
         get_wallet(app_share_details.key_commitments.aggregate_public_key).unwrap();
@@ -145,7 +182,7 @@ fn test_sign_psbt() {
 
 fn treasury_fund_address(address: &Address) {
     let treasury_rpc_config = RpcConfig {
-        url: env::var("REGTEST_ELECTRUM_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
+        url: env::var("REGTEST_BITCOIND_SERVER_URI").unwrap_or("127.0.0.1:18443".to_string()),
         auth: Auth::UserPass {
             username: env::var("BITCOIND_RPC_USER").unwrap_or("test".to_string()),
             password: env::var("BITCOIND_RPC_PASSWORD").unwrap_or("test".to_string()),
@@ -183,7 +220,7 @@ fn get_wallet(
     )?;
 
     let rpc_config = RpcConfig {
-        url: env::var("REGTEST_ELECTRUM_SERVER_URI")
+        url: env::var("REGTEST_BITCOIND_SERVER_URI")
             .unwrap_or("127.0.0.1:18443".to_string())
             .to_string(),
         auth: Auth::UserPass {

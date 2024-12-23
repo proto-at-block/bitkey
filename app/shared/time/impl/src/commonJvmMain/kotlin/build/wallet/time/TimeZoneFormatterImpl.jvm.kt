@@ -1,14 +1,18 @@
 package build.wallet.time
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.settings.LocaleProvider
 import build.wallet.platform.settings.toJavaLocale
 import kotlinx.datetime.TimeZone
+import java.util.*
 import java.util.TimeZone as JavaTimeZone
 
-actual class TimeZoneFormatterImpl actual constructor(
+@BitkeyInject(AppScope::class)
+class TimeZoneFormatterImpl(
   private val localeProvider: LocaleProvider,
 ) : TimeZoneFormatter {
-  actual override fun timeZoneShortName(timeZone: TimeZone): String {
+  override fun timeZoneShortName(timeZone: TimeZone): String {
     return JavaTimeZone
       .getTimeZone(timeZone.id)
       .getDisplayName(

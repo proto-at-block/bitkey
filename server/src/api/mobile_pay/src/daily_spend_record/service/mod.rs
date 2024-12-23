@@ -4,11 +4,11 @@ use time::Date;
 use tracing::{event, instrument};
 
 use database::ddb::DatabaseError;
-use errors::ApiError;
 use types::account::identifiers::AccountId;
 
 use crate::daily_spend_record::entities::DailySpendingRecord;
 use crate::daily_spend_record::repository::DailySpendRecordRepository;
+use crate::error::SigningError;
 
 #[derive(Clone)]
 pub struct Service {
@@ -25,7 +25,7 @@ impl Service {
         &self,
         account_id: &AccountId,
         date: Date,
-    ) -> Result<DailySpendingRecord, ApiError> {
+    ) -> Result<DailySpendingRecord, SigningError> {
         match self.repo.fetch(account_id, date).await {
             Ok(record) => Ok(record),
             Err(err) => match err {
@@ -46,7 +46,7 @@ impl Service {
     pub async fn save_daily_spending_record(
         &self,
         record: DailySpendingRecord,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), SigningError> {
         Ok(self.repo.persist(record).await?)
     }
 }

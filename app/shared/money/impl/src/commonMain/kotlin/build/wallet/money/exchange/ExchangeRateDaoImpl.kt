@@ -4,6 +4,8 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.ExchangeRateEntity
 import build.wallet.database.sqldelight.HistoricalExchangeRateEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitAsListResult
@@ -14,6 +16,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class ExchangeRateDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : ExchangeRateDao {

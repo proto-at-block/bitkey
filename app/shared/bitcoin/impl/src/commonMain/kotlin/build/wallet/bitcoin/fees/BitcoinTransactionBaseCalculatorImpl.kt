@@ -7,8 +7,11 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 
+@BitkeyInject(AppScope::class)
 class BitcoinTransactionBaseCalculatorImpl : BitcoinTransactionBaseCalculator {
   override fun minimumSatsRequiredForTransaction(
     walletBalance: BitcoinBalance,

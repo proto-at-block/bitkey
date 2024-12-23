@@ -7,6 +7,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.first
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
+@BitkeyInject(ActivityScope::class)
 class PartnershipsPurchaseUiStateMachineImpl(
   val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val partnershipTransactionsService: PartnershipTransactionsService,

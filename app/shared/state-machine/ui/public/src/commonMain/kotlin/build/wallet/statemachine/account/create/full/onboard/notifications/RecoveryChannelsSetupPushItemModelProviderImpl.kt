@@ -1,5 +1,7 @@
 package build.wallet.statemachine.account.create.full.onboard.notifications
 
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.PermissionStatus.Authorized
 import build.wallet.platform.permissions.PermissionStatus.Denied
 import build.wallet.platform.permissions.PermissionStatus.NotDetermined
@@ -9,6 +11,7 @@ import build.wallet.statemachine.account.create.full.onboard.notifications.Recov
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.NotCompleted
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(ActivityScope::class)
 class RecoveryChannelsSetupPushItemModelProviderImpl(
   private val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
   private val systemSettingsLauncher: SystemSettingsLauncher,

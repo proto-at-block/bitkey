@@ -99,7 +99,6 @@ private extension FormBodyModel {
     ) -> FormBodyModel {
         return SnapshotTestModels.shared.CreateTransferConfirmationScreenModel(
             onBack: {},
-            onCancel: {},
             variant: displayVariant,
             recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
             transactionDetails: .init(

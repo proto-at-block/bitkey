@@ -1,11 +1,12 @@
-import build.wallet.gradle.logic.extensions.targets
+import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
-  targets(ios = true, jvm = true)
+  allTargets()
 
   sourceSets {
     commonMain {
@@ -14,6 +15,8 @@ kotlin {
         api(projects.shared.databasePublic)
         api(projects.shared.debugPublic)
         api(projects.shared.f8eClientPublic)
+        // TODO: break impl dependency.
+        implementation(projects.shared.f8eClientImpl)
       }
     }
 

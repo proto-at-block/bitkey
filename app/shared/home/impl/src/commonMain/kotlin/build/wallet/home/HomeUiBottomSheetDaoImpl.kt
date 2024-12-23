@@ -1,6 +1,8 @@
 package build.wallet.home
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -10,6 +12,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class HomeUiBottomSheetDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : HomeUiBottomSheetDao {

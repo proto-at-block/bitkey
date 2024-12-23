@@ -21,7 +21,7 @@ private const val MAX_NFC_COMMAND_RETRIES = 5
 /**
  * Retries NFC commands that are idempotent.
  */
-fun retryCommands() =
+internal fun retryCommands() =
   NfcTransactionInterceptor { next ->
     { session, commands -> next(session, RetryingNfcCommandsImpl(commands)) }
   }

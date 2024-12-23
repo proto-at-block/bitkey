@@ -41,18 +41,22 @@ interface SharingManager {
 
 fun SharingManager.shareInvitation(
   inviteCode: String,
+  isBeneficiary: Boolean = false,
   onCompletion: () -> Unit = {},
   onFailure: () -> Unit = {},
 ) {
+  val roleType = if (isBeneficiary) "beneficiary" else "Trusted Contact"
+  val trustedContactRoleExplainer = if (isBeneficiary) "" else " If my device ever gets lost, you'd be a huge help with the recovery."
+
   shareText(
-    """Hey! I'm setting you up as a Trusted Contact in my Bitkey bitcoin wallet. If my device ever gets lost, you'd be a huge help with the recovery. 
+    """Hey! I'm setting you up as a $roleType in my Bitkey bitcoin wallet.$trustedContactRoleExplainer
                 
 Could you download the app and enter this invite code when you sign up?
 
 INVITE CODE: $inviteCode
 
 https://bitkey.world/links/downloads/trusted-contact#$inviteCode""",
-    "BitKey Trusted Contact"
+    "BitKey $roleType"
   ) { success ->
     if (success) {
       onCompletion()

@@ -2,6 +2,7 @@ import build.wallet.gradle.logic.extensions.targets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
 }

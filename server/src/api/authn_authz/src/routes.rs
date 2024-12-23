@@ -14,14 +14,21 @@ use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use errors::ApiError;
+use feature_flags::service::Service as FeatureFlagService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
 use wsm_rust_client::{SigningService, WsmClient};
 
+use crate::debug_utils::log_debug_info_if_applicable;
 use crate::metrics::{FACTORY, FACTORY_NAME};
 
 #[derive(Clone, axum_macros::FromRef)]
-pub struct RouteState(pub UserPoolService, pub AccountService, pub WsmClient);
+pub struct RouteState(
+    pub UserPoolService,
+    pub AccountService,
+    pub WsmClient,
+    pub FeatureFlagService,
+);
 
 impl RouterBuilder for RouteState {
     fn unauthed_router(&self) -> Router {
@@ -85,6 +92,12 @@ pub struct AuthenticateWithRecoveryAuthkeyRequest {
     pub recovery_auth_pubkey: PublicKey,
 }
 
+impl From<AuthenticateWithRecoveryAuthkeyRequest> for AuthRequestKey {
+    fn from(request: AuthenticateWithRecoveryAuthkeyRequest) -> Self {
+        AuthRequestKey::RecoveryPubkey(request.recovery_auth_pubkey)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AuthenticateWithRecoveryResponse {
@@ -95,7 +108,10 @@ pub struct AuthenticateWithRecoveryResponse {
 }
 
 //TODO[BKR-608]: Remove this once we're using /api/authenticate
-#[instrument(fields(username), skip(account_service, user_pool_service))]
+#[instrument(
+    fields(username),
+    skip(account_service, user_pool_service, feature_flag_service)
+)]
 #[utoipa::path(
     post,
     path = "/api/recovery-auth",
@@ -108,6 +124,7 @@ pub struct AuthenticateWithRecoveryResponse {
 pub async fn authenticate_with_recovery(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flag_service): State<FeatureFlagService>,
     Json(request): Json<AuthenticateWithRecoveryAuthkeyRequest>,
 ) -> Result<Json<AuthenticateWithRecoveryResponse>, ApiError> {
     let pubkeys_to_account = account_service
@@ -116,7 +133,12 @@ pub async fn authenticate_with_recovery(
         })
         .await?;
 
-    tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
+    log_debug_info_if_applicable(
+        &feature_flag_service,
+        &pubkeys_to_account.id,
+        &AuthRequestKey::from(request),
+    );
+    tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let user = CognitoUser::Recovery(pubkeys_to_account.id.clone());
     let auth_challenge = user_pool_service
@@ -141,6 +163,12 @@ pub struct AuthenticateWithHardwareRequest {
     pub hw_auth_pubkey: PublicKey,
 }
 
+impl From<AuthenticateWithHardwareRequest> for AuthRequestKey {
+    fn from(request: AuthenticateWithHardwareRequest) -> Self {
+        AuthRequestKey::HwPubkey(request.hw_auth_pubkey)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct AuthenticateWithHardwareResponse {
@@ -149,7 +177,10 @@ pub struct AuthenticateWithHardwareResponse {
     pub session: String,
 }
 
-#[instrument(fields(account_id), skip(account_service, user_pool_service))]
+#[instrument(
+    fields(account_id),
+    skip(account_service, user_pool_service, feature_flag_service)
+)]
 #[utoipa::path(
     post,
     path = "/api/hw-auth",
@@ -162,6 +193,7 @@ pub struct AuthenticateWithHardwareResponse {
 pub async fn authenticate_with_hardware(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flag_service): State<FeatureFlagService>,
     Json(request): Json<AuthenticateWithHardwareRequest>,
 ) -> Result<Json<AuthenticateWithHardwareResponse>, ApiError> {
     let pubkeys_to_account = account_service
@@ -170,7 +202,12 @@ pub async fn authenticate_with_hardware(
         })
         .await?;
 
-    tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
+    log_debug_info_if_applicable(
+        &feature_flag_service,
+        &pubkeys_to_account.id,
+        &AuthRequestKey::from(request),
+    );
+    tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let user = CognitoUser::Hardware(pubkeys_to_account.id.clone());
     let auth_challenge = user_pool_service
@@ -210,7 +247,10 @@ pub struct AuthenticationResponse {
     pub session: String,
 }
 
-#[instrument(fields(account_id), skip(account_service, user_pool_service))]
+#[instrument(
+    fields(account_id),
+    skip(account_service, user_pool_service, feature_flag_service)
+)]
 #[utoipa::path(
     post,
     path = "/api/authenticate",
@@ -223,6 +263,7 @@ pub struct AuthenticationResponse {
 pub async fn authenticate(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flag_service): State<FeatureFlagService>,
     Json(request): Json<AuthenticationRequest>,
 ) -> Result<Json<AuthenticationResponse>, ApiError> {
     let (requested_cognito_user, pubkeys_to_account) = match request.auth_request_key {
@@ -255,7 +296,12 @@ pub async fn authenticate(
         }
     };
 
-    tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
+    log_debug_info_if_applicable(
+        &feature_flag_service,
+        &pubkeys_to_account.id,
+        &request.auth_request_key,
+    );
+    tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let auth_challenge = user_pool_service
         .initiate_auth_for_user(requested_cognito_user, &pubkeys_to_account)

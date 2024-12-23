@@ -14,12 +14,15 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.logging.*
+import build.wallet.logging.logError
 import build.wallet.mapResult
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
+import build.wallet.recovery.RecoverySyncFrequency
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
@@ -31,10 +34,8 @@ import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.launch
-import kotlin.native.HiddenFromObjC
-import kotlin.time.Duration
 
-@HiddenFromObjC
+@BitkeyInject(AppScope::class)
 class AccountDataStateMachineImpl(
   private val hasActiveFullAccountDataStateMachine: HasActiveFullAccountDataStateMachine,
   private val hasActiveLiteAccountDataStateMachine: HasActiveLiteAccountDataStateMachine,
@@ -42,7 +43,7 @@ class AccountDataStateMachineImpl(
   private val accountService: AccountService,
   private val recoverySyncer: RecoverySyncer,
   private val someoneElseIsRecoveringDataStateMachine: SomeoneElseIsRecoveringDataStateMachine,
-  private val recoverySyncFrequency: Duration,
+  private val recoverySyncFrequency: RecoverySyncFrequency,
   private val debugOptionsService: DebugOptionsService,
 ) : AccountDataStateMachine {
   @Composable
@@ -294,7 +295,7 @@ class AccountDataStateMachineImpl(
     LaunchedEffect("recovery-syncer-sync", fullAccountId, f8eEnvironment) {
       recoverySyncer.launchSync(
         scope = this,
-        syncFrequency = recoverySyncFrequency,
+        syncFrequency = recoverySyncFrequency.value,
         fullAccountId = fullAccountId,
         f8eEnvironment = f8eEnvironment
       )

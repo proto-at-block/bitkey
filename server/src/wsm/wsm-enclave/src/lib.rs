@@ -22,6 +22,7 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk::bitcoin::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
 use bdk::bitcoin::hashes::sha256;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
+use bdk::bitcoin::psbt::Psbt;
 use bdk::bitcoin::secp256k1::{ecdsa::Signature, All, Message, Secp256k1, SecretKey};
 use bdk::bitcoin::Network;
 use bdk::database::MemoryDatabase;
@@ -34,12 +35,18 @@ use bdk::{KeychainKind, SignOptions, Wallet};
 use crypto::frost::dkg::server::continue_dkg;
 use crypto::frost::dkg::{server::initiate_dkg, SharePackage};
 
+use crypto::frost::signing::Signer;
+use crypto::frost::signing::SigningCommitment;
+use crypto::frost::zkp::frost::FrostPartialSignature;
 use crypto::frost::KeyCommitments;
+use crypto::frost::Participant;
 use crypto::frost::ShareDetails;
+use crypto::ssb::server::create_ssb;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::{base64::Base64, serde_as};
 
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
@@ -50,6 +57,10 @@ use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenRequest;
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
+use wsm_common::messages::enclave::EnclaveCreateSelfSovereignBackupRequest;
+use wsm_common::messages::enclave::EnclaveCreateSelfSovereignBackupResponse;
+use wsm_common::messages::enclave::EnclaveGeneratePartialSignaturesRequest;
+use wsm_common::messages::enclave::EnclaveGeneratePartialSignaturesResponse;
 use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenRequest;
 use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenResponse;
 use wsm_common::messages::enclave::{
@@ -713,6 +724,165 @@ async fn continue_distributed_keygen(
     Ok(Json(EnclaveContinueDistributedKeygenResponse {}))
 }
 
+#[derive(Deserialize, Serialize, Debug)]
+struct SignTransactionSealedRequest {
+    pub psbt: Psbt,
+    pub signing_commitments: Vec<SigningCommitment>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct SignTransactionSealedResponse {
+    pub signing_commitments: Vec<SigningCommitment>,
+    pub partial_signatures: Vec<FrostPartialSignature>,
+}
+
+async fn generate_partial_signatures(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveGeneratePartialSignaturesRequest>,
+) -> Result<Json<EnclaveGeneratePartialSignaturesResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let share_details = decode_wrapped_share_details(
+        keystore.clone(),
+        &request.wrapped_share_details,
+        &request.wrapped_share_details_nonce,
+        &request.dek_id,
+        &request.root_key_id,
+        Some(request.network),
+        &mut log_buffer,
+    )
+    .await?;
+
+    let sealed_request_bytes = BASE64
+        .decode(request.sealed_request.as_bytes())
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to decode sealed request: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let sealed_request = serde_json::from_slice::<SignTransactionSealedRequest>(
+        &sealed_request_bytes,
+    )
+    .map_err(|e| WsmError::ServerError {
+        message: format!("Failed to deserialize sealed request: {}", e),
+        log_buffer: log_buffer.clone(),
+    })?;
+
+    let mut signer = Signer::new(Participant::Server, sealed_request.psbt, share_details)
+        .expect("Could not create signer");
+
+    let partial_signatures = signer
+        .generate_partial_signatures(sealed_request.signing_commitments)
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to generate partial signatures: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let sealed_response = SignTransactionSealedResponse {
+        signing_commitments: signer.public_signing_commitments(),
+        partial_signatures,
+    };
+
+    let sealed_response_bytes =
+        serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize sealed response: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    Ok(Json(EnclaveGeneratePartialSignaturesResponse {
+        sealed_response: BASE64.encode(sealed_response_bytes),
+    }))
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+struct CreateSelfSovereignBackupSealedRequest {
+    #[serde_as(as = "Base64")]
+    pub lka_pub: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub lkn_pub: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+struct CreateSelfSovereignBackupSealedResponse {
+    #[serde_as(as = "Base64")]
+    pub eph_pub: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub nonce: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub ciphertext: Vec<u8>,
+}
+
+async fn create_self_sovereign_backup(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveCreateSelfSovereignBackupRequest>,
+) -> Result<Json<EnclaveCreateSelfSovereignBackupResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let share_details = decode_wrapped_share_details(
+        keystore.clone(),
+        &request.wrapped_share_details,
+        &request.wrapped_share_details_nonce,
+        &request.dek_id,
+        &request.root_key_id,
+        Some(request.network),
+        &mut log_buffer,
+    )
+    .await?;
+
+    // TODO: Decrypt sealed request before decoding it W-10274
+
+    let sealed_request =
+        serde_json::from_slice::<CreateSelfSovereignBackupSealedRequest>(&request.sealed_request)
+            .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to deserialize sealed request: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let backup = create_ssb(
+        sealed_request
+            .lka_pub
+            .try_into()
+            .map_err(|_| WsmError::ServerError {
+                message: "Invalid length for lka_pub".to_string(),
+                log_buffer: log_buffer.clone(),
+            })?,
+        sealed_request
+            .lkn_pub
+            .try_into()
+            .map_err(|_| WsmError::ServerError {
+                message: "Invalid length for lkn_pub".to_string(),
+                log_buffer: log_buffer.clone(),
+            })?,
+        share_details.secret_share.serialize().to_vec(),
+    )
+    .map_err(|e| WsmError::ServerError {
+        message: format!("Failed to create ssb: {}", e),
+        log_buffer: log_buffer.clone(),
+    })?;
+
+    let sealed_response = CreateSelfSovereignBackupSealedResponse {
+        eph_pub: backup.eph_pub.to_vec(),
+        nonce: backup.nonce.to_vec(),
+        ciphertext: backup.ciphertext,
+    };
+
+    let sealed_response_bytes =
+        serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize sealed response: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    // TODO: Encrypt sealed response before returning it W-10274
+
+    Ok(Json(EnclaveCreateSelfSovereignBackupResponse {
+        sealed_response: sealed_response_bytes,
+    }))
+}
+
 async fn derive_key(
     State(route_state): State<RouteState>,
     Json(request): Json<EnclaveDeriveKeyRequest>,
@@ -1044,6 +1214,14 @@ impl From<RouteState> for Router {
             .route(
                 "/continue-distributed-keygen",
                 post(continue_distributed_keygen),
+            )
+            .route(
+                "/generate-partial-signatures",
+                post(generate_partial_signatures),
+            )
+            .route(
+                "/create-self-sovereign-backup",
+                post(create_self_sovereign_backup),
             )
             .with_state(state)
     }

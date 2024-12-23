@@ -1,6 +1,8 @@
 package build.wallet.statemachine.recovery.socrec.view
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
@@ -14,6 +16,7 @@ import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiSt
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
 
+@BitkeyInject(ActivityScope::class)
 class ViewingInvitationUiStateMachineImpl(
   private val removeTrustedContactsUiStateMachine: RemoveTrustedContactUiStateMachine,
   private val reinviteTrustedContactUiStateMachine: ReinviteTrustedContactUiStateMachine,

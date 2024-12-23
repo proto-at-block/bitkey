@@ -3,6 +3,8 @@ package build.wallet.recovery.socrec
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
 import build.wallet.relationships.RelationshipsCodeBuilder
 import build.wallet.relationships.RelationshipsCodeVersionError
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class SocialChallengeVerifierImpl(
   private val socRecChallengeRepository: SocRecChallengeRepository,
   private val relationshipsCrypto: RelationshipsCrypto,
@@ -39,7 +42,7 @@ class SocialChallengeVerifierImpl(
           SocialChallengeError.UnableToVerifyChallengeError(cause = it)
         }.bind()
 
-      val decryptPkekOutput = relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+      val decryptPkekOutput = relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
         password = pakePart,
         protectedCustomerRecoveryPakeKey = challengeResponse.protectedCustomerRecoveryPakePubkey,
         delegatedDecryptionKey = delegatedDecryptionKey,

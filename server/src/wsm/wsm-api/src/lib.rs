@@ -26,13 +26,17 @@ use wsm_common::bitcoin::bip32::DerivationPath;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
     AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
-    CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse, GetIntegritySigRequest,
-    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
-    SignPsbtRequest, SignedPsbt,
+    CreateRootKeyRequest, CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
+    CreatedSigningKey, GenerateIntegrityKeyResponse, GeneratePartialSignaturesRequest,
+    GeneratePartialSignaturesResponse, GetIntegritySigRequest, GetIntegritySigResponse,
+    InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse, SignPsbtRequest,
+    SignedPsbt,
 };
 use wsm_common::messages::enclave::{
-    EnclaveContinueDistributedKeygenRequest, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest,
-    EnclaveInitiateDistributedKeygenRequest, EnclaveSignRequest,
+    EnclaveContinueDistributedKeygenRequest, EnclaveCreateKeyRequest,
+    EnclaveCreateSelfSovereignBackupRequest, EnclaveDeriveKeyRequest,
+    EnclaveGeneratePartialSignaturesRequest, EnclaveInitiateDistributedKeygenRequest,
+    EnclaveSignRequest,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -62,6 +66,10 @@ impl From<RouteState> for Router {
             .route("/health-check", get(health_check))
             .route("/create-key", post(create_key))
             .route("/sign-psbt", post(sign_psbt))
+            .route(
+                "/generate-partial-signatures",
+                post(generate_partial_signatures),
+            )
             .route("/integrity-sig", get(integrity_sig))
             .route("/generate-integrity-key", get(generate_integrity_key))
             .route("/attestation-doc", get(attestation_doc))
@@ -72,6 +80,10 @@ impl From<RouteState> for Router {
             .route(
                 "/continue-distributed-keygen",
                 post(continue_distributed_keygen),
+            )
+            .route(
+                "/create-self-sovereign-backup",
+                post(create_self_sovereign_backup),
             )
             .with_state(state)
     }
@@ -276,8 +288,85 @@ async fn continue_distributed_keygen(
                 .map_err(|e| {
                     ApiError::ServerError(format!("Error continuing distributed keygen: {e}"))
                 })?;
-            Ok(Json(ContinueDistributedKeygenResponse {
+            Ok(Json(ContinueDistributedKeygenResponse {}))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer key share {root_key_id} not found"
+        ))),
+    }
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn create_self_sovereign_backup(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<CreateSelfSovereignBackupRequest>,
+) -> Result<Json<CreateSelfSovereignBackupResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    match customer_key_share_store
+        .get_customer_key_share(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer key shares DDB table: {e}"))
+        })? {
+        Some(cks) => {
+            let enclave_request = EnclaveCreateSelfSovereignBackupRequest {
                 root_key_id: root_key_id.clone(),
+                dek_id: cks.dek_id,
+                network: request.network,
+                wrapped_share_details: cks.share_details_ciphertext,
+                wrapped_share_details_nonce: cks.share_details_nonce,
+                sealed_request: request.sealed_request,
+                noise_session_id: request.noise_session_id,
+            };
+            let response = enclave_client
+                .create_self_sovereign_backup(enclave_request)
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Error creating self-sovereign backup: {e}"))
+                })?;
+            Ok(Json(CreateSelfSovereignBackupResponse {
+                sealed_response: response.sealed_response,
+            }))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer key share {root_key_id} not found"
+        ))),
+    }
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn generate_partial_signatures(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<GeneratePartialSignaturesRequest>,
+) -> Result<Json<GeneratePartialSignaturesResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+
+    match customer_key_share_store
+        .get_customer_key_share(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer key shares DDB table: {e}"))
+        })? {
+        Some(cks) => {
+            let enclave_request = EnclaveGeneratePartialSignaturesRequest {
+                root_key_id: root_key_id.clone(),
+                dek_id: cks.dek_id,
+                network: request.network,
+                wrapped_share_details: cks.share_details_ciphertext,
+                wrapped_share_details_nonce: cks.share_details_nonce,
+                sealed_request: request.sealed_request,
+            };
+            let enclave_response = enclave_client
+                .generate_partial_signatures(enclave_request)
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Error generating partial signatures: {e}"))
+                })?;
+
+            Ok(Json(GeneratePartialSignaturesResponse {
+                sealed_response: enclave_response.sealed_response,
             }))
         }
         None => Err(ApiError::NotFound(format!(

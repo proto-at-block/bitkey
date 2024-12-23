@@ -1,7 +1,13 @@
 use std::collections::HashSet;
 
-use crate::state_machine::{
-    pending_recovery::PendingRecoveryResponse, PendingDelayNotifyRecovery, RecoveryResponse,
+use crate::{
+    service::inheritance::{
+        recreate_pending_claims_for_beneficiary::RecreatePendingClaimsForBeneficiaryInput,
+        Service as InheritanceService,
+    },
+    state_machine::{
+        pending_recovery::PendingRecoveryResponse, PendingDelayNotifyRecovery, RecoveryResponse,
+    },
 };
 use account::{
     error::AccountError,
@@ -22,6 +28,8 @@ use comms_verification::{
     Service as CommsVerificationService, VerifyForScopeInput,
 };
 use errors::{ApiError, ErrorCode};
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::{flag::evaluate_flag_value, service::Service as FeatureFlagsService};
 use http_server::{
     router::RouterBuilder,
     swagger::{SwaggerEndpoint, Url},
@@ -33,7 +41,7 @@ use serde_json::Value;
 use time::Duration;
 use tracing::{event, instrument, Level};
 use types::account::{
-    entities::{CommsVerificationScope, Factor, FullAccountAuthKeysPayload, Touchpoint},
+    entities::{Account, CommsVerificationScope, Factor, FullAccountAuthKeysPayload, Touchpoint},
     identifiers::{AccountId, TouchpointId},
 };
 use userpool::userpool::UserPoolService;
@@ -49,14 +57,18 @@ use crate::{
     state_machine::{run_recovery_fsm, RecoveryEvent},
 };
 
+use super::INHERITANCE_ENABLED_FLAG_KEY;
+
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
     pub AccountService,
+    pub InheritanceService,
     pub NotificationService,
     pub CommsVerificationService,
     pub UserPoolService,
     pub RecoveryRepository,
     pub SocialChallengeService,
+    pub FeatureFlagsService,
 );
 
 impl RouterBuilder for RouteState {
@@ -161,10 +173,12 @@ pub struct CreateAccountDelayNotifyRequest {
     err,
     skip(
         account_service,
+        inheritance_service,
         notification_service,
         recovery_service,
         social_challenge_service,
-        comms_verification_service
+        comms_verification_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -182,10 +196,12 @@ pub struct CreateAccountDelayNotifyRequest {
 pub async fn create_delay_notify(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Json(request): Json<CreateAccountDelayNotifyRequest>,
 ) -> Result<Json<Value>, ApiError> {
@@ -214,10 +230,12 @@ pub async fn create_delay_notify(
         account_id.clone(),
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await
     .map(|r| Json(r.response()))?;
@@ -229,10 +247,12 @@ pub async fn create_delay_notify(
         update_recovery_delay_for_test_account(
             account_id,
             account_service,
+            inheritance_service,
             notification_service,
             recovery_service,
             social_challenge_service,
             comms_verification_service,
+            feature_flags_service,
             UpdateDelayForTestRecoveryRequest {
                 delay_period_num_sec: request.delay_period_num_sec,
             },
@@ -252,10 +272,12 @@ pub struct UpdateDelayForTestRecoveryRequest {
 async fn update_recovery_delay_for_test_account(
     account_id: AccountId,
     account_service: AccountService,
+    inheritance_service: InheritanceService,
     notification_service: NotificationService,
     recovery_service: RecoveryRepository,
     social_challenge_service: SocialChallengeService,
     comms_verification_service: CommsVerificationService,
+    feature_flags_service: FeatureFlagsService,
     request: UpdateDelayForTestRecoveryRequest,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![
@@ -268,10 +290,12 @@ async fn update_recovery_delay_for_test_account(
         account_id,
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await
     .map(|r| Json(r.response()))
@@ -281,10 +305,12 @@ async fn update_recovery_delay_for_test_account(
     err,
     skip(
         account_service,
+        inheritance_service,
         notification_service,
         recovery_service,
         social_challenge_service,
-        comms_verification_service
+        comms_verification_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -303,20 +329,24 @@ async fn update_recovery_delay_for_test_account(
 pub async fn update_delay_for_test_account(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Json(request): Json<UpdateDelayForTestRecoveryRequest>,
 ) -> Result<Json<Value>, ApiError> {
     update_recovery_delay_for_test_account(
         account_id,
         account_service,
+        inheritance_service,
         notification_service,
         recovery_service,
         social_challenge_service,
         comms_verification_service,
+        feature_flags_service,
         request,
     )
     .await
@@ -326,10 +356,12 @@ pub async fn update_delay_for_test_account(
     err,
     skip(
         account_service,
+        inheritance_service,
         notification_service,
         recovery_service,
         social_challenge_service,
-        comms_verification_service
+        comms_verification_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -346,10 +378,12 @@ pub async fn update_delay_for_test_account(
 pub async fn cancel_delay_notify(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
 ) -> Result<(), ApiError> {
     let events = vec![
@@ -360,10 +394,12 @@ pub async fn cancel_delay_notify(
         account_id,
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await?;
 
@@ -374,10 +410,12 @@ pub async fn cancel_delay_notify(
     err,
     skip(
         account_service,
+        inheritance_service,
         notification_service,
         recovery_service,
         social_challenge_service,
-        comms_verification_service
+        comms_verification_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -394,20 +432,24 @@ pub async fn cancel_delay_notify(
 pub async fn get_recovery_status(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![RecoveryEvent::CheckAccountRecoveryState];
     run_recovery_fsm(
         account_id,
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await
     .map(|r| Json(r.response()))
@@ -420,18 +462,20 @@ pub struct CompleteDelayNotifyRequest {
     pub hardware_signature: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(Deserialize, Serialize, ToSchema)]
 pub struct CompleteDelayNotifyResponse {}
 
 #[instrument(
     err,
     skip(
         account_service,
+        inheritance_service,
         recovery_service,
         notification_service,
         social_challenge_service,
         user_pool_service,
         comms_verification_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -451,10 +495,13 @@ pub async fn complete_delay_notify_transaction(
     Path(account_id): Path<AccountId>,
     State(notification_service): State<NotificationService>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<CompleteDelayNotifyRequest>,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![
@@ -464,16 +511,21 @@ pub async fn complete_delay_notify_transaction(
             app_signature: request.app_signature,
             hardware_signature: request.hardware_signature,
         },
-        RecoveryEvent::RotateKeyset { user_pool_service },
+        RecoveryEvent::RotateKeyset {
+            user_pool_service,
+            experimentation_claims,
+        },
     ];
     run_recovery_fsm(
         account_id,
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await
     .map(|r| Json(r.response()))
@@ -621,10 +673,12 @@ pub struct RotateAuthenticationKeysResponse {}
     skip(
         notification_service,
         account_service,
+        inheritance_service,
         recovery_service,
         social_challenge_service,
         comms_verification_service,
         user_pool_service,
+        feature_flags_service,
     )
 )]
 #[utoipa::path(
@@ -644,11 +698,14 @@ pub async fn rotate_authentication_keys(
     Path(account_id): Path<AccountId>,
     State(notification_service): State<NotificationService>,
     State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
     State(recovery_service): State<RecoveryRepository>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<RotateAuthenticationKeysRequest>,
 ) -> Result<Json<RotateAuthenticationKeysResponse>, ApiError> {
     if !(key_proof.hw_signed && key_proof.app_signed) {
@@ -724,10 +781,12 @@ pub async fn rotate_authentication_keys(
         account_id.clone(),
         events,
         &account_service,
+        &inheritance_service,
         &recovery_service,
         &notification_service,
         &social_challenge_service,
         &comms_verification_service,
+        &feature_flags_service,
     )
     .await
     {
@@ -737,7 +796,7 @@ pub async fn rotate_authentication_keys(
         }
     }
 
-    account_service
+    let updated_account = account_service
         .create_and_rotate_auth_keys(CreateAndRotateAuthKeysInput {
             account_id: &account_id,
             app_auth_pubkey: request.application.key,
@@ -751,7 +810,7 @@ pub async fn rotate_authentication_keys(
             &account_id,
             Some(request.application.key),
             Some(request.hardware.key),
-            request.recovery.map(|f| f.key),
+            request.recovery.as_ref().map(|f| f.key),
         )
         .await
         .map_err(RecoveryError::RotateAuthKeys)?;
@@ -762,7 +821,30 @@ pub async fn rotate_authentication_keys(
         })
         .await?;
 
-    metrics::AUTH_KEYS_ROTATED.add(1, &[]);
+    // Recreate pending claims for beneficiary if account is full
+    if let Account::Full(updated_full_account) = updated_account {
+        let is_inheritance_enabled = experimentation_claims
+            .account_context_key()
+            .ok()
+            .and_then(|context_key| {
+                evaluate_flag_value(
+                    &feature_flags_service,
+                    INHERITANCE_ENABLED_FLAG_KEY,
+                    &context_key,
+                )
+                .ok()
+            })
+            .unwrap_or(false);
 
+        if is_inheritance_enabled {
+            inheritance_service
+                .recreate_pending_claims_for_beneficiary(RecreatePendingClaimsForBeneficiaryInput {
+                    beneficiary: &updated_full_account,
+                })
+                .await?;
+        }
+    }
+
+    metrics::AUTH_KEYS_ROTATED.add(1, &[]);
     Ok(Json(RotateAuthenticationKeysResponse {}))
 }

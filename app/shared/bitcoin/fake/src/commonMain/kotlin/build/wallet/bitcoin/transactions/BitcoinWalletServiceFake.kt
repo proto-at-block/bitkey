@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.time.someInstant
 import com.github.michaelbull.result.Err
@@ -44,6 +45,13 @@ class BitcoinWalletServiceFake : BitcoinWalletService {
         transactionId = "txid-fake"
       )
     )
+  }
+
+  override suspend fun createPsbtsForSendAmount(
+    sendAmount: BitcoinTransactionSendAmount,
+    recipientAddress: BitcoinAddress,
+  ): Result<Map<EstimatedTransactionPriority, Psbt>, Error> {
+    return Ok(emptyMap())
   }
 
   fun reset() {

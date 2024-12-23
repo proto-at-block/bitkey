@@ -12,6 +12,8 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.debug.DebugOptions
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
@@ -41,6 +43,7 @@ data class InitiatingLostAppRecoveryUiProps(
   val initiatingLostAppRecoveryData: InitiatingLostAppRecoveryData,
 )
 
+@BitkeyInject(ActivityScope::class)
 class InitiatingLostAppRecoveryUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val enableNotificationsUiStateMachine: EnableNotificationsUiStateMachine,

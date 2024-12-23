@@ -16,6 +16,8 @@ import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
 import build.wallet.partnerships.PartnershipTransactionStatus.SUCCESS
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -30,7 +32,8 @@ class TransactionsActivityServiceImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
     fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
   )
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
@@ -80,6 +83,14 @@ class TransactionsActivityServiceImplTests : FunSpec({
     type = PartnershipTransactionType.SALE
   )
 
+  val partnershipTxWithoutStatus = partnershipTxWithMatch.copy(
+    id = PartnershipTransactionId("no-status-transaction"),
+    txid = "no-status",
+    cryptoAmount = 0.00001,
+    status = null,
+    type = PartnershipTransactionType.TRANSFER
+  )
+
   beforeTest {
     partnershipTransactionsService.reset()
     bitcoinWalletService.reset()
@@ -90,7 +101,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
       listOf(btcTxWithMatch)
     )
     partnershipTransactionsService.transactions.value =
-      listOf(partnershipTxWithoutMatch, partnershipTxWithMatch)
+      listOf(partnershipTxWithoutMatch, partnershipTxWithMatch, partnershipTxWithoutStatus)
 
     featureFlag.setFlagValue(true)
   }
@@ -140,6 +151,36 @@ class TransactionsActivityServiceImplTests : FunSpec({
             bitcoinTransaction = null
           )
         )
+      }
+    }
+  }
+
+  test("transactionById returns a flow of single transaction") {
+    runTest {
+      backgroundScope.launch {
+        service.executeWork()
+      }
+
+      service.transactionById(partnershipTxWithMatch.id.value).test {
+        awaitItem().shouldNotBeNull()
+          .shouldBe(
+            Transaction.PartnershipTransaction(
+              details = partnershipTxWithMatch,
+              bitcoinTransaction = null
+            )
+          )
+      }
+    }
+  }
+
+  test("transactionById returns null when transaction is not found") {
+    runTest {
+      backgroundScope.launch {
+        service.executeWork()
+      }
+
+      service.transactionById("not-found").test {
+        awaitItem().shouldBe(null)
       }
     }
   }

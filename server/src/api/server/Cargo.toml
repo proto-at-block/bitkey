@@ -77,7 +77,7 @@ wsm-rust-client = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 base64 = { workspace = true }
 bdk_utils = { workspace = true }
-crypto = { workspace = true }
+crypto = { workspace = true, features = ["ssb"] }
 env_logger = "0.11.3"
 http-body-util = "0.1.0"
 httpmock = "0.7"

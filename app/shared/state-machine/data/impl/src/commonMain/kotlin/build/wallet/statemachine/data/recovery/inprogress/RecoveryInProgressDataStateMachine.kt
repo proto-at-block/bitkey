@@ -27,6 +27,8 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -94,6 +96,7 @@ data class RecoveryInProgressProps(
 }
 
 @Suppress("LargeClass")
+@BitkeyInject(AppScope::class)
 class RecoveryInProgressDataStateMachineImpl(
   private val recoveryCanceler: RecoveryCanceler,
   private val clock: Clock,
@@ -144,6 +147,11 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is ReadyToCompleteRecoveryState -> {
         ReadyToCompleteRecoveryData(
+          // Only allow to cancel recovery when it's initiated (while delay period is pending, or has finished).
+          // Once customer attempts to complete recovery, they can't cancel it.
+          // This prevents the app from getting into a bad state in case if some parts of
+          // the completion process have already started, but failed to complete for some reason (F8e or NFC error).
+          canCancelRecovery = props.recovery is InitiatedRecovery,
           startComplete = {
             scope.launch {
               state =
@@ -172,12 +180,54 @@ class RecoveryInProgressDataStateMachineImpl(
         )
       }
 
+      is RotatingAuthTokensState -> {
+        LaunchedEffect("rotating tokens") {
+          // If we are restoring the app from D+N, it means
+          // we have lost the local + cloud data and will no longer
+          // have access to the DDK, so we remove the trusted contacts
+          recoveryAuthCompleter
+            .rotateAuthTokens(
+              f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+              fullAccountId = props.recovery.fullAccountId,
+              destinationAppAuthPubKeys = AppAuthPublicKeys(
+                props.recovery.appGlobalAuthKey,
+                props.recovery.appRecoveryAuthKey,
+                props.recovery.appGlobalAuthKeyHwSignature
+              ),
+              removeTrustedContacts = props.recovery.factorToRecover == App
+            )
+            .onSuccess {
+              dataState.sealedCsek?.let {
+                // The state machine watches the recovery status, and updates automatically
+                // when recovery goes from AttemptingCompletion to RotatedAuthKeys. Some users
+                // have encountered a (since fixed) logic error where their state has already been
+                // moved to RotatedAuthKeys -- even though they failed to save the initial state.
+                //
+                // This prevents the state machine from hanging, since in these cases, going from
+                // RotatedAuthKeys to RotatedAuthKeys would not trigger a state change.
+                state = AwaitingHardwareProofOfPossessionState(
+                  sealedCsek = it
+                )
+              }
+            }
+            .onFailure { error ->
+              state = FailedToRotateAuthState(cause = error)
+            }
+        }
+
+        RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
+      }
+
       is CheckCompletionAttemptForSuccessOrCancellation -> {
         LaunchedEffect("checking auth") {
-          delayer.withMinimumDelay(2.seconds) { verifyAppAuth(props) }
+          delayer.withMinimumDelay(2.seconds) {
+            verifyAppAuth(props)
+          }
             .onSuccess {
-              recoveryDao.setLocalRecoveryProgress(
-                LocalRecoveryAttemptProgress.RotatedAuthKeys
+              state = RotatingAuthTokensState(
+                // If the recovery is already RotatedAuthKeys, we pass in the sealedCsek
+                // and will drive the state change to AwaitingHardwareProofOfPossessionState
+                sealedCsek = if (props.recovery is RotatedAuthKeys) dataState.sealedCsek else null
               )
             }
             .onFailure { error ->
@@ -285,21 +335,29 @@ class RecoveryInProgressDataStateMachineImpl(
         )
 
       is RotatingAuthKeysWithF8eState -> {
-        // If we are recovering the app key in this flow, we've also lost the cloud data.
-        // That means we lost the customer's Delegated Decryption Key, so they can no longer
-        // protect their Protected Customers. For now, we just remove them. The customer will
-        // get a notification that they've been removed.
-        val removeProtectedCustomers = props.recovery.factorToRecover == App
         LaunchedEffect("rotate-auth-keys") {
-          rotateAuthKeys(props, dataState, removeProtectedCustomers)
-            .onFailure { error ->
-              state = FailedToRotateAuthState(error)
+          verifyAppAuth(props)
+            .onSuccess {
+              state = RotatingAuthTokensState(
+                // If the recovery is already RotatedAuthKeys, we pass in the sealedCsek
+                // and will drive the state change to AwaitingHardwareProofOfPossessionState
+                sealedCsek = if (props.recovery is RotatedAuthKeys) dataState.sealedCsek else null
+              )
+            }
+            .onFailure {
+              rotateAuthKeys(props, dataState)
+                .onSuccess {
+                  state = RotatingAuthTokensState()
+                }
+                .onFailure { error ->
+                  state = FailedToRotateAuthState(error)
+                }
             }
         }
         RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
       }
 
-      is AwaitingHardwareProofOfPossessionState ->
+      is AwaitingHardwareProofOfPossessionState -> {
         AwaitingHardwareProofOfPossessionData(
           fullAccountId = props.recovery.fullAccountId,
           fullAccountConfig = props.fullAccountConfig,
@@ -312,6 +370,7 @@ class RecoveryInProgressDataStateMachineImpl(
             state = ReadyToCompleteRecoveryState
           }
         )
+      }
 
       is CreatingSpendingKeysWithF8eState -> {
         LaunchedEffect("create-spending-keys") {
@@ -647,7 +706,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private suspend fun rotateAuthKeys(
     props: RecoveryInProgressProps,
     state: RotatingAuthKeysWithF8eState,
-    removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> =
     coroutineBinding {
       recoveryAuthCompleter
@@ -660,8 +718,7 @@ class RecoveryInProgressDataStateMachineImpl(
             props.recovery.appRecoveryAuthKey,
             props.recovery.appGlobalAuthKeyHwSignature
           ),
-          sealedCsek = state.sealedCsek,
-          removeProtectedCustomers = removeProtectedCustomers
+          sealedCsek = state.sealedCsek
         ).bind()
     }
 
@@ -733,6 +790,10 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     data class CheckCompletionAttemptForSuccessOrCancellation(val sealedCsek: SealedCsek) : State
+
+    data class RotatingAuthTokensState(
+      val sealedCsek: SealedCsek? = null,
+    ) : State
 
     /**
      * Awaiting for hardware to

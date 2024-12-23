@@ -13,6 +13,16 @@ public final class CryptoBoxImpl: Shared.CryptoBox {
         return CryptoBoxKeyPair(privateKey: privateKey, publicKey: publicKey)
     }
 
+    public func keypairFromSecretBytes(secretBytes: OkioByteString) throws -> Shared
+        .CryptoBoxKeyPair
+    {
+        let keyPair = try core.CryptoBoxKeyPair.fromSecretBytes(secretBytes: secretBytes.toData())
+        let publicKey = CryptoBoxPublicKey(bytes: OkioKt.ByteString(data: keyPair.publicKey()))
+        let privateKey = CryptoBoxPrivateKey(bytes: OkioKt.ByteString(data: keyPair.secretKey()))
+
+        return CryptoBoxKeyPair(privateKey: privateKey, publicKey: publicKey)
+    }
+
     public func decrypt(
         theirPublicKey: CryptoBoxPublicKey,
         myPrivateKey: CryptoBoxPrivateKey,

@@ -1,14 +1,17 @@
 package build.wallet.google.signin
 
-import build.wallet.platform.PlatformContext
+import android.app.Application
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.Scopes
 import com.google.android.gms.common.api.Scope
 
+@BitkeyInject(AppScope::class)
 class GoogleSignInClientProviderImpl(
-  private val platformContext: PlatformContext,
+  private val application: Application,
 ) : GoogleSignInClientProvider {
   override val clientForGoogleDrive: GoogleSignInClient by lazy {
     val options =
@@ -24,6 +27,6 @@ class GoogleSignInClientProviderImpl(
           ) // used by [GoogleDriveFileStore] for storing Emergency Access Kit PDF
         )
         .build()
-    GoogleSignIn.getClient(platformContext.appContext, options)
+    GoogleSignIn.getClient(application, options)
   }
 }

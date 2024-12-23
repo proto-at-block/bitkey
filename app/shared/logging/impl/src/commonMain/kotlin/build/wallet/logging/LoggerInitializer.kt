@@ -1,5 +1,7 @@
 package build.wallet.logging
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.bugsnag.BugsnagLogWriter
@@ -22,13 +24,19 @@ import kotlinx.coroutines.sync.withLock
  *
  * Additionally, syncs [LogWriterContext] with latest logging context that gets included on every
  * log as attributes.
+ *
+ * @param additionalLogWriters Additional log writers that can be registered. Usually, these are
+ * either platform specific implementations, or for testing purposes.
  */
+
+@BitkeyInject(AppScope::class)
 class LoggerInitializer(
   private val logWriterContextStore: LogWriterContextStore,
   private val additionalLogWriters: List<LogWriter>,
   private val appVariant: AppVariant,
   private val appId: AppId,
   private val appCoroutineScope: CoroutineScope,
+  private val logStoreWriter: LogStoreWriter,
 ) {
   private var initialized: Boolean = false
   private val initializeLock = Mutex()
@@ -55,6 +63,7 @@ class LoggerInitializer(
             addAll(additionalLogWriters)
             add(platformLogWriter())
             add(BugsnagLogWriter(minSeverity = minimumLogLevel.toKermitSeverity()))
+            add(logStoreWriter)
           }
         )
         initialized = true

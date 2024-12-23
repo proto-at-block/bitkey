@@ -6,12 +6,15 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsKeysRepository
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class LiteAccountCloudBackupCreatorImpl(
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
   private val appPrivateKeyDao: AppPrivateKeyDao,

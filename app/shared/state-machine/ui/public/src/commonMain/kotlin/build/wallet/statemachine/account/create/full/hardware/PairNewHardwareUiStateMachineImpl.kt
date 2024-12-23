@@ -11,6 +11,8 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.v1.Action.ACTION_HW_FINGERPRINT_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_FINGERPRINT
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
@@ -30,6 +32,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 
+@BitkeyInject(ActivityScope::class)
 class PairNewHardwareUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val pairingTransactionProvider: PairingTransactionProvider,

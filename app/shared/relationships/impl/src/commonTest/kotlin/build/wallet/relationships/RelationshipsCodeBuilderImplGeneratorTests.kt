@@ -1,7 +1,6 @@
 package build.wallet.relationships
 
 import build.wallet.bitkey.relationships.PakeCode
-import build.wallet.serialization.Base32Encoding
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -24,7 +23,7 @@ class RelationshipsCodeBuilderImplGeneratorTests : FunSpec({
     return bytes
   }
 
-  val codeBuilder = RelationshipsCodeBuilderImpl(Base32Encoding())
+  val codeBuilder = RelationshipsCodeBuilderImpl()
 
   context("invite code generator tests") {
     data class TestCase(

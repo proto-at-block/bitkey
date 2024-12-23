@@ -12,6 +12,8 @@ import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerErro
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.*
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.csek.CsekDao
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.relationships.RelationshipsKeysDao
@@ -22,6 +24,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.json.Json
 
+@BitkeyInject(AppScope::class)
 class CloudBackupV2RestorerImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,

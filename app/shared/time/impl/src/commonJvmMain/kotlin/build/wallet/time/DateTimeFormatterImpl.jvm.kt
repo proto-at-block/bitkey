@@ -1,15 +1,18 @@
 package build.wallet.time
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
 import java.time.temporal.ChronoField
-import java.util.Locale
+import java.util.*
 import java.time.format.DateTimeFormatter as JavaDateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder as JavaDateTimeFormatterBuilder
 
-actual class DateTimeFormatterImpl : DateTimeFormatter {
+@BitkeyInject(AppScope::class)
+class DateTimeFormatterImpl : DateTimeFormatter {
   private val amPmMap = mapOf(0L to "am", 1L to "pm")
 
   private val shortDateWithTime = JavaDateTimeFormatterBuilder()
@@ -34,41 +37,41 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
   private val longLocalDate = JavaDateTimeFormatter
     .ofPattern("MMMM d, YYYY", Locale.ENGLISH)
 
-  actual override fun shortDateWithTime(localDateTime: LocalDateTime): String {
+  override fun shortDateWithTime(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
     return shortDateWithTime.format(javaLocalDateTime)
   }
 
-  actual override fun fullShortDateWithTime(localDateTime: LocalDateTime): String {
+  override fun fullShortDateWithTime(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
     return fullShortDateWithTime.format(javaLocalDateTime)
   }
 
-  actual override fun localTimestamp(localDateTime: LocalDateTime): String {
+  override fun localTimestamp(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     return JavaDateTimeFormatter.ISO_LOCAL_TIME.format(javaLocalDateTime)
   }
 
-  actual override fun localTime(localDateTime: LocalDateTime): String {
+  override fun localTime(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     return localTime.format(javaLocalDateTime).lowercase()
   }
 
-  actual override fun shortDate(localDateTime: LocalDateTime): String {
+  override fun shortDate(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     return shortDate.format(javaLocalDateTime)
   }
 
-  actual override fun shortDateWithYear(localDateTime: LocalDateTime): String {
+  override fun shortDateWithYear(localDateTime: LocalDateTime): String {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     return shortDateWithYear.format(javaLocalDateTime)
   }
 
-  actual override fun longLocalDate(localDate: LocalDate): String {
+  override fun longLocalDate(localDate: LocalDate): String {
     return localDate.toJavaLocalDate().format(longLocalDate)
   }
 }

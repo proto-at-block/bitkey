@@ -7,6 +7,9 @@ import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
@@ -18,11 +21,11 @@ import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.put
+import io.ktor.client.request.*
 import okio.ByteString
 
+@Impl
+@BitkeyInject(AppScope::class)
 class SocRecF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : SocRecF8eClient {

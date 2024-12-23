@@ -40,8 +40,8 @@ pub enum BdkUtilError {
     TransactionAlreadyInMempoolError,
 }
 
-impl From<BdkUtilError> for ApiError {
-    fn from(val: BdkUtilError) -> Self {
+impl From<&BdkUtilError> for ApiError {
+    fn from(val: &BdkUtilError) -> Self {
         match val {
             BdkUtilError::GenerateWalletForDescriptorKeyset(_)
             | BdkUtilError::GenerateDescriptorForDescriptorKeyset(_)
@@ -66,5 +66,11 @@ impl From<BdkUtilError> for ApiError {
                 ApiError::GenericConflict(val.to_string())
             }
         }
+    }
+}
+
+impl From<BdkUtilError> for ApiError {
+    fn from(val: BdkUtilError) -> Self {
+        ApiError::from(&val)
     }
 }

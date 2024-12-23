@@ -9,6 +9,7 @@ import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.OnboardingSoftwareAccountMock
+import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagServiceFake
 import com.github.michaelbull.result.Ok
@@ -128,5 +129,15 @@ class LoadAppServiceImplTests : FunSpec({
         )
       )
     }
+  }
+
+  test("has active software account") {
+    accountService.accountState.value = Ok(ActiveAccount(SoftwareAccountMock))
+
+    service.loadAppState().shouldBe(
+      AppState.HasActiveSoftwareAccount(
+        account = SoftwareAccountMock
+      )
+    )
   }
 })

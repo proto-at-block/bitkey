@@ -5,12 +5,13 @@ pub use crypto::frost::{
 };
 use miniscript::{
     descriptor::{DescriptorXKey, Wildcard},
+    psbt::PsbtExt,
     DescriptorPublicKey,
 };
 use serde::{Deserialize, Serialize};
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use bitcoin::{bip32::DerivationPath, psbt::Psbt, Network};
+use bitcoin::{bip32::DerivationPath, psbt::Psbt, secp256k1, Network};
 use std::sync::Mutex;
 
 use crypto::frost::{compute_frost_master_xpub, Participant};
@@ -132,7 +133,7 @@ impl ShareGeneratorState {
         };
 
         let share_details =
-            aggregate_shares(Participant::App, &[peer_share_package, &app_share_package])?;
+            aggregate_shares(Participant::App, &[peer_share_package, app_share_package])?;
 
         equality_check(peer_key_commitments, share_details)
     }
@@ -170,13 +171,13 @@ pub fn compute_frost_wallet_descriptor(
 
     WalletDescriptor {
         external: DescriptorPublicKey::XPub(DescriptorXKey {
-            origin: Some((external_xpub.fingerprint(), external_derivation_path)),
+            origin: Some((master_xpub.fingerprint(), external_derivation_path)),
             xkey: external_xpub,
             derivation_path: DerivationPath::default(),
             wildcard: Wildcard::Unhardened,
         }),
         change: DescriptorPublicKey::XPub(DescriptorXKey {
-            origin: Some((change_xpub.fingerprint(), change_derivation_path)),
+            origin: Some((master_xpub.fingerprint(), change_derivation_path)),
             xkey: change_xpub,
             derivation_path: DerivationPath::default(),
             wildcard: Wildcard::Unhardened,
@@ -208,9 +209,11 @@ impl FrostSigner {
     }
 
     pub fn sign_psbt_request(&self) -> Result<String, SigningError> {
+        let inner = self.inner.lock().unwrap();
+
         let signing_request = FrostSigningRequest {
-            psbt: self.inner.lock().unwrap().psbt.clone(),
-            signing_commitments: self.inner.lock().unwrap().public_signing_commitments(),
+            psbt: inner.psbt.clone(),
+            signing_commitments: inner.public_signing_commitments(),
         };
 
         Ok(BASE64.encode(serde_json::to_vec(&signing_request).unwrap()))
@@ -225,10 +228,18 @@ impl FrostSigner {
             .unwrap()
             .generate_partial_signatures(signing_response.signing_commitments)?;
 
-        self.inner
+        let mut psbt = self
+            .inner
             .lock()
             .unwrap()
-            .sign_psbt(partial_signatures, signing_response.partial_signatures)
+            .sign_psbt(partial_signatures, signing_response.partial_signatures)?;
+
+        psbt.finalize_mut(&secp256k1::Secp256k1::new())
+            .map_err(|e| SigningError::UnableToFinalizePsbt {
+                errors: e.iter().map(|e| e.to_string()).collect(),
+            })?;
+
+        Ok(psbt)
     }
 }
 
@@ -240,6 +251,7 @@ mod tests {
         Network,
     };
     use crypto::frost::{
+        compute_frost_master_xpub,
         dkg::{aggregate_shares, generate_share_packages, KeygenError},
         Participant,
     };
@@ -320,14 +332,34 @@ mod tests {
                 _ => panic!("Expected xpub"),
             }
         }
-
         // Test mainnet paths
         let mainnet_descriptor = compute_frost_wallet_descriptor(agg_public_key, Network::Bitcoin);
+        let master_xpub = compute_frost_master_xpub(agg_public_key, Network::Bitcoin);
+
+        // Check that origin fingerprints are equal
+        assert_eq!(
+            master_xpub.fingerprint(),
+            mainnet_descriptor.external.master_fingerprint()
+        );
+        assert_eq!(
+            mainnet_descriptor.external.master_fingerprint(),
+            mainnet_descriptor.change.master_fingerprint()
+        );
         assert_descriptor_properties(&mainnet_descriptor.external, Network::Bitcoin, "m/86/0/0/0");
         assert_descriptor_properties(&mainnet_descriptor.change, Network::Bitcoin, "m/86/0/0/1");
 
         // Test signet paths
         let signet_descriptor = compute_frost_wallet_descriptor(agg_public_key, Network::Signet);
+        let master_xpub = compute_frost_master_xpub(agg_public_key, Network::Signet);
+
+        assert_eq!(
+            master_xpub.fingerprint(),
+            signet_descriptor.external.master_fingerprint()
+        );
+        assert_eq!(
+            signet_descriptor.external.master_fingerprint(),
+            signet_descriptor.change.master_fingerprint()
+        );
         assert_descriptor_properties(&signet_descriptor.external, Network::Signet, "m/86/1/0/0");
         assert_descriptor_properties(&signet_descriptor.change, Network::Signet, "m/86/1/0/1");
     }

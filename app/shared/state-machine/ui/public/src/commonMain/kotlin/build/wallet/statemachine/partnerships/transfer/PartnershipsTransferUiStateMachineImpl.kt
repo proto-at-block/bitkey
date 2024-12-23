@@ -7,6 +7,8 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectInfo
@@ -43,8 +45,6 @@ import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -52,6 +52,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 
+@BitkeyInject(ActivityScope::class)
 class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
   private val getTransferRedirectF8eClient: GetTransferRedirectF8eClient,
@@ -127,9 +128,7 @@ class PartnershipsTransferUiStateMachineImpl(
 
         return TransferPartnersErrorModel(
           id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
-          error = currentState.error,
           content = ListGroup(partnersGroupModel),
-          sellBitcoinEnabled = props.sellBitcoinEnabled,
           onBack = props.onBack,
           onExit = props.onExit
         )
@@ -138,25 +137,14 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.ChoosingPartnershipsTransfer -> {
         when {
           currentState.transferPartners.isEmpty() -> {
-            if (props.sellBitcoinEnabled) {
-              LaunchedEffect("display-qr-code-delay") {
-                delay(500)
-                props.onAnotherWalletOrExchange()
-              }
-
-              return Loading(
-                onExit = props.onExit
-              )
-            } else {
-              return TransferErrorModel(
-                id = TRANSFER_PARTNERS_NOT_AVAILABLE,
-                error = null,
-                title = "New Partners Coming Soon",
-                errorMessage = "Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin transfers. Until then, you can add bitcoin using the receive button.",
-                onBack = props.onBack,
-                onExit = props.onExit
-              )
+            LaunchedEffect("display-qr-code-delay") {
+              delay(500)
+              props.onAnotherWalletOrExchange()
             }
+
+            return Loading(
+              onExit = props.onExit
+            )
           }
           else -> {
             return ListTransferPartnersModel(
@@ -341,7 +329,6 @@ class PartnershipsTransferUiStateMachineImpl(
     return TransferPartnersModel(
       id = id,
       content = ListGroup(listGroupModel = partnersGroupModel),
-      sellBitcoinEnabled = props.sellBitcoinEnabled,
       onBack = props.onBack,
       onExit = props.onExit
     )
@@ -351,31 +338,15 @@ class PartnershipsTransferUiStateMachineImpl(
   private fun TransferPartnersModel(
     id: DepositEventTrackerScreenId,
     content: FormMainContentModel,
-    sellBitcoinEnabled: Boolean,
     onBack: () -> Unit,
     onExit: () -> Unit,
   ): SheetModel {
-    val toolbar = if (sellBitcoinEnabled) {
-      null
-    } else {
-      ToolbarModel(
-        middleAccessory = ToolbarMiddleAccessoryModel(title = "Select a partner")
-      )
-    }
-
-    val header = if (sellBitcoinEnabled) {
-      FormHeaderModel(
-        headline = "Receive bitcoin from",
-        subline = null
-      )
-    } else {
-      null
-    }
-
     return SheetModel(
       body = TransferPartnersBodyModel(
-        toolbar = toolbar,
-        header = header,
+        header = FormHeaderModel(
+          headline = "Receive bitcoin from",
+          subline = null
+        ),
         id = id,
         content = content,
         onBack = onBack
@@ -388,48 +359,34 @@ class PartnershipsTransferUiStateMachineImpl(
   @Composable
   private fun TransferPartnersErrorModel(
     id: DepositEventTrackerScreenId,
-    error: Error,
     content: FormMainContentModel,
-    sellBitcoinEnabled: Boolean,
     onBack: () -> Unit,
     onExit: () -> Unit,
   ): SheetModel {
-    return if (sellBitcoinEnabled) {
-      SheetModel(
-        body = TransferPartnersBodyModel(
-          toolbar = null,
-          header = FormHeaderModel(
-            icon = LargeIconWarningFilled,
-            headline = "Could not load partners at this time.",
-            alignment = CENTER
-          ),
-          id = id,
-          content = content,
-          onBack = onBack
+    return SheetModel(
+      body = TransferPartnersBodyModel(
+        header = FormHeaderModel(
+          icon = LargeIconWarningFilled,
+          headline = "Could not load partners at this time.",
+          alignment = CENTER
         ),
-        dragIndicatorVisible = true,
-        onClosed = onExit
-      )
-    } else {
-      TransferErrorModel(
-        id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
-        error = error,
-        errorMessage = "Could not load partners at this time.",
-        onBack = onBack,
-        onExit = onExit
-      )
-    }
+        id = id,
+        content = content,
+        onBack = onBack
+      ),
+      dragIndicatorVisible = true,
+      onClosed = onExit
+    )
   }
 
   private data class TransferPartnersBodyModel(
-    override val toolbar: ToolbarModel?,
     override val header: FormHeaderModel?,
     override val id: DepositEventTrackerScreenId,
     val content: FormMainContentModel,
     override val onBack: () -> Unit,
   ) : FormBodyModel(
       onBack = onBack,
-      toolbar = toolbar,
+      toolbar = null,
       header = header,
       mainContentList = immutableListOf(content),
       primaryButton = null,

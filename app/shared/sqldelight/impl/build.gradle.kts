@@ -2,6 +2,7 @@ import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
@@ -14,6 +15,7 @@ kotlin {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.platformPublic)
+        api(libs.kmp.sqldelight.runtime)
         implementation(libs.kmp.settings)
       }
     }

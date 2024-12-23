@@ -16,7 +16,7 @@ class InheritanceManagementSnapshots : FunSpec({
 
   val benefactors = BenefactorListModel(
     benefactors = listOf(ProtectedCustomerFake),
-    onStartClaimClick = {}
+    onManageClick = {}
   )
   val beneficiaries = BeneficiaryListModel(
     beneficiaries = immutableListOf(EndorsedBeneficiaryFake),
@@ -43,7 +43,7 @@ class InheritanceManagementSnapshots : FunSpec({
         ),
         benefactors = BenefactorListModel(
           benefactors = emptyList(),
-          onStartClaimClick = {}
+          onManageClick = {}
         )
       ).render(modifier = Modifier)
     }
@@ -79,7 +79,7 @@ class InheritanceManagementSnapshots : FunSpec({
         ),
         benefactors = BenefactorListModel(
           benefactors = emptyList(),
-          onStartClaimClick = {}
+          onManageClick = {}
         )
       ).render(modifier = Modifier)
     }

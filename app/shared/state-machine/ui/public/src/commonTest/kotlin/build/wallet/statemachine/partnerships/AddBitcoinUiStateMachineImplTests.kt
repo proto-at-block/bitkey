@@ -37,7 +37,8 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
     fetchMostRecentCalls = turbines.create("fetch most recent calls"),
-    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
   )
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
@@ -68,7 +69,6 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   fun props(purchaseAmount: FiatMoney? = null): AddBitcoinUiProps =
     AddBitcoinUiProps(
       account = FullAccountMock,
-      sellBitcoinEnabled = false,
       onAnotherWalletOrExchange = {},
       onPartnerRedirected = { _, _ -> },
       onExit = {},

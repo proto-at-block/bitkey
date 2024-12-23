@@ -1,6 +1,8 @@
 package build.wallet.statemachine.notifications
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
@@ -20,6 +22,7 @@ internal const val MONEY_MOVEMENT_CHANNELS = "moneyMovement-channels"
 internal const val PRODUCT_MARKETING_CHANNELS = "productMarketing-channels"
 internal const val ACCOUNT_SECURITY_CHANNELS = "accountSecurity-channels"
 
+@BitkeyInject(ActivityScope::class)
 class NotificationsPreferencesCachedProviderImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val keyValueStoreFactory: KeyValueStoreFactory,

@@ -16,11 +16,11 @@
             ]
         },
         {
-            "version": "1.18.1",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinpoet-jvm-1.18.1.jar": "b3ec7ef1c27346d188c113159bcf6477a236b340d3243e524f7c454e3922c564"
+                        "kotlinpoet-jvm-2.0.0.jar": "65e2d5e1c7844861d134635692791f7dbac808adb060da7329c18c4bd88d2acb"
                     }
                 }
             ],

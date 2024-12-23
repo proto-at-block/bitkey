@@ -1,6 +1,8 @@
 package build.wallet.home
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
 import build.wallet.logging.logFailure
@@ -12,6 +14,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class GettingStartedTaskDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : GettingStartedTaskDao {

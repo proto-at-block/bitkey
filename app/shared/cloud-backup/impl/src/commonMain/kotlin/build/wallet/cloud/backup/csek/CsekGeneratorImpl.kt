@@ -1,7 +1,10 @@
 package build.wallet.cloud.backup.csek
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SymmetricKeyGenerator
 
+@BitkeyInject(AppScope::class)
 class CsekGeneratorImpl(
   private val symmetricKeyGenerator: SymmetricKeyGenerator,
 ) : CsekGenerator {

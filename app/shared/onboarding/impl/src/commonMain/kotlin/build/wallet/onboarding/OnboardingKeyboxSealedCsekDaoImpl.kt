@@ -1,6 +1,8 @@
 package build.wallet.onboarding
 
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.serialization.hex.decodeHexWithResult
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -13,6 +15,8 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 /**
  * Persists sealed CSEKs in a secure store, encoded as hex string.
  */
+
+@BitkeyInject(AppScope::class)
 class OnboardingKeyboxSealedCsekDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : OnboardingKeyboxSealedCsekDao {

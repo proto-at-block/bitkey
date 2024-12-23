@@ -6,12 +6,15 @@ import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class RelationshipsEnrollmentAuthenticationDaoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val databaseProvider: BitkeyDatabaseProvider,

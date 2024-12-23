@@ -6,11 +6,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class CloudBackupRectificationNavigatorImpl : CloudBackupRectificationNavigator {
+@BitkeyInject(AppScope::class)
+class CloudBackupRectificationNavigatorImpl : CloudBackupRectificationNavigator {
   @SuppressLint("ComposableNaming")
   @Composable
-  actual override fun navigate(
+  override fun navigate(
     data: Any,
     onReturn: () -> Unit,
   ) {

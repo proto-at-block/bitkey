@@ -13,8 +13,6 @@ import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.f8e.relationships.RelationshipsFake
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -79,8 +77,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       eventTracker = eventTracker,
       bitcoinWalletService = bitcoinWalletService,
       mobilePayService = mobilePayService,
-      socRecService = socRecService,
-      mobilePayRevampFeatureFlag = MobilePayRevampFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
+      socRecService = socRecService
     )
 
   beforeTest {
@@ -139,7 +136,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       cardModel.expect(
         tasks = listOf(GettingStartedTask(EnableSpendingLimit, state = Incomplete))
       )
-      cardModel.onClick("Turn on Mobile Pay").invoke()
+      cardModel.onClick("Customize transfer settings").invoke()
       onEnableSpendingLimitCalls.awaitItem()
     }
   }
@@ -409,7 +406,7 @@ private fun CardModel.expectTaskModelWithEnabled(
           Complete -> SmallIconCheckFilled
           Incomplete ->
             when (task.id) {
-              EnableSpendingLimit -> SmallIconPhone
+              EnableSpendingLimit -> SmallIconMobileLimit
               AddBitcoin -> SmallIconPlusStroked
               InviteTrustedContact -> SmallIconShieldPerson
               AddAdditionalFingerprint -> SmallIconFingerprint

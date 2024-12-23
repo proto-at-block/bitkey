@@ -1,6 +1,8 @@
 package build.wallet.encrypt
 
 import build.wallet.crypto.PublicKey
+import build.wallet.serialization.json.decodeFromStringResult
+import com.github.michaelbull.result.getOrElse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -69,7 +71,9 @@ data class XSealedData(
 fun XCiphertext.toXSealedData(): XSealedData {
   val parts = value.split(".")
   val headerPart = parts[0].decodeBase64()?.utf8() ?: throw IllegalArgumentException("Invalid base64 header: ${parts[0]}")
-  val decodedHeader = Json.decodeFromString<XSealedData.Header>(headerPart)
+  val decodedHeader = Json.decodeFromStringResult<XSealedData.Header>(headerPart).getOrElse {
+    throw IllegalArgumentException(it)
+  }
 
   // Basic checks on parts size based on version
   if (decodedHeader.version == 1) {

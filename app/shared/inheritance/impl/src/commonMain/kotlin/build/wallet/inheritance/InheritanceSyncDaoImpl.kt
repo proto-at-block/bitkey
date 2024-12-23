@@ -3,10 +3,13 @@ package build.wallet.inheritance
 import build.wallet.bitkey.inheritance.InheritanceMaterialHash
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class InheritanceSyncDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val clock: Clock,

@@ -1,15 +1,14 @@
 package build.wallet.time
 
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.atStartOfDayIn
-import kotlinx.datetime.toNSDate
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import kotlinx.datetime.*
 import platform.Foundation.NSDateFormatter
 import platform.Foundation.NSDateFormatterLongStyle
 import platform.Foundation.NSDateFormatterNoStyle
 
-actual class DateTimeFormatterImpl : DateTimeFormatter {
+@BitkeyInject(AppScope::class)
+class DateTimeFormatterImpl : DateTimeFormatter {
   private val shortDateWithTime = NSDateFormatter().apply {
     AMSymbol = "am"
     PMSymbol = "pm"
@@ -45,31 +44,33 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     timeStyle = NSDateFormatterNoStyle
   }
 
-  actual override fun shortDateWithTime(localDateTime: LocalDateTime): String {
+  override fun shortDateWithTime(localDateTime: LocalDateTime): String {
     return shortDateWithTime.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun fullShortDateWithTime(localDateTime: LocalDateTime): String {
+  override fun fullShortDateWithTime(localDateTime: LocalDateTime): String {
     return fullShortDateWithTime.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun localTimestamp(localDateTime: LocalDateTime): String {
+  override fun localTimestamp(localDateTime: LocalDateTime): String {
     return localTimestamp.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun localTime(localDateTime: LocalDateTime): String {
+  override fun localTime(localDateTime: LocalDateTime): String {
     return localTime.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun shortDate(localDateTime: LocalDateTime): String {
+  override fun shortDate(localDateTime: LocalDateTime): String {
     return shortDate.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun shortDateWithYear(localDateTime: LocalDateTime): String {
+  override fun shortDateWithYear(localDateTime: LocalDateTime): String {
     return shortDateWithYear.stringFromDate(localDateTime.toNSDate())
   }
 
-  actual override fun longLocalDate(localDate: LocalDate): String {
-    return longLocalDate.stringFromDate(localDate.atStartOfDayIn(TimeZone.currentSystemDefault()).toNSDate())
+  override fun longLocalDate(localDate: LocalDate): String {
+    return longLocalDate.stringFromDate(
+      localDate.atStartOfDayIn(TimeZone.currentSystemDefault()).toNSDate()
+    )
   }
 }

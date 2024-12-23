@@ -1,16 +1,15 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.money.exchange
 
+import build.wallet.account.AccountService
+import build.wallet.bitkey.account.LiteAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.keybox.KeyboxDao
 import build.wallet.money.currency.Currency
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
 import build.wallet.time.Delayer.Default.delay
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
@@ -21,12 +20,13 @@ import kotlinx.datetime.Instant
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(AppScope::class)
 class ExchangeRateServiceImpl(
   private val exchangeRateDao: ExchangeRateDao,
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val appSessionManager: AppSessionManager,
-  private val keyboxDao: KeyboxDao,
   private val clock: Clock,
+  private val accountService: AccountService,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
   private val exchangeRatesCache = MutableStateFlow<List<ExchangeRate>>(emptyList())
 
@@ -149,11 +149,11 @@ class ExchangeRateServiceImpl(
       }
   }
 
-  // TODO(W-9404): update exchange rates for other account types.
   private fun activeF8eEnvironment(): Flow<F8eEnvironment?> {
-    return keyboxDao.activeKeybox().map { result ->
-      result.get()?.config?.f8eEnvironment
-    }
+    return accountService.activeAccount()
+      // Lite Accounts do not require exchange rates as they have no funds/never see fiat amounts.
+      .filterNot { it is LiteAccount }
+      .map { it?.config?.f8eEnvironment }
   }
 
   private fun List<ExchangeRate>.timeRetrievedForCurrency(currency: Currency): Instant? {

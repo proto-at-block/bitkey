@@ -19,6 +19,15 @@ interface CryptoBox {
   fun generateKeyPair(): CryptoBoxKeyPair
 
   /**
+   * Returns a key pair instantiated from the provided secret bytes
+   *
+   * @param secretBytes The secret bytes to use for the key pair.
+   * @throws Error If there's an issue creating the key pair.
+   */
+  @Throws(Error::class)
+  fun keypairFromSecretBytes(secretBytes: ByteString): CryptoBoxKeyPair
+
+  /**
    * Encrypts a plaintext message using the crypto box.
    *
    * @param theirPublicKey The public key of the recipient.

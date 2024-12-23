@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter, Result};
+use std::mem::discriminant;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq)]
@@ -9,6 +10,8 @@ pub enum SpendRuleCheckError {
     OutputsDontBelongToDestinationWallet,
     #[error("Transaction spend total of {0} with existing spend of {1} for the day exceeds limit of {2}")]
     SpendLimitExceeded(u64, u64, u64),
+    #[error("Spending limit inactive")]
+    SpendLimitInactive,
     #[error("Invalid sweep transaction. Contains outputs to origin wallet.")]
     PsbtOutputsBelongToOriginWallet,
     #[error("Invalid transaction. All inputs don't belong to origin wallet.")]
@@ -36,5 +39,13 @@ impl Display for SpendRuleCheckErrors {
 impl From<Vec<SpendRuleCheckError>> for SpendRuleCheckErrors {
     fn from(errors: Vec<SpendRuleCheckError>) -> Self {
         SpendRuleCheckErrors(errors)
+    }
+}
+
+impl SpendRuleCheckErrors {
+    pub fn has_error(&self, error: &SpendRuleCheckError) -> bool {
+        self.0
+            .iter()
+            .any(|e| discriminant(e) == discriminant(error))
     }
 }

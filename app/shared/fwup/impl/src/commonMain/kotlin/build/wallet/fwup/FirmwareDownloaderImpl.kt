@@ -1,5 +1,7 @@
 package build.wallet.fwup
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.fwup.FirmwareDownloadError.DownloadError
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class FirmwareDownloaderImpl(
   private val memfaultClient: MemfaultClient,
   private val fileManager: FileManager,

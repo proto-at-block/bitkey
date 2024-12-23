@@ -1,14 +1,17 @@
 package build.wallet.platform.biometrics
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.LocalAuthentication.LABiometryTypeFaceID
 import platform.LocalAuthentication.LABiometryTypeTouchID
 import platform.LocalAuthentication.LAContext
 import platform.LocalAuthentication.LAPolicyDeviceOwnerAuthenticationWithBiometrics
 
+@BitkeyInject(AppScope::class)
 @OptIn(ExperimentalForeignApi::class)
-actual class BiometricTextProviderImpl : BiometricTextProvider {
-  actual override fun getSettingsTitleText(): String {
+class BiometricTextProviderImpl : BiometricTextProvider {
+  override fun getSettingsTitleText(): String {
     val context = LAContext()
       .apply {
         // policy has to be evaluated in order to determine biometry type
@@ -21,7 +24,7 @@ actual class BiometricTextProviderImpl : BiometricTextProvider {
     }
   }
 
-  actual override fun getSettingsSecondaryText(): String {
+  override fun getSettingsSecondaryText(): String {
     val context = LAContext()
       .apply {
         // policy has to be evaluated in order to determine biometry type

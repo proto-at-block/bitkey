@@ -93,6 +93,8 @@ pub struct ClientConfig {
         usize,
     pub recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id:
         usize,
+    pub inheritance_claim_almost_over_as_benefactor_campaign_id: usize,
+    pub inheritance_claim_almost_over_as_beneficiary_campaign_id: usize,
     pub inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id: usize,
     pub inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id: usize,
     pub inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id: usize,
@@ -136,6 +138,8 @@ pub enum IterableClient {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IterableCampaignType {
     CommsVerification,
+    InheritanceClaimAlmostOverAsBenefactor,
+    InheritanceClaimAlmostOverAsBeneficiary,
     InheritanceClaimCanceledByBeneficiaryReceivedByBeneficiary,
     InheritanceClaimCanceledByBeneficiaryReceivedByBenefactor,
     InheritanceClaimCanceledByBenefactorReceivedByBeneficiary,
@@ -262,6 +266,12 @@ impl IterableClient {
                 let campaign_id = match campaign_type {
                     IterableCampaignType::CommsVerification => {
                         config.comms_verification_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimAlmostOverAsBenefactor => {
+                        config.inheritance_claim_almost_over_as_benefactor_campaign_id
+                    }
+                    IterableCampaignType::InheritanceClaimAlmostOverAsBeneficiary => {
+                        config.inheritance_claim_almost_over_as_beneficiary_campaign_id
                     }
                     IterableCampaignType::InheritanceClaimCanceledByBeneficiaryReceivedByBeneficiary => {
                         config.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id

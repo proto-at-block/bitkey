@@ -40,6 +40,10 @@ impl<'a> Rule for DailySpendingLimitRule<'a> {
         &self,
         psbt: &PartiallySignedTransaction,
     ) -> Result<(), SpendRuleCheckError> {
+        if !self.features.settings.limit.active {
+            return Err(SpendRuleCheckError::SpendLimitInactive);
+        }
+
         let total_spent = total_sats_spent_today(
             self.spending_history,
             &self.features.settings.limit,
@@ -202,6 +206,7 @@ mod tests {
         .await;
         let settings = Settings {
             limit: SpendingLimit {
+                active: true,
                 amount: Money {
                     amount: 50_00, // More than what's spent
                     currency_code: USD,
@@ -361,6 +366,7 @@ mod tests {
         .await;
         let settings = Settings {
             limit: SpendingLimit {
+                active: true,
                 amount: Money {
                     amount: 5_00,
                     currency_code: USD,
@@ -379,7 +385,7 @@ mod tests {
         .await
         .unwrap();
 
-        // These transactions don't count towards the limit since it's it's more than 25 hours old
+        // These transactions don't count towards the limit since it's more than 25 hours old
         let transaction_history = generate_daily_spend_entries_for_tx_history(vec![
             generate_fake_transaction_details(
                 &Money {

@@ -94,7 +94,6 @@ private fun TransferConfirmationScreen(
     model = TransferConfirmationScreenModel(
       variant = variant,
       onBack = {},
-      onCancel = {},
       recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
       transactionDetails = TransactionDetailsModel(
         transactionSpeedText = "~30 minutes",

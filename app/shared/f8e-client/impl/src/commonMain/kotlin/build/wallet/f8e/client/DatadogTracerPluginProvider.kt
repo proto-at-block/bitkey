@@ -3,13 +3,16 @@ package build.wallet.f8e.client
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.datadog.DatadogSpan
 import build.wallet.datadog.DatadogTracer
-import io.ktor.client.plugins.api.createClientPlugin
-import io.ktor.http.encodedPath
-import io.ktor.util.AttributeKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import io.ktor.client.plugins.api.*
+import io.ktor.http.*
+import io.ktor.util.*
 
 const val SPAN_NAME = "client.request"
 
-class DatadogTracerPluginProvider(val datadogTracer: DatadogTracer) {
+@BitkeyInject(AppScope::class)
+class DatadogTracerPluginProvider(private val datadogTracer: DatadogTracer) {
   fun getPlugin(accountId: AccountId?) =
     createClientPlugin("DatadogTracerPlugin") {
       val spanKey = AttributeKey<DatadogSpan>("spanKey")

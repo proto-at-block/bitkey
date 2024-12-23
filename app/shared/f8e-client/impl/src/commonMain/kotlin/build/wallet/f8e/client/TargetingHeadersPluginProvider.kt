@@ -2,6 +2,8 @@ package build.wallet.f8e.client
 
 import build.wallet.account.analytics.AppInstallation
 import build.wallet.analytics.v1.PlatformInfo
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import io.ktor.client.plugins.api.createClientPlugin
 
 private object CustomHeaders {
@@ -16,6 +18,7 @@ private object CustomHeaders {
  * Adds targeting headers to requests.
  * These headers are used when resolving any server side feature flags.
  */
+@BitkeyInject(AppScope::class)
 class TargetingHeadersPluginProvider(
   private val appInstallation: AppInstallation?,
   private val deviceRegion: String,

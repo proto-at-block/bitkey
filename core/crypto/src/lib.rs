@@ -12,3 +12,6 @@ pub mod spake2;
 
 #[cfg(feature = "noise")]
 pub mod noise;
+
+#[cfg(feature = "ssb")]
+pub mod ssb;

@@ -33,7 +33,8 @@ use onboarding::routes::{
     ActivateSpendingKeyDefinitionResponse, BdkConfigResponse, CompleteOnboardingRequest,
     CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
-    CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
+    CreateKeysetRequest, CreateKeysetResponse, CreateSelfSovereignBackupRequest,
+    CreateSelfSovereignBackupResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
     RotateSpendingKeysetRequest, UpgradeAccountRequest,
 };
@@ -1301,6 +1302,19 @@ impl TestClient {
             ))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn create_self_sovereign_backup(
+        &self,
+        account_id: &str,
+        request: &CreateSelfSovereignBackupRequest,
+    ) -> Response<CreateSelfSovereignBackupResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/self-sovereign-backup"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .post(request)
             .call(&self.router)
             .await
     }

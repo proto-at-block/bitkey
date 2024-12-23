@@ -4,7 +4,6 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -26,14 +25,13 @@ data class MobilePayStatusModel(
     switchIsChecked: Boolean,
     onSwitchCheckedChange: (Boolean) -> Unit,
     dailyLimitRow: ActionRow?,
-    spendingLimitCopy: SpendingLimitsCopy,
     disableAlertModel: ButtonAlertModel?,
     spendingLimitCardModel: SpendingLimitCardModel?,
   ) : this(
     onBack = onBack,
     switchCardModel = SwitchCardModel(
-      title = spendingLimitCopy.title,
-      subline = spendingLimitCopy.subline,
+      title = "Transfer without hardware",
+      subline = "When on, you can spend up to a set daily limit without your Bitkey device.",
       switchModel =
         SwitchModel(
           checked = switchIsChecked,

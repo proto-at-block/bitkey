@@ -10,11 +10,13 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import me.tatarka.inject.annotations.Inject
 import kotlin.reflect.KClass
 
 /**
  * A repository for SocRec keys that can generate keys if missing.
  */
+@Inject // TODO: move this class to :impl and use @BitkeyInject
 class RelationshipsKeysRepository(
   private val relationshipsCrypto: RelationshipsCrypto,
   private val relationshipKeysDao: RelationshipsKeysDao,

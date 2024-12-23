@@ -1,6 +1,8 @@
 package build.wallet.f8e.partnerships
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
@@ -16,6 +18,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class GetPartnershipTransactionF8eClientImpl(
   private val client: F8eHttpClient,
 ) : GetPartnershipTransactionF8eClient {

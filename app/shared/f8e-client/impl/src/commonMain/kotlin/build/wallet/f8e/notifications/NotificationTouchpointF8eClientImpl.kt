@@ -1,6 +1,8 @@
 package build.wallet.f8e.notifications
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -30,6 +32,7 @@ import io.ktor.client.request.put
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class NotificationTouchpointF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val phoneNumberValidator: PhoneNumberValidator,

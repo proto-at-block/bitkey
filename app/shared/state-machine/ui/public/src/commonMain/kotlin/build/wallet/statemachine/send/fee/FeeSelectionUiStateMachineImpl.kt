@@ -17,6 +17,8 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MIN
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.*
@@ -32,6 +34,7 @@ import kotlinx.collections.immutable.immutableMapOf
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(ActivityScope::class)
 class FeeSelectionUiStateMachineImpl(
   private val bitcoinTransactionFeeEstimator: BitcoinTransactionFeeEstimator,
   private val transactionPriorityPreference: TransactionPriorityPreference,

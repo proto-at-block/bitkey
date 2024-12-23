@@ -62,7 +62,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val startLiteAccountCreationCalls = turbines.create<Unit>("startLiteAccountCreation calls")
   val startEmergencyAccessRecoveryCalls =
     turbines.create<Unit>("startEmergencyAccessRecovery calls")
-  val resetExistingDeviceCalls = turbines.create<Unit>("resetExistingDevice calls")
+  val wipeExistingDeviceCalls = turbines.create<Unit>("wipeExistingDevice calls")
 
   val props = ChooseAccountAccessUiProps(
     chooseAccountAccessData = GettingStartedData(
@@ -70,9 +70,10 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
       startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
       startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
-      resetExistingDevice = { resetExistingDeviceCalls.add(Unit) },
+      wipeExistingDevice = { wipeExistingDeviceCalls.add(Unit) },
       isNavigatingBack = false
-    )
+    ),
+    onSoftwareWalletCreated = {}
   )
 
   beforeTest {
@@ -172,7 +173,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("reset existing device") {
+  test("wipe existing device") {
     stateMachine.test(props) {
       awaitScreenWithBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
@@ -184,12 +185,12 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
           .listGroupModel
           .items[2]
           .also {
-            it.title.shouldBe("Reset an existing device")
+            it.title.shouldBe("Wipe an existing device")
           }
           .onClick.shouldNotBeNull().invoke()
       }
 
-      resetExistingDeviceCalls.awaitItem()
+      wipeExistingDeviceCalls.awaitItem()
     }
   }
 

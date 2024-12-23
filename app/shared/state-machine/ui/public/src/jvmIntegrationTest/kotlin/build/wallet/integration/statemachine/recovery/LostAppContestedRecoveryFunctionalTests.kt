@@ -121,7 +121,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         lostAppAppTester.initiateLostAppRecovery(
           isContested = isContested,
           cancelOtherRecovery = false
-        ).onStopRecovery()
+        ).onStopRecovery.shouldNotBeNull().invoke()
         lostAppAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
         lostAppAppTester.awaitUntilScreenWithBody<ChooseAccountAccessModel>()
@@ -133,7 +133,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         resetLostHwAppHardware()
         lostHwAppTester.initiateLostHardwareRecovery(
           isContested = isContested
-        ).onStopRecovery()
+        ).onStopRecovery.shouldNotBeNull().invoke()
         lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
         lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>(SETTINGS_DEVICE_INFO)

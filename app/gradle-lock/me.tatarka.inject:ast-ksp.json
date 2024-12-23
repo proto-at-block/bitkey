@@ -1,0 +1,18 @@
+{
+    "module-identifier": "me.tatarka.inject:ast-ksp",
+    "components": [
+        {
+            "version": "0.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ast-ksp-0.7.2.jar": "933a7efb2c656490b87a3cb7aebcfd376bc619ab9dd5e731964a9ae841f0c12b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.demo.DemoModeF8eClient
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -24,6 +26,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(ActivityScope::class)
 class DemoModeCodeEntryUiStateMachineImpl(
   private val demoModeF8eClient: DemoModeF8eClient,
   private val delayer: Delayer,

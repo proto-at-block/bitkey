@@ -1,11 +1,14 @@
 package build.wallet.amount
 
 import build.wallet.amount.Amount.Companion.MAXIMUM
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-class WholeNumberCalculatorImpl(
+@BitkeyInject(AppScope::class)
+class WholeNumberCalculatorImpl : WholeNumberCalculator {
   /** A maximum value this calculator will bound all [append] operations to. */
-  private val maximumValue: Long = MAXIMUM,
-) : WholeNumberCalculator {
+  private val maximumValue: Long = MAXIMUM
+
   override fun append(
     amount: Amount.WholeNumber,
     digit: Int,

@@ -7,6 +7,8 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.logging.logFailure
 import build.wallet.logging.logWarn
@@ -21,6 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class CloudBackupHealthRepositoryImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val cloudBackupRepository: CloudBackupRepository,

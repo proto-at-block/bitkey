@@ -61,7 +61,7 @@ data class RecoverYourMobileKeyBodyModel(
 
 data class DelayAndNotifyNewKeyReady(
   val factorToRecover: PhysicalFactor,
-  val onStopRecovery: () -> Unit,
+  val onStopRecovery: (() -> Unit)?,
   val onCompleteRecovery: () -> Unit,
   val onExit: (() -> Unit)?,
 ) : FormBodyModel(
@@ -74,14 +74,16 @@ data class DelayAndNotifyNewKeyReady(
       leadingAccessory = onExit?.let {
         IconAccessory.CloseAccessory(onClick = onExit)
       },
-      trailingAccessory = ButtonAccessory(
-        model = ButtonModel(
-          text = "Cancel recovery",
-          treatment = TertiaryDestructive,
-          size = Compact,
-          onClick = StandardClick { onStopRecovery() }
+      trailingAccessory = onStopRecovery?.let {
+        ButtonAccessory(
+          model = ButtonModel(
+            text = "Cancel recovery",
+            treatment = TertiaryDestructive,
+            size = Compact,
+            onClick = StandardClick { onStopRecovery() }
+          )
         )
-      )
+      }
     ),
     header = FormHeaderModel(
       icon = LargeIconCheckStroked,

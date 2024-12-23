@@ -5,11 +5,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.settings.full.device.fingerprints.EditingFingerprintUiState.ConfirmDeleteFingerprintUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.EditingFingerprintUiState.EditFingerprintHandleUiState
 
+@BitkeyInject(ActivityScope::class)
 class EditingFingerprintUiStateMachineImpl : EditingFingerprintUiStateMachine {
   @Composable
   override fun model(props: EditingFingerprintProps): SheetModel {

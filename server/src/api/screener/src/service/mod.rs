@@ -1,10 +1,12 @@
-use crate::sanctions_screener::{SanctionedAddresses, Screener};
-use crate::{s3_util, Config, ObjectPath, ScreenerMode};
-use csv::ReaderBuilder;
-use serde::Deserialize;
 use std::collections::HashSet;
+use std::env;
 use std::str::FromStr;
-use std::{env, fs};
+
+use crate::sanctions_screener::{SanctionedAddresses, Screener};
+use crate::{Config, ScreenerMode};
+use csv::ReaderBuilder;
+use s3_utils::{read_file_to_memory, ObjectPath};
+use serde::Deserialize;
 use tracing::error;
 
 pub trait SanctionsScreener {
@@ -64,31 +66,6 @@ impl SanctionsScreener for Service {
             .screener
             .find_sanctioned_addresses(destination_addresses)
             .is_empty()
-    }
-}
-
-async fn read_file_to_memory(path: &ObjectPath) -> Vec<u8> {
-    match path {
-        ObjectPath::S3(s3_path) => {
-            // Read from S3
-            let object_bytes = match s3_util::read_object(s3_path.as_str()).await {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    error!("Error reading from S3: {}", e);
-                    panic!("Error loading object from S3.");
-                }
-            };
-
-            object_bytes.into_bytes().into()
-        }
-        ObjectPath::Local(local_path) => {
-            // Read from local filesystem
-            let file_path = local_path.replacen("file://", "", 1);
-            fs::read(&file_path).unwrap_or_else(|e| {
-                error!("Could not read file: {file_path} Reason: {e}");
-                panic!("Could not read file.")
-            })
-        }
     }
 }
 

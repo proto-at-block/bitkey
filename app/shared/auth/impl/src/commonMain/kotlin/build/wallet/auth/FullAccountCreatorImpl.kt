@@ -12,6 +12,8 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateFullAccountF8eClient
@@ -25,6 +27,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(AppScope::class)
 class FullAccountCreatorImpl(
   private val keyboxDao: KeyboxDao,
   private val createFullAccountF8eClient: CreateFullAccountF8eClient,

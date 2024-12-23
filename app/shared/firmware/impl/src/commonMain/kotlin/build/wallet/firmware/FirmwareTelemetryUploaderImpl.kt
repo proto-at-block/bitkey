@@ -1,5 +1,7 @@
 package build.wallet.firmware
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.queueprocessor.process
 import build.wallet.toByteString
@@ -8,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import okio.ByteString
 
+@BitkeyInject(AppScope::class)
 class FirmwareTelemetryUploaderImpl(
   private val appCoroutineScope: CoroutineScope,
   private val firmwareCoredumpProcessor: FirmwareCoredumpEventProcessor,

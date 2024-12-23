@@ -1,15 +1,12 @@
 package build.wallet.statemachine.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreServiceProvider
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -17,6 +14,7 @@ import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import com.github.michaelbull.result.getOrThrow
 
+@BitkeyInject(AppScope::class)
 class CloudSignInUiStateMachineFake(
   private val cloudStoreAccountRepository: WritableCloudStoreAccountRepository,
   private val cloudStoreServiceProvider: CloudStoreServiceProvider,

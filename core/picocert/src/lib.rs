@@ -205,7 +205,7 @@ pub fn current_time() -> u64 {
 
 #[cfg(test)]
 thread_local! {
-    static TEST_CURRENT_TIME: std::cell::RefCell<u64> = std::cell::RefCell::new(1717629556);
+    static TEST_CURRENT_TIME: std::cell::RefCell<u64> = const { std::cell::RefCell::new(1717629556) };
 }
 
 #[cfg(test)]

@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.auth.OnboardingFullAccountDeleter
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -20,6 +22,7 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class OverwriteFullAccountCloudBackupUiStateMachineImpl(
   private val onboardingFullAccountDeleter: OnboardingFullAccountDeleter,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,

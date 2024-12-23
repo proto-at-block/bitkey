@@ -79,7 +79,7 @@ private extension SpendingLimitPickerModel {
         value: Float,
         buttonIsEnabled: Bool,
         isKeypad: Bool,
-        isRevamp: Bool
+        isRevamp _: Bool
     ) -> SpendingLimitPickerModel {
         let maxValue = Float(200.0)
         let entryMode = if isKeypad {
@@ -115,7 +115,6 @@ private extension SpendingLimitPickerModel {
                 trailingAccessory: nil
             ),
             entryMode: entryMode,
-            spendingLimitsCopy: SpendingLimitsCopy.Companion().get(isRevampOn: isRevamp),
             setLimitButtonEnabled: buttonIsEnabled,
             setLimitButtonLoading: false,
             onSetLimitClick: {}

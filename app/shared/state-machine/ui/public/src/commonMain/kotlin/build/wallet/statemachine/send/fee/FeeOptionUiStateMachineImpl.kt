@@ -3,14 +3,15 @@ package build.wallet.statemachine.send.fee
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList.FeeOption
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
 
+@BitkeyInject(AppScope::class)
 class FeeOptionUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,

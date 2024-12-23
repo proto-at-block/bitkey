@@ -1,21 +1,21 @@
 package build.wallet.platform.clipboard
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.clipboard.ClipItem.PlainText
 
-actual class ClipboardImpl actual constructor(
-  platformContext: PlatformContext,
-) : Clipboard {
-  actual override fun setItem(item: ClipItem) {
+@BitkeyInject(AppScope::class)
+class ClipboardImpl : Clipboard {
+  override fun setItem(item: ClipItem) {
     // noop
   }
 
-  actual override fun getPlainTextItemAndroid(): PlainText? {
+  override fun getPlainTextItemAndroid(): PlainText? {
     // noop
     return null
   }
 
-  actual override fun getPlainTextItem(): PlainText? {
+  override fun getPlainTextItem(): PlainText? {
     // noop
     return null
   }

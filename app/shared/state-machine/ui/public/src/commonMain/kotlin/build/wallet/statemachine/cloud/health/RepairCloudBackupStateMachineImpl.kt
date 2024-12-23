@@ -15,6 +15,8 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitData
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
@@ -37,6 +39,8 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 // TODO(796): add integration tests
+
+@BitkeyInject(ActivityScope::class)
 class RepairCloudBackupStateMachineImpl(
   private val cloudSignInStateMachine: CloudSignInUiStateMachine,
   private val cloudBackupDao: CloudBackupDao,

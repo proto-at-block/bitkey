@@ -1,21 +1,18 @@
 package build.wallet.platform.settings
 
-import android.content.Context.TELEPHONY_SERVICE
 import android.telephony.TelephonyManager
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class TelephonyCountryCodeProviderImpl actual constructor(
-  platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class TelephonyCountryCodeProviderImpl(
+  private val telephonyManager: TelephonyManager,
 ) : TelephonyCountryCodeProvider {
   private val countryCode by lazy {
-    val telephonyManager =
-      platformContext.appContext.getSystemService(
-        TELEPHONY_SERVICE
-      ) as TelephonyManager
     telephonyManager.simCountryIso.uppercase()
   }
 
-  actual override fun countryCode(): String {
+  override fun countryCode(): String {
     return countryCode
   }
 }

@@ -3,8 +3,9 @@ package build.wallet.auth
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
-import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
 
+@BitkeyInject(AppScope::class)
 class AuthKeyRotationAttemptDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : AuthKeyRotationAttemptDao {

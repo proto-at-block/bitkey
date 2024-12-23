@@ -2,6 +2,7 @@ package build.wallet.statemachine.transactions
 
 import androidx.compose.runtime.*
 import build.wallet.activity.Transaction
+import build.wallet.activity.TransactionsActivityService
 import build.wallet.activity.onChainDetails
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION
@@ -22,6 +23,8 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
@@ -51,10 +54,13 @@ import build.wallet.ui.model.icon.*
 import com.github.michaelbull.result.getOrElse
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class TransactionDetailsUiStateMachineImpl(
   private val bitcoinExplorer: BitcoinExplorer,
   private val timeZoneProvider: TimeZoneProvider,
@@ -71,11 +77,24 @@ class TransactionDetailsUiStateMachineImpl(
   private val feeRateEstimator: BitcoinFeeRateEstimator,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val transactionsActivityService: TransactionsActivityService,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransactionDetailsUiProps): ScreenModel {
-    var uiState: UiState by remember { mutableStateOf(ShowingTransactionDetailUiState) }
+    var uiState: UiState by remember {
+      mutableStateOf(ShowingTransactionDetailUiState(props.transaction))
+    }
+
+    val transaction by remember(props.transaction.id) {
+      transactionsActivityService.transactionById(props.transaction.id)
+        .filterNotNull()
+        .onEach {
+          if (uiState is ShowingTransactionDetailUiState) {
+            uiState = ShowingTransactionDetailUiState(it)
+          }
+        }
+    }.collectAsState(props.transaction)
 
     return when (val state = uiState) {
       is SpeedingUpTransactionUiState ->
@@ -94,7 +113,7 @@ class TransactionDetailsUiStateMachineImpl(
         var isPreparingSpeedUp by remember { mutableStateOf(false) }
 
         if (isPreparingSpeedUp) {
-          val bitcoinTransaction = props.transaction.onChainDetails()
+          val bitcoinTransaction = transaction.onChainDetails()
           bitcoinTransaction?.let {
             LaunchedEffect("loading-rates-and-getting-wallet") {
               prepareTransactionSpeedUp(
@@ -128,9 +147,9 @@ class TransactionDetailsUiStateMachineImpl(
 
         val onSpeedUpTransaction: () -> Unit = remember {
           {
-            val speedUpTransactionDetails = when (val transaction = props.transaction) {
-              is Transaction.BitcoinWalletTransaction -> transaction.details.toSpeedUpTransactionDetails()
-              is Transaction.PartnershipTransaction -> transaction.bitcoinTransaction?.toSpeedUpTransactionDetails()
+            val speedUpTransactionDetails = when (val tx = transaction) {
+              is Transaction.BitcoinWalletTransaction -> tx.details.toSpeedUpTransactionDetails()
+              is Transaction.PartnershipTransaction -> tx.bitcoinTransaction?.toSpeedUpTransactionDetails()
             }
             eventTracker.track(ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION)
             when (speedUpTransactionDetails) {
@@ -143,10 +162,10 @@ class TransactionDetailsUiStateMachineImpl(
         }
 
         val transactionUrl =
-          props.transaction.transactionUrl(bitcoinNetworkType = props.account.config.bitcoinNetworkType)
+          transaction.transactionUrl(bitcoinNetworkType = props.account.config.bitcoinNetworkType)
 
         val transactionDetailModel = bitcoinTransactionDetailModel(
-          transaction = props.transaction,
+          transaction = transaction,
           isLoading = isPreparingSpeedUp,
           onViewSpeedUpEducation = {
             isShowingEducationSheet = true
@@ -188,7 +207,7 @@ class TransactionDetailsUiStateMachineImpl(
         subline = "We are looking into this. Please try again later.",
         primaryButton = ButtonDataModel(
           text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState }
+          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
         ),
         eventTrackerScreenId = FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
       ).asModalScreen()
@@ -198,7 +217,7 @@ class TransactionDetailsUiStateMachineImpl(
         subline = "There are not enough funds to speed up the transaction. Please add more funds and try again.",
         primaryButton = ButtonDataModel(
           text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState }
+          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
         ),
         eventTrackerScreenId = null
       ).asModalScreen()
@@ -208,7 +227,7 @@ class TransactionDetailsUiStateMachineImpl(
         subline = "The current fee rate is too low. Please try again later.",
         primaryButton = ButtonDataModel(
           text = "Go Back",
-          onClick = { uiState = ShowingTransactionDetailUiState }
+          onClick = { uiState = ShowingTransactionDetailUiState(transaction) }
         ),
         eventTrackerScreenId = null
       ).asModalScreen()
@@ -262,16 +281,10 @@ class TransactionDetailsUiStateMachineImpl(
     onFeeRateTooLow: () -> Unit,
     onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit,
   ) {
-    feeRateEstimator
-      .getEstimatedFeeRates(networkType = account.config.bitcoinNetworkType)
-      .getOrElse {
-        onFailedToPrepareData()
-        return
-      }
-      .getOrElse(FASTEST) {
-        onFailedToPrepareData()
-        return
-      }
+    feeRateEstimator.estimatedFeeRateForTransaction(
+      networkType = account.config.bitcoinNetworkType,
+      estimatedTransactionPriority = FASTEST
+    )
       .also { feeRate ->
         // For test accounts on Signet, we manually choose a fee rate that is 5 times the previous
         // one. This is particularly useful for QA when testing.
@@ -360,6 +373,11 @@ class TransactionDetailsUiStateMachineImpl(
     transaction: BitcoinTransaction,
     onViewSpeedUpEducation: () -> Unit,
   ): ImmutableList<FormMainContentModel> {
+    val atTime = when (transaction.transactionType) {
+      Incoming, UtxoConsolidation -> transaction.confirmationTime()
+      Outgoing -> transaction.broadcastTime ?: transaction.confirmationTime()
+    }
+
     val totalAmount = when (transaction.transactionType) {
       Incoming, UtxoConsolidation -> transaction.subtotal
       Outgoing -> transaction.total
@@ -371,7 +389,7 @@ class TransactionDetailsUiStateMachineImpl(
       converter = currencyConverter,
       fromAmount = totalAmount,
       toCurrency = fiatCurrency,
-      atTime = transaction.broadcastTime ?: transaction.confirmationTime()
+      atTime = atTime
     ) as FiatMoney
 
     val totalAmountTexts = moneyDisplayFormatter.amountDisplayText(
@@ -383,7 +401,7 @@ class TransactionDetailsUiStateMachineImpl(
       converter = currencyConverter,
       fromAmount = transaction.subtotal,
       toCurrency = fiatCurrency,
-      atTime = transaction.broadcastTime ?: transaction.confirmationTime()
+      atTime = atTime
     ) as FiatMoney?
     val subtotalAmountTexts = moneyDisplayFormatter.amountDisplayText(
       bitcoinAmount = transaction.subtotal,
@@ -391,12 +409,11 @@ class TransactionDetailsUiStateMachineImpl(
     )
 
     val transactionFee = transaction.fee.orZero()
-    val consolidationTime = transaction.confirmationTime() ?: transaction.broadcastTime
     val transactionFeeFiat = convertedOrNull(
       converter = currencyConverter,
       fromAmount = transactionFee,
       toCurrency = fiatCurrency,
-      atTime = consolidationTime
+      atTime = atTime
     ) as FiatMoney?
 
     val transactionFeeAmountTexts = moneyDisplayFormatter.amountDisplayText(
@@ -603,7 +620,7 @@ class TransactionDetailsUiStateMachineImpl(
     /**
      * Customer is viewing transaction details.
      */
-    data object ShowingTransactionDetailUiState : UiState
+    data class ShowingTransactionDetailUiState(val transaction: Transaction) : UiState
 
     /**
      * Customer is showing speed up confirmation flow.

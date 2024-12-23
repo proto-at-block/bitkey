@@ -1,15 +1,16 @@
 package build.wallet.nfc
 
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import platform.CoreNFC.NFCReaderSession
 
 /**
  * iOS implementation of [NfcReaderCapability], uses CoreNFC APIs.
  */
-actual class NfcReaderCapabilityImpl actual constructor(
-  platformContext: PlatformContext,
-) : NfcReaderCapability {
-  actual override fun availability(isHardwareFake: Boolean): NfcAvailability {
+
+@BitkeyInject(AppScope::class)
+class NfcReaderCapabilityImpl : NfcReaderCapability {
+  override fun availability(isHardwareFake: Boolean): NfcAvailability {
     if (isHardwareFake) {
       return NfcAvailability.Available.Enabled
     }

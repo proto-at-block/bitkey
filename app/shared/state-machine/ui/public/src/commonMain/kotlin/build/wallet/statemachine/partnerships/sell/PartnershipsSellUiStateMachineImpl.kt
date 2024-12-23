@@ -3,6 +3,8 @@ package build.wallet.statemachine.partnerships.sell
 import androidx.compose.runtime.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
 import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
 import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
@@ -27,6 +29,7 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(ActivityScope::class)
 class PartnershipsSellUiStateMachineImpl(
   private val partnershipsSellOptionsUiStateMachine: PartnershipsSellOptionsUiStateMachine,
   private val partnershipsSellConfirmationUiStateMachine:

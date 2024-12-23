@@ -1,6 +1,8 @@
 package build.wallet.f8e.analytics
 
 import build.wallet.analytics.v1.EventBundle
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -14,6 +16,7 @@ import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.post
 
+@BitkeyInject(AppScope::class)
 class EventTrackerF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : EventTrackerF8eClient {

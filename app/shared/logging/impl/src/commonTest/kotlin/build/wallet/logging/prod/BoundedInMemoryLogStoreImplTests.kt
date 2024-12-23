@@ -46,7 +46,8 @@ class BoundedInMemoryLogStoreImplTests : FunSpec({
   }
 
   test("log only grows to max entries") {
-    val store = BoundedInMemoryLogStoreImpl(2)
+    val store = BoundedInMemoryLogStoreImpl()
+    store.maxLogEntries = 2
 
     store.record(LogStore.Entity(Clock.System.now(), LogLevel.Debug, "tag", null, "0"))
     store.record(LogStore.Entity(Clock.System.now(), LogLevel.Debug, "tag", null, "1"))

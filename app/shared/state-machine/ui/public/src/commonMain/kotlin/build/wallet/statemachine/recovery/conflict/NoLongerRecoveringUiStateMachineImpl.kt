@@ -3,6 +3,8 @@ package build.wallet.statemachine.recovery.conflict
 import androidx.compose.runtime.*
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.RecoveryDao
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
@@ -14,6 +16,7 @@ import build.wallet.statemachine.recovery.conflict.model.ShowingNoLongerRecoveri
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class NoLongerRecoveringUiStateMachineImpl(
   private val recoveryDao: RecoveryDao,
 ) : NoLongerRecoveringUiStateMachine {

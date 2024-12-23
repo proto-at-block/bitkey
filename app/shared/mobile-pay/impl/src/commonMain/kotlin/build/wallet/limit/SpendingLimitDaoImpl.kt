@@ -4,6 +4,8 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FiatCurrencyEntity
 import build.wallet.database.sqldelight.SpendingLimitEntity
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
@@ -18,6 +20,7 @@ import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class SpendingLimitDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : SpendingLimitDao {

@@ -231,18 +231,9 @@ impl IntoResponse for ApiError {
 //TODO: Move over to thiserror
 #[derive(Debug)]
 pub enum RouteError {
-    WsmClientCreation(anyhow::Error),
-    BdkWalletCreation(String, String), // (Error, Wallet Descriptor)
-    WalletExport(String),
-    WalletImport(serde_json::Error, String),
-    InvalidNetworkForTestAccount(String),
-    InvalidPsbt(String, String), // (Error, Psbt)
-    InvalidWalletId(String, String),
     InvalidIdentifier(external_identifier::Error),
     NoActiveAuthKeys,
     NoActiveSpendKeyset,
-    NoSpendKeysetError(String),
-    MissingMobilePaySettings,
     DatetimeFormatError,
     MutateDatetimeError,
     InvalidNetworkForNewKeyset,
@@ -252,57 +243,6 @@ pub enum RouteError {
 impl From<RouteError> for ApiError {
     fn from(val: RouteError) -> Self {
         match val {
-            RouteError::WsmClientCreation(e) => {
-                event!(
-                    Level::ERROR,
-                    "Failed to instantiate WSM client with error: {}",
-                    e.to_string()
-                );
-                ApiError::GenericInternalApplicationError(
-                    "Couldn't generate WSM client".to_string(),
-                )
-            }
-            RouteError::BdkWalletCreation(e, descriptor) => {
-                event!(
-                    Level::ERROR,
-                    "Failed to construct wallet descriptor with error: {}",
-                    e
-                );
-                event!(Level::DEBUG, "Descriptor: \'{}\'", descriptor);
-                ApiError::GenericInternalApplicationError("Unable to generate Wallet".to_string())
-            }
-            RouteError::WalletExport(e) => {
-                event!(Level::ERROR, "Failed to export wallet with error: {}", e);
-                ApiError::GenericInternalApplicationError("Could not export wallet".to_string())
-            }
-            RouteError::WalletImport(e, descriptor) => {
-                event!(
-                    Level::ERROR,
-                    "Failed to import saved wallet with error: {}",
-                    e.to_string()
-                );
-                event!(Level::DEBUG, "with descriptor: {}", descriptor);
-                ApiError::GenericInternalApplicationError(
-                    "Could not import saved wallet".to_string(),
-                )
-            }
-            RouteError::InvalidNetworkForTestAccount(e) => {
-                ApiError::GenericBadRequest(e.to_string())
-            }
-            RouteError::InvalidPsbt(e, psbt) => {
-                event!(Level::INFO, "Could not decode psbt due to error: {}", e);
-                event!(Level::DEBUG, "PSBT: \'{}\'", psbt);
-                ApiError::GenericBadRequest("Could not parse network".to_string())
-            }
-            RouteError::InvalidWalletId(wallet_id_a, wallet_id_b) => {
-                event!(
-                    Level::WARN,
-                    "Wallet ID {} in route and authentication token {} do not match",
-                    wallet_id_a,
-                    wallet_id_b
-                );
-                ApiError::GenericBadRequest("Invalid auth token".to_string())
-            }
             RouteError::InvalidIdentifier(id) => {
                 event!(Level::WARN, "Invalid ID {}", id,);
                 ApiError::GenericBadRequest("Invalid ID".to_string())
@@ -317,16 +257,6 @@ impl From<RouteError> for ApiError {
                 ApiError::GenericInternalApplicationError(
                     "Account without active spending keyset".to_string(),
                 )
-            }
-            RouteError::NoSpendKeysetError(keyset_id) => {
-                let msg = format!("Account doesn't have requested keyset: {keyset_id}");
-                event!(Level::ERROR, msg);
-                ApiError::GenericInternalApplicationError(msg)
-            }
-            RouteError::MissingMobilePaySettings => {
-                let msg = "Mobilepay settings not found";
-                event!(Level::ERROR, msg);
-                ApiError::GenericInternalApplicationError(msg.to_string())
             }
             RouteError::DatetimeFormatError => {
                 event!(Level::ERROR, "Issue formatting OffsetDateTime");

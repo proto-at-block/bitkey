@@ -14,7 +14,6 @@ final class MobileTransactionsSnapshotTests: XCTestCase {
                 switchIsChecked: true,
                 onSwitchCheckedChange: { _ in },
                 dailyLimitRow: .init(title: "Daily limit", sideText: "$100.00", onClick: {}),
-                spendingLimitCopy: SpendingLimitsCopy.Companion().get(isRevampOn: false),
                 disableAlertModel: nil,
                 spendingLimitCardModel: .init(
                     titleText: "Today’s limit",
@@ -36,7 +35,6 @@ final class MobileTransactionsSnapshotTests: XCTestCase {
                 switchIsChecked: false,
                 onSwitchCheckedChange: { _ in },
                 dailyLimitRow: nil,
-                spendingLimitCopy: SpendingLimitsCopy.Companion().get(isRevampOn: false),
                 disableAlertModel: nil,
                 spendingLimitCardModel: nil
             )
@@ -52,7 +50,6 @@ final class MobileTransactionsSnapshotTests: XCTestCase {
                 switchIsChecked: true,
                 onSwitchCheckedChange: { _ in },
                 dailyLimitRow: .init(title: "Daily limit", sideText: "$100.00", onClick: {}),
-                spendingLimitCopy: SpendingLimitsCopy.Companion().get(isRevampOn: true),
                 disableAlertModel: nil,
                 spendingLimitCardModel: .init(
                     titleText: "Today’s limit",
@@ -74,7 +71,6 @@ final class MobileTransactionsSnapshotTests: XCTestCase {
                 switchIsChecked: false,
                 onSwitchCheckedChange: { _ in },
                 dailyLimitRow: nil,
-                spendingLimitCopy: SpendingLimitsCopy.Companion().get(isRevampOn: true),
                 disableAlertModel: nil,
                 spendingLimitCardModel: nil
             )

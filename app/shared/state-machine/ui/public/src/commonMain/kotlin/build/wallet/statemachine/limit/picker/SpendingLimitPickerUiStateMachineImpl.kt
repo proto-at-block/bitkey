@@ -1,110 +1,42 @@
 package build.wallet.statemachine.limit.picker
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.configuration.MobilePayFiatConfigService
-import build.wallet.feature.flags.MobilePayRevampFeatureFlag
-import build.wallet.feature.isEnabled
+import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateService
-import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.data.money.convertedOrZero
 import build.wallet.statemachine.limit.ConfirmingWithHardwareErrorSheetModel
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiState.ConfirmingWithHardwareUiState
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiState.PickingSpendingLimitUiState
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
-import build.wallet.ui.model.slider.AmountSliderModel
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
+@BitkeyInject(ActivityScope::class)
 class SpendingLimitPickerUiStateMachineImpl(
-  private val currencyConverter: CurrencyConverter,
-  private val mobilePayFiatConfigService: MobilePayFiatConfigService,
   private val exchangeRateService: ExchangeRateService,
-  private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,
-  private val mobilePayRevampFeatureFlag: MobilePayRevampFeatureFlag,
 ) : SpendingLimitPickerUiStateMachine {
   @Composable
   override fun model(props: SpendingLimitPickerUiProps): ScreenModel {
     // Keep track of state values
-    var fiatLimitValue by remember {
+    val fiatLimitValue by remember {
       mutableStateOf(props.initialLimit)
     }
-    val mobilePayFiatConfig by mobilePayFiatConfigService.config.collectAsState()
-    val isMobilePayRevampFeatureFlagEnabled = mobilePayRevampFeatureFlag.isEnabled()
-
-    val btcLimitValue =
-      convertedOrZero(
-        converter = currencyConverter,
-        fromAmount = fiatLimitValue,
-        toCurrency = BTC
-      ) as BitcoinMoney
-
-    val primaryLimitFormatted by remember(fiatLimitValue) {
-      derivedStateOf {
-        moneyDisplayFormatter.formatCompact(fiatLimitValue)
-      }
-    }
-
-    val secondaryLimitFormatted by remember(btcLimitValue) {
-      derivedStateOf {
-        moneyDisplayFormatter.format(btcLimitValue)
-      }
-    }
-
-    val sliderValue = fiatLimitValue.value.floatValue(exactRequired = false)
-    val minimumFiatLimitAmount = mobilePayFiatConfig.minimumLimit.value.floatValue()
-    val maximumFiatLimitAmount = mobilePayFiatConfig.maximumLimit.value.floatValue()
-    val snapToleranceValues = mobilePayFiatConfig.snapValues
-
-    // Helper to build amount slider model from state values
-    fun amountSliderModel(isEnabled: Boolean) =
-      AmountSliderModel(
-        primaryAmount = primaryLimitFormatted,
-        secondaryAmount = secondaryLimitFormatted,
-        value = sliderValue,
-        valueRange = minimumFiatLimitAmount..maximumFiatLimitAmount,
-        onValueUpdate = { newValue ->
-          // round to nearest whole value to account for floating point calculation from slider UI
-          val roundedValue =
-            FiatMoney(fiatLimitValue.currency, newValue.roundToInt().toBigDecimal())
-          val snapValue =
-            snapToleranceValues
-              .asSequence()
-              .firstOrNull { entry ->
-                abs(entry.key.value.intValue() - roundedValue.value.intValue()) <
-                  entry.value.value.value
-                    .intValue()
-              }
-          fiatLimitValue = snapValue?.key ?: roundedValue
-        },
-        isEnabled = isEnabled
-      )
 
     // Computes calculator model we need to show keypad-based limit entry.
     // Unlike the slider, Money Calculator encapsulates both the keypad and amount display. Hence,
@@ -124,55 +56,10 @@ class SpendingLimitPickerUiStateMachineImpl(
     )
 
     // Helper to build toolbar model
-    val toolbarModel = if (isMobilePayRevampFeatureFlagEnabled) {
-      ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory, middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit"))
-    } else {
-      ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory)
-    }
-
-    // Depending on feature flag, use different conditions for checking validity.
-    val saveLimitEnabled by remember(fiatLimitValue, calculatorModel.primaryAmount) {
-      derivedStateOf {
-        when (isMobilePayRevampFeatureFlagEnabled) {
-          true -> calculatorModel.primaryAmount.isPositive
-          false -> fiatLimitValue.value > 0
-        }
-      }
-    }
-
-    fun confirmingWithHardwareState(isRevampOn: Boolean): ConfirmingWithHardwareUiState =
-      when (isRevampOn) {
-        true -> {
-          // We **never** allow customers to switch primary input methods. Hence, we can be assured
-          // that primary amount is always FiatMoney, and secondaryAmount is BitcoinMoney
-          val fiatLimit = calculatorModel.primaryAmount as FiatMoney
-          val btcLimit = calculatorModel.secondaryAmount as BitcoinMoney
-
-          ConfirmingWithHardwareUiState(
-            selectedFiatLimit = fiatLimit,
-            selectedBtcLimit = btcLimit
-          )
-        }
-        false -> ConfirmingWithHardwareUiState(
-          selectedFiatLimit = fiatLimitValue,
-          selectedBtcLimit = btcLimitValue
-        )
-      }
-
-    fun entryMode(
-      isRevampOn: Boolean,
-      isEnabled: Boolean,
-    ): EntryMode {
-      return when (isRevampOn) {
-        true -> EntryMode.Keypad(
-          amountModel = calculatorModel.amountModel,
-          keypadModel = calculatorModel.keypadModel
-        )
-        false -> EntryMode.Slider(
-          sliderModel = amountSliderModel(isEnabled = isEnabled)
-        )
-      }
-    }
+    val toolbarModel = ToolbarModel(
+      leadingAccessory = props.retreat.leadingToolbarAccessory,
+      middleAccessory = ToolbarMiddleAccessoryModel(title = "Set daily limit")
+    )
 
     var uiState: SpendingLimitPickerUiState by remember {
       mutableStateOf(PickingSpendingLimitUiState)
@@ -183,13 +70,23 @@ class SpendingLimitPickerUiStateMachineImpl(
         SpendingLimitPickerModel(
           onBack = props.retreat.onRetreat,
           toolbarModel = toolbarModel,
-          entryMode = entryMode(isRevampOn = isMobilePayRevampFeatureFlagEnabled, isEnabled = true),
-          setLimitButtonEnabled = saveLimitEnabled,
+          entryMode = EntryMode.Keypad(
+            amountModel = calculatorModel.amountModel,
+            keypadModel = calculatorModel.keypadModel
+          ),
+          setLimitButtonEnabled = calculatorModel.primaryAmount.isPositive,
           setLimitButtonLoading = false,
-          spendingLimitsCopy = SpendingLimitsCopy.get(isRevampOn = isMobilePayRevampFeatureFlagEnabled),
           onSetLimitClick = {
+            // We **never** allow customers to switch primary input methods. Hence, we can be assured
+            // that primary amount is always FiatMoney, and secondaryAmount is BitcoinMoney
+            val fiatLimit = calculatorModel.primaryAmount as FiatMoney
+            val btcLimit = calculatorModel.secondaryAmount as BitcoinMoney
+
             uiState =
-              confirmingWithHardwareState(isRevampOn = isMobilePayRevampFeatureFlagEnabled)
+              ConfirmingWithHardwareUiState(
+                selectedFiatLimit = fiatLimit,
+                selectedBtcLimit = btcLimit
+              )
           }
         ).asModalScreen()
 
@@ -198,7 +95,10 @@ class SpendingLimitPickerUiStateMachineImpl(
           props = props,
           state = state,
           toolbarModel = toolbarModel,
-          entryMode = entryMode(isRevampOn = isMobilePayRevampFeatureFlagEnabled, isEnabled = false),
+          entryMode = EntryMode.Keypad(
+            amountModel = calculatorModel.amountModel,
+            keypadModel = calculatorModel.keypadModel
+          ),
           onBack = {
             uiState = PickingSpendingLimitUiState
           }
@@ -223,7 +123,6 @@ class SpendingLimitPickerUiStateMachineImpl(
         entryMode = entryMode,
         setLimitButtonEnabled = true,
         setLimitButtonLoading = isLoading,
-        spendingLimitsCopy = SpendingLimitsCopy.get(isRevampOn = mobilePayRevampFeatureFlag.isEnabled()),
         onSetLimitClick = {}
       )
 

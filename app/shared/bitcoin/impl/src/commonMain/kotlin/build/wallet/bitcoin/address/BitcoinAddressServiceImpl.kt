@@ -3,6 +3,8 @@ package build.wallet.bitcoin.address
 import build.wallet.account.AccountService
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.ensureNotNull
 import build.wallet.logging.logFailure
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class BitcoinAddressServiceImpl(
   private val registerWatchAddressProcessor: RegisterWatchAddressProcessor,
   private val bitcoinWalletService: BitcoinWalletService,

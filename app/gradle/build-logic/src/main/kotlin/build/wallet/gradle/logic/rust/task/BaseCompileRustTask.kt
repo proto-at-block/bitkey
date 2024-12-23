@@ -66,6 +66,8 @@ internal abstract class BaseCompileRustTask : DefaultTask() {
     args("--lib")
 
     args("--package", packageName.get())
+
+    args("--locked")
   }
 
   protected abstract fun compile()

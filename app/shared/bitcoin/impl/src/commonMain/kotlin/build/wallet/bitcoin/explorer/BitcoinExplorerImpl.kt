@@ -1,8 +1,11 @@
 package build.wallet.bitcoin.explorer
 
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import io.ktor.http.*
 
+@BitkeyInject(AppScope::class)
 class BitcoinExplorerImpl : BitcoinExplorer {
   override fun getTransactionUrl(
     txId: String,

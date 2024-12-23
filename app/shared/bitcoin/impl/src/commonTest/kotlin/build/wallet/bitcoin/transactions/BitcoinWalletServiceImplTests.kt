@@ -5,8 +5,10 @@ package build.wallet.bitcoin.transactions
 import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.ActiveAccount
+import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitcoin.wallet.shouldBeZero
@@ -15,6 +17,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock2
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
@@ -25,9 +28,11 @@ import build.wallet.money.exchange.USDtoBTC
 import build.wallet.money.matchers.shouldBeZero
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.platform.app.AppSessionState
+import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import build.wallet.time.someInstant
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
@@ -72,7 +77,8 @@ class BitcoinWalletServiceImplTests : FunSpec({
       appSessionManager = appSessionManager,
       exchangeRateService = exchangeRateService,
       outgoingTransactionDetailDao = outgoingTransactionDetailDao,
-      bitcoinBlockchain = bitcoinBlockchain
+      bitcoinBlockchain = bitcoinBlockchain,
+      feeRateEstimator = BitcoinFeeRateEstimatorMock()
     )
     clock.reset()
     wallet.reset()
@@ -283,5 +289,57 @@ class BitcoinWalletServiceImplTests : FunSpec({
 
     wallet.initializeCalls.awaitItem()
     wallet.launchPeriodicSyncCalls.awaitItem()
+  }
+
+  test("building psbts for all transaction priorities") {
+    backgroundScope.launch {
+      service.executeWork()
+    }
+
+    service.transactionsData().test {
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
+
+      // Initial value
+      awaitItem().shouldBe(null)
+
+      // loaded data
+      awaitItem().shouldNotBeNull()
+
+      val sendAmount = BitcoinTransactionSendAmount.ExactAmount(
+        money = BitcoinMoney.sats(1_000_000)
+      )
+
+      service.createPsbtsForSendAmount(sendAmount, someBitcoinAddress)
+        .shouldBeOk()
+        .size
+        .shouldBe(3)
+    }
+  }
+
+  test("building psbts for all transaction priorities errors if psbts not created") {
+    backgroundScope.launch {
+      service.executeWork()
+    }
+
+    wallet.createSignedPsbtResult = Err(Error())
+
+    service.transactionsData().test {
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
+
+      // Initial value
+      awaitItem().shouldBe(null)
+
+      // loaded data
+      awaitItem().shouldNotBeNull()
+
+      val sendAmount = BitcoinTransactionSendAmount.ExactAmount(
+        money = BitcoinMoney.sats(1_000_000)
+      )
+
+      service.createPsbtsForSendAmount(sendAmount, someBitcoinAddress)
+        .shouldBeErr(Error("Error creating PSBT for 60 minutes"))
+    }
   }
 })

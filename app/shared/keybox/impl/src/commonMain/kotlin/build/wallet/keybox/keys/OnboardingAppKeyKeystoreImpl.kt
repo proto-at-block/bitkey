@@ -6,6 +6,8 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import com.github.michaelbull.result.Result
@@ -23,6 +25,8 @@ private const val NETWORK_KEY = "network-key"
  *
  * @param encryptedKeyValueStoreFactory - factory for creating a store
  */
+
+@BitkeyInject(AppScope::class)
 class OnboardingAppKeyKeystoreImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : OnboardingAppKeyKeystore {

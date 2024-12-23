@@ -11,11 +11,14 @@ import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsKeysDao
 import build.wallet.relationships.saveKey
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class LiteAccountCloudBackupRestorerImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val relationshipsKeysDao: RelationshipsKeysDao,

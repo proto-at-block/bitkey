@@ -1,13 +1,13 @@
 package build.wallet.statemachine.platform.permissions
 
 import androidx.compose.runtime.Composable
-import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class NotificationPermissionRequesterImpl actual constructor(
-  pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
-) : NotificationPermissionRequester {
+@BitkeyInject(AppScope::class)
+class NotificationPermissionRequesterImpl : NotificationPermissionRequester {
   @Composable
-  actual override fun requestNotificationPermission(
+  override fun requestNotificationPermission(
     onGranted: () -> Unit,
     onDeclined: () -> Unit,
   ) {

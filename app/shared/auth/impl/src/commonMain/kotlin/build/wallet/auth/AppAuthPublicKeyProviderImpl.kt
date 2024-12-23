@@ -6,6 +6,8 @@ import build.wallet.bitkey.account.*
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
@@ -17,6 +19,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class AppAuthPublicKeyProviderImpl(
   private val accountService: AccountService,
   private val recoveryAppAuthPublicKeyProvider: RecoveryAppAuthPublicKeyProvider,

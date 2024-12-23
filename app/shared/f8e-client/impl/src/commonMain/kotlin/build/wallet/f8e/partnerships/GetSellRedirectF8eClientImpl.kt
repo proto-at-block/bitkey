@@ -2,6 +2,8 @@ package build.wallet.f8e.partnerships
 
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.partnerships.GetSellRedirectF8eClient.Success
@@ -19,6 +21,7 @@ import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class GetSellRedirectF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val bitcoinAddressService: BitcoinAddressService,

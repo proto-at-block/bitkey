@@ -1,6 +1,8 @@
 package build.wallet.cloud.backup.csek
 
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import build.wallet.store.getStringOrNullWithResult
@@ -13,6 +15,8 @@ import okio.ByteString.Companion.decodeHex
 /**
  * Persists CSEKs in a secure store, encoded as hex string.
  */
+
+@BitkeyInject(AppScope::class)
 class CsekDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : CsekDao {

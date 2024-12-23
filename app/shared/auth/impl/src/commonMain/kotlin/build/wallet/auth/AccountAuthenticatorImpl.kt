@@ -4,6 +4,8 @@ import build.wallet.auth.AccountAuthenticator.AuthData
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.ktor.result.HttpError
@@ -13,6 +15,7 @@ import com.github.michaelbull.result.mapError
 import io.ktor.http.HttpStatusCode.Companion.NotFound
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class AccountAuthenticatorImpl(
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
   private val authF8eClient: AuthF8eClient,

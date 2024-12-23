@@ -329,7 +329,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
           recoveryRelationshipId = endorsedTrustedContact.relationshipId
         ).getOrThrow().shouldNotBeNull()
-      val decryptOutput = relationshipsCrypto.decryptPrivateKeyEncryptionKey(
+      val decryptOutput = relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
         password = recoveryAuth.pakeCode,
         protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey = delegatedDecryptionKey,

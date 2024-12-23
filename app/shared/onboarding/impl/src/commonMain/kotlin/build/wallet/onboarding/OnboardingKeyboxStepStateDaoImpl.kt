@@ -2,6 +2,8 @@ package build.wallet.onboarding
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -11,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class OnboardingKeyboxStepStateDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : OnboardingKeyboxStepStateDao {

@@ -10,6 +10,8 @@ import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -33,8 +35,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
+import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
@@ -50,6 +52,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class DeviceSettingsUiStateMachineImpl(
   private val lostHardwareRecoveryUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
@@ -60,7 +63,7 @@ class DeviceSettingsUiStateMachineImpl(
   private val durationFormatter: DurationFormatter,
   private val appFunctionalityService: AppFunctionalityService,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
-  private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
+  private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val firmwareDataService: FirmwareDataService,
   private val clock: Clock,
@@ -143,7 +146,7 @@ class DeviceSettingsUiStateMachineImpl(
             }
           },
           onManageReplacement = { uiState = HardwareRecoveryDelayAndNotifyUiState },
-          onResetDevice = { uiState = ResettingDeviceUiState },
+          onWipeDevice = { uiState = WipingDeviceState },
           replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available,
           firmwareData = firmwareData,
           onManageFingerprints = {
@@ -237,9 +240,9 @@ class DeviceSettingsUiStateMachineImpl(
         )
       )
 
-      is ResettingDeviceUiState -> {
-        resettingDeviceUiStateMachine.model(
-          props = ResettingDeviceProps(
+      is WipingDeviceState -> {
+        wipingDeviceUiStateMachine.model(
+          props = WipingDeviceProps(
             onBack = { uiState = ViewingDeviceDataUiState() },
             onSuccess = props.onUnwindToMoneyHome,
             fullAccountConfig = props.account.config,
@@ -260,7 +263,7 @@ class DeviceSettingsUiStateMachineImpl(
     goToNfcMetadata: () -> Unit,
     goToRecovery: () -> Unit,
     onManageReplacement: () -> Unit,
-    onResetDevice: () -> Unit,
+    onWipeDevice: () -> Unit,
     replaceDeviceEnabled: Boolean,
     onManageFingerprints: () -> Unit,
   ): ScreenModel {
@@ -342,7 +345,7 @@ class DeviceSettingsUiStateMachineImpl(
           onSyncDeviceInfo = { goToNfcMetadata() },
           onReplaceDevice = goToRecovery,
           onManageReplacement = { onManageReplacement() },
-          onResetDevice = { onResetDevice() },
+          onWipeDevice = { onWipeDevice() },
           onBack = props.onBack,
           onManageFingerprints = onManageFingerprints,
           coachmark = coachmark
@@ -402,9 +405,9 @@ sealed interface DeviceSettingsUiState {
   data object ManagingFingerprintsUiState : DeviceSettingsUiState
 
   /**
-   * Resetting the device
+   * Wiping the device
    */
-  data object ResettingDeviceUiState : DeviceSettingsUiState
+  data object WipingDeviceState : DeviceSettingsUiState
 }
 
 sealed interface EnrolledFingerprintResult {

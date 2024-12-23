@@ -1,5 +1,7 @@
 package build.wallet.fwup
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.B
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import okio.ByteString.Companion.toByteString
 
+@BitkeyInject(AppScope::class)
 class FwupDataFetcherImpl(
   private val fileManager: FileManager,
   private val fwupManifestParser: FwupManifestParser,

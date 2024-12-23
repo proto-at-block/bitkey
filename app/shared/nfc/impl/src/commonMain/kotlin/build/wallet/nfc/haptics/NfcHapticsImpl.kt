@@ -1,12 +1,15 @@
 package build.wallet.nfc.haptics
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.NfcHapticsOnConnectedIsEnabledFeatureFlag
 import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.haptics.HapticsEffect
-import io.ktor.util.PlatformUtils
+import io.ktor.util.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+@BitkeyInject(AppScope::class)
 class NfcHapticsImpl(
   private val haptics: Haptics,
   private val nfcHapticsOnConnectedIsEnabledFeatureFlag: NfcHapticsOnConnectedIsEnabledFeatureFlag,

@@ -1,5 +1,7 @@
 package build.wallet.statemachine.account.create.full.onboard.notifications
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.notifications.UiErrorHintSubmitter
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import com.russhwolf.settings.coroutines.SuspendSettings
@@ -16,6 +18,8 @@ import kotlinx.coroutines.sync.withLock
  * "PII", it's not *entirely* OK, in the sense that you have a US phone number. If
  * this is OK unencrypted, swap out the standard key store.
  */
+
+@BitkeyInject(AppScope::class)
 class UiErrorHintsProviderImpl(
   private val keystoreFactory: EncryptedKeyValueStoreFactory,
   private val appScope: CoroutineScope,

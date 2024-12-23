@@ -11,4 +11,10 @@ class CardSnapshots : FunSpec({
       PreviewCard()
     }
   }
+
+  test("inheritance pending claim card - beneficiary") {
+    paparazzi.snapshot {
+      PendingClaimCardPreview()
+    }
+  }
 })

@@ -1,8 +1,11 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 
+@BitkeyInject(ActivityScope::class)
 class TransferInitiatedUiStateMachineImpl(
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
 ) : TransferInitiatedUiStateMachine {

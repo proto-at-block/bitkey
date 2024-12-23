@@ -53,6 +53,10 @@ class BdkTxBuilderImpl: BdkTxBuilder {
         return BdkTxBuilderImpl(txBuilder: txBuilder.enableRbf())
     }
 
+    func manuallySelectedOnly() -> BdkTxBuilder {
+        return BdkTxBuilderImpl(txBuilder: txBuilder.manuallySelectedOnly())
+    }
+
     func finish(wallet: BdkWallet) -> BdkResult<BdkTxBuilderResult> {
         let realBdkWallet = wallet as! BdkWalletImpl
 

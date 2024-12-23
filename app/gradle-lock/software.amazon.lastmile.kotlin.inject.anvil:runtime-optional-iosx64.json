@@ -1,0 +1,23 @@
+{
+    "module-identifier": "software.amazon.lastmile.kotlin.inject.anvil:runtime-optional-iosx64",
+    "components": [
+        {
+            "version": "0.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-optional-iosx64-metadata.jar": "cc8799527e6eaf3069d96dcd631ed06d716bc7a9bc9c17c8e45d0613a9b0189f"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-optional.klib": "e6c1862829e82fac05da4c78b37067f43e12d493a94f7ac66d45eca274c6f04f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -5,11 +5,14 @@ import android.os.Build.VERSION_CODES
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Development
 import java.util.concurrent.Executors
 
+@BitkeyInject(AppScope::class)
 class StrictModeEnablerImpl(
   private val appVariant: AppVariant,
 ) : StrictModeEnabler {

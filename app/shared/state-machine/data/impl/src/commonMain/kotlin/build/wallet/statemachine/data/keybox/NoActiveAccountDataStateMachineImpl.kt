@@ -9,6 +9,8 @@ import build.wallet.asLoadableValue
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.debug.DebugOptions
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.keybox.KeyboxDao
 import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
 import build.wallet.router.Route
@@ -24,6 +26,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
 import com.github.michaelbull.result.getOr
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class NoActiveAccountDataStateMachineImpl(
   private val createFullAccountDataStateMachine: CreateFullAccountDataStateMachine,
   private val lostAppRecoveryDataStateMachine: LostAppRecoveryDataStateMachine,
@@ -122,7 +125,7 @@ class NoActiveAccountDataStateMachineImpl(
           startEmergencyAccessRecovery = {
             state = EmergencyAccessAccountRecoveryState
           },
-          resetExistingDevice = {
+          wipeExistingDevice = {
             state = ResetAnExistingDeviceState
           },
           isNavigatingBack = dataState.isNavigatingBack

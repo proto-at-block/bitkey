@@ -8,6 +8,8 @@ import build.wallet.activity.Transaction.BitcoinWalletTransaction
 import build.wallet.activity.Transaction.PartnershipTransaction
 import build.wallet.activity.TransactionsActivityService
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.Some
@@ -15,6 +17,7 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class TransactionsActivityUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val bitcoinTransactionItemUiStateMachine: BitcoinTransactionItemUiStateMachine,

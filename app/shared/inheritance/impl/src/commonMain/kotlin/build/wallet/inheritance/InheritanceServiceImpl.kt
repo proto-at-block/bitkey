@@ -1,108 +1,62 @@
 package build.wallet.inheritance
 
 import build.wallet.account.AccountService
-import build.wallet.account.AccountStatus
+import build.wallet.auth.AppAuthKeyMessageSigner
+import build.wallet.auth.signChallenge
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.challange.DelayNotifyChallenge
+import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
-import build.wallet.bitkey.inheritance.InheritanceClaims
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8eClient
+import build.wallet.f8e.inheritance.CompleteInheritanceClaimF8eClient
+import build.wallet.f8e.inheritance.LockInheritanceClaimF8eClient
 import build.wallet.f8e.inheritance.StartInheritanceClaimF8eClient
 import build.wallet.f8e.inheritance.UploadInheritanceMaterialF8eClient
 import build.wallet.f8e.relationships.Relationships
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
-import build.wallet.logging.*
+import build.wallet.logging.logDebug
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
-import build.wallet.mapResult
-import build.wallet.platform.app.AppSessionManager
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
-import kotlinx.coroutines.flow.SharingStarted.Companion.Lazily
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.datetime.Clock
 
+@BitkeyInject(AppScope::class)
 class InheritanceServiceImpl(
   private val accountService: AccountService,
   private val relationshipsService: RelationshipsService,
-  appCoroutineScope: CoroutineScope,
   private val inheritanceSyncDao: InheritanceSyncDao,
   private val inheritanceMaterialF8eClient: UploadInheritanceMaterialF8eClient,
   private val startInheritanceClaimF8eClient: StartInheritanceClaimF8eClient,
-  private val retrieveInheritanceClaimsF8EClient: RetrieveInheritanceClaimsF8eClient,
   private val inheritanceCrypto: InheritanceCrypto,
-  private val inheritanceClaimsDao: InheritanceClaimsDao,
-  private val appSessionManager: AppSessionManager,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
+  private val lockInheritanceClaimF8eClient: LockInheritanceClaimF8eClient,
+  private val completeInheritanceClaimF8eClient: CompleteInheritanceClaimF8eClient,
+  private val transactionFactory: InheritanceTransactionFactory,
+  private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
+  private val inheritanceClaimsRepository: InheritanceClaimsRepository,
+  private val clock: Clock,
 ) : InheritanceService, InheritanceClaimsSyncWorker {
-  private val syncDelay = 60.seconds
-
-  override val pendingClaims: StateFlow<Result<List<RelationshipId>, Error>?> = combine(
-    inheritanceClaimsDao.pendingBenefactorClaims.mapResult { it.map { it.relationshipId } },
-    inheritanceClaimsDao.pendingBeneficiaryClaims.mapResult { it.map { it.relationshipId } }
-  ) { beneficiaryIds, benefactorIds ->
-    coroutineBinding {
-      beneficiaryIds.bind() + benefactorIds.bind()
-    }
-  }
-    .stateIn(appCoroutineScope, Lazily, null)
-
-  override val pendingBeneficiaryClaims: Flow<List<BeneficiaryClaim.PendingClaim>> =
-    inheritanceClaimsDao
-      .pendingBeneficiaryClaims
-      .mapLatest { it.getOrElse { emptyList() } }
-
-  override val lockedBeneficiaryClaims: Flow<List<BeneficiaryClaim>> =
-    combine(
-      inheritanceFeatureFlag.flagValue(),
-      accountService.activeAccount()
-        .mapNotNull { it as? FullAccount }
-        .distinctUntilChanged()
-    ) { flag, account ->
-      flag to account
-    }.mapLatest { (flag, account) ->
-      if (!flag.isEnabled()) {
-        return@mapLatest emptyList()
-      }
-      val claims = syncInheritanceClaims(account)
-        .get()
-        ?.beneficiaryClaims
-        ?.filter { it is BeneficiaryClaim.LockedClaim }
-
-      claims ?: emptyList()
+  override val relationshipsWithPendingClaim: Flow<List<RelationshipId>> = inheritanceClaimsRepository.claims
+    .map { result ->
+      result.get()?.all.orEmpty().map { it.relationshipId }
     }
 
-  override suspend fun executeWork() {
-    combine(
-      inheritanceFeatureFlag.flagValue(),
-      accountService.accountStatus()
-        .mapResult { it as? AccountStatus.ActiveAccount }
-        .mapNotNull { it.get()?.account as? FullAccount }
-        .distinctUntilChanged()
-    ) { flag, account ->
-      flag to account
-    }.collectLatest { (flag, account) ->
-      while (currentCoroutineContext().isActive && flag.isEnabled()) {
-        if (appSessionManager.isAppForegrounded()) {
-          syncInheritanceClaims(account)
-            .logFailure { "Failed to sync inheritance claims" }
-        }
-        delay(syncDelay)
-      }
-    }
-  }
+  override val claims: Flow<List<InheritanceClaim>> =
+    inheritanceClaimsRepository.claims
+      .map { it.get()?.all.orEmpty() }
 
-  override val inheritanceRelationships: StateFlow<Relationships?> =
+  override val inheritanceRelationships: Flow<Relationships> =
     relationshipsService.relationships
       .filterNotNull()
       .map { relationships ->
@@ -118,7 +72,49 @@ class InheritanceServiceImpl(
             .toImmutableList()
         )
       }
-      .stateIn(appCoroutineScope, Eagerly, null)
+
+  override val relationshipsWithNoActiveClaims: Flow<List<RelationshipId>> = combine(
+    inheritanceClaimsRepository.claims,
+    inheritanceRelationships
+  ) { claims, relationships ->
+    relationships.endorsedTrustedContacts.map {
+      it.id
+    } + relationships.protectedCustomers.map { RelationshipId(it.relationshipId) }
+      .filter { it !in claims.get()?.all.orEmpty().map { it.relationshipId } }
+  }
+
+  override val relationshipsWithCancelableClaim: Flow<List<RelationshipId>> = inheritanceClaimsRepository.claims
+    .map { it.get()?.all.orEmpty() }
+    .map { it.filter { it is BeneficiaryClaim.PendingClaim || it is BenefactorClaim.PendingClaim } }
+    .map { it.map { it.relationshipId } }
+
+  override val relationshipsWithCompletableClaim: Flow<List<RelationshipId>> = inheritanceClaimsRepository.claims
+    .map { it.get()?.all.orEmpty() }
+    .map { it.filter { it.isCompletable() } }
+    .map { it.map { it.relationshipId } }
+
+  /**
+   * Determine if a claim is in a completable state.
+   */
+  private fun InheritanceClaim.isCompletable(): Boolean {
+    if (this is BeneficiaryClaim.LockedClaim || this is BenefactorClaim.LockedClaim) {
+      return true
+    }
+
+    val completeTime = when (this) {
+      is BeneficiaryClaim.PendingClaim -> delayEndTime
+      is BenefactorClaim.PendingClaim -> delayEndTime
+      else -> return false
+    }
+
+    return clock.now() > completeTime
+  }
+
+  override suspend fun executeWork() {
+    // Attempt an initial one-time sync at startup.
+    inheritanceClaimsRepository.fetchClaims()
+      .logFailure { "Unable to sync Inheritance Claims" }
+  }
 
   override suspend fun createInheritanceInvitation(
     hardwareProofOfPossession: HwFactorProofOfPossession,
@@ -192,17 +188,62 @@ class InheritanceServiceImpl(
     )
   }
 
-  private suspend fun syncInheritanceClaims(
-    account: FullAccount,
-  ): Result<InheritanceClaims, Error> =
+  override suspend fun loadApprovedClaim(
+    relationshipId: RelationshipId,
+  ): Result<InheritanceTransactionDetails, Throwable> =
     coroutineBinding {
-      val inheritanceClaims = retrieveInheritanceClaimsF8EClient.retrieveInheritanceClaims(
-        f8eEnvironment = account.config.f8eEnvironment,
-        fullAccountId = account.accountId
+      val account = accountService.activeAccount().first()
+      if (account !is FullAccount) {
+        error("load claim cannot be called without full account.")
+      }
+      val allClaims = inheritanceClaimsRepository.fetchClaims().bind()
+      val claim = allClaims.beneficiaryClaims.find {
+        it.relationshipId == relationshipId
+      } ?: error("Claim not found")
+
+      val challenge = DelayNotifyChallenge.fromKeybox(
+        type = DelayNotifyChallenge.Type.INHERITANCE,
+        keybox = account.keybox
+      )
+
+      val signedChallenge = appAuthKeyMessageSigner.signChallenge(
+        publicKey = account.keybox.activeAppKeyBundle.authKey,
+        challenge = challenge
       ).bind()
 
-      inheritanceClaimsDao.setInheritanceClaims(inheritanceClaims).bind()
+      val lockedClaim = if (claim is BeneficiaryClaim.LockedClaim) {
+        claim
+      } else {
+        lockInheritanceClaimF8eClient.lockClaim(
+          fullAccount = account,
+          relationshipId = claim.relationshipId,
+          inheritanceClaimId = claim.claimId,
+          signedChallenge = signedChallenge
+        ).bind()
+      }
 
-      inheritanceClaims
+      inheritanceClaimsRepository.updateSingleClaim(lockedClaim)
+
+      transactionFactory.createFullBalanceTransaction(
+        account = account,
+        claim = lockedClaim
+      ).bind()
+    }
+
+  override suspend fun completeClaimTransfer(
+    relationshipId: RelationshipId,
+    details: InheritanceTransactionDetails,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable> =
+    coroutineBinding {
+      val account = accountService.activeAccount().first()
+      if (account !is FullAccount) {
+        error("complete claim cannot be called without full account.")
+      }
+
+      completeInheritanceClaimF8eClient.completeInheritanceClaim(
+        fullAccount = account,
+        claimId = details.claim.claimId,
+        psbt = details.psbt
+      ).bind()
     }
 }

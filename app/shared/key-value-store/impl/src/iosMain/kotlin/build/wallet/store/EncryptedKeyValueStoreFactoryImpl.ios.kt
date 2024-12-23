@@ -1,7 +1,7 @@
 package build.wallet.store
 
-import build.wallet.platform.PlatformContext
-import build.wallet.platform.data.FileManager
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.russhwolf.settings.KeychainSettings
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.coroutines.toSuspendSettings
@@ -15,14 +15,13 @@ import platform.Security.kSecAttrService
 /**
  * iOS implementation of [EncryptedKeyValueStoreFactory] baked by Apple's Keychain.
  */
-actual class EncryptedKeyValueStoreFactoryImpl actual constructor(
-  platformContext: PlatformContext,
-  fileManager: FileManager,
-) : EncryptedKeyValueStoreFactory {
+
+@BitkeyInject(AppScope::class)
+class EncryptedKeyValueStoreFactoryImpl : EncryptedKeyValueStoreFactory {
   private val settings = mutableMapOf<String, SuspendSettings>()
   private val lock = Mutex()
 
-  actual override suspend fun getOrCreate(storeName: String): SuspendSettings {
+  override suspend fun getOrCreate(storeName: String): SuspendSettings {
     return lock.withLock {
       settings.getOrPut(storeName) {
         KeychainSettings(

@@ -1,16 +1,19 @@
 package build.wallet.platform.permissions
 
+import android.app.Application
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker.PERMISSION_GRANTED
-import build.wallet.platform.PlatformContext
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionStatus.Authorized
 import build.wallet.platform.permissions.PermissionStatus.NotDetermined
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-actual class PushNotificationPermissionStatusProviderImpl actual constructor(
-  platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class PushNotificationPermissionStatusProviderImpl(
+  application: Application,
 ) : PushNotificationPermissionStatusProvider {
   private val statusFlow =
     MutableStateFlow(
@@ -20,7 +23,7 @@ actual class PushNotificationPermissionStatusProviderImpl actual constructor(
           else ->
             when (
               ContextCompat.checkSelfPermission(
-                platformContext.appContext,
+                application,
                 manifestPermission
               )
             ) {
@@ -30,9 +33,9 @@ actual class PushNotificationPermissionStatusProviderImpl actual constructor(
         }
     )
 
-  actual override fun pushNotificationStatus(): StateFlow<PermissionStatus> = statusFlow
+  override fun pushNotificationStatus(): StateFlow<PermissionStatus> = statusFlow
 
-  actual override fun updatePushNotificationStatus(status: PermissionStatus) {
+  override fun updatePushNotificationStatus(status: PermissionStatus) {
     statusFlow.tryEmit(status)
   }
 }

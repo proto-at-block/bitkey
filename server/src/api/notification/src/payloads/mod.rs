@@ -2,6 +2,7 @@ use time::Duration;
 
 pub mod comms_verification;
 pub mod inheritance_claim_canceled;
+pub mod inheritance_claim_period_almost_over;
 pub mod inheritance_claim_period_completed;
 pub mod inheritance_claim_period_initiated;
 pub mod payment;

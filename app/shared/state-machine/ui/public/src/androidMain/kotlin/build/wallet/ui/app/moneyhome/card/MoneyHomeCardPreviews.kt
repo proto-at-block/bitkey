@@ -65,26 +65,22 @@ fun PreviewMoneyHomeGettingStarted() {
             GettingStartedTaskRowModel(
               task = GettingStartedTask(AddBitcoin, Incomplete),
               isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
+              onClick = {}
             ),
             GettingStartedTaskRowModel(
               task = GettingStartedTask(EnableSpendingLimit, Incomplete),
               isEnabled = false,
-              onClick = {},
-              isRevampEnabled = false
+              onClick = {}
             ),
             GettingStartedTaskRowModel(
               task = GettingStartedTask(InviteTrustedContact, Complete),
               isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
+              onClick = {}
             ),
             GettingStartedTaskRowModel(
               task = GettingStartedTask(AddAdditionalFingerprint, Incomplete),
               isEnabled = true,
-              onClick = {},
-              isRevampEnabled = false
+              onClick = {}
             )
           )
       )

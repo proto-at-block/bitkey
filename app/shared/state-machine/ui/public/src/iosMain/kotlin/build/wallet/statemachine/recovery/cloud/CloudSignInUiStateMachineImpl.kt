@@ -5,6 +5,8 @@ import androidx.compose.runtime.LaunchedEffect
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.time.Delayer
@@ -12,7 +14,7 @@ import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
-@Suppress("unused") // Used by iOS code.
+@BitkeyInject(AppScope::class)
 class CloudSignInUiStateMachineImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val delayer: Delayer,

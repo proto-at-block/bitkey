@@ -1,18 +1,19 @@
 package build.wallet.logging.dev
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore.Entity
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
+
+interface LogStoreInMemory : LogStore
 
 /**
  * Naive implementation for storing logs in memory.
  * Intended to be used for debug menu purposes only.
  */
-class LogStoreInMemoryImpl : LogStore {
+@BitkeyInject(AppScope::class)
+class LogStoreInMemoryImpl : LogStoreInMemory {
   private val logs = MutableStateFlow<List<Entity>>(listOf())
 
   override fun record(entity: Entity) {

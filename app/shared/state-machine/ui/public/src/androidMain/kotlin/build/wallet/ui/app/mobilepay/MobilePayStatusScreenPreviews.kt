@@ -2,7 +2,6 @@ package build.wallet.ui.app.mobilepay
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import build.wallet.statemachine.limit.SpendingLimitsCopy
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardModel
 import build.wallet.statemachine.settings.full.mobilepay.disableMobilePayAlertModel
@@ -25,45 +24,6 @@ fun MobilePayStatusScreenEnabledPreview() {
             onClick = {}
           ),
         disableAlertModel = null,
-        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false),
-        spendingLimitCardModel =
-          SpendingLimitCardModel(
-            titleText = "Daily limit",
-            dailyResetTimezoneText = "Resets at 3:00am PDT",
-            spentAmountText = "$50.00 spent",
-            remainingAmountText = "$50.00 remaining",
-            progressPercentage = .5f
-          )
-      )
-    )
-  }
-}
-
-@Preview
-@Composable
-fun MobilePayStatusScreenEnabledWithDialogPreview() {
-  PreviewWalletTheme {
-    MobilePayStatusScreen(
-      model = MobilePayStatusModel(
-        onBack = {},
-        switchIsChecked = true,
-        onSwitchCheckedChange = {},
-        dailyLimitRow =
-          SwitchCardModel.ActionRow(
-            title = "Daily limit",
-            sideText = "$100.00",
-            onClick = {}
-          ),
-        disableAlertModel =
-          disableMobilePayAlertModel(
-            title = SpendingLimitsCopy.get(false).disableAlert.title,
-            subline = SpendingLimitsCopy.get(false).disableAlert.subline,
-            primaryButtonText = SpendingLimitsCopy.get(false).disableAlert.primaryButtonText,
-            cancelText = SpendingLimitsCopy.get(false).disableAlert.cancelText,
-            onConfirm = {},
-            onCancel = {}
-          ),
-        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false),
         spendingLimitCardModel =
           SpendingLimitCardModel(
             titleText = "Daily limit",
@@ -94,14 +54,13 @@ fun MobilePayStatusScreenEnabledWithDialogPreviewAndRevamp() {
           ),
         disableAlertModel =
           disableMobilePayAlertModel(
-            title = SpendingLimitsCopy.get(true).disableAlert.title,
-            subline = SpendingLimitsCopy.get(true).disableAlert.subline,
-            primaryButtonText = SpendingLimitsCopy.get(true).disableAlert.primaryButtonText,
-            cancelText = SpendingLimitsCopy.get(true).disableAlert.cancelText,
+            title = "Always require hardware?",
+            subline = "You will be required to confirm all transfers using your Bitkey device.",
+            primaryButtonText = "Yes",
+            cancelText = "Nevermind",
             onConfirm = {},
             onCancel = {}
           ),
-        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false),
         spendingLimitCardModel =
           SpendingLimitCardModel(
             titleText = "Daily limit",
@@ -126,8 +85,7 @@ fun MobilePayStatusScreenDisabledPreview() {
         onSwitchCheckedChange = {},
         dailyLimitRow = null,
         disableAlertModel = null,
-        spendingLimitCardModel = null,
-        spendingLimitCopy = SpendingLimitsCopy.get(isRevampOn = false)
+        spendingLimitCardModel = null
       )
     )
   }

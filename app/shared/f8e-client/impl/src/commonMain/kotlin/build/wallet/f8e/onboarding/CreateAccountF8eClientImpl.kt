@@ -9,6 +9,8 @@ import build.wallet.bitkey.f8e.*
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -20,13 +22,14 @@ import build.wallet.f8e.onboarding.model.*
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
-import build.wallet.logging.*
+import build.wallet.logging.logError
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
-import io.ktor.client.request.post
+import io.ktor.client.request.*
 
+@BitkeyInject(AppScope::class)
 class CreateAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : CreateFullAccountF8eClient, CreateLiteAccountF8eClient, CreateSoftwareAccountF8eClient {

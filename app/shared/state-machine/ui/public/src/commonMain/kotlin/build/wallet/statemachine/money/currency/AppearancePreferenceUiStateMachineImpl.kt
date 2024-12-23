@@ -5,6 +5,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -25,6 +27,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class AppearancePreferenceUiStateMachineImpl(
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,

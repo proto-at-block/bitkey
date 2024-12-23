@@ -5,7 +5,7 @@ import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiPr
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
-import build.wallet.statemachine.moneyhome.card.pendingclaim.PendingClaimCardUiProps
+import build.wallet.statemachine.moneyhome.card.inheritance.InheritanceCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
@@ -25,5 +25,5 @@ data class MoneyHomeCardsProps(
   val setupHardwareCardUiProps: SetupHardwareCardUiProps,
   val startSweepCardUiProps: StartSweepCardUiProps,
   val bitcoinPriceCardUiProps: BitcoinPriceCardUiProps,
-  val pendingClaimCardUiProps: PendingClaimCardUiProps,
+  val inheritanceCardUiProps: InheritanceCardUiProps,
 )

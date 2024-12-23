@@ -1,5 +1,7 @@
 package build.wallet.inappsecurity
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
 import kotlinx.coroutines.CoroutineScope
@@ -7,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
+@BitkeyInject(AppScope::class)
 class MoneyHomeHiddenStatusProviderImpl(
   appSessionManager: AppSessionManager,
   appCoroutineScope: CoroutineScope,

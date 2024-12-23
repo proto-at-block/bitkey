@@ -1,8 +1,11 @@
 package build.wallet.platform.pdf
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import okio.ByteString
 import okio.ByteString.Companion.EMPTY
 
+@BitkeyInject(AppScope::class)
 class PdfAnnotatorImpl : PdfAnnotator {
   override fun close() {
     // Actual working implementation tracked by BKR-898.

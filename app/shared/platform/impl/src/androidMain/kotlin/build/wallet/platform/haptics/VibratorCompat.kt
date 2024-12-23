@@ -1,7 +1,6 @@
 package build.wallet.platform.haptics
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.VibrationEffect
@@ -10,8 +9,6 @@ import android.os.Vibrator
 import build.wallet.platform.haptics.HapticsEffect.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-
-internal fun Context.vibrator(): Vibrator? = getSystemService(Vibrator::class.java)
 
 private val SELECTION_TIMINGS = longArrayOf(1, 2)
 private val SELECTION_AMPLITUDE = intArrayOf(100, 0)

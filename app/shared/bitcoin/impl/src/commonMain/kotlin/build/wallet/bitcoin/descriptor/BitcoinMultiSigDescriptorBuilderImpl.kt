@@ -4,8 +4,35 @@ import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Watching
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
+@BitkeyInject(AppScope::class)
 class BitcoinMultiSigDescriptorBuilderImpl : BitcoinMultiSigDescriptorBuilder {
+  override fun spendingReceivingDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): Spending {
+    return Spending(
+      descriptorKeyset.replace(publicKey.dpub, privateKey.xprv)
+        .substringBeforeLast("#")
+        .withReceivingChild()
+    )
+  }
+
+  override fun spendingChangeDescriptor(
+    descriptorKeyset: String,
+    publicKey: DescriptorPublicKey,
+    privateKey: ExtendedPrivateKey,
+  ): Spending {
+    return Spending(
+      descriptorKeyset.replace(publicKey.dpub, privateKey.xprv)
+        .substringBeforeLast("#")
+        .withChangeChild()
+    )
+  }
+
   override fun spendingReceivingDescriptor(
     appPrivateKey: ExtendedPrivateKey,
     hardwareKey: DescriptorPublicKey,

@@ -5,10 +5,12 @@ import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeypair
-import build.wallet.logging.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class SpendingKeyGeneratorImpl(
   private val extendedKeyGenerator: ExtendedKeyGenerator,
 ) : SpendingKeyGenerator {

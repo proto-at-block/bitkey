@@ -42,7 +42,23 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
   stateMachine: TransferConfirmationUiStateMachineImpl,
   nfcSessionUIStateMachineId: String,
 ) {
-  test("create unsigned psbt error - insufficent funds") {
+  test("onBack from TransferConfirmationScreenModel invokes props.onBack") {
+    stateMachine.test(props) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      mobilePayService.getDailySpendingLimitStatusCalls.awaitItem()
+
+      awaitScreenWithBody<TransferConfirmationScreenModel> {
+        onBack()
+      }
+
+      onBackCalls.awaitItem()
+    }
+  }
+
+  test("create unsigned psbt error - insufficient funds") {
     spendingWallet.createSignedPsbtResult =
       Err(BdkError.InsufficientFunds(Exception(""), null))
 

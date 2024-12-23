@@ -1,11 +1,14 @@
 package build.wallet.coachmark
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlinx.datetime.Clock
 
 /**
  * Maps coachmark identifiers to feature flags. This allows them to be turned on
  * and off with the feature flags.
  */
+@BitkeyInject(AppScope::class)
 class CoachmarkVisibilityDecider(
   val clock: Clock,
 ) {

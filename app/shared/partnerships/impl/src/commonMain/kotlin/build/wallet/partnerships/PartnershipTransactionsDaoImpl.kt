@@ -3,6 +3,8 @@ package build.wallet.partnerships
 import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
@@ -10,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class PartnershipTransactionsDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : PartnershipTransactionsDao {

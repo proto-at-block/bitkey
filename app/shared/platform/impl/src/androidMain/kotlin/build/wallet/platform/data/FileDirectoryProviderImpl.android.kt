@@ -1,9 +1,12 @@
 package build.wallet.platform.data
 
-import build.wallet.platform.PlatformContext
+import android.app.Application
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class FileDirectoryProviderImpl actual constructor(
-  private val platformContext: PlatformContext,
+@BitkeyInject(AppScope::class)
+class FileDirectoryProviderImpl(
+  private val application: Application,
 ) : FileDirectoryProvider {
-  actual override fun appDir(): String = platformContext.appContext.dataDir.absolutePath
+  override fun appDir(): String = application.dataDir.absolutePath
 }

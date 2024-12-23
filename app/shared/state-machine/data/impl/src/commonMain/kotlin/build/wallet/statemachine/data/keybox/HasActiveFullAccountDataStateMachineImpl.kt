@@ -6,12 +6,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.PendingAuthKeyRotationAttempt
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 
+@BitkeyInject(AppScope::class)
 class HasActiveFullAccountDataStateMachineImpl(
   private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
   private val trustedContactCloudBackupRefresher: TrustedContactCloudBackupRefresher,

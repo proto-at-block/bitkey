@@ -2,6 +2,8 @@ package build.wallet.statemachine.limit
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
@@ -19,6 +21,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class SetSpendingLimitUiStateMachineImpl(
   private val spendingLimitPickerUiStateMachine: SpendingLimitPickerUiStateMachine,
   private val timeZoneProvider: TimeZoneProvider,

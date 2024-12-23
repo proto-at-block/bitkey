@@ -15,8 +15,11 @@ use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
-    EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveInitiateDistributedKeygenRequest,
-    EnclaveInitiateDistributedKeygenResponse, LoadIntegrityKeyRequest,
+    EnclaveCreateKeyRequest, EnclaveCreateSelfSovereignBackupRequest,
+    EnclaveCreateSelfSovereignBackupResponse, EnclaveDeriveKeyRequest,
+    EnclaveGeneratePartialSignaturesRequest, EnclaveGeneratePartialSignaturesResponse,
+    EnclaveInitiateDistributedKeygenRequest, EnclaveInitiateDistributedKeygenResponse,
+    LoadIntegrityKeyRequest,
 };
 use wsm_common::messages::{
     api::SignedPsbt,
@@ -129,6 +132,36 @@ impl EnclaveClient {
         let result = self
             .post_request_with_dek(SecretRequest::new(
                 "continue-distributed-keygen",
+                req.dek_id.clone(),
+                req,
+            ))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn generate_partial_signatures(
+        &self,
+        req: EnclaveGeneratePartialSignaturesRequest,
+    ) -> anyhow::Result<EnclaveGeneratePartialSignaturesResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "generate-partial-signatures",
+                req.dek_id.clone(),
+                req,
+            ))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn create_self_sovereign_backup(
+        &self,
+        req: EnclaveCreateSelfSovereignBackupRequest,
+    ) -> anyhow::Result<EnclaveCreateSelfSovereignBackupResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "create-self-sovereign-backup",
                 req.dek_id.clone(),
                 req,
             ))

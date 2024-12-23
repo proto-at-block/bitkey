@@ -1,6 +1,8 @@
 package build.wallet.money.exchange
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -22,6 +24,7 @@ import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 
+@BitkeyInject(AppScope::class)
 class ExchangeRateF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : ExchangeRateF8eClient {

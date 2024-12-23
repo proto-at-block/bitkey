@@ -1,13 +1,16 @@
 package build.wallet.cloud.store
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
-actual class CloudStoreAccountRepositoryImpl(
+@BitkeyInject(AppScope::class)
+class CloudStoreAccountRepositoryImpl(
   private val googleAccountRepository: GoogleAccountRepository,
 ) : CloudStoreAccountRepository {
-  actual override suspend fun currentAccount(
+  override suspend fun currentAccount(
     cloudStoreServiceProvider: CloudStoreServiceProvider,
   ): Result<CloudStoreAccount?, CloudStoreAccountError> {
     return when (cloudStoreServiceProvider) {
@@ -16,5 +19,5 @@ actual class CloudStoreAccountRepositoryImpl(
     }.logFailure { "Error loading current cloud store account." }
   }
 
-  actual override suspend fun clear(): Result<Unit, Throwable> = Ok(Unit)
+  override suspend fun clear(): Result<Unit, Throwable> = Ok(Unit)
 }

@@ -3,6 +3,7 @@ import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
 }
 
 kotlin {
@@ -23,6 +24,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.accountFake)
         implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.databasePublic)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.f8eClientImpl)
         implementation(projects.shared.featureFlagFake)

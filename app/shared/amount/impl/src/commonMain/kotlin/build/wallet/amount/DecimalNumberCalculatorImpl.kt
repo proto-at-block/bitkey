@@ -2,15 +2,19 @@ package build.wallet.amount
 
 import build.wallet.amount.Amount.Companion.MAXIMUM
 import build.wallet.amount.Amount.DecimalNumber
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.settings.LocaleProvider
 
+@BitkeyInject(AppScope::class)
 class DecimalNumberCalculatorImpl(
   private val decimalNumberCreator: DecimalNumberCreator,
   private val localeProvider: LocaleProvider,
   private val doubleFormatter: DoubleFormatter,
-  /** A maximum value this calculator will bound all [append] operations to. */
-  private val maximumValue: Double = MAXIMUM.toDouble(),
 ) : DecimalNumberCalculator {
+  /** A maximum value this calculator will bound all [append] operations to. */
+  private val maximumValue: Double = MAXIMUM.toDouble()
+
   override fun append(
     amount: DecimalNumber,
     digit: Int,

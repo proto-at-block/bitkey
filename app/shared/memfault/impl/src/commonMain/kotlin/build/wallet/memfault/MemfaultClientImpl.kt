@@ -1,5 +1,7 @@
 package build.wallet.memfault
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.*
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
@@ -7,12 +9,12 @@ import build.wallet.logging.logNetworkFailure
 import build.wallet.memfault.MemfaultClient.*
 import build.wallet.memfault.MemfaultProjectKey.MEMFAULT_PROJECT_KEY
 import com.github.michaelbull.result.*
-import io.ktor.client.call.body
 import io.ktor.client.request.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import okio.ByteString
 
+@BitkeyInject(AppScope::class)
 class MemfaultClientImpl(
   private val memfaultHttpClient: MemfaultHttpClient,
 ) : MemfaultClient {
@@ -96,7 +98,7 @@ class MemfaultClientImpl(
     val response =
       client
         .catching {
-          post("https://files.memfault.com/api/v0/upload") {
+          post("https://ingress.memfault.com/api/v0/upload") {
             header("Memfault-Project-Key", MEMFAULT_PROJECT_KEY)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
             setUnredactedBody(
@@ -114,7 +116,10 @@ class MemfaultClientImpl(
             )
           }
         }
-        .map { it.body<PrepareUploadResponse>() }
+        .andThen { response ->
+          response.bodyResult<PrepareUploadResponse>()
+            .mapError { HttpError.NetworkError(it) }
+        }
         .logFailure { "Error while uploading coredump" }
         .getOrElse { return Err(it) }
 
@@ -137,7 +142,7 @@ class MemfaultClientImpl(
     // 3) Commit upload
     return memfaultHttpClient.client()
       .catching {
-        post("https://files.memfault.com/api/v0/upload/coredump") {
+        post("https://ingress.memfault.com/api/v0/upload/coredump") {
           header("Memfault-Project-Key", MEMFAULT_PROJECT_KEY)
           header(HttpHeaders.ContentType, ContentType.Application.Json)
           setUnredactedBody(

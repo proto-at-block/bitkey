@@ -8,6 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.auth.OnboardingFullAccountDeleter
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -21,6 +23,7 @@ import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
+@BitkeyInject(ActivityScope::class)
 class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val onboardingFullAccountDeleter: OnboardingFullAccountDeleter,

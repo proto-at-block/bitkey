@@ -68,7 +68,6 @@ struct MobileTransactionsView_Previews: PreviewProvider {
                 switchIsChecked: true,
                 onSwitchCheckedChange: { _ in },
                 dailyLimitRow: .init(title: "Daily limit", sideText: "$100.00", onClick: {}),
-                spendingLimitCopy: SpendingLimitsCopy.Companion().get(isRevampOn: false),
                 disableAlertModel: nil,
                 spendingLimitCardModel: .init(
                     titleText: "Today’s limit",

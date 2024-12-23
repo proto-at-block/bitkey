@@ -1,15 +1,13 @@
 package build.wallet.statemachine.platform.permissions
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -24,14 +22,15 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
-actual class EnableNotificationsUiStateMachineImpl actual constructor(
+@BitkeyInject(ActivityScope::class)
+class EnableNotificationsUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   @Suppress("unused")
   private val permissionChecker: PermissionChecker,
   private val eventTracker: EventTracker,
 ) : EnableNotificationsUiStateMachine {
   @Composable
-  actual override fun model(props: EnableNotificationsUiProps): BodyModel {
+  override fun model(props: EnableNotificationsUiProps): BodyModel {
     var uiState: UiState by remember { mutableStateOf(ShowingExplanationUiState) }
 
     when (uiState) {

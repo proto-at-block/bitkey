@@ -12,6 +12,8 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Source
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
@@ -26,6 +28,7 @@ import kotlin.math.ceil
 // size of the 2-of-3 p2wsh witness
 private const val WITNESS_SIZE_BYTES = 253
 
+@BitkeyInject(AppScope::class)
 class BitcoinTransactionFeeEstimatorImpl(
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val bitcoinWalletService: BitcoinWalletService,
@@ -43,7 +46,7 @@ class BitcoinTransactionFeeEstimatorImpl(
       val feeRates =
         bitcoinFeeRateEstimator.getEstimatedFeeRates(account.config.bitcoinNetworkType)
           .mapError {
-            FeeEstimationError.CannotGetFeesError(
+            CannotGetFeesError(
               isConnectivityError = it is HttpError.NetworkError
             )
           }
@@ -91,7 +94,11 @@ class BitcoinTransactionFeeEstimatorImpl(
 
       // Return the map
       priorities.associateWith { priority ->
-        val feeRate = feeRates[priority]
+        val feeRate = when (priority) {
+          EstimatedTransactionPriority.FASTEST -> feeRates.fastestFeeRate
+          EstimatedTransactionPriority.THIRTY_MINUTES -> feeRates.halfHourFeeRate
+          EstimatedTransactionPriority.SIXTY_MINUTES -> feeRates.hourFeeRate
+        }
 
         feeRate?.let { rate ->
           val feeAmount = (rate.satsPerVByte * vsize).toInt().toBigInteger()

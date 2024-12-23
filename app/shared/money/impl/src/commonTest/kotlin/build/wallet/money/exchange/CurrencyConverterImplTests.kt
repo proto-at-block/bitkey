@@ -22,7 +22,7 @@ import kotlinx.datetime.Instant
 class CurrencyConverterImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoFake()
   val accountService = AccountServiceFake()
-  val exchangeRateF8eClient = ExchangeRateF8eClientMock()
+  val exchangeRateF8eClient = ExchangeRateF8eClientFake()
   val converter = CurrencyConverterImpl(
     accountService = accountService,
     exchangeRateDao = exchangeRateDao,

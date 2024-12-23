@@ -11,10 +11,13 @@ import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
 import build.wallet.bitcoin.transactions.BitcoinWalletService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.BodyModel
 
+@BitkeyInject(ActivityScope::class)
 class BitcoinWalletDebugUiStateMachineImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,

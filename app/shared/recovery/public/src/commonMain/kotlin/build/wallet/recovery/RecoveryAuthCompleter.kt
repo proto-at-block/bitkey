@@ -24,6 +24,21 @@ interface RecoveryAuthCompleter {
     hardwareSignedChallenge: HardwareSignedChallenge,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
-    removeProtectedCustomers: Boolean,
+  ): Result<Unit, Throwable>
+
+  /**
+   * Rotates the auth tokens for the given [FullAccountId] to the given [AppAuthPublicKeys]
+   * and optionally removes all trusted contacts.
+   *
+   * @param f8eEnvironment The environment to use for the auth token rotation
+   * @param fullAccountId The [FullAccountId] to rotate the auth tokens for
+   * @param destinationAppAuthPubKeys The [AppAuthPublicKeys] to rotate the auth tokens to
+   * @param removeTrustedContacts Whether to remove all trusted contacts
+   */
+  suspend fun rotateAuthTokens(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    destinationAppAuthPubKeys: AppAuthPublicKeys,
+    removeTrustedContacts: Boolean = false,
   ): Result<Unit, Throwable>
 }

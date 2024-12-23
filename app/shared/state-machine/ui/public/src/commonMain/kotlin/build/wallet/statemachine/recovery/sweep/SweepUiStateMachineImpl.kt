@@ -7,6 +7,8 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.ErrorData
@@ -22,6 +24,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
 
+@BitkeyInject(ActivityScope::class)
 class SweepUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,

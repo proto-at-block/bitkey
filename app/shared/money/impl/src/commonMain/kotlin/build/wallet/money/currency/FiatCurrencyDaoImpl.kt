@@ -2,6 +2,8 @@ package build.wallet.money.currency
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FiatCurrencyEntity
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.sqldelight.asFlowOfList
@@ -11,6 +13,7 @@ import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 
+@BitkeyInject(AppScope::class)
 class FiatCurrencyDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : FiatCurrencyDao {

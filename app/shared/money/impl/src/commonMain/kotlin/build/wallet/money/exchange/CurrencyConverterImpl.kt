@@ -3,6 +3,8 @@ package build.wallet.money.exchange
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.Money
 import build.wallet.money.currency.Currency
 import com.github.michaelbull.result.get
@@ -12,6 +14,7 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class CurrencyConverterImpl(
   private val accountService: AccountService,
   private val exchangeRateDao: ExchangeRateDao,

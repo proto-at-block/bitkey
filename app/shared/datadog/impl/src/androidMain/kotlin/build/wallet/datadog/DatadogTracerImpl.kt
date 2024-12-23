@@ -1,9 +1,12 @@
 package build.wallet.datadog
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import io.opentracing.propagation.Format
 import io.opentracing.propagation.TextMapInject
 import io.opentracing.util.GlobalTracer
 
+@BitkeyInject(AppScope::class)
 class DatadogTracerImpl : DatadogTracer {
   override fun buildSpan(spanName: String): DatadogSpan =
     GlobalTracer.get().buildSpan(spanName)

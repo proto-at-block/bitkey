@@ -1,4 +1,4 @@
-use bdk_utils::bdk::bitcoin::Address;
+use bdk_utils::bdk::bitcoin::{Address, Network};
 use itertools::Itertools;
 use std::str::FromStr;
 
@@ -10,6 +10,8 @@ use crate::error::WorkerError;
 use crate::jobs::helpers::customer_address::{
     notify_customers_with_addresses, CustomerNotificationFeatureFlag, PaymentNotificationType,
 };
+
+pub const MONITORED_NETWORKS: [Network; 2] = [Network::Bitcoin, Network::Signet];
 
 #[instrument(skip(state))]
 pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result<(), WorkerError> {

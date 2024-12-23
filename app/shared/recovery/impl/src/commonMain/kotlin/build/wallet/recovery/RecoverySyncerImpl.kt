@@ -1,6 +1,8 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClient
 import build.wallet.platform.app.AppSessionManager
@@ -20,6 +22,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class RecoverySyncerImpl(
   val recoveryDao: RecoveryDao,
   val getRecoveryStatusF8eClient: GetDelayNotifyRecoveryStatusF8eClient,

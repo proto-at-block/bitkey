@@ -74,3 +74,8 @@ variable "inheritance_table_name" {
   type        = string
   description = "The name of the inheritance table"
 }
+
+variable "promotion_code_table_name" {
+  type        = string
+  description = "The name of the promotion code table"
+}

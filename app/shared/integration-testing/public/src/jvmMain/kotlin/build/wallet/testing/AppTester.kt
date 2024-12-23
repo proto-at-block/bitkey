@@ -1,54 +1,31 @@
 package build.wallet.testing
 
-import androidx.compose.runtime.Composable
-import build.wallet.bdk.*
+import build.wallet.bdk.BdkBlockchainFactoryImpl
+import build.wallet.bdk.BdkDescriptorFactoryImpl
+import build.wallet.bdk.BdkDescriptorSecretKeyFactoryImpl
 import build.wallet.bdk.bindings.BdkBlockchainFactory
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
 import build.wallet.bitcoin.blockchain.BlockchainControl
 import build.wallet.bitcoin.blockchain.NoopBlockchainControl
 import build.wallet.bitcoin.blockchain.RegtestControl
-import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
 import build.wallet.cloud.store.*
-import build.wallet.datadog.DatadogRumMonitorImpl
-import build.wallet.di.ActivityComponent
-import build.wallet.di.ActivityComponentImpl
-import build.wallet.di.AppComponent
-import build.wallet.di.AppComponentImpl
-import build.wallet.di.makeAppComponent
-import build.wallet.encrypt.MessageSignerImpl
-import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.SignatureVerifierImpl
+import build.wallet.di.JvmActivityComponent
+import build.wallet.di.JvmAppComponent
+import build.wallet.di.JvmAppComponentImpl
+import build.wallet.di.create
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
-import build.wallet.firmware.TeltraMock
 import build.wallet.logging.*
-import build.wallet.money.exchange.ExchangeRateF8eClientMock
 import build.wallet.nfc.*
-import build.wallet.nfc.platform.NfcCommands
-import build.wallet.nfc.platform.NfcCommandsProvider
-import build.wallet.platform.PlatformContext
-import build.wallet.platform.biometrics.BiometricPrompterImpl
-import build.wallet.platform.config.DeviceTokenConfig
-import build.wallet.platform.config.DeviceTokenConfigProviderImpl
-import build.wallet.platform.config.TouchpointPlatform.FcmTeam
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProviderImpl
+import build.wallet.platform.data.FileManagerImpl
 import build.wallet.platform.data.databasesDir
 import build.wallet.platform.data.filesDir
-import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
-import build.wallet.platform.settings.SystemSettingsLauncher
-import build.wallet.platform.sharing.SharingManager
-import build.wallet.platform.sharing.SharingManagerFake
-import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
-import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
-import build.wallet.store.EncryptedKeyValueStoreFactory
-import build.wallet.time.ControlledDelayer
+import build.wallet.store.KeyValueStoreFactoryImpl
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -63,17 +40,14 @@ const val F8E_ENV_ENV_VAR_NAME = "F8E_ENVIRONMENT"
 
 @Suppress("TooManyFunctions")
 class AppTester(
-  appComponent: AppComponentImpl,
-  activityComponentImpl: ActivityComponentImpl,
-  val fakeHardwareKeyStore: FakeHardwareKeyStore,
-  val fakeNfcCommands: NfcCommandsFake,
-  internal val sharingManager: SharingManagerFake,
+  appComponent: JvmAppComponent,
+  activityComponent: JvmActivityComponent,
   internal val blockchainControl: BlockchainControl,
   val treasuryWallet: TreasuryWallet,
   internal val initialF8eEnvironment: F8eEnvironment,
   val initialBitcoinNetworkType: BitcoinNetworkType,
   val isUsingSocRecFakes: Boolean,
-) : AppComponent by appComponent, ActivityComponent by activityComponentImpl {
+) : JvmAppComponent by appComponent, JvmActivityComponent by activityComponent {
   /**
    * Creates a new [AppTester] that share data with an existing app instance.
    * It is not safe to continue using the previous [AppTester] instance after calling this method.
@@ -156,40 +130,26 @@ class AppTester(
         } ?: REGTEST
       val bdkBlockchainFactory = bdkBlockchainFactory ?: BdkBlockchainFactoryImpl()
 
-      val platformContext = initPlatform(existingAppDir)
-      val appComponent = createAppComponent(platformContext, bdkBlockchainFactory)
+      val appDir = initAppDir(existingAppDir)
+      val appComponent = createAppComponent(
+        appDir = appDir,
+        bdkBlockchainFactory = bdkBlockchainFactory,
+        cloudStoreAccountRepositoryOverride = cloudStoreAccountRepository,
+        cloudKeyValueStoreOverride = cloudKeyValueStore
+      )
       appComponent.loggerInitializer.initialize()
+      if (hardwareSeed != null) {
+        appComponent.fakeHardwareKeyStore.setSeed(hardwareSeed)
+      }
       val blockchainControl = createBlockchainControl(bitcoinNetworkType)
-      val fakeHardwareKeyStore =
-        createFakeHardwareKeyStore(appComponent.secureStoreFactory, hardwareSeed)
-      val fakeHardwareSpendingWalletProvider =
-        FakeHardwareSpendingWalletProvider(
-          spendingWalletProvider = appComponent.spendingWalletProvider,
-          descriptorBuilder = appComponent.bitcoinMultiSigDescriptorBuilder,
-          fakeHardwareKeyStore = fakeHardwareKeyStore
-        )
-      val fakeNfcCommands =
-        NfcCommandsFake(
-          messageSigner = MessageSignerImpl(),
-          fakeHardwareKeyStore = fakeHardwareKeyStore,
-          fakeHardwareSpendingWalletProvider = fakeHardwareSpendingWalletProvider
-        )
-      val fakeSharingManager = SharingManagerFake()
-      val activityComponent =
-        createActivityComponent(
-          appComponent = appComponent,
-          fakeNfcCommands = fakeNfcCommands,
-          sharingManager = fakeSharingManager,
-          cloudStoreAccRepository = cloudStoreAccountRepository,
-          cloudKeyValueStore = cloudKeyValueStore
-        )
+      val activityComponent = appComponent.activityComponent()
 
       val treasury = TreasuryWalletFactory(
-        appComponent.bitcoinBlockchain,
-        blockchainControl,
-        activityComponent.appComponent.spendingWalletProvider,
-        BdkDescriptorSecretKeyFactoryImpl(),
-        BdkDescriptorFactoryImpl()
+        bitcoinBlockchain = appComponent.bitcoinBlockchain,
+        blockchainControl = blockchainControl,
+        spendingWalletProvider = appComponent.spendingWalletProvider,
+        bdkDescriptorSecretKeyFactory = BdkDescriptorSecretKeyFactoryImpl(),
+        bdkDescriptorFactory = BdkDescriptorFactoryImpl()
       ).create(bitcoinNetworkType)
 
       appComponent.debugOptionsService.apply {
@@ -216,22 +176,19 @@ class AppTester(
       }
 
       return AppTester(
-        appComponent,
-        activityComponent,
-        fakeHardwareKeyStore,
-        fakeNfcCommands,
-        fakeSharingManager,
-        blockchainControl,
-        treasury,
-        f8eEnvironment,
-        bitcoinNetworkType,
-        isUsingSocRecFakes
+        appComponent = appComponent,
+        activityComponent = activityComponent,
+        blockchainControl = blockchainControl,
+        treasuryWallet = treasury,
+        initialF8eEnvironment = f8eEnvironment,
+        initialBitcoinNetworkType = bitcoinNetworkType,
+        isUsingSocRecFakes = isUsingSocRecFakes
       )
     }
   }
 }
 
-private fun initPlatform(existingAppDir: String?): PlatformContext {
+private fun initAppDir(existingAppDir: String?): String {
   val appDir =
     if (existingAppDir != null) {
       existingAppDir
@@ -241,76 +198,36 @@ private fun initPlatform(existingAppDir: String?): PlatformContext {
       rootDir.join(uuid)
     }
   logTesting { "App data directory is $appDir" }
-  val platformContext = PlatformContext(appDirOverride = appDir)
-  val fileDirectoryProvider = FileDirectoryProviderImpl(platformContext)
+  val fileDirectoryProvider = FileDirectoryProviderImpl(appDir)
   Files.createDirectories(Path.of(fileDirectoryProvider.databasesDir()))
   Files.createDirectories(Path.of(fileDirectoryProvider.filesDir()))
-  return platformContext
+  return appDir
 }
 
 private fun createAppComponent(
-  platformContext: PlatformContext,
+  appDir: String,
   bdkBlockchainFactory: BdkBlockchainFactory,
-): AppComponentImpl {
-  return makeAppComponent(
-    bdkAddressBuilder = BdkAddressBuilderImpl(),
-    bdkBlockchainFactory = bdkBlockchainFactory,
-    bdkBumpFeeTxBuilderFactory = BdkBumpFeeTxBuilderFactoryImpl(),
-    bdkPartiallySignedTransactionBuilder = BdkPartiallySignedTransactionBuilderImpl(),
-    bdkTxBuilderFactory = BdkTxBuilderFactoryImpl(),
-    bdkWalletFactory = BdkWalletFactoryImpl(),
-    datadogRumMonitor = DatadogRumMonitorImpl(),
-    delayer = ControlledDelayer(),
-    deviceTokenConfigProvider =
-      DeviceTokenConfigProviderImpl(
-        DeviceTokenConfig("fake-device-token", FcmTeam)
-      ),
-    // we pass a mock exchange rate service to avoid calls to 3rd party exchange rate services
-    // during tests
-    exchangeRateF8eClient = ExchangeRateF8eClientMock(),
-    messageSigner = MessageSignerImpl(),
-    signatureVerifier = SignatureVerifierImpl(),
-    platformContext = platformContext,
-    teltra = TeltraMock()
+  cloudStoreAccountRepositoryOverride: CloudStoreAccountRepository? = null,
+  cloudKeyValueStoreOverride: CloudKeyValueStore? = null,
+): JvmAppComponentImpl {
+  val fileDirectoryProvider = FileDirectoryProviderImpl(appDir)
+  val fileManager = FileManagerImpl(fileDirectoryProvider)
+  val keyValueStoreFactory = KeyValueStoreFactoryImpl(fileManager)
+  val writableCloudStoreAccountRepository =
+    (cloudStoreAccountRepositoryOverride as? WritableCloudStoreAccountRepository)
+      ?: CloudStoreAccountRepositoryImpl(keyValueStoreFactory)
+  val cloudKeyValueStore =
+    cloudKeyValueStoreOverride ?: CloudKeyValueStoreImpl(keyValueStoreFactory)
+  val cloudFileStore = CloudFileStoreFake(
+    parentDir = fileDirectoryProvider.filesDir(),
+    fileManager = fileManager
   )
-}
-
-private fun createActivityComponent(
-  appComponent: AppComponentImpl,
-  fakeNfcCommands: NfcCommands,
-  sharingManager: SharingManager,
-  cloudStoreAccRepository: CloudStoreAccountRepository? = null,
-  cloudKeyValueStore: CloudKeyValueStore? = null,
-): ActivityComponentImpl {
-  val cloudStoreAccountRepository = cloudStoreAccRepository
-    ?: CloudStoreAccountRepositoryImpl(
-      appComponent.keyValueStoreFactory
-    )
-
-  return ActivityComponentImpl(
-    appComponent = appComponent,
-    cloudKeyValueStore = cloudKeyValueStore
-      ?: CloudKeyValueStoreImpl(appComponent.keyValueStoreFactory),
-    cloudFileStore = CloudFileStoreFake(
-      parentDir = appComponent.fileDirectoryProvider.filesDir(),
-      fileManager = appComponent.fileManager
-    ),
-    cloudSignInUiStateMachine =
-      CloudSignInUiStateMachineFake(
-        cloudStoreAccountRepository as WritableCloudStoreAccountRepository,
-        CloudStoreServiceProviderFake
-      ),
-    cloudDevOptionsStateMachine = cloudDevOptionsStateMachineNoop,
-    cloudStoreAccountRepository = cloudStoreAccountRepository,
-    datadogRumMonitor = DatadogRumMonitorImpl(),
-    lightningInvoiceParser = LightningInvoiceParserImpl(),
-    nfcCommandsProvider = NfcCommandsProvider(fake = fakeNfcCommands, real = fakeNfcCommands),
-    nfcSessionProvider = NfcSessionFake,
-    sharingManager = sharingManager,
-    systemSettingsLauncher = systemSettingsLauncher,
-    inAppBrowserNavigator = inAppBrowserNavigator,
-    pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
-    biometricPrompter = BiometricPrompterImpl()
+  return JvmAppComponentImpl::class.create(
+    appDir = appDir,
+    bdkBlockchainFactory = bdkBlockchainFactory,
+    writableCloudStoreAccountRepository = writableCloudStoreAccountRepository,
+    cloudKeyValueStore = cloudKeyValueStore,
+    cloudFileStore = cloudFileStore
   )
 }
 
@@ -331,58 +248,3 @@ private fun createBlockchainControl(networkType: BitcoinNetworkType): Blockchain
 
     else -> NoopBlockchainControl()
   }
-
-private suspend fun createFakeHardwareKeyStore(
-  secureStoreFactory: EncryptedKeyValueStoreFactory,
-  hardwareSeed: FakeHardwareKeyStore.Seed?,
-): FakeHardwareKeyStoreImpl {
-  val bdkMnemonicGenerator = BdkMnemonicGeneratorImpl()
-  val bdkDescriptorSecretKeyGenerator = BdkDescriptorSecretKeyGeneratorImpl()
-  val publicKeyGenerator = Secp256k1KeyGeneratorImpl()
-  val fakeHardwareKeyStore =
-    FakeHardwareKeyStoreImpl(
-      bdkMnemonicGenerator = bdkMnemonicGenerator,
-      bdkDescriptorSecretKeyGenerator = bdkDescriptorSecretKeyGenerator,
-      secp256k1KeyGenerator = publicKeyGenerator,
-      encryptedKeyValueStoreFactory = secureStoreFactory
-    )
-  if (hardwareSeed != null) {
-    fakeHardwareKeyStore.setSeed(hardwareSeed)
-  }
-  return fakeHardwareKeyStore
-}
-
-private val inAppBrowserNavigator =
-  object : InAppBrowserNavigator {
-    override fun open(
-      url: String,
-      onClose: () -> Unit,
-    ) {
-      logDebug { "Opened URL: $url " }
-      onClose()
-    }
-
-    override fun onClose() = Unit
-
-    override fun close() {
-      onClose()
-    }
-  }
-
-private val systemSettingsLauncher =
-  object : SystemSettingsLauncher {
-    override fun launchAppSettings() {
-      logDebug { "Launch App Settings" }
-    }
-
-    override fun launchSecuritySettings() {
-      logDebug { "Launch Security Settings" }
-    }
-  }
-
-private val cloudDevOptionsStateMachineNoop = object : CloudDevOptionsStateMachine {
-  @Composable
-  override fun model(props: CloudDevOptionsProps): BodyModel {
-    error("Not implemented")
-  }
-}

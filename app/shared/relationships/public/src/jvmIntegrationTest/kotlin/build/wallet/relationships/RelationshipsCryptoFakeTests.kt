@@ -185,7 +185,7 @@ class RelationshipsCryptoFakeTests : FunSpec({
     val protectedCustomerRecoveryPakeKey =
       cryptoFake.generateProtectedCustomerRecoveryPakeKey(recoveryCode).getOrThrow()
     val encryptedPrivateKeyEncryptionKeyOutput =
-      cryptoFake.decryptPrivateKeyEncryptionKey(
+      cryptoFake.transferPrivateKeyEncryptionKeyEncryption(
         recoveryCode,
         protectedCustomerRecoveryPakeKey.publicKey,
         trustedContactIdentityKey,

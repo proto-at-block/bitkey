@@ -1,4 +1,4 @@
-FROM amazonlinux:2@sha256:90e48c53055fc5943819e6a75e0227ecd43384ba3dbe949030f164645c485518 as nitro-cli
+FROM amazonlinux:2@sha256:256a092a1df6b2bfcf88aa38d8255a37adf65d62e9544c1047dc6803cbd220ee as nitro-cli
 RUN amazon-linux-extras install -y aws-nitro-enclaves-cli docker \
     && yum install -y tar
 # The nitro-cli needs its /blobs sources available under /usr/share/nitro_enclaves/blobs to build enclave images

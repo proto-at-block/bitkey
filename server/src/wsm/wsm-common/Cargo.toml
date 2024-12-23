@@ -11,6 +11,7 @@ crypto = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true, features = ["base64"] }
 
 [lints]
 workspace = true

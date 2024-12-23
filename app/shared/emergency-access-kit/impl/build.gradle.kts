@@ -4,6 +4,7 @@ import build.wallet.gradle.logic.reproducible.GenerateEmergencyAccessKitInformat
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   id("build.wallet.build.reproducible")
 }
 

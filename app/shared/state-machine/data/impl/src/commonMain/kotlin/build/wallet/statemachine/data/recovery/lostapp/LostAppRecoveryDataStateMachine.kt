@@ -3,6 +3,8 @@ package build.wallet.statemachine.data.recovery.lostapp
 import androidx.compose.runtime.Composable
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.backup.CloudBackup
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachine
@@ -29,6 +31,7 @@ data class LostAppRecoveryProps(
   val onRetryCloudRecovery: () -> Unit,
 )
 
+@BitkeyInject(AppScope::class)
 class LostAppRecoveryDataStateMachineImpl(
   private val recoveryInProgressDataStateMachine: RecoveryInProgressDataStateMachine,
   private val lostAppRecoveryHaveNotStartedDataStateMachine:

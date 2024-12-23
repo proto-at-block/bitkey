@@ -4,7 +4,7 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use bdk_utils::bdk::electrum_client::ElectrumApi;
+use bdk_utils::bdk::{bitcoin::Network, electrum_client::ElectrumApi};
 use bdk_utils::get_electrum_client;
 use bdk_utils::{
     metrics::{
@@ -23,7 +23,7 @@ use types::account::entities::Factor;
 use types::notification::NotificationChannel;
 
 use super::WorkerState;
-use crate::error::WorkerError;
+use crate::{error::WorkerError, jobs::blockchain_polling::MONITORED_NETWORKS};
 
 // This job is a global singleton intended to gather and emit metrics that are meaningful
 //   as absolute system-wide measurements. For example, the total number of currently-pending
@@ -38,6 +38,8 @@ pub struct MeasurementsCache {
     customer_notification_email_queue_num_messages: Arc<RwLock<u64>>,
     customer_notification_sms_queue_num_messages: Arc<RwLock<u64>>,
     electrum_tip_height_by_node: Arc<RwLock<HashMap<MonitoredElectrumNode, u64>>>,
+    blockchain_poller_tip_height: Arc<RwLock<HashMap<Network, u64>>>,
+    blockchain_poller_in_sync: Arc<RwLock<HashMap<Network, u64>>>,
 }
 
 // This cache holds the "current" value of each measurement. The job performs the necessary work
@@ -54,6 +56,8 @@ impl MeasurementsCache {
             customer_notification_email_queue_num_messages: Arc::new(RwLock::new(0)),
             customer_notification_sms_queue_num_messages: Arc::new(RwLock::new(0)),
             electrum_tip_height_by_node: Arc::new(RwLock::new(HashMap::new())),
+            blockchain_poller_tip_height: Arc::new(RwLock::new(HashMap::new())),
+            blockchain_poller_in_sync: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -212,6 +216,45 @@ impl MeasurementsCache {
                 .map_err(|_| WorkerError::MetricsRegisterCallback)?;
         }
 
+        for network in MONITORED_NETWORKS {
+            let blockchain_poller_tip_height = self.blockchain_poller_tip_height.clone();
+            bdk_utils_metrics::FACTORY
+                .register_callback(
+                    bdk_utils_metrics::BLOCKCHAIN_POLLER_TIP_HEIGHT.to_owned(),
+                    move || {
+                        blockchain_poller_tip_height
+                            .read()
+                            .unwrap()
+                            .get(&network)
+                            .unwrap_or(&0)
+                            .to_owned()
+                    },
+                    &[KeyValue::new(
+                        bdk_utils_metrics::NETWORK_KEY,
+                        network.to_string(),
+                    )],
+                )
+                .map_err(|_| WorkerError::MetricsRegisterCallback)?;
+
+            let blockchain_poller_in_sync = self.blockchain_poller_in_sync.clone();
+            bdk_utils_metrics::FACTORY
+                .register_callback(
+                    bdk_utils_metrics::BLOCKCHAIN_POLLER_IN_SYNC.to_owned(),
+                    move || {
+                        blockchain_poller_in_sync
+                            .read()
+                            .unwrap()
+                            .get(&network)
+                            .unwrap_or(&0)
+                            .to_owned()
+                    },
+                    &[KeyValue::new(
+                        bdk_utils_metrics::NETWORK_KEY,
+                        network.to_string(),
+                    )],
+                )
+                .map_err(|_| WorkerError::MetricsRegisterCallback)?;
+        }
         Ok(())
     }
 }
@@ -323,6 +366,10 @@ pub async fn run_once(
     measure_electrum_ping_response_time(state).await;
     measure_electrum_tip_height(state, measurements_cache).await?;
 
+    for network in MONITORED_NETWORKS {
+        measure_blockchain_poller_sync_status(state, measurements_cache, network).await?;
+    }
+
     event!(Level::INFO, "Ending metrics job");
     Ok(())
 }
@@ -420,5 +467,27 @@ async fn measure_electrum_tip_height(
         }
     }
 
+    Ok(())
+}
+
+async fn measure_blockchain_poller_sync_status(
+    state: &WorkerState,
+    measurements_cache: &MeasurementsCache,
+    network: Network,
+) -> Result<(), WorkerError> {
+    let (tip_height, in_sync) = state
+        .chain_indexer_service
+        .get_persisted_tip_block_and_in_sync(network)
+        .await?;
+    measurements_cache
+        .blockchain_poller_tip_height
+        .write()
+        .unwrap()
+        .insert(network, tip_height.unwrap_or_default());
+    measurements_cache
+        .blockchain_poller_in_sync
+        .write()
+        .unwrap()
+        .insert(network, if in_sync { 1 } else { 0 });
     Ok(())
 }

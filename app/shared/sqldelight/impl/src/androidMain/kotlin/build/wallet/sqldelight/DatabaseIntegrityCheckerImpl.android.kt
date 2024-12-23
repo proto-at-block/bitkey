@@ -1,11 +1,11 @@
 package build.wallet.sqldelight
 
-import build.wallet.platform.data.FileDirectoryProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class DatabaseIntegrityCheckerImpl actual constructor(
-  fileDirectoryProvider: FileDirectoryProvider,
-) : DatabaseIntegrityChecker {
-  actual override suspend fun purgeDatabaseStateIfInvalid(databaseEncryptionKey: String?): Boolean {
+@BitkeyInject(AppScope::class)
+class DatabaseIntegrityCheckerImpl : DatabaseIntegrityChecker {
+  override suspend fun purgeDatabaseStateIfInvalid(databaseEncryptionKey: String?): Boolean {
     // no-op
     return true
   }

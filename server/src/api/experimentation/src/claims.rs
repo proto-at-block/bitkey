@@ -9,6 +9,7 @@ use account::service::Service as AccountService;
 use authn_authz::key_claims::{get_jwt_from_request_parts, get_user_name_from_jwt};
 use feature_flags::flag::ContextKey;
 use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
+use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
 
 use crate::attributes::ToLaunchDarklyAttributes;
@@ -63,6 +64,13 @@ impl ExperimentationClaims {
         } else {
             Err(ExperimentationError::ContextGeneration)
         }
+    }
+
+    /// The context to use for authenticated users (used by delay and notify only for now on the complete endpoint).
+    /// This is a temporary function to be removed once inheritance is fully rolled out.
+    pub fn overridden_account_context_key(&self, account_id: AccountId) -> ContextKey {
+        let attributes = self.to_attributes();
+        ContextKey::Account(account_id.to_string().clone(), attributes)
     }
 
     /// The context to use for unauthenticated users.

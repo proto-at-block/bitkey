@@ -14,6 +14,8 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
@@ -29,6 +31,8 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 // TODO(BKR-1135): merge into FullAccountCloudBackupRepairer
+
+@BitkeyInject(AppScope::class)
 class TrustedContactCloudBackupRefresherImpl(
   private val socRecService: SocRecService,
   private val cloudBackupDao: CloudBackupDao,

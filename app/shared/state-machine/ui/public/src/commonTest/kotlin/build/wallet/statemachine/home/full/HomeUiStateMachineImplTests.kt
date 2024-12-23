@@ -6,15 +6,11 @@ import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.SellBitcoinFeatureFlag
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.currency.EUR
+import build.wallet.money.currency.USD
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.partnerships.PartnerId
-import build.wallet.partnerships.PartnershipEvent
-import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
@@ -50,6 +46,7 @@ import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Instant
 
 class HomeUiStateMachineImplTests : FunSpec({
 
@@ -81,7 +78,14 @@ class HomeUiStateMachineImplTests : FunSpec({
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val sellBitcoinFeatureFlag = SellBitcoinFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
+  val partnershipsTransactionsService = PartnershipTransactionsServiceMock(
+    clearCalls = turbines.create("clear calls"),
+    syncCalls = turbines.create("sync calls"),
+    createCalls = turbines.create("create calls"),
+    fetchMostRecentCalls = turbines.create("fetch most recent calls"),
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
+    getCalls = turbines.create("get transaction by id calls")
+  )
 
   val stateMachine =
     HomeUiStateMachineImpl(
@@ -123,7 +127,7 @@ class HomeUiStateMachineImplTests : FunSpec({
       timeZoneProvider = TimeZoneProviderMock(),
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePayService = mobilePayService,
-      sellBitcoinFeatureFlag = sellBitcoinFeatureFlag
+      partnershipTransactionsService = partnershipsTransactionsService
     )
 
   val props =
@@ -137,8 +141,8 @@ class HomeUiStateMachineImplTests : FunSpec({
     cloudBackupHealthRepository.reset()
     fiatCurrencyPreferenceRepository.reset()
     mobilePayService.reset()
-    sellBitcoinFeatureFlag.reset()
     Router.reset()
+    partnershipsTransactionsService.reset()
   }
 
   suspend fun awaitSyncLoopCall() {
@@ -229,22 +233,26 @@ class HomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("partner sell app link does not invoke with feature flag disabled") {
-    sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    Router.route =
-      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
-    stateMachine.test(props) {
-      awaitSyncLoopCall()
-      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+  test("partner sell app link invokes") {
+    partnershipsTransactionsService.transactions.value = listOf(
+      PartnershipTransaction(
+        id = PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"),
+        status = PartnershipTransactionStatus.PENDING,
+        type = PartnershipTransactionType.SALE,
+        context = null,
+        partnerInfo = PartnerInfoFake,
+        cryptoAmount = .1,
+        txid = "txid",
+        fiatAmount = 1000.0,
+        fiatCurrency = USD.textCode,
+        paymentMethod = null,
+        created = Instant.DISTANT_PAST,
+        updated = Instant.DISTANT_PAST,
+        sellWalletAddress = null,
+        partnerTransactionUrl = null
+      )
+    )
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
-        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
-      }
-    }
-  }
-
-  test("partner sell app link invokes with feature flag enabled") {
-    sellBitcoinFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     Router.route =
       Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
 
@@ -267,6 +275,44 @@ class HomeUiStateMachineImplTests : FunSpec({
           )
         )
       }
+
+      partnershipsTransactionsService.getCalls.awaitItem().shouldBe(PartnershipTransactionId("01J91MGSEQ5JA0Q456ZQBN61D4"))
+    }
+  }
+
+  test("partner sell app link does not invoke when transaction is not found") {
+    partnershipsTransactionsService.transactions.value = listOf(
+      PartnershipTransaction(
+        id = PartnershipTransactionId("db-id"),
+        status = PartnershipTransactionStatus.PENDING,
+        type = PartnershipTransactionType.SALE,
+        context = null,
+        partnerInfo = PartnerInfoFake,
+        cryptoAmount = .1,
+        txid = "txid",
+        fiatAmount = 1000.0,
+        fiatCurrency = USD.textCode,
+        paymentMethod = null,
+        created = Instant.DISTANT_PAST,
+        updated = Instant.DISTANT_PAST,
+        sellWalletAddress = null,
+        partnerTransactionUrl = null
+      )
+    )
+
+    Router.route =
+      Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=not-found-id")
+
+    stateMachine.test(props) {
+      awaitSyncLoopCall()
+      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+
+      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
+      }
+
+      inAppBrowserNavigator.onCloseCalls.awaitItem()
+      partnershipsTransactionsService.getCalls.awaitItem().shouldBe(PartnershipTransactionId("not-found-id"))
     }
   }
 })

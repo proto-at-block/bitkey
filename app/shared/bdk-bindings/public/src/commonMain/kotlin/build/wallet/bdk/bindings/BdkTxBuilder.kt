@@ -49,6 +49,11 @@ interface BdkTxBuilder {
    */
   fun enableRbf(): BdkTxBuilder
 
+  /**
+   * Only spend utxos added by [addUtxos]. The wallet will not add additional utxos to the transaction even if they are needed to make the transaction valid.
+   */
+  fun manuallySelectedOnly(): BdkTxBuilder
+
   /*
    * Build the transaction.
    */

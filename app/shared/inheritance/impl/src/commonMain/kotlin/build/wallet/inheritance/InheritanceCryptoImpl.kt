@@ -6,19 +6,21 @@ import build.wallet.bitkey.inheritance.InheritanceMaterial
 import build.wallet.bitkey.inheritance.InheritanceMaterialHashData
 import build.wallet.bitkey.inheritance.InheritanceMaterialPackage
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.relationships.RelationshipId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.encrypt.XCiphertext
 import build.wallet.relationships.RelationshipsCrypto
+import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.serialization.json.encodeToStringResult
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
+@BitkeyInject(AppScope::class)
 class InheritanceCryptoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val relationships: InheritanceRelationshipsProvider,
@@ -81,4 +83,23 @@ class InheritanceCryptoImpl(
         appSpendingPrivateKey = privateSpendingKey
       )
     }
+
+  override suspend fun decryptInheritanceMaterial(
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
+    sealedDek: XCiphertext,
+    sealedMobileKey: XCiphertext,
+  ): Result<InheritanceKeyset, Error> =
+    coroutineBinding {
+      val pkek = crypto.decryptPrivateKeyEncryptionKey(
+        delegatedDecryptionKey = delegatedDecryptionKey,
+        sealedPrivateKeyEncryptionKey = sealedDek
+      )
+
+      val privateKeyMaterial = crypto.decryptPrivateKeyMaterial(
+        privateKeyEncryptionKey = pkek,
+        sealedPrivateKeyMaterial = sealedMobileKey
+      ).bind()
+
+      Json.decodeFromStringResult<InheritanceKeyset>(privateKeyMaterial.utf8())
+    }.flatMap { it }
 }

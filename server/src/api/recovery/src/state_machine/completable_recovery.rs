@@ -1,7 +1,9 @@
 use account::service::ClearPushTouchpointsInput;
 use account::service::CreateAndRotateAuthKeysInput;
 use async_trait::async_trait;
+use feature_flags::flag::evaluate_flag_value;
 use instrumentation::metrics::KeyValue;
+use types::account::entities::Account;
 use types::account::entities::{Factor, FullAccount, FullAccountAuthKeysPayload};
 
 use super::{
@@ -12,6 +14,9 @@ use crate::entities::RecoveryStatus;
 use crate::entities::WalletRecovery;
 use crate::error::RecoveryError;
 use crate::metrics;
+
+use crate::routes::INHERITANCE_ENABLED_FLAG_KEY;
+use crate::service::inheritance::recreate_pending_claims_for_beneficiary::RecreatePendingClaimsForBeneficiaryInput;
 use crate::service::social::challenge::clear_social_challenges::ClearSocialChallengesInput;
 use crate::state_machine::{PendingDelayNotifyRecovery, RecoveryResponse};
 
@@ -53,7 +58,11 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
         event: RecoveryEvent,
         services: &RecoveryServices,
     ) -> Result<Transition, RecoveryError> {
-        if let RecoveryEvent::RotateKeyset { user_pool_service } = event {
+        if let RecoveryEvent::RotateKeyset {
+            user_pool_service,
+            experimentation_claims,
+        } = event
+        {
             let recovery = &self.recovery;
             let account = self.account.clone();
 
@@ -75,7 +84,7 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 )
                 .await?;
 
-            services
+            let updated_account = services
                 .account
                 .create_and_rotate_auth_keys(CreateAndRotateAuthKeysInput {
                     account_id: &account.id,
@@ -108,6 +117,29 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                     RecoveryStatus::Complete,
                 )
                 .await?;
+
+            // We already performed the check above that the account is a full account
+            if let Account::Full(updated_full_account) = updated_account {
+                let context_key = experimentation_claims
+                    .overridden_account_context_key(updated_full_account.id.to_owned());
+
+                if evaluate_flag_value(
+                    services.feature_flags,
+                    INHERITANCE_ENABLED_FLAG_KEY,
+                    &context_key,
+                )
+                .unwrap_or(false)
+                {
+                    services
+                        .inheritance
+                        .recreate_pending_claims_for_beneficiary(
+                            RecreatePendingClaimsForBeneficiaryInput {
+                                beneficiary: &updated_full_account,
+                            },
+                        )
+                        .await?;
+                }
+            }
 
             let mut attributes = vec![KeyValue::new(
                 metrics::CREATED_DURING_CONTEST_KEY,

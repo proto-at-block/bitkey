@@ -2,10 +2,13 @@ package build.wallet.recovery.socrec
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 
+@BitkeyInject(AppScope::class)
 class SocRecStartedChallengeDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : SocRecStartedChallengeDao {

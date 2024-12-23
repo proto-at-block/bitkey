@@ -1,9 +1,12 @@
 package build.wallet.platform.device
 
 import android.os.Build
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 
-actual class DeviceInfoProviderImpl : DeviceInfoProvider {
-  actual override fun getDeviceInfo() =
+@BitkeyInject(AppScope::class)
+class DeviceInfoProviderImpl : DeviceInfoProvider {
+  override fun getDeviceInfo() =
     DeviceInfo(
       deviceModel = Build.MODEL,
       devicePlatform = DevicePlatform.Android,

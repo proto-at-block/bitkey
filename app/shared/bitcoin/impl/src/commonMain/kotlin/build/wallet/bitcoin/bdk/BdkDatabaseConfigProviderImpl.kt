@@ -2,6 +2,8 @@ package build.wallet.bitcoin.bdk
 
 import build.wallet.bdk.bindings.BdkDatabaseConfig
 import build.wallet.bdk.bindings.BdkSqliteDbConfiguration
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.databasesDir
@@ -9,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
+@BitkeyInject(AppScope::class)
 class BdkDatabaseConfigProviderImpl(
   private val fileDirectoryProvider: FileDirectoryProvider,
 ) : BdkDatabaseConfigProvider {

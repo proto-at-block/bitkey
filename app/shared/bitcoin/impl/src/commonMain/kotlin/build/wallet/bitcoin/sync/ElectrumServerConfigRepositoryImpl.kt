@@ -4,14 +4,17 @@ import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onSuccess
-import io.ktor.http.Url
+import io.ktor.http.*
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class ElectrumServerConfigRepositoryImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : ElectrumServerConfigRepository {

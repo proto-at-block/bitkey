@@ -12,8 +12,6 @@ import UserNotifications
 
 // MARK: -
 
-private let COMPOSE_RENDERING = false
-
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -23,6 +21,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
     var appSwitcherWindow: AppSwitcherWindow?
+    var composeUiEnabled: Bool
 
     // MARK: - Life Cycle
 
@@ -37,10 +36,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         appContext.appComponent.bugsnagContext.configureCommonMetadata()
 
+        appContext.activityComponent.featureFlagService.doInitComposeUiFeatureFlag()
+        composeUiEnabled = appContext.activityComponent.composUiFeatureFlag.isEnabled()
+
         super.init()
 
-        appContext.appUiStateMachineManager.connectSharedStateMachine()
-        appContext.biometricPromptUiStateMachineManager.connectSharedStateMachine()
+        if !composeUiEnabled {
+            appContext.appUiStateMachineManager.connectSharedStateMachine()
+        }
 
         // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
         // a user performs an iCloud restore on a new phone, the app will think it is onboarded but
@@ -64,11 +67,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
-        if COMPOSE_RENDERING {
+        if composeUiEnabled {
             window?.rootViewController = ComposeIosAppUIController(
-                appUiStateMachine: appContext.activityComponent.appUiStateMachine,
-                biometricPromptUiStateMachine: appContext.activityComponent
-                    .biometricPromptUiStateMachine
+                appUiStateMachine: appContext.activityComponent.appUiStateMachine
             ).viewController
         } else {
             window?.rootViewController = appContext.appUiStateMachineManager.appViewController
@@ -121,41 +122,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // relevant tasks.
         appContext.notificationManager.applicationDidEnterForeground(application)
 
-        appSwitcherWindow?.rootViewController = appContext.biometricPromptUiStateMachineManager
-            .appViewController
-        appSwitcherWindow?.makeKeyAndVisible()
+        if !composeUiEnabled {
+            appSwitcherWindow = nil
+            window?.makeKeyAndVisible()
+        }
     }
 
     func applicationWillResignActive(_: UIApplication) {
-        if !appContext.biometricsPrompter.isPrompting, !appContext.activityComponent.nfcTransactor
-            .isTransacting
+        if !appContext.appComponent.biometricPrompter.isPrompting,
+           !appContext.activityComponent.nfcTransactor
+           .isTransacting
         {
             appContext.appComponent.appSessionManager.appDidEnterBackground()
         }
-        appContext.appComponent.biometricPreference.getOrNull(completionHandler: { result, _ in
-            // If the appSwitcherWindow is not initialized and biometric is enabled,
-            // we add a window to display in the app switcher
-            if result == true, !self.appContext.activityComponent.nfcTransactor.isTransacting {
-                DispatchQueue.main.async {
-                    // Reuse an unanimated splash screen for the app switcher window
-                    let vc = UIHostingController(
-                        rootView: SplashScreenView(
-                            viewModel: SplashBodyModel(
-                                bitkeyWordMarkAnimationDelay: 0,
-                                bitkeyWordMarkAnimationDuration: 0,
-                                eventTrackerScreenInfo: nil
+        if !composeUiEnabled {
+            appContext.appComponent.biometricPreference.getOrNull(completionHandler: { result, _ in
+                // If the appSwitcherWindow is not initialized and biometric is enabled,
+                // we add a window to display in the app switcher
+                if result == true, !self.appContext.activityComponent.nfcTransactor.isTransacting {
+                    DispatchQueue.main.async {
+                        // Reuse an unanimated splash screen for the app switcher window
+                        let vc = UIHostingController(
+                            rootView: SplashScreenView(
+                                viewModel: SplashBodyModel(
+                                    bitkeyWordMarkAnimationDelay: 0,
+                                    bitkeyWordMarkAnimationDuration: 0,
+                                    eventTrackerScreenInfo: nil
+                                )
                             )
                         )
-                    )
-                    let appSwitcherWindow = AppSwitcherWindow(frame: self.window!.bounds)
-
-                    appSwitcherWindow.rootViewController = vc
-                    appSwitcherWindow.windowLevel = .alert
-                    appSwitcherWindow.makeKeyAndVisible()
-                    self.appSwitcherWindow = appSwitcherWindow
+                        let appSwitcherWindow = AppSwitcherWindow(frame: self.window!.bounds)
+                        appSwitcherWindow.rootViewController = vc
+                        appSwitcherWindow.windowLevel = .alert
+                        appSwitcherWindow.makeKeyAndVisible()
+                        self.appSwitcherWindow = appSwitcherWindow
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 
     func application(

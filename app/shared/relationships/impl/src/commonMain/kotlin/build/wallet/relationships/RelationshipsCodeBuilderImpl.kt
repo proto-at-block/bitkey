@@ -1,6 +1,8 @@
 package build.wallet.relationships
 
 import build.wallet.bitkey.relationships.PakeCode
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensure
 import build.wallet.recovery.socrec.toFixedSizeByteArray
 import build.wallet.serialization.Base32Encoding
@@ -13,9 +15,8 @@ import okio.ByteString.Companion.toByteString
 import build.wallet.relationships.InviteCodeParts.Schema as InviteSchema
 import build.wallet.relationships.RecoveryCodeParts.Schema as RecoverySchema
 
-class RelationshipsCodeBuilderImpl(
-  val base32Encoding: Base32Encoding,
-) : RelationshipsCodeBuilder {
+@BitkeyInject(AppScope::class)
+class RelationshipsCodeBuilderImpl : RelationshipsCodeBuilder {
   override fun buildInviteCode(
     serverPart: String,
     serverBits: Int,
@@ -60,7 +61,7 @@ class RelationshipsCodeBuilderImpl(
         .shl(padding)
         .let {
           val bufSize = (totalLength + padding).bitLengthToByteArraySize()
-          base32Encoding
+          Base32Encoding
             .encode(it.toFixedSizeByteArray(bufSize).toByteString())
             .mapError { error ->
               RelationshipsCodeEncodingError(
@@ -142,7 +143,7 @@ class RelationshipsCodeBuilderImpl(
       val serverBits =
         inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
 
-      val data = base32Encoding
+      val data = Base32Encoding
         .decode(inviteCode.alignBase32Code())
         .mapError { error ->
           RelationshipsCodeEncodingError(

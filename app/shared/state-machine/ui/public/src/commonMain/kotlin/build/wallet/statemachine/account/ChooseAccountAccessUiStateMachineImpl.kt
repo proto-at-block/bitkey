@@ -1,6 +1,8 @@
 package build.wallet.statemachine.account
 
 import androidx.compose.runtime.*
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
@@ -19,6 +21,7 @@ import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
 
+@BitkeyInject(ActivityScope::class)
 class ChooseAccountAccessUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugMenuStateMachine: DebugMenuStateMachine,
@@ -89,7 +92,7 @@ class ChooseAccountAccessUiStateMachineImpl(
             onBeTrustedContactClick = {
               state = ShowingBeTrustedContactIntroduction
             },
-            onResetExistingDevice = props.chooseAccountAccessData.resetExistingDevice
+            onResetExistingDevice = props.chooseAccountAccessData.wipeExistingDevice
           ).asRootScreen()
         }
       }
@@ -113,9 +116,7 @@ class ChooseAccountAccessUiStateMachineImpl(
           onExit = {
             state = ShowingChooseAccountAccess
           },
-          onSuccess = {
-            // TODO(W-8718): show Money Home for Software Wallet.
-          }
+          onSuccess = props.onSoftwareWalletCreated
         )
       )
 

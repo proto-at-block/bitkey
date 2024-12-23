@@ -5,10 +5,13 @@ import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.bitcoin.wallet.WatchingWalletProvider
 import build.wallet.bitkey.keybox.SoftwareKeybox
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class KeysetWalletProviderImpl(
   private val watchingWalletProvider: WatchingWalletProvider,
   private val watchingWalletDescriptorProvider: WatchingWalletDescriptorProvider,

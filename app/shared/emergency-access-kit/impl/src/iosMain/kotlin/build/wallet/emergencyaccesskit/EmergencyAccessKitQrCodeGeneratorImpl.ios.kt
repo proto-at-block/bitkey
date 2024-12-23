@@ -1,10 +1,8 @@
 package build.wallet.emergencyaccesskit
 
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.toErrorIfNull
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import com.github.michaelbull.result.*
 import kotlinx.cinterop.ExperimentalForeignApi
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
@@ -20,8 +18,9 @@ import platform.Foundation.setValue
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 
-actual class EmergencyAccessKitQrCodeGeneratorImpl actual constructor() : EmergencyAccessKitQrCodeGenerator {
-  actual override suspend fun imageBytes(
+@BitkeyInject(AppScope::class)
+class EmergencyAccessKitQrCodeGeneratorImpl : EmergencyAccessKitQrCodeGenerator {
+  override suspend fun imageBytes(
     width: Float,
     height: Float,
     contents: String,

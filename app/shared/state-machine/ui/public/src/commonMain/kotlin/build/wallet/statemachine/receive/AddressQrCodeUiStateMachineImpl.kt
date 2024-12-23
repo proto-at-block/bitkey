@@ -5,6 +5,8 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.sharing.SharingManager
@@ -20,6 +22,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class AddressQrCodeUiStateMachineImpl(
   private val clipboard: Clipboard,
   private val delayer: Delayer,

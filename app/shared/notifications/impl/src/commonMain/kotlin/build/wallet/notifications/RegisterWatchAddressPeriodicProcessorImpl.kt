@@ -1,9 +1,12 @@
 package build.wallet.notifications
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.PeriodicProcessorImpl
 import kotlin.time.Duration.Companion.minutes
 
+@BitkeyInject(AppScope::class, boundTypes = [RegisterWatchAddressPeriodicProcessor::class])
 class RegisterWatchAddressPeriodicProcessorImpl(
   private val queue: RegisterWatchAddressQueue,
   private val processor: RegisterWatchAddressProcessor,

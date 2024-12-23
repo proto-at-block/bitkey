@@ -52,7 +52,7 @@ impl Display for InheritanceClaimId {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Copy)]
 #[serde(untagged)]
 pub enum InheritanceClaimAuthKeys {
     FullAccount(FullAccountAuthKeys),
@@ -139,6 +139,33 @@ impl InheritanceClaimPending {
             common_fields,
             delay_end_time,
         }
+    }
+
+    /// This function recreates a pending inheritance claim for a beneficiary
+    /// The new claim will have different auth keys but the same delay end time
+    ///
+    /// # Arguments
+    ///
+    /// * `pending_claim` - The pending inheritance claim to be recreated
+    /// * `auth_keys` - The authentication keys for the recreated claim
+    /// * `delay_end_time` - The delay end time for the recreated claim
+    ///
+    pub fn recreate(
+        pending_claim: &InheritanceClaimPending,
+        auth_keys: InheritanceClaimAuthKeys,
+    ) -> Result<Self, external_identifier::Error> {
+        let id = InheritanceClaimId::gen()?;
+        let common_fields = InheritanceClaimCommonFields {
+            id,
+            auth_keys,
+            created_at: OffsetDateTime::now_utc(),
+            updated_at: OffsetDateTime::now_utc(),
+            ..pending_claim.common_fields.to_owned()
+        };
+        Ok(Self {
+            common_fields,
+            delay_end_time: pending_claim.delay_end_time,
+        })
     }
 
     pub fn is_delay_complete(&self) -> bool {

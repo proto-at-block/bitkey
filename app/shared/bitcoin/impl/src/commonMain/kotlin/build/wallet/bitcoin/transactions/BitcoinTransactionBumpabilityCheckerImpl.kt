@@ -3,8 +3,11 @@ package build.wallet.bitcoin.transactions
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import kotlinx.collections.immutable.ImmutableList
 
+@BitkeyInject(AppScope::class)
 class BitcoinTransactionBumpabilityCheckerImpl(
   private val sweepChecker: BitcoinTransactionSweepChecker,
   private val feeBumpAllowShrinkingChecker: FeeBumpAllowShrinkingChecker,

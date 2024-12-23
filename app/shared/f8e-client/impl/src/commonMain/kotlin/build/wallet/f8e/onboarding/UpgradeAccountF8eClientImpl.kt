@@ -16,6 +16,8 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
@@ -36,6 +38,7 @@ import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class UpgradeAccountF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : UpgradeAccountF8eClient {

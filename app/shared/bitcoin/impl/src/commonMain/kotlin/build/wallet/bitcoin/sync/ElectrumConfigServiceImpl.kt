@@ -5,6 +5,8 @@ import build.wallet.bitcoin.BitcoinNetworkType.*
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.configuration.GetBdkConfigurationF8eClient
 import build.wallet.logging.*
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 
+@BitkeyInject(AppScope::class)
 class ElectrumConfigServiceImpl(
   private val electrumServerConfigRepository: ElectrumServerConfigRepository,
   private val debugOptionsService: DebugOptionsService,

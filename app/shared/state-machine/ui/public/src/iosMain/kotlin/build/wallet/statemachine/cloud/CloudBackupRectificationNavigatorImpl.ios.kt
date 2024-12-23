@@ -1,10 +1,13 @@
 package build.wallet.statemachine.cloud
 
 import androidx.compose.runtime.Composable
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 
-actual class CloudBackupRectificationNavigatorImpl : CloudBackupRectificationNavigator {
+@BitkeyInject(ActivityScope::class)
+class CloudBackupRectificationNavigatorImpl : CloudBackupRectificationNavigator {
   @Composable
-  actual override fun navigate(
+  override fun navigate(
     data: Any,
     onReturn: () -> Unit,
   ) {

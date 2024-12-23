@@ -1,6 +1,8 @@
 package build.wallet.analytics.events
 
 import build.wallet.database.BitkeyDatabaseProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.config.AppVariant
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -9,6 +11,7 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.*
 
+@BitkeyInject(AppScope::class)
 class AnalyticsTrackingPreferenceImpl(
   private val appVariant: AppVariant,
   private val databaseProvider: BitkeyDatabaseProvider,

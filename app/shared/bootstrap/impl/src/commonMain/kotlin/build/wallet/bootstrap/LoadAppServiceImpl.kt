@@ -4,11 +4,16 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.SoftwareAccount
+import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagService
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 
+@BitkeyInject(AppScope::class)
 class LoadAppServiceImpl(
   private val featureFlagService: FeatureFlagService,
   private val accountService: AccountService,
@@ -32,6 +37,11 @@ class LoadAppServiceImpl(
             AppState.HasActiveFullAccount(
               account = account,
               pendingAuthKeyRotation = pendingAuthKeyRotation
+            )
+          }
+          is SoftwareAccount -> {
+            HasActiveSoftwareAccount(
+              account = account
             )
           }
           else -> {

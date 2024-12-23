@@ -205,19 +205,19 @@ class TransactionActivityMergerTests : FunSpec({
       )
     )
 
-    // Expected order: Failed -> Pending -> Completed
+    // Expected order:  Pending -> Failed + Completed
     val sorted = sortTransactions(transactions)
     sorted.shouldContainExactly(
-      Transaction.PartnershipTransaction(
-        details = failedPartnershipTx,
-        bitcoinTransaction = null
-      ),
       Transaction.PartnershipTransaction(
         details = pendingPartnershipTx,
         bitcoinTransaction = null
       ),
       Transaction.BitcoinWalletTransaction(
         details = pendingBitcoinTx
+      ),
+      Transaction.PartnershipTransaction(
+        details = failedPartnershipTx,
+        bitcoinTransaction = null
       ),
       Transaction.PartnershipTransaction(
         details = confirmedPartnershipTx,
@@ -346,10 +346,6 @@ class TransactionActivityMergerTests : FunSpec({
 
     transactions.shouldContainExactly(
       Transaction.PartnershipTransaction(
-        details = failedPartnershipTx,
-        bitcoinTransaction = null
-      ),
-      Transaction.PartnershipTransaction(
         details = pendingPartnershipTxWithMatch,
         bitcoinTransaction = pendingBitcoinTxWithMatch
       ),
@@ -369,6 +365,10 @@ class TransactionActivityMergerTests : FunSpec({
       ),
       Transaction.BitcoinWalletTransaction(
         pendingBitcoinTx2WithMultipleMatches
+      ),
+      Transaction.PartnershipTransaction(
+        details = failedPartnershipTx,
+        bitcoinTransaction = null
       ),
       Transaction.PartnershipTransaction(
         details = confirmedPartnershipTx,

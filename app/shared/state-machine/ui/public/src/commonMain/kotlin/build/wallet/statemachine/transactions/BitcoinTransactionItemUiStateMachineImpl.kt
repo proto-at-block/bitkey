@@ -9,6 +9,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.C
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.isLate
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.data.money.convertedOrNull
@@ -18,6 +20,7 @@ import build.wallet.ui.model.list.ListItemModel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class BitcoinTransactionItemUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -38,7 +41,10 @@ class BitcoinTransactionItemUiStateMachineImpl(
         converter = currencyConverter,
         fromAmount = totalToUse,
         toCurrency = props.fiatCurrency,
-        atTime = props.transaction.details.confirmationTime()
+        atTime = when (props.transaction.details.transactionType) {
+          Incoming, UtxoConsolidation -> props.transaction.details.confirmationTime()
+          Outgoing -> props.transaction.details.broadcastTime ?: props.transaction.details.confirmationTime()
+        }
       )
 
     val fiatAmountFormatted by remember(fiatAmount, props.transaction.details.transactionType) {

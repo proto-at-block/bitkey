@@ -11,7 +11,10 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.clipboard.Clipboard
@@ -30,19 +33,14 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.input.NameInputBodyModel
 import build.wallet.statemachine.recovery.RecoverySegment
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.EnterTcNameState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.FailedToSaveState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.SaveWithBitkeyRequestState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.SavingWithBitkeyState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.ScanningHardwareState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.ShareState
-import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.Success
+import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class AddingTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val sharingManager: SharingManager,
@@ -51,15 +49,19 @@ class AddingTrustedContactUiStateMachineImpl(
 ) : AddingTrustedContactUiStateMachine {
   @Composable
   override fun model(props: AddingTrustedContactUiProps): ScreenModel {
+    val isInheritance = props.trustedContactRole == TrustedContactRole.Beneficiary
     var state: State by remember { mutableStateOf(EnterTcNameState()) }
     val scope = rememberStableCoroutineScope()
+    val contactType = if (isInheritance) "beneficiary" else "trusted contact"
 
     return when (val current = state) {
       is EnterTcNameState -> {
         var input by remember { mutableStateOf(current.tcNameInitial) }
         val continueClick = remember(input) {
           if (input.isNotBlank()) {
-            StandardClick { state = SaveWithBitkeyRequestState(tcName = input) }
+            StandardClick {
+              state = SaveWithBitkeyRequestState(tcName = input)
+            }
           } else {
             StandardClick { } // noop
           }
@@ -67,16 +69,15 @@ class AddingTrustedContactUiStateMachineImpl(
 
         NameInputBodyModel(
           id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
-          title = "Enter your Trusted Contact's name",
-          subline = "So you can remember who you set as your Trusted Contact",
+          title = "Add your $contactType's name",
+          subline = "Add a name, or nickname, to help you recognize your $contactType in the app.",
           value = input,
-          primaryButton =
-            ButtonModel(
-              text = "Continue",
-              isEnabled = input.isNotBlank(),
-              onClick = continueClick,
-              size = ButtonModel.Size.Footer
-            ),
+          primaryButton = ButtonModel(
+            text = "Continue",
+            isEnabled = input.isNotBlank(),
+            onClick = continueClick,
+            size = ButtonModel.Size.Footer
+          ),
           onValueChange = { input = it },
           onClose = props.onExit
         ).asModalScreen()
@@ -85,6 +86,7 @@ class AddingTrustedContactUiStateMachineImpl(
       is SaveWithBitkeyRequestState ->
         SaveContactBodyModel(
           trustedContactName = current.tcName,
+          isBeneficiary = isInheritance,
           onSave = {
             state =
               ScanningHardwareState(
@@ -181,6 +183,7 @@ class AddingTrustedContactUiStateMachineImpl(
       is ShareState ->
         ShareInviteBodyModel(
           trustedContactName = current.invitation.invitation.trustedContactAlias.alias,
+          isBeneficiary = isInheritance,
           onShareComplete = {
             // We need to watch the clipboard on Android because we don't get
             // a callback from the share sheet when they use the copy action
@@ -196,6 +199,7 @@ class AddingTrustedContactUiStateMachineImpl(
 
             sharingManager.shareInvitation(
               inviteCode = current.invitation.inviteCode,
+              isBeneficiary = isInheritance,
               onCompletion = {
                 state = Success
               }, onFailure = {
@@ -209,13 +213,18 @@ class AddingTrustedContactUiStateMachineImpl(
           }
         ).asModalScreen()
 
-      Success ->
+      Success -> {
         SuccessBodyModel(
           id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS,
           primaryButtonModel = ButtonDataModel("Got it", onClick = props.onInvitationShared),
           title = "You're all set.",
-          message = "You can manage your Trusted Contacts in your settings."
+          message = if (isInheritance) {
+            "We'll let you know when your contact accepts their invite."
+          } else {
+            "You can manage your trusted contacts in your settings."
+          }
         ).asModalScreen()
+      }
     }
   }
 

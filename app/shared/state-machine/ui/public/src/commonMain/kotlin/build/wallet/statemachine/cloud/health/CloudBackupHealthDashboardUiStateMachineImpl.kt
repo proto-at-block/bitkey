@@ -13,6 +13,8 @@ import build.wallet.cloud.backup.health.EakBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.logging.*
 import build.wallet.logging.logFailure
@@ -51,6 +53,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 // TODO(796): add integration tests
+
+@BitkeyInject(ActivityScope::class)
 class CloudBackupHealthDashboardUiStateMachineImpl(
   private val uuidGenerator: UuidGenerator,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,

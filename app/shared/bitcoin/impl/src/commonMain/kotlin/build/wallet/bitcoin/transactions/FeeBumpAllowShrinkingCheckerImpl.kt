@@ -3,23 +3,19 @@ package build.wallet.bitcoin.transactions
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker.AllowShrinkingError
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker.AllowShrinkingError.*
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.ensureNotNull
-import build.wallet.feature.flags.SpeedUpAllowShrinkingFeatureFlag
-import build.wallet.feature.isEnabled
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
-class FeeBumpAllowShrinkingCheckerImpl(
-  private val allowShrinkingFeatureFlag: SpeedUpAllowShrinkingFeatureFlag,
-) : FeeBumpAllowShrinkingChecker {
+@BitkeyInject(AppScope::class)
+class FeeBumpAllowShrinkingCheckerImpl : FeeBumpAllowShrinkingChecker {
   override fun transactionSupportsAllowShrinking(
     transaction: BitcoinTransaction,
     walletUnspentOutputs: List<BdkUtxo>,
   ): Boolean {
-    if (!allowShrinkingFeatureFlag.isEnabled()) {
-      return false
-    }
     return allowShrinkingOutputScript(transaction, walletUnspentOutputs) != null
   }
 
@@ -65,10 +61,6 @@ class FeeBumpAllowShrinkingCheckerImpl(
     transactionOutputs: List<BdkTxOut>,
     walletUnspentOutputs: List<BdkUtxo>,
   ): BdkScript? {
-    if (!allowShrinkingFeatureFlag.isEnabled()) {
-      return null
-    }
-
     if (transactionOutputs.size != 1) {
       return null
     }

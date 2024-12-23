@@ -15,6 +15,8 @@ import build.wallet.amount.DoubleFormatter
 import build.wallet.amount.KeypadButton.Decimal
 import build.wallet.amount.KeypadButton.Delete
 import build.wallet.amount.KeypadButton.Digit
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
@@ -33,6 +35,7 @@ import build.wallet.statemachine.money.calculator.AmountDenomination.UNIT
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 
+@BitkeyInject(ActivityScope::class)
 class MoneyCalculatorUiStateMachineImpl(
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val currencyConverter: CurrencyConverter,

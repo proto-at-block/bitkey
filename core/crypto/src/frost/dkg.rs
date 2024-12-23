@@ -58,10 +58,6 @@ pub fn aggregate_shares(
         .iter()
         .map(|package| &package.intermediate_share)
         .collect::<Vec<&FrostShare>>();
-    let participants = share_packages
-        .iter()
-        .map(|package| &package.index)
-        .collect::<Vec<&zkp::PublicKey>>();
     let vss_commitments = share_packages
         .iter()
         .map(|package| {
@@ -105,7 +101,7 @@ pub fn aggregate_shares(
     let aggregate_public_key = FrostPublicKey::from_verification_shares(
         zkp::SECP256K1,
         &[&app_verification_share, &server_verification_share],
-        &participants,
+        &[&Participant::App.into(), &Participant::Server.into()],
     );
 
     Ok(ShareDetails {

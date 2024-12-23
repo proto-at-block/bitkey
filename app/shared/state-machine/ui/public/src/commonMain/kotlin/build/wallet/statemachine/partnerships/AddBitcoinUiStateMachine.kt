@@ -12,7 +12,6 @@ interface AddBitcoinUiStateMachine : StateMachine<AddBitcoinUiProps, SheetModel>
 
 data class AddBitcoinUiProps(
   val account: FullAccount,
-  val sellBitcoinEnabled: Boolean,
   val onAnotherWalletOrExchange: () -> Unit,
   val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,
   val onExit: () -> Unit,

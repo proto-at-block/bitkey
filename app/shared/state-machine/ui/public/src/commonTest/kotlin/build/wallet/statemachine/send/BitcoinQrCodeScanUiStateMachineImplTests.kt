@@ -13,9 +13,6 @@ import build.wallet.bitcoin.invoice.validLightningInvoice
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.UtxoConsolidationFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -46,14 +43,11 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     )
 
   val bitcoinWalletService = BitcoinWalletServiceFake()
-  val utxoConsolidationFeatureFlag = UtxoConsolidationFeatureFlag(FeatureFlagDaoFake())
 
-  val stateMachine =
-    BitcoinQrCodeScanUiStateMachineImpl(
-      paymentDataParser = paymentParserMock,
-      bitcoinWalletService = bitcoinWalletService,
-      utxoConsolidationFeatureFlag = utxoConsolidationFeatureFlag
-    )
+  val stateMachine = BitcoinQrCodeScanUiStateMachineImpl(
+    paymentDataParser = paymentParserMock,
+    bitcoinWalletService = bitcoinWalletService
+  )
 
   val onEnterAddressClickCalls = turbines.create<Unit>("enter address click calls")
   val onCloseCalls = turbines.create<Unit>("close calls")
@@ -83,7 +77,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    utxoConsolidationFeatureFlag.reset()
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = SpendingWalletFake()
   }
@@ -190,84 +183,44 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     }
   }
 
-  context("utxo consolidation disabled") {
-    test("Copying a self address leads to error screen") {
-      // Address from [SpendingWalletFake]
-      val selfSendProps =
-        props.copy(
-          validInvoiceInClipboard = Onchain(BitcoinAddress(selfSendAddress))
-        )
-      stateMachine.test(selfSendProps) {
-        awaitScreenWithBody<QrCodeScanBodyModel> {
-          secondaryButton.shouldNotBeNull().onClick()
-        }
-
-        // error from self send
-        awaitScreenWithBody<FormBodyModel> {
-          header?.headline.shouldBe("You can’t send to your own address")
-        }
+  test("Copying a self address leads to error screen") {
+    // Address from [SpendingWalletFake]
+    val selfSendProps =
+      props.copy(
+        validInvoiceInClipboard = Onchain(BitcoinAddress(selfSendAddress))
+      )
+    stateMachine.test(selfSendProps) {
+      awaitScreenWithBody<QrCodeScanBodyModel> {
+        secondaryButton.shouldNotBeNull().onClick()
       }
-    }
 
-    test("Scanning a self address leads to error screen") {
-      stateMachine.test(props) {
-        // scanning QR code from SpendingWalletFake
-        awaitScreenWithBody<QrCodeScanBodyModel> {
-          onQrCodeScanned(selfSendAddress)
-        }
+      // error from self send
+      awaitScreenWithBody<FormBodyModel> {
+        toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
+        header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
 
-        // error from self send
-        awaitScreenWithBody<FormBodyModel> {
-          header?.headline.shouldBe("You can’t send to your own address")
-        }
+        // Click on the utxo consolidation sublink
+        header.shouldNotBeNull().sublineModel.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
+        onGoToUtxoConsolidationCalls.awaitItem()
       }
     }
   }
 
-  context("utxo consolidation enabled") {
-    test("Copying a self address leads to error screen") {
-      utxoConsolidationFeatureFlag.setFlagValue(true)
-
-      // Address from [SpendingWalletFake]
-      val selfSendProps =
-        props.copy(
-          validInvoiceInClipboard = Onchain(BitcoinAddress(selfSendAddress))
-        )
-      stateMachine.test(selfSendProps) {
-        awaitScreenWithBody<QrCodeScanBodyModel> {
-          secondaryButton.shouldNotBeNull().onClick()
-        }
-
-        // error from self send
-        awaitScreenWithBody<FormBodyModel> {
-          toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
-          header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
-
-          // Click on the utxo consolidation sublink
-          header.shouldNotBeNull().sublineModel.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
-          onGoToUtxoConsolidationCalls.awaitItem()
-        }
+  test("Scanning a self address leads to error screen") {
+    stateMachine.test(props) {
+      // scanning QR code from SpendingWalletFake
+      awaitScreenWithBody<QrCodeScanBodyModel> {
+        onQrCodeScanned(selfSendAddress)
       }
-    }
 
-    test("Scanning a self address leads to error screen") {
-      utxoConsolidationFeatureFlag.setFlagValue(true)
+      // error from self send
+      awaitScreenWithBody<FormBodyModel> {
+        toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
+        header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
 
-      stateMachine.test(props) {
-        // scanning QR code from SpendingWalletFake
-        awaitScreenWithBody<QrCodeScanBodyModel> {
-          onQrCodeScanned(selfSendAddress)
-        }
-
-        // error from self send
-        awaitScreenWithBody<FormBodyModel> {
-          toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
-          header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
-
-          // Click on the utxo consolidation sublink
-          header.shouldNotBeNull().sublineModel.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
-          onGoToUtxoConsolidationCalls.awaitItem()
-        }
+        // Click on the utxo consolidation sublink
+        header.shouldNotBeNull().sublineModel.shouldBeTypeOf<LinkSubstringModel>().linkedSubstrings[0].onClick()
+        onGoToUtxoConsolidationCalls.awaitItem()
       }
     }
   }

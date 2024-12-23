@@ -1,15 +1,18 @@
 package build.wallet.sqldelight
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.databasesDir
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSFileManager
 
-actual class DatabaseIntegrityCheckerImpl actual constructor(
+@BitkeyInject(AppScope::class)
+class DatabaseIntegrityCheckerImpl(
   private val fileDirectoryProvider: FileDirectoryProvider,
 ) : DatabaseIntegrityChecker {
-  actual override suspend fun purgeDatabaseStateIfInvalid(databaseEncryptionKey: String?): Boolean {
+  override suspend fun purgeDatabaseStateIfInvalid(databaseEncryptionKey: String?): Boolean {
     val dbDirectory = fileDirectoryProvider.databasesDir()
 
     val nsFileManager = NSFileManager.defaultManager()

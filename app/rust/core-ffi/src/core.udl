@@ -172,8 +172,17 @@ interface CryptoBox {
   bytes decrypt([ByRef] bytes nonce, [ByRef] bytes ciphertext);
 };
 
+[Error]
+enum CryptoBoxKeyPairError {
+  "CryptoBoxKeyPairInstantiationError",
+};
+
 interface CryptoBoxKeyPair {
   constructor();
+
+  // secret_bytes are SecretKey.to_bytes() ([u8; 32])
+  [Name=from_secret_bytes, Throws=CryptoBoxKeyPairError]
+  constructor(bytes secret_bytes);
 
   bytes public_key();
 
@@ -317,4 +326,5 @@ enum SigningError {
   "NonceAlreadyUsed",
   "CommitmentMismatch",
   "MissingCounterpartyNonces",
+  "UnableToFinalizePsbt",
 };

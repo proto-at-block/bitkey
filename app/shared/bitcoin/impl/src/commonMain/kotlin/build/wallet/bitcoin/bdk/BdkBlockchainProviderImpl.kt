@@ -3,6 +3,8 @@ package build.wallet.bitcoin.bdk
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
@@ -10,6 +12,7 @@ import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
 
+@BitkeyInject(AppScope::class)
 class BdkBlockchainProviderImpl(
   private val bdkBlockchainFactory: BdkBlockchainFactory,
   private val electrumServerSettingProvider: ElectrumServerSettingProvider,

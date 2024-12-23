@@ -32,7 +32,7 @@ private const val SPAN_NAME = "nfc"
 /**
  * Collects traces with Datadog.
  */
-fun collectMetrics(
+internal fun collectMetrics(
   datadogRumMonitor: DatadogRumMonitor,
   datadogTracer: DatadogTracer,
   eventTracker: EventTracker,

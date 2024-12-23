@@ -2,11 +2,14 @@ package build.wallet.onboarding
 
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 
+@BitkeyInject(AppScope::class)
 class OnboardingKeyboxHardwareKeysDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : OnboardingKeyboxHardwareKeysDao {

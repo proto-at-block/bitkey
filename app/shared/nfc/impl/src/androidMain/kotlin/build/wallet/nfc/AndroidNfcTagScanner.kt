@@ -8,12 +8,15 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.Lifecycle.State
 import androidx.lifecycle.Lifecycle.State.RESUMED
 import androidx.lifecycle.flowWithLifecycle
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
 import build.wallet.logging.NFC_TAG
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
+@BitkeyInject(ActivityScope::class)
 class AndroidNfcTagScanner(
   nfcAdapterProvider: NfcAdapterProvider,
   private val activity: Activity,

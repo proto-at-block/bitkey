@@ -14,6 +14,8 @@ import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError.
 import build.wallet.bitcoin.sync.ElectrumServer.Custom
 import build.wallet.bitcoin.sync.ElectrumServerDetails
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -23,6 +25,7 @@ import build.wallet.time.Delayer
 import com.github.michaelbull.result.mapBoth
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class SetElectrumServerUiStateMachineImpl(
   private val delayer: Delayer,
   val electrumServerSettingProvider: ElectrumServerSettingProvider,

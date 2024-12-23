@@ -8,6 +8,8 @@ import build.wallet.crypto.PrivateKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
 import build.wallet.db.DbTransactionError
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.relationships.RelationshipsKeyError
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
@@ -16,6 +18,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 
+@BitkeyInject(AppScope::class)
 class SocRecStartedChallengeAuthenticationDaoImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val databaseProvider: BitkeyDatabaseProvider,

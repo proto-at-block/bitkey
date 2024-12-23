@@ -6,25 +6,23 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.permissions.manifestPermission
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineImpl.UiState.PermissionDeniedUiState
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineImpl.UiState.RequestingPermissionUiState
 
-actual class PermissionUiStateMachineImpl : PermissionUiStateMachine {
-  actual override val isImplemented = true
+@BitkeyInject(ActivityScope::class)
+class PermissionUiStateMachineImpl : PermissionUiStateMachine {
+  override val isImplemented = true
 
   @Composable
-  actual override fun model(props: PermissionUiProps): BodyModel {
+  override fun model(props: PermissionUiProps): BodyModel {
     val activity = LocalContext.current as Activity
     var uiState: UiState by remember {
       mutableStateOf(

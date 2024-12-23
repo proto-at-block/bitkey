@@ -20,4 +20,9 @@ interface TransactionsActivityService {
    * Emits latest list of transactions activity.
    */
   val transactions: Flow<List<Transaction>>
+
+  /**
+   * A flow of the latest transaction fetched by its [transactionId], null when none is found.
+   */
+  fun transactionById(transactionId: String): Flow<Transaction?>
 }

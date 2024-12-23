@@ -7,6 +7,8 @@ data class InheritanceClaims(
   val benefactorClaims: List<BenefactorClaim>,
   val beneficiaryClaims: List<BeneficiaryClaim>,
 ) {
+  val all: List<InheritanceClaim> = benefactorClaims + beneficiaryClaims
+
   companion object {
     val EMPTY = InheritanceClaims(
       benefactorClaims = emptyList(),

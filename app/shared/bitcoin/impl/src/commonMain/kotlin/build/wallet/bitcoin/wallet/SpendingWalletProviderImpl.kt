@@ -9,11 +9,14 @@ import build.wallet.bitcoin.bdk.BdkWalletProvider
 import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.transactions.FeeBumpAllowShrinkingChecker
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logFailure
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
+@BitkeyInject(AppScope::class)
 class SpendingWalletProviderImpl(
   private val bdkWalletProvider: BdkWalletProvider,
   private val bdkTransactionMapper: BdkTransactionMapper,

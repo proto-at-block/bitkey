@@ -83,7 +83,7 @@ sealed class FormMainContentModel {
         val video: Video,
       ) : Content() {
         enum class Video {
-          BITKEY_RESET,
+          BITKEY_WIPE,
           ;
 
           open val looping: Boolean = false

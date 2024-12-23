@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.loader_static
+import bitkey.shared.ui_core_public.generated.resources.loading_badge_static
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.LocalIsPreviewTheme
 import io.github.alexzhirkevich.compottie.*
@@ -52,7 +53,7 @@ fun LoadingIndicatorPainter(color: Color = WalletTheme.colors.foreground): Paint
     return painterResource(Res.drawable.loader_static)
   }
 
-  val loadingAnimationComposition by rememberLottieComposition {
+  val loadingAnimationComposition by rememberLottieComposition(color) {
     LottieCompositionSpec.JsonString(
       Res.readBytes("files/loading.json").decodeToString()
     )
@@ -87,7 +88,7 @@ fun LoadingBadge(
     // NOTE: Display static loader image for preview/snapshot tests
     Icon(
       modifier = modifier,
-      painter = painterResource(Res.drawable.loader_static),
+      painter = painterResource(Res.drawable.loading_badge_static),
       contentDescription = null,
       tint = color
     )
@@ -102,15 +103,26 @@ fun LoadingBadge(
   }
 }
 
-@OptIn(ExperimentalResourceApi::class)
+@OptIn(ExperimentalResourceApi::class, ExperimentalCompottieApi::class)
 @Composable
-fun LoadingBadgePainter(): Painter {
+fun LoadingBadgePainter(color: Color? = null): Painter {
   if (LocalIsPreviewTheme.current) {
     // NOTE: Display static loader image for preview/snapshot tests
-    return painterResource(Res.drawable.loader_static)
+    return painterResource(Res.drawable.loading_badge_static)
   }
 
-  val loadingAnimationComposition by rememberLottieComposition {
+  // Apply the given color to the lottie animation
+  val dynamicProperties = rememberLottieDynamicProperties(color) {
+    color?.let {
+      shapeLayer("Shape Layer 2") {
+        stroke {
+          colorFilter { ColorFilter.tint(color) }
+        }
+      }
+    }
+  }
+
+  val loadingAnimationComposition by rememberLottieComposition(color) {
     LottieCompositionSpec.JsonString(
       Res.readBytes("files/loader_badge.json").decodeToString()
     )
@@ -118,6 +130,7 @@ fun LoadingBadgePainter(): Painter {
 
   return rememberLottiePainter(
     composition = loadingAnimationComposition,
-    iterations = Compottie.IterateForever
+    iterations = Compottie.IterateForever,
+    dynamicProperties = dynamicProperties
   )
 }

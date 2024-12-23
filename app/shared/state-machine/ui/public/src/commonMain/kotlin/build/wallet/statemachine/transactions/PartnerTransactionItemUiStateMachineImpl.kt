@@ -3,6 +3,8 @@ package build.wallet.statemachine.transactions
 import androidx.compose.runtime.*
 import build.wallet.activity.Transaction
 import build.wallet.activity.bitcoinTotal
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
@@ -18,6 +20,7 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
+@BitkeyInject(ActivityScope::class)
 class PartnerTransactionItemUiStateMachineImpl(
   val currencyConverter: CurrencyConverter,
   val moneyDisplayFormatter: MoneyDisplayFormatter,

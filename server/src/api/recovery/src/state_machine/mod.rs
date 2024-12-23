@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use authn_authz::key_claims::KeyClaims;
 use comms_verification::Service as CommsVerificationService;
 use errors::ApiError;
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::service::Service as FeatureFlagsService;
 use notification::service::Service as NotificationService;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -17,6 +19,7 @@ use utoipa::ToSchema;
 
 use self::start_recovery::StartRecoveryState;
 use crate::entities::{RecoveryStatus, RecoveryType};
+use crate::service::inheritance::Service as InheritanceService;
 use crate::service::social::challenge::Service as SocialChallengeService;
 use crate::{entities::RecoveryDestination, error::RecoveryError, repository::RecoveryRepository};
 
@@ -32,10 +35,12 @@ pub(crate) const CONTEST_LOOKBACK_DAYS: i64 = 30;
 
 pub struct RecoveryServices<'a> {
     pub account: &'a AccountService,
+    pub inheritance: &'a InheritanceService,
     pub recovery: &'a RecoveryRepository,
     pub notification: &'a NotificationService,
     pub challenge: &'a SocialChallengeService,
     pub comms_verification: &'a CommsVerificationService,
+    pub feature_flags: &'a FeatureFlagsService,
 }
 
 pub type BoxedRecoveryState = Box<dyn RecoveryState>;
@@ -59,6 +64,7 @@ pub enum RecoveryEvent {
     },
     RotateKeyset {
         user_pool_service: UserPoolService,
+        experimentation_claims: ExperimentationClaims,
     },
     UpdateDelayForTestAccountRecovery {
         delay_period_num_sec: Option<i64>,
@@ -125,19 +131,23 @@ pub async fn run_recovery_fsm(
     account_id: AccountId,
     events: Vec<RecoveryEvent>,
     account_service: &AccountService,
+    inheritance_service: &InheritanceService,
     recovery_service: &RecoveryRepository,
     notification_service: &NotificationService,
     challenge: &SocialChallengeService,
     comms_verification_service: &CommsVerificationService,
+    feature_flags_service: &FeatureFlagsService,
 ) -> Result<BoxedRecoveryState, ApiError> {
     let mut state: BoxedRecoveryState = Box::new(StartRecoveryState { account_id });
     let iter = events.iter();
     let services = RecoveryServices {
         account: account_service,
+        inheritance: inheritance_service,
         recovery: recovery_service,
         notification: notification_service,
         challenge,
         comms_verification: comms_verification_service,
+        feature_flags: feature_flags_service,
     };
 
     for ref mut iter in iter {

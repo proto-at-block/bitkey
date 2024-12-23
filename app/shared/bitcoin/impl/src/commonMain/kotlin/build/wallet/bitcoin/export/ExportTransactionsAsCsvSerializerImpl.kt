@@ -1,6 +1,8 @@
 package build.wallet.bitcoin.export
 
 import build.wallet.bitcoin.transactions.BitcoinTransactionId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.BitcoinMoney.Companion.btc
 import com.github.michaelbull.result.Err
@@ -12,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.DateTimeArithmeticException
 import kotlinx.datetime.Instant
 
+@BitkeyInject(AppScope::class)
 class ExportTransactionsAsCsvSerializerImpl : ExportTransactionsAsCsvSerializer {
   override suspend fun toCsvString(rows: List<ExportTransactionRow>): String {
     return withContext(Dispatchers.Default) {

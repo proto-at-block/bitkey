@@ -1,7 +1,8 @@
 package build.wallet.statemachine.biometric
 
 import androidx.compose.runtime.*
-import build.wallet.inappsecurity.BiometricPreference
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
 import build.wallet.platform.biometrics.BiometricPrompter
@@ -15,19 +16,23 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlin.time.Duration.Companion.seconds
 
+@BitkeyInject(ActivityScope::class)
 class BiometricPromptUiStateMachineImpl(
   private val appSessionManager: AppSessionManager,
   private val biometricPrompter: BiometricPrompter,
-  private val biometricPreference: BiometricPreference,
 ) : BiometricPromptUiStateMachine {
   @Composable
-  override fun model(props: Unit): ScreenModel? {
+  override fun model(props: BiometricPromptProps): ScreenModel? {
     val appSessionState by remember {
       appSessionManager.appSessionState
     }.collectAsState()
 
     var uiState: UiState by remember(appSessionState) {
-      mutableStateOf(UiState.Authenticating)
+      if (props.shouldPromptForAuth) {
+        mutableStateOf(UiState.Authenticating)
+      } else {
+        mutableStateOf(UiState.Authenticated)
+      }
     }
 
     return when (uiState) {
@@ -35,7 +40,6 @@ class BiometricPromptUiStateMachineImpl(
         if (appSessionState == AppSessionState.FOREGROUND) {
           AuthenticatingPromptEffect(
             biometricPrompter = biometricPrompter,
-            biometricPreference = biometricPreference,
             onAuthenticated = { uiState = UiState.Authenticated },
             onAuthenticationFailed = { uiState = UiState.Locked }
           )
@@ -64,25 +68,14 @@ class BiometricPromptUiStateMachineImpl(
 @Composable
 private fun AuthenticatingPromptEffect(
   biometricPrompter: BiometricPrompter,
-  biometricPreference: BiometricPreference,
   onAuthenticated: () -> Unit,
   onAuthenticationFailed: () -> Unit,
 ) {
   LaunchedEffect("prompting-for-auth") {
-    biometricPreference.get()
-      .onSuccess { enabled ->
-        if (enabled) {
-          biometricPrompter.promptForAuth()
-            .result
-            .onSuccess { onAuthenticated() }
-            .onFailure { onAuthenticationFailed() }
-        } else {
-          onAuthenticated()
-        }
-      }
-      .onFailure {
-        onAuthenticated()
-      }
+    biometricPrompter.promptForAuth()
+      .result
+      .onSuccess { onAuthenticated() }
+      .onFailure { onAuthenticationFailed() }
   }
 }
 

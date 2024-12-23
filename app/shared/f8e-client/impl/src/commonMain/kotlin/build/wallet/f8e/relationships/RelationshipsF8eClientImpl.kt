@@ -8,6 +8,9 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.crypto.PublicKey
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
+import build.wallet.di.Impl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -30,6 +33,8 @@ import io.ktor.client.request.*
 import kotlinx.collections.immutable.toImmutableList
 import okio.ByteString
 
+@Impl
+@BitkeyInject(AppScope::class)
 class RelationshipsF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
 ) : RelationshipsF8eClient {
@@ -240,7 +245,8 @@ private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode
   IncomingInvitation(
     relationshipId = relationshipId,
     code = invitationCode,
-    protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey
+    protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey,
+    recoveryRelationshipRoles = recoveryRelationshipRoles
   )
 
 private fun RelationshipInvitation.toInvitation() =

@@ -1,6 +1,8 @@
 package build.wallet.pricechart
 
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -11,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
+@BitkeyInject(AppScope::class)
 class ChartDataFetcherServiceImpl(
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,

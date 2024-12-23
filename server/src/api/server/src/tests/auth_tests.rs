@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use authn_authz::routes::{
@@ -10,26 +11,104 @@ use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use http::StatusCode;
 use onboarding::routes::CreateAccountRequest;
+use rstest::rstest;
 use types::account::entities::{FullAccountAuthKeysPayload, SpendingKeysetRequest};
 use types::account::identifiers::AccountId;
 
-use crate::tests;
 use crate::tests::requests::axum::TestClient;
-use crate::tests::{gen_services, lib::create_new_authkeys};
+use crate::tests::{gen_services_with_overrides, lib::create_new_authkeys, GenServiceOverrides};
 
-struct AuthWithHwAuthKeyTestVector {
-    spending_app_xpub: DescriptorPublicKey,
-    spending_hw_xpub: DescriptorPublicKey,
-    network: Network,
-    expected_create_status: StatusCode,
-    expected_auth_status: StatusCode,
-    expected_contains_auth_challenge: bool,
-    should_refresh_auth: bool,
-    should_use_account_id_as_username: bool,
-}
-
-async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
-    let (mut context, bootstrap) = gen_services().await;
+#[rstest]
+#[case::basic_hw_auth(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    false,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+    false
+)]
+#[case::basic_hw_auth_with_debug_flag(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    true,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+    false
+)]
+#[case::with_account_id_username(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    false,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+    true
+)]
+#[case::with_account_id_username_with_debug_flag(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    true,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+    true
+)]
+#[case::with_refresh_token(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    false,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    true,
+    false
+)]
+#[case::with_refresh_token_and_debug_flag(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    true,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    true,
+    false
+)]
+#[tokio::test]
+async fn auth_with_hw_test(
+    #[case] spending_app_xpub: DescriptorPublicKey,
+    #[case] spending_hw_xpub: DescriptorPublicKey,
+    #[case] network: Network,
+    #[case] is_debug_flag_enabled: bool,
+    #[case] expected_create_status: StatusCode,
+    #[case] expected_auth_status: StatusCode,
+    #[case] expected_contains_auth_challenge: bool,
+    #[case] should_refresh_auth: bool,
+    #[case] should_use_account_id_as_username: bool,
+) {
+    let feature_flag_override = if is_debug_flag_enabled {
+        vec![(
+            "f8e-debug-authentication-calls".to_owned(),
+            "true".to_owned(),
+        )]
+    } else {
+        vec![]
+    }
+    .into_iter()
+    .collect::<HashMap<String, String>>();
+    let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
     let keys = create_new_authkeys(&mut context);
@@ -41,19 +120,19 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
             recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
-            network: vector.network,
-            app: vector.spending_app_xpub,
-            hardware: vector.spending_hw_xpub,
+            network,
+            app: spending_app_xpub,
+            hardware: spending_hw_xpub,
         },
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_create_status,
+        actual_response.status_code, expected_create_status,
         "{}",
         actual_response.body_string
     );
-    let account_id = if vector.expected_create_status == StatusCode::OK {
+    let account_id = if expected_create_status == StatusCode::OK {
         actual_response.body.unwrap().account_id
     } else {
         AccountId::gen().unwrap()
@@ -65,12 +144,12 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
     };
     let actual_response = client.authenticate_with_hardware(&request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_auth_status,
+        actual_response.status_code, expected_auth_status,
         "{}",
         actual_response.body_string
     );
     assert!(actual_response.body.is_some());
-    if vector.expected_contains_auth_challenge {
+    if expected_contains_auth_challenge {
         assert_eq!(
             hex::decode(actual_response.body.unwrap().challenge)
                 .unwrap()
@@ -85,11 +164,11 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
     };
     let actual_response = client.authenticate(&request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_auth_status,
+        actual_response.status_code, expected_auth_status,
         "{}",
         actual_response.body_string
     );
-    if vector.expected_auth_status == StatusCode::OK {
+    if expected_auth_status == StatusCode::OK {
         let auth_resp = actual_response.body.unwrap();
         let challenge = auth_resp.challenge;
         let secp = Secp256k1::new();
@@ -97,7 +176,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         let signature = secp.sign_ecdsa(&message, &keys.hw.secret_key);
         let request = GetTokensRequest {
             challenge: Some(ChallengeResponseParameters {
-                username: if vector.should_use_account_id_as_username {
+                username: if should_use_account_id_as_username {
                     serde_json::from_str(&format!("\"{}\"", account_id)).unwrap()
                 } else {
                     auth_resp.username
@@ -109,12 +188,12 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         };
         let actual_response = client.get_tokens(&request).await;
         assert_eq!(
-            actual_response.status_code, vector.expected_auth_status,
+            actual_response.status_code, expected_auth_status,
             "{}",
             actual_response.body_string
         );
 
-        if vector.should_refresh_auth {
+        if should_refresh_auth {
             let refresh_token = actual_response.body.unwrap().refresh_token;
             let request = GetTokensRequest {
                 challenge: None,
@@ -122,7 +201,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
             };
             let actual_response = client.get_tokens(&request).await;
             assert_eq!(
-                actual_response.status_code, vector.expected_auth_status,
+                actual_response.status_code, expected_auth_status,
                 "{}",
                 actual_response.body_string
             );
@@ -130,52 +209,70 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
     }
 }
 
-tests! {
-    runner = auth_with_hw_test,
-    test_authenticating_with_hw_key: AuthWithHwAuthKeyTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Signet,
-        expected_create_status: StatusCode::OK,
-        expected_auth_status: StatusCode::OK,
-        expected_contains_auth_challenge: true,
-        should_refresh_auth: false,
-        should_use_account_id_as_username: false,
-    },
-    test_authenticating_with_hw_key_with_account_id_username: AuthWithHwAuthKeyTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Signet,
-        expected_create_status: StatusCode::OK,
-        expected_auth_status: StatusCode::OK,
-        expected_contains_auth_challenge: true,
-        should_refresh_auth: false,
-        should_use_account_id_as_username: true,
-    },
-    test_authenticating_with_hw_key_and_refresh_token: AuthWithHwAuthKeyTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Signet,
-        expected_create_status: StatusCode::OK,
-        expected_auth_status: StatusCode::OK,
-        expected_contains_auth_challenge: true,
-        should_refresh_auth: true,
-        should_use_account_id_as_username: false,
-    },
-}
-
-struct AuthWithRecoveryAuthKeyTestVector {
-    spending_app_xpub: DescriptorPublicKey,
-    spending_hw_xpub: DescriptorPublicKey,
-    network: Network,
-    expected_create_status: StatusCode,
-    expected_auth_status: StatusCode,
-    expected_contains_auth_challenge: bool,
-    should_refresh_auth: bool,
-}
-
-async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVector) {
-    let (mut context, bootstrap) = gen_services().await;
+#[rstest]
+#[case::basic_recovery_auth(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    false,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+)]
+#[case::basic_recovery_auth_with_debug_flag(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    true,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    false,
+)]
+#[case::with_refresh_token(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    false,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    true,
+)]
+#[case::with_refresh_token_and_debug_flag(
+    DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+    DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+    Network::Signet,
+    true,
+    StatusCode::OK,
+    StatusCode::OK,
+    true,
+    true,
+)]
+#[tokio::test]
+async fn auth_with_recovery_authkey_test(
+    #[case] spending_app_xpub: DescriptorPublicKey,
+    #[case] spending_hw_xpub: DescriptorPublicKey,
+    #[case] network: Network,
+    #[case] is_debug_flag_enabled: bool,
+    #[case] expected_create_status: StatusCode,
+    #[case] expected_auth_status: StatusCode,
+    #[case] expected_contains_auth_challenge: bool,
+    #[case] should_refresh_auth: bool,
+) {
+    let feature_flag_override = if is_debug_flag_enabled {
+        vec![(
+            "f8e-debug-authentication-calls".to_owned(),
+            "true".to_owned(),
+        )]
+    } else {
+        vec![]
+    }
+    .into_iter()
+    .collect::<HashMap<String, String>>();
+    let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
 
     let keys = create_new_authkeys(&mut context);
@@ -188,15 +285,15 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
             recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
-            network: vector.network,
-            app: vector.spending_app_xpub,
-            hardware: vector.spending_hw_xpub,
+            network,
+            app: spending_app_xpub,
+            hardware: spending_hw_xpub,
         },
         is_test_account: true,
     };
     let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_create_status,
+        actual_response.status_code, expected_create_status,
         "{}",
         actual_response.body_string
     );
@@ -207,13 +304,13 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
     };
     let actual_response = client.authenticate(&request).await;
     assert_eq!(
-        actual_response.status_code, vector.expected_auth_status,
+        actual_response.status_code, expected_auth_status,
         "{}",
         actual_response.body_string
     );
     let response_body = actual_response.body;
     assert!(response_body.as_ref().is_some());
-    if vector.expected_contains_auth_challenge {
+    if expected_contains_auth_challenge {
         assert_eq!(
             hex::decode(response_body.as_ref().unwrap().challenge.clone())
                 .unwrap()
@@ -222,7 +319,7 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
         );
     }
 
-    if vector.expected_auth_status == StatusCode::OK {
+    if expected_auth_status == StatusCode::OK {
         let auth_resp = response_body.unwrap();
         let challenge = auth_resp.challenge;
         let secp = Secp256k1::new();
@@ -239,12 +336,12 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
         };
         let actual_response = client.get_tokens(&request).await;
         assert_eq!(
-            actual_response.status_code, vector.expected_auth_status,
+            actual_response.status_code, expected_auth_status,
             "{}",
             actual_response.body_string
         );
 
-        if vector.should_refresh_auth {
+        if should_refresh_auth {
             let refresh_token = actual_response.body.unwrap().refresh_token;
             let request = GetTokensRequest {
                 challenge: None,
@@ -252,32 +349,10 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
             };
             let actual_response = client.get_tokens(&request).await;
             assert_eq!(
-                actual_response.status_code, vector.expected_auth_status,
+                actual_response.status_code, expected_auth_status,
                 "{}",
                 actual_response.body_string
             );
         }
     }
-}
-
-tests! {
-    runner = auth_with_recovery_authkey_test,
-    test_authenticating_with_recovery_auth_key: AuthWithRecoveryAuthKeyTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Signet,
-        expected_create_status: StatusCode::OK,
-        expected_auth_status: StatusCode::OK,
-        expected_contains_auth_challenge: true,
-        should_refresh_auth: false,
-    },
-    test_authenticating_with_recovery_auth_key_and_refresh_token: AuthWithRecoveryAuthKeyTestVector {
-        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
-        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
-        network: Network::Signet,
-        expected_create_status: StatusCode::OK,
-        expected_auth_status: StatusCode::OK,
-        expected_contains_auth_challenge: true,
-        should_refresh_auth: true,
-    },
 }

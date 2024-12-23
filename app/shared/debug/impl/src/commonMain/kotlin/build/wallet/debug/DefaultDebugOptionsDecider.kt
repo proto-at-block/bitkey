@@ -2,6 +2,8 @@ package build.wallet.debug
 
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Production
 import build.wallet.f8e.F8eEnvironment.Staging
@@ -16,6 +18,7 @@ interface DefaultDebugOptionsDecider {
   val options: DebugOptions
 }
 
+@BitkeyInject(AppScope::class)
 class DefaultDebugOptionsDeciderImpl(
   private val appVariant: AppVariant,
 ) : DefaultDebugOptionsDecider {

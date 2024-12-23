@@ -3,6 +3,8 @@ package build.wallet.f8e.configuration
 import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerDetails
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
@@ -19,6 +21,7 @@ import io.ktor.client.request.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+@BitkeyInject(AppScope::class)
 class GetBdkConfigurationF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
   private val deviceInfoProvider: DeviceInfoProvider,

@@ -1,6 +1,8 @@
 package build.wallet.cloud.store
 
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
@@ -26,6 +28,7 @@ interface iCloudKeyValueStore {
 }
 
 @Suppress("unused", "ClassName")
+@BitkeyInject(AppScope::class)
 class iCloudKeyValueStoreImpl(
   private val clock: Clock,
 ) : iCloudKeyValueStore {

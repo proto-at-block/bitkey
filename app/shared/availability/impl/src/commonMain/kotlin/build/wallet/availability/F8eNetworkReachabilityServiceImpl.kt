@@ -14,8 +14,9 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.*
-import io.ktor.client.request.head
+import io.ktor.client.request.*
 
+// TODO: use @BitkeyInject
 class F8eNetworkReachabilityServiceImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val unauthenticatedF8eHttpClient: UnauthenticatedF8eHttpClient?,

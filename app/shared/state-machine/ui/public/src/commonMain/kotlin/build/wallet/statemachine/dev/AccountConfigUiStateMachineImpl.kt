@@ -11,6 +11,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptions
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.name
 import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
@@ -25,6 +27,7 @@ import build.wallet.ui.model.switch.SwitchModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class AccountConfigUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val accountService: AccountService,

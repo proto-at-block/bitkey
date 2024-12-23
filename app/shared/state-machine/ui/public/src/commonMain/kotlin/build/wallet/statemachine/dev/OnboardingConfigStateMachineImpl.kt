@@ -6,6 +6,8 @@ import androidx.compose.runtime.remember
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.debug.DebugOptionsService
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.ui.model.list.ListGroupModel
@@ -15,6 +17,7 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class OnboardingConfigStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugOptionsService: DebugOptionsService,

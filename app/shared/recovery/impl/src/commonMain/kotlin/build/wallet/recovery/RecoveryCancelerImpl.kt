@@ -1,6 +1,8 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -16,6 +18,8 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 
 /** Cancel recovery on the server and delete from the dao. */
+
+@BitkeyInject(AppScope::class)
 class RecoveryCancelerImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val recoverySyncer: RecoverySyncer,

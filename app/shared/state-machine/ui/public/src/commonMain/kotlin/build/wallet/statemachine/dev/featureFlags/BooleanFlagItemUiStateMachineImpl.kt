@@ -5,6 +5,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.list.ListItemModel
@@ -13,6 +15,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
+@BitkeyInject(ActivityScope::class)
 class BooleanFlagItemUiStateMachineImpl : BooleanFlagItemUiStateMachine {
   @Composable
   override fun model(props: BooleanFlagItemUiProps): ListItemModel {

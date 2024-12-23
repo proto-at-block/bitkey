@@ -162,3 +162,13 @@ variable "sns_platform_applications" {
   description = "Whether or not to create SNS platform applications for push notifications"
   default     = true
 }
+
+################################################
+# User Balance Histogram
+################################################
+
+variable "enable_job_user_balance_histogram" {
+  type        = bool
+  description = "Whether or not to create the container, roles and security group for the user balance histogram job"
+  default     = true
+}

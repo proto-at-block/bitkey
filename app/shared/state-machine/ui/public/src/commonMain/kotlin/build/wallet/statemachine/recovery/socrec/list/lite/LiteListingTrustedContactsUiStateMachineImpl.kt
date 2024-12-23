@@ -2,12 +2,15 @@ package build.wallet.statemachine.recovery.socrec.list.lite
 
 import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
 
+@BitkeyInject(ActivityScope::class)
 class LiteListingTrustedContactsUiStateMachineImpl(
   private val socRecService: SocRecService,
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,

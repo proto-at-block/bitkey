@@ -1,6 +1,9 @@
 package build.wallet.inheritance
 
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.store.KeyValueStoreFactory
 import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
@@ -10,22 +13,28 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
+@BitkeyInject(AppScope::class)
 @OptIn(ExperimentalSettingsApi::class)
 class InheritanceCardServiceImpl(
   coroutineScope: CoroutineScope,
   inheritanceService: InheritanceService,
   val keyValueStoreFactory: KeyValueStoreFactory,
 ) : InheritanceCardService {
-  private val dismissedClaims = MutableStateFlow<Set<String>>(emptySet())
+  private val dismissedBeneficiaryPendingClaims = MutableStateFlow<Set<String>>(emptySet())
 
-  override val claimCardsToDisplay: Flow<List<BeneficiaryClaim>> =
+  override val cardsToDisplay: Flow<List<InheritanceClaim>> =
     combine(
-      inheritanceService.pendingBeneficiaryClaims,
-      inheritanceService.lockedBeneficiaryClaims,
-      dismissedClaims
-    ) { pendingClaims, lockedClaims, dismissedClaims ->
+      inheritanceService.claims,
+      dismissedBeneficiaryPendingClaims
+    ) { claims, dismissedPendingClaims ->
       // filter out dismissed pending claim cards
-      pendingClaims.filter { !dismissedClaims.contains(it.claimId.value) } + lockedClaims
+      claims.filter {
+        if (it is BeneficiaryClaim.PendingClaim) {
+          !dismissedPendingClaims.contains(it.claimId.value)
+        } else {
+          true
+        }
+      }
     }
 
   private suspend fun store(): SuspendSettings =
@@ -33,12 +42,12 @@ class InheritanceCardServiceImpl(
 
   init {
     coroutineScope.launch {
-      dismissedClaims.value = store().keys()
+      dismissedBeneficiaryPendingClaims.value = store().keys()
     }
   }
 
-  override suspend fun dismissPendingClaimCard(claimId: String) {
+  override suspend fun dismissPendingBeneficiaryClaimCard(claimId: String) {
     store().putBoolean(claimId, true)
-    dismissedClaims.value = store().keys()
+    dismissedBeneficiaryPendingClaims.value = store().keys()
   }
 }

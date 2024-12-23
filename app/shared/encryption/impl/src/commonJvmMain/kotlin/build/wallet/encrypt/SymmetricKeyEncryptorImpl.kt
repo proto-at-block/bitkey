@@ -2,6 +2,8 @@ package build.wallet.encrypt
 
 import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import javax.crypto.Cipher
@@ -9,6 +11,7 @@ import javax.crypto.Cipher.DECRYPT_MODE
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+@BitkeyInject(AppScope::class)
 class SymmetricKeyEncryptorImpl : SymmetricKeyEncryptor {
   override fun seal(
     unsealedData: ByteString,

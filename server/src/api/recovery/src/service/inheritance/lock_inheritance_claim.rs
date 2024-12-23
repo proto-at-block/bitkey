@@ -151,7 +151,7 @@ impl Service {
         challenge: &str,
         app_signature: &str,
     ) -> Result<(), ServiceError> {
-        let claim_auth_keys = claim.common_fields().auth_keys.clone();
+        let claim_auth_keys = claim.common_fields().auth_keys;
 
         match claim_auth_keys {
             InheritanceClaimAuthKeys::FullAccount(claim_auth_keys) => validate_signatures(

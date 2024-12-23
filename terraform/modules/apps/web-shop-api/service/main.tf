@@ -36,7 +36,6 @@ locals {
     api_server                                    = "api-server"             # start the api server (default)
     revenue_reporting_job                         = "revenue-reporting-job"  # schedule periodic revenue reporting job
     order_update_job                              = "order-update-job"       # schedule periodic order update job
-    order_payments_job                            = "order-payments-job"     # schedule periodic order payments job
     refund_request_job                            = "refund-request-job"     # schedule periodic refund request job
     tax_refund_request_job                        = "tax-refund-request-job" # schedule periodic tax refund request job    
     stuck_orders_declined_job                     = "stuck-orders-declined-job"
@@ -139,7 +138,7 @@ module "web_order_update" {
   cpu_architecture     = "X86_64"
   desired_count        = 1
   create_load_balancer = false
-  command              = [local.commands.order_update_job, local.commands.order_payments_job]
+  command              = [local.commands.order_update_job]
 
   environment_variables = merge(local.environment_variables, {
     DD_SERVICE = "${var.name}-order-update-job"

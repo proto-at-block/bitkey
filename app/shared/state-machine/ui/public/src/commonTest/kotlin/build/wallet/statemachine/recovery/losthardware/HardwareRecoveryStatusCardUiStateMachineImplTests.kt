@@ -72,6 +72,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
         lostHardwareRecoveryData =
           LostHardwareRecoveryInProgressData(
             ReadyToCompleteRecoveryData(
+              canCancelRecovery = true,
               physicalFactor = Hardware,
               startComplete = { },
               cancel = { }

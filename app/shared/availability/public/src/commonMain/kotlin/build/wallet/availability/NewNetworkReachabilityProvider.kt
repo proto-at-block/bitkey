@@ -1,0 +1,3 @@
+package build.wallet.availability
+
+interface NewNetworkReachabilityProvider : NetworkReachabilityProvider

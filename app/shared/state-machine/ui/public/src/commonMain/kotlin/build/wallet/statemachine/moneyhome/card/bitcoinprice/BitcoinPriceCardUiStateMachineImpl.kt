@@ -2,6 +2,8 @@ package build.wallet.statemachine.moneyhome.card.bitcoinprice
 
 import androidx.compose.runtime.*
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.di.ActivityScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -22,6 +24,7 @@ import kotlinx.datetime.toLocalDateTime
 
 private const val SPARKLINE_MAX_POINTS = 50
 
+@BitkeyInject(ActivityScope::class)
 class BitcoinPriceCardUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,

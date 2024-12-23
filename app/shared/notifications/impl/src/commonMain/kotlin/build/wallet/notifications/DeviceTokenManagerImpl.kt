@@ -2,6 +2,8 @@ package build.wallet.notifications
 
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClient
 import build.wallet.keybox.KeyboxDao
@@ -15,6 +17,7 @@ import build.wallet.platform.config.TouchpointPlatform
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 
+@BitkeyInject(AppScope::class)
 class DeviceTokenManagerImpl(
   private val addDeviceTokenF8eClient: AddDeviceTokenF8eClient,
   private val deviceTokenConfigProvider: DeviceTokenConfigProvider,

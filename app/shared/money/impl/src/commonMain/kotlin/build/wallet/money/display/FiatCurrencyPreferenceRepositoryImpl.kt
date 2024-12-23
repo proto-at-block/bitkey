@@ -1,5 +1,7 @@
 package build.wallet.money.display
 
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.currency.USD
@@ -7,14 +9,10 @@ import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.platform.settings.LocaleCurrencyCodeProvider
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@BitkeyInject(AppScope::class)
 class FiatCurrencyPreferenceRepositoryImpl(
   appScope: CoroutineScope,
   private val fiatCurrencyPreferenceDao: FiatCurrencyPreferenceDao,

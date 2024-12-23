@@ -7,6 +7,8 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.isFullAccount
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.logging.*
@@ -17,6 +19,8 @@ import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
 
 // TODO(796): add integration tests
+
+@BitkeyInject(AppScope::class)
 class FullAccountCloudBackupRepairerImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudBackupDao: CloudBackupDao,

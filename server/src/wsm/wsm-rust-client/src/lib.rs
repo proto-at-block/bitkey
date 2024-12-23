@@ -13,8 +13,9 @@ use url::Url;
 use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
     AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
-    CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
-    InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
+    CreateRootKeyRequest, CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
+    GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse, GetIntegritySigRequest,
+    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
 };
 
 pub use wsm_common::messages::{
@@ -81,6 +82,19 @@ pub trait SigningService {
         network: Network,
         sealed_request: &str,
     ) -> Result<ContinueDistributedKeygenResponse, Error>;
+    async fn generate_partial_signatures(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<GeneratePartialSignaturesResponse, Error>;
+    async fn create_self_sovereign_backup(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<CreateSelfSovereignBackupResponse, Error>;
     async fn sign_psbt(
         &self,
         root_key_id: &str,
@@ -212,6 +226,50 @@ impl SigningService for WsmClient {
                 root_key_id: root_key_id.to_string(),
                 network,
                 sealed_request: sealed_request.to_string(),
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn generate_partial_signatures(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: &str,
+    ) -> Result<GeneratePartialSignaturesResponse, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("generate-partial-signatures")?)
+            .json(&GeneratePartialSignaturesRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request: sealed_request.to_string(),
+            })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn create_self_sovereign_backup(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        _noise_session: Vec<u8>,
+    ) -> Result<CreateSelfSovereignBackupResponse, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("create-self-sovereign-backup")?)
+            .json(&CreateSelfSovereignBackupRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request,
+                noise_session_id: "".to_string(), // TODO: extract from session once we merge stickiness logic W-10274
             })
             .send()
             .await?;

@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, str::FromStr};
+use std::collections::VecDeque;
 
 use bdk_utils::bdk::bitcoin::{
     consensus::encode::deserialize, Block as BdkBlock, BlockHash, Network,
@@ -11,38 +11,7 @@ use crate::ChainIndexerError;
 
 const MAX_BLOCKS: usize = 2000;
 
-const BITCOIN_MAINNET_BLOCK_HASHES: Lazy<Vec<BlockHash>> = Lazy::new(|| {
-    let block_hash_857540 =
-        BlockHash::from_str("0000000000000000000123c63b7e17e420867f551b00ff443500629c01cafe08")
-            .unwrap();
-    let block_hash_859540 =
-        BlockHash::from_str("00000000000000000000f7776ba0a94b5b4bd23e055989d08d2c63d44a450213")
-            .unwrap();
-    let block_hash_861540 =
-        BlockHash::from_str("000000000000000000021afe81f1270585997dc5a6eb232f9e9d1c3d1fe7c564")
-            .unwrap();
-    let block_hash_863540 =
-        BlockHash::from_str("000000000000000000000ef209bf0c4c3ad0fad74efbb91d63b49c5830e9695a")
-            .unwrap();
-    let block_hash_865540 =
-        BlockHash::from_str("0000000000000000000146d5c5d28d02f03e9b0195bc931e88f17e58149e3537")
-            .unwrap();
-    let block_hash_867540 =
-        BlockHash::from_str("00000000000000000001606b7740d170a50d5d688a863defb0dc1980d4e45894")
-            .unwrap();
-    let block_hash_869540 =
-        BlockHash::from_str("00000000000000000001530013b0e655d6f4141b05b71bd3d807c521e5ca75cb")
-            .unwrap();
-    vec![
-        block_hash_857540,
-        block_hash_859540,
-        block_hash_861540,
-        block_hash_863540,
-        block_hash_865540,
-        block_hash_867540,
-        block_hash_869540,
-    ]
-});
+const BITCOIN_MAINNET_BLOCK_HASHES: Lazy<Vec<BlockHash>> = Lazy::new(std::vec::Vec::new);
 
 impl Service {
     pub async fn get_new_blocks(&self) -> Result<Vec<BdkBlock>, ChainIndexerError> {
@@ -131,6 +100,23 @@ impl Service {
         let blocks = new_blocks.into_iter().rev().collect();
         event!(Level::INFO, "Reversed new blocks");
         Ok(blocks)
+    }
+
+    pub async fn get_persisted_tip_block_and_in_sync(
+        &self,
+        network: Network,
+    ) -> Result<(Option<u64>, bool), ChainIndexerError> {
+        if let Some(block) = self
+            .repo
+            .fetch_persisted_tip_block(network)
+            .await
+            .map_err(ChainIndexerError::DatabaseError)?
+        {
+            let mempool_tip_hash = self.get_tip_hash().await?;
+            Ok((Some(block.height), block.block_hash == mempool_tip_hash))
+        } else {
+            Ok((None, false))
+        }
     }
 
     pub(crate) async fn get_block(
