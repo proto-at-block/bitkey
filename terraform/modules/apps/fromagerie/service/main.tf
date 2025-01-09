@@ -628,6 +628,8 @@ module "ecs_job_metrics" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    CHAIN_INDEXER_BASE_URL  = "https://bitkey.mempool.space/api"
+    CHAIN_INDEXER_NETWORK   = "bitcoin"
   })
   secrets          = merge(local.common_secrets, {})
   cpu_architecture = "ARM64"

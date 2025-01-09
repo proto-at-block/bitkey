@@ -10,7 +10,7 @@ import build.wallet.bootstrap.LoadAppService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inappsecurity.BiometricAuthService
-import build.wallet.logging.logDebug
+import build.wallet.logging.logInfo
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
@@ -439,7 +439,7 @@ class AppUiStateMachineImpl(
   @Composable
   private fun LogScreenModelEffect(screenModel: ScreenModel) {
     DisposableEffect(screenModel.key) {
-      logDebug(
+      logInfo(
         tag = "Screen" // This tag is used by a Datadog dashboard.
       ) { "${screenModel.body}" }
 

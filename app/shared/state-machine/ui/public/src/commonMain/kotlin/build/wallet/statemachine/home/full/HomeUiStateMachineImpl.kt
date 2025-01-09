@@ -41,6 +41,7 @@ import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateM
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.status.StatusBannerModel
 import com.github.michaelbull.result.get
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,6 +68,7 @@ class HomeUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val mobilePayService: MobilePayService,
   private val partnershipTransactionsService: PartnershipTransactionsService,
+  private val appCoroutineScope: CoroutineScope,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
@@ -96,7 +98,11 @@ class HomeUiStateMachineImpl(
             // this can happen when a deeplink is triggered from an in-app browser
             inAppBrowserNavigator.close()
             route.partnerTransactionId?.let { transactionId ->
-              launch {
+              /**
+               * This uses [appCoroutineScope] to launch over the parent [LaunchedEffect]'s scope in the
+               * event that the scope is cancelled due to being removed from composition
+               */
+              appCoroutineScope.launch {
                 val partnershipTransactionId = PartnershipTransactionId(transactionId)
                 // Before acting on the deeplink, verify that the transaction exists in the local database
                 // to prevent potential spoofing-attacks
@@ -122,7 +128,11 @@ class HomeUiStateMachineImpl(
             // this can happen when a deeplink is triggered from an in-app browser
             inAppBrowserNavigator.close()
             route.partnerTransactionId?.let { transactionId ->
-              launch {
+              /**
+               * This uses [appCoroutineScope] to launch over the parent [LaunchedEffect]'s scope in the
+               * event that the scope is cancelled due to being removed from composition
+               */
+              appCoroutineScope.launch {
                 val partnershipTransactionId = PartnershipTransactionId(transactionId)
                 // Before acting on the deeplink, verify that the transaction exists in the local database
                 // to prevent potential spoofing-attacks

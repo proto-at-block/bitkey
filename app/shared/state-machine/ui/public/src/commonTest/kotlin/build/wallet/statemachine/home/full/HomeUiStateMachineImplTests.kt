@@ -46,6 +46,8 @@ import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.datetime.Instant
 
 class HomeUiStateMachineImplTests : FunSpec({
@@ -86,6 +88,7 @@ class HomeUiStateMachineImplTests : FunSpec({
     updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls"),
     getCalls = turbines.create("get transaction by id calls")
   )
+  val appScope = TestScope()
 
   val stateMachine =
     HomeUiStateMachineImpl(
@@ -127,7 +130,8 @@ class HomeUiStateMachineImplTests : FunSpec({
       timeZoneProvider = TimeZoneProviderMock(),
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePayService = mobilePayService,
-      partnershipTransactionsService = partnershipsTransactionsService
+      partnershipTransactionsService = partnershipsTransactionsService,
+      appCoroutineScope = appScope
     )
 
   val props =
@@ -264,6 +268,8 @@ class HomeUiStateMachineImplTests : FunSpec({
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
+      appScope.runCurrent()
+
       awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
         inAppBrowserNavigator.onCloseCalls.awaitItem()
 
@@ -306,6 +312,8 @@ class HomeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+
+      appScope.runCurrent()
 
       awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
