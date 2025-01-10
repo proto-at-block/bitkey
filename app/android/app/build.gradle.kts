@@ -16,7 +16,7 @@ buildLogic {
     version(
       yyyy = 2024,
       version = 75,
-      patch = 2,
+      patch = 3,
       build = 1
     )
   }
