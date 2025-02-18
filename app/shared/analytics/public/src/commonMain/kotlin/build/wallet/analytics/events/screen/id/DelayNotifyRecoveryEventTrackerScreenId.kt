@@ -34,6 +34,12 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Error screen shown when creating spending keys fails for lost app D+N */
   LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
 
+  /** Failure screen shown when loading sealed DDK fails */
+  LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR,
+
+  /** Failure screen shown when loading ddk fails */
+  LOST_APP_DELAY_NOTIFY_DDK_RECOVERY_DATA_LOADING_ERROR,
+
   /** Failed to sync socrec relationships error */
   LOST_HW_DELAY_NOTIFY_TRUSTED_CONTACT_SYNC_ERROR,
 
@@ -63,6 +69,12 @@ enum class DelayNotifyRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when an error was encountered uploading cloud backup */
   LOST_APP_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE,
+
+  /** Loading screen shown when uploading DDK backup */
+  LOST_APP_DELAY_NOTIFY_DDK_UPLOAD,
+
+  /** Error screen shown when an error was encountered uploading DDK backup */
+  LOST_APP_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,
 
   /** Loading screen while cancelling recovery during D+N. */
   LOST_APP_DELAY_NOTIFY_CANCELLATION,

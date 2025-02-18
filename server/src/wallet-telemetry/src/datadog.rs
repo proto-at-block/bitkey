@@ -1,34 +1,13 @@
-use std::time::Duration;
-
-use opentelemetry::trace::TraceError;
+use crate::METRICS_REPORTING_PERIOD_SECS;
 use opentelemetry_sdk::{
     metrics::{
         data::Temporality,
         reader::{AggregationSelector, TemporalitySelector},
-        Aggregation, InstrumentKind, MeterProvider,
+        Aggregation, InstrumentKind, SdkMeterProvider,
     },
-    trace::Tracer,
     Resource,
 };
-
-use crate::METRICS_REPORTING_PERIOD_SECS;
-
-pub fn init_tracer(resource: Resource) -> Result<Tracer, TraceError> {
-    opentelemetry::global::set_text_map_propagator(
-        opentelemetry_sdk::propagation::TraceContextPropagator::default(),
-    );
-
-    // Initialize tracing pipeline
-    opentelemetry_otlp::new_pipeline()
-        .tracing()
-        .with_exporter(opentelemetry_otlp::new_exporter().tonic())
-        .with_trace_config(
-            opentelemetry_sdk::trace::config()
-                .with_resource(resource)
-                .with_sampler(opentelemetry_sdk::trace::Sampler::AlwaysOn),
-        )
-        .install_batch(opentelemetry_sdk::runtime::Tokio)
-}
+use std::time::Duration;
 
 #[derive(Clone)]
 struct DatadogSelector;
@@ -40,7 +19,7 @@ impl AggregationSelector for DatadogSelector {
             | InstrumentKind::UpDownCounter
             | InstrumentKind::ObservableCounter
             | InstrumentKind::ObservableUpDownCounter => Aggregation::Sum,
-            InstrumentKind::ObservableGauge => Aggregation::LastValue,
+            InstrumentKind::ObservableGauge | InstrumentKind::Gauge => Aggregation::LastValue,
             // Slightly modified from defaults to be more meaningful up to the range of number
             //   of minutes in ~1-2 months and still be meaningful for a more standard usecase
             //   of request latency milliseconds
@@ -64,12 +43,13 @@ impl TemporalitySelector for DatadogSelector {
             | InstrumentKind::ObservableCounter => Temporality::Delta,
             InstrumentKind::UpDownCounter
             | InstrumentKind::ObservableUpDownCounter
+            | InstrumentKind::Gauge
             | InstrumentKind::ObservableGauge => Temporality::Cumulative,
         }
     }
 }
 
-pub fn init_metrics(resource: Resource) -> opentelemetry::metrics::Result<MeterProvider> {
+pub fn init_metrics(resource: Resource) -> opentelemetry::metrics::Result<SdkMeterProvider> {
     let selector = DatadogSelector;
     opentelemetry_otlp::new_pipeline()
         .metrics(opentelemetry_sdk::runtime::Tokio)

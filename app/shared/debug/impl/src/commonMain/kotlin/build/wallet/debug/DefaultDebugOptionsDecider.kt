@@ -34,6 +34,16 @@ class DefaultDebugOptionsDeciderImpl(
         skipNotificationsOnboarding = false,
         skipCloudBackupOnboarding = false
       )
+      Alpha -> DebugOptions(
+        bitcoinNetworkType = BITCOIN,
+        isHardwareFake = false,
+        f8eEnvironment = Production,
+        isTestAccount = true,
+        isUsingSocRecFakes = false,
+        delayNotifyDuration = 20.seconds,
+        skipNotificationsOnboarding = false,
+        skipCloudBackupOnboarding = false
+      )
       Team -> DebugOptions(
         bitcoinNetworkType = BITCOIN,
         isHardwareFake = false,

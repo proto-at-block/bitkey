@@ -34,7 +34,7 @@ use mobile_pay::daily_spend_record::{
     repository::DailySpendRecordRepository, service::Service as DailySpendRecordService,
 };
 use mobile_pay::signed_psbt_cache::{
-    repository::SignedPsbtCacheRepository, service::Service as SignedPsbtCacheService,
+    repository::PsbtTxidCacheRepository, service::Service as SignedPsbtCacheService,
 };
 use notification::address_repo::ddb::repository::AddressRepository;
 use notification::address_repo::ddb::service::Service as AddressWatchlistService;
@@ -45,6 +45,10 @@ use notification::clients::twilio::TwilioClient;
 use notification::repository::NotificationRepository;
 use notification::service::Service as NotificationService;
 use privileged_action::service::Service as PrivilegedActionService;
+use promotion_code::repository::PromotionCodeRepository;
+use promotion_code::service::Service as PromotionCodeService;
+use promotion_code::web_shop::WebShopClient;
+use promotion_code::webhook::WebhookValidator;
 use queue::sqs::SqsQueue;
 use recovery::repository::RecoveryRepository;
 use recovery::service::inheritance::Service as InheritanceService;
@@ -61,7 +65,6 @@ pub use routes::axum::axum;
 use screener::service::Service as ScreenerService;
 use thiserror::Error;
 use tokio::try_join;
-use tower::ServiceBuilder;
 use tower_http::catch_panic::CatchPanicLayer;
 use types::time::{Clock, DefaultClock};
 use userpool::userpool::UserPoolService;
@@ -97,6 +100,7 @@ pub struct Services {
     pub mempool_indexer_service: MempoolIndexerService,
     pub notification_service: NotificationService,
     pub privileged_action_service: PrivilegedActionService,
+    pub promotion_code_service: PromotionCodeService,
     pub recovery_relationship_service: RecoveryRelationshipService,
     pub recovery_service: RecoveryRepository,
     pub screener_service: Arc<ScreenerService>,
@@ -106,6 +110,8 @@ pub struct Services {
     pub twilio_client: TwilioClient,
     pub userpool_service: UserPoolService,
     pub wsm_client: WsmClient,
+    pub web_shop_client: WebShopClient,
+    pub webhook_validator: WebhookValidator,
     // Remove the following repositories from services
     pub consent_repository: ConsentRepository,
     pub privileged_action_repository: PrivilegedActionRepository,
@@ -205,9 +211,10 @@ struct Repositories {
     chain_indexer_repository: ChainIndexerRepository,
     mempool_indexer_repository: MempoolIndexerRepository,
     daily_spend_record_repository: DailySpendRecordRepository,
-    signed_psbt_cache_repository: SignedPsbtCacheRepository,
+    signed_psbt_cache_repository: PsbtTxidCacheRepository,
     inheritance_repository: InheritanceRepository,
     privileged_action_repository: PrivilegedActionRepository,
+    promotion_code_repository: PromotionCodeRepository,
 }
 
 impl BootstrapBuilder {
@@ -257,9 +264,10 @@ impl BootstrapBuilder {
             chain_indexer_repository: ChainIndexerRepository::new(ddb_connection.clone()),
             mempool_indexer_repository: MempoolIndexerRepository::new(ddb_connection.clone()),
             daily_spend_record_repository: DailySpendRecordRepository::new(ddb_connection.clone()),
-            signed_psbt_cache_repository: SignedPsbtCacheRepository::new(ddb_connection.clone()),
+            signed_psbt_cache_repository: PsbtTxidCacheRepository::new(ddb_connection.clone()),
             inheritance_repository: InheritanceRepository::new(ddb_connection.clone()),
             privileged_action_repository: PrivilegedActionRepository::new(ddb_connection.clone()),
+            promotion_code_repository: PromotionCodeRepository::new(ddb_connection.clone()),
         };
 
         // Create tables concurrently
@@ -295,6 +303,9 @@ impl BootstrapBuilder {
                 .create_table_if_necessary(),
             repositories
                 .privileged_action_repository
+                .create_table_if_necessary(),
+            repositories
+                .promotion_code_repository
                 .create_table_if_necessary(),
         )?;
 
@@ -354,10 +365,19 @@ impl BootstrapBuilder {
         )
         .await;
 
+        let promotion_code_config = config::extract::<promotion_code::routes::Config>(profile)?;
+        let web_shop_client = promotion_code_config.web_shop.to_owned().to_client();
+        let webhook_validator = promotion_code_config.webhook.to_owned().to_validator();
+
+        let promotion_code_service = PromotionCodeService::new(
+            repositories.promotion_code_repository.clone(),
+            web_shop_client.clone(),
+        );
         let recovery_service = repositories.wallet_recovery_repository.clone();
         let recovery_relationship_service = RecoveryRelationshipService::new(
             repositories.social_recovery_repository.clone(),
             notification_service.clone(),
+            promotion_code_service.clone(),
         );
         let social_challenge_service = SocialChallengeService::new(
             repositories.social_recovery_repository.clone(),
@@ -392,6 +412,7 @@ impl BootstrapBuilder {
             account_service.clone(),
             feature_flags_service.clone(),
             screener_service.clone(),
+            promotion_code_service.clone(),
         );
         let privileged_action_service = PrivilegedActionService::new(
             repositories.privileged_action_repository.clone(),
@@ -424,6 +445,7 @@ impl BootstrapBuilder {
             mempool_indexer_service,
             notification_service,
             privileged_action_service,
+            promotion_code_service,
             recovery_relationship_service,
             recovery_service,
             screener_service,
@@ -433,6 +455,8 @@ impl BootstrapBuilder {
             twilio_client,
             userpool_service,
             wsm_client,
+            web_shop_client,
+            webhook_validator,
             // Repositories to be removed
             consent_repository: repositories.consent_repository.clone(),
             privileged_action_repository: repositories.privileged_action_repository.clone(),
@@ -504,6 +528,19 @@ impl BootstrapBuilder {
             self.services.recovery_service.clone(),
             self.services.social_challenge_service.clone(),
             self.services.feature_flags_service.clone(),
+            self.services.wsm_client.clone(),
+        );
+
+        let distributed_keys_state = recovery::routes::distributed_keys::RouteState(
+            self.services.account_service.clone(),
+            self.services.wsm_client.clone(),
+        );
+
+        let promotion_state = promotion_code::routes::RouteState(
+            config::extract(profile)?,
+            self.services.promotion_code_service.clone(),
+            self.services.web_shop_client.clone(),
+            self.services.webhook_validator.clone(),
         );
 
         let inheritance_state = recovery::routes::inheritance::RouteState(
@@ -520,6 +557,8 @@ impl BootstrapBuilder {
             self.services.userpool_service.clone(),
             self.services.recovery_relationship_service.clone(),
             self.services.feature_flags_service.clone(),
+            self.services.promotion_code_service.clone(),
+            self.services.inheritance_service.clone(),
         );
 
         let social_challenge_state = recovery::routes::social_challenge::RouteState(
@@ -575,6 +614,7 @@ impl BootstrapBuilder {
             .merge(notification_state.account_authed_router())
             .merge(mobile_pay_state.account_authed_router())
             .merge(delay_notify_state.account_authed_router())
+            .merge(distributed_keys_state.account_authed_router())
             .merge(inheritance_state.account_authed_router())
             .merge(relationship_state.account_authed_router())
             .merge(onboarding_state.account_authed_router())
@@ -582,6 +622,7 @@ impl BootstrapBuilder {
 
         // Recovery authenticated routes protected by "authorize_recovery_token_for_path" middleware
         let recovery_authed_router = Router::new()
+            .merge(delay_notify_state.recovery_authed_router())
             .merge(inheritance_state.recovery_authed_router())
             .merge(social_challenge_state.recovery_authed_router())
             .merge(onboarding_state.recovery_authed_router())
@@ -598,23 +639,6 @@ impl BootstrapBuilder {
                 authorize_account_or_recovery_token_for_path,
             ));
 
-        // Routes requiring basic validation
-        let mut basic_validation_router = Router::new()
-            .merge(exchange_rate_state.basic_validation_router())
-            .merge(customer_feedback_state.basic_validation_router());
-
-        #[cfg(feature = "partnerships")]
-        {
-            let partnerships_state = partnerships::routes::RouteState::new(
-                self.services.userpool_service.clone(),
-                self.services.feature_flags_service.clone(),
-                self.services.account_service.clone(),
-            )
-            .await;
-            basic_validation_router =
-                basic_validation_router.merge(partnerships_state.basic_validation_router());
-        }
-
         // Unauthenticated routes
         let unauthed_router = Router::new()
             .merge(privileged_action_state.unauthed_router())
@@ -625,10 +649,15 @@ impl BootstrapBuilder {
             .merge(delay_notify_state.unauthed_router())
             .merge(exchange_rate_state.unauthed_router())
             .merge(experimentation_state.unauthed_router())
-            .merge(inheritance_state.unauthed_router());
+            .merge(inheritance_state.unauthed_router())
+            .merge(promotion_state.unauthed_router());
 
-        // Swagger UI with all endpoints
-        let swagger_router = SwaggerUi::new("/docs/swagger-ui").urls(vec![
+        // Routes requiring basic validation
+        let mut basic_validation_router = Router::new()
+            .merge(exchange_rate_state.basic_validation_router())
+            .merge(customer_feedback_state.basic_validation_router());
+
+        let mut swagger_endpoints = vec![
             SwaggerEndpoint::from(privileged_action_state),
             SwaggerEndpoint::from(onboarding_state),
             SwaggerEndpoint::from(mobile_pay_state),
@@ -641,15 +670,24 @@ impl BootstrapBuilder {
             SwaggerEndpoint::from(customer_feedback_state),
             SwaggerEndpoint::from(authentication_state),
             SwaggerEndpoint::from(experimentation_state),
-        ]);
+            SwaggerEndpoint::from(promotion_state),
+        ];
 
-        // Middleware stack applied to the entire router
-        let middleware_stack = ServiceBuilder::new()
-            .layer(HttpMetrics::new())
-            .layer(OtelInResponseLayer)
-            .layer(OtelAxumLayer::default())
-            .layer(middleware::from_fn(request_baggage))
-            .layer(CatchPanicLayer::new());
+        #[cfg(feature = "partnerships")]
+        {
+            let partnerships_state = partnerships::routes::RouteState::new(
+                self.services.userpool_service.clone(),
+                self.services.feature_flags_service.clone(),
+                self.services.account_service.clone(),
+            )
+            .await;
+            basic_validation_router =
+                basic_validation_router.merge(partnerships_state.basic_validation_router());
+            swagger_endpoints.push(SwaggerEndpoint::from(partnerships_state));
+        }
+
+        // Swagger UI with all endpoints
+        let swagger_router = SwaggerUi::new("/docs/swagger-ui").urls(swagger_endpoints);
 
         // Assemble the final router
         let router = Router::new()
@@ -662,7 +700,11 @@ impl BootstrapBuilder {
             .merge(Router::from(health_checks_state))
             .merge(Router::from(analytics_state))
             .merge(swagger_router)
-            .layer(middleware_stack);
+            .layer(HttpMetrics::new())
+            .layer(OtelInResponseLayer)
+            .layer(OtelAxumLayer::default())
+            .layer(middleware::from_fn(request_baggage))
+            .layer(CatchPanicLayer::new());
         Ok(router)
     }
 }

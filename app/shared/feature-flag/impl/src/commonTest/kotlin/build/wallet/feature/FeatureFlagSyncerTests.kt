@@ -1,6 +1,7 @@
 package build.wallet.feature
 
 import build.wallet.account.AccountServiceFake
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
@@ -9,14 +10,12 @@ import build.wallet.f8e.featureflags.FeatureFlagsF8eClientFake
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
 class FeatureFlagSyncerTests : FunSpec({
-  coroutineTestScope = true
-
   class LocalBooleanFeatureFlag(
     featureFlagDao: FeatureFlagDao,
   ) : FeatureFlag<FeatureFlagValue.BooleanFlag>(
@@ -71,7 +70,9 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   test("sync flag from false to true") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
 
@@ -82,7 +83,9 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   test("sync flag from false to false") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
 
@@ -93,7 +96,9 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   test("flag doesn't change when missing in remote flags") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
     featureFlagsF8eClient.setFlags(emptyList())
@@ -108,7 +113,9 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   test("syncing respects overridden state") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
     testFlag.setOverridden(true)
@@ -120,7 +127,9 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   test("reset returns to default value and clears override") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
     testFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true), overridden = true)
@@ -135,7 +144,9 @@ class FeatureFlagSyncerTests : FunSpec({
   // This test is tricky because I can't get the session flow to update
   // I'll revisit in a fast follow
   xtest("applicationDidEnterForeground will only sync after launch and at a maximum frequency of every 5 seconds") {
-    featureFlagSyncer.initializeSyncLoop(backgroundScope)
+    createBackgroundScope().launch {
+      featureFlagSyncer.initializeSyncLoop(this)
+    }
 
     testFlag.flagValue().value.value.shouldBe(false)
 

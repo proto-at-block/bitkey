@@ -65,6 +65,12 @@ pub enum ServiceError {
     ClaimDelayNotComplete,
     #[error(transparent)]
     PsbtSigningFailed(#[from] SigningError),
+    #[error("Cannot shorten delay for non-test account")]
+    ShortenDelayForNonTestAccount,
+    #[error("Invalid state for shortening claim delay")]
+    InvalidClaimStateForShortening,
+    #[error("Cannot complete claim without a PSBT if previously completed with a signed PSBT")]
+    AlreadyCompletedWithPsbt,
 }
 
 impl From<TrustedContactError> for ServiceError {
@@ -106,7 +112,10 @@ impl From<ServiceError> for ApiError {
             | ServiceError::IncompatibleAccountType
             | ServiceError::InvalidAddress(_)
             | ServiceError::ClaimDelayNotComplete
-            | ServiceError::UnownedDestination => ApiError::GenericBadRequest(err_msg),
+            | ServiceError::UnownedDestination
+            | ServiceError::ShortenDelayForNonTestAccount
+            | ServiceError::InvalidClaimStateForShortening
+            | ServiceError::AlreadyCompletedWithPsbt => ApiError::GenericBadRequest(err_msg),
             ServiceError::InvalidChallengeSignature => ApiError::GenericUnauthorized(err_msg),
             ServiceError::Notification(e) => e.into(),
             ServiceError::PsbtSigningFailed(e) => e.into(),

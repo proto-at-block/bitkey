@@ -15,9 +15,9 @@ import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -82,8 +82,8 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Valid Address in QR code should call onRecipientScanned") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validAddress.address)
       }
 
@@ -92,8 +92,8 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Valid Address with Amount in QR code should call onInvoiceScanned") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(bitcoinAddressP2PKH.address)
       }
 
@@ -107,41 +107,41 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Invalid Address in QR code should lead to error screen") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(invalidAddressText)
       }
 
       // Error
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("Address from different bitcoin network should lead to error screen") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetAddress)
       }
 
       // Error
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("BIP21 URI from different bitcoin network should lead to error screen") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetBIP21URI)
       }
 
       // Error
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("onClose prop is called onClose of the model") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         onClose()
       }
 
@@ -150,8 +150,8 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("onEnterAddressClick prop is called onEnterAddressClick of the model") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
 
@@ -160,24 +160,24 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("valid ParsedPaymentData in clipboard should show paste button") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldNotBeNull()
       }
     }
   }
 
   test("invalid ParsedPaymentData in clipboard should not show paste button") {
-    stateMachine.test(props.copy(validInvoiceInClipboard = null)) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = null)) {
+      awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldBeNull()
       }
     }
   }
 
   test("Lightning ParsedPaymentData in clipboard should not show paste button") {
-    stateMachine.test(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
+      awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldBeNull()
       }
     }
@@ -189,13 +189,13 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       props.copy(
         validInvoiceInClipboard = Onchain(BitcoinAddress(selfSendAddress))
       )
-    stateMachine.test(selfSendProps) {
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+    stateMachine.testWithVirtualTime(selfSendProps) {
+      awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldNotBeNull().onClick()
       }
 
       // error from self send
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
         header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
 
@@ -207,14 +207,14 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Scanning a self address leads to error screen") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // scanning QR code from SpendingWalletFake
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(selfSendAddress)
       }
 
       // error from self send
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull().leadingAccessory.shouldBeTypeOf<IconAccessory>()
         header.shouldNotBeNull().headline.shouldBe("This is your Bitkey wallet address")
 

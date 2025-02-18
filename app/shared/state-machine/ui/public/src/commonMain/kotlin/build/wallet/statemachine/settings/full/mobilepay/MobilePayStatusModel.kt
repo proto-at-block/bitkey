@@ -1,9 +1,12 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.mobilepay.MobilePayStatusScreen
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -42,6 +45,11 @@ data class MobilePayStatusModel(
     disableAlertModel = disableAlertModel,
     spendingLimitCardModel = spendingLimitCardModel
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    MobilePayStatusScreen(modifier, model = this)
+  }
 }
 
 fun disableMobilePayAlertModel(

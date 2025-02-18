@@ -21,6 +21,8 @@ module "service" {
   namespace = var.namespace
   name      = var.name
 
+  create_template_task_definition = var.create_template_task_definition
+
   subdomain                          = var.subdomain
   additional_certs                   = data.aws_acm_certificate.external_certs[*].arn
   dns_hosted_zone                    = var.dns_hosted_zone
@@ -37,7 +39,7 @@ module "service" {
   image_tag        = var.image_tag
   vpc_name         = var.vpc_name
   port             = local.port
-  cpu_architecture = "X86_64"
+  cpu_architecture = var.cpu_architecture
 
   cpu                                = var.cpu
   memory                             = var.memory

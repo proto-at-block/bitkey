@@ -107,8 +107,11 @@ abstract class BaseF8eHttpClientFactory(
         networkingDebugService = factory.networkingDebugService
       }
       factory.networkReachabilityProvider?.let { optionalReachabilityProvider ->
-        install(NetworkReachabilityPlugin) {
-          networkReachabilityProvider = optionalReachabilityProvider
+        HttpResponseValidator {
+          networkReachabilityPlugin(
+            connection = null,
+            networkReachabilityProvider = networkReachabilityProvider
+          )
         }
       }
       install(TargetingHeadersPlugin) {

@@ -36,7 +36,10 @@ fi
 if [[ -z $IS_CI_RUN ]] ; then
     export AWS_PROFILE="${AWS_PROFILE:-bitkey-development--admin}" # get what is in the env or default to dev profile
     echo "🔐 logging into ECR..."
+    # Log in to our private ECR
     aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
+    # Log in to Public ECR Gallery
+    aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
     echo "🏗 building server container"
     docker buildx bake --pull --set *.platform=linux/arm64 --set api.tags=$AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$IMAGE_TAG --set api.tags=api:latest api
@@ -91,9 +94,11 @@ manage_secret "$BIOMETRICS_DATA_URI_KEY_NAME" "$BIOMETRICS_DATA_URI"
 
 pushd ${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/api
 export NAMESPACE=$ENV_NAMESPACE
+export TERRAGRUNT=${TERRAFORM_REPO_PATH}/bin/terragrunt
+export TERRAGRUNT_FORWARD_TF_STDOUT=1
 echo "🚀 Deploying the named stack"
-terragrunt init -reconfigure
-terragrunt apply \
+$TERRAGRUNT init -reconfigure
+$TERRAGRUNT apply \
   -var fromagerie_image_tag=$IMAGE_TAG \
   -var auth_lambdas_dir=${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/auth/assets \
   --terragrunt-non-interactive \

@@ -5,13 +5,13 @@ import build.wallet.bitcoin.export.ExportTransactionsServiceMock
 import build.wallet.bitcoin.export.ExportWatchingDescriptorServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.sharing.SharingManagerFake
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Callout
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.export.view.ExportSheetBodyModel
-import build.wallet.statemachine.ui.awaitScreenWithSheetModelBody
-import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitSheet
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import com.github.michaelbull.result.Err
@@ -44,8 +44,8 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("test resting state") {
-    stateMachine.test(props) {
-      awaitUntilScreenModelWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitUntilScreenWithBody<ExportToolsSelectionModel> {
         bottomSheetModel.shouldBeNull()
 
         val formBody = body as ExportToolsSelectionModel
@@ -68,8 +68,8 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose is called when close button is pressed.") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ExportToolsSelectionModel> {
         onBack?.invoke()
       }
 
@@ -78,15 +78,15 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("should show ExportTransactionHistorySheet when exporting transaction history") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[0].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull()
           it.listGroupModel.items[0].onClick.shouldNotBeNull().invoke()
         }
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Export transaction history")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("Download your Bitkey transaction history.")
         mainContentList.shouldBeEmpty()
@@ -96,7 +96,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick.invoke()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
@@ -107,15 +107,15 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
   test("should show error export sheet when exporting transaction history fails") {
     exportTransactionsService.result = Err(Error("oops"))
-    stateMachine.test(props) {
-      awaitScreenWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[0].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull()
           it.listGroupModel.items[0].onClick.shouldNotBeNull().invoke()
         }
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Export transaction history")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("Download your Bitkey transaction history.")
         mainContentList.shouldBeEmpty()
@@ -125,11 +125,11 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick.invoke()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("An error occurred.")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("We had trouble exporting your wallet information. Please try again later.")
         secondaryButton.shouldBeNull()
@@ -142,15 +142,16 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("should show ExportDescriptorSheet when exporting wallet descriptor") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
-          it.listGroupModel.items[1].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().shouldNotBeNull()
+          it.listGroupModel.items[1].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
+            .shouldNotBeNull()
           it.listGroupModel.items[1].onClick.shouldNotBeNull().invoke()
         }
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Export wallet descriptor")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("Download your Bitkey wallet descriptor.")
         secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
@@ -164,7 +165,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick.invoke()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
@@ -175,15 +176,15 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
   test("should show error export sheet when wallet descriptor export fails") {
     exportWatchingDescriptorService.result = Err(Error("oops"))
-    stateMachine.test(props) {
-      awaitScreenWithBody<ExportToolsSelectionModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[1].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick?.shouldNotBeNull()
           it.listGroupModel.items[1].onClick.shouldNotBeNull().invoke()
         }
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Export wallet descriptor")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("Download your Bitkey wallet descriptor.")
         secondaryButton.shouldNotBeNull().text.shouldBe("Cancel")
@@ -197,11 +198,11 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick.invoke()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
-      awaitScreenWithSheetModelBody<ExportSheetBodyModel> {
+      awaitSheet<ExportSheetBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("An error occurred.")
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("We had trouble exporting your wallet information. Please try again later.")
         secondaryButton.shouldBeNull()

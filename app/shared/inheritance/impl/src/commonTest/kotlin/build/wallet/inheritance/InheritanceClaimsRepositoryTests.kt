@@ -1,3 +1,5 @@
+@file:OptIn(DelicateCoroutinesApi::class)
+
 package build.wallet.inheritance
 
 import app.cash.turbine.test
@@ -8,33 +10,41 @@ import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
 import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
 import build.wallet.bitkey.inheritance.InheritanceClaims
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.awaitNoEvents
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8EClientFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.withClue
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 class InheritanceClaimsRepositoryTests : FunSpec({
-  val testScope = TestScope()
+  // TODO(W-10571): use real dispatcher. There's currently a race condition in the sync
+  //                implementation which fails tests when using real dispatcher (likely actual race condition bug).
+  coroutineTestScope = true
   val accountService = AccountServiceFake()
   val retrieveInheritanceClaimsF8eClient = RetrieveInheritanceClaimsF8EClientFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val featureFlag = InheritanceFeatureFlag(featureFlagDao)
+  val inheritanceClaimsDao = InheritanceClaimsDaoFake()
+  val syncFrequency = 100.milliseconds
 
-  beforeSpec {
+  beforeTest {
+    accountService.reset()
+    retrieveInheritanceClaimsF8eClient.reset()
+    featureFlagDao.reset()
     featureFlag.setFlagValue(true)
+    inheritanceClaimsDao.clear()
   }
 
   test("Inheritance Claims load from database") {
-    val inheritanceClaimsDao = InheritanceClaimsDaoFake()
     val databaseClaims = InheritanceClaims(
       beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
       benefactorClaims = listOf(BenefactorPendingClaimFake)
@@ -44,47 +54,41 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       accountService = accountService,
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
-      stateScope = testScope,
-      inheritanceFeatureFlag = featureFlag
+      stateScope = backgroundScope,
+      inheritanceFeatureFlag = featureFlag,
+      inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
     repository.claims.test {
-      testScope.runCurrent()
-      val claims = awaitItem()
-      claims.isOk.shouldBeTrue()
-      claims.value.shouldBe(databaseClaims)
+      awaitItem().shouldBeOk(databaseClaims)
     }
   }
 
   test("Inheritance Claims load from F8e after database") {
-    val inheritanceClaimsDao = InheritanceClaimsDaoFake()
     inheritanceClaimsDao.setInheritanceClaims(InheritanceClaims.EMPTY)
     val updatedClaimsList = InheritanceClaims(
       beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
       benefactorClaims = listOf(BenefactorPendingClaimFake)
     )
     accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
-    retrieveInheritanceClaimsF8eClient.response = Ok(updatedClaimsList)
     val repository = InheritanceClaimsRepositoryImpl(
       accountService = accountService,
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
-      stateScope = testScope,
-      inheritanceFeatureFlag = featureFlag
+      stateScope = backgroundScope,
+      inheritanceFeatureFlag = featureFlag,
+      inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
     repository.claims.test {
-      testScope.runCurrent()
       withClue("Initial database result") {
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(InheritanceClaims.EMPTY)
+        awaitItem().shouldBeOk(InheritanceClaims.EMPTY)
       }
 
+      retrieveInheritanceClaimsF8eClient.response = Ok(updatedClaimsList)
+
       withClue("Update from F8E") {
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(updatedClaimsList)
+        awaitUntil(Ok(updatedClaimsList))
       }
 
       withClue("F8e continues to sync while subscribed") {
@@ -93,42 +97,34 @@ class InheritanceClaimsRepositoryTests : FunSpec({
           benefactorClaims = listOf(BenefactorPendingClaimFake)
         )
         retrieveInheritanceClaimsF8eClient.response = Ok(secondUpdate)
-        testScope.advanceTimeBy(2.minutes)
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(secondUpdate)
+        awaitItem().shouldBeOk(secondUpdate)
       }
     }
   }
 
   test("Inheritance Claims updated locally") {
-    val inheritanceClaimsDao = InheritanceClaimsDaoFake()
     val initialClaimsList = InheritanceClaims(
       beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
       benefactorClaims = listOf(BenefactorPendingClaimFake)
     )
     accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
-    retrieveInheritanceClaimsF8eClient.response = Ok(initialClaimsList)
     val repository = InheritanceClaimsRepositoryImpl(
       accountService = accountService,
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
-      stateScope = testScope,
-      inheritanceFeatureFlag = featureFlag
+      stateScope = backgroundScope,
+      inheritanceFeatureFlag = featureFlag,
+      inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
     repository.claims.test {
-      testScope.runCurrent()
       withClue("Initial database result") {
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(InheritanceClaims.EMPTY)
+        awaitUntil(Ok(InheritanceClaims.EMPTY))
       }
+      retrieveInheritanceClaimsF8eClient.response = Ok(initialClaimsList)
 
       withClue("Initial Update from F8E") {
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(initialClaimsList)
+        awaitItem().shouldBeOk(initialClaimsList)
       }
 
       withClue("Update claim to locked state locally") {
@@ -136,10 +132,7 @@ class InheritanceClaimsRepositoryTests : FunSpec({
           claimId = BeneficiaryPendingClaimFake.claimId
         )
         repository.updateSingleClaim(updatedClaim)
-        testScope.runCurrent()
-        val claims = awaitItem()
-        claims.isOk.shouldBeTrue()
-        claims.value.shouldBe(
+        awaitItem().shouldBeOk(
           InheritanceClaims(
             beneficiaryClaims = listOf(updatedClaim),
             benefactorClaims = listOf(BenefactorPendingClaimFake)
@@ -150,7 +143,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
   }
 
   test("feature flag test") {
-    val inheritanceClaimsDao = InheritanceClaimsDaoFake()
     val initialClaimsList = InheritanceClaims(
       beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
       benefactorClaims = listOf(BenefactorPendingClaimFake)
@@ -162,13 +154,14 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       accountService = accountService,
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
-      stateScope = testScope,
-      inheritanceFeatureFlag = featureFlag
+      stateScope = backgroundScope,
+      inheritanceFeatureFlag = featureFlag,
+      inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
     repository.claims.test {
-      testScope.runCurrent()
-      expectNoEvents()
+      delay(syncFrequency)
+      awaitNoEvents()
     }
   }
 })

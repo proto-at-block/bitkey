@@ -19,11 +19,14 @@ import build.wallet.router.Router
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
-import build.wallet.statemachine.home.full.PresentedScreen.AppFunctionalityStatus
-import build.wallet.statemachine.home.full.PresentedScreen.SetSpendingLimit
+import build.wallet.statemachine.home.full.PresentedScreen.*
 import build.wallet.statemachine.home.full.bottomsheet.CurrencyChangeMobilePayBottomSheetUpdater
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
+import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
+import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiStateMachine
+import build.wallet.statemachine.inheritance.InheritanceNotificationAction
+import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
@@ -32,12 +35,15 @@ import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNotice
 import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiProps
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachine
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.ShowingInheritanceUiState
 import build.wallet.statemachine.status.AppFunctionalityStatusUiProps
 import build.wallet.statemachine.status.AppFunctionalityStatusUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.status.StatusBannerModel
 import com.github.michaelbull.result.get
@@ -68,9 +74,12 @@ class HomeUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val mobilePayService: MobilePayService,
   private val partnershipTransactionsService: PartnershipTransactionsService,
+  private val inheritanceClaimNotificationUiStateMachine:
+    InheritanceClaimNotificationUiStateMachine,
   private val appCoroutineScope: CoroutineScope,
 ) : HomeUiStateMachine {
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   override fun model(props: HomeUiProps): ScreenModel {
     var uiState by remember {
       mutableStateOf(
@@ -87,10 +96,15 @@ class HomeUiStateMachineImpl(
       Router.onRouteChange { route ->
         when (route) {
           is Route.TrustedContactInvite -> {
-            uiState =
-              uiState.copy(
-                presentedScreen = PresentedScreen.AddTrustedContact(route.inviteCode)
-              )
+            uiState = uiState.copy(
+              presentedScreen = PresentedScreen.AddTrustedContact(route.inviteCode)
+            )
+            return@onRouteChange true
+          }
+          is Route.BeneficiaryInvite -> {
+            uiState = uiState.copy(
+              presentedScreen = PresentedScreen.BecomeBeneficiary(route.inviteCode)
+            )
             return@onRouteChange true
           }
           is Route.PartnerTransferDeeplink -> {
@@ -162,13 +176,39 @@ class HomeUiStateMachineImpl(
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SETTINGS -> {
-                uiState = uiState.copy(rootScreen = Settings)
+                uiState = uiState.copy(rootScreen = Settings(null))
                 true
               }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE -> {
+                uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)))
+                true
+              }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR -> {
+                uiState = uiState.copy(rootScreen = Settings(ShowingInheritanceUiState(ManagingInheritanceTab.Inheritance)))
+                true
+              }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED -> {
+                uiState = uiState.copy(presentedScreen = InheritanceClaimAction(InheritanceNotificationAction.BenefactorInviteAccepted, null))
+                true
+              }
+
               else -> false
             }
           }
-          else -> false
+          is Route.InheritanceClaimNavigationDeeplink -> {
+            return@onRouteChange when (route.screen) {
+              NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM -> {
+                uiState = uiState.copy(presentedScreen = InheritanceClaimAction(InheritanceNotificationAction.DenyClaim, route.claimId))
+                true
+              }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM -> {
+                uiState = uiState.copy(presentedScreen = InheritanceClaimAction(InheritanceNotificationAction.CompleteClaim, route.claimId))
+                true
+              }
+
+              else -> false
+            }
+          }
         }
       }
     }
@@ -224,7 +264,7 @@ class HomeUiStateMachineImpl(
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettingsButtonClicked = {
-                uiState = uiState.copy(rootScreen = Settings)
+                uiState = uiState.copy(rootScreen = Settings(null))
               },
               origin = rootScreen.origin,
               setPresentedScreen = { newScreen ->
@@ -232,11 +272,12 @@ class HomeUiStateMachineImpl(
               }
             )
 
-          Settings ->
+          is Settings ->
             SettingsScreenModel(
               props = props,
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
+              settingsListState = rootScreen.screen,
               onBack = {
                 uiState =
                   uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Settings))
@@ -272,9 +313,31 @@ class HomeUiStateMachineImpl(
               onDone = {
                 uiState = uiState.copy(presentedScreen = null)
               },
-              screenPresentationStyle = ScreenPresentationStyle.Modal
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              variant = TrustedContactFeatureVariant.Direct(
+                target = TrustedContactFeatureVariant.Feature.Recovery
+              )
             )
         )
+      is BecomeBeneficiary -> trustedContactEnrollmentUiStateMachine.model(
+        props =
+          TrustedContactEnrollmentUiProps(
+            retreat =
+              Retreat(
+                style = RetreatStyle.Close,
+                onRetreat = {
+                  uiState = uiState.copy(presentedScreen = null)
+                }
+              ),
+            account = props.account,
+            inviteCode = presentedScreen.inviteCode,
+            onDone = { uiState = uiState.copy(presentedScreen = null) },
+            screenPresentationStyle = ScreenPresentationStyle.Modal,
+            variant = TrustedContactFeatureVariant.Direct(
+              target = TrustedContactFeatureVariant.Feature.Inheritance
+            )
+          )
+      )
 
       is PresentedScreen.PartnerTransfer -> expectedTransactionNoticeUiStateMachine.model(
         props = ExpectedTransactionNoticeProps(
@@ -315,6 +378,17 @@ class HomeUiStateMachineImpl(
             AppFunctionalityStatusUiProps(
               onClose = { uiState = uiState.copy(presentedScreen = null) },
               status = presentedScreen.status
+            )
+        )
+
+      is InheritanceClaimAction ->
+        inheritanceClaimNotificationUiStateMachine.model(
+          props =
+            InheritanceClaimNotificationUiProps(
+              fullAccount = props.account as FullAccount,
+              claimId = presentedScreen.claimId,
+              action = presentedScreen.action,
+              onBack = { uiState = uiState.copy(presentedScreen = null) }
             )
         )
     }
@@ -366,12 +440,14 @@ class HomeUiStateMachineImpl(
     props: HomeUiProps,
     homeBottomSheetModel: SheetModel?,
     homeStatusBannerModel: StatusBannerModel?,
+    settingsListState: SettingsListState?,
     onBack: () -> Unit,
   ) = settingsHomeUiStateMachine.model(
     props =
       SettingsHomeUiProps(
         onBack = onBack,
         account = props.account,
+        settingsListState = settingsListState,
         lostHardwareRecoveryData = props.lostHardwareRecoveryData,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel
@@ -397,7 +473,7 @@ private sealed interface HomeScreen {
   /**
    * Indicates that settings are shown.
    */
-  data object Settings : HomeScreen
+  data class Settings(val screen: SettingsListState?) : HomeScreen
 }
 
 /**
@@ -412,6 +488,17 @@ private sealed interface PresentedScreen {
 
   /** Indicates that the add trusted contact flow is currently presented */
   data class AddTrustedContact(val inviteCode: String?) : PresentedScreen
+
+  /** Indicates that the become beneficiary flow is currently presented */
+  data class BecomeBeneficiary(
+    val inviteCode: String?,
+  ) : PresentedScreen
+
+  /** Perform an action on an inheritance claim */
+  data class InheritanceClaimAction(
+    val action: InheritanceNotificationAction,
+    val claimId: String?,
+  ) : PresentedScreen
 
   /** Indicates that the partner transfer flow is currently presented */
   data class PartnerTransfer(

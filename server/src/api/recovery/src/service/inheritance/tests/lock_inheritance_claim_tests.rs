@@ -10,7 +10,6 @@ use account::service::tests::{
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::Account;
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId};
 
 #[tokio::test]
@@ -125,14 +124,12 @@ async fn test_lock_inheritance_claim_no_pending_claim() {
     let inheritance_service = construct_test_inheritance_service().await;
     let account_service = construct_test_account_service().await;
 
-    let beneficiary_account = Account::Full(
-        create_full_account_for_test(
-            &account_service,
-            Network::BitcoinSignet,
-            &generate_test_authkeys().into(),
-        )
-        .await,
-    );
+    let beneficiary_account = create_full_account_for_test(
+        &account_service,
+        Network::BitcoinSignet,
+        &generate_test_authkeys().into(),
+    )
+    .await;
 
     let challenge = "challenge".to_string();
     let app_signature = "app_signature".to_string();

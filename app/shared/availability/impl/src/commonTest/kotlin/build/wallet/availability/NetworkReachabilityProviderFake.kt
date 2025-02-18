@@ -19,20 +19,7 @@ class NetworkReachabilityProviderFake : NetworkReachabilityProvider {
   }
 
   override suspend fun updateNetworkReachabilityForConnection(
-    httpClient: HttpClient,
-    reachability: NetworkReachability,
-    connection: NetworkConnection,
-  ) {
-    when (connection) {
-      is NetworkConnection.HttpClientNetworkConnection.F8e ->
-        f8eEnvironmentReachabilityFlow.value =
-          reachability
-      else -> Unit // noop
-    }
-  }
-
-  @Suppress("OVERRIDE_DEPRECATION")
-  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient?,
     reachability: NetworkReachability,
     connection: NetworkConnection,
   ) {

@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.time.Duration
 
 class RecoverySyncerMock(
-  val recovery: Recovery,
+  val recovery: Recovery = Recovery.NoActiveRecovery,
   turbine: (String) -> Turbine<Any>,
 ) : RecoverySyncer {
   val recoveryStatus = MutableStateFlow<Result<Recovery, Error>>(Ok(recovery))

@@ -18,8 +18,7 @@ val FailF8eRequestsPlugin = createClientPlugin(
   ::FailF8eRequestsPluginConfig
 ) {
   val networkingDebugService = pluginConfig.networkingDebugService
-
-  client.sendPipeline.intercept(HttpSendPipeline.Before) { request ->
+  onRequest { request, _ ->
     val shouldFailRequests = networkingDebugService.config.value.failF8eRequests
     if (shouldFailRequests) {
       // Throw an exception to simulate a failed request

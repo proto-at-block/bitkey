@@ -44,9 +44,11 @@ aws s3 rm $NAMED_STACK_S3_BUCKET_URI --recursive
 
 pushd $TERRAFORM_REPO_PATH/aws/bitkey/named-stacks/api > /dev/null
 export NAMESPACE=$ENV_NAMESPACE
+export TERRAGRUNT=${TERRAFORM_REPO_PATH}/bin/terragrunt
+export TERRAGRUNT_FORWARD_TF_STDOUT=1
 echo "🗑️ Destroying the named stack"
-terragrunt init -reconfigure
-terragrunt destroy \
+$TERRAGRUNT init -reconfigure
+$TERRAGRUNT destroy \
   -var fromagerie_image_tag=$IMAGE_TAG \
   -var auth_lambdas_dir=${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/auth/assets \
   --terragrunt-non-interactive \

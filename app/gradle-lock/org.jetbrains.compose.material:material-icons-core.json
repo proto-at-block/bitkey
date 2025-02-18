@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-icons-core",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "material-icons-core-1.7.1.jar": "de5a0c277e1598c121d2c4606cc03bdffebd059e32b3494ddfb84c08d51da701"
+                        "material-icons-core-1.7.3.jar": "de5a0c277e1598c121d2c4606cc03bdffebd059e32b3494ddfb84c08d51da701"
                     }
                 }
             ],

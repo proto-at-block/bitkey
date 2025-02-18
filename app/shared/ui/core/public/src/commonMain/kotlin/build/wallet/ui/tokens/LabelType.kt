@@ -1,15 +1,14 @@
-// DO NOT EDIT.
-// This file is generated from design tokens in the wallet/style folder.
-
 package build.wallet.ui.tokens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import build.wallet.ui.typography.font.foundersGroteskFontFamily
 import build.wallet.ui.typography.font.robotoMonoFontFamily
 
 enum class LabelType {
+  Header1,
   Display1,
   Display2,
   Display3,
@@ -36,11 +35,21 @@ enum class LabelType {
   Label2,
   Label3,
   Keypad,
+  CalloutTitle,
+  CalloutSubtitle,
 }
 
 @Composable
 fun LabelType.style(baseStyle: TextStyle) =
   when (this) {
+    LabelType.Header1 ->
+      baseStyle.copy(
+        fontFamily = foundersGroteskFontFamily,
+        fontWeight = FontWeight.W700,
+        fontSize = 64.sp,
+        lineHeight = 48.sp,
+        letterSpacing = (0).sp
+      )
     LabelType.Display1 ->
       baseStyle.copy(
         fontWeight = FontWeight.W700,
@@ -202,7 +211,7 @@ fun LabelType.style(baseStyle: TextStyle) =
         fontWeight = FontWeight.W700,
         fontSize = 16.sp,
         lineHeight = 14.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (0).sp
       )
     LabelType.Label2 ->
       baseStyle.copy(
@@ -225,4 +234,16 @@ fun LabelType.style(baseStyle: TextStyle) =
         lineHeight = 48.sp,
         letterSpacing = (-0.47).sp
       )
+    LabelType.CalloutTitle -> baseStyle.copy(
+      fontWeight = FontWeight.W500,
+      fontSize = 16.sp,
+      lineHeight = 24.sp,
+      letterSpacing = (0).sp
+    )
+    LabelType.CalloutSubtitle -> baseStyle.copy(
+      fontWeight = FontWeight.W400,
+      fontSize = 16.sp,
+      lineHeight = 24.sp,
+      letterSpacing = (0).sp
+    )
   }

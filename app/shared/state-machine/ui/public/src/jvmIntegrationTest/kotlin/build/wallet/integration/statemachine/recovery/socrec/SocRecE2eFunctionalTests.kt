@@ -15,17 +15,16 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyScreens
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
-import io.kotest.assertions.nondeterministic.eventually
-import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
@@ -56,8 +55,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(customerApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
       advanceThroughTrustedContactInviteScreens("bob")
       cancelAndIgnoreRemainingEvents()
@@ -69,8 +67,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     lateinit var relationshipId: String
     tcApp.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
       advanceThroughCreateLiteAccountScreens(inviteCode, CloudStoreAccountFake.TrustedContactFake)
       advanceThroughTrustedContactEnrollmentScreens(PROTECTED_CUSTOMER_ALIAS)
@@ -119,7 +116,6 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     customerApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
       advanceToCloudRecovery()
@@ -137,8 +133,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(customerApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
       advanceThroughTrustedContactInviteScreens("bob")
       cancelAndIgnoreRemainingEvents()
@@ -149,8 +144,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     // TODO(W-9704): execute workers by default
     val tcApp = launchNewApp(cloudKeyValueStore = cloudStore, executeWorkers = false)
     tcApp.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
       advanceThroughCreateLiteAccountScreens(inviteCode, CloudStoreAccountFake.TrustedContactFake)
       advanceThroughTrustedContactEnrollmentScreens(PROTECTED_CUSTOMER_ALIAS)
@@ -214,10 +208,9 @@ class SocRecE2eFunctionalTests : FunSpec({
     // PC: Wait for the TC to end up in the tampered state.
     // Use turbineScope since we need to use testIn() when working with multiple turbines
     customerApp.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       customerApp.awaitRelationships {
         it.endorsedTrustedContacts.size == 1 &&
@@ -261,7 +254,6 @@ class SocRecE2eFunctionalTests : FunSpec({
       )
       customerApp.appUiStateMachine.test(
         props = Unit,
-        useVirtualTime = false,
         turbineTimeout = 5.seconds
       ) {
         val cloudRecoveryForm = advanceToCloudRecovery()
@@ -270,12 +262,12 @@ class SocRecE2eFunctionalTests : FunSpec({
         // Do cloud recovery
         cloudRecoveryForm.onLostBitkeyClick()
         // Skip auth key rotation
-        awaitUntilScreenWithBody<RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice>()
+        awaitUntilBody<RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice>()
           .onNotRightNow()
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+        awaitUntilBody<MoneyHomeBodyModel>()
 
         // Suspend until a cloud backup refresh happens
-        customerApp.cloudBackupRefresher.lastCheck
+        customerApp.socRecCloudBackupSyncWorker.lastCheck
           .filter { it > Instant.DISTANT_PAST }
           .first()
 
@@ -283,7 +275,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
 
       // Expect the cloud backup to continue to contain the TC backup.
-      customerApp.cloudBackupRefresher.lastCheck.value.shouldBeGreaterThan(Instant.DISTANT_PAST)
+      customerApp.socRecCloudBackupSyncWorker.lastCheck.value.shouldBeGreaterThan(Instant.DISTANT_PAST)
       customerApp.readCloudBackup()
         .shouldNotBeNull()
         .socRecDataAvailable
@@ -299,7 +291,6 @@ class SocRecE2eFunctionalTests : FunSpec({
       )
       recoveringApp.appUiStateMachine.test(
         props = Unit,
-        useVirtualTime = false,
         turbineTimeout = 5.seconds
       ) {
         val cloudRecoveryForm = advanceToCloudRecovery()
@@ -337,7 +328,6 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     customerApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
       advanceToCloudRecovery().onLostBitkeyClick()
@@ -346,9 +336,9 @@ class SocRecE2eFunctionalTests : FunSpec({
         clickSecondaryButton()
       }
       // Note that the auth rotation should write a new cloud backup with new socrec keys.
-      awaitUntilScreenWithBody<RotateAuthKeyScreens.Confirmation>()
+      awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
         .onSelected()
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -375,10 +365,9 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     // PC: lost hardware D+N
-    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    customerApp.fakeNfcCommands.wipeDevice()
     customerApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -400,7 +389,6 @@ class SocRecE2eFunctionalTests : FunSpec({
     )
     recoveringApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       turbineTimeout = 5.seconds
     ) {
       advanceToCloudRecovery().onRestore()
@@ -409,9 +397,9 @@ class SocRecE2eFunctionalTests : FunSpec({
         clickSecondaryButton()
       }
       // Note that the auth rotation should write a new cloud backup with new socrec keys.
-      awaitUntilScreenWithBody<RotateAuthKeyScreens.Confirmation>()
+      awaitUntilBody<RotateAuthKeyScreens.Confirmation>()
         .onSelected()
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -439,13 +427,12 @@ class SocRecE2eFunctionalTests : FunSpec({
     // PC: lost app & cloud D+N
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
     customerApp.deleteBackupsFromFakeCloud()
-    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    customerApp.fakeNfcCommands.wipeDevice()
 
     // TODO(W-9704): execute workers by default
     customerApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
     customerApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -474,8 +461,7 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // PC: Invite a Trusted Contact
     customerApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(customerApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(customerApp)
     ) {
       advanceThroughTrustedContactInviteScreens("bob")
       cancelAndIgnoreRemainingEvents()
@@ -485,8 +471,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     // TC: accepts invite
     lateinit var relationshipId: String
     tcApp.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
       advanceThroughFullAccountAcceptTCInviteScreens(inviteCode, PROTECTED_CUSTOMER_ALIAS)
 
@@ -506,13 +491,12 @@ class SocRecE2eFunctionalTests : FunSpec({
     // TC: lost app & cloud D+N
     val hardwareSeed = tcApp.fakeHardwareKeyStore.getSeed()
     tcApp.deleteBackupsFromFakeCloud()
-    tcApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    tcApp.fakeNfcCommands.wipeDevice()
 
     // TODO(W-9704): execute workers by default
     tcApp = launchNewApp(hardwareSeed = hardwareSeed, executeWorkers = false)
     tcApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -542,10 +526,9 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     // PC: lost hardware D+N
-    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    customerApp.fakeNfcCommands.wipeDevice()
     customerApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -578,10 +561,9 @@ class SocRecE2eFunctionalTests : FunSpec({
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
 
     // PC: lost hardware D+N
-    recoveredApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    recoveredApp.fakeNfcCommands.wipeDevice()
     recoveredApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -600,7 +582,7 @@ suspend fun buildTrustedContactManagementUiStateMachineProps(
   )
 }
 
-suspend fun shouldSucceedSocialRestore(
+suspend fun TestScope.shouldSucceedSocialRestore(
   customerApp: AppTester,
   tcApp: AppTester,
   protectedCustomerAlias: String,
@@ -614,8 +596,7 @@ suspend fun shouldSucceedSocialRestore(
   )
   lateinit var challengeCode: String
   recoveringApp.appUiStateMachine.test(
-    props = Unit,
-    useVirtualTime = false
+    props = Unit
   ) {
     val model =
       advanceToSocialChallengeTrustedContactList(CloudStoreAccountFake.ProtectedCustomerFake)
@@ -625,34 +606,24 @@ suspend fun shouldSucceedSocialRestore(
 
   // TC: Enter the challenge code and upload ciphertext
   tcApp.appUiStateMachine.test(
-    props = Unit,
-    useVirtualTime = false
+    props = Unit
   ) {
-    eventually(
-      eventuallyConfig {
-        duration = 60.seconds
-        interval = 1.seconds
-        initialDelay = 1.seconds
-      }
-    ) {
-      when (tcApp.getActiveAccount()) {
-        is LiteAccount -> advanceThroughSocialChallengeVerifyScreensAsLiteAccount(
-          protectedCustomerAlias,
-          challengeCode
-        )
-        is FullAccount -> advanceThroughSocialChallengeVerifyScreensAsFullAccount(
-          protectedCustomerAlias,
-          challengeCode
-        )
-        is SoftwareAccount -> fail("unexpected account type")
-        is OnboardingSoftwareAccount -> fail("unexpected account type")
-      }
-      cancelAndIgnoreRemainingEvents()
+    when (tcApp.getActiveAccount()) {
+      is LiteAccount -> advanceThroughSocialChallengeVerifyScreensAsLiteAccount(
+        protectedCustomerAlias,
+        challengeCode
+      )
+      is FullAccount -> advanceThroughSocialChallengeVerifyScreensAsFullAccount(
+        protectedCustomerAlias,
+        challengeCode
+      )
+      is SoftwareAccount -> fail("unexpected account type")
+      is OnboardingSoftwareAccount -> fail("unexpected account type")
     }
   }
 
   // PC: Complete Social Restore, make
-  recoveringApp.appUiStateMachine.test(props = Unit, useVirtualTime = false) {
+  recoveringApp.appUiStateMachine.test(props = Unit) {
     val tcList =
       advanceToSocialChallengeTrustedContactList(CloudStoreAccountFake.ProtectedCustomerFake)
     advanceFromSocialRestoreToLostHardwareRecovery(tcList)

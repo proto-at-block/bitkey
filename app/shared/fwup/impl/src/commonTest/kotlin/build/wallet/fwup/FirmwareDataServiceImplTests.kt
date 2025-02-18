@@ -15,16 +15,14 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.testCoroutineScheduler
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration.Companion.hours
 
 class FirmwareDataServiceImplTests : FunSpec({
-
+  // TODO(W-10571): use real dispatcher.
   coroutineTestScope = true
 
   val firmwareDeviceInfoDao =
@@ -38,14 +36,14 @@ class FirmwareDataServiceImplTests : FunSpec({
   lateinit var service: FirmwareDataServiceImpl
 
   beforeTest {
-    service =
-      FirmwareDataServiceImpl(
-        firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-        fwupDataFetcher = fwupDataFetcher,
-        fwupDataDao = fwupDataDao,
-        appSessionManager = appSessionManager,
-        debugOptionsService = debugOptionsService
-      )
+    service = FirmwareDataServiceImpl(
+      firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+      fwupDataFetcher = fwupDataFetcher,
+      fwupDataDao = fwupDataDao,
+      appSessionManager = appSessionManager,
+      debugOptionsService = debugOptionsService,
+      firmwareUpdateSyncFrequency = FirmwareUpdateSyncFrequency()
+    )
     firmwareDeviceInfoDao.reset()
     fwupDataDao.reset(testName = it.name.testName)
     fwupDataFetcher.reset(testName = it.name.testName)
@@ -55,24 +53,20 @@ class FirmwareDataServiceImplTests : FunSpec({
     debugOptionsService.setIsHardwareFake(false)
   }
 
-  test(
-    "executeWork establishes polling for fwup data and re-syncs every hour"
-  ) {
+  test("executeWork establishes polling for fwup data and re-syncs every hour") {
     firmwareDeviceInfoDao.setDeviceInfo(FirmwareDeviceInfoMock)
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-      fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDao.setFwupDataCalls.awaitItem()
-
-      advanceTimeBy(1.hours)
-      // emit again after the polling duration
-      fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDao.setFwupDataCalls.awaitItem()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.runCurrent()
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.setFwupDataCalls.awaitItem()
+
+    testCoroutineScheduler.advanceTimeBy(1.hours)
+    // emit again after the polling duration
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.setFwupDataCalls.awaitItem()
   }
 
   test("executeWork when isHardwareFake populates cache with fake data") {
@@ -97,54 +91,48 @@ class FirmwareDataServiceImplTests : FunSpec({
     firmwareDeviceInfoDao.setDeviceInfo(info)
     debugOptionsService.setIsHardwareFake(true)
 
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-      fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.runCurrent()
+    fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
   }
 
   test("syncer doesn't run in the background") {
     val info = FirmwareDeviceInfoMock
     firmwareDeviceInfoDao.setDeviceInfo(info)
 
-    runTest {
-      appSessionManager.appDidEnterBackground()
+    appSessionManager.appDidEnterBackground()
 
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      advanceTimeBy(1.hours)
-      fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
-
-      appSessionManager.appDidEnterForeground()
-      advanceTimeBy(1.hours)
-      fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDao.setFwupDataCalls.awaitItem()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.advanceTimeBy(1.hours)
+    fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
+
+    appSessionManager.appDidEnterForeground()
+    testCoroutineScheduler.advanceTimeBy(1.hours)
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.setFwupDataCalls.awaitItem()
   }
 
   test("changing deviceInfo triggers a sync") {
     val info = FirmwareDeviceInfoMock
     firmwareDeviceInfoDao.setDeviceInfo(info)
 
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-      fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDao.setFwupDataCalls.awaitItem()
-
-      firmwareDeviceInfoDao.setDeviceInfo(info.copy(version = "new-version"))
-      fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
-      fwupDataDao.setFwupDataCalls.awaitItem()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.runCurrent()
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.setFwupDataCalls.awaitItem()
+
+    firmwareDeviceInfoDao.setDeviceInfo(info.copy(version = "new-version"))
+    fwupDataFetcher.fetchLatestFwupDataCalls.awaitItem()
+    fwupDataDao.setFwupDataCalls.awaitItem()
   }
 
   test("updateFirmwareVersion updates device info and clears fwup") {
@@ -169,17 +157,15 @@ class FirmwareDataServiceImplTests : FunSpec({
     firmwareDeviceInfoDao.setDeviceInfo(info)
     debugOptionsService.setIsHardwareFake(true)
 
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-
-      // No device info clears the fwup dao
-      service.updateFirmwareVersion(fwupData = FwupDataMock)
-      fwupDataDao.clearCalls.expectNoEvents()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.runCurrent()
+
+    // No device info clears the fwup dao
+    service.updateFirmwareVersion(fwupData = FwupDataMock)
+    fwupDataDao.clearCalls.expectNoEvents()
   }
 
   test("firmwareData updates when deviceInfo or fwUp changes") {
@@ -220,17 +206,15 @@ class FirmwareDataServiceImplTests : FunSpec({
     firmwareDeviceInfoDao.setDeviceInfo(info)
     debugOptionsService.setIsHardwareFake(true)
 
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-
-      // No device info clears the fwup dao
-      service.syncLatestFwupData()
-      fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
+    backgroundScope.launch {
+      service.executeWork()
     }
+
+    testCoroutineScheduler.runCurrent()
+
+    // No device info clears the fwup dao
+    service.syncLatestFwupData()
+    fwupDataFetcher.fetchLatestFwupDataCalls.expectNoEvents()
   }
 
   test("syncLatestFwupData stores new FwupData") {

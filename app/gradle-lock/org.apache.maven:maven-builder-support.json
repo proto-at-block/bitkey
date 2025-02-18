@@ -2,11 +2,11 @@
     "module-identifier": "org.apache.maven:maven-builder-support",
     "components": [
         {
-            "version": "3.9.1",
+            "version": "3.9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "maven-builder-support-3.9.1.jar": "ffe515d3aebba2e5dbe5581b8effec41cb034f409e3dc1784fda680bdc46031b"
+                        "maven-builder-support-3.9.6.jar": "e1f4d2784459ce8a34b9dae1829a1999b569e483e21ee9faa7368691e729296e"
                     }
                 }
             ],

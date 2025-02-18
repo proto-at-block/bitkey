@@ -102,6 +102,8 @@ locals {
   common_secrets = {
     LAUNCHDARKLY_SDK_KEY = data.aws_secretsmanager_secret.fromagerie_launchdarkly_sdk_key.arn
     SEGMENT_API_KEY      = data.aws_secretsmanager_secret.fromagerie_segment_api_key.arn
+    WEB_SHOP_API_KEY     = data.aws_secretsmanager_secret.interop_web_shop_api_key.arn
+    WEBHOOK_API_KEY      = data.aws_secretsmanager_secret.interop_webhook_api_key.arn
   }
 }
 
@@ -159,6 +161,14 @@ data "aws_secretsmanager_secret_version" "gcm_firebase_admin_key" {
 
 data "aws_secretsmanager_secret" "fromagerie_histogram_output_encryption_key" {
   name = "fromagerie/user_balance_histogram/output_encryption_key"
+}
+
+data "aws_secretsmanager_secret" "interop_webhook_api_key" {
+  name = "interop/fromagerie/webhook_api_key"
+}
+
+data "aws_secretsmanager_secret" "interop_web_shop_api_key" {
+  name = "interop/web-shop-api/fromagerie_api_key"
 }
 
 data "aws_acm_certificate" "external_certs" {
@@ -844,6 +854,8 @@ data "aws_iam_policy_document" "secrets_iam_policy" {
   statement {
     resources = [
       "arn:aws:secretsmanager:*:*:secret:fromagerie/**",
+      "arn:aws:secretsmanager:*:*:secret:interop/fromagerie/**",
+      "arn:aws:secretsmanager:*:*:secret:interop/web-shop-api/**",
       "arn:aws:secretsmanager:*:*:secret:${module.this.id}/**",
     ]
     actions = [

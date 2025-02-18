@@ -12,17 +12,15 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.EnabledIf
-import kotlinx.coroutines.runBlocking
 
 class RegtestTreasuryWalletTests : FunSpec({
-  val enableOnlyForRegtest: EnabledIf = {
-    runBlocking { launchNewApp() }.initialBitcoinNetworkType == REGTEST
-  }
 
-  test("we can fund a regtest treasury").config(enabledIf = enableOnlyForRegtest) {
-    val network = REGTEST
+  test("we can fund a regtest treasury") {
     val app = launchNewApp()
+    val isRegtest = app.initialBitcoinNetworkType == REGTEST
+    if (!isRegtest) return@test
+
+    val network = REGTEST
     // Set the keybox config to regtest because the syncer use its network. It'd be better
     // to construct the needed dependencies from scratch in the test instead of relying on
     // app, but instantiating the graph is far too complex to be maintainable.

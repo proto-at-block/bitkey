@@ -1,19 +1,26 @@
 package build.wallet.logging
 
+import kotlin.text.RegexOption.IGNORE_CASE
+
 // TODO: [W-5877] Add more robust sensitive data scanner
 object SensitiveDataValidator {
-  /** Naive way of catching logs that might contain sensitive data. */
-  private fun indicators(): List<Regex> {
-    return listOf(
-      Regex("[tx]prv\\w{78,112}", RegexOption.IGNORE_CASE)
-    )
-  }
-
+  /**
+   * Returns `true` if log tag or message contains sensitive data.
+   * Also `true` if dev tag is used, potentially indicating that dev code has been checked in.
+   */
   fun isSensitiveData(entry: LogEntry): Boolean {
-    return indicators().any { indicator ->
+    return indicators.any { indicator ->
       entry.tag.contains(indicator) ||
         entry.message.contains(indicator) ||
         entry.tag == DEV_TAG
     }
   }
+
+  /** Naive way of catching logs that might contain sensitive data. */
+  private val indicators: List<Regex> = listOf(
+    // bitcoin private keys
+    Regex("[tx]prv\\w{78,112}", IGNORE_CASE),
+    // naive check for names/aliases
+    Regex("(alice|bob|aunt|uncle|cousin)", IGNORE_CASE)
+  )
 }

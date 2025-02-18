@@ -10,13 +10,13 @@ import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.partnerships.*
-import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitSheet
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -80,14 +80,14 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   // tests
 
   test("redirect partner") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
       }
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         with(mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()) {
           listGroupModel.items.count().shouldBe(3)
           listGroupModel.items[0].title.shouldBe("Partner 1")
@@ -97,7 +97,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
           listGroupModel.items[1].onClick.shouldNotBeNull().invoke()
 
           getTransferRedirectF8eClient.getTransferPartnersRedirectCall.awaitItem()
-          awaitSheetWithBody<FormBodyModel> {
+          awaitSheet<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
           }
 
@@ -113,7 +113,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
             partnerId = PartnerId("Partner2"),
             logoBadgedUrl = null
           )
-          awaitSheetWithBody<FormBodyModel> {
+          awaitSheet<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
             partnershipTransactionsService.createCalls.awaitItem().should { (partnerInfo, type) ->
               type.shouldBe(PartnershipTransactionType.TRANSFER)
@@ -147,11 +147,11 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   }
 
   test("another exchange or wallet clicked") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel>()
+      awaitSheet<FormBodyModel>()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         with(mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()) {
           listGroupModel.items[2].title.shouldBe("Another exchange or wallet")
           listGroupModel.items[2].onClick.shouldNotBeNull().invoke()
@@ -166,13 +166,14 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   }
 
   test("unable to load partners renders error sheet with another exchange option") {
-    getTransferPartnerListF8eClient.partnersResult = Err(HttpError.NetworkError(Error("Network error")))
-    stateMachine.test(props()) {
+    getTransferPartnerListF8eClient.partnersResult =
+      Err(HttpError.NetworkError(Error("Network error")))
+    stateMachine.testWithVirtualTime(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
       }
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         header.shouldNotBeNull()
           .headline
           .shouldNotBeNull()

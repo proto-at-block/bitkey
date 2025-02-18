@@ -8,6 +8,7 @@ import build.wallet.availability.AppFunctionalitySyncWorker
 import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
 import build.wallet.bitcoin.sync.ElectrumServerConfigSyncWorker
 import build.wallet.bitcoin.transactions.BitcoinWalletSyncWorker
+import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.debug.NetworkingDebugService
@@ -37,7 +38,6 @@ fun interface AppWorkerProvider {
  * Implementation of [AppWorkerProvider] that provides all actual [AppWorker]s that should be
  * executed on application startup.
  */
-
 @BitkeyInject(AppScope::class)
 class AppWorkerProviderImpl(
   private val eventTracker: EventTracker,
@@ -62,6 +62,7 @@ class AppWorkerProviderImpl(
   private val transactionsActivitySyncWorker: TransactionsActivitySyncWorker,
   private val electrumConfigSyncWorker: ElectrumServerConfigSyncWorker,
   private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
+  private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -86,7 +87,8 @@ class AppWorkerProviderImpl(
       inheritanceClaimsSyncWorker,
       transactionsActivitySyncWorker,
       electrumConfigSyncWorker,
-      partnershipTransactionsSyncWorker
+      partnershipTransactionsSyncWorker,
+      socRecCloudBackupSyncWorker
     )
   }
 }

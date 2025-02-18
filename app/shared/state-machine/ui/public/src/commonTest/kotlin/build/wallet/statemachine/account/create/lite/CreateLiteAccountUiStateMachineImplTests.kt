@@ -4,39 +4,39 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION_FAILURE
-import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.BEING_TRUSTED_CONTACT_INTRODUCTION
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
 import build.wallet.analytics.v1.Action
 import build.wallet.auth.LiteAccountCreationError
 import build.wallet.auth.LiteAccountCreatorMock
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
-import build.wallet.bitkey.account.LiteAccount
+import build.wallet.bitkey.account.Account
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.error.F8eError
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
@@ -56,11 +56,12 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
       ) {},
     deviceInfoProvider = DeviceInfoProviderMock(),
     eventTracker = eventTracker,
-    debugOptionsService = debugOptionsService
+    debugOptionsService = debugOptionsService,
+    inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
   )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
-  val propsOnAccountCreatedCalls = turbines.create<LiteAccount>("props onDone calls")
+  val propsOnAccountCreatedCalls = turbines.create<Account>("props onDone calls")
   val props = CreateLiteAccountUiProps(
     onBack = { propsOnBackCalls.add(Unit) },
     onAccountCreated = { propsOnAccountCreatedCalls.add(it) },
@@ -83,25 +84,26 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
       setIsTestAccount(true)
       setUsingSocRecFakes(true)
     }
+    Router.route = null
   }
 
   test("happy path") {
     val account = liteAccountCreator.createAccountResult.get()!!
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("code", 0..0)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        value.shouldBe("code")
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBodyModelMock<LiteAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<LiteAccountCloudSignInAndBackupProps> {
         onBackupSaved()
       }
-      awaitScreenWithBodyModelMock<TrustedContactEnrollmentUiProps> {
-        onDone()
+      awaitBodyMock<TrustedContactEnrollmentUiProps> {
+        onDone(account)
       }
       eventTracker.eventCalls.awaitItem()
         .shouldBe(TrackedAction(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY))
@@ -111,14 +113,14 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("deep link, no introduction") {
     val account = liteAccountCreator.createAccountResult.get()!!
-    stateMachine.test(inviteProps.copy(showBeTrustedContactIntroduction = false)) {
+    stateMachine.testWithVirtualTime(inviteProps.copy(showBeTrustedContactIntroduction = false)) {
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBodyModelMock<LiteAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<LiteAccountCloudSignInAndBackupProps> {
         onBackupSaved()
       }
-      awaitScreenWithBodyModelMock<TrustedContactEnrollmentUiProps> {
-        onDone()
+      awaitBodyMock<TrustedContactEnrollmentUiProps> {
+        onDone(account)
       }
       propsOnAccountCreatedCalls.awaitItem().shouldBe(account)
     }
@@ -126,37 +128,36 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("deep link with introduction screen") {
     val account = liteAccountCreator.createAccountResult.get()!!
-    stateMachine.test(inviteProps) {
-      awaitScreenWithBody<FormBodyModel>(BEING_TRUSTED_CONTACT_INTRODUCTION) {
-        clickPrimaryButton()
+    stateMachine.testWithVirtualTime(inviteProps) {
+      awaitBody<BeTrustedContactIntroductionModel> {
+        onContinue()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBodyModelMock<LiteAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<LiteAccountCloudSignInAndBackupProps> {
         onBackupSaved()
       }
-      awaitScreenWithBodyModelMock<TrustedContactEnrollmentUiProps> {
-        onDone()
+      awaitBodyMock<TrustedContactEnrollmentUiProps> {
+        onDone(account)
       }
       propsOnAccountCreatedCalls.awaitItem().shouldBe(account)
     }
   }
 
   test("TC enrollment on retreat calls props.onBack") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("code", 0..0)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<EnteringInviteCodeBodyModel> {
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBodyModelMock<LiteAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<LiteAccountCloudSignInAndBackupProps> {
         onBackupSaved()
       }
-      awaitScreenWithBodyModelMock<TrustedContactEnrollmentUiProps> {
+      awaitBodyMock<TrustedContactEnrollmentUiProps> {
         retreat.onRetreat()
       }
 
@@ -170,12 +171,11 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("non-retryable failure on back calls props.onBack") {
     liteAccountCreator.createAccountResult = Err(NonRetryableError)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("code", 0..0)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<EnteringInviteCodeBodyModel> {
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
@@ -185,67 +185,55 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem()
         .shouldBe(TrackedAction(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY))
 
-      awaitScreenWithBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
+      awaitBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
         secondaryButton.shouldBeNull()
         clickPrimaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList
-          .first()
-          .shouldBeTypeOf<FormMainContentModel.TextInput>()
-          .fieldModel
-          .value
-          .shouldBeEqual("code")
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
     }
   }
 
   test("retryable failure returns to code input") {
     liteAccountCreator.createAccountResult = Err(RetryableError)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("code", 0..0)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<EnteringInviteCodeBodyModel> {
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
       eventTracker.eventCalls.awaitItem()
         .shouldBe(TrackedAction(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY))
-      awaitScreenWithBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
+      awaitBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
         clickSecondaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList
-          .first()
-          .shouldBeTypeOf<FormMainContentModel.TextInput>()
-          .fieldModel
-          .value
-          .shouldBeEqual("code")
+      awaitBody<EnteringInviteCodeBodyModel> {
+        value.shouldBe("code")
       }
     }
   }
 
   test("retryable failure on retry calls create account again") {
     liteAccountCreator.createAccountResult = Err(RetryableError)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
-        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
-          .onValueChange("code", 0..0)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EnteringInviteCodeBodyModel> {
+        onValueChange("code")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<EnteringInviteCodeBodyModel> {
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
+      awaitBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE) {
         clickPrimaryButton()
       }
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       liteAccountCreator.createAccountCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE)
+      awaitBody<FormBodyModel>(NEW_LITE_ACCOUNT_CREATION_FAILURE)
 
       eventTracker.eventCalls.awaitItem()
         .shouldBe(TrackedAction(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY))

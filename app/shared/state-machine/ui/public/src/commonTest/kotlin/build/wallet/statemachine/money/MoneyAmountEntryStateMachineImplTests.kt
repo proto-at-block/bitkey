@@ -6,7 +6,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.money.input.MoneyInputFormatterMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryProps
 import build.wallet.statemachine.money.amount.MoneyAmountEntryUiStateMachineImpl
@@ -32,7 +32,7 @@ class MoneyAmountEntryStateMachineImplTests : FunSpec({
     )
 
   test("fiat as primary amount - initial model") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(
         MoneyAmountEntryModel(
           primaryAmount = "MoneyInputFormatter.displayText",
@@ -44,7 +44,7 @@ class MoneyAmountEntryStateMachineImplTests : FunSpec({
   }
 
   test("btc as primary amount - initial model") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         MoneyAmountEntryProps(
           inputAmount = WholeNumber(1000000),

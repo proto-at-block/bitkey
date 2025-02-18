@@ -266,8 +266,7 @@ private fun failureModel(
         onBack = onBack
       ),
     onClosed = onExit,
-    size = MIN40,
-    dragIndicatorVisible = true
+    size = MIN40
   )
 }
 
@@ -283,11 +282,10 @@ private fun loadingModel(
     onExit = onExit
   ),
   onClosed = onExit,
-  size = MIN40,
-  dragIndicatorVisible = true
+  size = MIN40
 )
 
-private data class LoadingBodyModel(
+data class LoadingBodyModel(
   override val id: DepositEventTrackerScreenId,
   val context: PartnerEventTrackerScreenIdContext? = null,
   val onExit: () -> Unit,

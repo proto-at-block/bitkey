@@ -20,7 +20,7 @@ import build.wallet.ui.model.toast.ToastModel
  * the status bar, if any. Currently only expected in Root presentation style, errors otherwise.
  * @property toastModel a temporary toast shown at the bottom of the screen, if any.
  * @property bottomSheetModel a half sheet to show over the screen, if any.
- * @property onBack back handler for Android, if any.
+ * @property platformNfcScreen enable for NFC screens that can be handled by platform UI.
  */
 data class ScreenModel(
   val body: BodyModel,
@@ -32,7 +32,8 @@ data class ScreenModel(
   val toastModel: ToastModel? = null,
   val bottomSheetModel: SheetModel? = null,
   val systemUIModel: SystemUIModel? = null,
-) : Model() {
+  val platformNfcScreen: Boolean = false,
+) : Model {
   init {
     if (statusBannerModel != null) {
       // We only expect use the status banner in Root style screens currently.

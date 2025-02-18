@@ -5,9 +5,11 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Impl
@@ -15,8 +17,12 @@ import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import build.wallet.f8e.error.code.F8eClientErrorCode
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.error.toF8eError
 import build.wallet.f8e.logging.withDescription
@@ -24,7 +30,7 @@ import build.wallet.f8e.relationships.models.*
 import build.wallet.ktor.result.*
 import build.wallet.mapUnit
 import build.wallet.serialization.json.JsonEncodingError
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -43,13 +49,11 @@ class RelationshipsF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
   ): Result<Relationships, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<GetRecoveryRelationshipsResponseBody> {
         get("/api/accounts/${accountId.serverId}/relationships") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId, AuthTokenScope.Recovery)
           withDescription("Fetch relationships")
         }
       }
@@ -72,14 +76,13 @@ class RelationshipsF8eClientImpl(
     protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
     roles: Set<TrustedContactRole>,
   ): Result<Invitation, NetworkingError> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment = account.config.f8eEnvironment,
-      accountId = account.accountId,
-      hwFactorProofOfPossession = hardwareProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .bodyResult<CreateRelationshipInvitationResponseBody> {
         post("/api/accounts/${account.accountId.serverId}/relationships") {
           withDescription("Create relationship invitation")
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId)
+          withHardwareFactor(hardwareProofOfPossession)
           setRedactedBody(
             CreateRelationshipInvitationRequestBody(
               trustedContactAlias = trustedContactAlias,
@@ -98,15 +101,14 @@ class RelationshipsF8eClientImpl(
     hardwareProofOfPossession: HwFactorProofOfPossession,
     relationshipId: String,
   ): Result<Invitation, NetworkingError> {
-    return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        hwFactorProofOfPossession = hardwareProofOfPossession
-      ).bodyResult<RefreshTrustedContactResponseBody> {
+    return f8eHttpClient.authenticated()
+      .bodyResult<RefreshTrustedContactResponseBody> {
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId)
+          withHardwareFactor(hardwareProofOfPossession)
           withDescription("Refresh Invitation")
           setRedactedBody(RefreshTrustedContactRequestBody(action = "Reissue"))
         }
@@ -123,16 +125,14 @@ class RelationshipsF8eClientImpl(
     relationshipId: String,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        hwFactorProofOfPossession = hardwareProofOfPossession,
-        authTokenScope = authTokenScope
-      )
+      .authenticated()
       .catching {
         delete(
           "/api/accounts/${accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId, authTokenScope)
+          hardwareProofOfPossession?.run(::withHardwareFactor)
           withDescription("Delete relationship")
           setRedactedBody(EmptyRequestBody)
         }
@@ -149,14 +149,12 @@ class RelationshipsF8eClientImpl(
       val f8eEndorsements = endorsements.mapResult { it.body() }.bind()
 
       f8eHttpClient
-        .authenticated(
-          f8eEnvironment = f8eEnvironment,
-          accountId = accountId,
-          authTokenScope = AuthTokenScope.Global
-        )
+        .authenticated()
         .bodyResult<EndorseTrustedContactsResponseBody> {
           put("/api/accounts/${accountId.serverId}/recovery/relationships") {
             withDescription("Endorse trusted contacts")
+            withEnvironment(f8eEnvironment)
+            withAccountId(accountId, AuthTokenScope.Global)
             setRedactedBody(EndorseTrustedContactsRequestBody(f8eEndorsements))
           }
         }
@@ -177,15 +175,13 @@ class RelationshipsF8eClientImpl(
     invitationCode: String,
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<RetrieveTrustedContactInvitationResponseBody> {
         get(
           "/api/accounts/${account.accountId.serverId}/recovery/relationship-invitations/$invitationCode"
         ) {
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId, AuthTokenScope.Recovery)
           withDescription("Retrieve Trusted Contact invitation")
         }
       }
@@ -202,16 +198,14 @@ class RelationshipsF8eClientImpl(
     sealedDelegateDecryptionKeyCipherText: XCiphertext,
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<AcceptTrustedContactInvitationResponseBody> {
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.relationshipId}"
         ) {
           withDescription("Accept Trusted Contact invitation")
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId, AuthTokenScope.Recovery)
           setRedactedBody(
             AcceptTrustedContactInvitationRequestBody(
               code = invitation.code,
@@ -225,6 +219,63 @@ class RelationshipsF8eClientImpl(
       }
       .map { it.customer }
       .mapError { it.toF8eError<AcceptTrustedContactInvitationErrorCode>() }
+  }
+
+  override suspend fun uploadSealedDelegatedDecryptionKeyData(
+    accountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    sealedData: SealedData,
+  ): Result<Unit, NetworkingError> {
+    return f8eHttpClient
+      .authenticated()
+      .bodyResult<EmptyResponseBody> {
+        post("/api/accounts/${accountId.serverId}/recovery/backup") {
+          withDescription("Post Backup")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId, AuthTokenScope.Global)
+          setRedactedBody(
+            UploadSealedDelegatedDecryptionKeyRequestBody(
+              recoveryBackupMaterial = sealedData
+            )
+          )
+        }
+      }
+      .mapUnit()
+  }
+
+  override suspend fun getSealedDelegatedDecryptionKeyData(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): Result<SealedData, NetworkingError> {
+    return f8eHttpClient
+      .authenticated()
+      .bodyResult<GetSealedDelegatedDecryptionKeyRequestBody> {
+        get("/api/accounts/${accountId.serverId}/recovery/backup") {
+          withDescription("Get Backup")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId, AuthTokenScope.Global)
+        }
+      }
+      .map { it.recoveryBackupMaterial }
+  }
+
+  override suspend fun retrieveInvitationPromotionCode(
+    account: Account,
+    invitationCode: String,
+  ): Result<PromotionCode?, F8eError<F8eClientErrorCode>> {
+    return f8eHttpClient
+      .authenticated()
+      .bodyResult<RetrieveInvitationPromotionCodeResponseBody> {
+        get(
+          "/api/accounts/${account.accountId.serverId}/recovery/relationship-invitations/$invitationCode/promotion-code"
+        ) {
+          withDescription("Retrieve invitation promotion code")
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId, AuthTokenScope.Recovery)
+        }
+      }
+      .map { it.code?.let(::PromotionCode) }
+      .mapError { it.toF8eError<F8eClientErrorCode>() }
   }
 }
 

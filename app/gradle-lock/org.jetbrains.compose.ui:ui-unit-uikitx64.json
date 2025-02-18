@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-unit-uikitx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-unit-uikitx64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "ui-unit-uikitx64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-unit.klib": "919d699ba8af07c905cd1f4731d26b0cfc1cf83cd90679095b8fdf27043fe138"
+                        "ui-unit.klib": "13aeb9c6749bf3d1b9ae0d0ecc4717aff0e37bc88815e5263d83c2e5a819332c"
                     }
                 }
             ],

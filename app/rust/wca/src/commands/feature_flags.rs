@@ -60,7 +60,7 @@ convert_enum!(
 
 impl FirmwareFeatureFlag {
     pub fn from_i32(i: i32) -> Option<FirmwareFeatureFlag> {
-        FeatureFlag::from_i32(i).map(FirmwareFeatureFlag::from)
+        FeatureFlag::try_from(i).ok().map(FirmwareFeatureFlag::from)
     }
 }
 
@@ -125,9 +125,11 @@ fn feature_flags_set(flags: Vec<FirmwareFeatureFlag>, enabled: bool) -> Result<b
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::FeatureFlagsSetRsp(FeatureFlagsSetRsp { rsp_status }) = message {
-        match FeatureFlagsSetRspStatus::from_i32(rsp_status) {
-            Some(FeatureFlagsSetRspStatus::Success) => Ok(true),
-            _ => Err(CommandError::InvalidResponse),
+        match FeatureFlagsSetRspStatus::try_from(rsp_status) {
+            Ok(FeatureFlagsSetRspStatus::Success) => Ok(true),
+            Ok(FeatureFlagsSetRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(FeatureFlagsSetRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)

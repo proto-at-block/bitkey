@@ -1,5 +1,5 @@
 use instrumentation::metrics::{
-    factory::Counter, factory::Histogram, factory::MetricsFactory, KeyValue, Unit,
+    factory::Counter, factory::Histogram, factory::MetricsFactory, KeyValue,
 };
 use once_cell::sync::Lazy;
 use std::future::Future;
@@ -36,15 +36,15 @@ pub(crate) static SWEEP_OUTPUTS_DONT_BELONG_TO_ACTIVE_KEYSET: Lazy<Counter<u64>>
 
 // Measures the spread of how long it takes to cosign a transaction.
 pub(crate) static TIME_TO_COSIGN: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("time_to_cosign", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("time_to_cosign", Some("ms")));
 
 // Measured the spread of how long it takes for F8e to broadcast a transaction.
 pub(crate) static TIME_TO_BROADCAST: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("f8e_time_to_broadcast", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("f8e_time_to_broadcast", Some("ms")));
 
 // Measures the spread of how long it takes for F8e to check spending rules for a transaction.
 pub(crate) static TIME_TO_CHECK_SPENDING_RULES: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("f8e_time_to_check_spending_rules", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("f8e_time_to_check_spending_rules", Some("ms")));
 
 const SIGNING_CONTEXT: &str = "signing_context";
 

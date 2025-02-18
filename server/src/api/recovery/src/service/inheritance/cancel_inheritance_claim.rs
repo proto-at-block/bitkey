@@ -4,7 +4,7 @@ use notification::{NotificationPayloadBuilder, NotificationPayloadType};
 use tokio::try_join;
 
 use tracing::instrument;
-use types::account::entities::Account;
+use types::account::entities::FullAccount;
 
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimCanceled, InheritanceClaimCanceledBy, InheritanceClaimId,
@@ -14,7 +14,7 @@ use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelati
 use super::{error::ServiceError, fetch_relationships_and_claim, Service};
 
 pub struct CancelInheritanceClaimInput<'a> {
-    pub account: &'a Account,
+    pub account: &'a FullAccount,
     pub inheritance_claim_id: InheritanceClaimId,
 }
 
@@ -39,12 +39,9 @@ impl Service {
         input: CancelInheritanceClaimInput<'_>,
     ) -> Result<(InheritanceClaimCanceledBy, InheritanceClaim), ServiceError> {
         // Check to see if the given Recovery Relationships are valid
-        let (relationships, claim) = fetch_relationships_and_claim(
-            self,
-            input.account.get_id(),
-            &input.inheritance_claim_id,
-        )
-        .await?;
+        let (relationships, claim) =
+            fetch_relationships_and_claim(self, &input.account.id, &input.inheritance_claim_id)
+                .await?;
 
         if !matches!(claim, InheritanceClaim::Pending(_))
             && !matches!(claim, InheritanceClaim::Canceled(_))

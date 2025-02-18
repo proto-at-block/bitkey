@@ -1,0 +1,10 @@
+-- Adds ddkBackedUp column to localRecoveryAttemptEntity
+
+-- 1. Add the new ddkBackedUp column to the existing localRecoveryAttemptEntity table
+ALTER TABLE localRecoveryAttemptEntity ADD COLUMN ddkBackedUp INTEGER NOT NULL DEFAULT 0;
+
+-- 2. Set ddkBackedUp to 1 for all rows where we've already backed up to cloud
+UPDATE localRecoveryAttemptEntity SET ddkBackedUp = 1 WHERE backedUpToCloud = 1;
+
+-- 3. Ensure foreign key constraints are still valid
+PRAGMA foreign_key_check;

@@ -400,20 +400,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "boring"
-version = "4.10.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "07e774b91e8adadd05892dfa300bc297e703a3cea36f094a4f8c155d2b13b770"
-dependencies = [
- "bitflags 2.6.0",
- "boring-sys",
- "foreign-types 0.5.0",
- "libc",
- "once_cell",
- "openssl-macros",
-]
-
-[[package]]
 name = "boring-sys"
 version = "4.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -725,7 +711,6 @@ dependencies = [
  "anyhow",
  "bdk",
  "bitcoin",
- "boring",
  "boring-sys",
  "chacha20poly1305",
  "crypto-common",
@@ -1065,28 +1050,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6f339eb8adc052cd2ca78910fda869aefa38d22d5cb648e6485e4d3fc06f3b1"
 dependencies = [
- "foreign-types-shared 0.1.1",
-]
-
-[[package]]
-name = "foreign-types"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d737d9aa519fb7b749cbc3b962edcf310a8dd1f4b67c91c4f83975dbdd17d965"
-dependencies = [
- "foreign-types-macros",
- "foreign-types-shared 0.3.1",
-]
-
-[[package]]
-name = "foreign-types-macros"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a5c6c585bc94aaf2c7b51dd4c2ba22680844aba4c687be581871a6f518c5742"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.77",
+ "foreign-types-shared",
 ]
 
 [[package]]
@@ -1094,12 +1058,6 @@ name = "foreign-types-shared"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
-
-[[package]]
-name = "foreign-types-shared"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa9a19cbb55df58761df49b23516a86d432839add4af60fc256da840f66ed35b"
 
 [[package]]
 name = "fs2"
@@ -1537,7 +1495,7 @@ checksum = "9529f4786b70a3e8c61e11179af17ab6188ad8d0ded78c5529441ed39d4bd9c1"
 dependencies = [
  "bitflags 2.6.0",
  "cfg-if",
- "foreign-types 0.3.2",
+ "foreign-types",
  "libc",
  "once_cell",
  "openssl-macros",

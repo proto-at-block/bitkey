@@ -8,6 +8,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withAppAuthKey
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.frost.SealedRequest
 import build.wallet.ktor.result.*
@@ -27,28 +30,30 @@ class ContinueDistributedKeygenF8eClientImpl(
     appAuthKey: PublicKey<AppGlobalAuthKey>,
     softwareKeyDefinitionId: SoftwareKeyDefinitionId,
     sealedRequest: SealedRequest,
-  ): Result<Unit, NetworkingError> {
-    return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        appFactorProofOfPossessionAuthKey = appAuthKey
-      )
+    noiseSessionId: String,
+  ): Result<Unit, NetworkingError> =
+    f8eHttpClient
+      .authenticated()
       .bodyResult<EmptyResponseBody> {
         put(urlString = "/api/accounts/${accountId.serverId}/distributed-keygen/${softwareKeyDefinitionId.value}") {
           withDescription("Continue distributed keygen")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
+          withAppAuthKey(appAuthKey)
           setRedactedBody(
             RequestBody(
-              sealedRequest = sealedRequest.value
+              sealedRequest = sealedRequest.value,
+              noiseSessionId = noiseSessionId
             )
           )
         }
       }.mapUnit()
-  }
 
   @Serializable
   private data class RequestBody(
     @SerialName("sealed_request")
     val sealedRequest: String,
+    @SerialName("noise_session")
+    val noiseSessionId: String,
   ) : RedactedRequestBody
 }

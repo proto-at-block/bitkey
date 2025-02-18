@@ -20,6 +20,16 @@ pub enum NavigationScreenId {
     MoneyHome = 1,
     /// * The root settings screen. *
     Settings = 2,
+    /// * Settings > Manage inheritance (Beneficiaries tab) *
+    ManageInheritance = 3,
+    /// * Settings > Manage inheritance (benefactor tab) *
+    ManageInheritanceBenefactor = 4,
+    /// * Decline claim modal flow - requires claim id in payload *
+    InheritanceDeclineClaim = 5,
+    /// * Complete claim modal flow - requires claim id in payload *
+    InheritanceCompleteClaim = 6,
+    /// * The success screen shown to a benefactor when an invite is accepted upon tapping the notification. *
+    InheritanceBenefactorInviteAccepted = 7,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -31,6 +41,21 @@ impl NavigationScreenId {
             NavigationScreenId::Unspecified => "NAVIGATION_SCREEN_ID_UNSPECIFIED",
             NavigationScreenId::MoneyHome => "NAVIGATION_SCREEN_ID_MONEY_HOME",
             NavigationScreenId::Settings => "NAVIGATION_SCREEN_ID_SETTINGS",
+            NavigationScreenId::ManageInheritance => {
+                "NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE"
+            }
+            NavigationScreenId::ManageInheritanceBenefactor => {
+                "NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR"
+            }
+            NavigationScreenId::InheritanceDeclineClaim => {
+                "NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM"
+            }
+            NavigationScreenId::InheritanceCompleteClaim => {
+                "NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM"
+            }
+            NavigationScreenId::InheritanceBenefactorInviteAccepted => {
+                "NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -39,6 +64,19 @@ impl NavigationScreenId {
             "NAVIGATION_SCREEN_ID_UNSPECIFIED" => Some(Self::Unspecified),
             "NAVIGATION_SCREEN_ID_MONEY_HOME" => Some(Self::MoneyHome),
             "NAVIGATION_SCREEN_ID_SETTINGS" => Some(Self::Settings),
+            "NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE" => Some(Self::ManageInheritance),
+            "NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR" => {
+                Some(Self::ManageInheritanceBenefactor)
+            }
+            "NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM" => {
+                Some(Self::InheritanceDeclineClaim)
+            }
+            "NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM" => {
+                Some(Self::InheritanceCompleteClaim)
+            }
+            "NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED" => {
+                Some(Self::InheritanceBenefactorInviteAccepted)
+            }
             _ => None,
         }
     }

@@ -28,11 +28,11 @@ import build.wallet.partnerships.PartnershipTransactionType.SALE
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
@@ -48,7 +48,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.minutes
 
@@ -201,8 +200,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending receive transaction returns correct model") {
-    stateMachine.test(pendingReceiveProps) {
-      awaitScreenWithBody<TransactionDetailModel> {
+    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+      awaitBody<TransactionDetailModel> {
         // before currency conversion
 
         testButtonsAndHeader(
@@ -226,7 +225,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<TransactionDetailModel> {
+      awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the current exchange rate
 
@@ -244,8 +243,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("received transactions returns correct model") {
-    stateMachine.test(receivedProps) {
-      awaitScreenWithBody<TransactionDetailModel> {
+    stateMachine.testWithVirtualTime(receivedProps) {
+      awaitBody<TransactionDetailModel> {
         // before currency conversion
 
         testButtonsAndHeader(
@@ -275,7 +274,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<TransactionDetailModel> {
+      awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the current exchange rate
         with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -292,8 +291,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending sent transaction returns correct model") {
-    stateMachine.test(pendingSentProps) {
-      awaitScreenWithBody<TransactionDetailModel> {
+    stateMachine.testWithVirtualTime(pendingSentProps) {
+      awaitBody<TransactionDetailModel> {
         // before currency conversion
 
         testButtonsAndHeader(
@@ -331,7 +330,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<TransactionDetailModel> {
+      awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the historical exchange rate for broadcast time
         with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -358,8 +357,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending send transaction without estimate does not show confirmation row") {
-    stateMachine.test(pendingSentPropsNoEstimatedConfirmationTime) {
-      awaitScreenWithBody<TransactionDetailModel> {
+    stateMachine.testWithVirtualTime(pendingSentPropsNoEstimatedConfirmationTime) {
+      awaitBody<TransactionDetailModel> {
         // before currency conversion
 
         testButtonsAndHeader(
@@ -379,13 +378,13 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       }
 
       // after currency conversion
-      awaitScreenWithBody<TransactionDetailModel>()
+      awaitBody<TransactionDetailModel>()
     }
   }
 
   test("sent transactions returns correct model") {
-    stateMachine.test(sentProps) {
-      awaitScreenWithBody<TransactionDetailModel> {
+    stateMachine.testWithVirtualTime(sentProps) {
+      awaitBody<TransactionDetailModel> {
         // before currency conversion
 
         testButtonsAndHeader(
@@ -423,7 +422,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<TransactionDetailModel> {
+      awaitBody<TransactionDetailModel> {
         // after currency conversion
         // Should use the historical exchange rate
         with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -450,8 +449,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose is called") {
-    stateMachine.test(pendingReceiveProps) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+      awaitBody<FormBodyModel> {
         onBack?.invoke()
       }
       inAppBrowserNavigator.onCloseCalls.awaitItem().shouldBe(Unit)
@@ -461,10 +460,10 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("browser navigation opens on primary button click") {
-    stateMachine.test(pendingReceiveProps) {
-      awaitScreenWithBody<TransactionDetailModel>()
+    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+      awaitBody<TransactionDetailModel>()
 
-      awaitScreenWithBody<TransactionDetailModel> {
+      awaitBody<TransactionDetailModel> {
         viewTransactionText.shouldBe("View transaction")
         onViewTransaction()
       }
@@ -478,29 +477,27 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("transaction updates trigger screen updates") {
-    runTest {
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
-          // Time Details
-          with(content[2].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
-          }
+    stateMachine.testWithVirtualTime(pendingSentProps) {
+      awaitBody<TransactionDetailModel> {
+        // Time Details
+        with(content[2].shouldBeInstanceOf<DataList>()) {
+          items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
         }
+      }
 
-        transactionActivityService.transactions.value = listOf(sentProps.transaction)
+      transactionActivityService.transactions.value = listOf(sentProps.transaction)
 
-        awaitScreenWithBody<TransactionDetailModel> {
-          // Time Details
-          with(content[2].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
-          }
+      awaitBody<TransactionDetailModel> {
+        // Time Details
+        with(content[2].shouldBeInstanceOf<DataList>()) {
+          items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
         }
+      }
 
-        awaitScreenWithBody<TransactionDetailModel> {
-          // Time Details
-          with(content[2].shouldBeInstanceOf<DataList>()) {
-            items[0].expect(title = "Confirmed", sideText = "confirmed-time")
-          }
+      awaitBody<TransactionDetailModel> {
+        // Time Details
+        with(content[2].shouldBeInstanceOf<DataList>()) {
+          items[0].expect(title = "Confirmed", sideText = "confirmed-time")
         }
       }
     }
@@ -513,8 +510,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("pending sent transaction returns correct model") {
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -550,7 +547,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate for broadcast time
           with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -581,8 +578,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock.now =
         pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
 
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
             isSpeedUpOn = true,
@@ -611,7 +608,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after currency conversion
-        awaitScreenWithBody<FormBodyModel>()
+        awaitBody<FormBodyModel>()
       }
     }
 
@@ -620,8 +617,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock.now =
         pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
 
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
             isSpeedUpOn = true,
@@ -647,7 +644,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after currency conversion
-        awaitScreenWithBody<TransactionDetailModel>()
+        awaitBody<TransactionDetailModel>()
 
         // after clicking explainer icon button
         val screenModel = awaitItem()
@@ -665,13 +662,13 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after closing education sheet
-        awaitScreenWithBody<FormBodyModel>()
+        awaitBody<FormBodyModel>()
       }
     }
 
     test("tapping speed up should open the fee bump flow") {
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
             isSpeedUpOn = true,
@@ -682,7 +679,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after currency conversion
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           onSpeedUpTransaction()
         }
 
@@ -690,17 +687,17 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         eventTracker.eventCalls.awaitItem()
 
         // loading the fee rates and fetching wallet
-        awaitScreenWithBody<FormBodyModel>()
+        awaitBody<FormBodyModel>()
 
         // Show fee bump flow
-        awaitScreenWithBodyModelMock<FeeBumpConfirmationProps>()
+        awaitBodyMock<FeeBumpConfirmationProps>()
       }
     }
 
     test("tapping speed up with insufficient balance to bump fee should show error screen") {
       spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
             isSpeedUpOn = true,
@@ -711,15 +708,15 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after currency conversion
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           onSpeedUpTransaction()
         }
 
         // loading the fee rates and fetching wallet
-        awaitScreenWithBody<FormBodyModel>()
+        awaitBody<FormBodyModel>()
 
         // failed to launch fee bump flow from insufficient funds
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           header.shouldNotBeNull()
             .headline
             .shouldBe("We couldn’t speed up this transaction")
@@ -734,8 +731,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
     test("tapping speed up when fee rates are too low should show error screen") {
       spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
-      stateMachine.test(pendingSentProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingSentProps) {
+        awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
             isSpeedUpOn = true,
@@ -746,15 +743,15 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         }
 
         // after currency conversion
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           clickSecondaryButton()
         }
 
         // loading the fee rates and fetching wallet
-        awaitScreenWithBody<FormBodyModel>()
+        awaitBody<FormBodyModel>()
 
         // failed to launch fee bump flow from insufficient funds
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           header.shouldNotBeNull()
             .apply {
               headline
@@ -776,8 +773,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   context("utxo consolidation") {
     test("pending utxo consolidation transaction returns correct model") {
-      stateMachine.test(pendingUtxoConsolidationProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(pendingUtxoConsolidationProps) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -801,7 +798,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
           with(content[2].shouldBeInstanceOf<DataList>()) {
@@ -817,8 +814,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("utxo consolidation transaction returns correct model") {
-      stateMachine.test(utxoConsolidationProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(utxoConsolidationProps) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -848,7 +845,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
           with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -866,8 +863,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   context("partner transaction") {
     test("purchase") {
-      stateMachine.test(partnershipPurchaseProps) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(partnershipPurchaseProps) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -891,7 +888,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
 
@@ -918,8 +915,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           bitcoinTransaction = BitcoinTransactionSend
         )
       )
-      stateMachine.test(props) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -957,7 +954,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the historical exchange rate
           with(content[3].shouldBeInstanceOf<DataList>()) {
@@ -995,8 +992,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      stateMachine.test(props) {
-        awaitScreenWithBody<TransactionDetailModel> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBody<TransactionDetailModel> {
           // before currency conversion
 
           testButtonsAndHeader(
@@ -1029,7 +1026,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           }
         }
 
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           // after currency conversion
           // Should use the current exchange rate
 
@@ -1047,7 +1044,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("browser navigation opens browser url if available") {
-      stateMachine.test(
+      stateMachine.testWithVirtualTime(
         partnershipPurchaseProps.copy(
           transaction = Transaction.PartnershipTransaction(
             details = FakePartnershipTransaction.copy(
@@ -1057,7 +1054,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           )
         )
       ) {
-        awaitScreenWithBody<TransactionDetailModel> {
+        awaitBody<TransactionDetailModel> {
           viewTransactionText.shouldBe("View in ${FakePartnershipTransaction.partnerInfo.name}")
           onViewTransaction()
         }

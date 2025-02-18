@@ -8,7 +8,7 @@ include = ["bitkey_proto/*.py"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-protobuf = "^4.23.4"     # Must match hermit-installed libprotoc
+protobuf = "4.25.1"     # Must match hermit-installed libprotoc
 grpcio-tools = "^1.56.2"
 
 [tool.poetry-dynamic-versioning]
@@ -21,11 +21,13 @@ pattern = "^fw-(?P<base>[^+]+)"
 generate-setup-file = false
 script = "build.py"
 
+# These are build-time dependencies and must also be pinned.
 [build-system]
 requires = [
   "poetry-core>=1.0.0",
   "poetry-dynamic-versioning",
   "grpcio-tools>=1.56.2",
+  "protobuf==4.25.1",
   "nanopb",
   "click",
 ]

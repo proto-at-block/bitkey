@@ -11,12 +11,12 @@ import build.wallet.relationships.RelationshipsCryptoFake
 import build.wallet.relationships.RelationshipsKeysDaoFake
 import build.wallet.relationships.RelationshipsKeysRepository
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.onValueChange
-import build.wallet.statemachine.core.test
-import build.wallet.time.ControlledDelayer
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -24,6 +24,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration.Companion.milliseconds
 
 class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("on exit calls")
@@ -32,12 +33,12 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   val relationshipsCrypto = RelationshipsCryptoFake()
   val stateMachine =
     HelpingWithRecoveryUiStateMachineImpl(
-      delayer = ControlledDelayer(),
       socialChallengeVerifier = verifierMock,
       relationshipsKeysRepository = RelationshipsKeysRepository(
         relationshipsCrypto,
         RelationshipsKeysDaoFake()
-      )
+      ),
+      minimumLoadingDuration = MinimumLoadingDuration(0.milliseconds)
     )
 
   val props =
@@ -52,20 +53,20 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("successful completion of the flow") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldClickButtonWithTitle("Yes, I verified their identity")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel().onValueChange("1234-56")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel()
           .value
           .shouldBe("1234-56")
@@ -76,11 +77,11 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
       }
 
@@ -91,21 +92,21 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("Code Verification Failure") {
     verifierMock.error = SocialChallengeError.UnableToVerifyChallengeError(RuntimeException())
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldClickButtonWithTitle("Yes, I verified their identity")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel()
           .onValueChange("123456")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel()
           .value
           .shouldBe("1234-56")
@@ -116,15 +117,15 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
       }
-      awaitScreenWithBody<FormBodyModel>(
+      awaitBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE
       ) {
         primaryButton.shouldNotBeNull().onClick.invoke()
       }
-      awaitScreenWithBody<FormBodyModel>(
+      awaitBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
       )
     }
@@ -133,21 +134,21 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("version mismatch") {
     verifierMock.error = SocialChallengeError.ChallengeCodeVersionMismatch(RuntimeException())
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldClickButtonWithTitle("Yes, I verified their identity")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel()
           .onValueChange("1234-56")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         shouldHaveFieldModel()
           .value
           .shouldBe("1234-56")
@@ -158,31 +159,31 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
       }
-      awaitScreenWithBody<FormBodyModel>(
+      awaitBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE
       ) {
         header?.headline?.shouldBe("Bitkey app out of date")
         primaryButton.shouldNotBeNull().onClick.invoke()
       }
-      awaitScreenWithBody<FormBodyModel>(
+      awaitBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
       )
     }
   }
 
   test("selecting I'm not sure returns to get in touch screen") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickVideoChat()
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           shouldClickButtonWithTitle("I'm not sure")
         }
 
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH)
         }
       }
@@ -190,62 +191,62 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("security notice screen is shown when text message is selected") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickTextMessage()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Insecure verification method")
 
         onBack.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> { // land back on first screen
+      awaitBody<FormBodyModel> { // land back on first screen
         id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH)
       }
     }
   }
 
   test("security notice screen is shown when email is selected") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickEmail()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Insecure verification method")
 
         onBack.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> { // land back on first screen
+      awaitBody<FormBodyModel> { // land back on first screen
         id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH)
       }
     }
   }
 
   test("security notice screen is shown when phone call is selected") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         shouldClickPhoneCall()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Insecure verification method")
 
         onBack.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> { // land back on first screen
+      awaitBody<FormBodyModel> { // land back on first screen
         id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH)
       }
     }
   }
 
   test("onExit prop is called by state machine") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         toolbar
           .shouldNotBeNull()
           .leadingAccessory

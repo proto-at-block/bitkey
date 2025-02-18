@@ -10,4 +10,7 @@ interface RelationshipsF8eClient :
   RemoveRelationshipF8eClient,
   RetrieveTrustedContactInvitationF8eClient,
   AcceptTrustedContactInvitationF8eClient,
-  EndorseTcsF8eClient
+  EndorseTcsF8eClient,
+  UploadSealedDelegatedDecryptionKeyF8eClient,
+  GetSealedDelegatedDecryptionKeyF8eClient,
+  RetrieveInvitationPromotionCodeF8eClient

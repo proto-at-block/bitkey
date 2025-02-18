@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-datastore-android-debug",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-datastore-debug.aar": "7e5e474a8265d0947c3f24807a85c1c08c047b9f04517edd979bc4605b0ae960"
+                        "multiplatform-settings-datastore-debug.aar": "45ddd4e01e39777820adc96078e4cc8072ab87d6d1aba352bc7b8396e73fd73e"
                     }
                 }
             ],

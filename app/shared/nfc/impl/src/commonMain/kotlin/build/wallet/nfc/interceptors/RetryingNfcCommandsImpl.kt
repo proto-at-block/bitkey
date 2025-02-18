@@ -5,6 +5,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.crypto.SealedData
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
@@ -125,6 +126,16 @@ private class RetryingNfcCommandsImpl(
 
   override suspend fun queryAuthentication(session: NfcSession) =
     retry { commands.queryAuthentication(session) }
+
+  override suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ) = retry { commands.sealData(session, unsealedData) }
+
+  override suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ) = retry { commands.unsealData(session, sealedData) }
 
   override suspend fun sealKey(
     session: NfcSession,

@@ -49,6 +49,7 @@ class LoggerInitializer(
         val minimumLogLevel: LogLevel =
           when (appVariant) {
             Development -> Debug
+            Alpha -> Debug
             Team -> Debug
             Beta -> Info
             Customer -> Info
@@ -61,9 +62,11 @@ class LoggerInitializer(
           minimumLogLevel = minimumLogLevel,
           logWriters = buildList {
             addAll(additionalLogWriters)
-            add(platformLogWriter())
             add(BugsnagLogWriter(minSeverity = minimumLogLevel.toKermitSeverity()))
             add(logStoreWriter)
+            if (appVariant == Development) {
+              add(platformLogWriter())
+            }
           }
         )
         initialized = true

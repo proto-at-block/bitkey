@@ -1,4 +1,5 @@
 mod inheritance;
+mod oprf_pin_integration_tests;
 mod recovery_backup_tests;
 mod recovery_integration_tests;
 mod recovery_relationship_integration_tests;

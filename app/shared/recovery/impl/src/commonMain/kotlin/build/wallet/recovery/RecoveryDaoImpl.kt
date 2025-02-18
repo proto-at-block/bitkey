@@ -99,6 +99,7 @@ class RecoveryDaoImpl(
       is CompletionAttemptFailedDueToServerCancellation -> markAsCompletionAttemptFailed()
       is RotatedAuthKeys -> markAuthKeysRotated()
       is RotatedSpendingKeys -> markSpendingKeysRotated(progress)
+      DdkBackedUp -> markDdkBackedUp()
       BackedUpToCloud -> markCloudBackedUp()
       is SweptFunds -> markFundsSwept(progress.keyboxToActivate)
     }
@@ -167,6 +168,13 @@ class RecoveryDaoImpl(
           progress.f8eSpendingKeyset.keysetId,
           progress.f8eSpendingKeyset.spendingPublicKey
         )
+      }
+  }
+
+  private suspend fun markDdkBackedUp(): Result<Unit, DbTransactionError> {
+    return databaseProvider.database()
+      .awaitTransaction {
+        recoveryQueries.markDdkBackedUp()
       }
   }
 
@@ -334,6 +342,25 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           hardwareAuthKey = destinationHardwareAuthKey,
           appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor
+        )
+      }
+
+      if (ddkBackedUp) {
+        return ServerIndependentRecovery.DdkBackedUp(
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = serverKeysetId!!,
+              spendingPublicKey = serverSpendingKey!!
+            ),
+          fullAccountId = account,
+          appSpendingKey = destinationAppSpendingKey,
+          appGlobalAuthKey = destinationAppGlobalAuthKey,
+          appRecoveryAuthKey = destinationAppRecoveryAuthKey,
+          hardwareSpendingKey = destinationHardwareSpendingKey,
+          hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+          factorToRecover = lostFactor,
+          sealedCsek = sealedCsek!!
         )
       } else {
         return ServerIndependentRecovery.CreatedSpendingKeys(

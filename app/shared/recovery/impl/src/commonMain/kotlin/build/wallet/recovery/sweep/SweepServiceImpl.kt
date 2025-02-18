@@ -4,25 +4,22 @@ import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.PromptSweepFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import build.wallet.platform.app.AppSessionManager
-import build.wallet.platform.app.AppSessionState
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.minutes
 
 @BitkeyInject(AppScope::class)
 class SweepServiceImpl(
@@ -30,6 +27,7 @@ class SweepServiceImpl(
   private val appSessionManager: AppSessionManager,
   private val promptSweepFeatureFlag: PromptSweepFeatureFlag,
   private val sweepGenerator: SweepGenerator,
+  private val sweepSyncFrequency: SweepSyncFrequency,
 ) : SweepService, SweepSyncWorker {
   /**
    * Caches the value of the sweep required flag. Synced by the [executeWork].
@@ -54,15 +52,11 @@ class SweepServiceImpl(
         promptSweepFeatureFlag.flagValue()
           .collectLatest { flag ->
             if (flag.isEnabled()) {
-              appSessionManager.appSessionState
-                .collectLatest { state ->
-                  if (state == AppSessionState.FOREGROUND) {
-                    while (isActive) {
-                      sweepRequired.value = isSweepRequired()
-                      delay(5.minutes)
-                    }
-                  }
+              launchTicker(sweepSyncFrequency.value) {
+                if (appSessionManager.isAppForegrounded()) {
+                  sweepRequired.value = isSweepRequired()
                 }
+              }
             }
           }
       }

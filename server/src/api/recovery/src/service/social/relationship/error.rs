@@ -1,4 +1,5 @@
 use errors::{ApiError, ErrorCode};
+use promotion_code::error::PromotionCodeError;
 use thiserror::Error;
 use types::recovery::social::relationship::{
     RecoveryRelationshipConnectionFieldsBuilderError, RecoveryRelationshipEndorsedBuilderError,
@@ -50,6 +51,8 @@ pub enum ServiceError {
     BlankTrustedContactAlias,
     #[error("Trusted contact has no roles assigned")]
     MissingTrustedContactRoles,
+    #[error(transparent)]
+    PromotionCode(#[from] PromotionCodeError),
 }
 
 impl From<TrustedContactError> for ServiceError {
@@ -69,9 +72,8 @@ impl From<ServiceError> for ApiError {
             | ServiceError::ConnectionFieldsBuilder(_)
             | ServiceError::UnendorsedBuilder(_)
             | ServiceError::EndorsedBuilder(_)
-            | ServiceError::NotificationPayloadBuilder(_) => {
-                ApiError::GenericInternalApplicationError(msg)
-            }
+            | ServiceError::NotificationPayloadBuilder(_)
+            | ServiceError::PromotionCode(_) => ApiError::GenericInternalApplicationError(msg),
             ServiceError::InvitationNonEndorsable
             | ServiceError::BlankTrustedContactAlias
             | ServiceError::MissingTrustedContactRoles => ApiError::GenericBadRequest(msg),

@@ -19,6 +19,7 @@ import build.wallet.statemachine.recovery.socrec.list.full.ListingTrustedContact
 import build.wallet.statemachine.recovery.socrec.list.full.ListingTrustedContactsUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 
 @BitkeyInject(ActivityScope::class)
 class TrustedContactManagementUiStateMachineImpl(
@@ -85,7 +86,10 @@ class TrustedContactManagementUiStateMachineImpl(
             account = props.account,
             inviteCode = props.inviteCode,
             screenPresentationStyle = ScreenPresentationStyle.Modal,
-            onDone = { state = ListingContactsState }
+            onDone = { state = ListingContactsState },
+            variant = TrustedContactFeatureVariant.Direct(
+              target = TrustedContactFeatureVariant.Feature.Recovery
+            )
           )
         )
     }

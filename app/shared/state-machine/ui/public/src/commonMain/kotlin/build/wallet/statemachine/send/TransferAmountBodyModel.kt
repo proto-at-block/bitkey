@@ -1,10 +1,13 @@
 package build.wallet.statemachine.send
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.ui.app.send.TransferAmountScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -60,4 +63,9 @@ data class TransferAmountBodyModel(
     amountDisabled = amountDisabled,
     onSwapCurrencyClick = onSwapCurrencyClick
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    TransferAmountScreen(modifier, model = this)
+  }
 }

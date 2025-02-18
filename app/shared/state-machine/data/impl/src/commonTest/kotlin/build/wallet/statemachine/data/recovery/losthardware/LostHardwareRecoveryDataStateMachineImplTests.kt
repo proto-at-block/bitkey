@@ -5,7 +5,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachine
@@ -57,13 +57,13 @@ class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
     )
 
   test("lost hardware recovery -- recovery absent") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       awaitItem().shouldBeTypeOf<AwaitingNewHardwareData>()
     }
   }
 
   test("lost hardware recovery -- recovery present") {
-    stateMachine.test(props = props.copy(hardwareRecovery = recovery)) {
+    stateMachine.testWithVirtualTime(props = props.copy(hardwareRecovery = recovery)) {
       awaitItem().shouldBeTypeOf<LostHardwareRecoveryInProgressData>().let {
         it.recoveryInProgressData.shouldBeTypeOf<WaitingForRecoveryDelayPeriodData>()
       }

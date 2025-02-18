@@ -1,11 +1,10 @@
 package build.wallet.statemachine.send
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ScreenColorMode
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
+import build.wallet.ui.app.qrcode.QrCodeScanScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
@@ -45,4 +44,9 @@ data class QrCodeScanBodyModel(
         leadingIcon = button.leadingIcon
       )
     }
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    QrCodeScanScreen(modifier, model = this)
+  }
 }

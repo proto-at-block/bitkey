@@ -5,6 +5,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CL
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
@@ -22,11 +23,11 @@ import build.wallet.statemachine.account.create.full.onboard.notifications.Notif
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
@@ -60,11 +61,11 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   val onOnboardingComplete = turbines.create<Unit>("onOnboardingComplete")
 
   val props = OnboardFullAccountUiProps(
-    keybox = KeyboxMock,
     isSkipCloudBackupInstructions = false,
     onFoundLiteAccountWithDifferentId = { onFoundLiteAccountWithDifferentId += it },
     onOverwriteFullAccountCloudBackupWarning = { onOverwriteFullAccountCloudBackupWarning += Unit },
-    onOnboardingComplete = { onOnboardingComplete += Unit }
+    onOnboardingComplete = { onOnboardingComplete += Unit },
+    fullAccount = FullAccountMock
   )
 
   beforeTest {
@@ -76,32 +77,32 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("complete all onboarding steps") {
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
         onBackupSaved()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Complete notifications
       onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
 
-      awaitScreenWithBodyModelMock<NotificationPreferencesSetupUiProps> {
+      awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
         accountConfig.shouldBe(KeyboxMock.config)
         source.shouldBe(Onboarding)
         onComplete()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -112,20 +113,20 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete cloud backup step only") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
         onBackupSaved()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -136,22 +137,22 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete notifications step only") {
     onboardAccountService.setPendingSteps(NotificationPreferences)
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete notifications
       onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
 
-      awaitScreenWithBodyModelMock<NotificationPreferencesSetupUiProps> {
+      awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
         accountConfig.shouldBe(KeyboxMock.config)
         source.shouldBe(Onboarding)
         onComplete()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -162,20 +163,20 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete cloud backup step - skip cloud backup instructions") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeTrue()
         onBackupSaved()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -186,9 +187,9 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("no pending steps") {
     onboardAccountService.setPendingSteps()
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -199,13 +200,13 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - overwrite existing account if for the same account ID") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
@@ -218,7 +219,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -229,15 +230,15 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing lite account cloud backup") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       val liteAccountBackup = CloudBackupV2WithLiteAccountMock.copy(accountId = "lite-account-id")
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
@@ -255,13 +256,13 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing full account backup different account ID, show warning") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
@@ -281,13 +282,13 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing full account backup different account ID, skip showing warning") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeTrue()
@@ -302,7 +303,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
 
       onOverwriteFullAccountCloudBackupWarning.expectNoEvents()
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -313,20 +314,20 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - failed to save backup") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
         onBackupFailed(Error("cloud backup error"))
       }
 
-      awaitScreenWithBody<FormBodyModel>(id = SAVE_CLOUD_BACKUP_FAILED) {
+      awaitBody<FormBodyModel>(id = SAVE_CLOUD_BACKUP_FAILED) {
         // Cloud backup step is not complete
         onboardAccountService.pendingStep()
           .shouldBeOk(OnboardAccountStep.CloudBackup(SealedCsekFake))
@@ -335,7 +336,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
@@ -343,7 +344,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onBackupSaved()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -354,13 +355,13 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - error completing") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete cloud backup
-      awaitScreenWithBodyModelMock<FullAccountCloudSignInAndBackupProps> {
+      awaitBodyMock<FullAccountCloudSignInAndBackupProps> {
         sealedCsek.shouldBe(SealedCsekFake)
         keybox.shouldBe(KeyboxMock)
         isSkipCloudBackupInstructions.shouldBeFalse()
@@ -368,9 +369,9 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onBackupSaved()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Error completing onboarding")
         // Succeed this time
         onboardAccountService.completeStepError = null
@@ -378,7 +379,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)
@@ -389,15 +390,15 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("notifications step - error completing") {
     onboardAccountService.setPendingSteps(NotificationPreferences)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
 
       // Loading initial onboarding state
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
+      awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete notifications
       onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
 
-      awaitScreenWithBodyModelMock<NotificationPreferencesSetupUiProps> {
+      awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
         accountConfig.shouldBe(KeyboxMock.config)
         source.shouldBe(Onboarding)
@@ -405,9 +406,9 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         onComplete()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Error completing onboarding")
         // Succeed this time
         onboardAccountService.completeStepError = null
@@ -415,7 +416,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
       onboardAccountService.pendingStep().shouldBeOk(null)

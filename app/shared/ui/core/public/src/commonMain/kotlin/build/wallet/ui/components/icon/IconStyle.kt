@@ -77,6 +77,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyLogo,
     Icon.BitcoinConsolidation,
     Icon.BitcoinBadged,
+    Icon.LargeIconWarning,
     -> false
 
     else -> true

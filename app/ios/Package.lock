@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bitcoindevkit/bdk-swift",
       "state" : {
-        "revision" : "6cc7412e0ead59cf6d51e8b061ce9f8e3ebb180a",
-        "version" : "0.31.2"
+        "revision" : "6ae2153f108cafb4bfbacbd70cdabceff64f1ce6",
+        "version" : "0.32.0"
       }
     },
     {
@@ -23,26 +23,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Datadog/dd-sdk-ios",
       "state" : {
-        "revision" : "9c91a5b34d7c65b60f1a63cce07afa38c134d2d6",
-        "version" : "2.11.1"
+        "revision" : "e67af5e59678668acbe73e7d0e1c657b6cfeac6f",
+        "version" : "2.18.0"
       }
     },
     {
-      "identity" : "kmp-nativecoroutines",
+      "identity" : "opentelemetry-swift-packages",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/rickclephas/kmp-nativecoroutines",
+      "location" : "https://github.com/DataDog/opentelemetry-swift-packages.git",
       "state" : {
-        "revision" : "84993bb7e5ae1be8856b1f2d0b52d1a53cebdbfe",
-        "version" : "1.0.0-ALPHA-31"
-      }
-    },
-    {
-      "identity" : "lottie-spm",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/airbnb/lottie-spm",
-      "state" : {
-        "revision" : "96790253c1a82223bd43da651121abfd7e96d0f3",
-        "version" : "4.3.4"
+        "revision" : "adcfc3d7fc6ad411bb576cfa4512c2d3f8b2dbc7",
+        "version" : "1.6.0"
       }
     },
     {
@@ -61,24 +52,6 @@
       "state" : {
         "revision" : "6752f71de206f6a53fa6a758c3660fd9a7fe7527",
         "version" : "1.11.2"
-      }
-    },
-    {
-      "identity" : "rxswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ReactiveX/RxSwift.git",
-      "state" : {
-        "revision" : "b06a8c8596e4c3e8e7788e08e720e3248563ce6a",
-        "version" : "6.7.1"
-      }
-    },
-    {
-      "identity" : "svgview",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/exyte/SVGView.git",
-      "state" : {
-        "revision" : "6465962facdd25cb96eaebc35603afa2f15d2c0d",
-        "version" : "1.0.6"
       }
     },
     {
@@ -102,7 +75,7 @@
     {
       "identity" : "zipfoundation",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/weichsel/ZIPFoundation",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
       "state" : {
         "revision" : "a3f5c2bae0f04b0bce9ef3c4ba6bd1031a0564c4",
         "version" : "0.9.17"

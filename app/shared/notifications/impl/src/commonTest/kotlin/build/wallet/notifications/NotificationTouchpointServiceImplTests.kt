@@ -7,6 +7,7 @@ import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
 import build.wallet.f8e.F8eEnvironment
@@ -25,7 +26,6 @@ import build.wallet.phonenumber.PhoneNumberMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
@@ -33,8 +33,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 
 class NotificationTouchpointServiceImplTests : FunSpec({
-  coroutineTestScope = true
-
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
   val notificationTouchpointF8eClient = NotificationTouchpointF8eClientMock(turbines::create)
   val recoveryNotificationVerificationF8eClient =
@@ -87,7 +85,7 @@ class NotificationTouchpointServiceImplTests : FunSpec({
           )
         )
 
-      backgroundScope.launch {
+      createBackgroundScope().launch {
         service.executeWork()
       }
 
@@ -109,7 +107,7 @@ class NotificationTouchpointServiceImplTests : FunSpec({
     test("notificationTouchpointData is empty") {
       accountService.accountState.value = Ok(AccountStatus.NoAccount)
 
-      backgroundScope.launch {
+      createBackgroundScope().launch {
         service.executeWork()
       }
 

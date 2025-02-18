@@ -63,7 +63,7 @@ class DebugMenuListStateMachineImpl(
     if (deleteAppDataRequest != null) {
       val interstitial = DeleteEffect(account, deleteAppDataRequest!!) {
         deleteAppDataRequest = null
-        props.onClose()
+        props.onAppDataDeleted()
       }
       if (interstitial != null) {
         return interstitial
@@ -97,7 +97,11 @@ class DebugMenuListStateMachineImpl(
               }
             )
           ),
-          infoOptionsUiStateMachine.model(Unit),
+          infoOptionsUiStateMachine.model(
+            InfoOptionsProps(
+              onPasteboardCopy = props.onPasteboardCopy
+            )
+          ),
           BitkeyDeviceOptionsListGroupModel(
             props = props,
             account = account,
@@ -106,7 +110,7 @@ class DebugMenuListStateMachineImpl(
           LogsListGroupModel(props.onSetState),
           AnalyticsOptionsListGroupModel(props.onSetState),
           FeatureFlagsOptionsListGroupModel(props.onSetState),
-          NetworkingDebugOptionsListGroupModel(
+          DebugOptionsListGroupModel(
             account,
             onActionConfirmationRequest = { actionConfirmation = it },
             props.onSetState,
@@ -312,7 +316,7 @@ class DebugMenuListStateMachineImpl(
   }
 
   @Composable
-  private fun NetworkingDebugOptionsListGroupModel(
+  private fun DebugOptionsListGroupModel(
     account: Account?,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onSetState: (DebugMenuState) -> Unit,
@@ -359,6 +363,28 @@ class DebugMenuListStateMachineImpl(
                       )
                     }
                   }
+                }
+              ),
+              ListItemModel(
+                title = "Reset Onboarding Timestamp",
+                onClick = {
+                  onActionConfirmationRequest(
+                    ActionConfirmationRequest(
+                      gatedActionTitle = "Clear onboarding timestamp?",
+                      gatedAction = { onSetState(DebugMenuState.ClearingOnboardingData.OnboardingTimestamp) }
+                    )
+                  )
+                }
+              ),
+              ListItemModel(
+                title = "Reset Has Seen Upsell",
+                onClick = {
+                  onActionConfirmationRequest(
+                    ActionConfirmationRequest(
+                      gatedActionTitle = "Clear has seen upsell flag?",
+                      gatedAction = { onSetState(DebugMenuState.ClearingOnboardingData.HasSeenUpsell) }
+                    )
+                  )
                 }
               )
             ),

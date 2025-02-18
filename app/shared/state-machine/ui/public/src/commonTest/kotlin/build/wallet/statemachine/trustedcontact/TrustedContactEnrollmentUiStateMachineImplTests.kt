@@ -1,10 +1,14 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
+import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.crypto.SealedData
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode.RELATIONSHIP_ALREADY_ESTABLISHED
 import build.wallet.f8e.error.code.F8eClientErrorCode
@@ -12,11 +16,22 @@ import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.relationships.*
+import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.account.create.full.CreateAccountUiProps
+import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.trustedcontact.model.BeneficiaryOnboardingBodyModel
+import build.wallet.statemachine.trustedcontact.model.EnteringBenefactorNameBodyModel
 import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
@@ -27,20 +42,36 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.*
+import io.ktor.http.HttpStatusCode
+import okio.ByteString.Companion.encodeUtf8
 
 class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
 
   val relationshipsCrypto = RelationshipsCryptoFake()
-  val relationshipsKeysRepository = RelationshipsKeysRepository(relationshipsCrypto, RelationshipsKeysDaoFake())
+  val relationshipsKeysRepository =
+    RelationshipsKeysRepository(relationshipsCrypto, RelationshipsKeysDaoFake())
   val eventTracker = EventTrackerMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val delegatedDecryptionService = DelegatedDecryptionKeyServiceMock()
+  val nfcSessionUIStateMachine =
+    object : NfcSessionUIStateMachine,
+      ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>("nfc") {}
+  val promoCodeUpsellStateMachine =
+    object : PromoCodeUpsellUiStateMachine,
+      ScreenStateMachineMock<PromoCodeUpsellUiProps>(id = "promo-code") {}
 
   val stateMachine =
     TrustedContactEnrollmentUiStateMachineImpl(
       deviceInfoProvider = DeviceInfoProviderMock(),
       relationshipsKeysRepository = relationshipsKeysRepository,
       eventTracker = eventTracker,
-      relationshipsService = relationshipsService
+      relationshipsService = relationshipsService,
+      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+      delegatedDecryptionKeyService = delegatedDecryptionService,
+      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbine = turbines::create),
+      promoCodeUpsellUiStateMachine = promoCodeUpsellStateMachine,
+      createAccountUiStateMachine = object : CreateAccountUiStateMachine,
+        ScreenStateMachineMock<CreateAccountUiProps>(id = "create-account") {}
     )
 
   val propsOnRetreatCalls = turbines.create<Unit>("props onRetreat calls")
@@ -55,50 +86,162 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
       account = LiteAccountMock,
       inviteCode = null,
       onDone = { propsOnDoneCalls.add(Unit) },
-      screenPresentationStyle = ScreenPresentationStyle.Root
+      screenPresentationStyle = ScreenPresentationStyle.Root,
+      variant = TrustedContactFeatureVariant.Direct(
+        target = TrustedContactFeatureVariant.Feature.Recovery
+      )
     )
 
   beforeEach {
     relationshipsService.clear()
 
-    relationshipsService.retrieveInvitationResult = Ok(IncomingInvitationFake)
+    relationshipsService.retrieveInvitationResult = Ok(IncomingRecoveryContactInvitationFake)
     relationshipsService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
-  test("happy path") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+  test("happy path - recovery contact") {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<EnteringProtectedCustomerNameBodyModel> {
+      awaitBody<EnteringProtectedCustomerNameBodyModel> {
         onValueChange("Some Name")
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_LOAD_KEY) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_LOAD_KEY) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_SUCCESS) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_INVITE_ACCEPTED) {
         clickPrimaryButton()
       }
       propsOnDoneCalls.awaitItem()
     }
   }
 
+  test("happy path - beneficiary") {
+    relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
+
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+          .onValueChange("code", 0..0)
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        clickPrimaryButton()
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<BeneficiaryOnboardingBodyModel> {
+        onContinue()
+      }
+      awaitBody<EnteringBenefactorNameBodyModel> {
+        onValueChange("Some Name")
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME) {
+        clickPrimaryButton()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        (mainContentList[0] as FormMainContentModel.ListGroup)
+          .listGroupModel
+          .items
+          .first()
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        clickPrimaryButton()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(action = Action.ACTION_APP_SOCREC_BENEFICIARY_HAS_HARDWARE)
+      )
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_LOAD_KEY) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_UPLOAD_DELEGATED_DECRYPTION_KEY) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBodyMock<NfcSessionUIStateMachineProps<SealedData>> {
+        onSuccess("deadbeef".encodeUtf8())
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_BENEFICIARY_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<FormBodyModel>(TC_BENEFICIARY_ENROLLMENT_INVITE_ACCEPTED) {
+        clickPrimaryButton()
+      }
+      propsOnDoneCalls.awaitItem()
+    }
+  }
+
+  test("happy path - beneficiary no hardware") {
+    relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
+
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
+          .onValueChange("code", 0..0)
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+        clickPrimaryButton()
+      }
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitBody<BeneficiaryOnboardingBodyModel> {
+        onContinue()
+      }
+      awaitBody<EnteringBenefactorNameBodyModel> {
+        onValueChange("Some Name")
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_BENEFACTOR_NAME) {
+        clickPrimaryButton()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        (mainContentList[0] as FormMainContentModel.ListGroup)
+          .listGroupModel
+          .items[1]
+          .onClick
+          .shouldNotBeNull()
+          .invoke()
+      }
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ASKING_IF_HAS_HARDWARE) {
+        clickPrimaryButton()
+      }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(action = Action.ACTION_APP_SOCREC_BENEFICIARY_NO_HARDWARE)
+      )
+
+      awaitBodyMock<PromoCodeUpsellUiProps> {
+        promoCode.shouldBe(relationshipsService.promoCodeResult.value)
+        onExit()
+        propsOnDoneCalls.awaitItem()
+      }
+    }
+  }
+
   test("back on enter invite screen calls props.onRetreat") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull().leadingAccessory.shouldNotBeNull()
           .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
           .model
@@ -110,21 +253,21 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   }
 
   test("initial screen should be enter invite code") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
     }
   }
 
   context("retrieve invite failure") {
     suspend fun StateMachineTester<TrustedContactEnrollmentUiProps, ScreenModel>.progressToRetrievingInvite() {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
     }
@@ -132,113 +275,114 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("invalid code") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToRetrievingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
 
     test("version mismatch") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToRetrievingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           header?.headline?.shouldBe("Bitkey app out of date")
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
 
     test("specific client error") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(NOT_FOUND)))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToRetrievingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
 
     test("connectivity") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ConnectivityError()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToRetrievingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldNotBeNull() // Back button
           clickPrimaryButton() // Retry button
         }
-        awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+        awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           primaryButton.shouldNotBeNull() // Retry button
           secondaryButton.shouldNotBeNull().onClick() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
 
     test("unknown") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ServerError()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToRetrievingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
       }
     }
   }
 
   context("accept invite failure") {
     suspend fun StateMachineTester<TrustedContactEnrollmentUiProps, ScreenModel>.progressToAcceptingInvite() {
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("Some Name", 0..0)
       }
-      awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
+      awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_LOAD_KEY) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_LOAD_KEY) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
+      awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
     }
 
     test("invalid code") {
-      relationshipsService.acceptInvitationResult = Err(AcceptInvitationCodeError.InvalidInvitationCode)
-      stateMachine.test(props) {
+      relationshipsService.acceptInvitationResult =
+        Err(AcceptInvitationCodeError.InvalidInvitationCode)
+      stateMachine.testWithVirtualTime(props) {
         progressToAcceptingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }
     }
 
@@ -248,46 +392,46 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
           SpecificClientErrorMock(RELATIONSHIP_ALREADY_ESTABLISHED)
         )
       )
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToAcceptingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }
     }
 
     test("connectivity") {
       relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ConnectivityError()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToAcceptingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldNotBeNull() // Back button
           clickPrimaryButton() // Retry button
         }
-        awaitScreenWithBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
+        awaitBody<LoadingSuccessBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           primaryButton.shouldNotBeNull() // Retry button
           secondaryButton.shouldNotBeNull().onClick() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }
     }
 
     test("unknown") {
       relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ServerError()))
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         progressToAcceptingInvite()
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
           clickPrimaryButton() // Back button
         }
-        awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+        awaitBody<FormBodyModel>(TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
       }
     }
   }

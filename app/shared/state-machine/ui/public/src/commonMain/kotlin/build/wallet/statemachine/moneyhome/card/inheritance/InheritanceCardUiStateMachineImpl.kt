@@ -6,18 +6,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.Progress
 import build.wallet.asProgress
-import build.wallet.bitkey.inheritance.BenefactorClaim
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.*
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceCardService
+import build.wallet.inheritance.InheritanceService
+import build.wallet.inheritance.claimStates
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import com.github.michaelbull.result.getOrElse
 import com.russhwolf.settings.coroutines.SuspendSettings
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
@@ -26,6 +28,7 @@ import kotlin.time.Duration
 @BitkeyInject(ActivityScope::class)
 class InheritanceCardUiStateMachineImpl(
   private val inheritanceCardService: InheritanceCardService,
+  private val inheritanceService: InheritanceService,
   private val clock: Clock,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
@@ -37,44 +40,65 @@ class InheritanceCardUiStateMachineImpl(
     val scope = rememberStableCoroutineScope()
 
     val inheritanceCards by remember {
-      inheritanceCardService.cardsToDisplay
+      if (props.includeDismissed) {
+        inheritanceService.claimStates.map {
+          it.flatMap { snapshot -> snapshot.claims }
+        }
+      } else {
+        inheritanceCardService.cardsToDisplay
+      }
     }.collectAsState(emptyList())
 
     return inheritanceCards
+      .filter(props.claimFilter)
       .mapNotNull { claim ->
-        when (claim) {
-          is BenefactorClaim.PendingClaim ->
+        when {
+          claim is BenefactorClaim.PendingClaim && !claim.isApproved(clock.now()) ->
             BenefactorPendingClaimCardModel(
               title = "Inheritance claim initiated",
               subtitle = benefactorPendingClaimSubtitle(claim),
-              onClick = StandardClick { props.onClick?.invoke(claim) }
+              onClick = StandardClick { props.denyClaim.invoke(claim) }
             )
-          is BenefactorClaim.CompleteClaim, is BenefactorClaim.LockedClaim ->
+
+          claim is BenefactorClaim && claim.isActive ->
             BenefactorLockedCompleteClaimCardModel(
               title = "Inheritance approved",
-              subtitle = "To retain control of your funds, transfer them to a new wallet."
+              subtitle = "To retain control of your funds, transfer them to a new wallet.",
+              onClick = StandardClick { props.moveFundsCallToAction.invoke() }
             )
-          is BeneficiaryClaim.PendingClaim ->
+
+          claim is BenefactorClaim && claim.isCompleted ->
+            BenefactorLockedCompleteClaimCardModel(
+              title = "Inheritance approved",
+              subtitle = "To retain control of any remaining funds, transfer them to a new wallet.",
+              onClick = StandardClick { props.moveFundsCallToAction.invoke() }
+            )
+          claim is BeneficiaryClaim.PendingClaim && !claim.isApproved(clock.now()) ->
             BeneficiaryPendingClaimCardModel(
               title = "Inheritance claim pending",
               subtitle = beneficiaryPendingClaimSubtitle(claim),
               isPendingClaim = true,
               timeRemaining = timeRemaining(claim),
               progress = progress(claim),
-              onClick = {
-                scope.launch {
-                  inheritanceCardService.dismissPendingBeneficiaryClaimCard(claim.claimId.value)
-                }
+              onClick = when {
+                props.isDismissible -> (
+                  {
+                    scope.launch {
+                      inheritanceCardService.dismissPendingBeneficiaryClaimCard(claim.claimId)
+                    }
+                  }
+                )
+                else -> null
               }
             )
-          is BeneficiaryClaim.LockedClaim ->
+          claim.isActive ->
             BeneficiaryPendingClaimCardModel(
-              title = "Claim complete",
-              subtitle = "Transfer funds now",
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
               isPendingClaim = false,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
-              onClick = { props.onClick?.invoke(claim) }
+              onClick = { props.completeClaim.invoke(claim) }
             )
 
           else -> null
@@ -83,7 +107,7 @@ class InheritanceCardUiStateMachineImpl(
   }
 
   private fun benefactorPendingClaimSubtitle(pendingClaim: BenefactorClaim.PendingClaim): String {
-    val formattedDate = dateTimeFormatter.shortDate(
+    val formattedDate = dateTimeFormatter.shortDateWithYear(
       pendingClaim.delayEndTime.toLocalDateTime(
         timeZoneProvider.current()
       )
@@ -94,12 +118,12 @@ class InheritanceCardUiStateMachineImpl(
   private fun beneficiaryPendingClaimSubtitle(
     pendingClaim: BeneficiaryClaim.PendingClaim,
   ): String {
-    val formattedDate = dateTimeFormatter.shortDate(
+    val formattedDate = dateTimeFormatter.shortDateWithYear(
       pendingClaim.delayEndTime.toLocalDateTime(
         timeZoneProvider.current()
       )
     )
-    return "Funds available $formattedDate"
+    return "Funds available $formattedDate."
   }
 
   private fun timeRemaining(pendingClaim: BeneficiaryClaim.PendingClaim): Duration {

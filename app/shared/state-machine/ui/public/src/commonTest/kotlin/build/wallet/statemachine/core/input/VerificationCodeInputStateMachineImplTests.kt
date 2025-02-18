@@ -10,7 +10,6 @@ import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.phonenumber.PhoneNumberMock
 import build.wallet.statemachine.core.LabelModel.StringModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
@@ -19,7 +18,8 @@ import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCode
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Hidden
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import io.kotest.core.spec.style.FunSpec
@@ -69,9 +69,9 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("initial state") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe(props.title)
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           fieldModel.placeholderText.shouldBe("Verification code")
@@ -84,8 +84,8 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("onValueChange") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           // Change to less than expected length
           fieldModel.onValueChange("1".repeat(props.expectedCodeLength - 1))
@@ -93,7 +93,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       }
 
       // Updated value
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           fieldModel.value.shouldBe("1".repeat(props.expectedCodeLength - 1))
           // Change to expected length
@@ -102,7 +102,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       }
 
       // Updated value
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           fieldModel.value.shouldBe("1".repeat(props.expectedCodeLength))
         }
@@ -113,8 +113,8 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("onValueChange with more than expected length") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           // Change to less than expected length
           fieldModel.onValueChange("1".repeat(props.expectedCodeLength + 5))
@@ -122,7 +122,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       }
 
       // Updated value
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           fieldModel.value.shouldBe("1".repeat(props.expectedCodeLength))
         }
@@ -133,14 +133,14 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("resend code resets content after success") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       clock.advanceBy(30.seconds)
 
       // Resend code available
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -150,10 +150,10 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       val resendCodeCallbacks = onResendCodeCalls.awaitItem()
 
       // Showing skip for now
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Resend code loading
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -163,7 +163,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       resendCodeCallbacks.onSuccess()
 
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Text>()
@@ -174,14 +174,14 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("resend code shows error after error") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       clock.advanceBy(30.seconds)
 
       // Resend code available
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -193,10 +193,10 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
 
       // Showing skip for now
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Resend code loading
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -211,9 +211,9 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("skip after resend code when skip sheet provided") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .skipForNowContent.shouldBeInstanceOf<Hidden>()
@@ -222,7 +222,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       clock.advanceBy(30.seconds)
 
       // Resend code available
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -233,10 +233,10 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
 
       // Showing skip for now
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Resend code loading
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         val skipForNowContent =
           mainContentList.first()
             .shouldBeTypeOf<VerificationCodeInput>()
@@ -246,7 +246,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
         skipForNowContent.button.text.shouldBe("Skip for now")
         skipForNowContent.button.onClick()
       }
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW)
       )
@@ -254,9 +254,9 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("no skip showing after resend code when skip sheet not provided") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
+    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .skipForNowContent.shouldBeInstanceOf<Hidden>()
@@ -265,7 +265,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       clock.advanceBy(30.seconds)
 
       // Resend code available
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -277,7 +277,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       onResendCodeCalls.awaitItem()
 
       // Resend code loading
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .skipForNowContent.shouldBeInstanceOf<Hidden>()
@@ -286,12 +286,12 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("skip for now - skip sheet - go back") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
       clock.advanceBy(30.seconds)
       // Resend code available
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .resendCodeContent.shouldBeInstanceOf<Button>()
@@ -301,10 +301,10 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_PHONE_NUMBER_RESEND))
 
       // Showing skip for now
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Resend code loading
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeTypeOf<VerificationCodeInput>()
           .skipForNowContent.shouldBeInstanceOf<Showing>()
@@ -327,12 +327,12 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("email explainer is shown with email touchpoint") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         notificationTouchpoint = EmailTouchpoint(touchpointId = "", value = Email("asdf@block.xyz"))
       )
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<Explainer>()) {
           items[0].body.shouldBeInstanceOf<StringModel>()
             .string.shouldBe("If the code doesn’t arrive, please check your spam folder.")

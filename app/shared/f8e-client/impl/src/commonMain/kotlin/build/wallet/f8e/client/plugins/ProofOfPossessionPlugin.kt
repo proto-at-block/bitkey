@@ -3,7 +3,7 @@ package build.wallet.f8e.client.plugins
 import build.wallet.auth.AccessToken
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.AuthTokensRepository
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.crypto.PublicKey
@@ -12,10 +12,11 @@ import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.*
 import io.ktor.client.plugins.api.*
+import io.ktor.client.request.HttpRequestPipeline
 import okio.ByteString.Companion.encodeUtf8
 
 class ProofOfPossessionPluginConfig {
-  lateinit var authTokensRepository: AuthTokensRepository
+  lateinit var authTokensService: AuthTokensService
   lateinit var appAuthKeyMessageSigner: AppAuthKeyMessageSigner
   lateinit var keyboxDao: KeyboxDao
 }
@@ -33,26 +34,25 @@ val ProofOfPossessionPlugin = createClientPlugin(
   "proof-of-possession",
   ::ProofOfPossessionPluginConfig
 ) {
-  val authTokensRepository = pluginConfig.authTokensRepository
+  val authTokensRepository = pluginConfig.authTokensService
   val appAuthKeyMessageSigner = pluginConfig.appAuthKeyMessageSigner
   val keyboxDao = pluginConfig.keyboxDao
-
-  onRequest { request, _ ->
-    if (request.attributes.contains(HwProofOfPossessionAttribute)) {
-      val hwProofOfPossession = request.attributes[HwProofOfPossessionAttribute]
-      request.headers.append(
+  client.requestPipeline.intercept(HttpRequestPipeline.Before) {
+    if (context.attributes.contains(HwProofOfPossessionAttribute)) {
+      val hwProofOfPossession = context.attributes[HwProofOfPossessionAttribute]
+      context.headers.append(
         ProofOfPossessionHeaders.HW_SIGNATURE,
         hwProofOfPossession.hwSignedToken
       )
     }
 
-    if (request.attributes.contains(AccountIdAttribute)) {
-      val accountId = request.attributes[AccountIdAttribute]
-      val appAuthKey = request.attributes.getOrNull(AppAuthKeyAttribute)
+    if (context.attributes.contains(AccountIdAttribute)) {
+      val accountId = context.attributes[AccountIdAttribute]
+      val appAuthKey = context.attributes.getOrNull(AppAuthKeyAttribute)
 
       // We only use the [Global] auth token type here, because this PoP is only meant to
       // differentiate between tokens generated via the app public key or via the hw public key
-      authTokensRepository.getAuthTokens(accountId, AuthTokenScope.Global).get()
+      authTokensRepository.getTokens(accountId, AuthTokenScope.Global).get()
         ?.let { tokens ->
           val authKey: PublicKey<out AppAuthKey>? =
             when (appAuthKey) {
@@ -64,7 +64,7 @@ val ProofOfPossessionPlugin = createClientPlugin(
             appAuthKeyMessageSigner.createAppProofOfPossession(authKey, tokens.accessToken)
               .onSuccess { signedMessage ->
                 // add our proof-of-possession http header
-                request.headers.append(
+                context.headers.append(
                   ProofOfPossessionHeaders.APP_SIGNATURE,
                   signedMessage.appSignedToken
                 )

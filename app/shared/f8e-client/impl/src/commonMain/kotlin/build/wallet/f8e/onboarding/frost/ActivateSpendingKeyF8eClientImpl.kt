@@ -8,6 +8,9 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withAppAuthKey
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.*
 import build.wallet.mapUnit
@@ -27,13 +30,13 @@ class ActivateSpendingKeyF8eClientImpl(
     softwareKeyDefinitionId: SoftwareKeyDefinitionId,
   ): Result<Unit, NetworkingError> =
     f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        appFactorProofOfPossessionAuthKey = appAuthKey
-      ).bodyResult<EmptyResponseBody> {
+      .authenticated()
+      .bodyResult<EmptyResponseBody> {
         put(urlString = "/api/accounts/${accountId.serverId}/spending-key-definition") {
           withDescription("Activate spending key")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
+          withAppAuthKey(appAuthKey)
           setRedactedBody(RequestBody(keyDefinitionId = softwareKeyDefinitionId.value))
         }
       }.mapUnit()

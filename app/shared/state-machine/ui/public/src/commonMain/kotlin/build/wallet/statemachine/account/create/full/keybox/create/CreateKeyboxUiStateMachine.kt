@@ -1,5 +1,6 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -12,4 +13,5 @@ interface CreateKeyboxUiStateMachine : StateMachine<CreateKeyboxUiProps, ScreenM
 data class CreateKeyboxUiProps(
   val context: CreateFullAccountContext,
   val onExit: () -> Unit,
+  val onAccountCreated: (FullAccount) -> Unit,
 )

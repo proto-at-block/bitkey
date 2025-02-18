@@ -4,11 +4,11 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.transactions.TransactionDetails
+import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -61,14 +61,14 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
     )
 
   test("show regular transaction details: transfer amount, fees paid") {
-    stateMachine.test(regularProps) {
+    stateMachine.testWithVirtualTime(regularProps) {
       awaitBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
         with(mainContentList[2].shouldBeTypeOf<FormMainContentModel.DataList>()) {
           items.size.shouldBe(2)
 
           items[0].title.shouldBe("Amount")
-          items[1].title.shouldBe("Network Fees")
+          items[1].title.shouldBe("Network fees")
         }
       }
     }
@@ -94,7 +94,7 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(speedUpProps) {
+    stateMachine.testWithVirtualTime(speedUpProps) {
       awaitBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.Divider>()
         with(mainContentList[2].shouldBeTypeOf<FormMainContentModel.DataList>()) {

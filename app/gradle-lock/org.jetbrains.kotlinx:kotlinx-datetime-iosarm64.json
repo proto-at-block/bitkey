@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-datetime-iosarm64",
     "components": [
         {
-            "version": "0.5.0",
+            "version": "0.6.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-datetime-iosarm64-0.5.0-metadata.jar": "55c192cbe47292df21c4b33b99e97050212fb51b6b6f49d5625ac8f07868fbd6"
+                        "kotlinx-datetime-iosarm64-0.6.1-metadata.jar": "1ed0d4a0f3f9c8e88b65b9a7f7210e72e5fc87d781174394fbb5dc8d8b89c9d2"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-datetime.klib": "99034a86c88b40d7753220fbd467394c9289bfb980279963fdea0f91d746764a"
+                        "kotlinx-datetime.klib": "05067559ecaa9af2365fa048fa0dc67c4c483ce84da2f135316f11859d52d3ee"
                     }
                 }
             ],

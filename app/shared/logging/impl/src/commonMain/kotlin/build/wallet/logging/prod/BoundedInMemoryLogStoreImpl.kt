@@ -45,8 +45,11 @@ class BoundedInMemoryLogStoreImpl : BoundedInMemoryLogStore {
   override fun getCurrentLogs(
     minimumLevel: LogLevel,
     tag: String?,
-  ): List<Entity> =
-    logs.filter { it.level >= minimumLevel && if (tag != null) it.tag == tag else true }
+  ): List<Entity> {
+    val snapshot = mutableListOf<Entity>()
+    logs.filterTo(snapshot) { it.level >= minimumLevel && if (tag != null) it.tag == tag else true }
+    return snapshot
+  }
 
   override fun clear() {
     logs.clear()

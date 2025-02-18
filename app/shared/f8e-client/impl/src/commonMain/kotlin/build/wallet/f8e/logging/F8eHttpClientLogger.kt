@@ -1,17 +1,13 @@
 package build.wallet.f8e.logging
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.HttpClientPlugin
-import io.ktor.client.plugins.observer.ResponseHandler
-import io.ktor.client.plugins.observer.ResponseObserver
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.HttpRequestPipeline
-import io.ktor.client.request.HttpSendPipeline
-import io.ktor.client.statement.HttpReceivePipeline
-import io.ktor.client.statement.HttpResponsePipeline
-import io.ktor.http.contentType
-import io.ktor.util.AttributeKey
-import io.ktor.util.InternalAPI
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.observer.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.util.*
+import kotlinx.coroutines.CancellationException
 
 internal val F8eCallLogger = AttributeKey<HttpClientCallLogger>("F8eCallLogger")
 internal val F8eCallLogExtras = AttributeKey<Array<out Any>>("F8eCallLogExtras")
@@ -32,24 +28,24 @@ internal typealias HeaderSanitizer = (String) -> String
  * [F8eHttpClientLogger] is a Ktor Client plugin that allows logging of
  * sanitized HTTP message data, suitable for production.
  *
- * By default, (when [debug] is false) only headers with a [HeaderSanitizer]
- * are logged and request/response bodies are logged in their data class form
+ * By default, (when [debug] is false) only a minimal summary of each request and response is logged,
+ * and request/response headers or bodies are not included.
+ *
+ * When [debug] mode is enabled, all original request headers will be logged
+ * and the request/response bodies are logged in their serialized format,
  * allowing the use of `@Redacted` on sensitive fields.
  *
- * When [debug] mode is enabled, all original requests headers will be logged
- * and the request/response bodies are logged in their serialized format.
- *
- * To provide additional loggable data from any HTTP call, the `logExtras`
+ * To provide additional loggable data from any HTTP call, the `withExtras`
  * helper is available when building the request:
  * ```
  * val myData = ...
  * val response = http.post("/") {
  *   setBody(...)
- *   logExtras(myData)
+ *   withExtras(myData)
  * }
  * ```
  */
-@Suppress("TooGenericExceptionCaught")
+@Suppress("TooGenericExceptionCaught", "ThrowsCount")
 class F8eHttpClientLogger private constructor(
   val tag: String,
   val debug: Boolean,
@@ -89,11 +85,12 @@ class F8eHttpClientLogger private constructor(
       plugin: F8eHttpClientLogger,
       scope: HttpClient,
     ) {
-      plugin.configureResponseLogging(scope)
       if (plugin.debug) {
         plugin.configureRequestLoggingDebug(scope)
+        plugin.configureResponseLoggingDebug(scope)
       } else {
         plugin.configureRequestLogging(scope)
+        plugin.configureResponseLogging(scope)
       }
     }
   }
@@ -105,12 +102,18 @@ class F8eHttpClientLogger private constructor(
 
       val response = try {
         logRequest(logger, context, debug, headerSanitizers)
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
       } catch (_: Throwable) {
         null
       }
 
       try {
         proceedWith(response ?: subject)
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
       } catch (cause: Throwable) {
         logRequestException(tag, context, cause)
         throw cause
@@ -125,6 +128,9 @@ class F8eHttpClientLogger private constructor(
 
       try {
         proceed()
+      } catch (cause: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw cause
       } catch (cause: Throwable) {
         logRequestException(tag, context, cause)
         throw cause
@@ -136,7 +142,20 @@ class F8eHttpClientLogger private constructor(
     client.sendPipeline.intercept(HttpSendPipeline.Monitoring) {
       val logger = context.attributes[F8eCallLogger]
       try {
-        logRequest(logger, context, debug, headerSanitizers)
+        val description = context.attributes.getOrNull(F8eCallDescription)
+        val message = buildString {
+          append("REQUEST: ")
+          if (description != null) {
+            append("$description - ")
+          }
+          append("${context.method.value} ${context.url.encodedPath}")
+        }
+        logger.logRequest(message)
+        logger.closeRequestLog()
+        proceed()
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
       } catch (cause: Throwable) {
         logRequestException(tag, context, cause)
         throw cause
@@ -147,12 +166,47 @@ class F8eHttpClientLogger private constructor(
   private fun configureResponseLogging(client: HttpClient) {
     client.receivePipeline.intercept(HttpReceivePipeline.State) { response ->
       val logger = response.call.attributes[F8eCallLogger]
+      val description = response.call.request.attributes.getOrNull(F8eCallDescription)
+      val message = buildString {
+        append("RESPONSE: ")
+        if (description != null) {
+          append("$description - ")
+        }
+        append("${response.call.request.method.value} ${response.call.request.url.encodedPath}")
+        append(" - ${response.status.value}")
+      }
+      logger.logResponseHeader(message)
+      try {
+        proceed()
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
+      } catch (cause: Throwable) {
+        logger.logResponseException(
+          "REQUEST: ${response.call.request.method} ${response.call.request.url.encodedPath} failed with error: $cause",
+          cause
+        )
+        throw cause
+      } finally {
+        logger.closeResponseLog()
+      }
+    }
+
+    installResponseReceiveExceptionInterceptor(client)
+  }
+
+  private fun configureResponseLoggingDebug(client: HttpClient) {
+    client.receivePipeline.intercept(HttpReceivePipeline.State) { response ->
+      val logger = response.call.attributes[F8eCallLogger]
       val header = StringBuilder()
 
       var failed = false
       try {
         header.appendResponseHeader(response.call.response, debug, headerSanitizers)
         proceed()
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
       } catch (cause: Throwable) {
         header.appendResponseException(response.call.request, cause)
         failed = true
@@ -162,9 +216,35 @@ class F8eHttpClientLogger private constructor(
         if (failed) logger.closeResponseLog()
       }
     }
+
+    installResponseReceiveExceptionInterceptor(client)
+
+    val observer: ResponseHandler = observer@{
+      val logger = it.call.attributes[F8eCallLogger]
+      val log = StringBuilder()
+      @OptIn(InternalAPI::class)
+      try {
+        log.appendResponseBodyDebug(it.contentType(), it.content)
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
+      } catch (_: Throwable) {
+        // Even if we fail to parse the content, we still want to log and close
+      } finally {
+        logger.logResponseBody(log.toString().trim())
+        logger.closeResponseLog()
+      }
+    }
+    ResponseObserver.install(ResponseObserver(observer), client)
+  }
+
+  private fun installResponseReceiveExceptionInterceptor(client: HttpClient) {
     client.responsePipeline.intercept(HttpResponsePipeline.Receive) {
       try {
         proceed()
+      } catch (e: CancellationException) {
+        // Cancellations are expected, rethrow to ensure structured cancellation.
+        throw e
       } catch (cause: Throwable) {
         val logger = context.attributes[F8eCallLogger]
         val log = StringBuilder()
@@ -172,35 +252,6 @@ class F8eHttpClientLogger private constructor(
         logger.logResponseException(log.toString(), cause)
         logger.closeResponseLog()
         throw cause
-      }
-    }
-
-    if (debug) {
-      val observer: ResponseHandler = observer@{
-        val logger = it.call.attributes[F8eCallLogger]
-        val log = StringBuilder()
-        @OptIn(InternalAPI::class)
-        try {
-          log.appendResponseBodyDebug(it.contentType(), it.content)
-        } catch (_: Throwable) {
-        } finally {
-          logger.logResponseBody(log.toString().trim())
-          logger.closeResponseLog()
-        }
-      }
-
-      ResponseObserver.install(ResponseObserver(observer), client)
-    } else {
-      client.responsePipeline.intercept(HttpResponsePipeline.After) {
-        val logger = context.attributes[F8eCallLogger]
-        val log = StringBuilder()
-        try {
-          log.appendResponseBody(subject, context)
-        } catch (_: Throwable) {
-        } finally {
-          logger.logResponseBody(log.toString().trim())
-          logger.closeResponseLog()
-        }
       }
     }
   }

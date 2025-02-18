@@ -1,6 +1,7 @@
 package build.wallet.router
 
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.router.Route.NotificationPayloadKeys
 import io.kotest.core.spec.style.DescribeSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -25,8 +26,36 @@ class RouterTests : DescribeSpec({
     }
 
     it("deeplink") {
-      Route.from(1)
+      Route.from(mapOf(NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID to "1"))
         .shouldBe(Route.NavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_MONEY_HOME))
+    }
+
+    it("deeplink from url") {
+      Route.from("https://bitkey.world/links/app?context=screen&navigate_to_screen_id=1")
+        .shouldBe(Route.NavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_MONEY_HOME))
+    }
+
+    it("deeplink from beneficiary path") {
+      Route.from("https://bitkey.world/links/downloads/beneficiary#1234")
+        .shouldBe(Route.BeneficiaryInvite("1234"))
+    }
+
+    it("complete inheritance claim") {
+      Route.from(
+        mapOf(
+          NotificationPayloadKeys.INHERITANCE_CLAIM_ID to "foo:aaaaaa",
+          NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID to "6"
+        )
+      ).shouldBe(Route.InheritanceClaimNavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM, "foo:aaaaaa"))
+    }
+
+    it("deny inheritance claim") {
+      Route.from(
+        mapOf(
+          NotificationPayloadKeys.INHERITANCE_CLAIM_ID to "foo:aaaaaa",
+          NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID to "5"
+        )
+      ).shouldBe(Route.InheritanceClaimNavigationDeeplink(NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM, "foo:aaaaaa"))
     }
 
     describe("trusted contact routing") {

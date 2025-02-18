@@ -37,7 +37,8 @@ sealed interface AccountStatus {
    * so that we can manage the data state flow via [HasActiveLiteAccountDataStateMachine].
    */
   data class LiteAccountUpgradingToFullAccount(
-    val account: FullAccount,
+    val liteAccount: LiteAccount,
+    val onboardingAccount: FullAccount,
   ) : AccountStatus
 
   companion object {
@@ -46,7 +47,7 @@ sealed interface AccountStatus {
         NoAccount -> null
         is ActiveAccount -> accountStatus.account
         is OnboardingAccount -> accountStatus.account
-        is LiteAccountUpgradingToFullAccount -> accountStatus.account
+        is LiteAccountUpgradingToFullAccount -> accountStatus.onboardingAccount
       }
     }
   }

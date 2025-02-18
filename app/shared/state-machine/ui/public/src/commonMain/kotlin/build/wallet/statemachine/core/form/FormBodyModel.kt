@@ -7,8 +7,9 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.platform.random.uuid
+import build.wallet.statemachine.automations.AutomaticUiTests
+import build.wallet.statemachine.automations.AutomationUnavailable
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ComposableRenderedModel
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.core.form.FormScreen
@@ -58,7 +59,7 @@ import kotlin.native.HiddenFromObjC
  * @property eventTrackerShouldTrack: whether the screen event should be tracked for analytics
  * @property errorData If the screen is an error screen, this will contain appropriate error data
  * to be logged.
- * @property enableComposeRendering When enabled, render this screen with Compose UI on iOS.
+ * @property disableFixedFooter When true, includes footer content inside the main scrollable area.
  */
 abstract class FormBodyModel(
   open val id: EventTrackerScreenId?,
@@ -73,12 +74,13 @@ abstract class FormBodyModel(
   open val ctaWarning: CallToActionModel? = null,
   open val keepScreenOn: Boolean = false,
   open val renderContext: RenderContext = Screen,
-  open val onLoaded: (() -> Unit) = {},
+  open val backgroundTreatment: BackgroundTreatment = BackgroundTreatment.Default,
+  open val onLoaded: (() -> Unit)? = null,
   open val eventTrackerContext: EventTrackerContext? = null,
   open val eventTrackerShouldTrack: Boolean = true,
   open val errorData: ErrorData? = null,
-  open val enableComposeRendering: Boolean = false,
-) : BodyModel(), ComposableRenderedModel {
+  open val disableFixedFooter: Boolean = false,
+) : BodyModel(), AutomaticUiTests {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?
     get() =
       id?.let {
@@ -89,15 +91,25 @@ abstract class FormBodyModel(
         )
       }
 
-  private val unique: String
-    get() = id?.name ?: uuid().substringBefore('-')
-  override val key: String
-    get() = "${this::class.qualifiedName}-$unique."
+  private val unique: String = id?.name ?: uuid().substringBefore('-')
+  override val key: String = "${this::class.qualifiedName}-$unique."
 
   @HiddenFromObjC
   @Composable
   override fun render(modifier: Modifier) {
-    FormScreen(model = this)
+    FormScreen(model = this, modifier)
+  }
+
+  override fun automateNextPrimaryScreen() {
+    val nextButton = primaryButton ?: throw AutomationUnavailable(
+      reason = "Primary button is not set in form layout"
+    )
+    // Only click the button if it is enabled, otherwise wait (no-op)
+    // This is to prevent any possibility of a test flake waiting for input
+    // to be set or actions to be settled.
+    if (nextButton.isEnabled) {
+      nextButton.onClick.invoke()
+    }
   }
 }
 
@@ -114,6 +126,14 @@ enum class RenderContext {
 
   /** Render the formscreen model as appropriate for a bottom sheet */
   Sheet,
+}
+
+enum class BackgroundTreatment {
+  /** Default background treatment */
+  Default,
+
+  /** Inheritance upsell background treatment */
+  Inheritance,
 }
 
 /**
@@ -140,7 +160,7 @@ fun formBodyModel(
   ctaWarning: CallToActionModel? = null,
   keepScreenOn: Boolean = false,
   renderContext: RenderContext = Screen,
-  onLoaded: (() -> Unit) = {},
+  onLoaded: (() -> Unit)? = null,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   errorData: ErrorData? = null,
@@ -184,7 +204,7 @@ private data class FormBodyModelImpl(
   override val ctaWarning: CallToActionModel? = null,
   override val keepScreenOn: Boolean = false,
   override val renderContext: RenderContext = Screen,
-  override val onLoaded: (() -> Unit) = {},
+  override val onLoaded: (() -> Unit)? = null,
   override val eventTrackerContext: EventTrackerContext? = null,
   override val eventTrackerShouldTrack: Boolean = true,
   override val errorData: ErrorData? = null,

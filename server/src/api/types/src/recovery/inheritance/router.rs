@@ -4,7 +4,9 @@ use serde::{Deserialize, Serialize};
 use time::{serde::rfc3339, OffsetDateTime};
 use utoipa::ToSchema;
 
-use super::claim::{InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId};
+use super::claim::{
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId, InheritanceCompletionMethod,
+};
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -84,7 +86,7 @@ pub struct BeneficiaryInheritanceClaimViewLocked {
 pub struct BeneficiaryInheritanceClaimViewCompleted {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimViewCommonFields,
-    pub psbt: String,
+    pub psbt_txid: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -189,7 +191,10 @@ impl From<InheritanceClaim> for BeneficiaryInheritanceClaimView {
                         id: completed.common_fields.id,
                         recovery_relationship_id: completed.common_fields.recovery_relationship_id,
                     },
-                    psbt: completed.psbt.to_string(),
+                    psbt_txid: match completed.completion_method {
+                        InheritanceCompletionMethod::WithPsbt { txid } => Some(txid.to_string()),
+                        InheritanceCompletionMethod::EmptyBalance => None,
+                    },
                 },
             ),
         }

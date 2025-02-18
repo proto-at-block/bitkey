@@ -6,6 +6,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -31,11 +32,17 @@ data class ShareInviteBodyModel(
    */
   val onBackPressed: () -> Unit,
 ) : FormBodyModel(
-    id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SHARE_SCREEN,
+    id = if (isBeneficiary) {
+      SocialRecoveryEventTrackerScreenId.TC_BENEFICIARY_ENROLLMENT_SHARE_SCREEN
+    } else {
+      SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SHARE_SCREEN
+    },
     onBack = onBackPressed,
-    toolbar = ToolbarModel(),
+    toolbar = ToolbarModel(
+      leadingAccessory = CloseAccessory(onBackPressed)
+    ),
     header = FormHeaderModel(
-      icon = Icon.LargeIconShieldPerson,
+      icon = if (!isBeneficiary) Icon.LargeIconShieldPerson else null,
       headline = "Finally, invite $trustedContactName" + (if (!isBeneficiary) " to be your Trusted Contact" else ""),
       subline =
         """

@@ -167,6 +167,23 @@ class NotificationManagerImplTests: XCTestCase {
         XCTAssertEqual(addCalls.first?.touchpointPlatform, .apnsteam)
     }
 
+    func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_alphaVariant() {
+        appVariant = .alpha
+        deviceTokenManager.addCallExpectation = expectation(description: "add calls")
+
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
+
+        waitForExpectations(timeout: 10)
+
+        let addCalls = deviceTokenManager.addDeviceTokenIfActiveAccountCalls
+        XCTAssertEqual(addCalls.count, 1)
+        XCTAssertEqual(addCalls.first?.deviceToken, decodedDeviceToken)
+        XCTAssertEqual(addCalls.first?.touchpointPlatform, .apnsteamalpha)
+    }
+
     func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_teamVariant() {
         appVariant = .team
         deviceTokenManager.addCallExpectation = expectation(description: "add calls")

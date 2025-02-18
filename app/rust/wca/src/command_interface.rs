@@ -71,7 +71,7 @@ macro_rules! command {
                         // Create the generator when it's not already set
                         GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ()));
                     }
-                    &mut GENERATOR
+                    std::ptr::addr_of_mut!(GENERATOR).as_mut().unwrap()
                 }
             }
         }
@@ -113,7 +113,7 @@ macro_rules! command {
                         // Create the generator with arguments when it's not already set
                         GENERATOR = Some(next_gen::generator_fn::CallBoxed::call_boxed($generator_name, ($(self.$argname.to_owned()),*,)));
                     }
-                    &mut GENERATOR
+                    std::ptr::addr_of_mut!(GENERATOR).as_mut().unwrap()
                 }
             }
         }

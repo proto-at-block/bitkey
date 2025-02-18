@@ -24,7 +24,7 @@ class EnableNotificationsUiStateMachineImpl : EnableNotificationsUiStateMachine 
   }
 }
 
-private data class EnableNotificationsBodyModel(
+data class EnableNotificationsBodyModel(
   override val eventTrackerContext: EventTrackerContext,
   val onComplete: () -> Unit,
   override val onBack: () -> Unit,

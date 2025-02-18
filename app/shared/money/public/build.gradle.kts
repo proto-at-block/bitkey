@@ -3,7 +3,6 @@ import build.wallet.gradle.logic.gradle.exclude
 
 plugins {
   id("build.wallet.kmp")
-  alias(libs.plugins.kotlin.coroutines.native)
   alias(libs.plugins.kotlin.serialization)
   id("build.wallet.redacted")
 }

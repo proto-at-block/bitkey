@@ -48,6 +48,7 @@ class LogStoreInMemoryImpl : LogStoreInMemory {
     minimumLevel: LogLevel,
     tag: String?,
   ): List<Entity> {
-    return filter { it.level >= minimumLevel && if (tag != null) it.tag == tag else true }
+    val snapshot = mutableListOf<Entity>()
+    return filterTo(snapshot) { it.level >= minimumLevel && if (tag != null) it.tag == tag else true }
   }
 }

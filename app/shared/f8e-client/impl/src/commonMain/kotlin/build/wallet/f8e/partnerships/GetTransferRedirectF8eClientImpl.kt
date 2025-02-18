@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -24,12 +26,11 @@ class GetTransferRedirectF8eClientImpl(
     partner: String,
   ): Result<GetTransferRedirectF8eClient.Success, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        accountId = fullAccountId,
-        f8eEnvironment = f8eEnvironment
-      )
+      .authenticated()
       .bodyResult<ResponseBody> {
         post("/api/partnerships/transfers/redirects") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             RequestBody(
               address.address,

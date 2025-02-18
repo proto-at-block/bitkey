@@ -23,10 +23,12 @@ inputs = {
 
   image_name = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/web-site"
   // Remove image_tag after initial bootstrap
-  image_tag     = "47b8afb99abb8c4b64e4442fd5e3c5eee239e67b"
-  desired_count = 2
-  cpu           = 512
-  memory        = 1024
+  image_tag        = "47b8afb99abb8c4b64e4442fd5e3c5eee239e67b"
+  desired_count    = 2
+  cpu              = 512
+  memory           = 1024
+  cpu_architecture = "X86_64"
+
   task_policy_arns = {
     call-square = dependency.square_vpce.outputs.invoke_policy_arn
   }

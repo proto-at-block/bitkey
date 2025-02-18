@@ -220,7 +220,6 @@ class WipingDeviceConfirmationUiStateMachineImpl(
   ): SheetModel {
     return SheetModel(
       size = SheetSize.DEFAULT,
-      dragIndicatorVisible = false,
       onClosed = onBack,
       body = ScanAndWipeConfirmationSheetBodyModel(
         onBack = onBack,

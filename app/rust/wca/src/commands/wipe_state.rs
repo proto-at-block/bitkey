@@ -18,12 +18,12 @@ fn wipe_state() -> Result<bool, CommandError> {
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::WipeStateRsp(WipeStateRsp { rsp_status, .. }) = message {
-        match WipeStateRspStatus::from_i32(rsp_status) {
-            Some(WipeStateRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Some(WipeStateRspStatus::Success) => Ok(true),
-            Some(WipeStateRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(WipeStateRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            None => Err(CommandError::InvalidResponse),
+        match WipeStateRspStatus::try_from(rsp_status) {
+            Ok(WipeStateRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(WipeStateRspStatus::Success) => Ok(true),
+            Ok(WipeStateRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(WipeStateRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)

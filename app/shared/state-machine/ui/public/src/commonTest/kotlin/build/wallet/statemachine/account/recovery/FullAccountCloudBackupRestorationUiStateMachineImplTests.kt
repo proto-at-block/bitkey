@@ -4,6 +4,8 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
 import build.wallet.auth.*
+import build.wallet.auth.AuthTokenScope.Global
+import build.wallet.auth.AuthTokenScope.Recovery
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.f8e.FullAccountId
@@ -30,16 +32,16 @@ import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
@@ -60,7 +62,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val csekDao = CsekDaoFake()
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
-  val authTokenDao = AuthTokenDaoMock(turbines::create)
+  val authTokensService = AuthTokensServiceFake()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine,
@@ -100,7 +102,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       deviceTokenManager = deviceTokenManager,
       csekDao = csekDao,
       accountAuthenticator = accountAuthorizer,
-      authTokenDao = authTokenDao,
+      authTokensService = authTokensService,
       appPrivateKeyDao = appPrivateKeyDao,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       keyboxDao = keyboxDao,
@@ -123,15 +125,15 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
+    authTokensService.reset()
     appAuthKeyMessageSigner.reset()
     keyboxDao.reset()
-    authTokenDao.reset()
     recoverySyncer.reset()
     cloudBackupDao.reset()
   }
 
   test("happy path - restore from cloud back up") {
-    stateMachineActiveDeviceFlagOn.test(props) {
+    stateMachineActiveDeviceFlagOn.testWithVirtualTime(props) {
       accountAuthorizer.authResults =
         mutableListOf(
           Ok(accountAuthorizer.defaultAuthResult.get()!!.copy(accountId = "account-id")),
@@ -139,11 +141,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
         )
 
       // Cloud back up found model
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         clickPrimaryButton()
       }
       // Unsealing CSEK
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(CsekFake)
@@ -151,7 +153,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       csekDao.get(SealedCsekFake).shouldBe(Ok(CsekFake))
 
       // activating restored keybox
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -162,28 +164,20 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
       // Set the global token
       accountAuthorizer.authCalls.awaitItem()
-      authTokenDao.setTokensCalls.awaitItem().shouldBe(
-        AuthTokenDaoMock.SetTokensParams(
-          accountId = FullAccountId("account-id"),
-          tokens = AccountAuthTokens(
-            accessToken = AccessToken("access-token-fake"),
-            refreshToken = RefreshToken("refresh-token-fake")
-          ),
-          scope = AuthTokenScope.Global
+      authTokensService.getTokens(FullAccountId("account-id"), Global).shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken("access-token-fake"),
+          refreshToken = RefreshToken("refresh-token-fake")
         )
       )
 
       // Set the recovery token
       accountAuthorizer.authCalls.awaitItem()
-      authTokenDao.setTokensCalls.awaitItem().shouldBe(
-        AuthTokenDaoMock.SetTokensParams(
-          // We want to re-use the global ID, not use the recovery ID
-          accountId = FullAccountId("account-id"),
-          tokens = AccountAuthTokens(
-            accessToken = AccessToken("access-token-fake"),
-            refreshToken = RefreshToken("refresh-token-fake")
-          ),
-          scope = AuthTokenScope.Recovery
+      // We want to re-use the global ID, not use the recovery ID
+      authTokensService.getTokens(FullAccountId("account-id"), Recovery).shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken("access-token-fake"),
+          refreshToken = RefreshToken("refresh-token-fake")
         )
       )
 

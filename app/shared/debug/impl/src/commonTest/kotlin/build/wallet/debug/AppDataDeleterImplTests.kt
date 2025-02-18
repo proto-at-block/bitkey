@@ -2,8 +2,10 @@ package build.wallet.debug
 
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus.NoAccount
+import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AuthKeyRotationAttemptDaoMock
-import build.wallet.auth.AuthTokenDaoMock
+import build.wallet.auth.AuthTokenScope.Global
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.availability.AuthSignatureStatus
 import build.wallet.availability.F8eAuthSignatureStatusProviderFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
@@ -15,6 +17,7 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeypairMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.spending.AppSpendingKeypair
@@ -62,7 +65,7 @@ class AppDataDeleterImplTests : FunSpec({
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
 
   val accountService = AccountServiceFake()
-  val authTokenDao = AuthTokenDaoMock(turbines::create)
+  val authTokensService = AuthTokensServiceFake()
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val transactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
@@ -89,7 +92,7 @@ class AppDataDeleterImplTests : FunSpec({
     AppDataDeleterImpl(
       appVariant = appVariant,
       accountService = accountService,
-      authTokenDao = authTokenDao,
+      authTokensService = authTokensService,
       gettingStartedTaskDao = gettingStartedTaskDao,
       keyboxDao = keyboxDao,
       notificationTouchpointDao = notificationTouchpointDao,
@@ -122,6 +125,7 @@ class AppDataDeleterImplTests : FunSpec({
 
   beforeTest {
     accountService.reset()
+    authTokensService.reset()
     onboardingKeyboxSealedCsekDao.reset()
     gettingStartedTaskDao.reset()
     transactionPriorityPreference.reset()
@@ -156,12 +160,13 @@ class AppDataDeleterImplTests : FunSpec({
       transactionPriorityPreference.set(FASTEST)
       socRecStartedChallengeDao.set("fake")
       authSignatureStatusProvider.updateAuthSignatureStatus(AuthSignatureStatus.Unauthenticated)
+      authTokensService.setTokens(FullAccountIdMock, AccountAuthTokensMock, Global)
 
       appDataDeleter(variant).deleteAll()
 
       accountService.accountState.value.shouldBeOk(NoAccount)
       appPrivateKeyDao.asymmetricKeys.shouldBeEmpty()
-      authTokenDao.clearCalls.awaitItem()
+      authTokensService.getTokens(FullAccountIdMock, Global).shouldBeOk(null)
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
       keyboxDao.clearCalls.awaitItem()
       mobilePayService.deleteLocalCalls.awaitItem()

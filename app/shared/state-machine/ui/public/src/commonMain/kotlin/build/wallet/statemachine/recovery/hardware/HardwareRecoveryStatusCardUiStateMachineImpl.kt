@@ -1,13 +1,8 @@
 package build.wallet.statemachine.recovery.hardware
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.Progress
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
@@ -15,8 +10,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.time.DurationFormatter
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 
 @BitkeyInject(ActivityScope::class)
@@ -50,9 +43,8 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
 
             // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
             LaunchedEffect("update-delay-progress") {
-              while (isActive) {
+              launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
                 remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
-                delay(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE)
               }
             }
 

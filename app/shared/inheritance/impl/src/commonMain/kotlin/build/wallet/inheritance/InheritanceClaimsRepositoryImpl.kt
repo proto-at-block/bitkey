@@ -3,8 +3,11 @@ package build.wallet.inheritance
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
+import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8eClient
@@ -14,9 +17,10 @@ import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class InheritanceClaimsRepositoryImpl(
@@ -25,6 +29,7 @@ class InheritanceClaimsRepositoryImpl(
   private val retrieveInheritanceClaimsF8eClient: RetrieveInheritanceClaimsF8eClient,
   private val inheritanceFeatureFlag: InheritanceFeatureFlag,
   stateScope: CoroutineScope,
+  private val inheritanceSyncFrequency: InheritanceSyncFrequency,
 ) : InheritanceClaimsRepository {
   /**
    * Current account status.
@@ -50,11 +55,7 @@ class InheritanceClaimsRepositoryImpl(
         beneficiaryClaims = beneficiaryClaims.bind()
       )
     }
-  }.stateIn(
-    scope = stateScope,
-    started = SharingStarted.Eagerly,
-    initialValue = null
-  )
+  }
 
   /**
    * In-memory cache for claim data.
@@ -72,16 +73,14 @@ class InheritanceClaimsRepositoryImpl(
    */
   private val serverClaims: Flow<Result<InheritanceClaims, Error>> =
     account.flatMapLatest { account ->
-      flow {
-        while (currentCoroutineContext().isActive) {
+      tickerFlow(inheritanceSyncFrequency.value)
+        .map {
           retrieveInheritanceClaimsF8eClient
             .retrieveInheritanceClaims(
               account.config.f8eEnvironment,
               account.accountId
-            ).let { emit(it) }
-          delay(1.minutes)
+            )
         }
-      }
     }.distinctUntilChanged()
 
   /**
@@ -94,28 +93,28 @@ class InheritanceClaimsRepositoryImpl(
    * or server updates, and does not emit a default empty value initially
    * before load.
    */
+  private val claimsFlow = channelFlow {
+    databaseClaims.first().let {
+      send(it)
+    }
+    coroutineScope {
+      launch { syncServerClaims() }
+      launch {
+        claimsState
+          .filterNotNull()
+          .collectLatest { send(it) }
+      }
+    }
+  }.shareIn(
+    scope = stateScope,
+    started = SharingStarted.WhileSubscribed(),
+    replay = 1
+  )
+
   override val claims: Flow<Result<InheritanceClaims, Error>> =
     inheritanceFeatureFlag.flagValue()
-      .flatMapLatest { flag ->
-        if (flag.isEnabled()) {
-          claimsState.filterNotNull()
-            .onStart { databaseClaims.value?.let { emit(it) } }
-        } else {
-          emptyFlow()
-        }
-      }
-      .shareIn(stateScope, SharingStarted.WhileSubscribed())
-
-  init {
-    stateScope.launch {
-      inheritanceFeatureFlag.flagValue()
-        .collectLatest { flag ->
-          if (flag.isEnabled()) {
-            syncServerClaims()
-          }
-        }
-    }
-  }
+      .flatMapLatest { enabled -> if (enabled.value) claimsFlow else emptyFlow() }
+      .distinctUntilChanged()
 
   override suspend fun fetchClaims(): Result<InheritanceClaims, Error> {
     if (!inheritanceFeatureFlag.isEnabled()) {
@@ -132,21 +131,43 @@ class InheritanceClaimsRepositoryImpl(
   /**
    * Update the state of a single inheritance claim.
    */
-  override suspend fun updateSingleClaim(claim: BeneficiaryClaim) {
+  override suspend fun updateSingleClaim(claim: InheritanceClaim) {
     if (!inheritanceFeatureFlag.isEnabled()) {
       return
     }
 
+    claimsState.value = when (claim) {
+      is BeneficiaryClaim -> updateClaim(claim, { it.beneficiaryClaims }) { state, updatedClaims ->
+        state.copy(beneficiaryClaims = updatedClaims)
+      }
+      is BenefactorClaim -> updateClaim(claim, { it.benefactorClaims }) { state, updatedClaims ->
+        state.copy(benefactorClaims = updatedClaims)
+      }
+      else -> claimsState.value
+    }
+  }
+
+  private inline fun <T : InheritanceClaim> updateClaim(
+    claim: T,
+    claimsSelector: (InheritanceClaims) -> List<T>,
+    updateClaimsState: (InheritanceClaims, List<T>) -> InheritanceClaims,
+  ): Result<InheritanceClaims, Error>? {
     val currentClaim = claimsState.value
       ?.get()
-      ?.beneficiaryClaims
+      ?.let(claimsSelector)
       ?.find { it.claimId == claim.claimId }
 
-    claimsState.value = if (currentClaim == null) {
-      claimsState.value?.map { it.copy(beneficiaryClaims = it.beneficiaryClaims + claim) }
-    } else {
-      claimsState.value?.map { it.copy(beneficiaryClaims = it.beneficiaryClaims - currentClaim + claim) }
+    val updatedClaims = claimsSelector(
+      claimsState.value?.get() ?: InheritanceClaims.EMPTY
+    ).let { claims ->
+      if (currentClaim == null) {
+        claims + claim
+      } else {
+        claims - currentClaim + claim
+      }
     }
+
+    return claimsState.value?.map { updateClaimsState(it, updatedClaims) }
   }
 
   /**

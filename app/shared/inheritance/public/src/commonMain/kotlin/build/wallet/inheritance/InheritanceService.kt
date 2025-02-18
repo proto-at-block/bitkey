@@ -9,7 +9,10 @@ import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 
 /**
  * Service for managing inheritance relationships and executing inheritance operations.
@@ -25,29 +28,26 @@ interface InheritanceService {
   val inheritanceRelationships: Flow<Relationships>
 
   /**
-   * Emits a collection of relationships with currently pending claims.
-   */
-  val relationshipsWithPendingClaim: Flow<List<RelationshipId>>
-
-  /**
-   * Relationships for which a claim can be started.
-   */
-  val relationshipsWithNoActiveClaims: Flow<List<RelationshipId>>
-
-  /**
-   * Relationships with a claim in a state that can be canceled on the server.
-   */
-  val relationshipsWithCancelableClaim: Flow<List<RelationshipId>>
-
-  /**
-   * Relationships with a claim that is ready to be completed.
-   */
-  val relationshipsWithCompletableClaim: Flow<List<RelationshipId>>
-
-  /**
    * Emits a collection of all claims.
    */
   val claims: Flow<List<InheritanceClaim>>
+
+  /**
+   * Emits a collection of the latest claims paired with the timestamp for
+   * reference. This will update with a new timestamp if any claim passes
+   * its approval date.
+   */
+  val claimsSnapshot: Flow<ClaimsSnapshot>
+
+  /**
+   * Snapshot of the current state of each beneficiary for the user.
+   */
+  val beneficiaryClaimState: Flow<ImmutableList<ContactClaimState.Beneficiary>>
+
+  /**
+   * Snapshot of the current state of each benefactor for the user.
+   */
+  val benefactorClaimState: Flow<ImmutableList<ContactClaimState.Benefactor>>
 
   /**
    * Creates an invitation for a trusted contact to become a beneficiary
@@ -100,4 +100,29 @@ interface InheritanceService {
     relationshipId: RelationshipId,
     details: InheritanceTransactionDetails,
   ): Result<BeneficiaryClaim.CompleteClaim, Throwable>
+
+  /**
+   * Cancel any/all pending claims for the specified relationship.
+   */
+  suspend fun cancelClaims(relationshipId: RelationshipId): Result<Unit, Throwable>
+
+  /**
+   * Complete an inheritance claim that has no funds available to transfer.
+   */
+  suspend fun completeClaimWithoutTransfer(
+    relationshipId: RelationshipId,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable>
+
+  data class ClaimNotFoundError(
+    override val message: String,
+  ) : Error()
+}
+
+/**
+ * Combined list of both the benefactor and beneficiary claim states.
+ */
+val InheritanceService.claimStates: Flow<ImmutableList<ContactClaimState>> get() {
+  return combine(benefactorClaimState, beneficiaryClaimState) { benefactors, beneficiaries ->
+    (benefactors + beneficiaries).toImmutableList()
+  }
 }

@@ -1,7 +1,9 @@
+mod complete_inheritance_claim_tests;
 mod create_inheritance_claim_tests;
+mod has_incomplete_claim_tests;
 mod lock_inheritance_claim_tests;
 mod recreate_pending_claims_for_beneficiary_tests;
-mod sign_and_complete_inheritance_claim_tests;
+mod shorten_delay_tests;
 
 use crate::service::inheritance;
 use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
@@ -24,6 +26,7 @@ use database::ddb::Repository;
 use feature_flags::config::Config;
 use http_server::config;
 use notification::service::tests::construct_test_notification_service;
+use promotion_code::service::tests::construct_test_promotion_code_service;
 use rand::thread_rng;
 use repository::recovery::inheritance::InheritanceRepository;
 use screener::service::Service as ScreenerService;
@@ -33,12 +36,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
-use types::account::entities::{Account, FullAccount};
+use types::account::entities::FullAccount;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
     InheritanceClaimCanceledBy, InheritanceClaimCompleted, InheritanceClaimLocked,
-    InheritanceClaimPending,
+    InheritanceClaimPending, InheritanceCompletionMethod,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::social::relationship::{
@@ -46,9 +49,18 @@ use types::recovery::social::relationship::{
 };
 use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
 
+fn get_auth_keys(account: &FullAccount) -> InheritanceClaimAuthKeys {
+    InheritanceClaimAuthKeys::FullAccount(
+        account
+            .active_auth_keys()
+            .expect("Account has active auth keys")
+            .to_owned(),
+    )
+}
+
 pub async fn create_accepted_inheritance_relationship(
     benefactor_account: &FullAccount,
-    beneficiary_account: &Account,
+    beneficiary_account: &FullAccount,
 ) -> RecoveryRelationshipId {
     let trusted_contact = TrustedContactInfo::new(
         "test_trusted_contact_alias".to_string(),
@@ -81,7 +93,7 @@ pub async fn create_accepted_inheritance_relationship(
     let recovery_relationship_id = recovery_relationship.common_fields().clone().id;
 
     let accept_invite_input = AcceptRecoveryRelationshipInvitationInput {
-        trusted_contact_account_id: beneficiary_account.get_id(),
+        trusted_contact_account_id: &beneficiary_account.id,
         recovery_relationship_id: &recovery_relationship_id,
         code: &invitation.code,
         customer_alias: "customer_alias",
@@ -107,7 +119,7 @@ pub async fn create_accepted_inheritance_relationship(
 
 pub async fn create_pending_inheritance_claim(
     benefactor_account: &FullAccount,
-    beneficiary_account: &Account,
+    beneficiary_account: &FullAccount,
     auth_keys: &InheritanceClaimAuthKeys,
     delay_end_time_override: Option<OffsetDateTime>,
 ) -> InheritanceClaimPending {
@@ -154,8 +166,8 @@ async fn update_claim_delay_end_time(
         .await
         .expect("persist claim");
 
-    if let InheritanceClaim::Pending(pending_claim) = claim {
-        pending_claim
+    if let InheritanceClaim::Pending(updated_pending_claim) = claim {
+        updated_pending_claim
     } else {
         panic!("Expected pending claim");
     }
@@ -163,7 +175,7 @@ async fn update_claim_delay_end_time(
 
 pub async fn cancel_claim(
     claim: &InheritanceClaim,
-    account: &Account,
+    account: &FullAccount,
 ) -> (InheritanceClaimCanceledBy, InheritanceClaim) {
     let inheritance_service = construct_test_inheritance_service().await;
     let input = CancelInheritanceClaimInput {
@@ -175,7 +187,7 @@ pub async fn cancel_claim(
 
 pub async fn create_locked_claim(
     benefactor_account: &FullAccount,
-    beneficiary_account: &Account,
+    beneficiary_account: &FullAccount,
 ) -> InheritanceClaimLocked {
     let secp = Secp256k1::new();
     let (auth_keys, challenge, app_signature, _) = setup_keys_and_signatures(&secp);
@@ -216,7 +228,9 @@ pub async fn create_completed_claim(
 
     let completed_claim = InheritanceClaim::Completed(InheritanceClaimCompleted {
         common_fields: locked_claim.common_fields.clone(),
-        psbt: signed_psbt,
+        completion_method: InheritanceCompletionMethod::WithPsbt {
+            txid: signed_psbt.unsigned_tx.txid(),
+        },
         completed_at: OffsetDateTime::now_utc(),
     });
 
@@ -275,7 +289,7 @@ pub async fn create_inheritance_package(
 
 pub async fn construct_test_inheritance_service() -> inheritance::Service {
     let inheritance_repository = construct_inheritance_repository().await;
-
+    let promotion_code_service = construct_test_promotion_code_service().await;
     let feature_flags_service = Config::new_with_overrides(HashMap::new())
         .to_service()
         .await
@@ -296,6 +310,7 @@ pub async fn construct_test_inheritance_service() -> inheritance::Service {
         construct_test_account_service().await,
         feature_flags_service,
         Arc::new(screener_service),
+        promotion_code_service,
     )
 }
 
@@ -306,21 +321,18 @@ pub async fn construct_inheritance_repository() -> InheritanceRepository {
     InheritanceRepository::new(ddb_connection.clone())
 }
 
-pub async fn setup_accounts() -> (FullAccount, Account) {
+pub async fn setup_accounts() -> (FullAccount, FullAccount) {
     setup_accounts_with_network(Network::BitcoinSignet).await
 }
 
-pub async fn setup_accounts_with_network(network: Network) -> (FullAccount, Account) {
+pub async fn setup_accounts_with_network(network: Network) -> (FullAccount, FullAccount) {
     let account_service = construct_test_account_service().await;
     let benefactor_account =
         create_full_account_for_test(&account_service, network, &generate_test_authkeys().into())
             .await;
-
-    let beneficiary_account = Account::Full(
+    let beneficiary_account =
         create_full_account_for_test(&account_service, network, &generate_test_authkeys().into())
-            .await,
-    );
-
+            .await;
     (benefactor_account, beneficiary_account)
 }
 

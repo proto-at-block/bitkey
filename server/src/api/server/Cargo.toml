@@ -58,6 +58,7 @@ notification = { workspace = true }
 onboarding = { workspace = true }
 partnerships = { workspace = true, optional = true }
 privileged_action = { workspace = true }
+promotion_code = { workspace = true }
 queue = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
@@ -77,7 +78,7 @@ wsm-rust-client = { workspace = true }
 aws-sdk-sqs = { workspace = true }
 base64 = { workspace = true }
 bdk_utils = { workspace = true }
-crypto = { workspace = true, features = ["ssb"] }
+crypto = { workspace = true, features = ["noise", "ssb"] }
 env_logger = "0.11.3"
 http-body-util = "0.1.0"
 httpmock = "0.7"

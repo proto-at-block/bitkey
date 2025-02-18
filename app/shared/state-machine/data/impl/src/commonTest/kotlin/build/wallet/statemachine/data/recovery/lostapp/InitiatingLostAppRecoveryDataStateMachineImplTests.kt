@@ -23,29 +23,17 @@ import build.wallet.recovery.LostAppRecoveryAuthenticatorMock
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError.F8eInitiateDelayNotifyError
 import build.wallet.recovery.LostAppRecoveryInitiatorMock
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToAuthenticateWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateLostAppWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingLostAppRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.ListingKeysetsFromF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryProps
-import build.wallet.time.ControlledDelayer
+import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration.Companion.seconds
 
 class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
@@ -68,8 +56,8 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       lostAppRecoveryInitiator = lostAppRecoveryInitiator,
       lostAppRecoveryAuthenticator = lostAppRecoveryAuthenticator,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyF8eClient,
-      delayer = ControlledDelayer(),
-      uuidGenerator = uuid
+      uuidGenerator = uuid,
+      minimumLoadingDuration = MinimumLoadingDuration(0.seconds)
     )
 
   beforeTest {
@@ -80,7 +68,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- success") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -99,7 +87,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- auth initiation service initiation failure/retry") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -123,7 +111,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- authenticator service failure") {
 
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -152,7 +140,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- initiate recovery failure/retry") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -186,7 +174,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- requires comms verification -- success") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -221,7 +209,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("test cancellation") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -244,7 +232,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     }
   }
   test("initiating lost app recovery -- existing recovery exists -- cancel it -- without comms") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,
@@ -285,7 +273,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- existing recovery exists -- cancel it -- with comms") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         InitiatingLostAppRecoveryProps(
           fullAccountConfig = fullAccountConfig,

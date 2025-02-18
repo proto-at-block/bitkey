@@ -10,7 +10,7 @@ package build.wallet.ui.model.input
  * @property placeholderText - the placeholder label text of the input field
  * @property onValueChange - change handler for updating the value and selection of the input field
  * @property keyboardType - the keyboard that should be used for this input field
- * @property masksText - whether the entered text should be masked or not
+ * @property transformation - an optional [TextTransformation] to be applied to the input field
  * @property enableAutoCorrect - controls whether the input field will include OS autocorrect
  * @property capitalization - defines the capitalization behavior of entered text
  * @property onDone - action taken when keyboard done is invoked
@@ -22,7 +22,7 @@ data class TextFieldModel(
   val placeholderText: String,
   val onValueChange: (String, IntRange) -> Unit,
   val keyboardType: KeyboardType,
-  val masksText: Boolean = false,
+  val transformation: TextTransformation? = null,
   val enableAutoCorrect: Boolean = false,
   val capitalization: Capitalization = Capitalization.None,
   val onDone: (() -> Unit)? = null,
@@ -70,5 +70,14 @@ data class TextFieldModel(
      * Capitalize the first character of each sentence.
      */
     Sentences,
+  }
+
+  /** Represent various VisualTransformations which can be applied to the input field. */
+  enum class TextTransformation {
+    /** Simple 1:1 password masking. */
+    PASSWORD,
+
+    /** Credit Card style formatting, ex: `xxxx-xxxx-xxx`. */
+    INVITE_CODE,
   }
 }

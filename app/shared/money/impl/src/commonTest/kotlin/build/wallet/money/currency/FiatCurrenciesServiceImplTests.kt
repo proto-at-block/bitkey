@@ -3,12 +3,12 @@
 package build.wallet.money.currency
 
 import app.cash.turbine.test
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClientFake
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.sqldelight.inMemorySqlDriver
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,9 +16,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class FiatCurrenciesServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
-
   val fiatCurrencyDefinitionF8eClient = FiatCurrencyDefinitionF8eClientFake()
   val debugOptionsService = DebugOptionsServiceFake()
   lateinit var fiatCurrencyDao: FiatCurrencyDao
@@ -46,7 +43,7 @@ class FiatCurrenciesServiceImplTests : FunSpec({
   }
 
   test("currencies are updated from the server") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
@@ -63,7 +60,7 @@ class FiatCurrenciesServiceImplTests : FunSpec({
   }
 
   test("server error is ignored") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
@@ -78,7 +75,7 @@ class FiatCurrenciesServiceImplTests : FunSpec({
   }
 
   test("currencies from database are synced into cache") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 

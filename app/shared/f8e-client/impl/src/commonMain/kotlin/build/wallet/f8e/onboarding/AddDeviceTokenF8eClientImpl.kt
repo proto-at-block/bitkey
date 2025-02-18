@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -30,15 +32,13 @@ class AddDeviceTokenF8eClientImpl(
     authTokenScope: AuthTokenScope,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        accountId = fullAccountId,
-        f8eEnvironment = f8eEnvironment,
-        authTokenScope = authTokenScope
-      )
+      .authenticated()
       .catching {
         post(
           urlString = "/api/accounts/${fullAccountId.serverId}/device-token"
         ) {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId, authTokenScope)
           withDescription("Add device token to server")
           setRedactedBody(
             Request(

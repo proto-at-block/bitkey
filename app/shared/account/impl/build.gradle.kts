@@ -22,6 +22,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.accountFake)
       }
     }
 

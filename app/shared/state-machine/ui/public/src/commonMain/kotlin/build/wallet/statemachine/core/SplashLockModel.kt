@@ -1,6 +1,9 @@
 package build.wallet.statemachine.core
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
+import build.wallet.ui.app.lock.SplashLockScreen
 import build.wallet.ui.model.button.ButtonModel
 
 /**
@@ -15,4 +18,9 @@ data class SplashLockModel(
   val unlockButtonModel: ButtonModel,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
   override val key: String = "SplashLockModel",
-) : BodyModel()
+) : BodyModel() {
+  @Composable
+  override fun render(modifier: Modifier) {
+    SplashLockScreen(modifier, model = this)
+  }
+}

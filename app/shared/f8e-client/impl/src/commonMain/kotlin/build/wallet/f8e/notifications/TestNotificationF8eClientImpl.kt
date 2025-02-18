@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.EmptyResponseBody
@@ -22,14 +24,14 @@ class TestNotificationF8eClientImpl(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<Unit, Error> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment,
-      accountId
-    ).bodyResult<EmptyResponseBody> {
-      post("/api/accounts/${accountId.serverId}/notifications/test") {
-        withDescription("Request a test notification from the server")
-        setRedactedBody(EmptyRequestBody)
-      }
-    }.mapUnit()
+    return f8eHttpClient.authenticated()
+      .bodyResult<EmptyResponseBody> {
+        post("/api/accounts/${accountId.serverId}/notifications/test") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
+          withDescription("Request a test notification from the server")
+          setRedactedBody(EmptyRequestBody)
+        }
+      }.mapUnit()
   }
 }

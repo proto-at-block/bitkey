@@ -19,10 +19,11 @@ inputs = {
   load_balancer_allow_vpn_ips        = true
   port                               = 3000
 
-  image_name    = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/web-site"
-  desired_count = 2
-  cpu           = 256
-  memory        = 512
+  image_name       = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/web-site"
+  desired_count    = 2
+  cpu              = 256
+  memory           = 512
+  cpu_architecture = "X86_64"
 
   task_policy_arns = {
     call-square = dependency.square_vpce.outputs.invoke_policy_arn

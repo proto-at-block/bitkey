@@ -11,12 +11,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
-import build.wallet.time.Delayer.Default.delay
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.*
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
 import build.wallet.ui.tooling.PreviewWalletTheme
+import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 @Preview
@@ -263,7 +263,11 @@ private fun ButtonLoadingPreview() {
 @Composable
 private fun ButtonWithLongTextPreview() {
   PreviewWalletTheme {
-    Box(modifier = Modifier.padding(5.dp).height(72.dp)) {
+    Box(
+      modifier = Modifier
+        .padding(5.dp)
+        .height(72.dp)
+    ) {
       Button(
         text = "Your information will be collected and used in accordance with our Privacy Notice",
         treatment = Tertiary,

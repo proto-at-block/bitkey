@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.cloud
 
 import app.cash.turbine.plusAssign
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_NOT_SIGNED_IN
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
@@ -11,16 +10,14 @@ import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class AccessCloudBackupStateMachineImplTests : FunSpec({
 
@@ -66,12 +63,12 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("successfully find backup and restore it") {
     cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
 
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -80,44 +77,44 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account signed in but cloud backup not found") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<CloudWarningBodyModel>()
     }
   }
 
   test("cloud account signed in but failure when trying to access cloud backup") {
     cloudBackupRepository.returnReadError = UnrectifiableCloudBackupError(Exception("oops"))
 
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<CloudWarningBodyModel>()
     }
   }
 
   test("cloud account signed in but cloud backup not found - exit") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel> {
-        onBack?.invoke()
+      awaitBody<CloudWarningBodyModel> {
+        onBack()
       }
 
       exitCalls.awaitItem().shouldBe(Unit)
@@ -128,23 +125,18 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   // The behavior on the two platforms is slightly different.
 
   test("cloud account signed in but cloud backup not found - cannot access cloud option") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel> {
+
+      awaitBody<CloudWarningBodyModel> {
         cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
-        mainContentList
-          .first()
-          .shouldNotBeNull()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[1]
-          .onClick.shouldNotBeNull().invoke()
+        onCannotAccessCloud()
       }
 
       cannotAccessCloudCalls.awaitItem().shouldBe(Unit)
@@ -159,22 +151,22 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
    If cloud sign in succeeds should proceed as if a backup was found.
    */
   test("cloud account sign in failed from trusted contact flow - does not show recovery options") {
-    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props.copy(showErrorOnBackupMissing = false)) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())
       }
 
-      awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_NOT_SIGNED_IN)
+      awaitBody<CloudSignInFailedScreenModel>()
     }
   }
 
   test("cloud account signed in but cloud backup not found from trusted contact flow - proceeds as if found") {
-    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props.copy(showErrorOnBackupMissing = false)) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -183,19 +175,13 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account sign in failed - start emergency access recovery") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList
-          .first()
-          .shouldNotBeNull()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[2]
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<CloudWarningBodyModel> {
+        onImportEmergencyAccessKit.shouldNotBeNull().invoke()
       }
 
       importEmergencyAccessKitCalls.awaitItem().shouldBe(Unit)

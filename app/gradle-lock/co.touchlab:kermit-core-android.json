@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:kermit-core-android",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-core-release.aar": "25df296895d2d799ef28f44c5bf3b52ea4dcc1d47a6cafbc649d5ff34827b6a4"
+                        "kermit-core-release.aar": "d32048f982256fb27e339ec16581bed0fc65ea6008ff5984b1f9e1dbf948955f"
                     }
                 }
             ],

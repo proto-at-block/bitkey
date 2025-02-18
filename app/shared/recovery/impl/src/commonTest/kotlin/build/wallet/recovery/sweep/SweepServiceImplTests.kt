@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 
 package build.wallet.recovery.sweep
 
@@ -10,28 +10,27 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.flags.PromptSweepFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
+import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.ErrorSyncingSpendingWallet
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class SweepServiceImplTests : FunSpec({
-  coroutineTestScope = true
-
   val sweepGenerator = SweepGeneratorMock()
   val featureFlagDao = FeatureFlagDaoMock()
   val flag = PromptSweepFeatureFlag(featureFlagDao = featureFlagDao)
@@ -56,13 +55,15 @@ class SweepServiceImplTests : FunSpec({
     signingFactor = App,
     sourceKeyset = SpendingKeysetMock2
   )
+  val syncFrequency = 20.milliseconds
 
   fun service() =
     SweepServiceImpl(
       accountService = accountService,
       appSessionManager = appSessionManager,
       promptSweepFeatureFlag = flag,
-      sweepGenerator = sweepGenerator
+      sweepGenerator = sweepGenerator,
+      sweepSyncFrequency = SweepSyncFrequency(syncFrequency)
     )
 
   beforeTest {
@@ -97,30 +98,37 @@ class SweepServiceImplTests : FunSpec({
     service().prepareSweep(KeyboxMock).shouldBeErr(error)
   }
 
-  test("sweep is false by default without sync") {
+  test("sweep is false by default when sync is not running") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
-    sweepGenerator.generateSweepResult = Ok(availableSweep)
 
     val service = service()
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      sweepGenerator.generateSweepResult = Ok(availableSweep)
+      delay(syncFrequency)
+      awaitNoEvents()
     }
   }
 
   test("sweep is set to true on periodic sync") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
-    sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      delay(syncFrequency)
+      awaitNoEvents()
+
+      sweepGenerator.generateSweepResult = Ok(availableSweep)
       awaitItem().shouldBeTrue()
     }
   }
@@ -130,6 +138,7 @@ class SweepServiceImplTests : FunSpec({
     flag.setFlagValue(true)
     val service = service()
 
+    val backgroundScope = createBackgroundScope()
     backgroundScope.launch {
       service.executeWork()
     }
@@ -140,9 +149,11 @@ class SweepServiceImplTests : FunSpec({
       // disable sync
       backgroundScope.cancel()
 
-      expectNoEvents()
+      delay(syncFrequency)
+      awaitNoEvents()
 
       sweepGenerator.generateSweepResult = Ok(availableSweep)
+
       service.checkForSweeps()
       awaitItem().shouldBeTrue()
     }
@@ -151,50 +162,64 @@ class SweepServiceImplTests : FunSpec({
   test("no sweeps available") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
-    sweepGenerator.generateSweepResult = Ok(emptyList())
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      sweepGenerator.generateSweepResult = Ok(emptyList())
+
+      delay(syncFrequency)
+      awaitNoEvents()
+
       service.checkForSweeps()
-      expectNoEvents()
+      awaitNoEvents()
     }
   }
 
   test("no update if unable to sync") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
-    sweepGenerator.generateSweepResult =
-      Err(SweepGeneratorError.ErrorSyncingSpendingWallet(RuntimeException()))
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      sweepGenerator.generateSweepResult = Err(ErrorSyncingSpendingWallet(RuntimeException()))
+      delay(syncFrequency)
+      awaitNoEvents()
+
       service.checkForSweeps()
+      awaitNoEvents()
     }
   }
 
   test("no update if flag disabled") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(false)
-    sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      sweepGenerator.generateSweepResult = Ok(availableSweep)
+      delay(syncFrequency)
+      awaitNoEvents()
+
       service.checkForSweeps()
+      awaitNoEvents()
     }
   }
 
@@ -204,30 +229,41 @@ class SweepServiceImplTests : FunSpec({
     sweepGenerator.generateSweepResult = Ok(availableSweep)
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
+
+      delay(syncFrequency)
+      awaitNoEvents()
+
       service.checkForSweeps()
+      awaitNoEvents()
     }
   }
 
   test("sync is disabled when app is in background") {
     accountService.setActiveAccount(FullAccountMock)
     flag.setFlagValue(true)
-    sweepGenerator.generateSweepResult = Ok(availableSweep)
+    appSessionManager.appDidEnterBackground()
     val service = service()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.sweepRequired.test {
       awaitItem().shouldBeFalse()
-      appSessionManager.appDidEnterBackground()
-      expectNoEvents()
+
+      sweepGenerator.generateSweepResult = Ok(availableSweep)
+
+      delay(syncFrequency)
+      awaitNoEvents()
+
+      appSessionManager.appDidEnterForeground()
+      awaitItem().shouldBeTrue()
     }
   }
 })

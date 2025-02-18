@@ -23,8 +23,8 @@ suspend fun AppTester.getActiveHwAuthKey(): FakeHwAuthKeypair {
 suspend fun AppTester.getHardwareFactorProofOfPossession(): HwFactorProofOfPossession {
   val account = getActiveFullAccount()
   val accessToken =
-    authTokensRepository
-      .getAuthTokens(account.accountId, AuthTokenScope.Global)
+    authTokensService
+      .getTokens(account.accountId, AuthTokenScope.Global)
       .toErrorIfNull { IllegalStateException("Auth tokens missing.") }
       .getOrThrow()
       .accessToken

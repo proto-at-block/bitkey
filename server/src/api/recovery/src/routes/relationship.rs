@@ -1,5 +1,3 @@
-use account::service::{FetchAccountInput, Service as AccountService};
-use authn_authz::key_claims::KeyClaims;
 use axum::extract::Query;
 use axum::routing::{delete, put};
 use axum::Extension;
@@ -8,14 +6,22 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use errors::ApiError;
-use feature_flags::service::Service as FeatureFlagsService;
-use http_server::router::RouterBuilder;
-use http_server::swagger::{SwaggerEndpoint, Url};
+use experimentation::claims::ExperimentationClaims;
+use feature_flags::flag::evaluate_flag_value;
 use serde::{Deserialize, Serialize};
 use time::serde::rfc3339;
 use time::OffsetDateTime;
 use tracing::{event, instrument, Level};
+use utoipa::{OpenApi, ToSchema};
+
+use account::service::{FetchAccountInput, Service as AccountService};
+use authn_authz::key_claims::KeyClaims;
+use errors::ApiError;
+use feature_flags::service::Service as FeatureFlagsService;
+use http_server::router::RouterBuilder;
+use http_server::swagger::{SwaggerEndpoint, Url};
+use promotion_code::entities::CodeKey;
+use promotion_code::service::Service as PromotionCodeService;
 use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
@@ -26,9 +32,10 @@ use types::recovery::social::relationship::{
 use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
 use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
 use userpool::userpool::UserPoolService;
-use utoipa::{OpenApi, ToSchema};
 
-use crate::routes::deserialize_pake_pubkey;
+use crate::routes::{deserialize_pake_pubkey, INHERITANCE_ENABLED_FLAG_KEY};
+use crate::service::inheritance::has_incompleted_claim::HasIncompletedClaimInput;
+use crate::service::inheritance::Service as InheritanceService;
 use crate::service::social::relationship::accept_recovery_relationship_invitation::AcceptRecoveryRelationshipInvitationInput;
 use crate::service::social::relationship::create_recovery_relationship_invitation::CreateRecoveryRelationshipInvitationInput;
 use crate::service::social::relationship::delete_recovery_relationship::DeleteRecoveryRelationshipInput;
@@ -48,6 +55,8 @@ pub struct RouteState(
     pub UserPoolService,
     pub RecoveryRelationshipService,
     pub FeatureFlagsService,
+    pub PromotionCodeService,
+    pub InheritanceService,
 );
 
 impl RouterBuilder for RouteState {
@@ -99,6 +108,10 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/relationship-invitations/:code",
                 get(get_recovery_relationship_invitation_for_code),
             )
+            .route(
+                "/api/accounts/:account_id/recovery/relationship-invitations/:code/promotion-code",
+                get(get_promotion_code_for_invite_code),
+            )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
     }
@@ -123,12 +136,13 @@ impl From<RouteState> for SwaggerEndpoint {
         create_relationship,
         delete_recovery_relationship,
         endorse_recovery_relationships,
+        get_promotion_code_for_invite_code,
+        get_recovery_backup,
         get_recovery_relationship_invitation_for_code,
         get_recovery_relationships,
         get_relationships,
         update_recovery_relationship,
         upload_recovery_backup,
-        get_recovery_backup,
     ),
     components(
         schemas(
@@ -139,6 +153,7 @@ impl From<RouteState> for SwaggerEndpoint {
             EndorseRecoveryRelationshipsRequest,
             EndorseRecoveryRelationshipsResponse,
             EndorsedTrustedContact,
+            GetPromotionCodeForInviteCodeResponse,
             GetRecoveryRelationshipInvitationForCodeResponse,
             GetRecoveryRelationshipsResponse,
             InboundInvitation,
@@ -458,7 +473,14 @@ async fn create_relationship_common(
 /// For Trusted Contacts, they will need to provide:
 /// - Recovery access token
 ///
-#[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
+#[instrument(
+    err,
+    skip(
+        recovery_relationship_service,
+        feature_flags_service,
+        inheritance_service
+    )
+)]
 #[utoipa::path(
     delete,
     path = "/api/accounts/{account_id}/recovery/relationships/{recovery_relationship_id}",
@@ -473,10 +495,43 @@ async fn create_relationship_common(
 pub async fn delete_recovery_relationship(
     Path((account_id, recovery_relationship_id)): Path<(AccountId, RecoveryRelationshipId)>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(_feature_flags_service): State<FeatureFlagsService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    State(inheritance_service): State<InheritanceService>,
     key_proof: KeyClaims,
+    experimentation_claims: ExperimentationClaims,
     Extension(cognito_user): Extension<CognitoUser>,
 ) -> Result<(), ApiError> {
+    let is_inheritance_enabled = experimentation_claims
+        .account_context_key()
+        .ok()
+        .and_then(|context_key| {
+            evaluate_flag_value(
+                &feature_flags_service,
+                INHERITANCE_ENABLED_FLAG_KEY,
+                &context_key,
+            )
+            .ok()
+        })
+        .unwrap_or(false);
+
+    if is_inheritance_enabled {
+        let has_incomplete_claims = inheritance_service
+            .has_incompleted_claim(HasIncompletedClaimInput {
+                actor_account_id: &account_id,
+                recovery_relationship_id: &recovery_relationship_id,
+            })
+            .await?;
+        if has_incomplete_claims.as_benefactor {
+            return Err(ApiError::GenericBadRequest(
+                "Cannot delete relationship to beneficiary with pending claim".to_string(),
+            ));
+        } else if has_incomplete_claims.as_beneficiary {
+            return Err(ApiError::GenericBadRequest(
+                "Cannot delete relationship to benefactor with pending claim".to_string(),
+            ));
+        }
+    }
+
     recovery_relationship_service
         .delete_recovery_relationship(DeleteRecoveryRelationshipInput {
             acting_account_id: &account_id,
@@ -939,4 +994,52 @@ pub async fn get_recovery_backup(
     Ok(Json(GetRecoveryBackupResponse {
         recovery_backup_material: backup.material,
     }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetPromotionCodeForInviteCodeResponse {
+    pub code: Option<String>,
+}
+
+#[instrument(skip(recovery_relationship_service, promotion_code_service))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/recovery/relationship-invitations/{invite_code}/promotion-code",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("invite_code" = String, Path, description = "Invite code"),
+    ),
+    responses(
+        (status = 200, description = "Returns the promotion code for the account if it exists", body=GetPromotionCodeForInviteCodeResponse),
+        (status = 404, description = "Invitation not found for the invite code"),
+        (status = 500, description = "Internal server error when retrieving promotion code")
+    ),
+)]
+async fn get_promotion_code_for_invite_code(
+    Path((account_id, invite_code)): Path<(AccountId, String)>,
+    State(recovery_relationship_service): State<RecoveryRelationshipService>,
+    State(promotion_code_service): State<PromotionCodeService>,
+) -> Result<Json<GetPromotionCodeForInviteCodeResponse>, ApiError> {
+    let recovery_relationship = recovery_relationship_service
+        .get_recovery_relationship_invitation_for_code(
+            GetRecoveryRelationshipInvitationForCodeInput { code: &invite_code },
+        )
+        .await?;
+
+    let benefactor_account_id = recovery_relationship
+        .common_fields()
+        .customer_account_id
+        .to_owned();
+    let code_key = if account_id == benefactor_account_id {
+        CodeKey::inheritance_benefactor(benefactor_account_id)
+    } else {
+        CodeKey::inheritance_beneficiary(benefactor_account_id)
+    };
+    let code = promotion_code_service
+        .get(&code_key)
+        .await?
+        .filter(|c| !c.is_redeemed)
+        .map(|c| c.code);
+
+    Ok(Json(GetPromotionCodeForInviteCodeResponse { code }))
 }

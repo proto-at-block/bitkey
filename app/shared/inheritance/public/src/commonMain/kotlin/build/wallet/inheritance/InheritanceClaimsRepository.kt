@@ -2,11 +2,18 @@ package build.wallet.inheritance
 
 import build.wallet.bitkey.inheritance.BenefactorClaim
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
+import build.wallet.bitkey.inheritance.isApproved
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
+import com.github.michaelbull.result.get
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
+import kotlinx.datetime.Clock
 
 /**
  * Coordinates the retrieval and storage of inheritance claims.
@@ -45,49 +52,38 @@ interface InheritanceClaimsRepository {
   /**
    * Update the state of a single inheritance claim.
    */
-  suspend fun updateSingleClaim(claim: BeneficiaryClaim)
+  suspend fun updateSingleClaim(claim: InheritanceClaim)
 }
 
 /**
- * Flow that emits just the beneficiary claims.
+ * Flow that will emit the current collection of claims, paired with a timestamp
+ * that the data was collected.
+ *
+ * When a pending claim crosses its complete time, this will emit a new
+ * collection with an updated timestamp. This allows the application UI to
+ * update without constantly scanning the clock or polling to refresh.
  */
-val InheritanceClaimsRepository.beneficiaryClaims: Flow<Result<List<BeneficiaryClaim>, Error>>
-  get() = claims.map { it.map { it.beneficiaryClaims } }
+fun InheritanceClaimsRepository.getClaimsSnapshot(clock: Clock): Flow<ClaimsSnapshot> {
+  return claims.flatMapLatest { result ->
+    val latestClaims = result.get() ?: InheritanceClaims.EMPTY
+    flow {
+      while (currentCoroutineContext().isActive) {
+        val now = clock.now()
+        emit(ClaimsSnapshot(now, latestClaims))
+        val firstExpiring = latestClaims.all
+          .filterNot { it.isApproved(now) }
+          .mapNotNull {
+            when (it) {
+              is BeneficiaryClaim.PendingClaim -> it.delayEndTime
+              is BenefactorClaim.PendingClaim -> it.delayEndTime
+              else -> null
+            }
+          }
+          .minOfOrNull { it }
+          ?: break
 
-/**
- * Flow that emits just the benefactor claims.
- */
-val InheritanceClaimsRepository.benefactorClaims: Flow<Result<List<BenefactorClaim>, Error>>
-  get() = claims.map { it.map { it.benefactorClaims } }
-
-/**
- * Flow that emits just the beneficiary claims that are currently pending.
- */
-val InheritanceClaimsRepository.pendingBeneficiaryClaims: Flow<Result<List<BeneficiaryClaim.PendingClaim>, Error>>
-  get() = beneficiaryClaims.map {
-    it.map { it.filterIsInstance<BeneficiaryClaim.PendingClaim>() }
+        delay(firstExpiring - now)
+      }
+    }
   }
-
-/**
- * Flow that emits just the benefactor claims that are currently pending.
- */
-val InheritanceClaimsRepository.pendingBenefactorClaims: Flow<Result<List<BenefactorClaim.PendingClaim>, Error>>
-  get() = benefactorClaims.map {
-    it.map { it.filterIsInstance<BenefactorClaim.PendingClaim>() }
-  }
-
-/**
- * Flow that emits just the beneficiary claims that are currently locked.
- */
-val InheritanceClaimsRepository.lockedBeneficiaryClaims: Flow<Result<List<BeneficiaryClaim.LockedClaim>, Error>>
-  get() = beneficiaryClaims.map {
-    it.map { it.filterIsInstance<BeneficiaryClaim.LockedClaim>() }
-  }
-
-/**
- * Flow that emits just the benefactor claims that are currently locked.
- */
-val InheritanceClaimsRepository.lockedBenefactorClaims: Flow<Result<List<BenefactorClaim.LockedClaim>, Error>>
-  get() = benefactorClaims.map {
-    it.map { it.filterIsInstance<BenefactorClaim.LockedClaim>() }
-  }
+}

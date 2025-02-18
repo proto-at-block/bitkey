@@ -10,7 +10,7 @@ import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId.AUTH_TOK
 import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId.REFRESHING_AUTH_TOKENS_FOR_HW_POP
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.AuthTokensRepository
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
@@ -52,7 +52,7 @@ data class RefreshAuthTokensProps(
 
 @BitkeyInject(ActivityScope::class)
 class RefreshAuthTokensUiStateMachineImpl(
-  private val authTokensRepository: AuthTokensRepository,
+  private val authTokensService: AuthTokensService,
 ) : RefreshAuthTokensUiStateMachine {
   @Composable
   override fun model(props: RefreshAuthTokensProps): ScreenModel {
@@ -110,7 +110,7 @@ class RefreshAuthTokensUiStateMachineImpl(
   }
 
   private suspend fun refreshAuthTokens(props: RefreshAuthTokensProps) =
-    authTokensRepository.refreshAccessToken(
+    authTokensService.refreshAccessTokenWithApp(
       f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
       accountId = props.fullAccountId,
       scope = AuthTokenScope.Global

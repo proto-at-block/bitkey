@@ -11,6 +11,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 class SyncSequencerTests : FunSpec({
+  // TODO(W-10571): use real dispatcher.
+  coroutineTestScope = true
+
   val fullAccount1 = FullAccountMock
   val fullAccount2 = FullAccountMock.copy(
     accountId = FullAccountId("server-id-2"),
@@ -19,9 +22,7 @@ class SyncSequencerTests : FunSpec({
   val fullAccount1Copy = fullAccount1.copy()
   val liteAccount = LiteAccountMock
 
-  test(
-    "second call is not executed if first call is running and account IDs differ"
-  ).config(coroutineTestScope = true) {
+  test("second call is not executed if first call is running and account IDs differ") {
     val channel = Channel<Int>()
 
     val sync = F8eSyncSequencer()
@@ -38,9 +39,7 @@ class SyncSequencerTests : FunSpec({
     channel.receive().shouldBeEqual(1)
   }
 
-  test(
-    "second call is not executed if first call is running and account types differ"
-  ).config(coroutineTestScope = true) {
+  test("second call is not executed if first call is running and account types differ") {
     val channel = Channel<Int>()
 
     val sync = F8eSyncSequencer()
@@ -57,9 +56,7 @@ class SyncSequencerTests : FunSpec({
     channel.receive().shouldBeEqual(1)
   }
 
-  test(
-    "second call queues if first call is running and accounts match"
-  ).config(coroutineTestScope = true) {
+  test("second call queues if first call is running and accounts match") {
     val channel = Channel<Int>()
 
     val sync = F8eSyncSequencer()
@@ -77,7 +74,7 @@ class SyncSequencerTests : FunSpec({
     channel.receive().shouldBeEqual(2)
   }
 
-  test("can run second call after first completes").config(coroutineTestScope = true) {
+  test("can run second call after first completes") {
     val channel = Channel<Int>()
 
     val sync = F8eSyncSequencer()

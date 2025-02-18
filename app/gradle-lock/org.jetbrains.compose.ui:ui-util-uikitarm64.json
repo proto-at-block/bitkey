@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-util-uikitarm64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-util-uikitarm64-1.7.1-metadata.jar": "6ae8eb67f8dbf041c0e63ef2f4b3b5bec1db0d139a942fce458a142aade58f1d"
+                        "ui-util-uikitarm64-1.7.3-metadata.jar": "6ae8eb67f8dbf041c0e63ef2f4b3b5bec1db0d139a942fce458a142aade58f1d"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-util.klib": "6b07e4e22e55e8441c70f7e318dab5400a8048487f416281feb8f874fb213e06"
+                        "ui-util.klib": "ea2c919025a0b4528e7280093b0d1980277cbfdd6f533f71df74b0ec94bd8b28"
                     }
                 }
             ],

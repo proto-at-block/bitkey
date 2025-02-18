@@ -50,35 +50,33 @@ fun Label(
   type: LabelType = Title3,
   treatment: LabelTreatment = LabelTreatment.Primary,
   alignment: TextAlign = TextAlign.Start,
+  maxLines: Int = Int.MAX_VALUE,
+  style: TextStyle = WalletTheme.labelStyle(type, treatment, alignment),
+  onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
   Label(
     model = model,
     modifier = modifier,
-    style = WalletTheme.labelStyle(type, treatment, alignment)
+    style = style,
+    maxLines = maxLines,
+    onTextLayout = onTextLayout
   )
 }
 
 @Composable
-fun Label(
+private fun Label(
   model: LabelModel,
   modifier: Modifier = Modifier,
   style: TextStyle,
+  maxLines: Int = Int.MAX_VALUE,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
   Label(
     modifier = modifier,
     text = model.buildAnnotatedString(),
-    onClick = (model as? LabelModel.LinkSubstringModel)?.let { linkedLabelModel ->
-      { clickPosition ->
-        linkedLabelModel.linkedSubstrings.find { ls ->
-          ls.range.contains(clickPosition)
-        }?.let { matchedLs ->
-          matchedLs.onClick()
-        }
-      }
-    },
     style = style,
-    onTextLayout = onTextLayout
+    onTextLayout = onTextLayout,
+    maxLines = maxLines
   )
 }
 
@@ -212,6 +210,7 @@ fun Label(
   modifier: Modifier = Modifier,
   style: TextStyle,
   softWrap: Boolean = true,
+  maxLines: Int = Int.MAX_VALUE,
   onClick: ((TextClickPosition) -> Unit)? = null,
   onTextLayout: ((TextLayoutResult) -> Unit) = {},
 ) {
@@ -229,7 +228,8 @@ fun Label(
       modifier = modifier,
       style = style,
       softWrap = softWrap,
-      onTextLayout = onTextLayout
+      onTextLayout = onTextLayout,
+      maxLines = maxLines
     )
   }
 }

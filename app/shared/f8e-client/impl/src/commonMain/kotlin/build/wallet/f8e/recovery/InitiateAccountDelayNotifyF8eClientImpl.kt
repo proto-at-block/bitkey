@@ -11,6 +11,9 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -45,14 +48,13 @@ class InitiateAccountDelayNotifyF8eClientImpl(
     delayPeriod: Duration?,
     hardwareAuthKey: HwAuthPublicKey,
   ): Result<SuccessfullyInitiated, F8eError<InitiateAccountDelayNotifyErrorCode>> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment = f8eEnvironment,
-      accountId = fullAccountId,
-      hwFactorProofOfPossession = hwFactorProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify") {
           withDescription("Initiate D&N recovery.")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          hwFactorProofOfPossession?.run(::withHardwareFactor)
           setRedactedBody(
             RequestBody(
               // TODO(W-3092): Remove delayPeriodNumSec

@@ -1,6 +1,8 @@
 package build.wallet.ui.components.list
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -19,9 +21,12 @@ import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.bitkey_corian
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconImage
+import build.wallet.ui.components.icon.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.switch.Switch
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.*
 import build.wallet.ui.theme.WalletTheme
@@ -58,6 +63,7 @@ internal fun ListItemAccessory(model: ListItemAccessory) {
       )
     is CircularCharacterAccessory -> CircularCharacterAccessory(model)
     is ContactAvatarAccessory -> ContactAvatarAccessory(model)
+    is CheckAccessory -> CircularCheckAccessory(isChecked = model.isChecked)
   }
 }
 
@@ -130,6 +136,53 @@ private fun ContactAvatarAccessory(model: ContactAvatarAccessory) {
         color = Color.White,
         treatment = LabelTreatment.Unspecified
       )
+      AnimatedVisibility(
+        visible = model.isLoading,
+        modifier = Modifier.align(Alignment.BottomEnd)
+      ) {
+        Box(
+          modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .size(IconSize.Accessory.dp)
+            .background(
+              color = WalletTheme.colors.primaryIconForeground,
+              shape = CircleShape
+            )
+            .padding(2.dp)
+            .background(
+              color = WalletTheme.colors.bitkeyLoading,
+              shape = CircleShape
+            )
+            .padding(2.dp)
+        ) {
+          LoadingIndicator(
+            color = WalletTheme.colors.primaryIconForeground
+          )
+        }
+      }
     }
   }
+}
+
+@Composable
+private fun CircularCheckAccessory(
+  modifier: Modifier = Modifier,
+  isChecked: Boolean,
+) {
+  val (color, width) = if (isChecked) {
+    Pair(WalletTheme.colors.bitkeyPrimary, 4.dp)
+  } else {
+    Pair(WalletTheme.colors.foreground60, 2.dp)
+  }
+
+  Box(
+    modifier = modifier
+      .size(24.dp)
+      .background(WalletTheme.colors.foreground10, CircleShape)
+      .border(
+        width = width,
+        color = color,
+        shape = CircleShape
+      )
+  )
 }

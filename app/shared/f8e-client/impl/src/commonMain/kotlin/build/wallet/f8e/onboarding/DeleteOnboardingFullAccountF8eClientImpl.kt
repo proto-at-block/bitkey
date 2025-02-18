@@ -6,6 +6,9 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.catching
@@ -26,13 +29,13 @@ class DeleteOnboardingFullAccountF8eClientImpl(
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment,
-        fullAccountId,
-        hwFactorProofOfPossession = hwFactorProofOfPossession
-      )
+      .authenticated()
       .catching {
-        delete("/api/accounts/${fullAccountId.serverId}")
+        delete("/api/accounts/${fullAccountId.serverId}") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          withHardwareFactor(hwFactorProofOfPossession)
+        }
       }
       .recoverIf({ it is HttpError.ClientError && it.response.status == HttpStatusCode.NotFound }) {
       }

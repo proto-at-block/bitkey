@@ -19,7 +19,8 @@ interface GettingStartedRoutingStateMachine : StateMachine<GettingStartedRouting
  */
 data class GettingStartedRoutingProps(
   val startIntent: StartIntent,
-  val onStartLiteAccountCreation: () -> Unit,
+  val inviteCode: String? = null,
+  val onStartLiteAccountCreation: (String?) -> Unit,
   val onStartLiteAccountRecovery: (CloudBackup) -> Unit,
   val onStartCloudRecovery: (CloudBackup) -> Unit,
   val onStartLostAppRecovery: () -> Unit,

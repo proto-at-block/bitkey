@@ -14,6 +14,7 @@ kotlin {
       dependencies {
         api(projects.shared.availabilityPublic)
         api(projects.shared.ktorClientPublic)
+        implementation(projects.shared.f8eClientPublic)
         implementation(projects.shared.loggingPublic)
       }
     }

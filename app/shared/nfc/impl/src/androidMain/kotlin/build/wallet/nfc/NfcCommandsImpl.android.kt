@@ -6,6 +6,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Impl
@@ -37,6 +38,7 @@ import build.wallet.rust.firmware.FirmwareSlot.B
 import build.wallet.rust.firmware.SecureBootConfig
 import build.wallet.toByteString
 import build.wallet.toUByteList
+import io.ktor.utils.io.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString
@@ -304,6 +306,34 @@ class NfcCommandsImpl(
       generateResult = { state: BooleanState.Result -> state.value }
     )
 
+  /**
+   * Seal any string. This command intentionally calls `SealKey` with the string as a UByte List.
+   */
+  override suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ) = executeCommand(
+    session = session,
+    generateCommand = { SealKey(unsealedData.toUByteList()) },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: BytesState.Data -> state.response },
+    generateResult = { state: BytesState.Result -> state.value.toByteString() }
+  )
+
+  /**
+   * Unseal any data. This command intentionally calls `UnsealKey` with the data as UByte List.
+   */
+  override suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ) = executeCommand(
+    session = session,
+    generateCommand = { UnsealKey(sealedData.toUByteList()) },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: BytesState.Data -> state.response },
+    generateResult = { state: BytesState.Result -> state.value.toByteString() }
+  )
+
   override suspend fun sealKey(
     session: NfcSession,
     unsealedKey: Csek,
@@ -450,6 +480,9 @@ private suspend inline fun <
           return generateResult(state)
         }
       }
+    } catch (e: CancellationException) {
+      // Cancellations are expected, rethrow to ensure structured cancellation.
+      throw e
     } catch (e: Throwable) {
       logWarn(tag = NFC_TAG, throwable = e) { "NFC Command $commandName failed" }
       when (e) {

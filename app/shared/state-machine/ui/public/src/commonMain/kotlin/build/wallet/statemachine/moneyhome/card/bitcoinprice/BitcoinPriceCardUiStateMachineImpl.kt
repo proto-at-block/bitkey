@@ -18,14 +18,22 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.decimal.DecimalMode
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.datetime.toLocalDateTime
 
 private const val SPARKLINE_MAX_POINTS = 50
 
 @BitkeyInject(ActivityScope::class)
 class BitcoinPriceCardUiStateMachineImpl(
+  private val appScope: CoroutineScope,
   private val timeZoneProvider: TimeZoneProvider,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -34,44 +42,58 @@ class BitcoinPriceCardUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
 ) : BitcoinPriceCardUiStateMachine {
+  private val isLoadingFlow = MutableStateFlow(true)
+  private val dataFlow = MutableStateFlow<ImmutableList<DataPoint>>(emptyImmutableList())
+  private val priceDirection = mutableStateOf(PriceDirection.STABLE)
+  private val fiatCurrencyFlow = fiatCurrencyPreferenceRepository.fiatCurrencyPreference
+  private val lastUpdatedFlow =
+    fiatCurrencyFlow
+      .flatMapLatest { fiatCurrency ->
+        currencyConverter.latestRateTimestamp(BTC, fiatCurrency)
+      }
+      .filterNotNull()
+      .map { updateTime ->
+        val localTime = updateTime.toLocalDateTime(timeZoneProvider.current())
+        "Updated ${dateTimeFormatter.localTime(localTime)}"
+      }
+      .stateIn(appScope, SharingStarted.WhileSubscribed(), "")
+  private val priceMoneyFlow =
+    fiatCurrencyFlow
+      .flatMapLatest { fiatCurrency ->
+        val btc = BitcoinMoney.btc(1.0)
+        currencyConverter.convert(btc, fiatCurrency, null)
+      }
+      .stateIn(appScope, SharingStarted.WhileSubscribed(), null)
+  private val priceChangeFlow =
+    combine(priceMoneyFlow, dataFlow) { priceMoney, data ->
+      val end = priceMoney?.value?.doubleValue(exactRequired = false) ?: return@combine null
+      val start = data.firstOrNull()?.second ?: return@combine null
+      val diffPercent = (end - start) / start * 100
+      val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
+      priceDirection.value = PriceDirection.from(diffDecimal)
+      isLoadingFlow.update { false }
+      "${diffDecimal.abs().toPlainString()}% today"
+    }
+      .filterNotNull()
+      .stateIn(appScope, SharingStarted.WhileSubscribed(), "0% today")
+
   @Composable
   override fun model(props: BitcoinPriceCardUiProps): CardModel? {
     val enabled by remember { bitcoinPriceCardPreference.isEnabled }.collectAsState()
     if (!enabled) {
       return null
     }
-    var data by remember { mutableStateOf<ImmutableList<DataPoint>>(emptyImmutableList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    val fiatCurrency by remember {
-      fiatCurrencyPreferenceRepository.fiatCurrencyPreference
-    }.collectAsState()
-    val lastUpdated by remember {
-      currencyConverter.latestRateTimestamp(BTC, fiatCurrency)
-        .filterNotNull()
-        .map { updateTime ->
-          val localTime = updateTime.toLocalDateTime(timeZoneProvider.current())
-          "Updated ${dateTimeFormatter.localTime(localTime)}"
-        }
-    }.collectAsState("")
-    val priceMoney by remember {
-      val btc = BitcoinMoney.btc(1.0)
-      currencyConverter.convert(btc, fiatCurrency, null)
-    }.collectAsState(null)
+    val data by dataFlow.collectAsState()
+    val isLoading by isLoadingFlow.collectAsState()
+    val fiatCurrency by fiatCurrencyFlow.collectAsState()
+    val lastUpdated by lastUpdatedFlow.collectAsState()
+    val priceMoney by priceMoneyFlow.collectAsState()
     val price by remember {
       derivedStateOf {
         priceMoney?.let(moneyDisplayFormatter::format).orEmpty()
       }
     }
-    val priceDirection = remember { mutableStateOf(PriceDirection.STABLE) }
-    val priceChange by produceState("0% today", priceMoney, data) {
-      val end = priceMoney?.value?.doubleValue(exactRequired = false) ?: return@produceState
-      val start = data.firstOrNull()?.second ?: return@produceState
-      val diffPercent = (end - start) / start * 100
-      val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
-      priceDirection.value = PriceDirection.from(diffDecimal)
-      value = "${diffDecimal.abs().toPlainString()}% today"
-      isLoading = false
-    }
+    val priceChange by priceChangeFlow.collectAsState()
     LaunchedEffect(priceMoney, fiatCurrency) {
       if (priceMoney != null) {
         chartDataFetcherService.getChartData(
@@ -80,7 +102,8 @@ class BitcoinPriceCardUiStateMachineImpl(
           chartHistory = ChartHistory.DAY,
           maxPricePoints = SPARKLINE_MAX_POINTS
         ).onSuccess { chartData ->
-          data = chartData.toImmutableList()
+          val list = chartData.toImmutableList()
+          dataFlow.update { list }
         }
       }
     }

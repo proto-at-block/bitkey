@@ -36,6 +36,7 @@ kotlin {
         implementation(projects.shared.f8eClientImpl)
         implementation(projects.shared.encryptionFake)
         implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.relationshipsFake)
       }
     }
 

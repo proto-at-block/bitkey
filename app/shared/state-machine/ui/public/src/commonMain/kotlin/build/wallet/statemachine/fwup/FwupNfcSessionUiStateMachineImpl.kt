@@ -31,11 +31,11 @@ import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
 import build.wallet.statemachine.nfc.NfcSuccessScreenDuration
 import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
-import build.wallet.time.Delayer
 import build.wallet.toUByteList
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.delay
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
@@ -43,7 +43,6 @@ import kotlin.math.roundToInt
 class FwupNfcSessionUiStateMachineImpl(
   private val enableNfcNavigator: EnableNfcNavigator,
   private val eventTracker: EventTracker,
-  private val delayer: Delayer,
   private val fwupProgressCalculator: FwupProgressCalculator,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcReaderCapability: NfcReaderCapability,
@@ -100,14 +99,14 @@ class FwupNfcSessionUiStateMachineImpl(
               onCancel = props.onBack,
               status = FwupNfcBodyModel.Status.LostConnection(fwupProgress = fwupProgress),
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_DEVICE_LOST_CONNECTION_FWUP)
-            ).asFullScreen()
+            ).asPlatformNfcScreen()
           }
 
           is SuccessUiState -> {
             LaunchedEffect("fwup-success") {
               firmwareDataService.updateFirmwareVersion(props.firmwareData.fwupData)
               eventTracker.track(Action.ACTION_APP_FWUP_COMPLETE)
-              delayer.delay(
+              delay(
                 NfcSuccessScreenDuration(
                   devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
                   isHardwareFake = props.isHardwareFake
@@ -120,7 +119,7 @@ class FwupNfcSessionUiStateMachineImpl(
               onCancel = null,
               status = FwupNfcBodyModel.Status.Success(),
               eventTrackerScreenInfo = EventTrackerScreenInfo(NFC_SUCCESS, FWUP)
-            ).asFullScreen()
+            ).asPlatformNfcScreen()
           }
         }
       }

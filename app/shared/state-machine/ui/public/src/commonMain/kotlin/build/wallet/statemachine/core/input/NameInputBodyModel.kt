@@ -31,12 +31,17 @@ data class NameInputBodyModel(
   val onValueChange: (String) -> Unit,
   val onClose: () -> Unit,
   override val id: EventTrackerScreenId?,
+  val hasPreviousScreen: Boolean = false,
 ) : FormBodyModel(
     id = id,
     onSwipeToDismiss = onClose,
     onBack = onClose,
     toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onClose)
+      leadingAccessory = if (hasPreviousScreen) {
+        ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = onClose)
+      } else {
+        ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = onClose)
+      }
     ),
     header = FormHeaderModel(headline = title, subline = subline),
     mainContentList = immutableListOf(

@@ -17,15 +17,15 @@ import build.wallet.statemachine.core.Icon.SmallIconCopy
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
-import build.wallet.time.Delayer
+import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 @BitkeyInject(ActivityScope::class)
 class AddressQrCodeUiStateMachineImpl(
   private val clipboard: Clipboard,
-  private val delayer: Delayer,
+  private val restoreCopyAddressStateDelay: RestoreCopyAddressStateDelay,
   private val sharingManager: SharingManager,
   private val bitcoinInvoiceUrlEncoder: BitcoinInvoiceUrlEncoder,
   private val bitcoinAddressService: BitcoinAddressService,
@@ -56,7 +56,7 @@ class AddressQrCodeUiStateMachineImpl(
       is State.AddressLoadedUiState -> {
         if (state.copyStatus == State.CopyStatus.Copied) {
           LaunchedEffect("restore-copy-state") {
-            delayer.delay(4.seconds)
+            delay(restoreCopyAddressStateDelay.value)
             state = currentState.copy(copyStatus = State.CopyStatus.Ready)
           }
         }

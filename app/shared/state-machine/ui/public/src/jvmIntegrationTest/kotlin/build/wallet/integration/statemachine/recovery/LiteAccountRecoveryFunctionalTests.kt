@@ -2,6 +2,7 @@ package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.integration.statemachine.create.beTrustedContactButton
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -9,7 +10,7 @@ import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -48,22 +49,22 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       cloudStoreAccountRepository = trustedContactApp.cloudStoreAccountRepository,
       cloudKeyValueStore = trustedContactApp.cloudKeyValueStore
     )
+    newApp.inheritanceFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
     newApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .beTrustedContactButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(
+      awaitUntilBody<CloudSignInModelFake>(
         CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
       )
         .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>()
+      awaitUntilBody<LiteMoneyHomeBodyModel>()
     }
   }
 
@@ -92,18 +93,17 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
     )
     newApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(
+      awaitUntilBody<CloudSignInModelFake>(
         CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
       )
         .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>()
+      awaitUntilBody<LiteMoneyHomeBodyModel>()
     }
   }
 })

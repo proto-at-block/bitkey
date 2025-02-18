@@ -134,6 +134,5 @@ data class FailedPartnerTransactionBodyModel(
     onBack = onClose,
     mainContentList = content,
     primaryButton = buttonModel,
-    renderContext = RenderContext.Screen,
-    enableComposeRendering = true
+    renderContext = RenderContext.Screen
   )

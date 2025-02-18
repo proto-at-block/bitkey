@@ -58,6 +58,11 @@ sealed interface LocalRecoveryAttemptProgress {
   ) : LocalRecoveryAttemptProgress
 
   /**
+   * Successfully sealed and backed up the DDK with new hardware key
+   */
+  data object DdkBackedUp : LocalRecoveryAttemptProgress
+
+  /**
    * Successfully backed up the new auth and spending keys to the cloud.
    */
   data object BackedUpToCloud : LocalRecoveryAttemptProgress

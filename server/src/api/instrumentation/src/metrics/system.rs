@@ -6,7 +6,7 @@ use std::{
 use once_cell::sync::Lazy;
 use opentelemetry::{
     global,
-    metrics::{Counter, Meter, ObservableGauge, Unit},
+    metrics::{Counter, Meter, ObservableGauge},
 };
 use tokio::runtime::Handle;
 use tokio_metrics::{RuntimeMetrics, RuntimeMonitor};
@@ -133,19 +133,19 @@ static TOKIO_MIN_POLLS: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
 static TOKIO_TOTAL_BUSY_DURATION: Lazy<Counter<u64>> = Lazy::new(|| {
     TOKIO_METER
         .u64_counter("bitkey.tokio.total_busy_duration_count")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .init()
 });
 static TOKIO_MAX_BUSY_DURATION: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     TOKIO_METER
         .u64_observable_gauge("bitkey.tokio.max_busy_duration_count")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .init()
 });
 static TOKIO_MIN_BUSY_DURATION: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     TOKIO_METER
         .u64_observable_gauge("bitkey.tokio.min_busy_duration_count")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .init()
 });
 static TOKIO_INJECTION_QUEUE_DEPTH: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
@@ -171,7 +171,7 @@ static TOKIO_MIN_LOCAL_QUEUE_DEPTH: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
 static TOKIO_ELAPSED: Lazy<ObservableGauge<u64>> = Lazy::new(|| {
     TOKIO_METER
         .u64_observable_gauge("bitkey.tokio.min_local_queue_depth")
-        .with_unit(Unit::new("ms"))
+        .with_unit("ms")
         .init()
 });
 static TOKIO_BUDGET_FORCED_YIELD: Lazy<Counter<u64>> = Lazy::new(|| {

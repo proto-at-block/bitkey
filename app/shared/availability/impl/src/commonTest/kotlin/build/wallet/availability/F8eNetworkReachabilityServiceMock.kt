@@ -13,11 +13,6 @@ class F8eNetworkReachabilityServiceMock(
   val checkConnectionCalls = turbine("checkConnection for f8e calls")
   var checkConnectionResult: Result<Unit, HttpError> = Ok(Unit)
 
-  override suspend fun checkConnection(f8eEnvironment: F8eEnvironment): Result<Unit, HttpError> {
-    checkConnectionCalls.add(Unit)
-    return checkConnectionResult
-  }
-
   override suspend fun checkConnection(
     httpClient: HttpClient,
     f8eEnvironment: F8eEnvironment,

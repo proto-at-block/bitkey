@@ -38,13 +38,13 @@ fn get_coredump_fragment(offset: u32) -> Result<CoredumpFragment, CommandError> 
         coredump_count: _,
     }) = message
     {
-        match CoredumpGetRspStatus::from_i32(rsp_status) {
-            Some(CoredumpGetRspStatus::Unspecified) => {
+        match CoredumpGetRspStatus::try_from(rsp_status) {
+            Ok(CoredumpGetRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Some(CoredumpGetRspStatus::Success) => {}
-            Some(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            None => return Err(CommandError::InvalidResponse),
+            Ok(CoredumpGetRspStatus::Success) => {}
+            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         match coredump_fragment {
@@ -81,13 +81,13 @@ fn get_coredump_count() -> Result<u16, CommandError> {
         coredump_count,
     }) = message
     {
-        match CoredumpGetRspStatus::from_i32(rsp_status) {
-            Some(CoredumpGetRspStatus::Unspecified) => {
+        match CoredumpGetRspStatus::try_from(rsp_status) {
+            Ok(CoredumpGetRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Some(CoredumpGetRspStatus::Success) => {}
-            Some(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            None => return Err(CommandError::InvalidResponse),
+            Ok(CoredumpGetRspStatus::Success) => {}
+            Ok(CoredumpGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         Ok(coredump_count as u16)

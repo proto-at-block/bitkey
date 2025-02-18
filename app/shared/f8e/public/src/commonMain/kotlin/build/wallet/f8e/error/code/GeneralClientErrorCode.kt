@@ -8,4 +8,5 @@ enum class GeneralClientErrorCode : F8eClientErrorCode {
   BAD_REQUEST,
   CONFLICT,
   NOT_FOUND,
+  FORBIDDEN,
 }

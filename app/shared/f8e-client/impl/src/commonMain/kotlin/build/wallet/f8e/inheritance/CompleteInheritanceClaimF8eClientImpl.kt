@@ -8,6 +8,8 @@ import build.wallet.bitkey.inheritance.InheritanceClaimId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -29,24 +31,43 @@ class CompleteInheritanceClaimF8eClientImpl(
     claimId: InheritanceClaimId,
     psbt: Psbt,
   ): Result<BeneficiaryClaim.CompleteClaim, Throwable> {
-    return f8eClient.authenticated(
-      f8eEnvironment = fullAccount.config.f8eEnvironment,
-      accountId = fullAccount.accountId
-    ).bodyResult<CompleteClaimResponse> {
-      put("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims/${claimId.value}/complete") {
-        withDescription("Complete Inheritance Claim")
-        setRedactedBody(
-          CompleteClaimRequest(
-            psbt = psbt.base64
+    return f8eClient.authenticated()
+      .bodyResult<CompleteClaimResponse> {
+        put("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims/${claimId.value}/complete") {
+          withDescription("Complete Inheritance Claim")
+          withEnvironment(fullAccount.config.f8eEnvironment)
+          withAccountId(fullAccount.accountId)
+          setRedactedBody(
+            CompleteClaimRequest(
+              psbt = psbt.base64
+            )
           )
-        )
+        }
+      }.flatMap {
+        when (val result = it.claim) {
+          is BeneficiaryClaim.CompleteClaim -> Ok(result)
+          else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
+        }
       }
-    }.flatMap {
-      when (val result = it.claim) {
-        is BeneficiaryClaim.CompleteClaim -> Ok(result)
-        else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
+  }
+
+  override suspend fun completeInheritanceClaimWithoutTransfer(
+    fullAccount: FullAccount,
+    claimId: InheritanceClaimId,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable> {
+    return f8eClient.authenticated()
+      .bodyResult<CompleteClaimResponse> {
+        put("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims/${claimId.value}/complete-without-psbt") {
+          withDescription("Complete Inheritance Claim Without Transfer")
+          withEnvironment(fullAccount.config.f8eEnvironment)
+          withAccountId(fullAccount.accountId)
+        }
+      }.flatMap {
+        when (val result = it.claim) {
+          is BeneficiaryClaim.CompleteClaim -> Ok(result)
+          else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
+        }
       }
-    }
   }
 
   @Serializable

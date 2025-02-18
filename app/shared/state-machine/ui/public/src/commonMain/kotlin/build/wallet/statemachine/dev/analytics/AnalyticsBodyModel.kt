@@ -1,7 +1,10 @@
 package build.wallet.statemachine.dev.analytics
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.dev.analytics.AnalyticsScreen
 import build.wallet.ui.model.list.ListItemModel
 import kotlinx.collections.immutable.ImmutableList
 
@@ -18,4 +21,9 @@ data class AnalyticsBodyModel(
   override val onBack: () -> Unit,
   // This is only used by the debug menu, it doesn't need a screen ID
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
-) : BodyModel()
+) : BodyModel() {
+  @Composable
+  override fun render(modifier: Modifier) {
+    AnalyticsScreen(modifier, model = this)
+  }
+}

@@ -1,29 +1,23 @@
-@file:OptIn(ExperimentalAnimationApi::class)
-
 package build.wallet.ui.app
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
+import build.wallet.platform.device.DeviceInfo
+import build.wallet.platform.sensor.Accelerometer
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
-import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.ui.components.screen.*
-import build.wallet.ui.model.LocalUiModelMap
-import build.wallet.ui.model.UiModel
 import build.wallet.ui.model.UiModelContentScreen
-import build.wallet.ui.model.UiModelMap
 import build.wallet.ui.theme.WalletTheme
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
@@ -32,13 +26,12 @@ import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
 /**
  * Top-level UI of the app.
- *
- * @param [uiModelMap] - map of [UiModel]s to be used for rendering [Model]s.
  */
 @Composable
 fun App(
   model: ScreenModel,
-  uiModelMap: UiModelMap,
+  deviceInfo: DeviceInfo,
+  accelerometer: Accelerometer?,
 ) {
   var previousPresentationStyle by remember {
     mutableStateOf(model.presentationStyle)
@@ -49,7 +42,8 @@ fun App(
   }
 
   CompositionLocalProvider(
-    LocalUiModelMap provides uiModelMap
+    LocalDeviceInfo provides deviceInfo,
+    LocalAccelerometer provides accelerometer
   ) {
     WalletTheme {
       Navigator(
@@ -133,7 +127,6 @@ private fun NavigatorModelEffect(
  * @param modifier - the modifier to apply to the transition
  * @param content - the content to be rendered
  */
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 private fun BitkeyTransition(
   navigator: Navigator,
@@ -187,24 +180,29 @@ private fun Navigator.popContentTransform(
   currentPresentationStyle: ScreenPresentationStyle,
   density: Density,
 ): ContentTransform {
-  return when (previousPresentationStyle) {
-    FullScreen ->
-      // We're going back from a FullScreen, assume there's only 1 full screen at a time, so
-      // animate out of the full screen entirely via Z.Axis (vs an X.Axis Backward).
-      sharedAxisAnimation(Axis.Z, AxisAnimationDirection.Backward, density)
+  return if (isTransitioningFromSplashScreen()) {
+    // Special case for the splash screen: have it fade out
+    FadeAnimation
+  } else {
+    when (previousPresentationStyle) {
+      FullScreen ->
+        // We're going back from a FullScreen, assume there's only 1 full screen at a time, so
+        // animate out of the full screen entirely via Z.Axis (vs an X.Axis Backward).
+        sharedAxisAnimation(Axis.Z, AxisAnimationDirection.Backward, density)
 
-    Modal, ModalFullScreen ->
-      if (currentPresentationStyle in setOf(Modal, ModalFullScreen)) {
-        // We are going from Modal -> Modal, animate on the X.Axis
+      Modal, ModalFullScreen ->
+        if (currentPresentationStyle in setOf(Modal, ModalFullScreen)) {
+          // We are going from Modal -> Modal, animate on the X.Axis
+          sharedAxisAnimation(Axis.X, AxisAnimationDirection.Backward, density)
+        } else {
+          // We are going from Modal -> not-Modal (Root), animate as a dismiss animation
+          slideOverlayAnimation(AxisAnimationDirection.Backward)
+        }
+
+      Root, RootFullScreen ->
+        // Going backwards from a Root can only be another Root, animate the X.Axis.
         sharedAxisAnimation(Axis.X, AxisAnimationDirection.Backward, density)
-      } else {
-        // We are going from Modal -> not-Modal (Root), animate as a dismiss animation
-        slideOverlayAnimation(AxisAnimationDirection.Backward)
-      }
-
-    Root, RootFullScreen ->
-      // Going backwards from a Root can only be another Root, animate the X.Axis.
-      sharedAxisAnimation(Axis.X, AxisAnimationDirection.Backward, density)
+    }
   }
 }
 
@@ -263,7 +261,9 @@ private fun Navigator.pushContentTransform(
 private fun ScreenModel.shouldClearStack(): Boolean {
   // Always clear the stack on Money Home and Choose Account Access
   return body.eventTrackerScreenInfo?.eventTrackerScreenId == MoneyHomeEventTrackerScreenId.MONEY_HOME ||
-    body.eventTrackerScreenInfo?.eventTrackerScreenId == GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
+    body.eventTrackerScreenInfo?.eventTrackerScreenId == GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS ||
+    body is SplashBodyModel ||
+    body is SplashLockModel
 }
 
 /**
@@ -273,11 +273,13 @@ private fun ScreenModel.shouldClearStack(): Boolean {
 private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
   return isTransitioningFromLoadingToLoading(model) ||
     isTransitioningFromPairHwToPairHw(model) ||
-    isTransitioningFromNfcToNfc(model)
+    isTransitioningFromNfcToNfc(model) ||
+    isTransitioningFromFwupToFwup(model) ||
+    isTransitioningBetweenSplashBiometricAndSplashLock()
 }
 
 private fun Navigator.isTransitioningFromSplashScreen(): Boolean {
-  return previousModel()?.body is SplashBodyModel
+  return previousModel()?.body is SplashBodyModel || currentModel().body is SplashBodyModel
 }
 
 private fun Navigator.isTransitioningFromLoadingToLoading(newModel: ScreenModel): Boolean {
@@ -287,6 +289,16 @@ private fun Navigator.isTransitioningFromLoadingToLoading(newModel: ScreenModel)
 private fun Navigator.isTransitioningFromPairHwToPairHw(newModel: ScreenModel): Boolean {
   return currentModel().body is PairNewHardwareBodyModel &&
     newModel.body is PairNewHardwareBodyModel
+}
+
+private fun Navigator.isTransitioningFromFwupToFwup(newModel: ScreenModel): Boolean {
+  return currentModel().body is FwupNfcBodyModel &&
+    newModel.body is FwupNfcBodyModel
+}
+
+private fun Navigator.isTransitioningBetweenSplashBiometricAndSplashLock(): Boolean {
+  return (previousModel()?.body is SplashBodyModel && currentModel().body is SplashLockModel) ||
+    (previousModel()?.body is SplashLockModel && currentModel().body is SplashBodyModel)
 }
 
 private fun Navigator.isTransitioningFromNfcToNfc(newModel: ScreenModel): Boolean {

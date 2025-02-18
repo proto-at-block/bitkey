@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.okio:okio-iosarm64",
     "components": [
         {
-            "version": "3.9.0",
+            "version": "3.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-iosarm64-3.9.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
+                        "okio-iosarm64-3.9.1-metadata.jar": "6f6752ccf4cb8cac96abef8e9a5842213172836201bb277123d53ea90f43321c"
                     }
                 },
                 {
                     "artifacts": {
-                        "okio.klib": "b0e367cec289a67ee9b3ded92de3af2d8e68fe320eaa4713b26da5ba5c332e6e"
+                        "okio.klib": "5293230e0539043669c4851e65e4c4b6b6cb5bd6c59a89a44d3d410936db134c"
                     }
                 }
             ],

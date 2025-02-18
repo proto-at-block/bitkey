@@ -1,7 +1,7 @@
 package build.wallet.cloud.backup
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.AuthTokensRepository
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
@@ -24,7 +24,7 @@ import kotlinx.serialization.json.Json
 class CloudBackupRepositoryImpl(
   private val cloudKeyValueStore: CloudKeyValueStore,
   private val cloudBackupDao: CloudBackupDao,
-  private val authTokensRepository: AuthTokensRepository,
+  private val authTokensService: AuthTokensService,
 ) : CloudBackupRepository {
   // Key used to store backups in cloud key-value store
   private val cloudBackupKey = "cloud-backup"
@@ -70,11 +70,12 @@ class CloudBackupRepositoryImpl(
 
       if (requireAuthRefresh) {
         // Make sure the cloud backup represents an account state that can authenticate.
-        authTokensRepository.refreshAccessToken(
-          f8eEnvironment = backup.f8eEnvironment,
-          accountId = accountId,
-          scope = AuthTokenScope.Recovery
-        )
+        authTokensService
+          .refreshAccessTokenWithApp(
+            backup.f8eEnvironment,
+            accountId = accountId,
+            scope = AuthTokenScope.Recovery
+          )
           .mapError { UnrectifiableCloudBackupError(it) }
           .bind()
       }

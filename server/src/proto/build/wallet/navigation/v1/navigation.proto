@@ -16,5 +16,20 @@ enum NavigationScreenId {
     /** The root settings screen. **/
     NAVIGATION_SCREEN_ID_SETTINGS = 2;
 
-    // Next tag is 3
+    /** Settings > Manage inheritance (Beneficiaries tab) **/
+    NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE = 3;
+    
+    /** Settings > Manage inheritance (benefactor tab) **/
+    NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE_BENEFACTOR = 4;
+
+    /** Decline claim modal flow - requires claim id in payload **/
+    NAVIGATION_SCREEN_ID_INHERITANCE_DECLINE_CLAIM = 5;
+
+    /** Complete claim modal flow - requires claim id in payload **/
+    NAVIGATION_SCREEN_ID_INHERITANCE_COMPLETE_CLAIM = 6;
+
+    /** The success screen shown to a benefactor when an invite is accepted upon tapping the notification. **/
+    NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED = 7;
+
+    /** The next tag is 8 **/
 }

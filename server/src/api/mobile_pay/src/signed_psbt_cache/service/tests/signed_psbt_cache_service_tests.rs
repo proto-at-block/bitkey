@@ -7,14 +7,14 @@ use database::ddb;
 use database::ddb::{Connection, Repository};
 use http_server::config;
 
-use crate::signed_psbt_cache::repository::SignedPsbtCacheRepository;
+use crate::signed_psbt_cache::repository::PsbtTxidCacheRepository;
 use crate::signed_psbt_cache::service::Service;
 
 #[tokio::test]
-async fn test_fetch_base64_serialized_psbt() {
+async fn test_caches_with_correct_txid() {
     // arrange
     let conn = connection().await;
-    let repo = SignedPsbtCacheRepository::new(conn.clone());
+    let repo = PsbtTxidCacheRepository::new(conn.clone());
     let service = Service::new(repo.clone());
     let psbt = construct_psbt();
 
@@ -25,7 +25,6 @@ async fn test_fetch_base64_serialized_psbt() {
 
     // assert
     assert_eq!(cached_psbt.txid, psbt.unsigned_tx.txid());
-    assert_eq!(cached_psbt.psbt, psbt);
 }
 
 async fn connection() -> Connection {

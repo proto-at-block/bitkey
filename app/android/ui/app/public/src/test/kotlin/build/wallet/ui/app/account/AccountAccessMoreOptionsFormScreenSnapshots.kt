@@ -17,7 +17,8 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
             onBack = {},
             onBeTrustedContactClick = {},
             onRestoreYourWalletClick = {},
-            onResetExistingDevice = {}
+            onResetExistingDevice = {},
+            isInheritanceEnabled = false
           )
         )
       }

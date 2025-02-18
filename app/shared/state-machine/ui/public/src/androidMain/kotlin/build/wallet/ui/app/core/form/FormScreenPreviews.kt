@@ -163,7 +163,7 @@ fun FormScreenNotFullHeightPreview() {
       footerContent = {
         FooterPlaceholder()
       },
-      fullHeight = false
+      renderContext = RenderContext.Sheet
     )
   }
 }

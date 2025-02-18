@@ -3,6 +3,7 @@ package build.wallet.partnerships
 import build.wallet.account.AccountService
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
@@ -18,16 +19,15 @@ import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState.FOREGROUND
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
@@ -65,9 +65,10 @@ class PartnershipTransactionsServiceImpl(
           if (appInForeground) {
             expectedTransactionsFlag.flagValue().map { it.value }
               .collectLatest { expectedTransactionsEnabled ->
-                while (expectedTransactionsEnabled && isActive) {
-                  syncPendingTransactions()
-                  delay(5.seconds)
+                if (expectedTransactionsEnabled) {
+                  launchTicker(5.seconds) {
+                    syncPendingTransactions()
+                  }
                 }
               }
           }
@@ -206,8 +207,15 @@ class PartnershipTransactionsServiceImpl(
         }.mapError { error ->
           when {
             error is ClientError && error.response.status == HttpStatusCode.NotFound -> {
-              logDebug { "Transaction was not found, removing from local database" }
-              dao.deleteTransaction(mostRecent.id).getErrorOr(error)
+              // only remove the transaction if it is older than 15 minutes
+              // this is done to prevent a sync which removes a transaction before it is created
+              // on the partner side
+              if (clock.now() - 15.minutes >= mostRecent.created) {
+                logDebug { "Transaction was not found, removing from local database" }
+                dao.deleteTransaction(mostRecent.id).getErrorOr(error)
+              } else {
+                error
+              }
             }
 
             else -> error.also {

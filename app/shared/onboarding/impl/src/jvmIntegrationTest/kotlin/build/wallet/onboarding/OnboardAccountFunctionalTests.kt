@@ -1,19 +1,14 @@
 package build.wallet.onboarding
 
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
 import io.kotest.core.spec.style.FunSpec
 
 class OnboardAccountFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  beforeTest {
-    app = launchNewApp()
-  }
 
   test("complete all onboarding states") {
+    val app = launchNewApp()
     app.run {
       val cloudBackupStep =
         onboardAccountService.pendingStep().shouldBeOkOfType<OnboardAccountStep.CloudBackup>()
@@ -30,8 +25,9 @@ class OnboardAccountFunctionalTests : FunSpec({
   }
 
   test("skip cloud backup step through debug options") {
+    val app = launchNewApp()
     app.run {
-      app.debugOptionsService.setSkipCloudBackupOnboarding(true)
+      debugOptionsService.setSkipCloudBackupOnboarding(true)
 
       val notificationsStep = onboardAccountService.pendingStep()
         .shouldBeOkOfType<OnboardAccountStep.NotificationPreferences>()
@@ -43,8 +39,9 @@ class OnboardAccountFunctionalTests : FunSpec({
   }
 
   test("skip notifications step through debug options") {
+    val app = launchNewApp()
     app.run {
-      app.debugOptionsService.setSkipNotificationsOnboarding(true)
+      debugOptionsService.setSkipNotificationsOnboarding(true)
 
       val cloudBackupStep =
         onboardAccountService.pendingStep().shouldBeOkOfType<OnboardAccountStep.CloudBackup>()

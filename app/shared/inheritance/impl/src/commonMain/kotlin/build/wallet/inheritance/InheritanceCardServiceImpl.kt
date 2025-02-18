@@ -1,7 +1,9 @@
 package build.wallet.inheritance
 
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.inheritance.InheritanceClaim
+import build.wallet.bitkey.inheritance.InheritanceClaimId
+import build.wallet.bitkey.inheritance.isActive
+import build.wallet.bitkey.inheritance.isApproved
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.store.KeyValueStoreFactory
@@ -20,19 +22,17 @@ class InheritanceCardServiceImpl(
   inheritanceService: InheritanceService,
   val keyValueStoreFactory: KeyValueStoreFactory,
 ) : InheritanceCardService {
-  private val dismissedBeneficiaryPendingClaims = MutableStateFlow<Set<String>>(emptySet())
+  private val dismissedBeneficiaryPendingClaimIds = MutableStateFlow<Set<InheritanceClaimId>>(emptySet())
 
   override val cardsToDisplay: Flow<List<InheritanceClaim>> =
     combine(
-      inheritanceService.claims,
-      dismissedBeneficiaryPendingClaims
-    ) { claims, dismissedPendingClaims ->
-      // filter out dismissed pending claim cards
-      claims.filter {
-        if (it is BeneficiaryClaim.PendingClaim) {
-          !dismissedPendingClaims.contains(it.claimId.value)
-        } else {
-          true
+      inheritanceService.claimsSnapshot,
+      dismissedBeneficiaryPendingClaimIds
+    ) { claimsSnapshot, dismissedPendingClaims ->
+      claimsSnapshot.claims.all.filter {
+        when {
+          it.isActive && !it.isApproved(claimsSnapshot.timestamp) -> it.claimId !in dismissedPendingClaims
+          else -> true
         }
       }
     }
@@ -42,12 +42,16 @@ class InheritanceCardServiceImpl(
 
   init {
     coroutineScope.launch {
-      dismissedBeneficiaryPendingClaims.value = store().keys()
+      dismissedBeneficiaryPendingClaimIds.value = store().keys()
+        .map { InheritanceClaimId(it) }
+        .toSet()
     }
   }
 
-  override suspend fun dismissPendingBeneficiaryClaimCard(claimId: String) {
-    store().putBoolean(claimId, true)
-    dismissedBeneficiaryPendingClaims.value = store().keys()
+  override suspend fun dismissPendingBeneficiaryClaimCard(claimId: InheritanceClaimId) {
+    store().putBoolean(claimId.value, true)
+    dismissedBeneficiaryPendingClaimIds.value = store().keys()
+      .map { InheritanceClaimId(it) }
+      .toSet()
   }
 }

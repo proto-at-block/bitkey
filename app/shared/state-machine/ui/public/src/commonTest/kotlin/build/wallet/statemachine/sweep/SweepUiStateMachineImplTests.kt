@@ -20,10 +20,12 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.InAppBrowserModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
@@ -35,6 +37,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
@@ -94,26 +98,26 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("no funds found") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(NoFundsFoundData(proceed = {}))
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("No funds found")
       }
     }
   }
 
   test("generate psbts failed - user chooses to cancel") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
         GeneratePsbtsFailedData(Error("oops"), retry = onRetryCallback)
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         onBack!!()
       }
       onExitCalls.awaitItem()
@@ -121,8 +125,8 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("sweep and sign without hardware") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
@@ -132,7 +136,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           startSweep = { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         toolbar?.trailingAccessory.shouldBeNull()
         toolbar?.leadingAccessory.shouldBeNull()
@@ -153,12 +157,12 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       startSweepCalls.awaitItem()
       sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(SweepCompleteData({}))
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         clickPrimaryButton()
       }
@@ -166,8 +170,8 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("sweep and sign with hardware") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       val sweepPsbts =
@@ -195,7 +199,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         toolbar?.trailingAccessory.shouldBeNull()
         toolbar?.leadingAccessory.shouldBeNull()
@@ -222,7 +226,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           addHwSignedSweeps = { addHwSignedSweepsCalls += it }
         )
       )
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
         val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
@@ -234,12 +238,12 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)
       sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(SweepCompleteData({}))
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         primaryButton!!.onClick()
       }
@@ -247,8 +251,8 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("broadcast failed - user chooses to cancel") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
@@ -258,7 +262,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           startSweep = { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         toolbar?.trailingAccessory.shouldBeNull()
         toolbar?.leadingAccessory.shouldBeNull()
@@ -279,13 +283,13 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       startSweepCalls.awaitItem()
       sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
         SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
         secondaryButton!!.onClick()
       }
@@ -294,8 +298,8 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("broadcast failed - user chooses to retry") {
-    sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    sweepStateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
@@ -305,7 +309,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           startSweep = { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         toolbar?.trailingAccessory.shouldBeNull()
         toolbar?.leadingAccessory.shouldBeNull()
@@ -326,13 +330,13 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       startSweepCalls.awaitItem()
       sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
         SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
         primaryButton!!.onClick()
       }
@@ -340,7 +344,7 @@ class SweepUiStateMachineImplTests : FunSpec({
 
       // Go back to initial state
       sweepDataStateMachine.emitModel(GeneratingPsbtsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -348,12 +352,12 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("Sweep Funds on Inactive Wallet") {
-    sweepStateMachine.test(
+    sweepStateMachine.testWithVirtualTime(
       props.copy(
         recoveredFactor = null
       )
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
@@ -363,7 +367,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           startSweep = { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
         toolbar?.trailingAccessory.shouldNotBeNull()
         toolbar?.leadingAccessory.shouldNotBeNull()
@@ -385,13 +389,13 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       startSweepCalls.awaitItem()
       sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
         SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_FAILED
         primaryButton!!.onClick()
       }
@@ -399,7 +403,7 @@ class SweepUiStateMachineImplTests : FunSpec({
 
       // Go back to initial state
       sweepDataStateMachine.emitModel(GeneratingPsbtsData)
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -407,12 +411,12 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("Learn more button opens in-app browser") {
-    sweepStateMachine.test(
+    sweepStateMachine.testWithVirtualTime(
       props.copy(
         recoveredFactor = null
       )
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
@@ -422,7 +426,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           startSweep = { startSweepCalls += Unit }
         )
       )
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
         toolbar
           .shouldNotBeNull()
@@ -434,12 +438,12 @@ class SweepUiStateMachineImplTests : FunSpec({
           .invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP
         primaryButton!!.onClick()
       }
 
-      awaitScreenWithBody<InAppBrowserModel> {
+      awaitBody<InAppBrowserModel> {
         open()
       }
 
@@ -447,7 +451,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         .shouldBe("https://support.bitkey.world/hc/en-us/articles/28019865146516-How-do-I-access-funds-sent-to-a-previously-created-Bitkey-address")
       inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
 
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 })

@@ -35,7 +35,8 @@ private data class PromptingForFingerprintFwUpSheetBodyModel(
         iconBackgroundType = IconBackgroundType.Circle(
           circleSize = IconSize.Avatar,
           color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
-        )
+        ),
+        iconTopSpacing = 0
       ),
       headline = "Update your hardware device",
       subline = "Looks like you need to update your hardware device to add additional fingerprints."

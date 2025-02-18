@@ -7,9 +7,10 @@ use types::recovery::{
 
 use crate::{
     clients::iterable::IterableCampaignType,
+    definitions::NavigationScreenId,
     email::EmailPayload,
     entities::NotificationCompositeKey,
-    push::{AndroidChannelId, SNSPushPayload},
+    push::{AndroidChannelId, SNSPushPayload, SNSPushPayloadExtras},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
@@ -119,7 +120,7 @@ fn payloads_for_inheritance(
     Option<SNSPushPayload>,
     Option<SmsPayload>,
 ) {
-    let (message, campaign_type) = match (acting_account_role, recipient_account_role) {
+    let (message, campaign_type, extras) = match (acting_account_role, recipient_account_role) {
         (
             RecoveryRelationshipRole::ProtectedCustomer,
             RecoveryRelationshipRole::ProtectedCustomer,
@@ -127,24 +128,38 @@ fn payloads_for_inheritance(
             (
                 String::from("You removed a beneficiary of your Bitkey wallet. You can add a new beneficiary in the Bitkey app."),
                 IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBenefactor,
+                SNSPushPayloadExtras::default(),
             )
         }
         (RecoveryRelationshipRole::ProtectedCustomer, RecoveryRelationshipRole::TrustedContact) => {
             (
                 String::from("You were removed as a beneficiary of a Bitkey wallet. Reach out to your benefactor for more information."),
                 IterableCampaignType::RecoveryRelationshipDeletedByBenefactorReceivedByBeneficiary,
+                SNSPushPayloadExtras {
+                    navigate_to_screen_id: Some(
+                        (NavigationScreenId::ManageInheritanceBenefactor as i32).to_string(),
+                    ),
+                    ..Default::default()
+                },
             )
         }
         (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::TrustedContact) => {
             (
                 String::from("You removed a benefactor from your Bitkey wallet."),
                 IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary,
+                SNSPushPayloadExtras::default(),
             )
         }
         (RecoveryRelationshipRole::TrustedContact, RecoveryRelationshipRole::ProtectedCustomer) => {
             (
                 String::from("[Action required] You no longer have an active beneficiary. Add a beneficiary in the Bitkey app."),
                 IterableCampaignType::RecoveryRelationshipDeletedByBeneficiaryReceivedByBenefactor,
+                SNSPushPayloadExtras {
+                    navigate_to_screen_id: Some(
+                        (NavigationScreenId::ManageInheritance as i32).to_string(),
+                    ),
+                    ..Default::default()
+                },
             )
         }
     };
@@ -160,6 +175,7 @@ fn payloads_for_inheritance(
     let push_payload = Some(SNSPushPayload {
         message: message.clone(),
         android_channel_id: AndroidChannelId::RecoveryAccountSecurity,
+        extras,
         ..Default::default()
     });
 

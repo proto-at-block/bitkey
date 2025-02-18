@@ -8,6 +8,10 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withAppAuthKey
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.NetworkingError
@@ -29,15 +33,14 @@ class SetActiveSpendingKeysetF8eClientImpl(
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = fullAccountId,
-        appFactorProofOfPossessionAuthKey = appAuthKey,
-        hwFactorProofOfPossession = hwFactorProofOfPossession
-      )
+      .authenticated()
       .catching {
         put(urlString = "/api/accounts/${fullAccountId.serverId}/keysets/$keysetId") {
           withDescription("Set active spending keyset")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          withAppAuthKey(appAuthKey)
+          withHardwareFactor(hwFactorProofOfPossession)
           setRedactedBody(EmptyRequestBody)
         }
       }

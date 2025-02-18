@@ -2,9 +2,7 @@ package build.wallet.ui.components.label
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import build.wallet.statemachine.core.LabelModel
@@ -33,6 +31,7 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
     append(string)
     when (model) {
       is LabelModel.StringModel -> Unit
+      is LabelModel.CalloutModel -> Unit
       is LabelModel.StringWithStyledSubstringModel ->
         model.styledSubstrings.forEach { styledSubstring ->
           addStyle(
@@ -47,11 +46,17 @@ fun LabelModel.buildAnnotatedString(): AnnotatedString {
         }
       is LabelModel.LinkSubstringModel ->
         model.linkedSubstrings.forEach { linkedSubstring ->
-          addStyle(
-            style = SpanStyle(
-              textDecoration = if (model.underline) TextDecoration.Underline else null,
-              fontWeight = if (model.bold) FontWeight.W600 else null,
-              color = model.color.toWalletTheme()
+          addLink(
+            clickable = LinkAnnotation.Clickable(
+              tag = model.string.substring(linkedSubstring.range),
+              linkInteractionListener = { linkedSubstring.onClick() },
+              styles = TextLinkStyles(
+                style = SpanStyle(
+                  textDecoration = if (model.underline) TextDecoration.Underline else null,
+                  fontWeight = if (model.bold) FontWeight.W600 else null,
+                  color = model.color.toWalletTheme()
+                )
+              )
             ),
             start = linkedSubstring.range.first,
             end = linkedSubstring.range.last + 1

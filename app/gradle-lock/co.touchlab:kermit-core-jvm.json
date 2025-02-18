@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:kermit-core-jvm",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-core-jvm-2.0.3.jar": "05b3f56473122ab3545727449428bb55cc98dc0150aba4b04e4030ee8db71405"
+                        "kermit-core-jvm-2.0.4.jar": "53736211edeeed3cdbc3b96b8b27de7faf50aeb731e1fff92a0e4472505d24ba"
                     }
                 }
             ],

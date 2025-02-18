@@ -42,7 +42,7 @@ data class SettingsListUiProps(
 
     data class NotificationPreferences(override val onClick: () -> Unit) : SettingsListRow
 
-    data class RecoveryChannels(override val onClick: () -> Unit) : SettingsListRow
+    data class CriticalAlerts(override val onClick: () -> Unit) : SettingsListRow
 
     data class ContactUs(override val onClick: () -> Unit) : SettingsListRow
 

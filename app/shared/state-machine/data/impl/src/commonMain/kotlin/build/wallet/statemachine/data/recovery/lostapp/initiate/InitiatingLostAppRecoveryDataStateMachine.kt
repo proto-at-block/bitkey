@@ -33,7 +33,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.CancelRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.InitiateRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl.State.*
-import build.wallet.time.Delayer
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.andThen
@@ -66,7 +66,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val lostAppRecoveryInitiator: LostAppRecoveryInitiator,
   private val lostAppRecoveryAuthenticator: LostAppRecoveryAuthenticator,
   private val uuidGenerator: UuidGenerator,
-  private val delayer: Delayer,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : InitiatingLostAppRecoveryDataStateMachine {
   @Composable
   override fun model(props: InitiatingLostAppRecoveryProps): InitiatingLostAppRecoveryData {
@@ -130,8 +130,9 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is AuthenticatingWithF8eViaHardwareState -> {
           LaunchedEffect("authenticate-with-hardware") {
-            delayer
-              .withMinimumDelay { authenticateWithHardware(props, dataState) }
+            withMinimumDelay(minimumLoadingDuration.value) {
+              authenticateWithHardware(props, dataState)
+            }
               .onSuccess { accountAuthTokens ->
                 state =
                   ListingKeysetsFromF8eState(

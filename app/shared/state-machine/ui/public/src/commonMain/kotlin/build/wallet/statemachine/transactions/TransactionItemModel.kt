@@ -42,10 +42,7 @@ fun TransactionItemModel(
         color = IconBackgroundType.Square.Color.Transparent,
         cornerRadius = 0
       ),
-      iconAlignmentInBackground = when {
-        isLate || isPending || transactionType is UtxoConsolidation -> IconAlignmentInBackground.Center
-        else -> IconAlignmentInBackground.TopStart
-      },
+      iconAlignmentInBackground = IconAlignmentInBackground.Center,
       badge = when {
         isLate -> BadgeType.Error
         isPending -> BadgeType.Loading

@@ -27,7 +27,7 @@ class NotificationsPreferencesCachedProviderImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val keyValueStoreFactory: KeyValueStoreFactory,
 ) : NotificationsPreferencesCachedProvider {
-  override suspend fun getNotificationsPreferences(
+  override fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Flow<Result<NotificationPreferences, NetworkingError>> =

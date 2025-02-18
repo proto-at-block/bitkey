@@ -245,11 +245,14 @@ mod tests {
     use std::sync::Arc;
     use types::account::identifiers::KeysetId;
     use wsm_common::messages::api::{
-        AttestationDocResponse, ContinueDistributedKeygenResponse,
-        CreateSelfSovereignBackupResponse, GeneratePartialSignaturesResponse,
-        GetIntegritySigResponse, InitiateDistributedKeygenResponse,
+        AttestationDocResponse, ContinueDistributedKeygenResponse, ContinueShareRefreshResponse,
+        CreateSelfSovereignBackupResponse, EvaluatePinResponse, GeneratePartialSignaturesResponse,
+        GetIntegritySigResponse, InitiateDistributedKeygenResponse, InitiateShareRefreshResponse,
     };
-    use wsm_rust_client::{CreatedSigningKey, Error, SignedPsbt, SigningService};
+    use wsm_rust_client::{
+        CreatedSigningKey, Error, NoiseInitiateBundleResponseWithSession, SignedPsbt,
+        SigningService,
+    };
 
     mock! {
         WsmSigner {}
@@ -265,13 +268,15 @@ mod tests {
                 &self,
                 root_key_id: &str,
                 network: Network,
-                sealed_request: &str,
+                sealed_request: Vec<u8>,
+                noise_session: Vec<u8>,
             ) -> Result<InitiateDistributedKeygenResponse, Error>;
             async fn continue_distributed_keygen(
                 &self,
                 root_key_id: &str,
                 network: Network,
-                sealed_request: &str
+                sealed_request: Vec<u8>,
+                noise_session: Vec<u8>,
             ) -> Result<ContinueDistributedKeygenResponse, Error>;
             async fn create_self_sovereign_backup(
                 &self,
@@ -280,11 +285,26 @@ mod tests {
                 sealed_request: Vec<u8>,
                 noise_session:Vec<u8>,
             ) -> Result<CreateSelfSovereignBackupResponse, Error>;
+            async fn initiate_share_refresh(
+                &self,
+                root_key_id: &str,
+                network: Network,
+                sealed_request: Vec<u8>,
+                noise_session: Vec<u8>,
+            ) -> Result<InitiateShareRefreshResponse, Error>;
+            async fn continue_share_refresh(
+                &self,
+                root_key_id: &str,
+                network: Network,
+                sealed_request: Vec<u8>,
+                noise_session: Vec<u8>,
+            ) -> Result<ContinueShareRefreshResponse, Error>;
             async fn generate_partial_signatures(
                 &self,
                 root_key_id: &str,
                 network: Network,
-                sealed_request: &str
+                sealed_request: Vec<u8>,
+                noise_session: Vec<u8>,
             ) -> Result<GeneratePartialSignaturesResponse, Error>;
             async fn sign_psbt(
                 &self,
@@ -298,7 +318,13 @@ mod tests {
                 root_key_id: &str,
             ) -> Result<GetIntegritySigResponse, Error>;
             async fn get_attestation_document(&self) -> Result<AttestationDocResponse, Error>;
-        }
+            async fn initiate_secure_channel(
+                &self,
+                bundle: Vec<u8>,
+                server_static_pubkey: &str,
+            ) -> Result<NoiseInitiateBundleResponseWithSession, Error>;
+            async fn evaluate_pin(&self, sealed_request: Vec<u8>, noise_session: Vec<u8>) -> Result<EvaluatePinResponse, Error>;
+    }
     }
 
     mock! {

@@ -6,6 +6,9 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -27,15 +30,14 @@ class CancelDelayNotifyRecoveryF8eClientImpl(
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<CancelDelayNotifyRecoveryErrorCode>> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment,
-      fullAccountId,
-      hwFactorProofOfPossession = hwFactorProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/delay-notify") {
           withDescription("Cancel recovery")
           setRedactedBody(EmptyRequestBody)
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          hwFactorProofOfPossession?.run(::withHardwareFactor)
         }
       }.map { Unit }
       .mapError { it.toF8eError<CancelDelayNotifyRecoveryErrorCode>() }

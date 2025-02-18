@@ -9,9 +9,7 @@ import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
@@ -20,6 +18,8 @@ import build.wallet.statemachine.recovery.RecoveryInProgressUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -78,36 +78,36 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     )
 
   test("lost hardware recovery ui -- initiating") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = initiatingProps
     ) {
-      awaitScreenWithBodyModelMock<InitiatingLostHardwareRecoveryProps>(
+      awaitBodyMock<InitiatingLostHardwareRecoveryProps>(
         id = initiatingLostHardwareRecoveryUiStateMachine.id
       )
     }
   }
 
   test("lost hardware recovery ui -- undergoing") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = undergoingProps
     ) {
-      awaitScreenWithBodyModelMock<RecoveryInProgressUiProps>(
+      awaitBodyMock<RecoveryInProgressUiProps>(
         id = recoveryInProgressUiStateMachine.id
       )
     }
   }
 
   test("lost hardware recovery ui -- leaving undergoing") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = undergoingProps
     ) {
-      awaitScreenWithBodyModelMock<RecoveryInProgressUiProps>(
+      awaitBodyMock<RecoveryInProgressUiProps>(
         id = recoveryInProgressUiStateMachine.id
       )
 
       updateProps(initiatingProps)
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       onExitCalls.awaitItem()

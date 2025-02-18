@@ -6,12 +6,12 @@ import build.wallet.email.EmailValidatorMock
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
 import build.wallet.statemachine.ui.matchers.shouldBeEnabled
@@ -58,11 +58,11 @@ class EmailInputUiStateMachineImplTests : FunSpec({
   }
 
   test("initial email input state") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       val newValue = "jcole@dreamville.com"
       emailValidator.isValid = true
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Enter your email address")
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBeEmpty()
@@ -71,14 +71,14 @@ class EmailInputUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newValue)
           clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newValue)
           primaryButton.shouldNotBeNull().shouldBeLoading()
@@ -90,14 +90,14 @@ class EmailInputUiStateMachineImplTests : FunSpec({
   }
 
   test("email is properly initialized when a previous email exists") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         props.copy(
           dataInputStyle = Edit,
           previousEmail = Email("kendrick@tde.com")
         )
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Edit your email address")
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe("kendrick@tde.com")
@@ -108,16 +108,16 @@ class EmailInputUiStateMachineImplTests : FunSpec({
 
   test("primary button should be enabled with valid email") {
     emailValidator.isValid = true
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().shouldBeEnabled()
       }
     }
   }
 
   test("skip flow - onClosed of the errorOverlay should close the sheet") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         toolbar?.trailingAccessory.shouldBeInstanceOf<ButtonAccessory>()
           .model.onClick()
       }
@@ -132,8 +132,8 @@ class EmailInputUiStateMachineImplTests : FunSpec({
   }
 
   test("skipBottomSheetProvider passed as null") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .trailingAccessory.shouldBeNull()
       }
@@ -141,8 +141,8 @@ class EmailInputUiStateMachineImplTests : FunSpec({
   }
 
   test("email is trimmed before submitting") {
-    stateMachine.test(props.copy(previousEmail = Email("   ex@mple.com   "))) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(previousEmail = Email("   ex@mple.com   "))) {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
 
@@ -152,7 +152,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
 
   test("error - touchpoint already active") {
     emailValidator.isValid = true
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Ready to submit
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
@@ -161,7 +161,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       }
 
       // Submitting
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Send error in the callback
       val enterEmail = onEmailEnteredCalls.awaitItem()
@@ -190,7 +190,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
 
   test("error - invalid email") {
     emailValidator.isValid = true
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Ready to submit
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
@@ -199,7 +199,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       }
 
       // Submitting
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Send error in the callback
       val enterEmail = onEmailEnteredCalls.awaitItem()

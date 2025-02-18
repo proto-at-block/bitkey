@@ -9,10 +9,13 @@ import bitkey.sample.ui.SampleScreenPresenterRegistry
 import bitkey.sample.ui.home.AccountHomeUiStateMachineImpl
 import bitkey.sample.ui.onboarding.CreateAccountUiStateMachineImpl
 import bitkey.sample.ui.settings.account.AccountSettingsScreenPresenter
-import build.wallet.ui.framework.NavigatorPresenterImpl
+import bitkey.ui.framework.NavigatorPresenterImpl
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DeviceInfoProviderImpl
 
 interface SampleAppComponent {
   val sampleAppUiStateMachine: SampleAppUiStateMachine
+  val deviceInfoProvider: DeviceInfoProvider
 
   companion object {
     fun create(): SampleAppComponent = SampleAppComponentImpl()
@@ -51,4 +54,6 @@ internal class SampleAppComponentImpl : SampleAppComponent {
     accountHomeUiStateMachine = accountHomeStateMachine,
     createAccountUiStateMachine = createAccountStateMachine
   )
+
+  override val deviceInfoProvider: DeviceInfoProvider = DeviceInfoProviderImpl()
 }

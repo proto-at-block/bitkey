@@ -1,5 +1,6 @@
 package build.wallet.statemachine.inheritance.claims.start
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -10,6 +11,10 @@ import build.wallet.statemachine.core.StateMachine
 interface StartClaimUiStateMachine : StateMachine<StartClaimUiStateMachineProps, ScreenModel>
 
 data class StartClaimUiStateMachineProps(
+  /**
+   * The account of the beneficiary starting the claim.
+   */
+  val account: FullAccount,
   /**
    * The associated inheritance relationship.
    */

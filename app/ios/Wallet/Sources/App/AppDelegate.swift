@@ -20,8 +20,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let appContext: AppContext
 
     var window: UIWindow?
-    var appSwitcherWindow: AppSwitcherWindow?
-    var composeUiEnabled: Bool
 
     // MARK: - Life Cycle
 
@@ -31,19 +29,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         initializeBugsnag(appVariant: appVariant)
         initializeDatadog(appVariant: appVariant)
 
-        self.appContext = AppContext(appVariant: appVariant)
+        window = UIWindow(frame: UIScreen.main.bounds)
+        self.appContext = AppContext(appVariant: appVariant, window: window!)
         appContext.appComponent.loggerInitializer.initialize()
 
         appContext.appComponent.bugsnagContext.configureCommonMetadata()
 
-        appContext.activityComponent.featureFlagService.doInitComposeUiFeatureFlag()
-        composeUiEnabled = appContext.activityComponent.composUiFeatureFlag.isEnabled()
-
         super.init()
-
-        if !composeUiEnabled {
-            appContext.appUiStateMachineManager.connectSharedStateMachine()
-        }
 
         // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
         // a user performs an iCloud restore on a new phone, the app will think it is onboarded but
@@ -66,19 +58,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        window = UIWindow(frame: UIScreen.main.bounds)
-        if composeUiEnabled {
-            window?.rootViewController = ComposeIosAppUIController(
-                appUiStateMachine: appContext.activityComponent.appUiStateMachine
-            ).viewController
-        } else {
-            window?.rootViewController = appContext.appUiStateMachineManager.appViewController
-        }
+        window?.rootViewController = ComposeIosAppUIController(
+            appUiStateMachine: appContext.activityComponent.appUiStateMachine,
+            deviceInfo: appContext.appComponent.deviceInfoProvider.getDeviceInfo(),
+            accelerometer: appContext.appComponent.accelerometer
+        ).viewController
 
         window?.makeKeyAndVisible()
 
         appContext.sharingManager.mainWindow = window
-        FwupNfcMaskOverlayViewController.mainWindow = window
 
         UNUserNotificationCenter.current().delegate = appContext.notificationManager
         appContext.notificationManager.delegate = self
@@ -121,11 +109,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Notify the notification manager that we are now in the foreground so it can perform
         // relevant tasks.
         appContext.notificationManager.applicationDidEnterForeground(application)
-
-        if !composeUiEnabled {
-            appSwitcherWindow = nil
-            window?.makeKeyAndVisible()
-        }
     }
 
     func applicationWillResignActive(_: UIApplication) {
@@ -134,31 +117,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
            .isTransacting
         {
             appContext.appComponent.appSessionManager.appDidEnterBackground()
-        }
-        if !composeUiEnabled {
-            appContext.appComponent.biometricPreference.getOrNull(completionHandler: { result, _ in
-                // If the appSwitcherWindow is not initialized and biometric is enabled,
-                // we add a window to display in the app switcher
-                if result == true, !self.appContext.activityComponent.nfcTransactor.isTransacting {
-                    DispatchQueue.main.async {
-                        // Reuse an unanimated splash screen for the app switcher window
-                        let vc = UIHostingController(
-                            rootView: SplashScreenView(
-                                viewModel: SplashBodyModel(
-                                    bitkeyWordMarkAnimationDelay: 0,
-                                    bitkeyWordMarkAnimationDuration: 0,
-                                    eventTrackerScreenInfo: nil
-                                )
-                            )
-                        )
-                        let appSwitcherWindow = AppSwitcherWindow(frame: self.window!.bounds)
-                        appSwitcherWindow.rootViewController = vc
-                        appSwitcherWindow.windowLevel = .alert
-                        appSwitcherWindow.makeKeyAndVisible()
-                        self.appSwitcherWindow = appSwitcherWindow
-                    }
-                }
-            })
         }
     }
 
@@ -185,15 +143,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 extension AppDelegate: NotificationManagerDelegate {
     func receivedNotificationWithInfo(_ info: [AnyHashable: Any]) {
-        if let screenId = info[Route.DeepLink.shared.NAVIGATE_TO_SCREEN_ID] as? Int {
-            Router.shared.route = Route.companion.from(screenId: Int32(screenId))
+        if let extras = info as? [String: Any] {
+            Router.shared.route = Route.companion.from(extras: extras)
         }
     }
 }
-
-// MARK: -
-
-class AppSwitcherWindow: UIWindow {}
 
 // MARK: - Private Methods
 
@@ -218,7 +172,7 @@ private func initializeDatadog(appVariant: AppVariant) {
     RUM.enable(
         with: RUM.Configuration(
             applicationID: "4a66b458-4cb8-444e-9298-cf9ac3d1f25e",
-            uiKitViewsPredicate: DefaultUIKitRUMViewsPredicate(),
+            uiKitViewsPredicate: nil,
             uiKitActionsPredicate: DefaultUIKitRUMActionsPredicate(),
             urlSessionTracking: RUM.Configuration.URLSessionTracking(
                 firstPartyHostsTracing: .trace(
@@ -226,6 +180,9 @@ private func initializeDatadog(appVariant: AppVariant) {
                     sampleRate: 100
                 )
             ),
+            trackBackgroundEvents: true,
+            appHangThreshold: 0.25,
+            trackWatchdogTerminations: true,
             telemetrySampleRate: 100
         )
     )

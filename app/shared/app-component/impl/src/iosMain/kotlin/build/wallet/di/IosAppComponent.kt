@@ -6,6 +6,7 @@ import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
 import build.wallet.bugsnag.BugsnagContext
 import build.wallet.cloud.store.CloudFileStore
+import build.wallet.crypto.NoiseInitiator
 import build.wallet.crypto.Spake2
 import build.wallet.crypto.WsmVerifier
 import build.wallet.datadog.DatadogRumMonitor
@@ -14,7 +15,7 @@ import build.wallet.encrypt.*
 import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
-import build.wallet.frost.ShareGeneratorFactory
+import build.wallet.frost.ShareGenerator
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.LoggerInitializer
@@ -28,8 +29,10 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.pdf.PdfAnnotatorFactory
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
+import build.wallet.platform.sensor.Accelerometer
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.web.InAppBrowserNavigator
@@ -86,7 +89,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val pdfAnnotatorFactory: PdfAnnotatorFactory,
   @get:Provides val phoneNumberLibBindings: PhoneNumberLibBindings,
   @get:Provides val secp256k1KeyGenerator: Secp256k1KeyGenerator,
-  @get:Provides val shareGeneratorFactory: ShareGeneratorFactory,
+  @get:Provides val shareGenerator: ShareGenerator,
   @get:Provides val sharingManager: SharingManager,
   @get:Provides val signatureVerifier: SignatureVerifier,
   @get:Provides val spake2: Spake2,
@@ -97,6 +100,7 @@ abstract class IosAppComponent internal constructor(
   @get:Provides val wsmVerifier: WsmVerifier,
   @get:Provides val xChaCha20Poly1305: XChaCha20Poly1305,
   @get:Provides val xNonceGenerator: XNonceGenerator,
+  @get:Provides val noiseInitiator: NoiseInitiator,
 ) : IosActivityComponent.Factory {
   /**
    * Expose dependencies that we want to access at runtime from Swift code.
@@ -109,6 +113,8 @@ abstract class IosAppComponent internal constructor(
   abstract val fileDirectoryProvider: FileDirectoryProvider
   abstract val loggerInitializer: LoggerInitializer
   abstract val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
+  abstract val deviceInfoProvider: DeviceInfoProvider
+  abstract val accelerometer: Accelerometer
 }
 
 /**
@@ -145,7 +151,7 @@ expect fun create(
   pdfAnnotatorFactory: PdfAnnotatorFactory,
   phoneNumberLibBindings: PhoneNumberLibBindings,
   secp256k1KeyGenerator: Secp256k1KeyGenerator,
-  shareGeneratorFactory: ShareGeneratorFactory,
+  shareGenerator: ShareGenerator,
   sharingManager: SharingManager,
   signatureVerifier: SignatureVerifier,
   spake2: Spake2,
@@ -156,4 +162,5 @@ expect fun create(
   wsmVerifier: WsmVerifier,
   xChaCha20Poly1305: XChaCha20Poly1305,
   xNonceGenerator: XNonceGenerator,
+  noiseInitiator: NoiseInitiator,
 ): IosAppComponent

@@ -2,6 +2,7 @@ package build.wallet.kotest.paparazzi
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
+import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import build.wallet.ui.theme.SystemColorMode
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -35,10 +36,14 @@ class PaparazziExtension(
    */
   fun snapshot(
     systemColorMode: SystemColorMode = SystemColorMode.LIGHT,
+    deviceConfig: DeviceConfig? = null,
     content: @Composable () -> Unit,
-  ) = paparazzi.snapshot {
-    PreviewWalletTheme(systemColorMode = systemColorMode) {
-      content()
+  ) {
+    deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
+    paparazzi.snapshot {
+      PreviewWalletTheme(systemColorMode = systemColorMode) {
+        content()
+      }
     }
   }
 
@@ -81,8 +86,19 @@ class PaparazziExtension(
 }
 
 private val TestCase.junit4Description: Description
-  get() = Description.createTestDescription(descriptor.parent.id.value, name.testName)
+  get() = Description.createTestDescription(descriptor.parent.id.value, sanitizedName)
 
 private object NoopJunitStatement : Statement() {
   override fun evaluate() = Unit
 }
+
+/**
+ * Returns sanitized name of the test to be used for snapshot filename:
+ * - removes '-', and ',' chars
+ * - replaces whitespace ' ' with '_' char
+ */
+private val TestCase.sanitizedName: String
+  get() = name.testName
+    .replace("-", "")
+    .replace(",", "")
+    .replace(" ", "_")

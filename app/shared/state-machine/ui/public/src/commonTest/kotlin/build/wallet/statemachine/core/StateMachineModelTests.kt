@@ -13,4 +13,4 @@ class StateMachineModelTests : FunSpec({
 
 data class DummyModel(
   val someProperty: String,
-) : Model()
+) : Model

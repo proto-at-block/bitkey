@@ -30,7 +30,7 @@ class RelationshipsF8eClientProviderImpl(
           is AccountStatus.OnboardingAccount ->
             status.account.config.isUsingSocRecFakes
           is AccountStatus.LiteAccountUpgradingToFullAccount ->
-            status.account.config.isUsingSocRecFakes
+            status.onboardingAccount.config.isUsingSocRecFakes
 
           is AccountStatus.NoAccount -> {
             debugOptionsService.options().first().isUsingSocRecFakes

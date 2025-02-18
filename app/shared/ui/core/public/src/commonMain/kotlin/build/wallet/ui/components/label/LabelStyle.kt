@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextDecoration.Companion.Underline
 import build.wallet.ui.components.label.LabelTreatment.Disabled
 import build.wallet.ui.components.label.LabelTreatment.Jumbo
 import build.wallet.ui.components.label.LabelTreatment.Primary
+import build.wallet.ui.components.label.LabelTreatment.PrimaryDark
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.label.LabelTreatment.Strikethrough
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
@@ -54,6 +55,7 @@ fun WalletTheme.textStyle(
   val color =
     when (treatment) {
       Primary, Tertiary, Jumbo -> colors.foreground
+      PrimaryDark -> colors.coachmarkBackground
       Secondary, Strikethrough -> colors.foreground60
       Disabled -> colors.foreground30
       Warning -> colors.warningForeground
@@ -108,8 +110,9 @@ fun buttonTextStyle(
     lineHeightStyle =
       LineHeightStyle(
         alignment = Alignment.Center,
-        // Respect line height value and do not trim padding.
-        trim = Trim.None
+        // Fix for vertically centered text in buttons.
+        // https://youtrack.jetbrains.com/issue/CMP-6985/Text-with-unexpected-margins-on-iOS
+        trim = Trim.Both
       )
   )
 }

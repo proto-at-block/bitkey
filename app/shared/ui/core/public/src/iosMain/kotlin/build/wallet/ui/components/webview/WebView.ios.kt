@@ -2,6 +2,7 @@ package build.wallet.ui.components.webview
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
@@ -16,17 +17,19 @@ import platform.WebKit.WKWebViewConfiguration
 @OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun WebView(url: String) {
-  UIKitView(
-    factory = {
+  val factory = remember {
+    {
       WKWebView(
         frame = cValue { CGRectZero },
         configuration = WKWebViewConfiguration()
-      )
-    },
+      ).apply {
+        loadRequest(NSURLRequest(NSURL(string = url)))
+      }
+    }
+  }
+  UIKitView(
+    factory = factory,
     modifier = Modifier.fillMaxSize(),
-    update = { webView ->
-      webView.loadRequest(NSURLRequest(NSURL(string = url)))
-    },
     properties = UIKitInteropProperties(
       isInteractive = true,
       isNativeAccessibilityEnabled = true

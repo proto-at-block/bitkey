@@ -74,8 +74,7 @@ fun selectPurchaseAmountModel(
       onExit = onExit
     ),
     onClosed = onExit,
-    size = SheetSize.MIN40,
-    dragIndicatorVisible = true
+    size = SheetSize.MIN40
   )
 }
 

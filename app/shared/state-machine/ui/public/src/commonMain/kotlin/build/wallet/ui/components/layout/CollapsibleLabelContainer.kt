@@ -45,7 +45,7 @@ fun CollapsibleLabelContainer(
   horizontalAlignment: Alignment.Horizontal,
   topContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
   bottomContent: (@Composable AnimatedVisibilityScope.() -> Unit)?,
-  collapsedContent: @Composable AnimatedVisibilityScope.() -> Unit,
+  collapsedContent: @Composable AnimatedVisibilityScope.(placeholder: Boolean) -> Unit,
 ) {
   Box(modifier = modifier, contentAlignment = Alignment.CenterEnd) {
     val motionTweenFloat = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
@@ -65,7 +65,7 @@ fun CollapsibleLabelContainer(
           horizontalAlignment = horizontalAlignment,
           verticalArrangement = Arrangement.Center
         ) {
-          collapsedContent()
+          collapsedContent(false)
         }
       }
     )
@@ -75,7 +75,7 @@ fun CollapsibleLabelContainer(
         topContent?.let { AnimatedVisibility(visible = true, content = topContent) }
         bottomContent?.let { AnimatedVisibility(visible = true, content = bottomContent) }
       }
-      AnimatedVisibility(visible = true) { collapsedContent() }
+      AnimatedVisibility(visible = true) { collapsedContent(true) }
     }
 
     Column(

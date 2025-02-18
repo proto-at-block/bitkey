@@ -10,10 +10,6 @@ public struct TextModel {
     public enum Content {
         case text(String)
         case attributedText(AttributedString)
-        case linkedText(
-            string: AttributedString,
-            links: [LabelModelLinkSubstringModel.LinkSubstring]
-        )
     }
 
     public enum Width {
@@ -91,19 +87,6 @@ public struct ModeledText: View {
                     }
             case let .attributedText(attributedString):
                 Text(attributedString)
-            case let .linkedText(attributedString, links):
-                Text(attributedString).environment(\.openURL, OpenURLAction { url in
-                    // We pass the callback index as the URL string value, see
-                    // AttributedStringExtensions.swift
-                    if let callbackIndex = Int(url.absoluteString),
-                       links.count - 1 >= callbackIndex
-                    {
-                        links[callbackIndex].onClick()
-                        return .handled
-                    } else {
-                        return .discarded
-                    }
-                })
             }
         }
         .font(model.font)

@@ -1,8 +1,6 @@
-use boring::bn::{BigNum, BigNumContext};
-use boring::ec::{EcGroup, EcKey, EcPoint, PointConversionForm};
-use boring::nid::Nid;
+use p256::ecdh::diffie_hellman;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
-use p256::{EncodedPoint, PublicKey};
+use p256::{EncodedPoint, PublicKey, SecretKey};
 use snow::{
     params::{CipherChoice, DHChoice, HashChoice, NoiseParams},
     resolvers::{CryptoResolver, DefaultResolver},
@@ -135,21 +133,13 @@ pub struct SoftwareP256DhAdapter {
 }
 
 fn compute_pubkey(privkey: &[u8]) -> Result<Vec<u8>, DhError> {
-    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).expect("Failed to create group");
-    let priv_bn = BigNum::from_slice(privkey).map_err(|_| DhError::ExchangeFailed)?;
+    let sk = SecretKey::from_slice(privkey).expect("Invalid private key");
+    let pk = sk.public_key();
+    let sec1 = pk.to_sec1_bytes();
 
-    let mut ctx = BigNumContext::new().map_err(|_| DhError::ExchangeFailed)?;
-    let mut pub_key = EcPoint::new(&group).map_err(|_| DhError::ExchangeFailed)?;
-
-    pub_key
-        .mul_generator(&group, &priv_bn, &mut ctx)
-        .map_err(|_| DhError::ExchangeFailed)?;
-
-    let pub_key_bytes = pub_key
-        .to_bytes(&group, PointConversionForm::COMPRESSED, &mut ctx)
-        .map_err(|_| DhError::ExchangeFailed)?;
-
-    Ok(pub_key_bytes)
+    // We have to use the compressed form here because Noise enforces a max public key per MAXDHLEN, which is 56 (not 65! not a typo.).
+    let compressed = sec1_uncompressed_to_compressed(&sec1).expect("Invalid public key");
+    Ok(compressed)
 }
 
 impl Dh for SoftwareP256DhAdapter {
@@ -166,43 +156,15 @@ impl Dh for SoftwareP256DhAdapter {
     }
 
     fn set(&mut self, privkey: &[u8]) {
-        let group =
-            EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).expect("Failed to create group");
-        let priv_bn = BigNum::from_slice(privkey).expect("Failed to create private key");
-
-        // Recreate the EcKey from the private key bytes
-        let mut ctx = BigNumContext::new().expect("Failed to create context");
-        let mut pub_key = EcPoint::new(&group).expect("Failed to create public key");
-
-        // Derive the public key from the private key
-        pub_key
-            .mul_generator(&group, &priv_bn, &mut ctx)
-            .expect("Failed to multiply generator");
-
-        let private_key = EcKey::from_private_components(&group, &priv_bn, &pub_key)
-            .expect("Failed to create private key");
-
         self.private_key = privkey.to_vec();
-        self.public_key = private_key
-            .public_key()
-            .to_bytes(&group, PointConversionForm::COMPRESSED, &mut ctx)
-            .expect("Failed to create public key");
+        self.public_key = compute_pubkey(privkey).expect("Invalid private key");
     }
 
     fn generate(&mut self, _: &mut dyn Random) {
-        let group =
-            EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).expect("Failed to create group");
-
-        let private_key = EcKey::generate(&group).expect("Failed to generate private key");
-
-        self.private_key = private_key.private_key().to_vec();
-
-        // Compute and store the public key in compressed form
-        let mut ctx = BigNumContext::new().expect("Failed to create context");
-        self.public_key = private_key
-            .public_key()
-            .to_bytes(&group, PointConversionForm::COMPRESSED, &mut ctx)
-            .expect("Failed to create public key");
+        self.private_key = SecretKey::random(&mut rand::thread_rng())
+            .to_bytes()
+            .to_vec();
+        self.public_key = compute_pubkey(&self.private_key).expect("Invalid private key");
     }
 
     fn pubkey(&self) -> &[u8] {
@@ -214,46 +176,18 @@ impl Dh for SoftwareP256DhAdapter {
     }
 
     fn dh(&self, pubkey: &[u8], out: &mut [u8]) -> Result<(), snow::Error> {
-        // Create the elliptic curve group for P-256 (prime256v1)
-        let group =
-            EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).expect("Failed to create group");
-        let mut ctx = BigNumContext::new().expect("Failed to create context");
+        // snow doesn't trim the pubkey, so we'll get leading zeros up to MAXDHLEN if we don't do this.
+        let pk = &pubkey[..self.pub_len()];
+        // pubkey is in SEC1 format
+        let peer_pk = PublicKey::from_sec1_bytes(pk).map_err(|_| snow::Error::Dh)?;
 
-        // snow doesn't trim the pubkey, so we'll get leading zeros up to MAXDHLEN if we
-        // don't do this.
-        let pubkey = &pubkey[..self.pub_len()];
+        let sk = SecretKey::from_slice(&self.private_key).map_err(|_| snow::Error::Dh)?;
+        let shared_secret = diffie_hellman(&sk.to_nonzero_scalar(), peer_pk.as_affine())
+            .raw_secret_bytes()
+            .to_vec();
 
-        // Recreate the peer's public key from the compressed SEC1 bytes
-        let peer_pub_key =
-            EcPoint::from_bytes(&group, pubkey, &mut ctx).map_err(|_| snow::Error::Dh)?;
-
-        // Recreate the private key from the stored private key bytes
-        let priv_bn = BigNum::from_slice(&self.private_key).map_err(|_| snow::Error::Dh)?;
-
-        let public_key = compute_pubkey(&self.private_key).map_err(|_| snow::Error::Dh)?;
-        let pubkey_ecpoint =
-            EcPoint::from_bytes(&group, &public_key, &mut ctx).map_err(|_| snow::Error::Dh)?;
-        let private_key = EcKey::from_private_components(&group, &priv_bn, &pubkey_ecpoint)
-            .map_err(|_| snow::Error::Dh)?;
-
-        // Create a new point to store the result of the ECDH operation
-        let mut shared_secret_point = EcPoint::new(&group).map_err(|_| snow::Error::Dh)?;
-
-        // Perform the scalar multiplication (ECDH) to compute the shared secret
-        shared_secret_point
-            .mul(&group, &peer_pub_key, private_key.private_key(), &mut ctx)
-            .map_err(|_| snow::Error::Dh)?;
-
-        let shared_secret_bytes = shared_secret_point
-            .to_bytes(&group, PointConversionForm::COMPRESSED, &mut ctx)
-            .map_err(|_| snow::Error::Dh)?;
-
-        // The shared secret should be the (x, y) coordinates of the shared point
-        assert!(shared_secret_bytes[0] == 2 || shared_secret_bytes[0] == 3);
-        let shared_secret_bytes = &shared_secret_bytes[1..]; // Lop off the leading byte
-        assert!(shared_secret_bytes.len() == 32);
-
-        out[..shared_secret_bytes.len()].copy_from_slice(&shared_secret_bytes);
+        assert!(shared_secret.len() == 32);
+        out[..shared_secret.len()].copy_from_slice(&shared_secret);
 
         Ok(())
     }
@@ -355,7 +289,7 @@ impl NoiseContext {
     pub fn new(
         role: NoiseRole,
         privkey: PrivateKey,
-        their_public_key: Option<Vec<u8>>, // DER encoded at this point. This is None for the server, should be set for the client.
+        their_public_key: Option<Vec<u8>>, // Raw SEC1 uncompressed bytes. This is None for the server, should be set for the client.
         hardware_backed_dh: Option<Box<dyn HardwareBackedDh>>, // If None, uses software DH; not the hardware callbacks.
     ) -> Result<Self, NoiseWrapperError> {
         let builder = match hardware_backed_dh {
@@ -533,16 +467,16 @@ fn sec1_compressed_to_uncompressed(sec1_compressed: &[u8]) -> Result<Vec<u8>, Dh
     }
 }
 
+pub fn generate_keypair() -> (Vec<u8>, Vec<u8>) {
+    let builder: Builder =
+        Builder::with_resolver(create_params(), Box::new(SoftwareP256Resolver::default()));
+    let keypair = builder.generate_keypair().unwrap();
+    (keypair.private, keypair.public)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn generate_keypair() -> (Vec<u8>, Vec<u8>) {
-        let builder: Builder =
-            Builder::with_resolver(create_params(), Box::new(SoftwareP256Resolver::default()));
-        let keypair = builder.generate_keypair().unwrap();
-        (keypair.private, keypair.public)
-    }
 
     fn server_session(static_keypair: (Vec<u8>, Vec<u8>)) -> HandshakeState {
         let (private, _) = static_keypair;
@@ -657,7 +591,7 @@ mod tests {
             PrivateKey::InMemory {
                 secret_bytes: server_keypair.0,
             },
-            Some(client_keypair.1),
+            None,
             None,
         )
         .unwrap();
@@ -694,5 +628,13 @@ mod tests {
         let s2c_ct = server.encrypt_message(b"Hello, client!").unwrap();
         let s2c_pt = client.decrypt_message(&s2c_ct).unwrap();
         assert_eq!(s2c_pt, b"Hello, client!");
+    }
+
+    #[test]
+    fn test_decode_sec1_uncompressed() {
+        let sec1_uncompressed_hex = "046d0f2d82024c8a9defa34ac4a82f659247b38e0fdf3024d579d981f9ed7a8661f8efe8bd86dc1ba05fc986f1c9f12e450edcb1c34d072c7cde13a897767050ab";
+        let sec1_uncompressed = hex::decode(sec1_uncompressed_hex).unwrap();
+        let result = sec1_uncompressed_to_compressed(&sec1_uncompressed);
+        assert!(result.is_ok());
     }
 }

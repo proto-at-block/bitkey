@@ -2,16 +2,16 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-iosarm64",
     "components": [
         {
-            "version": "1.9.0",
+            "version": "1.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations-iosarm64-1.9.0-metadata.jar": "2169df5c5df479a9abd932f89403f7d8eab089e9d16d1841e9103436e7dbcd49"
+                        "redacted-compiler-plugin-annotations-iosarm64-1.10.0-metadata.jar": "880a346e5072c5f41bdc5c263bb38b0c3b67899396d4b9c9b15ab690a9f6c5ac"
                     }
                 },
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations.klib": "e80a8dfaba234ede63bc89dcd8c968afca8099be006794c2eddbd00adb9a1fe4"
+                        "redacted-compiler-plugin-annotations.klib": "7cb13c7fafb71c23595e18c025bf2563fd558977dc78e68ebfdd941aa2403604"
                     }
                 }
             ],

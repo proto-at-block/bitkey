@@ -14,5 +14,7 @@ interface InheritanceManagementUiStateMachine : StateMachine<InheritanceManageme
  */
 data class InheritanceManagementUiProps(
   val account: FullAccount,
+  val selectedTab: ManagingInheritanceTab,
   val onBack: () -> Unit,
+  val onGoToUtxoConsolidation: () -> Unit,
 )

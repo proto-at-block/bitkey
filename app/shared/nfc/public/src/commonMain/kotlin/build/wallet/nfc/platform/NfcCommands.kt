@@ -8,6 +8,7 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.SealedData
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
@@ -26,7 +27,7 @@ import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
 /**
- * [NfcCommands] has a method for each primitive (core) NFC command (e.g. `version` or `sealKey`),
+ * [NfcCommands] has a method for each primitive (core) NFC command (e.g. version or sealKey),
  * each taking an [NfcSession] as well as their respective arguments.
  */
 
@@ -189,6 +190,16 @@ interface NfcCommands {
    * Query the authentication state of the HW (i.e. whether it is currently unlocked or not).
    */
   suspend fun queryAuthentication(session: NfcSession): Boolean
+
+  suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ): SealedData
+
+  suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ): ByteString
 
   suspend fun sealKey(
     session: NfcSession,

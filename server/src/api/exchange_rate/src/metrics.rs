@@ -1,7 +1,4 @@
-use instrumentation::metrics::{
-    factory::{Counter, Histogram, MetricsFactory, ObservableGauge},
-    Unit,
-};
+use instrumentation::metrics::factory::{Counter, Histogram, MetricsFactory, ObservableGauge};
 use once_cell::sync::Lazy;
 
 pub(crate) const FACTORY_NAME: &str = "exchange_rate";
@@ -27,8 +24,8 @@ pub(crate) static BTC_USD_PRICE: Lazy<ObservableGauge<f64>> =
 
 // Measures the spread of how long it takes to respond to an uncached response.
 pub(crate) static UNCACHED_RESPONSE_TIME: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("uncached_response_time", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("uncached_response_time", Some("ms")));
 
 // Measures the spread of how long it takes to respond to a cached response.
 pub(crate) static CACHED_RESPONSE_TIME: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("cached_response_time", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("cached_response_time", Some("ms")));

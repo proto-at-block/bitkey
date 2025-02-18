@@ -7,6 +7,9 @@ import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
@@ -42,10 +45,12 @@ class NotificationTouchpointF8eClientImpl(
     accountId: AccountId,
     touchpoint: NotificationTouchpoint,
   ): Result<NotificationTouchpoint, F8eError<AddTouchpointClientErrorCode>> {
-    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<AddTouchpointResponse> {
         post("/api/accounts/${accountId.serverId}/touchpoints") {
           withDescription("Add notification touchpoint")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
           setRedactedBody(
             when (touchpoint) {
               // TODO (W-2564): Convert from strong type to E.164 format
@@ -88,10 +93,12 @@ class NotificationTouchpointF8eClientImpl(
     touchpointId: String,
     verificationCode: String,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
-    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    return f8eHttpClient.authenticated()
       .catching {
         post("/api/accounts/${accountId.serverId}/touchpoints/$touchpointId/verify") {
           withDescription("Verify notification touchpoint")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
           setRedactedBody(VerifyTouchpointRequest(verificationCode = verificationCode))
         }
       }
@@ -105,14 +112,13 @@ class NotificationTouchpointF8eClientImpl(
     touchpointId: String,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment = f8eEnvironment,
-      accountId = accountId,
-      hwFactorProofOfPossession = hwFactorProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .catching {
         post("/api/accounts/${accountId.serverId}/touchpoints/$touchpointId/activate") {
           withDescription("Activate notification touchpoint")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
+          hwFactorProofOfPossession?.run(::withHardwareFactor)
           setRedactedBody(EmptyRequestBody)
         }
       }
@@ -123,10 +129,12 @@ class NotificationTouchpointF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Result<List<NotificationTouchpoint>, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<GetTouchpointsResponse> {
         get("/api/accounts/${accountId.serverId}/touchpoints") {
           withDescription("Get notification touchpoints")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
         }
       }
       .map { response ->
@@ -162,10 +170,12 @@ class NotificationTouchpointF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Result<NotificationPreferences, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<NotificationsPreferencesRequest> {
         get("/api/accounts/${accountId.serverId}/notifications-preferences") {
           withDescription("Get notification preferences")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
         }
       }
       .map { response ->
@@ -191,15 +201,14 @@ class NotificationTouchpointF8eClientImpl(
       accountSecurity = preferences.accountSecurity.map { it.name },
       productMarketing = preferences.productMarketing.map { it.name }
     )
-    return f8eHttpClient.authenticated(
-      f8eEnvironment = f8eEnvironment,
-      accountId = accountId,
-      hwFactorProofOfPossession = hwFactorProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .catching {
         put("/api/accounts/${accountId.serverId}/notifications-preferences") {
           withDescription("Set notification preferences")
           setRedactedBody(prefRequest)
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
+          hwFactorProofOfPossession?.run(::withHardwareFactor)
         }
       }
       .mapUnit()

@@ -1,17 +1,28 @@
 package build.wallet.statemachine.root
 
 import androidx.compose.runtime.*
+import build.wallet.account.AccountService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.LoadAppService
+import build.wallet.cloud.backup.CloudBackup
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inappsecurity.BiometricAuthService
 import build.wallet.logging.logInfo
+import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.device.DevicePlatform
+import build.wallet.router.Route
+import build.wallet.router.Router
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
 import build.wallet.statemachine.account.create.full.CreateAccountUiProps
@@ -26,6 +37,7 @@ import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
+import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.dev.DebugMenuProps
@@ -48,15 +60,14 @@ import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiS
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
-import build.wallet.time.Delayer
 import build.wallet.worker.AppWorkerExecutor
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(ActivityScope::class)
 class AppUiStateMachineImpl(
   private val appVariant: AppVariant,
-  private val delayer: Delayer,
   private val debugMenuStateMachine: DebugMenuStateMachine,
   private val eventTracker: EventTracker,
   private val lostAppRecoveryUiStateMachine: LostAppRecoveryUiStateMachine,
@@ -78,6 +89,11 @@ class AppUiStateMachineImpl(
   private val appWorkerExecutor: AppWorkerExecutor,
   private val biometricAuthService: BiometricAuthService,
   private val biometricPromptUiStateMachine: BiometricPromptUiStateMachine,
+  private val accountService: AccountService,
+  private val datadogRumMonitor: DatadogRumMonitor,
+  private val splashScreenDelay: SplashScreenDelay,
+  private val welcomeToBitkeyScreenDuration: WelcomeToBitkeyScreenDuration,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -88,37 +104,220 @@ class AppUiStateMachineImpl(
    */
   private var previousScreenModel: ScreenModel? = null
 
+  @Suppress("CyclomaticComplexMethod")
   @Composable
   override fun model(props: Unit): ScreenModel {
     LaunchedEffect("execute-app-workers") {
       appWorkerExecutor.executeAll()
     }
-
-    var softwareAccount by remember { mutableStateOf<SoftwareAccount?>(null) }
     var accountData by remember { mutableStateOf<AccountData?>(null) }
+    val deviceInfo = remember { deviceInfoProvider.getDeviceInfo() }
 
     val appState by produceState<AppState?>(initialValue = null) {
       value = loadAppService.loadAppState()
     }
 
-    var screenModel = softwareAccount?.let {
-      HasActiveSoftwareAccountScreenModel(it, isNewlyCreated = true)
-    } ?: when (val appState = appState) {
-      null -> AppLoadingScreenModel()
-      is AppState.HasActiveSoftwareAccount -> {
-        HasActiveSoftwareAccountScreenModel(appState.account, isNewlyCreated = false)
-      }
-      else -> {
-        accountDataStateMachine.model(Unit).let {
-          accountData = it
-          AppLoadedDataScreenModel(
-            accountData = it,
-            onSoftwareWalletCreated = { swAccount ->
-              softwareAccount = swAccount
-            }
+    val scope = rememberStableCoroutineScope()
+
+    var isAnimatingSplashScreen by remember { mutableStateOf(previousScreenModel == null) }
+
+    var uiState by remember(appState, isAnimatingSplashScreen) {
+      if (isAnimatingSplashScreen) {
+        mutableStateOf<State>(State.ShowingSplashScreen)
+      } else {
+        when (val currentState = appState) {
+          is AppState.HasActiveFullAccount -> mutableStateOf<State>(
+            State.ViewingFullAccount(
+              account = currentState.account,
+              isNewlyCreated = false
+            )
           )
+          is AppState.HasActiveSoftwareAccount -> mutableStateOf<State>(
+            State.ViewingSoftwareAccount(
+              account = currentState.account,
+              isNewlyCreated = false
+            )
+          )
+          is AppState.HasActiveLiteAccount -> mutableStateOf<State>(
+            State.ViewingLiteAccount(currentState.account)
+          )
+          is AppState.OnboardingFullAccount -> mutableStateOf<State>(
+            State.OnboardingFullAccount(
+              account = currentState.account
+            )
+          )
+          is AppState.LiteAccountOnboardingToFullAccount -> mutableStateOf<State>(
+            State.LiteAccountOnboardingToFullAccount(
+              activeAccount = currentState.activeAccount,
+              onboardingAccount = currentState.onboardingAccount
+            )
+          )
+          AppState.Undetermined -> mutableStateOf<State>(State.RenderingViaAccountData)
+          null -> mutableStateOf<State>(State.LoadingApp)
         }
       }
+    }
+
+    var screenModel = when (val state = uiState) {
+      State.ShowingSplashScreen -> {
+        LaunchedEffect("show-splash-for-animation") {
+          delay(splashScreenDelay.value)
+          isAnimatingSplashScreen = false
+        }
+        SplashScreenModel()
+      }
+      State.LoadingApp -> AppLoadingScreenModel()
+      is State.ViewingLiteAccount -> liteHomeUiStateMachine.model(
+        props = LiteHomeUiProps(
+          account = state.account,
+          onUpgradeComplete = { fullAccount ->
+            uiState = State.ViewingFullAccount(
+              account = fullAccount,
+              isNewlyCreated = false
+            )
+          },
+          onAppDataDeleted = {
+            uiState = State.RenderingViaAccountData
+          }
+        )
+      )
+      State.RenderingViaAccountData -> accountDataStateMachine.model(
+        props = AccountDataProps {
+          uiState = State.ViewingLiteAccount(it)
+        }
+      ).let {
+        accountData = it
+        AppLoadedDataScreenModel(
+          accountData = it,
+          onSoftwareWalletCreated = { swAccount ->
+            uiState = State.ViewingSoftwareAccount(
+              account = swAccount,
+              isNewlyCreated = true
+            )
+          },
+          onStartLiteAccountRecovery = { cloudBackup ->
+            uiState = State.RecoveringLiteAccount(cloudBackup)
+          },
+          onStartLiteAccountCreation = { inviteCode, startIntent ->
+            uiState = State.CreatingLiteAccount(inviteCode, startIntent)
+          }
+        )
+      }
+      is State.ViewingFullAccount -> {
+        var shouldShowWelcomeScreenWhenTransitionToActive by remember {
+          mutableStateOf(state.isNewlyCreated)
+        }
+
+        // If we just created the full account, we want to briefly show a welcome screen.
+        if (shouldShowWelcomeScreenWhenTransitionToActive) {
+          LaunchedEffect("show-welcome-screen") {
+            delay(welcomeToBitkeyScreenDuration.value)
+            shouldShowWelcomeScreenWhenTransitionToActive = false
+          }
+          LoadingSuccessBodyModel(
+            id = null,
+            message = "Welcome to Bitkey",
+            state = LoadingSuccessBodyModel.State.Success
+          ).asRootScreen()
+        } else {
+          accountDataStateMachine.model(
+            props = AccountDataProps {
+              uiState = State.ViewingLiteAccount(it)
+            }
+          ).let {
+            accountData = it
+            AppLoadedDataScreenModel(
+              accountData = it,
+              onSoftwareWalletCreated = { swAccount ->
+                uiState = State.ViewingSoftwareAccount(
+                  account = swAccount,
+                  isNewlyCreated = true
+                )
+              },
+              onStartLiteAccountRecovery = { cloudBackup ->
+                uiState = State.RecoveringLiteAccount(cloudBackup)
+              },
+              onStartLiteAccountCreation = { inviteCode, startIntent ->
+                uiState = State.CreatingLiteAccount(inviteCode, startIntent)
+              }
+            )
+          }
+        }
+      }
+      is State.OnboardingFullAccount -> createAccountUiStateMachine.model(
+        props = CreateAccountUiProps(
+          context = CreateFullAccountContext.NewFullAccount,
+          fullAccount = state.account,
+          rollback = {
+            /*
+             * At this point there is no rollback since the account has been created in f8e and the
+             * customer is completing the onboarding process
+             */
+          },
+          onOnboardingComplete = {
+            uiState = State.ViewingFullAccount(
+              account = state.account,
+              isNewlyCreated = true
+            )
+          }
+        )
+      )
+      is State.ViewingSoftwareAccount -> HasActiveSoftwareAccountScreenModel(
+        account = state.account,
+        isNewlyCreated = state.isNewlyCreated
+      )
+      is State.RecoveringLiteAccount -> liteAccountCloudBackupRestorationUiStateMachine.model(
+        props = LiteAccountCloudBackupRestorationUiProps(
+          cloudBackup = state.cloudBackup,
+          onLiteAccountRestored = { account ->
+            scope.launch {
+              accountService.setActiveAccount(account)
+              uiState = State.ViewingLiteAccount(account)
+            }
+          },
+          onExit = {
+            uiState = State.RenderingViaAccountData
+          }
+        )
+      )
+      is State.CreatingLiteAccount -> createLiteAccountUiStateMachine.model(
+        props = CreateLiteAccountUiProps(
+          inviteCode = state.inviteCode,
+          onAccountCreated = { account ->
+            scope.launch {
+              accountService.setActiveAccount(account)
+              uiState = when (account) {
+                is FullAccount -> State.ViewingFullAccount(account, isNewlyCreated = false)
+                is LiteAccount -> State.ViewingLiteAccount(account)
+                is SoftwareAccount -> State.ViewingSoftwareAccount(account, isNewlyCreated = false)
+                else -> error("Unexpected account type: $account")
+              }
+            }
+          },
+          onBack = {
+            uiState = State.RenderingViaAccountData
+          },
+          showBeTrustedContactIntroduction = state.inviteCode != null && state.startIntent == StartIntent.BeTrustedContact
+        )
+      )
+      is State.LiteAccountOnboardingToFullAccount -> createAccountUiStateMachine.model(
+        props = CreateAccountUiProps(
+          context = CreateFullAccountContext.LiteToFullAccountUpgrade(state.activeAccount),
+          fullAccount = state.onboardingAccount,
+          rollback = {
+            /*
+             * At this point there is no rollback since the account has been created in f8e and the
+             * customer is completing the onboarding process
+             */
+          },
+          onOnboardingComplete = {
+            uiState = State.ViewingFullAccount(
+              account = it,
+              isNewlyCreated = true
+            )
+          }
+        )
+      )
     }
 
     LogScreenModelEffect(screenModel)
@@ -135,37 +334,37 @@ class AppUiStateMachineImpl(
       screenModel = SplashScreenModel()
     }
 
-    // As soon as we first launch, manually show the splash screen for 2 seconds, ignoring
-    // all other screen model emissions, so the splash screen can show its animation.
-    // Once the animation completes, whatever `screenModel` has been changed to will show.
-    var isAnimatingSplashScreen by remember { mutableStateOf(previousScreenModel == null) }
-    if (isAnimatingSplashScreen) {
-      LaunchedEffect("show-splash-for-animation") {
-        delayer.delay(2.seconds)
-        isAnimatingSplashScreen = false
-      }
-      // Early return the splash screen model here while we let it animate.
-      return SplashScreenModel()
-    }
-
     // Set up an app-wide handler to show the debug menu.
     var isShowingDebugMenu by remember { mutableStateOf(false) }
     if (isShowingDebugMenu) {
       accountData?.let {
         return debugMenuStateMachine.model(
           props = DebugMenuProps(
-            onClose = { isShowingDebugMenu = false }
+            onClose = { isShowingDebugMenu = false },
+            onAppDataDeleted = {
+              uiState = State.RenderingViaAccountData
+            }
           )
         )
       }
     }
 
-    previousScreenModel = screenModel
-
+    val targetModel = when {
+      deviceInfo.devicePlatform == DevicePlatform.IOS && screenModel.platformNfcScreen -> {
+        // If incoming model displays an NFC screen that is handled
+        // by native iOS UI, keep displaying the previous screen model
+        // to maintain overlay effect.
+        previousScreenModel ?: screenModel
+      }
+      else -> {
+        previousScreenModel = screenModel
+        screenModel
+      }
+    }
     return when {
       appVariant.showDebugMenu ->
-        screenModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
-      else -> screenModel
+        targetModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
+      else -> targetModel
     }
   }
 
@@ -181,7 +380,7 @@ class AppUiStateMachineImpl(
     // If we just created the software account, we want to briefly show a welcome screen.
     return if (shouldShowWelcomeScreenWhenTransitionToActive) {
       LaunchedEffect("show-welcome-screen") {
-        delayer.delay(3.seconds)
+        delay(welcomeToBitkeyScreenDuration.value)
         shouldShowWelcomeScreenWhenTransitionToActive = false
       }
       LoadingSuccessBodyModel(
@@ -203,6 +402,8 @@ class AppUiStateMachineImpl(
   private fun AppLoadedDataScreenModel(
     accountData: AccountData,
     onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
+    onStartLiteAccountRecovery: (CloudBackup) -> Unit,
+    onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
   ): ScreenModel {
     // Keep track of when to show the "Welcome to Bitkey" screen.
     // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
@@ -216,20 +417,18 @@ class AppUiStateMachineImpl(
 
       is NoActiveAccountData -> {
         shouldShowWelcomeScreenWhenTransitionToActive = true
-        NoActiveAccountDataScreenModel(accountData, onSoftwareWalletCreated)
+        NoActiveAccountDataScreenModel(
+          accountData,
+          onSoftwareWalletCreated,
+          onStartLiteAccountRecovery,
+          onStartLiteAccountCreation
+        )
       }
 
       is HasActiveFullAccountData ->
         HasActiveFullAccountDataScreenModel(
           accountData = accountData,
           initialShouldShowWelcomeScreenWhenTransitionToActive = shouldShowWelcomeScreenWhenTransitionToActive
-        )
-
-      is HasActiveLiteAccountData ->
-        liteHomeUiStateMachine.model(
-          props = LiteHomeUiProps(
-            accountData = accountData
-          )
         )
 
       is NoLongerRecoveringFullAccountData ->
@@ -254,9 +453,11 @@ class AppUiStateMachineImpl(
   private fun NoActiveAccountDataScreenModel(
     accountData: NoActiveAccountData,
     onSoftwareWalletCreated: (SoftwareAccount) -> Unit,
+    onStartLiteAccountRecovery: (CloudBackup) -> Unit,
+    onStartLiteAccountCreation: (String?, StartIntent) -> Unit,
   ): ScreenModel {
     return when (accountData) {
-      is CheckingRecoveryOrOnboarding -> AppLoadingScreenModel()
+      is CheckingRecovery -> AppLoadingScreenModel()
 
       is GettingStartedData ->
         ChooseAccountAccessScreenModel(
@@ -272,15 +473,6 @@ class AppUiStateMachineImpl(
           )
         )
 
-      is RecoveringLiteAccountData ->
-        liteAccountCloudBackupRestorationUiStateMachine.model(
-          props = LiteAccountCloudBackupRestorationUiProps(
-            cloudBackup = accountData.cloudBackup,
-            onLiteAccountRestored = accountData.onAccountCreated,
-            onExit = accountData.onExit
-          )
-        )
-
       is RecoveringAccountWithEmergencyAccessKit ->
         emergencyAccessKitRecoveryUiStateMachine.model(
           EmergencyAccessKitRecoveryUiStateMachineProps(
@@ -288,34 +480,24 @@ class AppUiStateMachineImpl(
           )
         )
 
-      is CreatingFullAccountData ->
-        createAccountUiStateMachine.model(
-          props = CreateAccountUiProps(
-            createFullAccountData = accountData.createFullAccountData
-          )
-        )
-
       is CheckingCloudBackupData ->
         gettingStartedRoutingStateMachine.model(
           GettingStartedRoutingProps(
             startIntent = accountData.intent,
-            onStartLiteAccountRecovery = accountData.onStartLiteAccountRecovery,
+            inviteCode = accountData.inviteCode,
+            onStartLiteAccountRecovery = { cloudBackup ->
+              if (accountData.inviteCode != null) {
+                Router.route = Route.TrustedContactInvite(accountData.inviteCode!!)
+              }
+              onStartLiteAccountRecovery(cloudBackup)
+            },
             onStartCloudRecovery = accountData.onStartCloudRecovery,
             onStartLostAppRecovery = accountData.onStartLostAppRecovery,
-            onStartLiteAccountCreation = accountData.onStartLiteAccountCreation,
+            onStartLiteAccountCreation = {
+              onStartLiteAccountCreation(it, accountData.intent)
+            },
             onImportEmergencyAccessKit = accountData.onImportEmergencyAccessKit,
             onExit = accountData.onExit
-          )
-        )
-
-      is CreatingLiteAccountData ->
-        createLiteAccountUiStateMachine.model(
-          props = CreateLiteAccountUiProps(
-            onBack = accountData.onRollback,
-            inviteCode = accountData.inviteCode,
-            onAccountCreated = accountData.onAccountCreated,
-            // If this flow was reached via invite code, show the introduction screen.
-            showBeTrustedContactIntroduction = accountData.inviteCode != null
           )
         )
 
@@ -350,7 +532,7 @@ class AppUiStateMachineImpl(
         // an additional UI nicety that should not affect underlying app data state.
         if (shouldShowWelcomeScreenWhenTransitionToActive) {
           LaunchedEffect("show-welcome-screen") {
-            delayer.delay(3.seconds)
+            delay(welcomeToBitkeyScreenDuration.value)
             shouldShowWelcomeScreenWhenTransitionToActive = false
           }
           LoadingSuccessBodyModel(
@@ -460,8 +642,20 @@ class AppUiStateMachineImpl(
   private fun TrackScreenEvents(screenModel: ScreenModel) {
     val eventInfoToTrack = screenModel.eventInfoToTrack()
     eventInfoToTrack?.let {
-      LaunchedEffect("track-screen-event", eventInfoToTrack) {
+      DisposableEffect("track-screen-event", eventInfoToTrack) {
         eventTracker.track(eventInfoToTrack)
+
+        // Log the screens as RUM Views. This allows us to better understand user sessions, such as
+        // through funnels.
+        if (eventInfoToTrack.eventTrackerShouldTrack) {
+          datadogRumMonitor.startView(key = eventInfoToTrack.screenId)
+        }
+
+        onDispose {
+          if (eventInfoToTrack.eventTrackerShouldTrack) {
+            datadogRumMonitor.stopView(key = eventInfoToTrack.screenId)
+          }
+        }
       }
     }
 
@@ -496,4 +690,39 @@ class AppUiStateMachineImpl(
       is FormBodyModel -> errorData
       else -> null
     }
+}
+
+private sealed interface State {
+  data object ShowingSplashScreen : State
+
+  data object LoadingApp : State
+
+  data class OnboardingFullAccount(
+    val account: FullAccount,
+  ) : State
+
+  data class LiteAccountOnboardingToFullAccount(
+    val activeAccount: LiteAccount,
+    val onboardingAccount: FullAccount,
+  ) : State
+
+  data class ViewingFullAccount(
+    val account: FullAccount,
+    val isNewlyCreated: Boolean,
+  ) : State
+
+  data class ViewingSoftwareAccount(
+    val account: SoftwareAccount,
+    val isNewlyCreated: Boolean,
+  ) : State
+
+  data class ViewingLiteAccount(
+    val account: LiteAccount,
+  ) : State
+
+  data object RenderingViaAccountData : State
+
+  data class RecoveringLiteAccount(val cloudBackup: CloudBackup) : State
+
+  data class CreatingLiteAccount(val inviteCode: String?, val startIntent: StartIntent) : State
 }

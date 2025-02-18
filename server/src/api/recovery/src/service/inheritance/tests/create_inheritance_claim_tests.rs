@@ -2,28 +2,14 @@ use rstest::rstest;
 use time::Duration;
 
 use types::account::bitcoin::Network;
-use types::account::entities::Account;
-use types::recovery::inheritance::claim::InheritanceClaimAuthKeys;
 
 use crate::service::inheritance::tests::{
-    create_pending_inheritance_claim, setup_accounts_with_network,
+    create_pending_inheritance_claim, get_auth_keys, setup_accounts_with_network,
 };
-
-fn get_auth_keys(account: &Account) -> InheritanceClaimAuthKeys {
-    match account {
-        Account::Full(full_account) => InheritanceClaimAuthKeys::FullAccount(
-            full_account
-                .active_auth_keys()
-                .expect("Account has active auth keys")
-                .to_owned(),
-        ),
-        _ => panic!("Account is not a full account"),
-    }
-}
 
 // Tests
 #[rstest]
-#[case::test_account(Network::BitcoinSignet, Duration::minutes(1))]
+#[case::test_account(Network::BitcoinSignet, Duration::minutes(10))]
 #[case::non_test_account(Network::BitcoinMain, Duration::days(180))]
 #[tokio::test]
 async fn test_create_pending_claim(#[case] network: Network, #[case] offset: Duration) {

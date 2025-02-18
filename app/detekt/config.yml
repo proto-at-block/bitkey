@@ -604,9 +604,14 @@ style:
         reason: "Use catchingResult instead. There's nothing wrong with using runSuspendCatching per se, but we prefer to use catchingResult for consistency. Especially since both runCatching and runSuspendCatching can actually be used on coroutine calls, which is confusing."
       - value: 'androidx.compose.runtime.rememberCoroutineScope'
         reason: 'Avoid using `rememberCoroutineScope`, use `rememberStableCoroutineScope` instead.'
+      - value: 'kotlinx.serialization.decodeFromString(kotlinx.serialization.StringFormat, kotlin.String)'
+        reason: 'Avoid using `decodeFromString`, use `decodeFromStringResult` instead.'
+      - value: 'kotlinx.coroutines.withTimeout'
+        reason: '`withTimeout` does not properly bubble up timeout cancellation, instead it silently cancels a coroutine on timeout. Use `withTimeoutResult` and `withTimeoutThrowing` instead.'
     excludes:
       - '**/*Test/**'
       - '**/*testing/**'
+      - '**/shared/serialization/**'
   ForbiddenSuppress:
     active: false
     rules: [ ]
@@ -801,9 +806,10 @@ TwitterCompose:
     allowedCompositionLocals:
       LocalAppVariant,
       LocalColors,
-      LocalUiModelMap,
       LocalSheetCloser,
-      LocalIsPreviewTheme
+      LocalIsPreviewTheme,
+      LocalDeviceInfo,
+      LocalAccelerometer
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

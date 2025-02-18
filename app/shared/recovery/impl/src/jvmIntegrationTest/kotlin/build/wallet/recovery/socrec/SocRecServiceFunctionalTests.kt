@@ -10,29 +10,19 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.launch
 
 class SocRecServiceFunctionalTests : FunSpec({
-
-  coroutineTestScope = true
-
   val tcName = "Alice (TC)"
   val customerName = "Bob (Protected Customer)"
 
   test("customer creates TC invite, TC onboards and accepts invite") {
     // Customer onboards and creates Trusted Contact invitation
-    // TODO(W-9704): execute workers by default
-    val customerApp = launchNewApp(isUsingSocRecFakes = false, executeWorkers = false)
+    val customerApp = launchNewApp()
     customerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, tcInvitation) = customerApp.createTcInvite(tcName = tcName)
-
-    backgroundScope.launch {
-      customerApp.appWorkerExecutor.executeAll()
-    }
 
     // Protected Customer sees pending TC invitation
     customerApp.socRecService.socRecRelationships.test {
@@ -46,12 +36,8 @@ class SocRecServiceFunctionalTests : FunSpec({
     }
 
     // Trusted Contact onboards by accepting Invitation
-    val tcApp = launchNewApp(isUsingSocRecFakes = false)
+    val tcApp = launchNewApp()
     tcApp.onboardLiteAccountFromInvitation(inviteCode, customerName)
-
-    backgroundScope.launch {
-      tcApp.appWorkerExecutor.executeAll()
-    }
 
     // Trusted Contact sees Protected Customer
     tcApp.socRecService.socRecRelationships.test {

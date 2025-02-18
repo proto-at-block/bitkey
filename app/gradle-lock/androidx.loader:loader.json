@@ -2,11 +2,11 @@
     "module-identifier": "androidx.loader:loader",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "loader-1.0.0.aar": "11f735cb3b55c458d470bed9e25254375b518b4b1bad6926783a7026db0f5025"
+                        "loader-1.1.0.aar": "a83b597cd2409dc177f7f932f7c4082ef7b5508b69b6c4ba71607e75dbd99971"
                     }
                 }
             ],

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-geometry-uikitx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-uikitx64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "ui-geometry-uikitx64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-geometry.klib": "b8d899e15557783ffcd33592743dae0857ca4e49780ac61c59db5f51ff9d7df5"
+                        "ui-geometry.klib": "01d3ebfae31296f3c0972dc018c37b149f5754ad68884a52d720972fd7fbb281"
                     }
                 }
             ],

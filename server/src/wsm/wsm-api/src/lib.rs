@@ -26,17 +26,19 @@ use wsm_common::bitcoin::bip32::DerivationPath;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
     AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
-    CreateRootKeyRequest, CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
-    CreatedSigningKey, GenerateIntegrityKeyResponse, GeneratePartialSignaturesRequest,
-    GeneratePartialSignaturesResponse, GetIntegritySigRequest, GetIntegritySigResponse,
-    InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse, SignPsbtRequest,
-    SignedPsbt,
+    ContinueShareRefreshRequest, ContinueShareRefreshResponse, CreateRootKeyRequest,
+    CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, CreatedSigningKey,
+    EvaluatePinRequest, EvaluatePinResponse, GenerateIntegrityKeyResponse,
+    GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse, GetIntegritySigRequest,
+    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
+    InitiateShareRefreshRequest, InitiateShareRefreshResponse, NoiseInitiateBundleRequest,
+    NoiseInitiateBundleResponse, SignPsbtRequest, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
-    EnclaveContinueDistributedKeygenRequest, EnclaveCreateKeyRequest,
-    EnclaveCreateSelfSovereignBackupRequest, EnclaveDeriveKeyRequest,
+    EnclaveContinueDistributedKeygenRequest, EnclaveContinueShareRefreshRequest,
+    EnclaveCreateKeyRequest, EnclaveCreateSelfSovereignBackupRequest, EnclaveDeriveKeyRequest,
     EnclaveGeneratePartialSignaturesRequest, EnclaveInitiateDistributedKeygenRequest,
-    EnclaveSignRequest,
+    EnclaveInitiateShareRefreshRequest, EnclaveSignRequest,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -85,6 +87,9 @@ impl From<RouteState> for Router {
                 "/create-self-sovereign-backup",
                 post(create_self_sovereign_backup),
             )
+            .route("/initiate-secure-channel", post(initiate_secure_channel))
+            .route("/evaluate-pin", post(evaluate_pin))
+            .route("/initiate-share-refresh", post(initiate_distributed_keygen))
             .with_state(state)
     }
 }
@@ -229,6 +234,7 @@ async fn initiate_distributed_keygen(
         dek_id: dek_id.clone(),
         network: request.network,
         sealed_request: request.sealed_request,
+        noise_session_id: request.noise_session_id,
     };
     let enclave_response = enclave_client
         .initiate_distributed_keygen(enclave_request)
@@ -281,6 +287,7 @@ async fn continue_distributed_keygen(
                 wrapped_share_details: cks.share_details_ciphertext,
                 wrapped_share_details_nonce: cks.share_details_nonce,
                 sealed_request: request.sealed_request,
+                noise_session_id: request.noise_session_id,
             };
             enclave_client
                 .continue_distributed_keygen(enclave_request)
@@ -336,6 +343,117 @@ async fn create_self_sovereign_backup(
 }
 
 #[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn initiate_share_refresh(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<InitiateShareRefreshRequest>,
+) -> Result<Json<InitiateShareRefreshResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    match customer_key_share_store
+        .get_customer_key_share(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer key shares DDB table: {e}"))
+        })?
+        .as_ref()
+    {
+        Some(cks) => {
+            let enclave_request = EnclaveInitiateShareRefreshRequest {
+                root_key_id: root_key_id.clone(),
+                dek_id: cks.dek_id.clone(),
+                network: request.network,
+                wrapped_share_details: cks.share_details_ciphertext.clone(),
+                wrapped_share_details_nonce: cks.share_details_nonce.clone(),
+                sealed_request: request.sealed_request,
+                noise_session_id: request.noise_session_id,
+            };
+            let response = enclave_client
+                .initiate_share_refresh(enclave_request)
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Error initiating share refresh: {e}"))
+                })?;
+
+            customer_key_share_store
+                .put_customer_key_share(&cks.with_pending_share_details(
+                    response.wrapped_pending_share_details,
+                    response.wrapped_pending_share_details_nonce,
+                ))
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Could not update customer key share: {e}"))
+                })?;
+
+            Ok(Json(InitiateShareRefreshResponse {
+                sealed_response: response.sealed_response,
+            }))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer key share {root_key_id} not found"
+        ))),
+    }
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
+async fn continue_share_refresh(
+    State(customer_key_share_store): State<CustomerKeyShareStore>,
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<ContinueShareRefreshRequest>,
+) -> Result<Json<ContinueShareRefreshResponse>, ApiError> {
+    let root_key_id = &request.root_key_id;
+    match customer_key_share_store
+        .get_customer_key_share(root_key_id)
+        .await
+        .map_err(|e| {
+            ApiError::ServerError(format!("Could not read customer key shares DDB table: {e}"))
+        })?
+        .as_ref()
+    {
+        Some(cks) => {
+            let (Some(pending_share_details_ciphertext), Some(pending_share_details_nonce)) = (
+                cks.pending_share_details_ciphertext.as_ref(),
+                cks.pending_share_details_nonce.as_ref(),
+            ) else {
+                return Err(ApiError::ServerError(
+                    "Missing pending share details".to_string(),
+                ));
+            };
+
+            let enclave_request = EnclaveContinueShareRefreshRequest {
+                root_key_id: root_key_id.clone(),
+                dek_id: cks.dek_id.clone(),
+                network: request.network,
+                wrapped_pending_share_details: pending_share_details_ciphertext.to_owned(),
+                wrapped_pending_share_details_nonce: pending_share_details_nonce.to_owned(),
+                sealed_request: request.sealed_request,
+                noise_session_id: request.noise_session_id,
+            };
+            enclave_client
+                .continue_share_refresh(enclave_request)
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Error continuing share refresh: {e}"))
+                })?;
+
+            customer_key_share_store
+                .put_customer_key_share(&cks.with_share_details(
+                    pending_share_details_ciphertext.to_owned(),
+                    pending_share_details_nonce.to_owned(),
+                ))
+                .await
+                .map_err(|e| {
+                    ApiError::ServerError(format!("Could not update customer key share: {e}"))
+                })?;
+
+            Ok(Json(ContinueShareRefreshResponse {}))
+        }
+        None => Err(ApiError::NotFound(format!(
+            "Customer key share {root_key_id} not found"
+        ))),
+    }
+}
+
+#[instrument(err, skip(customer_key_share_store, enclave_client))]
 async fn generate_partial_signatures(
     State(customer_key_share_store): State<CustomerKeyShareStore>,
     State(enclave_client): State<Arc<EnclaveClient>>,
@@ -357,6 +475,7 @@ async fn generate_partial_signatures(
                 wrapped_share_details: cks.share_details_ciphertext,
                 wrapped_share_details_nonce: cks.share_details_nonce,
                 sealed_request: request.sealed_request,
+                noise_session_id: request.noise_session_id,
             };
             let enclave_response = enclave_client
                 .generate_partial_signatures(enclave_request)
@@ -475,6 +594,32 @@ async fn attestation_doc(
         .attestation_doc()
         .await
         .map_err(|e| ApiError::ServerError(format!("Failed to retrieve attestation doc: {e}")))?;
+    Ok(Json(result))
+}
+
+#[instrument(err, skip(enclave_client))]
+async fn initiate_secure_channel(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<NoiseInitiateBundleRequest>,
+) -> Result<Json<NoiseInitiateBundleResponse>, ApiError> {
+    tracing::info!("wsm-api initiate_secure_channel: {:?}", request);
+    let result = enclave_client
+        .initiate_secure_channel(request.bundle, &request.server_static_pubkey)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to initiate secure channel: {e}")))?;
+    Ok(Json(result))
+}
+
+#[instrument(err, skip(enclave_client))]
+async fn evaluate_pin(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<EvaluatePinRequest>,
+) -> Result<Json<EvaluatePinResponse>, ApiError> {
+    tracing::info!("wsm-api evaluate_pin: {:?}", request);
+    let result = enclave_client
+        .evaluate_pin(request.sealed_request, request.noise_session_id)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed compute PRF output: {e}")))?;
     Ok(Json(result))
 }
 

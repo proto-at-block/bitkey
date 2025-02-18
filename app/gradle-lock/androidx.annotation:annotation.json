@@ -2,11 +2,11 @@
     "module-identifier": "androidx.annotation:annotation",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.2",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-metadata-1.8.0.jar": "fe70ace6f942a5fc29045bb2fe25b4e77bdc742dc69f76ed65b39c3ae185888e"
+                        "annotation-metadata-1.8.2.jar": "a1e8c624de166680b9bebe70057f1e13f4d1753de3efd20a9a66f1154c8ff868"
                     }
                 }
             ],

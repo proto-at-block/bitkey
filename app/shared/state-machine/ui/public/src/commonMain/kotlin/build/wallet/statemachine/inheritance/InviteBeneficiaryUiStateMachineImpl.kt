@@ -31,7 +31,7 @@ class InviteBeneficiaryUiStateMachineImpl(
               .bind()
           }
         },
-        onInvitationShared = props.onExit,
+        onInvitationShared = props.onInvited,
         onExit = props.onExit
       )
     )

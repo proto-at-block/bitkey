@@ -12,6 +12,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import bitkey.shared.ui_core_public.generated.resources.*
 import build.wallet.pricechart.ui.PriceChart
@@ -40,57 +41,61 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
       .fillMaxWidth()
   ) {
     // title + updated at timestamp
-    Row(verticalAlignment = Alignment.CenterVertically) {
-      Image(
-        painter = painterResource(Res.drawable.bitcoin_orange),
-        contentDescription = null,
-        modifier = Modifier.size(Accessory.value.dp)
-      )
+    Row(verticalAlignment = Alignment.Top) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Image(
+          painter = painterResource(Res.drawable.bitcoin_orange),
+          contentDescription = null,
+          modifier = Modifier.size(Accessory.value.dp)
+        )
 
-      Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(4.dp))
 
-      Label(
-        text = stringResource(Res.string.bitcoin_price_card_title),
-        type = LabelType.Body3Bold,
-        treatment = LabelTreatment.Unspecified,
-        color = WalletTheme.colors.bitcoinPrimary
-      )
-
-      Spacer(modifier = Modifier.weight(1f))
-
-      Box(
-        modifier = Modifier
-          .loadingScrim(model.isLoading),
-        contentAlignment = Alignment.CenterEnd
-      ) {
-        MeasureWithoutPlacement {
-          // size the loader based on the expected value size, not displayed to user
-          Label(
-            model = LabelModel.StringModel("Updated 12:00am"),
-            type = LabelType.Body4Regular,
-            treatment = LabelTreatment.Disabled
-          )
-        }
         Label(
-          text = model.lastUpdated,
-          type = LabelType.Body4Regular,
-          treatment = LabelTreatment.Disabled
+          text = stringResource(Res.string.bitcoin_price_card_title),
+          type = LabelType.Body3Bold,
+          treatment = LabelTreatment.Unspecified,
+          color = WalletTheme.colors.bitcoinPrimary
         )
       }
 
-      Spacer(modifier = Modifier.width(1.dp))
+      Spacer(modifier = Modifier.weight(1f))
 
-      Icon(
-        icon = Icon.SmallIconCaretRight,
-        size = Subtract,
-        tint = IconTint.On30
-      )
+      Row(
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Box(
+          modifier = Modifier
+            .padding(2.dp)
+            .weight(1f, fill = false),
+          contentAlignment = Alignment.CenterStart
+        ) {
+          Label(
+            model = LabelModel.StringModel(model.lastUpdated),
+            type = LabelType.Body4Regular,
+            treatment = LabelTreatment.Disabled,
+            alignment = TextAlign.End
+          )
+        }
+
+        Spacer(modifier = Modifier.requiredSize(1.dp))
+
+        Icon(
+          icon = Icon.SmallIconCaretRight,
+          size = Subtract,
+          tint = IconTint.On30
+        )
+      }
     }
-    Row(verticalAlignment = Alignment.Bottom) {
+    Row(
+      modifier = Modifier.fillMaxWidth(),
+      verticalAlignment = Alignment.Bottom,
+      horizontalArrangement = Arrangement.SpaceBetween
+    ) {
       // bitcoin price + value change
       Column(
         modifier = Modifier
-          .weight(0.3f),
+          .wrapContentSize(),
         verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Bottom)
       ) {
         Box(
@@ -100,16 +105,18 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
         ) {
           MeasureWithoutPlacement {
             Label(
-              model = LabelModel.StringModel("$00,000.00"),
+              model = LabelModel.StringModel("$000,000.00"),
               type = LabelType.Body1Bold,
-              treatment = LabelTreatment.Primary
+              treatment = LabelTreatment.Primary,
+              maxLines = 1
             )
           }
 
           Label(
             model = LabelModel.StringModel(model.price),
             type = LabelType.Body1Bold,
-            treatment = LabelTreatment.Primary
+            treatment = LabelTreatment.Primary,
+            maxLines = 1
           )
         }
 
@@ -141,63 +148,61 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
               Label(
                 model = LabelModel.StringModel("50.00% Today"),
                 type = LabelType.Body3Regular,
-                treatment = LabelTreatment.Secondary
+                treatment = LabelTreatment.Secondary,
+                maxLines = 1
               )
             }
             Label(
               model = LabelModel.StringModel(model.priceChange),
               type = LabelType.Body3Regular,
-              treatment = LabelTreatment.Secondary
+              treatment = LabelTreatment.Secondary,
+              maxLines = 1
             )
           }
         }
       }
 
-      Spacer(modifier = Modifier.weight(0.1f))
+      Spacer(modifier = Modifier.weight(0.1f, fill = false))
 
       // price chart
-      Column(
+      Box(
+        contentAlignment = Alignment.Center,
         modifier = Modifier
-          .weight(0.4f)
+          .weight(0.4f, fill = false)
           .height(70.dp)
           .padding(top = 16.dp, end = 6.dp)
       ) {
-        Box(
-          modifier = Modifier.fillMaxSize(),
-          contentAlignment = Alignment.Center
-        ) {
-          val placeholderAlpha by animateFloatAsState(
-            label = "placeholder-visibility",
-            targetValue = if (model.data.isEmpty()) 1f else 0f
-          )
-          val sparklineAlpha by animateFloatAsState(
-            label = "sparkline-visibility",
-            targetValue = if (model.data.isEmpty()) 0f else 1f
-          )
-          Image(
-            imageVector = vectorResource(Res.drawable.sparkline_placeholder),
-            contentDescription = null,
+        val placeholderAlpha by animateFloatAsState(
+          label = "placeholder-visibility",
+          targetValue = if (model.data.isEmpty()) 1f else 0f
+        )
+        val sparklineAlpha by animateFloatAsState(
+          label = "sparkline-visibility",
+          targetValue = if (model.data.isEmpty()) 0f else 1f
+        )
+        Image(
+          imageVector = vectorResource(Res.drawable.sparkline_placeholder),
+          contentDescription = null,
+          modifier = Modifier
+            .fillMaxSize()
+            .padding(vertical = 8.dp)
+            .alpha(placeholderAlpha)
+        )
+
+        if (model.data.isNotEmpty()) {
+          PriceChart(
+            dataPoints = model.data,
+            colorSparkLine = WalletTheme.colors.foreground.copy(alpha = 0.1f),
+            sparkLineMode = true,
+            yAxisIntervals = 10,
             modifier = Modifier
               .fillMaxSize()
-              .padding(vertical = 8.dp)
-              .alpha(placeholderAlpha)
+              .graphicsLayer(
+                alpha = sparklineAlpha,
+                clip = false,
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+              )
           )
-
-          if (model.data.isNotEmpty()) {
-            PriceChart(
-              dataPoints = model.data,
-              colorSparkLine = WalletTheme.colors.foreground.copy(alpha = 0.1f),
-              sparkLineMode = true,
-              yAxisIntervals = 10,
-              modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                  alpha = sparklineAlpha,
-                  clip = false,
-                  compositingStrategy = CompositingStrategy.ModulateAlpha
-                )
-            )
-          }
         }
       }
     }

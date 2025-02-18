@@ -6,7 +6,7 @@ use crate::helpers::validate_signatures;
 use crate::helpers::SignatureType::LockInheritance;
 use time::OffsetDateTime;
 use tracing::instrument;
-use types::account::entities::Account;
+use types::account::entities::FullAccount;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId, InheritanceClaimLocked,
     InheritanceClaimPending,
@@ -17,7 +17,7 @@ use types::recovery::social::relationship::RecoveryRelationshipId;
 #[derive(Debug, Clone)]
 pub(crate) struct LockInheritanceClaimInput {
     pub inheritance_claim_id: InheritanceClaimId,
-    pub beneficiary_account: Account,
+    pub beneficiary_account: FullAccount,
     pub challenge: String,
     pub app_signature: String,
 }
@@ -44,7 +44,7 @@ impl Service {
     ) -> Result<InheritanceClaimLocked, ServiceError> {
         let (relationships, claim) = fetch_relationships_and_claim(
             self,
-            input.beneficiary_account.get_id(),
+            &input.beneficiary_account.id,
             &input.inheritance_claim_id,
         )
         .await?;
@@ -74,7 +74,7 @@ impl Service {
 
     async fn lock_pending_claim(
         &self,
-        beneficiary_account: &Account,
+        beneficiary_account: &FullAccount,
         recovery_relationship_id: &RecoveryRelationshipId,
         pending_claim: &InheritanceClaimPending,
     ) -> Result<InheritanceClaimLocked, ServiceError> {
@@ -100,7 +100,7 @@ impl Service {
             locked_at: OffsetDateTime::now_utc(),
         };
 
-        self.rotate_lite_account_recovery_auth_key(beneficiary_account)?;
+        // Rotate here if we ever support Lite Accounts
 
         let claim = self
             .repository
@@ -165,17 +165,6 @@ impl Service {
             )
             .map_err(|_| ServiceError::InvalidChallengeSignature),
             _ => Err(ServiceError::IncompatibleAccountType),
-        }
-    }
-
-    #[instrument(skip(self, beneficiary_account))]
-    fn rotate_lite_account_recovery_auth_key(
-        &self,
-        beneficiary_account: &Account,
-    ) -> Result<(), ServiceError> {
-        match beneficiary_account {
-            Account::Full(_) => Ok(()), // rotating recovery auth key is not necessary for full account
-            _ => Err(ServiceError::IncompatibleAccountType), // TODO rotate recovery auth key for lite account only
         }
     }
 }

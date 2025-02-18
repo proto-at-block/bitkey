@@ -1,7 +1,7 @@
 package build.wallet.router
 
 import build.wallet.navigation.v1.NavigationScreenId
-import io.ktor.http.*
+import io.ktor.http.Url
 
 /**
  * This is a sealed class that represents the deep link routes that the router can handle.
@@ -9,6 +9,7 @@ import io.ktor.http.*
 sealed class Route {
   object SupportedPaths {
     const val TRUSTED_CONTACT = "/links/downloads/trusted-contact"
+    const val BENEFICIARY = "/links/downloads/beneficiary"
     const val APP_DEEPLINK = "/links/app"
   }
 
@@ -27,10 +28,12 @@ sealed class Route {
   object Context {
     const val PARTNER_TRANSFER_REDIRECT = "partner_transfer"
     const val PARTNER_SALE_REDIRECT = "partner_sale"
+    const val SCREEN = "screen"
   }
 
-  object DeepLink {
+  object NotificationPayloadKeys {
     const val NAVIGATE_TO_SCREEN_ID = "navigate_to_screen_id"
+    const val INHERITANCE_CLAIM_ID = "inheritance_claim_id"
   }
 
   companion object {
@@ -38,7 +41,7 @@ sealed class Route {
      * This function takes a string and returns a Route object if the URL is valid and matches a known route.
      * @return A Route object if the URL is valid and matches a known route, otherwise null
      */
-    @Suppress("DestructuringDeclarationWithTooManyEntries")
+    @Suppress("DestructuringDeclarationWithTooManyEntries", "NestedBlockDepth")
     fun from(url: String): Route? {
       // URL deeplink
       if (url.startsWith("https", ignoreCase = true)) {
@@ -56,6 +59,13 @@ sealed class Route {
               TrustedContactInvite(parsedUrl.fragment)
             }
           }
+          SupportedPaths.BENEFICIARY -> {
+            if (parsedUrl.fragment.isEmpty()) {
+              null
+            } else {
+              BeneficiaryInvite(parsedUrl.fragment)
+            }
+          }
           SupportedPaths.APP_DEEPLINK -> {
             when (parsedUrl.parameters[QueryParamKeys.CONTEXT]) {
               Context.PARTNER_TRANSFER_REDIRECT ->
@@ -69,6 +79,12 @@ sealed class Route {
                 event = parsedUrl.parameters[QueryParamKeys.EVENT],
                 partnerTransactionId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
               )
+              Context.SCREEN ->
+                parsedUrl.parameters[NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID]?.let {
+                  NavigationScreenId.fromValue(it.toInt())?.let {
+                    NavigationDeeplink(screen = it)
+                  }
+                }
               else -> null
             }
           }
@@ -79,31 +95,89 @@ sealed class Route {
       }
     }
 
-    /*
-     * This function takes a screenId and returns a Route object if the screenId is valid
+    /**
+     * This function takes a map of extras from a notification and returns a Route object if the extras match a known route.
+     * @return A Route object if the extras match a known route, otherwise null
      */
-    fun from(screenId: Int): Route? {
-      NavigationScreenId.fromValue(screenId)?.let {
-        return NavigationDeeplink(it)
+    fun from(extras: Map<String, Any?>): Route? {
+      val screenId = (extras[NotificationPayloadKeys.NAVIGATE_TO_SCREEN_ID] as? String)?.toIntOrNull()
+      val claimId = extras[NotificationPayloadKeys.INHERITANCE_CLAIM_ID] as? String
+
+      if (claimId != null && screenId != null) {
+        NavigationScreenId.fromValue(screenId)?.let {
+          return InheritanceClaimNavigationDeeplink(it, claimId)
+        }
+      }
+
+      screenId?.let {
+        NavigationScreenId.fromValue(screenId)?.let {
+          return NavigationDeeplink(it)
+        }
       }
 
       return null
     }
   }
 
-  // Server-sent deeplinks
-
-  data class NavigationDeeplink(val screen: NavigationScreenId) : Route()
-
-  // URL deeplinks
+  /*
+   * Routes
+   * These are the possible routes that the router can handle.
+   * Each route is a data class that represents a specific deep link, either a URL or via a BE notification.
+   */
 
   /**
-   * This is a data class that represents the trusted contact invite route.
+   * Navigate to a screen by ID
+   * @param screen The screen to navigate to
+   */
+  data class NavigationDeeplink(val screen: NavigationScreenId) : Route()
+
+  /**
+   * Navigate to a specified screen to perform an action based on the claim ID
+   * @param screen The screen to navigate to
+   * @param claimId The claim ID
+   */
+  data class InheritanceClaimNavigationDeeplink(
+    val screen: NavigationScreenId,
+    val claimId: String,
+  ) : Route()
+
+  /**
+   * Navigate to either:
+   * a) Add TC screen with invite code
+   * b) TC onboarding
    * @param inviteCode The invite code for the trusted contact
    */
   data class TrustedContactInvite(val inviteCode: String) : Route()
 
-  data class PartnerTransferDeeplink(val partner: String?, val event: String?, val partnerTransactionId: String?) : Route()
+  /**
+   * Navigate to either:
+   * a) Become beneficiary screen with invite code
+   * b) Beneficiary onboarding
+   * @param inviteCode The invite code for the trusted contact
+   */
+  data class BeneficiaryInvite(val inviteCode: String) : Route()
 
-  data class PartnerSaleDeeplink(val partner: String?, val event: String?, val partnerTransactionId: String?) : Route()
+  /**
+   * This is a data class that represents the partner transfer deeplink route.
+   * @param partner The partner name
+   * @param event The event name
+   * @param partnerTransactionId The partner transaction ID
+   */
+  data class PartnerTransferDeeplink(
+    val partner: String?,
+    val event: String?,
+    val partnerTransactionId: String?,
+  ) : Route()
+
+  /**
+   * This is a data class that represents the partner sale deeplink route.
+   * @param partner The partner name
+   * @param event The event name
+   * @param partnerTransactionId The partner transaction ID
+   */
+  data class PartnerSaleDeeplink(
+    val partner: String?,
+    val event: String?,
+    val partnerTransactionId: String?,
+  ) : Route()
 }

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:repository",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "repository-31.3.2.jar": "df2533e154b736a0a95e4804893aa59099552842bf9635cda3751be9e894a0e2"
+                        "repository-31.4.2.jar": "438597d95beb6d2c3bf17e012c4f46d533660b4f9f36c6181f455ec45cc21c68"
                     }
                 }
             ],

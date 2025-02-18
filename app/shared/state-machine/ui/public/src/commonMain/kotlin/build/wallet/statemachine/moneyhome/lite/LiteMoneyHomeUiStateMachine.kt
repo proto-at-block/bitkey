@@ -1,8 +1,8 @@
 package build.wallet.statemachine.moneyhome.lite
 
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -17,8 +17,10 @@ interface LiteMoneyHomeUiStateMachine : StateMachine<LiteMoneyHomeUiProps, Scree
  * @property onSettings Settings tab item clicked
  */
 data class LiteMoneyHomeUiProps(
-  val accountData: AccountData.HasActiveLiteAccountData,
+  val account: LiteAccount,
+  val onUpgradeAccount: () -> Unit,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,
   val onAcceptInvite: () -> Unit,
+  val onBecomeBeneficiary: () -> Unit,
 )

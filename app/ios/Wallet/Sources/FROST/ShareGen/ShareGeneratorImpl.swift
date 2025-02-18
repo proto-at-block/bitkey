@@ -5,19 +5,19 @@ import Shared
 public class ShareGeneratorImpl: Shared.ShareGenerator {
     private let coreShareGenerator: core.ShareGenerator = .init()
 
-    public func generate() -> KeygenResult<Shared.SealedRequest> {
+    public func generate() -> KeygenResult<Shared.UnsealedRequest> {
         return KeygenResult {
-            try SealedRequest(value: coreShareGenerator.generate())
+            try UnsealedRequest(value: coreShareGenerator.generate())
         }
     }
 
     public func aggregate(
-        sealedRequest: Shared.SealedRequest
+        unsealedRequest request: Shared.UnsealedRequest
     ) -> KeygenResult<Shared.ShareDetails> {
         return KeygenResult {
             try ShareDetailsImpl(
                 coreShareDetails: coreShareGenerator.aggregate(
-                    sealedResponse: sealedRequest.value
+                    sealedResponse: request.value
                 )
             )
         }
@@ -25,10 +25,10 @@ public class ShareGeneratorImpl: Shared.ShareGenerator {
 
     public func encode(
         shareDetails: Shared.ShareDetails
-    ) -> KeygenResult<Shared.SealedRequest> {
+    ) -> KeygenResult<Shared.UnsealedRequest> {
         let realShareDetails = shareDetails as! ShareDetailsImpl
         return KeygenResult {
-            try SealedRequest(
+            try UnsealedRequest(
                 value: coreShareGenerator
                     .encodeCompleteDistributionRequest(
                         shareDetails: realShareDetails

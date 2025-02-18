@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.InheritanceFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -21,6 +23,7 @@ class LiteMoneyHomeUiStateMachineImpl(
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
   private val socRecService: SocRecService,
+  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
 ) : LiteMoneyHomeUiStateMachine {
   @Composable
   override fun model(props: LiteMoneyHomeUiProps): ScreenModel {
@@ -34,17 +37,19 @@ class LiteMoneyHomeUiStateMachineImpl(
         body = LiteMoneyHomeBodyModel(
           onSettings = props.onSettings,
           buttonModel = MoneyHomeButtonsModel.SingleButtonModel(
-            onSetUpBitkeyDevice = { props.accountData.onUpgradeAccount() }
+            onSetUpBitkeyDevice = { props.onUpgradeAccount() }
           ),
           protectedCustomers = protectedCustomers.toImmutableList(),
           badgedSettingsIcon = false,
+          inheritanceIsEnabled = inheritanceFeatureFlag.isEnabled(),
           onProtectedCustomerClick = {
             state = State.ViewingProtectedCustomerDetail(it)
           },
           onBuyOwnBitkeyClick = {
             state = State.ViewingBuyOwnBitkeyUrl
           },
-          onAcceptInviteClick = props.onAcceptInvite
+          onAcceptInviteClick = props.onAcceptInvite,
+          onIHaveABitkeyClick = props.onBecomeBeneficiary
         ),
         statusBannerModel = props.homeStatusBannerModel
       )
@@ -57,7 +62,7 @@ class LiteMoneyHomeUiStateMachineImpl(
         viewingProtectedCustomerUiStateMachine.model(
           props =
             ViewingProtectedCustomerProps(
-              account = props.accountData.account,
+              account = props.account,
               screenModel = viewingMoneyHomeScreenModel,
               protectedCustomer = currentState.protectedCustomer,
               onHelpWithRecovery = {
@@ -88,7 +93,7 @@ class LiteMoneyHomeUiStateMachineImpl(
         helpingWithRecoveryUiStateMachine.model(
           props =
             HelpingWithRecoveryUiProps(
-              account = props.accountData.account,
+              account = props.account,
               protectedCustomer = currentState.protectedCustomer,
               onExit = {
                 state = State.ViewingMoneyHome

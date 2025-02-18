@@ -9,7 +9,7 @@ class CoachmarkServiceMock(
   var defaultCoachmarks: List<CoachmarkIdentifier> = emptyList(),
   turbineFactory: (String) -> Turbine<CoachmarkIdentifier>,
 ) : CoachmarkService {
-  val turbine = turbineFactory("mark coachmark displayed calls")
+  val markDisplayedTurbine = turbineFactory("mark coachmark displayed calls")
 
   override suspend fun coachmarksToDisplay(
     coachmarkIds: Set<CoachmarkIdentifier>,
@@ -19,7 +19,7 @@ class CoachmarkServiceMock(
     coachmarkId: CoachmarkIdentifier,
   ): Result<Unit, Error> =
     Ok(Unit)
-      .also { turbine += coachmarkId }
+      .also { markDisplayedTurbine += coachmarkId }
 
   override suspend fun resetCoachmarks(): Result<Unit, Error> =
     Ok(Unit)

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-util-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-util-uikitsimarm64-1.7.1-metadata.jar": "6ae8eb67f8dbf041c0e63ef2f4b3b5bec1db0d139a942fce458a142aade58f1d"
+                        "ui-util-uikitsimarm64-1.7.3-metadata.jar": "6ae8eb67f8dbf041c0e63ef2f4b3b5bec1db0d139a942fce458a142aade58f1d"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-util.klib": "dc13dfd9899eb2c6f0c219ec62c2519a056ddfd89eb3d78e30a9a06b389a30f0"
+                        "ui-util.klib": "8ef50031eab7c4e85555aada7d7f46096f2cec7eb6e0ecdccc4474dc0e0e0ad7"
                     }
                 }
             ],

@@ -9,8 +9,6 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.inheritance.BenefactorClaim
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
@@ -33,10 +31,13 @@ import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
+import build.wallet.statemachine.inheritance.InheritanceUpsellSheetModel
+import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -60,16 +61,16 @@ import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationUiStateMachine
-import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.statemachine.transactions.TransactionsActivityProps
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.Some
 import build.wallet.statemachine.transactions.TransactionsActivityUiStateMachine
+import build.wallet.statemachine.trustedcontact.view.ViewingInvitationProps
+import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMachine
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
@@ -80,6 +81,7 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Suppress("LargeClass")
 @BitkeyInject(ActivityScope::class)
 class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val addBitcoinUiStateMachine: AddBitcoinUiStateMachine,
@@ -100,6 +102,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val transactionsActivityService: TransactionsActivityService,
   private val exchangeRateService: ExchangeRateService,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -388,21 +391,34 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             f8eEnvironment = props.account.config.f8eEnvironment,
             onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
           ),
-          inheritanceCardUiProps =
-            InheritanceCardUiProps(
-              onClick = { claim ->
-                when (claim) {
-                  is BenefactorClaim.PendingClaim -> {
-                    // TODO(W-9378) Navigate to the decline claim screen
-                  }
-                  is BeneficiaryClaim.LockedClaim -> {
-                    // TODO() navigate to complete claim screen
-                  }
-                  else -> Unit
-                }
-              }
-            )
+          inheritanceCardUiProps = inheritanceCardUiProps(props)
         )
+    )
+  }
+
+  @Composable
+  private fun inheritanceCardUiProps(
+    props: MoneyHomeViewingBalanceUiProps,
+  ): InheritanceCardUiProps {
+    return InheritanceCardUiProps(
+      isDismissible = true,
+      completeClaim = { claim ->
+        props.setState(
+          CompleteInheritanceClaimUiState(
+            relationshipId = claim.relationshipId
+          )
+        )
+      },
+      denyClaim = { claim ->
+        props.setState(
+          DenyInheritanceClaimUiState(
+            claimId = claim.claimId
+          )
+        )
+      },
+      moveFundsCallToAction = {
+        inAppBrowserNavigator.open("https://bitkey.world/hc/retain-control-of-funds") {}
+      }
     )
   }
 
@@ -611,6 +627,20 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                     )
                   )
                 }
+              }
+            )
+          }
+          InheritanceUpsell -> {
+            InheritanceUpsellSheetModel(
+              onGetStarted = {
+                props.setState(InheritanceManagementUiState(ManagingInheritanceTab.Beneficiaries))
+              },
+              onClose = {
+                props.setState(
+                  props.state.copy(
+                    bottomSheetDisplayState = null
+                  )
+                )
               }
             )
           }

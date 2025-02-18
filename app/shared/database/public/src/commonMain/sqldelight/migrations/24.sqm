@@ -1,0 +1,6 @@
+CREATE TABLE inheritance_upsell_view (
+    id TEXT NOT NULL PRIMARY KEY,
+    viewed INTEGER NOT NULL DEFAULT 0
+);
+
+PRAGMA foreign_key_check;

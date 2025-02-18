@@ -1,20 +1,19 @@
 package build.wallet.statemachine.nfc
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.app.nfc.FwupInstructionsScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -73,4 +72,9 @@ data class FwupInstructionsBodyModel(
         )
       }
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    FwupInstructionsScreen(modifier, model = this)
+  }
 }

@@ -43,4 +43,12 @@ sealed class RelationshipsKeyError(
     cause: Throwable? = null,
     message: String? = null,
   ) : RelationshipsKeyError(cause, message)
+
+  /**
+   * Error sent when we're not able to deserialize the DDK
+   */
+  class UnableToDeserialize(
+    cause: Throwable? = null,
+    message: String? = null,
+  ) : RelationshipsKeyError(cause, message)
 }

@@ -27,6 +27,7 @@ class DeviceTokenConfigProviderImpl(
           Customer -> FcmCustomer
           Beta -> Fcm
           Development -> FcmTeam
+          Alpha -> FcmTeam // android doesn't use this config
           Team -> FcmTeam
         }
     )

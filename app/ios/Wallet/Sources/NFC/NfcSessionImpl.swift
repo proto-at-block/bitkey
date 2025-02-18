@@ -139,9 +139,6 @@ private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
     }
 
     public func tagReaderSession(_: NFCTagReaderSession, didInvalidateWithError error: Error) {
-        DispatchQueue.main.async {
-            FwupNfcMaskOverlayViewController.hide()
-        }
         log(.debug, tag: "NFC") { "Invalidating NFC session: \(error)" }
         self.session = nil
         self.tag = .Invalidated(error as! NFCReaderError)

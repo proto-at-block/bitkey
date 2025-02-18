@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.recovery.CompleteDelayNotifyF8eClient
 import build.wallet.ktor.result.NetworkingError
@@ -28,10 +30,12 @@ class CompleteDelayNotifyF8eClientImpl(
     appSignature: String,
     hardwareSignature: String,
   ): Result<Unit, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .catching {
         post(urlString = "/api/accounts/${fullAccountId.serverId}/delay-notify/complete") {
           withDescription("Completing Delay & Notify")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             Request(
               challenge = challenge,

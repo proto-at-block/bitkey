@@ -2,9 +2,9 @@ package bitkey.sample.ui
 
 import bitkey.sample.ui.settings.account.AccountSettingsScreen
 import bitkey.sample.ui.settings.account.AccountSettingsScreenPresenter
-import build.wallet.ui.framework.Screen
-import build.wallet.ui.framework.ScreenPresenter
-import build.wallet.ui.framework.ScreenPresenterRegistry
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
+import bitkey.ui.framework.ScreenPresenterRegistry
 
 class SampleScreenPresenterRegistry(
   private val accountSettingsScreenPresenter: AccountSettingsScreenPresenter,

@@ -10,7 +10,7 @@ import build.wallet.feature.FeatureFlagValue
 class InheritanceFeatureFlag(
   featureFlagDao: FeatureFlagDao,
 ) : FeatureFlag<FeatureFlagValue.BooleanFlag>(
-    identifier = "mobile-inheritance",
+    identifier = "inheritance-enabled",
     title = "Mobile Inheritance Features",
     description = "Allows users to access the inheritance options in the app.",
     defaultFlagValue = FeatureFlagValue.BooleanFlag(false),

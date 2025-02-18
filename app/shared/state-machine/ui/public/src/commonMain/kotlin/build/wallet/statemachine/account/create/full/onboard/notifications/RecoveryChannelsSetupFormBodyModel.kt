@@ -76,7 +76,7 @@ data class RecoveryChannelsSetupFormBodyModel(
             items = immutableListOf(
               ListItemModel(
                 title = "We’re serious about security",
-                secondaryText = "Learn more about wallet recovery.",
+                secondaryText = "Learn more about critical alerts for recovery and inheritance.",
                 trailingAccessory = ListItemAccessory.drillIcon(),
                 onClick = learnOnClick
               )

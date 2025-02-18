@@ -1,11 +1,12 @@
 use instrumentation::metrics::{
-    factory::Counter, factory::Histogram, factory::MetricsFactory, factory::ObservableGauge, Unit,
+    factory::Counter, factory::Histogram, factory::MetricsFactory, factory::ObservableGauge,
 };
 use once_cell::sync::Lazy;
 
 pub const LOST_FACTOR_KEY: &str = "lost_factor";
 pub const CREATED_DURING_CONTEST_KEY: &str = "created_during_contest";
 pub const CANCELED_IN_CONTEST_KEY: &str = "canceled_in_contest";
+pub const MISSING_RECOVERY_AUTH_KEY: &str = "missing_recovery_auth_key";
 pub const CODE_MATCHED_KEY: &str = "code_matched";
 pub const DELAY_COMPLETE_KEY: &str = "delay_complete";
 pub const METHOD_KEY: &str = "method";
@@ -32,6 +33,6 @@ pub static DELAY_NOTIFY_PENDING: Lazy<ObservableGauge<u64>> =
 
 // Histograms
 pub(crate) static DELAY_NOTIFY_TIME_TO_CANCEL: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("delay_notify.time_to_cancel", Some(Unit::new("min"))));
+    Lazy::new(|| FACTORY.u64_histogram("delay_notify.time_to_cancel", Some("min")));
 pub(crate) static DELAY_NOTIFY_TIME_TO_COMPLETE: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("delay_notify.time_to_complete", Some(Unit::new("min"))));
+    Lazy::new(|| FACTORY.u64_histogram("delay_notify.time_to_complete", Some("min")));

@@ -5,25 +5,33 @@ use serde_with::{base64::Base64, serde_as};
 
 use crate::derivation::WSMSupportedDomain;
 
+#[serde_as]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct InitiateDistributedKeygenRequest {
     pub root_key_id: String,
     pub network: Network,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
+#[serde_as]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct InitiateDistributedKeygenResponse {
     pub root_key_id: String,
-    pub sealed_response: String,
     pub aggregate_public_key: PublicKey,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
+#[serde_as]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct ContinueDistributedKeygenRequest {
     pub root_key_id: String,
     pub network: Network,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -46,16 +54,49 @@ pub struct CreateSelfSovereignBackupResponse {
     pub sealed_response: Vec<u8>,
 }
 
+#[serde_as]
 #[derive(Deserialize, Serialize, Debug)]
-pub struct GeneratePartialSignaturesRequest {
+pub struct InitiateShareRefreshRequest {
     pub root_key_id: String,
-    pub sealed_request: String,
     pub network: Network,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct InitiateShareRefreshResponse {
+    pub sealed_response: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ContinueShareRefreshRequest {
+    pub root_key_id: String,
+    pub network: Network,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ContinueShareRefreshResponse {}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GeneratePartialSignaturesRequest {
+    pub root_key_id: String,
+    pub network: Network,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GeneratePartialSignaturesResponse {
-    pub sealed_response: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -126,4 +167,35 @@ pub struct AttestationDocRequest {}
 #[derive(Deserialize, Serialize, Debug)]
 pub struct AttestationDocResponse {
     pub document: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct NoiseInitiateBundleRequest {
+    #[serde_as(as = "Base64")]
+    pub bundle: Vec<u8>,
+    pub server_static_pubkey: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct NoiseInitiateBundleResponse {
+    #[serde_as(as = "Base64")]
+    pub bundle: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct EvaluatePinRequest {
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct EvaluatePinResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }

@@ -23,6 +23,7 @@ use http_server::router::RouterBuilder;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use screener::service::Service as ScreenerService;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use time::OffsetDateTime;
 use tracing::{error, event, instrument, Level};
 use types::account::entities::FullAccount;
@@ -183,11 +184,11 @@ async fn sign_transaction_maybe_broadcast_impl(
 
     let psbt = Psbt::from_str(&request.psbt).map_err(SigningError::from)?;
 
-    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
+    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key.clone());
 
     let signing_processor = SigningProcessor::new(
         Arc::new(wsm_client),
-        feature_flags_service,
+        feature_flags_service.clone(),
         transaction_broadcaster,
     );
 
@@ -197,10 +198,18 @@ async fn sign_transaction_maybe_broadcast_impl(
         exchange_rate_service,
         daily_spend_record_service,
         signed_psbt_cache_service,
+        feature_flags_service,
     );
 
     let signing_strategy = signing_strategy_factory
-        .construct_strategy(full_account, config, keyset_id, psbt, &rpc_uris)
+        .construct_strategy(
+            full_account,
+            config,
+            keyset_id,
+            psbt,
+            &rpc_uris,
+            context_key,
+        )
         .await?;
 
     let signed_psbt = signing_strategy.execute().await?;
@@ -279,14 +288,20 @@ async fn sign_transaction_with_keyset(
     Ok(Json(response))
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GeneratePartialSignaturesRequest {
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GeneratePartialSignaturesResponse {
-    pub sealed_response: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
 /// Generates partial signatures for a Software Account.
@@ -347,7 +362,8 @@ async fn generate_partial_signatures_with_key_share(
         .generate_partial_signatures(
             &active_key_definition_id.to_string(),
             distributed_key.network.into(),
-            &request.sealed_request,
+            request.sealed_request,
+            request.noise_session,
         )
         .await
         .map_err(|e| {

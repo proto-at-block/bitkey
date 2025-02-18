@@ -237,7 +237,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
     broadcaster_mock
         .expect_broadcast()
         .times(if vector.expected_status == StatusCode::OK {
-            1 // even though we call sign twice, there is caching so the same psbt will only be sent by the server once
+            2
         } else {
             0
         })

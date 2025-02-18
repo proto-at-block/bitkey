@@ -71,22 +71,28 @@ pub struct EnclaveCreateKeyRequest {
     pub network: Network,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveInitiateDistributedKeygenRequest {
     pub root_key_id: String,
     pub dek_id: String,
     pub network: Network,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveInitiateDistributedKeygenResponse {
     pub aggregate_public_key: PublicKey,
     pub wrapped_share_details: String,
     pub wrapped_share_details_nonce: String,
-    pub sealed_response: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveContinueDistributedKeygenRequest {
     pub root_key_id: String,
@@ -94,9 +100,30 @@ pub struct EnclaveContinueDistributedKeygenRequest {
     pub network: Network,
     pub wrapped_share_details: String,
     pub wrapped_share_details_nonce: String,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveContinueDistributedKeygenResponse {}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveEvaluatePinRequest {
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveEvaluatePinResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
+}
+
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveGeneratePartialSignaturesRequest {
     pub root_key_id: String,
@@ -104,16 +131,17 @@ pub struct EnclaveGeneratePartialSignaturesRequest {
     pub network: Network,
     pub wrapped_share_details: String,
     pub wrapped_share_details_nonce: String,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveGeneratePartialSignaturesResponse {
-    pub sealed_response: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct EnclaveContinueDistributedKeygenResponse {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveDeriveKeyRequest {
@@ -144,6 +172,45 @@ pub struct EnclaveCreateSelfSovereignBackupResponse {
     #[serde_as(as = "Base64")]
     pub sealed_response: Vec<u8>,
 }
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveInitiateShareRefreshRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub wrapped_share_details: String,
+    pub wrapped_share_details_nonce: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveInitiateShareRefreshResponse {
+    pub wrapped_pending_share_details: String,
+    pub wrapped_pending_share_details_nonce: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveContinueShareRefreshRequest {
+    pub root_key_id: String,
+    pub dek_id: String,
+    pub network: Network,
+    pub wrapped_pending_share_details: String,
+    pub wrapped_pending_share_details_nonce: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    pub noise_session_id: String,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveContinueShareRefreshResponse {}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CreatedKey {

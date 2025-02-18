@@ -45,3 +45,13 @@ internal val robotoMonoFontFamily: FontFamily
       style = FontStyle.Normal
     )
   )
+
+internal val foundersGroteskFontFamily: FontFamily
+  @Composable
+  get() = FontFamily(
+    Font(
+      resource = Res.font.founders_grotesk_x_condensed_bold,
+      weight = FontWeight.W700,
+      style = FontStyle.Normal
+    )
+  )

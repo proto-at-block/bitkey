@@ -21,13 +21,6 @@ interface FeatureFlagService {
   fun getFeatureFlags(): List<FeatureFlag<out FeatureFlagValue>>
 
   /**
-   * Directly initialize the Compose UI feature flag if available for the build type.
-   *
-   * This is a temporary development flag, to be removed when Compose UI is enabled by default.
-   */
-  fun initComposeUiFeatureFlag()
-
-  /**
    * Reset all feature flags to their default values and sync with remote.
    */
   suspend fun resetFlags(): Result<Unit, Error>

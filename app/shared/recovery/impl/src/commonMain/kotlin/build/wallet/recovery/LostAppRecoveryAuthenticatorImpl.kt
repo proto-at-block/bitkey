@@ -1,10 +1,6 @@
 package build.wallet.recovery
 
-import build.wallet.auth.AccountAuthTokens
-import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthTokenDao
-import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.logAuthFailure
+import build.wallet.auth.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
@@ -17,12 +13,14 @@ import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuth
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.sync.withLock
 
 @BitkeyInject(AppScope::class)
 class LostAppRecoveryAuthenticatorImpl(
   private val accountAuthenticator: AccountAuthenticator,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val deviceTokenManager: DeviceTokenManager,
+  private val recoveryLock: RecoveryLock,
 ) : LostAppRecoveryAuthenticator {
   override suspend fun authenticate(
     fullAccountConfig: FullAccountConfig,
@@ -32,32 +30,34 @@ class LostAppRecoveryAuthenticatorImpl(
     hardwareAuthPublicKey: HwAuthPublicKey,
   ): Result<AccountAuthTokens, DelayNotifyLostAppAuthError> =
     coroutineBinding {
-      val authTokens =
-        accountAuthenticator
-          .hwAuth(
-            f8eEnvironment = fullAccountConfig.f8eEnvironment,
-            fullAccountId = fullAccountId,
-            session = authResponseSessionToken,
-            signature = hardwareAuthSignature
-          )
-          .logAuthFailure { "Failed to authenticate for lost app recovery" }
-          .mapError(::F8eAccountAuthenticationFailed)
+      recoveryLock.withLock {
+        val authTokens =
+          accountAuthenticator
+            .hwAuth(
+              f8eEnvironment = fullAccountConfig.f8eEnvironment,
+              fullAccountId = fullAccountId,
+              session = authResponseSessionToken,
+              signature = hardwareAuthSignature
+            )
+            .logAuthFailure { "Failed to authenticate for lost app recovery" }
+            .mapError(::F8eAccountAuthenticationFailed)
+            .bind()
+
+        authTokensService
+          .setTokens(fullAccountId, authTokens, AuthTokenScope.Global)
+          .mapError(::AccessTokensNotSavedError)
           .bind()
 
-      authTokenDao
-        .setTokensOfScope(fullAccountId, authTokens, AuthTokenScope.Global)
-        .mapError(::AccessTokensNotSavedError)
-        .bind()
+        // send in device-token for notifications
+        // TODO(W-3372): validate result of this method
+        deviceTokenManager
+          .addDeviceTokenIfPresentForAccount(
+            fullAccountId = fullAccountId,
+            f8eEnvironment = fullAccountConfig.f8eEnvironment,
+            authTokenScope = AuthTokenScope.Global
+          )
 
-      // send in device-token for notifications
-      // TODO(W-3372): validate result of this method
-      deviceTokenManager
-        .addDeviceTokenIfPresentForAccount(
-          fullAccountId = fullAccountId,
-          f8eEnvironment = fullAccountConfig.f8eEnvironment,
-          authTokenScope = AuthTokenScope.Global
-        )
-
-      authTokens
+        authTokens
+      }
     }
 }

@@ -23,14 +23,14 @@ import build.wallet.platform.clipboard.ClipboardMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.QrCodeScanBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.unwrap
@@ -136,8 +136,8 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("UI select input method - back exits flow") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onBack()
       }
       onExitCalls.awaitItem()
@@ -146,70 +146,70 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("UI manual entry - Decoding failure - preserves entered text") {
     val invalidData = "Invalid payload!"
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBeEmpty()
         onEnterTextChanged(invalidData)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(invalidData)
         onContinue()
       }
-      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+      awaitBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
         arrivedFromManualEntry.shouldBeTrue()
         onBack()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(invalidData)
         onContinue()
       }
-      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+      awaitBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
         onImport()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(invalidData)
       }
     }
   }
 
   test("UI manual entry - Successful Decoding") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(validData)
         onContinue()
       }
-      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>()
+      awaitBody<EmergencyAccessKitRestoreWalletBodyModel>()
     }
   }
 
   test("UI manual entry - Back until exit") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(validData)
         onContinue()
       }
-      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel> {
+      awaitBody<EmergencyAccessKitRestoreWalletBodyModel> {
         onBack()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onBack()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onBack()
       }
       onExitCalls.awaitItem()
@@ -218,75 +218,75 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("UI Manual Entry - Paste") {
     clipboard.setItem(ClipItem.PlainText(validData))
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onPasteButtonClick()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(validData)
       }
     }
   }
 
   test("UI QR Code - Successful Decoding") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       permissionMock.isImplemented = false
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onScanQRCode()
       }
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validData)
       }
-      awaitScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>()
+      awaitBody<EmergencyAccessKitRestoreWalletBodyModel>()
     }
   }
 
   test("UI QR Code - Error Decoding") {
     permissionMock.isImplemented = false
     val invalidData = "Invalid payload!"
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onScanQRCode()
       }
-      awaitScreenWithBody<QrCodeScanBodyModel> {
+      awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(invalidData)
       }
-      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
+      awaitBody<EmergencyAccessKitCodeNotRecognizedBodyModel> {
         onImport()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>()
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>()
     }
   }
 
   test("UI Manual Entry - Successful Restore") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(validData)
         onContinue()
       }
-      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
-        expectedBodyContentMatch = { it.onRestore != null }
+      awaitUntilBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        matching = { it.onRestore != null }
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(CsekFake)
       }
 
       // Decoding backup and attempting to apply
-      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+      awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
 
         val restoredPrivateKey = appPrivateKeyDao.getAppSpendingPrivateKey(AppSpendingPublicKeyMock)
@@ -308,33 +308,33 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     // This is the same real behavior of the encryptor when provided with an invalid ciphertext.
     symmetricKeyEncryptor.shouldFail = true
 
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onEnterTextChanged(validData)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(validData)
         onContinue()
       }
-      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
-        expectedBodyContentMatch = { it.onRestore != null }
+      awaitUntilBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        matching = { it.onRestore != null }
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(CsekFake)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+      awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
+      awaitBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
     }
   }
 
@@ -351,33 +351,33 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
             )
         )
       )
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<EmergencyAccessKitImportWalletBodyModel> {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         clickPrimaryButton()
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         onEnterTextChanged(invalidPayload)
       }
-      awaitScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+      awaitBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
         enteredText.shouldBe(invalidPayload)
         onContinue()
       }
-      awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
-        expectedBodyContentMatch = { it.onRestore != null }
+      awaitUntilBody<EmergencyAccessKitRestoreWalletBodyModel>(
+        matching = { it.onRestore != null }
       ) {
         onRestore.shouldNotBeNull().invoke()
       }
       // Unsealing CSEK
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Csek>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(CsekFake)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+      awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
+      awaitBody<EmergencyAccessKitCodeNotRecognizedBodyModel>()
     }
   }
 })

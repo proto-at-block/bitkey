@@ -4,8 +4,9 @@ import build.wallet.bdk.BdkBlockchainFactoryImpl
 import build.wallet.bdk.bindings.*
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
@@ -27,8 +28,8 @@ class AppFunctionalTests : FunSpec({
         f8eEnvironment = F8eEnvironment.Custom("unreachable")
       )
 
-    relaunchedApp.appUiStateMachine.test(Unit) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    relaunchedApp.appUiStateMachine.testWithVirtualTime(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -52,8 +53,8 @@ class AppFunctionalTests : FunSpec({
           )
       )
 
-    relaunchedApp.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    relaunchedApp.appUiStateMachine.test(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel>()
       bdkBlockingDelay.cancel()
       cancelAndIgnoreRemainingEvents()
     }

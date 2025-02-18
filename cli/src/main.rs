@@ -78,7 +78,7 @@ enum Commands {
 
     CheckKeyproofs {
         // default is the account table in dev
-        #[arg(short, long, default_value_t = String::from("PrototypeOnboardingStack-main-AccountsBE8A900E-16KVFQVF91LZH"))]
+        #[arg(short, long, default_value_t = String::from("fromagerie.accounts"))]
         account_table: String,
         account_id: String,
         access_token: String,
@@ -155,6 +155,8 @@ enum WalletCommands {
         recovery_table: String,
         #[arg(short, long, default_value_t = String::from("fromagerie.social_recovery"))]
         social_recovery_table: String,
+        #[arg(short, long, default_value_t = String::from("fromagerie.inheritance"))]
+        inheritance_table: String,
         #[arg(short, long, default_value_t = 20)]
         gap_limit: u32,
         #[arg(long)]
@@ -260,6 +262,7 @@ fn main() -> Result<()> {
                 account_table,
                 recovery_table,
                 social_recovery_table,
+                inheritance_table,
                 gap_limit,
                 address_balance,
                 account_id,
@@ -268,6 +271,7 @@ fn main() -> Result<()> {
                 account_table,
                 recovery_table,
                 social_recovery_table,
+                inheritance_table,
                 gap_limit,
                 address_balance,
                 account_id,

@@ -13,13 +13,13 @@ import build.wallet.partnerships.*
 import build.wallet.partnerships.PartnershipPurchaseService.NoPurchaseOptionsError
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -83,11 +83,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("no partnerships purchase options") {
     partnershipPurchaseService.suggestedPurchaseAmounts = Err(NoPurchaseOptionsError("card"))
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         header?.headline.shouldBe("New Partners Coming Soon")
         header?.sublineModel?.string.shouldBe("Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin purchases. Until then, you can add bitcoin using the receive button.")
       }
@@ -95,12 +95,12 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase options") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
       // show purchase amounts
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[0].title.shouldBe("$10")
@@ -120,7 +120,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
         items[3].onClick.shouldNotBeNull().invoke()
       }
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[3].title.shouldBe("$100")
         items[3].selected.shouldBe(false)
@@ -129,7 +129,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
         items[4].onClick.shouldNotBeNull().invoke()
       }
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[4].title.shouldBe("$200")
         items[4].selected.shouldBe(true)
@@ -138,11 +138,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase quotes") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -151,7 +151,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems.size.shouldBe(1)
@@ -173,7 +173,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("Previously used partner at top of list") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       partnershipTransactionsService.previouslyUsedPartnerIds.value =
         listOf(PartnerId("used-partner"))
@@ -207,7 +207,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
         )
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -216,7 +216,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems.size.shouldBe(2)
@@ -236,7 +236,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("Sorted by crypto amount") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(
         PartnerId("used-1"),
@@ -287,7 +287,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
         )
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -296,7 +296,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems.size.shouldBe(4)
@@ -321,11 +321,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase redirect") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -334,7 +334,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems[0].shouldBeTypeOf<ListItemModel>().apply {
@@ -346,9 +346,9 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE)
 
       // load redirect info
-      awaitSheetWithBody<FormBodyModel>()
+      awaitSheet<FormBodyModel>()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
 
         onPartnerRedirectedCalls.awaitItem().shouldBe(
@@ -363,7 +363,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("resume partnerships purchase flow with selected amount") {
     val selectedAmount = FiatMoney.usd(123.0)
-    stateMachine.test(props(selectedAmount = selectedAmount)) {
+    stateMachine.testWithVirtualTime(props(selectedAmount = selectedAmount)) {
       // load purchase amounts
       awaitLoader()
 
@@ -371,7 +371,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems.size.shouldBe(1)
@@ -393,11 +393,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("select custom amount") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[5].title.shouldBe("...")
         items[5].onClick.shouldNotBeNull().invoke()
@@ -410,11 +410,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("purchase quotes with no fiat currency conversion") {
     currencyConverter.conversionRate = null
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // load purchase amounts
       awaitLoader()
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // tap next with default selection ($100)
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
@@ -423,7 +423,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       awaitLoader()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         id.shouldBe(PARTNER_QUOTES_LIST)
         val listItems = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         listItems[0].shouldBeTypeOf<ListItemModel>().apply {
@@ -439,7 +439,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 })
 
 private suspend fun StateMachineTester<PartnershipsPurchaseUiProps, SheetModel>.awaitLoader() {
-  awaitSheetWithBody<FormBodyModel> {
+  awaitSheet<FormBodyModel> {
     mainContentList[0].shouldBeTypeOf<Loader>()
   }
 }

@@ -1,11 +1,6 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
@@ -22,13 +17,8 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.AddingNewFingerprintUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.CheckingFingerprintsUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.DeletingFingerprintUiState
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.EditingFingerprintUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.ListingFingerprintsUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.RetrievingEnrolledFingerprintsUiState
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.SavingFingerprintLabelUiState
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -80,7 +70,8 @@ class ManagingFingerprintsUiStateMachineImpl(
               iconTint = IconTint.Success,
               iconSize = IconSize.Accessory
             ),
-            whiteIconStroke = true
+            iconStrokeColor = ToastModel.IconStrokeColor.White,
+            id = "Fingerprint deleted"
           )
         } else if (state.fingerprintAdded) {
           ToastModel(
@@ -90,7 +81,8 @@ class ManagingFingerprintsUiStateMachineImpl(
               iconTint = IconTint.Success,
               iconSize = IconSize.Accessory
             ),
-            whiteIconStroke = true
+            iconStrokeColor = ToastModel.IconStrokeColor.White,
+            id = "Fingerprint added"
           )
         } else {
           null

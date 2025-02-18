@@ -1,10 +1,13 @@
 package build.wallet.statemachine.receive
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.qr.QrCodeModel
+import build.wallet.ui.app.moneyhome.receive.AddressQrCodeScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.*
@@ -111,4 +114,9 @@ data class AddressQrCodeBodyModel(
       ),
     content = content
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    AddressQrCodeScreen(modifier, model = this)
+  }
 }

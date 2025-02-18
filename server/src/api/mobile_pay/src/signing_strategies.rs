@@ -3,7 +3,6 @@ use crate::daily_spend_record::service::Service as DailySpendRecordService;
 use crate::entities::{Features, Settings};
 use crate::error::SigningError;
 use crate::routes::Config;
-use crate::signed_psbt_cache::entities::CachedPsbt;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::signing_processor::state::{Initialized, Validated};
 use crate::signing_processor::{Broadcaster, Signer, SigningProcessor, SigningValidator};
@@ -13,6 +12,8 @@ use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris};
 use exchange_rate::service::Service as ExchangeRateService;
+use feature_flags::flag::ContextKey;
+use feature_flags::service::Service as FeatureFlagsService;
 use screener::service::Service as ScreenerService;
 use std::sync::Arc;
 use types::account::entities::FullAccount;
@@ -21,23 +22,6 @@ use types::account::identifiers::KeysetId;
 #[async_trait]
 pub trait SigningStrategy: Sync + Send {
     async fn execute(&self) -> Result<Psbt, SigningError>;
-}
-
-pub struct CachedSigningStrategy {
-    cached_psbt: CachedPsbt,
-}
-
-impl CachedSigningStrategy {
-    pub fn new(cached_psbt: CachedPsbt) -> Self {
-        Self { cached_psbt }
-    }
-}
-
-#[async_trait]
-impl SigningStrategy for CachedSigningStrategy {
-    async fn execute(&self) -> Result<Psbt, SigningError> {
-        Ok(self.cached_psbt.psbt.clone())
-    }
 }
 
 pub struct TransferWithoutHardwareSigningStrategy {
@@ -62,6 +46,8 @@ impl TransferWithoutHardwareSigningStrategy {
         screener_service: Arc<ScreenerService>,
         signed_psbt_cache_service: SignedPsbtCacheService,
         daily_spend_record_service: DailySpendRecordService,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Result<Self, SigningError> {
         let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
 
@@ -75,6 +61,8 @@ impl TransferWithoutHardwareSigningStrategy {
                 features,
                 &spending_entries,
                 screener_service,
+                feature_flags_service,
+                context_key,
             ),
         )?;
 
@@ -102,17 +90,24 @@ impl SigningStrategy for TransferWithoutHardwareSigningStrategy {
             .sign_transaction(&self.rpc_uris, &self.source_descriptor, &self.keyset_id)
             .await?;
 
-        // Save the PSBT to cache so if the client retries the request, we can return the same signed
-        // PSBT. This is used for avoiding double-counting Mobile Pay spend limits, and does not apply to sweeps.
         let signed_psbt = broadcaster.finalized_psbt();
 
-        self.signed_psbt_cache_service
-            .put(signed_psbt.clone())
-            .await?;
+        if self
+            .signed_psbt_cache_service
+            .get(signed_psbt.unsigned_tx.txid())
+            .await?
+            .is_none()
+        {
+            // Save the PSBT to cache so if the client retries the request,
+            // we can avoid double-counting Mobile Pay spend limits.
+            self.signed_psbt_cache_service
+                .put(signed_psbt.clone())
+                .await?;
 
-        self.daily_spend_record_service
-            .save_daily_spending_record(self.today_spending_record.clone())
-            .await?;
+            self.daily_spend_record_service
+                .save_daily_spending_record(self.today_spending_record.clone())
+                .await?;
+        }
 
         broadcaster.broadcast_transaction(&self.rpc_uris, &self.source_descriptor)?;
 
@@ -136,6 +131,8 @@ impl RecoverySweepSigningStrategy {
         keyset_id: KeysetId,
         rpc_uris: &ElectrumRpcUris,
         screener_service: Arc<ScreenerService>,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Result<Self, SigningError> {
         let unsynced_source_wallet = source_descriptor.generate_wallet(false, rpc_uris)?;
 
@@ -145,7 +142,13 @@ impl RecoverySweepSigningStrategy {
 
         let signer = signing_validator.validate(
             unsigned_psbt,
-            SpendRuleSet::sweep(&unsynced_source_wallet, &active_wallet, screener_service),
+            SpendRuleSet::sweep(
+                &unsynced_source_wallet,
+                &active_wallet,
+                screener_service,
+                feature_flags_service,
+                context_key,
+            ),
         )?;
         Ok(Self {
             rpc_uris: rpc_uris.clone(),
@@ -176,6 +179,7 @@ pub struct SigningStrategyFactory {
     exchange_rate_service: ExchangeRateService,
     daily_spend_record_service: DailySpendRecordService,
     signed_psbt_cache_service: SignedPsbtCacheService,
+    feature_flags_service: FeatureFlagsService,
 }
 
 impl SigningStrategyFactory {
@@ -185,6 +189,7 @@ impl SigningStrategyFactory {
         exchange_rate_service: ExchangeRateService,
         daily_spend_record_service: DailySpendRecordService,
         signed_psbt_cache_service: SignedPsbtCacheService,
+        feature_flags_service: FeatureFlagsService,
     ) -> Self {
         Self {
             signing_processor,
@@ -192,6 +197,7 @@ impl SigningStrategyFactory {
             exchange_rate_service,
             daily_spend_record_service,
             signed_psbt_cache_service,
+            feature_flags_service,
         }
     }
 
@@ -202,15 +208,8 @@ impl SigningStrategyFactory {
         signing_keyset_id: &KeysetId,
         unsigned_psbt: Psbt,
         rpc_uris: &ElectrumRpcUris,
+        context_key: Option<ContextKey>,
     ) -> Result<Arc<dyn SigningStrategy>, SigningError> {
-        if let Some(cached_psbt) = self
-            .signed_psbt_cache_service
-            .get(unsigned_psbt.unsigned_tx.txid())
-            .await?
-        {
-            return Ok(Arc::new(CachedSigningStrategy::new(cached_psbt)));
-        }
-
         let source_descriptor: DescriptorKeyset = full_account
             .spending_keysets
             .get(signing_keyset_id)
@@ -233,6 +232,8 @@ impl SigningStrategyFactory {
                 &self.exchange_rate_service,
                 &self.daily_spend_record_service,
                 &self.signed_psbt_cache_service,
+                &self.feature_flags_service,
+                context_key,
             )
             .await?
         } else {
@@ -244,6 +245,8 @@ impl SigningStrategyFactory {
                 source_descriptor,
                 signing_keyset_id,
                 &self.screener_service,
+                &self.feature_flags_service,
+                context_key,
             )?
         };
 
@@ -262,6 +265,8 @@ impl SigningStrategyFactory {
         exchange_rate_service: &ExchangeRateService,
         daily_spend_record_service: &DailySpendRecordService,
         signed_psbt_cache_service: &SignedPsbtCacheService,
+        feature_flags_service: &FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Result<Arc<TransferWithoutHardwareSigningStrategy>, SigningError> {
         let limit = full_account
             .spending_limit
@@ -288,6 +293,8 @@ impl SigningStrategyFactory {
             screener_service.clone(),
             signed_psbt_cache_service.clone(),
             daily_spend_record_service.clone(),
+            feature_flags_service.clone(),
+            context_key,
         )?))
     }
 
@@ -299,6 +306,8 @@ impl SigningStrategyFactory {
         source_descriptor: DescriptorKeyset,
         keyset_id: &KeysetId,
         screener_service: &Arc<ScreenerService>,
+        feature_flags_service: &FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Result<Arc<RecoverySweepSigningStrategy>, SigningError> {
         let active_descriptor: DescriptorKeyset = full_account
             .active_spending_keyset()
@@ -314,6 +323,8 @@ impl SigningStrategyFactory {
             keyset_id.to_owned(),
             rpc_uris,
             screener_service.clone(),
+            feature_flags_service.clone(),
+            context_key,
         )?))
     }
 }

@@ -37,7 +37,6 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class BitcoinWalletServiceImpl(
@@ -50,6 +49,7 @@ class BitcoinWalletServiceImpl(
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val exchangeRateService: ExchangeRateService,
   private val feeRateEstimator: BitcoinFeeRateEstimator,
+  private val bitcoinWalletSyncFrequency: BitcoinWalletSyncFrequency,
 ) : BitcoinWalletService, BitcoinWalletSyncWorker {
   private val spendingWallet = MutableStateFlow<SpendingWallet?>(null)
   private val transactionsData = MutableStateFlow<TransactionsData?>(null)
@@ -85,7 +85,7 @@ class BitcoinWalletServiceImpl(
             // Also, launch a period sync for the spending wallet (whenever one is available).
             periodicSyncJob = wallet?.launchPeriodicSync(
               scope = this,
-              interval = 10.seconds
+              interval = bitcoinWalletSyncFrequency.value
             )
 
             wallet.toTransactionsData()
@@ -94,12 +94,14 @@ class BitcoinWalletServiceImpl(
 
       launch {
         // Manually sync whenever the app is foregrounded to ensure we're as up to date as possible.
-        appSessionManager.appSessionState
-          .collect { appSessionState ->
-            if (appSessionState == AppSessionState.FOREGROUND) {
-              spendingWallet.value?.sync()
-            }
+        combine(
+          spendingWallet,
+          appSessionManager.appSessionState
+        ) { wallet, appSessionState ->
+          if (wallet != null && appSessionState == AppSessionState.FOREGROUND) {
+            wallet.sync()
           }
+        }.collectLatest {}
       }
     }
   }

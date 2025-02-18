@@ -11,8 +11,20 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "0.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-datetime-jvm-0.6.1.jar": "bc94b0fcb4464742f02cf54a3e8db9e7b141a1a052ca8ddaf662a60affa21530"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

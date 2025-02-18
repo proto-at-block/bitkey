@@ -1,15 +1,11 @@
 package bitkey.sample.ui.home
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import bitkey.sample.functional.Account
 import bitkey.sample.ui.settings.SettingsScreen
+import bitkey.ui.framework.NavigatorPresenter
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.ui.framework.NavigatorPresenter
 
 data class AccountHomeUiProps(
   val account: Account,
@@ -42,11 +38,11 @@ class AccountHomeUiStateMachineImpl(
         navigatorPresenter.model(
           SettingsScreen(
             account = props.account,
-            onExit = {
-              state = State.ViewingAccountHomeState
-            },
             onAccountDeleted = props.onAccountDeleted
-          )
+          ),
+          onExit = {
+            state = State.ViewingAccountHomeState
+          }
         )
       }
     }

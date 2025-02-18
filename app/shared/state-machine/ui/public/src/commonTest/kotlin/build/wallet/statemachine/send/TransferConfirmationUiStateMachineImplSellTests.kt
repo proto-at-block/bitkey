@@ -20,14 +20,18 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.partnerships.PartnerInfoFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Ok
@@ -143,20 +147,20 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
 
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       sellProps.copy(
         selectedPriority = transactionPriority
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(sellProps.sendAmount)
 
       // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
           IconImage.UrlImage(
             url = "test-partner-logo-url",
@@ -192,7 +196,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
               secondarySideText.shouldBe("541,556 sats")
             }
             items[1].apply {
-              title.shouldBe("Network Fees")
+              title.shouldBe("Network fees")
               onClick.shouldBeNull()
               onTitle.shouldNotBeNull()
               titleIcon.shouldNotBeNull()
@@ -207,7 +211,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachine.id
       ) {
         shouldShowLongRunningOperation.shouldBeTrue()
@@ -215,7 +219,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
       }
 
       // FinalizingAndBroadcastingTransaction
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 

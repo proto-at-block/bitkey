@@ -8,25 +8,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import bitkey.shared.ui_core_public.generated.resources.Res
-import bitkey.shared.ui_core_public.generated.resources.inter_medium
-import bitkey.shared.ui_core_public.generated.resources.inter_regular
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.model.Click
 import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
-import org.jetbrains.compose.resources.Font
+import build.wallet.ui.tokens.LabelType
 
 /**
  * A callout is a component that displays a title, leading icon (optional), subtitle, trailing icon (optional)
@@ -60,6 +55,8 @@ fun Callout(model: CalloutModel) {
       model.leadingIcon?.let { icon ->
         IconImage(
           modifier = Modifier
+            // Adjust the height to match the line height of the title in case of top alignment
+            .heightIn(min = 24.dp)
             .padding(end = 12.dp),
           model = IconModel(
             icon = icon,
@@ -69,21 +66,24 @@ fun Callout(model: CalloutModel) {
         )
       }
       Column(
-        modifier = Modifier
-          .weight(1f),
-        horizontalAlignment = Alignment.Start,
+        modifier = Modifier.weight(1f),
+        horizontalAlignment = when (model.treatment) {
+          CalloutModel.Treatment.DefaultCentered -> Alignment.CenterHorizontally
+          else -> Alignment.Start
+        },
         verticalArrangement = Arrangement.Center
       ) {
         model.title?.let { title ->
           Label(
             text = title,
-            style = TextStyle(
-              fontSize = 16.sp,
-              lineHeight = 24.sp,
-              fontFamily = FontFamily(Font(Res.font.inter_medium)),
-              fontWeight = FontWeight(500),
-              color = style.titleColor
-            )
+            style = WalletTheme.labelStyle(
+              type = LabelType.CalloutTitle,
+              treatment = LabelTreatment.Unspecified,
+              textColor = style.titleColor
+            ),
+            onClick = {
+              model.onTitleClick?.invoke()
+            }
           )
         }
 
@@ -91,14 +91,11 @@ fun Callout(model: CalloutModel) {
           Label(
             model = subtitle,
             modifier = Modifier
-              .padding(top = 4.dp)
               .alpha(0.6f),
-            style = TextStyle(
-              fontSize = 16.sp,
-              lineHeight = 24.sp,
-              fontFamily = FontFamily(Font(Res.font.inter_regular)),
-              fontWeight = FontWeight(400),
-              color = style.subtitleColor
+            style = WalletTheme.labelStyle(
+              type = LabelType.CalloutSubtitle,
+              treatment = LabelTreatment.Unspecified,
+              textColor = style.subtitleColor
             ),
             onTextLayout = { textLayoutResult ->
               val isSubtitleMultiline = textLayoutResult.lineCount > 1
@@ -145,7 +142,9 @@ fun CalloutButton(
       iconBackgroundType = IconBackgroundType.Square(
         size = IconSize.Large,
         color = when (treatment) {
-          CalloutModel.Treatment.Default -> IconBackgroundType.Square.Color.Default
+          CalloutModel.Treatment.Default,
+          CalloutModel.Treatment.DefaultCentered,
+          -> IconBackgroundType.Square.Color.Default
           CalloutModel.Treatment.Information -> IconBackgroundType.Square.Color.Information
           CalloutModel.Treatment.Success -> IconBackgroundType.Square.Color.Success
           CalloutModel.Treatment.Warning -> IconBackgroundType.Square.Color.Warning
@@ -177,7 +176,9 @@ data class CalloutStyle(
 @ReadOnlyComposable
 private fun CalloutModel.calloutStyle() =
   when (treatment) {
-    CalloutModel.Treatment.Default -> CalloutStyle(
+    CalloutModel.Treatment.Default,
+    CalloutModel.Treatment.DefaultCentered,
+    -> CalloutStyle(
       titleColor = WalletTheme.colors.calloutDefaultTitle,
       subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
       backgroundColor = WalletTheme.colors.calloutDefaultBackground,
@@ -213,7 +214,7 @@ private fun CalloutModel.calloutStyle() =
       titleColor = WalletTheme.colors.calloutDangerTitle,
       subtitleColor = WalletTheme.colors.calloutDangerSubtitle,
       backgroundColor = WalletTheme.colors.dangerBackground,
-      leadingIconColor = WalletTheme.colors.calloutDangerTitle,
+      leadingIconColor = WalletTheme.colors.danger,
       trailingIconColor = WalletTheme.colors.calloutDangerTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.danger
     )

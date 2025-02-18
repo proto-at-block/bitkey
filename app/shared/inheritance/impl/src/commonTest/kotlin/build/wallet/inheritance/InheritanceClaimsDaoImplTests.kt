@@ -9,8 +9,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class InheritanceClaimsDaoImplTests : FunSpec({
-  coroutineTestScope = true
-
   val sqlDriver = inMemorySqlDriver()
 
   lateinit var dao: InheritanceClaimsDaoImpl

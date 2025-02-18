@@ -36,7 +36,7 @@ fun PendingClaimCardPreview() {
               isPendingClaim = true,
               timeRemaining = 1.days,
               progress = Progress.Half,
-              onClick = null
+              onClick = { }
             ),
             style = CardModel.CardStyle.Plain
           )

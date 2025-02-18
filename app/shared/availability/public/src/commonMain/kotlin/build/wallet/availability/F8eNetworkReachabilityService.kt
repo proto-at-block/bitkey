@@ -13,8 +13,6 @@ interface F8eNetworkReachabilityService {
    * Performs a simple header request to the url of the given [F8eEnvironment]
    * to check if a connection can be formed to it.
    */
-  suspend fun checkConnection(f8eEnvironment: F8eEnvironment): Result<Unit, HttpError>
-
   suspend fun checkConnection(
     httpClient: HttpClient,
     f8eEnvironment: F8eEnvironment,

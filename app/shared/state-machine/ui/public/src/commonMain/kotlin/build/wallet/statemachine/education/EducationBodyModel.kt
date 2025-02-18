@@ -1,8 +1,11 @@
 package build.wallet.statemachine.education
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.education.EducationScreen
 import build.wallet.ui.model.button.ButtonModel
 
 /**
@@ -30,6 +33,11 @@ data class EducationBodyModel(
   override val onBack: () -> Unit,
 ) : BodyModel() {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    EducationScreen(modifier, model = this)
+  }
 }
 
 data class EducationItem(

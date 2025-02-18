@@ -4,41 +4,72 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class SensitiveDataValidatorTest : FunSpec({
-  test("should return true for log message containing sensitive data") {
-    // Assuming LogEntry is a class with a tag and message you're testing against
-    val sensitiveLogEntry = LogEntry(
-      tag = "SomeTag",
-      message =
-        "This contains a sensitive key material xprv012345678901234567890123456789" +
-          "012345678901234567890123456789012345678901234567890123456789" +
-          "01234567890123456789 sandwiched in a log statement"
-    )
-    SensitiveDataValidator.isSensitiveData(sensitiveLogEntry).shouldBe(true)
+  val bitcoinKeys = listOf(
+    "xprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789",
+    "tprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"
+  )
+  test("detect bitcoin private key in log message") {
+    bitcoinKeys.forEach {
+      SensitiveDataValidator.isSensitiveData(
+        LogEntry(
+          tag = "SomeTag",
+          message = "This contains a sensitive key material $it sandwiched in a log statement"
+        )
+      ).shouldBe(true)
+    }
   }
 
-  test("should return true for log tag containing sensitive data") {
-    // Assuming LogEntry is a class with a tag and message you're testing against
-    val sensitiveLogEntry = LogEntry(
-      tag = "Somexprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789Tag",
-      message =
-        "This is a benign log message"
-    )
-    SensitiveDataValidator.isSensitiveData(sensitiveLogEntry).shouldBe(true)
+  test("detect bitcoin private key in log tag") {
+    bitcoinKeys.forEach {
+      SensitiveDataValidator.isSensitiveData(
+        LogEntry(
+          tag = "Some${it}tag",
+          message = "This is a benign log message"
+        )
+      ).shouldBe(true)
+    }
   }
 
-  test("should return true for log tag and message containing sensitive data") {
-    // Assuming LogEntry is a class with a tag and message you're testing against
-    val sensitiveLogEntry = LogEntry(
-      tag = "Some xprv01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789 Tag",
-      message =
-        "This contains a sensitive key material xprv012345678901234567890123456789" +
-          "012345678901234567890123456789012345678901234567890123456789" +
-          "01234567890123456789 sandwiched in a log statement"
-    )
-    SensitiveDataValidator.isSensitiveData(sensitiveLogEntry).shouldBe(true)
+  test("detect bitcoin private key in log tag and message") {
+    bitcoinKeys.forEach {
+      SensitiveDataValidator.isSensitiveData(
+        LogEntry(
+          tag = "Some $it Tag",
+          message = "This contains a sensitive key material $it sandwiched in a log statement"
+        )
+      ).shouldBe(true)
+    }
   }
 
-  test("should return false for log entries not containing sensitive data") {
+  test("detect name PII") {
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "SomeTag", message = "Hello, Alice!")
+    ).shouldBe(true)
+
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "SomeTag", message = "Hello, boB!")
+    ).shouldBe(true)
+
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "ALICE", message = "Hello!")
+    ).shouldBe(true)
+  }
+
+  test("detect aliases") {
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "SomeTag", message = "Hello, Uncle!")
+    ).shouldBe(true)
+
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "SomeTag", message = "Hello, uncLE!")
+    ).shouldBe(true)
+
+    SensitiveDataValidator.isSensitiveData(
+      LogEntry(tag = "Uncle", message = "Hello!")
+    ).shouldBe(true)
+  }
+
+  test("no sensitive data detected") {
     val nonSensitiveLogEntry = LogEntry(tag = "RegularTag", message = "Just a regular log message")
     SensitiveDataValidator.isSensitiveData(nonSensitiveLogEntry).shouldBe(false)
   }

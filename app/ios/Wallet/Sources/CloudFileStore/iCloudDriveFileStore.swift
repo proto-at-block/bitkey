@@ -106,12 +106,12 @@ public final class iCloudDriveFileStore {
 
                     do {
                         let data = bytes.toData()
-                        try data.write(to: writingURL)
+                        try data.write(to: writingURL, options: .atomic)
 
                         continuation.resume(returning: CloudFileStoreResultOk(value: KotlinUnit()))
                     } catch {
                         log(.error, error: error) {
-                            "iCloud Drive: failed to write file=\(fileName)"
+                            "iCloud Drive [accessor block]: failed to write file=\(fileName)"
                         }
                         continuation.resume(throwing: error)
                     }
@@ -121,12 +121,16 @@ public final class iCloudDriveFileStore {
                 // completion handler above and may not populate the error; so we must check a
                 // separate 'sentinel value' here per the documentation (see <https://developer.apple.com/documentation/foundation/nsfilecoordinator/1407416-coordinate>).
                 if writingFailed {
-                    log(.error, error: error) { "iCloud Drive: failed to write file=\(fileName)" }
+                    log(.error, error: error) {
+                        "iCloud Drive [writing failed block]: failed to write file=\(fileName)"
+                    }
                     continuation.resume(throwing: iCloudDriveFileStoreError.writeFailed)
                 }
             }
         } catch {
-            log(.error, error: error) { "iCloud Drive: failed to write file=\(fileName)" }
+            log(.error, error: error) {
+                "iCloud Drive [error block]: failed to write file=\(fileName)"
+            }
             return error.toCloudFileStoreResultErr()
         }
     }

@@ -5,16 +5,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationChannel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.LargeIconNetworkError
-import build.wallet.statemachine.core.Icon.SmallIconCaretRight
-import build.wallet.statemachine.core.Icon.SmallIconEmail
-import build.wallet.statemachine.core.Icon.SmallIconMessage
-import build.wallet.statemachine.core.Icon.SmallIconPushNotification
-import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
@@ -26,12 +18,9 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Avatar
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint.On30
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
+import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -62,7 +51,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
   alertModel = alertModel
 )
 
-private data class RecoveryChannelsSettingsFormBodyModel(
+data class RecoveryChannelsSettingsFormBodyModel(
   val source: Source,
   val missingRecoveryMethods: List<NotificationChannel>,
   val pushItem: RecoveryChannelsSettingsFormItemModel,
@@ -79,15 +68,13 @@ private data class RecoveryChannelsSettingsFormBodyModel(
     },
     header =
       FormHeaderModel(
-        headline = if (source == Source.Onboarding) {
-          "Set up secure recovery communication channels"
-        } else {
-          "Recovery Methods"
+        headline = when (source) {
+          Source.Settings -> "Critical Alerts"
+          Source.Onboarding, Source.InheritanceStartClaim -> "Enable critical alerts"
         },
-        subline = if (source == Source.Onboarding) {
-          "We’ll only use these channels to notify you of wallet recovery attempts and privacy updates, nothing else."
-        } else {
-          "Recovery methods help you stay in control of your funds if you lose your Bitkey device, phone, or both. Learn more"
+        subline = when (source) {
+          Source.Settings -> "This is how we communicate critical recovery, inheritance, and privacy updates."
+          Source.Onboarding, Source.InheritanceStartClaim -> "You will only receive alerts about recovery attempts, inheritance, and privacy updates."
         }
       ),
     mainContentList =
@@ -97,7 +84,12 @@ private data class RecoveryChannelsSettingsFormBodyModel(
             style = ListGroupStyle.CARD_GROUP,
             items = immutableListOf(
               ListItemModel(
-                title = "Missing recovery ${
+                title = "Missing ${
+                  when (source) {
+                    Source.Onboarding, Source.Settings -> "recovery"
+                    Source.InheritanceStartClaim -> "alert"
+                  }
+                } ${
                   if (missingRecoveryMethods.size > 1) {
                     "methods"
                   } else {
@@ -127,7 +119,7 @@ private data class RecoveryChannelsSettingsFormBodyModel(
                     secondaryText = when (smsItem.enabled) {
                       EnabledState.Loading -> ""
                       EnabledState.Enabled -> smsItem.displayValue ?: "Recommended"
-                      EnabledState.Disabled -> smsItem.uiErrorHint?.displayString ?: "Disabled"
+                      EnabledState.Disabled -> smsItem.uiErrorHint?.displayString ?: "Recommended"
                     }
                   ),
                   createListItem(
@@ -137,7 +129,7 @@ private data class RecoveryChannelsSettingsFormBodyModel(
                     secondaryText = when (pushItem.enabled) {
                       EnabledState.Loading -> ""
                       EnabledState.Enabled -> "Enabled"
-                      EnabledState.Disabled -> "Disabled"
+                      EnabledState.Disabled -> "Recommended"
                     }
                   )
                 ),
@@ -150,13 +142,13 @@ private data class RecoveryChannelsSettingsFormBodyModel(
             items = immutableListOf(
               ListItemModel(
                 title = "We’re serious about security",
-                secondaryText = "Learn more about wallet recovery.",
+                secondaryText = "Learn more about critical alerts for recovery and inheritance.",
                 trailingAccessory = ListItemAccessory.drillIcon(),
                 onClick = learnOnClick
               )
             )
           )
-        )
+        ).takeIf { source != Source.InheritanceStartClaim }
       ),
     primaryButton = ButtonModel(
       text = "Continue",
@@ -165,7 +157,15 @@ private data class RecoveryChannelsSettingsFormBodyModel(
       onClick = StandardClick {
         continueOnClick?.invoke()
       }
-    ).takeIf { continueOnClick != null }
+    ).takeIf { continueOnClick != null },
+    secondaryButton = ButtonModel(
+      text = "Learn more",
+      treatment = ButtonModel.Treatment.Secondary,
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick {
+        learnOnClick()
+      }
+    ).takeIf { source == Source.InheritanceStartClaim }
   )
 
 private fun createListItem(
@@ -187,7 +187,12 @@ private fun createListItem(
     title = title,
     secondaryText = secondaryText,
     treatment = ListItemTreatment.PRIMARY,
-    trailingAccessory = IconAccessory(SmallIconCaretRight),
+    trailingAccessory = ListItemAccessory.SwitchAccessory(
+      model = SwitchModel(
+        checked = enabled == EnabledState.Enabled,
+        onCheckedChange = { onClick?.invoke() }
+      )
+    ),
     onClick = onClick
   )
 }
@@ -195,6 +200,7 @@ private fun createListItem(
 enum class Source {
   Onboarding,
   Settings,
+  InheritanceStartClaim,
 }
 
 private fun createSheetFormHeader(
@@ -247,16 +253,19 @@ private data class NetworkingErrorBodyModel(
   )
 
 fun PushToggleSheetModel(
+  source: Source,
   onCancel: () -> Unit,
   onToggle: () -> Unit,
   isEnabled: Boolean,
 ) = PushToggleFormBodyModel(
+  source = source,
   onCancel = onCancel,
   onToggle = onToggle,
   isEnabled = isEnabled
 ).asSheetModalScreen(onCancel)
 
 private data class PushToggleFormBodyModel(
+  val source: Source,
   val onCancel: () -> Unit,
   val onToggle: () -> Unit,
   val isEnabled: Boolean,
@@ -264,7 +273,7 @@ private data class PushToggleFormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_PUSH_TOGGLE_SHEET,
     header = createSheetFormHeader(
       icon = SmallIconPushNotification,
-      headline = "Edit push notifications recovery"
+      headline = "Edit push notifications ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}"
     ),
     onBack = onCancel,
     toolbar = null,
@@ -300,11 +309,13 @@ private data class PushToggleFormBodyModel(
   )
 
 fun SMSEditSheetModel(
+  source: Source,
   onCancel: () -> Unit,
   onEnableDisable: () -> Unit,
   onEditNumber: () -> Unit,
   enableNumber: String?,
 ) = SMSEditFormBodyModel(
+  source = source,
   onCancel = onCancel,
   onEnableDisable = onEnableDisable,
   onEditNumber = onEditNumber,
@@ -312,6 +323,7 @@ fun SMSEditSheetModel(
 ).asSheetModalScreen(onCancel)
 
 private data class SMSEditFormBodyModel(
+  val source: Source,
   val onCancel: () -> Unit,
   val onEnableDisable: () -> Unit,
   val onEditNumber: () -> Unit,
@@ -320,7 +332,7 @@ private data class SMSEditFormBodyModel(
     id = NotificationsEventTrackerScreenId.RECOVERY_CHANNELS_SETTINGS_SMS_EDIT_SHEET,
     header = createSheetFormHeader(
       icon = SmallIconMessage,
-      headline = "Edit SMS recovery",
+      headline = "Edit SMS ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}",
       subline = "You can use a different phone number or disable it entirely."
     ),
     onBack = onCancel,
@@ -333,14 +345,14 @@ private data class SMSEditFormBodyModel(
       ),
     secondaryButton = if (enableNumber == null) {
       ButtonModel(
-        text = "Disable SMS Recovery",
+        text = "Disable SMS ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"}",
         size = ButtonModel.Size.Footer,
         onClick = StandardClick(onEnableDisable),
         treatment = ButtonModel.Treatment.SecondaryDestructive
       )
     } else {
       ButtonModel(
-        text = "Enable SMS Recovery for $enableNumber",
+        text = "Enable SMS ${if (source == Source.InheritanceStartClaim) "alerts" else "recovery"} for $enableNumber",
         size = ButtonModel.Size.Footer,
         onClick = StandardClick(onEnableDisable),
         treatment = ButtonModel.Treatment.Secondary
@@ -356,14 +368,17 @@ private data class SMSEditFormBodyModel(
   )
 
 fun SMSNonUSSheetModel(
+  source: Source,
   onCancel: () -> Unit,
   onContinue: () -> Unit,
 ) = SMSNonUSBodyModel(
+  source = source,
   onCancel = onCancel,
   onContinue = onContinue
 ).asSheetModalScreen(onCancel)
 
 private data class SMSNonUSBodyModel(
+  val source: Source,
   val onCancel: () -> Unit,
   val onContinue: () -> Unit,
 ) : FormBodyModel(
@@ -371,7 +386,7 @@ private data class SMSNonUSBodyModel(
     header = createSheetFormHeader(
       icon = SmallIconMessage,
       headline = "SMS updates are not available with US numbers",
-      subline = "If you’d like to add SMS as a recovery method, you’ll need to use a non-US phone number."
+      subline = "If you’d like to add SMS as ${if (source == Source.InheritanceStartClaim) "an alert" else "a recovery"} method, you’ll need to use a non-US phone number."
     ),
     onBack = onCancel,
     toolbar = null,
@@ -401,6 +416,7 @@ private fun missingRecoveryModelDescription(
       "SMS".takeIf { missingRecoveryMethods.contains(NotificationChannel.Sms) },
       "push notifications".takeIf { missingRecoveryMethods.contains(NotificationChannel.Push) }
     )
-    "Enable ${missingMethodsNames.joinToString(separator = " and ")} for account recovery to secure your account."
+
+    "Enable ${missingMethodsNames.joinToString(separator = " and ")} for critical alerts."
   }
 }

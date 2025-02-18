@@ -4,6 +4,9 @@ import app.cash.turbine.test
 import build.wallet.account.AccountServiceFake
 import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.transactions.PsbtMock
+import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -14,16 +17,15 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.inheritance.CompleteInheritanceClaimF8eClientFake
-import build.wallet.f8e.inheritance.LockInheritanceClaimF8eClientFake
-import build.wallet.f8e.inheritance.StartInheritanceClaimF8eFake
-import build.wallet.f8e.inheritance.UploadInheritanceMaterialF8eClientFake
+import build.wallet.f8e.inheritance.*
 import build.wallet.f8e.relationships.Relationships
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.setFlagValue
+import build.wallet.isOk
 import build.wallet.relationships.OutgoingInvitationFake
 import build.wallet.relationships.RelationshipsServiceMock
+import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -32,12 +34,9 @@ import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
+import kotlinx.datetime.Instant
 
 class InheritanceServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
-
   val accountService = AccountServiceFake()
   val inheritanceSyncDao = InheritanceSyncDaoFake(
     updateCalls = turbines.create("update calls")
@@ -45,8 +44,11 @@ class InheritanceServiceImplTests : FunSpec({
   val inheritanceMaterialCreator = InheritanceCryptoFake(
     inheritanceMaterial = Ok(InheritanceMaterial(emptyList()))
   )
-  val inheritanceF8eClient = UploadInheritanceMaterialF8eClientFake(
+  val uploadClaimF8eClient = UploadInheritanceMaterialF8eClientFake(
     uploadCalls = turbines.create("upload calls")
+  )
+  val completeClaimF8eClient = CompleteInheritanceClaimF8eClientFake(
+    completeCalls = turbines.create("complete calls")
   )
   val fakeInheritanceMaterial = InheritanceMaterial(
     packages = listOf(
@@ -70,20 +72,28 @@ class InheritanceServiceImplTests : FunSpec({
   )
   val relationshipsService = RelationshipsServiceMock(turbines::create)
   val appCoroutineScope = TestScope()
-  val claimsRepository = InheritanceClaimsRepositoryMock()
+  val claimsRepository = InheritanceClaimsRepositoryMock(
+    updateSingleClaimCalls = turbines.create("update single claim")
+  )
   val inheritanceFeatureFlag = InheritanceFeatureFlag(FeatureFlagDaoFake())
+  val messageSigner = AppAuthKeyMessageSignerMock()
+  val lockClaimF8eClient = LockInheritanceClaimF8eClientFake(
+    calls = turbines.create("Lock Claim Calls")
+  )
+  val fakeWallet = SpendingWalletFake()
 
   val inheritanceService = InheritanceServiceImpl(
     accountService = accountService,
     relationshipsService = relationshipsService,
     inheritanceSyncDao = inheritanceSyncDao,
-    inheritanceMaterialF8eClient = inheritanceF8eClient,
+    inheritanceMaterialF8eClient = uploadClaimF8eClient,
     inheritanceCrypto = inheritanceMaterialCreator,
     startInheritanceClaimF8eClient = StartInheritanceClaimF8eFake(),
-    lockInheritanceClaimF8eClient = LockInheritanceClaimF8eClientFake(),
-    completeInheritanceClaimF8eClient = CompleteInheritanceClaimF8eClientFake(),
+    lockInheritanceClaimF8eClient = lockClaimF8eClient,
+    completeInheritanceClaimF8eClient = completeClaimF8eClient,
+    cancelInheritanceClaimF8eClient = CancelInheritanceClaimF8eClientFake(),
     transactionFactory = InheritanceTransactionFactoryMock(),
-    appAuthKeyMessageSigner = AppAuthKeyMessageSignerMock(),
+    appAuthKeyMessageSigner = messageSigner,
     inheritanceClaimsRepository = claimsRepository,
     clock = ClockFake()
   )
@@ -94,7 +104,7 @@ class InheritanceServiceImplTests : FunSpec({
     inheritanceSyncDao.updateHashResult = Ok(Unit)
     inheritanceMaterialCreator.inheritanceMaterial = Ok(fakeInheritanceMaterial)
     inheritanceMaterialCreator.inheritanceMaterialHash = Ok(newHash)
-    inheritanceF8eClient.uploadResponse = Ok(Unit)
+    uploadClaimF8eClient.uploadResponse = Ok(Unit)
 
     inheritanceFeatureFlag.setFlagValue(true)
   }
@@ -113,7 +123,7 @@ class InheritanceServiceImplTests : FunSpec({
   test("Sync Inheritance data when hash out-of-date") {
     inheritanceService.syncInheritanceMaterial(KeyboxMock).shouldBe(Ok(Unit))
 
-    inheritanceF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
+    uploadClaimF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
     inheritanceSyncDao.updateCalls.awaitItem().shouldBe(newHash.inheritanceMaterialHash)
   }
 
@@ -122,7 +132,7 @@ class InheritanceServiceImplTests : FunSpec({
 
     inheritanceService.syncInheritanceMaterial(KeyboxMock).shouldBe(Ok(Unit))
 
-    inheritanceF8eClient.uploadCalls.expectNoEvents()
+    uploadClaimF8eClient.uploadCalls.expectNoEvents()
     inheritanceSyncDao.updateCalls.expectNoEvents()
   }
 
@@ -131,20 +141,20 @@ class InheritanceServiceImplTests : FunSpec({
 
     inheritanceService.syncInheritanceMaterial(KeyboxMock).shouldBe(Ok(Unit))
 
-    inheritanceF8eClient.uploadCalls.expectNoEvents()
+    uploadClaimF8eClient.uploadCalls.expectNoEvents()
     inheritanceSyncDao.updateCalls.expectNoEvents()
   }
 
   test("Failed API Call does not update saved hash") {
     val error = Error("Test API Failure")
-    inheritanceF8eClient.uploadResponse = Err(error)
+    uploadClaimF8eClient.uploadResponse = Err(error)
 
     inheritanceService.syncInheritanceMaterial(KeyboxMock).should {
       it.isErr.shouldBeTrue()
       it.error.cause.shouldBe(error)
     }
 
-    inheritanceF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
+    uploadClaimF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
     inheritanceSyncDao.updateCalls.expectNoEvents()
   }
 
@@ -157,7 +167,7 @@ class InheritanceServiceImplTests : FunSpec({
       it.error.shouldBe(error)
     }
 
-    inheritanceF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
+    uploadClaimF8eClient.uploadCalls.awaitItem().shouldBe(fakeInheritanceMaterial)
     inheritanceSyncDao.updateCalls.awaitItem().shouldBe(newHash.inheritanceMaterialHash)
   }
 
@@ -167,7 +177,7 @@ class InheritanceServiceImplTests : FunSpec({
 
     inheritanceService.syncInheritanceMaterial(KeyboxMock).shouldBe(Ok(Unit))
 
-    inheritanceF8eClient.uploadCalls.expectNoEvents()
+    uploadClaimF8eClient.uploadCalls.expectNoEvents()
     inheritanceSyncDao.updateCalls.expectNoEvents()
   }
 
@@ -197,15 +207,177 @@ class InheritanceServiceImplTests : FunSpec({
     }
   }
 
-  test("claims flow") {
+  test("Load Approved claim after cancel") {
+    messageSigner.result = Ok("test")
+    val relationship = RelationshipId("test-load-claim-relationship")
+    val pendingClaimId = InheritanceClaimId("test-load-claim-id")
     val claims = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake),
+      beneficiaryClaims = listOf(
+        // Invalid Claim: Canceled
+        BeneficiaryCanceledClaimFake.copy(
+          relationshipId = relationship
+        ),
+        // Invalid Claim: Different Relationship
+        BeneficiaryLockedClaimFake,
+        // Expected Claim Result
+        BeneficiaryPendingClaimFake.copy(
+          claimId = pendingClaimId,
+          relationshipId = relationship,
+          delayEndTime = Instant.DISTANT_PAST
+        )
+      ),
       benefactorClaims = listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake)
     )
-    claimsRepository.claims.value = Ok(claims)
+    claimsRepository.fetchClaimsResult = Ok(claims)
+    lockClaimF8eClient.response = Ok(
+      BeneficiaryLockedClaimFake.copy(
+        claimId = pendingClaimId,
+        relationshipId = relationship
+      )
+    )
 
-    inheritanceService.claims.test {
-      awaitItem().shouldBe(listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake, BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake))
-    }
+    val result = inheritanceService.loadApprovedClaim(
+      relationshipId = relationship
+    )
+
+    lockClaimF8eClient.calls.awaitItem().shouldBe(pendingClaimId)
+    claimsRepository.updateSingleClaimCalls.awaitItem()
+      .claimId.shouldBe(pendingClaimId)
+    result.shouldBeOk()
+  }
+
+  test("Load Approved claim, no active claims") {
+    messageSigner.result = Ok("test")
+    val relationship = RelationshipId("test-load-claim-relationship")
+    val pendingClaimId = InheritanceClaimId("test-load-claim-id")
+    val claims = InheritanceClaims(
+      beneficiaryClaims = listOf(
+        // Invalid Claim: Canceled
+        BeneficiaryCanceledClaimFake.copy(
+          relationshipId = relationship
+        ),
+        // Invalid Claim: Different Relationship
+        BeneficiaryLockedClaimFake,
+        // Invalid Claim: Completed
+        BeneficiaryCompleteClaimFake.copy(
+          claimId = pendingClaimId,
+          relationshipId = relationship
+        )
+      ),
+      benefactorClaims = listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake)
+    )
+    claimsRepository.fetchClaimsResult = Ok(claims)
+
+    val result = inheritanceService.loadApprovedClaim(
+      relationshipId = relationship
+    )
+
+    result.isErr.shouldBeTrue()
+  }
+
+  // This scenario shouldn't ever happen, but let's still test it
+  test("Load Approved claim, multiple claims") {
+    messageSigner.result = Ok("test")
+    val relationship = RelationshipId("test-load-claim-relationship")
+    val pendingClaimId = InheritanceClaimId("test-load-claim-id")
+    val claims = InheritanceClaims(
+      beneficiaryClaims = listOf(
+        // Invalid Claim: Canceled
+        BeneficiaryCanceledClaimFake.copy(
+          relationshipId = relationship
+        ),
+        // Invalid Claim: Different Relationship
+        BeneficiaryLockedClaimFake,
+        // Expected Claim Result
+        BeneficiaryPendingClaimFake.copy(
+          claimId = pendingClaimId,
+          relationshipId = relationship,
+          delayEndTime = Instant.DISTANT_PAST
+        ),
+        // Unexpected second claim, ignored.
+        BeneficiaryPendingClaimFake.copy(
+          claimId = InheritanceClaimId("ignored-claim"),
+          relationshipId = relationship,
+          delayEndTime = Instant.DISTANT_PAST
+        )
+      ),
+      benefactorClaims = listOf(BenefactorPendingClaimFake, BenefactorLockedClaimFake)
+    )
+    claimsRepository.fetchClaimsResult = Ok(claims)
+    lockClaimF8eClient.response = Ok(
+      BeneficiaryLockedClaimFake.copy(
+        claimId = pendingClaimId,
+        relationshipId = relationship
+      )
+    )
+
+    val result = inheritanceService.loadApprovedClaim(
+      relationshipId = relationship
+    )
+
+    lockClaimF8eClient.calls.awaitItem().shouldBe(pendingClaimId)
+    claimsRepository.updateSingleClaimCalls.awaitItem()
+      .claimId.shouldBe(pendingClaimId)
+    result.shouldBeOk()
+  }
+
+  test("Complete Inheritance Claim") {
+    messageSigner.result = Ok("test")
+    val relationship = RelationshipId("test-load-claim-relationship")
+    val pendingClaimId = InheritanceClaimId("test-load-claim-id")
+    val details = InheritanceTransactionDetails(
+      claim = BeneficiaryLockedClaimFake.copy(
+        claimId = pendingClaimId,
+        relationshipId = relationship
+      ),
+      inheritanceWallet = fakeWallet,
+      recipientAddress = BitcoinAddress("test-recipient-address"),
+      psbt = PsbtMock
+    )
+    completeClaimF8eClient.response = Ok(
+      BeneficiaryCompleteClaimFake.copy(
+        claimId = pendingClaimId,
+        relationshipId = relationship
+      )
+    )
+
+    val result = inheritanceService.completeClaimTransfer(
+      relationshipId = relationship,
+      details = details
+    )
+
+    completeClaimF8eClient.completeCalls.awaitItem().shouldBe(pendingClaimId)
+    claimsRepository.updateSingleClaimCalls.awaitItem().claimId.shouldBe(pendingClaimId)
+    result.isOk()
+  }
+
+  test("Complete Empty Inheritance Claim") {
+    messageSigner.result = Ok("test")
+    val relationship = RelationshipId("test-load-claim-relationship")
+    val pendingClaimId = InheritanceClaimId("test-load-claim-id")
+
+    claimsRepository.fetchClaimsResult = InheritanceClaims(
+      beneficiaryClaims = listOf(
+        BeneficiaryLockedClaimFake.copy(
+          claimId = pendingClaimId,
+          relationshipId = relationship
+        )
+      ),
+      benefactorClaims = emptyList()
+    ).let { Ok(it) }
+    completeClaimF8eClient.response = Ok(
+      BeneficiaryCompleteClaimFake.copy(
+        claimId = pendingClaimId,
+        relationshipId = relationship
+      )
+    )
+
+    val result = inheritanceService.completeClaimWithoutTransfer(
+      relationshipId = relationship
+    )
+
+    completeClaimF8eClient.completeCalls.awaitItem().shouldBe(pendingClaimId)
+    claimsRepository.updateSingleClaimCalls.awaitItem().claimId.shouldBe(pendingClaimId)
+    result.isOk()
   }
 })

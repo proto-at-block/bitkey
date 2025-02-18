@@ -238,4 +238,8 @@ public final class SecureEnclaveImpl: Shared.SecureEnclave {
             publicKey: SePublicKey(bytes: publicKeyBytes.asKotlinByteArray)
         )
     }
+
+    public func isFake() -> Bool {
+        return false
+    }
 }

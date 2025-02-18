@@ -58,7 +58,7 @@ class AppFunctionalityServiceImpl(
       .mapResult { status ->
         when (status) {
           is AccountStatus.ActiveAccount -> status.account
-          is AccountStatus.LiteAccountUpgradingToFullAccount -> status.account
+          is AccountStatus.LiteAccountUpgradingToFullAccount -> status.onboardingAccount
           is AccountStatus.OnboardingAccount -> status.account
           else -> null
         }

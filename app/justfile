@@ -231,10 +231,6 @@ swiftformat:
 dxdd:
   rm -rfI "/Users/$USER/Library/Developer/Xcode/DerivedData"
 
-# Generate Android and iOS design tokens
-update-design-tokens:
-  cd style && npm run build 
-
 # Generates .db schema for databases
 generate-db-schema:
   {{gradle}} generateCommonMainBitkeyDatabaseSchema generateCommonMainBitkeyDebugDatabaseSchema
@@ -303,12 +299,6 @@ verify-ios-lockfile: resolve-ios-packages fast-verify-ios-lockfile
 
 verify-android-apk path-to-bitkey-repository-directory path-to-build-directory app-package-name:
   verifiable-build/android/verification/verify-android-apk {{path-to-bitkey-repository-directory}} {{path-to-build-directory}} {{app-package-name}}
-
-generate-state-machine-graph machine_name='' excludes='' output_file='':
-  gradle :shared:state-machine-ui-public:generateStateMachineDiagram -PmachineName={{machine_name}} -PexcludingMachineNames={{excludes}} -PoutputFile={{output_file}}
-
-generate-entire-state-machine-graph output_file='':
-  gradle :shared:state-machine-ui-public:generateStateMachineDiagram -PoutputFile={{output_file}} -PoverridePermanentExcludes=true
 
 # Run all verification tasks required for a PR to be merged
 pr-ready:

@@ -2,8 +2,11 @@ package build.wallet.statemachine.home.full.card.pendingclaim
 
 import build.wallet.Progress
 import build.wallet.bitkey.inheritance.*
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.inheritance.InheritanceCardServiceFake
+import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.*
 import build.wallet.statemachine.moneyhome.card.inheritance.*
@@ -14,6 +17,7 @@ import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.time.someInstant
+import build.wallet.ui.model.StandardClick
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.Matcher
 import io.kotest.matchers.MatcherResult
@@ -30,35 +34,44 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   val dateTimeFormatter = DateTimeFormatterMock()
   val timeZoneProvider = TimeZoneProviderMock()
   val inheritanceCardService = InheritanceCardServiceFake()
+  val inheritanceService = InheritanceServiceMock(
+    syncCalls = turbines.create("Sync Calls")
+  )
 
   val stateMachine = InheritanceCardUiStateMachineImpl(
     inheritanceCardService = inheritanceCardService,
+    inheritanceService = inheritanceService,
     clock = clock,
     dateTimeFormatter = dateTimeFormatter,
     timeZoneProvider = timeZoneProvider
   )
-  val props = InheritanceCardUiProps(null)
+  val props = InheritanceCardUiProps(
+    completeClaim = {},
+    denyClaim = {},
+    moveFundsCallToAction = {}
+  )
 
   beforeTest {
     clock.reset()
     inheritanceCardService.reset()
+    inheritanceService.reset()
   }
 
   test("displays single beneficiary pending claim card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
               title = "Inheritance claim pending",
-              subtitle = "Funds available ${dateTimeFormatter.shortDate(
+              subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
-              )}",
+              )}.",
               isPendingClaim = true,
               timeRemaining = 180.days,
               progress = Progress.Zero,
@@ -79,18 +92,18 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
               title = "Inheritance claim pending",
-              subtitle = "Funds available ${dateTimeFormatter.shortDate(
+              subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
-              )}",
+              )}.",
               isPendingClaim = true,
               timeRemaining = 180.days,
               progress = Progress.Zero,
@@ -98,11 +111,11 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
             ),
             BeneficiaryPendingClaimCardModel(
               title = "Inheritance claim pending",
-              subtitle = "Funds available ${dateTimeFormatter.shortDate(
+              subtitle = "Funds available ${dateTimeFormatter.shortDateWithYear(
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
-              )}",
+              )}.",
               isPendingClaim = true,
               timeRemaining = 360.days,
               progress = Progress.Zero,
@@ -117,14 +130,14 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays locked beneficiary claim card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryLockedClaimFake)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().shouldBe(
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
-              title = "Claim complete",
-              subtitle = "Transfer funds now",
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
               isPendingClaim = false,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
@@ -144,22 +157,22 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
           listOf(
             BeneficiaryPendingClaimCardModel(
-              title = "Claim complete",
-              subtitle = "Transfer funds now",
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
               isPendingClaim = false,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
               onClick = null
             ),
             BeneficiaryPendingClaimCardModel(
-              title = "Claim complete",
-              subtitle = "Transfer funds now",
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
               isPendingClaim = false,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
@@ -174,7 +187,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays both beneficiary locked and beneficiary pending claim cards") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -185,15 +198,15 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
                 someInstant.toLocalDateTime(
                   TimeZone.currentSystemDefault()
                 )
-              )}",
+              )}.",
               isPendingClaim = true,
               timeRemaining = 180.days,
               progress = Progress.Zero,
               onClick = null
             ),
             BeneficiaryPendingClaimCardModel(
-              title = "Claim complete",
-              subtitle = "Transfer funds now",
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
               isPendingClaim = false,
               timeRemaining = Duration.ZERO,
               progress = Progress.Full,
@@ -208,7 +221,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays benefactor pending claim warning") {
     inheritanceCardService.cardsToDisplay.value = listOf(BenefactorPendingClaimFake)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -224,16 +237,60 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("displays benefactor locked/complete claim warning") {
+  test("after delay period beneficiary sees complete card") {
+    inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake.copy(delayEndTime = someInstant.minus(1.days)))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(emptyList())
+      awaitItem().should(
+        equalIgnoringOnClick(
+          listOf(
+            BeneficiaryPendingClaimCardModel(
+              title = "Claim approved",
+              subtitle = "Transfer funds now.",
+              isPendingClaim = false,
+              timeRemaining = Duration.ZERO,
+              progress = Progress.Full,
+              onClick = null
+            )
+          )
+        )
+      )
+    }
+  }
+
+  test("after delay period benefactor sees transfer funds card") {
+    inheritanceCardService.cardsToDisplay.value = listOf(BenefactorPendingClaimFake.copy(delayEndTime = someInstant.minus(1.days)))
+
+    stateMachine.test(props) {
+      awaitItem().shouldBe(emptyList())
+      awaitItem().should(
+        equalIgnoringOnClick(
+          listOf(
+            BenefactorLockedCompleteClaimCardModel(
+              title = "Inheritance approved",
+              subtitle = "To retain control of your funds, transfer them to a new wallet.",
+              onClick = StandardClick {}
+            )
+          )
+        )
+      )
+    }
+  }
+
+  test("after complete, benefactor sees updated transfer funds card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BenefactorCompleteClaim)
 
     stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
-      awaitItem().shouldBe(
-        listOf(
-          BenefactorLockedCompleteClaimCardModel(
-            title = "Inheritance approved",
-            subtitle = "To retain control of your funds, transfer them to a new wallet."
+      awaitItem().should(
+        equalIgnoringOnClick(
+          listOf(
+            BenefactorLockedCompleteClaimCardModel(
+              title = "Inheritance approved",
+              subtitle = "To retain control of any remaining funds, transfer them to a new wallet.",
+              onClick = StandardClick {}
+            )
           )
         )
       )
@@ -248,7 +305,7 @@ fun equalIgnoringOnClick(expected: List<CardModel>) =
         val content = (it.content as? CardContent.PendingClaim)?.copy(onClick = null)
         val model = (it.style as? CardStyle.Callout)?.model?.copy(onClick = null)
         if (model != null) {
-          it.copy(style = (it.style as? CardStyle.Callout)?.copy(model = model)!!, onClick = null, content = content)
+          it.copy(style = it.style.copy(model = model), onClick = null, content = content)
         } else {
           it.copy(onClick = null, content = content)
         }
@@ -257,7 +314,7 @@ fun equalIgnoringOnClick(expected: List<CardModel>) =
         val content = (it.content as? CardContent.PendingClaim)?.copy(onClick = null)
         val model = (it.style as? CardStyle.Callout)?.model?.copy(onClick = null)
         if (model != null) {
-          it.copy(style = (it.style as? CardStyle.Callout)?.copy(model = model)!!, onClick = null, content = content)
+          it.copy(style = it.style.copy(model = model), onClick = null, content = content)
         } else {
           it.copy(onClick = null, content = content)
         }

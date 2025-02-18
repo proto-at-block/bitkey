@@ -210,6 +210,7 @@ private fun Modifier.background(
                 Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
                 Circle.CircleColor.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground.copy(alpha = .25f)
                 Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
+                Circle.CircleColor.Dark -> WalletTheme.colors.coachmarkBackground
               },
             shape = CircleShape
           )

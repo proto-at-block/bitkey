@@ -46,5 +46,19 @@ if [ "$provided_aab_hash" == "$built_aab_hash" ]; then
   echo "The builds are identical!"
 else
   echo "The builds are NOT identical!"
+
+  echo "Creating debug directories..."
+  mkdir -p debug/provided debug/built debug/diffoscope-output
+  
+  unzip -q "$1" -d debug/provided
+  unzip -q "$aab_path" -d debug/built
+
+  echo "$(pwd)"
+
+  diffoscope --text debug/diffoscope-output/differences.txt \
+    --html debug/diffoscope-output/differences.html \
+    --html-dir debug/diffoscope-output/detailed-html \
+    debug/provided debug/built || true
+
   exit 5;
 fi

@@ -16,7 +16,7 @@ pub enum ScheduleNotificationType {
     TestPushNotification,
     RecoveryPendingDelayNotify(OffsetDateTime),
     PrivilegedActionPendingDelayNotify(OffsetDateTime),
-    InheritanceClaimPeriodInitiated(OffsetDateTime, RecoveryRelationshipRole),
+    InheritanceClaimPeriodInitiated(OffsetDateTime, RecoveryRelationshipRole, bool),
     RecoveryRelationshipBenefactorInvitationPending,
 }
 
@@ -130,6 +130,7 @@ impl ScheduleNotificationType {
             ScheduleNotificationType::InheritanceClaimPeriodInitiated(
                 delay_end_time,
                 recipient_role,
+                has_shortened_delay,
             ) => {
                 vec![
                     (
@@ -153,14 +154,19 @@ impl ScheduleNotificationType {
                     ),
                     (
                         // Sends once at delay end
-                        NotificationPayloadType::InheritanceClaimPeriodCompleted,
-                        *delay_end_time,
+                        NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
+                        *delay_end_time
+                            - (if *has_shortened_delay {
+                                Duration::minutes(5)
+                            } else {
+                                Duration::days(3)
+                            }),
                         None,
                     ),
                     (
                         // Sends once at delay end
-                        NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
-                        *delay_end_time - Duration::days(3),
+                        NotificationPayloadType::InheritanceClaimPeriodCompleted,
+                        *delay_end_time,
                         None,
                     ),
                 ]

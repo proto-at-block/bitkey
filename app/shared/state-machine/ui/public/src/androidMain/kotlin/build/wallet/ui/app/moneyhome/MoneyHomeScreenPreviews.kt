@@ -165,9 +165,11 @@ fun MoneyHomeScreenLite() {
             )
           ),
           badgedSettingsIcon = false,
+          inheritanceIsEnabled = true,
           onProtectedCustomerClick = {},
           onBuyOwnBitkeyClick = {},
-          onAcceptInviteClick = {}
+          onAcceptInviteClick = {},
+          onIHaveABitkeyClick = {}
         )
     )
   }
@@ -184,9 +186,11 @@ fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
           buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
           protectedCustomers = immutableListOf(),
           badgedSettingsIcon = true,
+          inheritanceIsEnabled = true,
           onProtectedCustomerClick = {},
           onBuyOwnBitkeyClick = {},
-          onAcceptInviteClick = {}
+          onAcceptInviteClick = {},
+          onIHaveABitkeyClick = {}
         )
     )
   }

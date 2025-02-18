@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-tasks",
     "components": [
         {
-            "version": "18.0.2",
+            "version": "18.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-tasks-18.0.2.aar": "03465cf53680da23d3d4a3995c0329b7f73b211d38791ecb36e591febb896664"
+                        "play-services-tasks-18.2.0.aar": "7f2aaa8f502068eaf54356ca92aec04271d6e7c416c52c45c0d23440fcbd1654"
                     }
                 }
             ],

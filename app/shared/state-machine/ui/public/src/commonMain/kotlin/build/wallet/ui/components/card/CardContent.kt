@@ -72,6 +72,10 @@ fun CardContent(
             }
 
             model.subtitle?.let {
+              if (model.style is CardModel.CardStyle.Outline) {
+                Spacer(modifier = Modifier.height(8.dp))
+              }
+
               Label(
                 text = it,
                 style =
@@ -104,6 +108,16 @@ fun CardContent(
             PendingClaimContent(model = content)
           }
           null -> {}
+        }
+
+        // CTA buttons
+        model.primaryButton?.let {
+          Spacer(modifier = Modifier.height(16.dp))
+          Button(model = it)
+        }
+        model.secondaryButton?.let {
+          Spacer(modifier = Modifier.height(16.dp))
+          Button(model = it)
         }
       }
     }

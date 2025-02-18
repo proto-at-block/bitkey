@@ -101,13 +101,13 @@ fn telemetry_id() -> Result<TelemetryIdentifiers, CommandError> {
         hw_revision,
     }) = message
     {
-        match TelemetryIdGetRspStatus::from_i32(rsp_status) {
-            Some(TelemetryIdGetRspStatus::Unspecified) => {
+        match TelemetryIdGetRspStatus::try_from(rsp_status) {
+            Ok(TelemetryIdGetRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Some(TelemetryIdGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            Some(TelemetryIdGetRspStatus::Success) => (),
-            _ => return Err(CommandError::InvalidResponse),
+            Ok(TelemetryIdGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(TelemetryIdGetRspStatus::Success) => (),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         let version = match version {
@@ -153,15 +153,15 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
         bio_match_stats,
     }) = message
     {
-        match DeviceInfoRspStatus::from_i32(rsp_status) {
-            Some(DeviceInfoRspStatus::Unspecified) => {
+        match DeviceInfoRspStatus::try_from(rsp_status) {
+            Ok(DeviceInfoRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Some(DeviceInfoRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            Some(DeviceInfoRspStatus::MetadataError) => return Err(CommandError::MetadataError),
-            Some(DeviceInfoRspStatus::BatteryError) => return Err(CommandError::BatteryError),
-            Some(DeviceInfoRspStatus::SerialError) => return Err(CommandError::SerialError),
-            Some(DeviceInfoRspStatus::Success) => (),
+            Ok(DeviceInfoRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(DeviceInfoRspStatus::MetadataError) => return Err(CommandError::MetadataError),
+            Ok(DeviceInfoRspStatus::BatteryError) => return Err(CommandError::BatteryError),
+            Ok(DeviceInfoRspStatus::SerialError) => return Err(CommandError::SerialError),
+            Ok(DeviceInfoRspStatus::Success) => (),
             _ => return Err(CommandError::InvalidResponse),
         };
 
@@ -172,21 +172,23 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
             _ => return Err(CommandError::InvalidResponse),
         };
 
-        let slot = match fwpb::FirmwareSlot::from_i32(active_slot) {
-            Some(s) => match s {
+        let slot = match fwpb::FirmwareSlot::try_from(active_slot) {
+            Ok(s) => match s {
                 fwpb::FirmwareSlot::SlotA => FirmwareSlot::A,
                 fwpb::FirmwareSlot::SlotB => FirmwareSlot::B,
                 _ => return Err(CommandError::MetadataError),
             },
-            _ => return Err(CommandError::MetadataError),
+            Err(_) => return Err(CommandError::MetadataError),
         };
 
-        let secure_boot_config =
-            fwpb::SecureBootConfig::from_i32(secure_boot_config).and_then(|s| match s {
+        let secure_boot_config = match fwpb::SecureBootConfig::try_from(secure_boot_config) {
+            Ok(s) => match s {
                 fwpb::SecureBootConfig::Unspecified => None,
                 fwpb::SecureBootConfig::Dev => Some(SecureBootConfig::Dev),
                 fwpb::SecureBootConfig::Prod => Some(SecureBootConfig::Prod),
-            });
+            },
+            Err(_) => None,
+        };
 
         let battery_percent = (battery_charge / 1000) as f32;
 

@@ -1,5 +1,7 @@
 package build.wallet.statemachine.recovery.inprogress.waiting
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
@@ -7,6 +9,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
+import build.wallet.ui.app.recovery.AppDelayNotifyInProgressScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
@@ -80,4 +83,9 @@ data class AppDelayNotifyInProgressBodyModel(
       ),
     onExit = onExit
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    AppDelayNotifyInProgressScreen(modifier, model = this)
+  }
 }

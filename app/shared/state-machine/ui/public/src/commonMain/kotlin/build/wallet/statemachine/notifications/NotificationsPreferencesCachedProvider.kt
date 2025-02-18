@@ -28,7 +28,7 @@ interface NotificationsPreferencesCachedProvider {
    * To be clear, the *only* time an error is emitted is if there's no local cache data and the server
    * call fails.
    */
-  suspend fun getNotificationsPreferences(
+  fun getNotificationsPreferences(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Flow<Result<NotificationPreferences, NetworkingError>>

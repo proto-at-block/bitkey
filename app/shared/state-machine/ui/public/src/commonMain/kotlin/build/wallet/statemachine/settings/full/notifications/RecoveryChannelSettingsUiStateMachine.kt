@@ -13,4 +13,6 @@ interface RecoveryChannelSettingsUiStateMachine : StateMachine<RecoveryChannelSe
 data class RecoveryChannelSettingsProps(
   val account: Account,
   val onBack: () -> Unit,
+  val source: Source = Source.Settings,
+  val onContinue: (() -> Unit)? = null,
 )

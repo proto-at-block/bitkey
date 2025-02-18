@@ -15,6 +15,10 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withAppAuthKey
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
@@ -40,15 +44,14 @@ class CreateAccountKeysetF8eClientImpl(
     appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<F8eSpendingKeyset, NetworkingError> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment = f8eEnvironment,
-      accountId = fullAccountId,
-      appFactorProofOfPossessionAuthKey = appAuthKey,
-      hwFactorProofOfPossession = hardwareProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/keysets") {
           withDescription("Create new spending keyset from f8e")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          appAuthKey?.run(::withAppAuthKey)
+          hardwareProofOfPossession?.run(::withHardwareFactor)
           setRedactedBody(
             RequestBody(
               Spending(

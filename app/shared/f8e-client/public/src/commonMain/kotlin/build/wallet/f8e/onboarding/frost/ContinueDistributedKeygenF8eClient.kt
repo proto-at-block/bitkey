@@ -19,5 +19,6 @@ interface ContinueDistributedKeygenF8eClient {
     appAuthKey: PublicKey<AppGlobalAuthKey>,
     softwareKeyDefinitionId: SoftwareKeyDefinitionId,
     sealedRequest: SealedRequest,
+    noiseSessionId: String,
   ): Result<Unit, NetworkingError>
 }

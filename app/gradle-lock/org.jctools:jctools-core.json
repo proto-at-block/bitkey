@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jctools:jctools-core",
+    "components": [
+        {
+            "version": "3.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jctools-core-3.3.0.jar": "0734fd31bc91b49f1ad4ade5b82604340aa10ddde3024b76a0e869ca0b48cdb7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -8,6 +8,7 @@ extension TouchpointPlatform {
         case AppVariant.beta: return .apns
         case AppVariant.development: return .apnsteam
         case AppVariant.team: return .apnsteam
+        case AppVariant.alpha: return .apnsteamalpha
         default:
             fatalError("Unhandled app variant -> touchpoint mapping")
         }

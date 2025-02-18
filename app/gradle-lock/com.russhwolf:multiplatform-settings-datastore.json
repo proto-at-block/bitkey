@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-datastore",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-datastore-metadata-1.1.1.jar": "d7037087273d2f78f8c8568d08dea5169b48b9749f76766f782a933fd0229ec1"
+                        "multiplatform-settings-datastore-metadata-1.2.0.jar": "3d4b5b1fee84f2e9578110bcef0be8c5c1f8f4414197b81068af6c4547d31eb4"
                     }
                 }
             ],

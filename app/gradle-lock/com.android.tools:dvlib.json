@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:dvlib",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "dvlib-31.3.2.jar": "0cb57c126ed95657ae1e0974af092b401a52b76d5683f7ccbe1f8f21af06794e"
+                        "dvlib-31.4.2.jar": "bf962bea906e1dc8a3273b8129999eaea3bb16fcb2b9deea1450dc6fb2ef9073"
                     }
                 }
             ],

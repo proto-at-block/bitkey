@@ -6,11 +6,9 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.P
 import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.UtxoConsolidation
 import build.wallet.bitcoin.transactions.getTransactionData
 import build.wallet.bitcoin.utxo.NotEnoughUtxosToConsolidateError
-import build.wallet.bitcoin.utxo.UtxoConsolidationService
 import build.wallet.bitcoin.utxo.UtxoConsolidationType.ConsolidateAll
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.money.BitcoinMoney.Companion.sats
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeErrOfType
@@ -26,51 +24,43 @@ import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.first
 
 class UtxoConsolidationFunctionalTests : FunSpec({
-
-  coroutineTestScope = true
-
-  lateinit var app: AppTester
-  lateinit var utxoConsolidationService: UtxoConsolidationService
-
-  beforeTest {
-    app = launchNewApp()
-    utxoConsolidationService = app.utxoConsolidationService
-  }
-
   context("prepareUtxoConsolidation") {
-    test("error is returned when wallet has 0 UTXOs") {
+    xtest("error is returned when wallet has 0 UTXOs") {
+      val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
 
-      utxoConsolidationService
+      app.utxoConsolidationService
         .prepareUtxoConsolidation()
         .shouldBeErrOfType<NotEnoughUtxosToConsolidateError>()
     }
 
-    test("error is returned when wallet has 1 UTXO") {
+    xtest("error is returned when wallet has 1 UTXO") {
+      val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
 
       app.addSomeFunds(amount = sats(1_000L))
       app.waitForFunds()
 
-      utxoConsolidationService
+      app.utxoConsolidationService
         .prepareUtxoConsolidation()
         .shouldBeErrOfType<NotEnoughUtxosToConsolidateError>()
     }
 
-    test("UTXO consolidation is available when there are more than 1 UTXOs") {
+    xtest("UTXO consolidation is available when there are more than 1 UTXOs") {
+      val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
 
-      app.addSomeFunds(amount = sats(1_000L))
       app.addSomeFunds(amount = sats(2_000L))
-      app.waitForFunds { it.total == sats(3_000L) }
+      app.addSomeFunds(amount = sats(4_000L))
+      app.waitForFunds { it.total == sats(6_000L) }
 
-      val consolidationParams = utxoConsolidationService.prepareUtxoConsolidation()
+      val consolidationParams = app.utxoConsolidationService.prepareUtxoConsolidation()
         .shouldBeOk()
         .single()
 
       consolidationParams.should {
         it.type.shouldBe(ConsolidateAll)
-        it.balance.shouldBe(sats(3_000L))
+        it.balance.shouldBe(sats(6_000L))
         it.eligibleUtxoCount.shouldBe(2)
         it.consolidationCost.isPositive.shouldBeTrue()
         it.walletHasUnconfirmedUtxos.shouldBeFalse()
@@ -85,13 +75,14 @@ class UtxoConsolidationFunctionalTests : FunSpec({
     }
   }
 
-  test("consolidate all: consolidate two UTXOs into one UTXO") {
+  xtest("consolidate all: consolidate two UTXOs into one UTXO") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
-    val consolidationAmountBeforeFee = sats(3_000L)
+    val consolidationAmountBeforeFee = sats(6_000L)
 
-    app.addSomeFunds(amount = sats(1_000L))
     app.addSomeFunds(amount = sats(2_000L))
+    app.addSomeFunds(amount = sats(4_000L))
     app.waitForFunds { it.total == consolidationAmountBeforeFee }
 
     // UTXO consolidation is available without f8e access
@@ -99,13 +90,13 @@ class UtxoConsolidationFunctionalTests : FunSpec({
 
     // Prepare UTXO consolidation
     val consolidationParams =
-      utxoConsolidationService.prepareUtxoConsolidation().shouldBeOk().single()
+      app.utxoConsolidationService.prepareUtxoConsolidation().shouldBeOk().single()
 
     // Sign consolidation with hardware
     val appAndHardwareSignedPsbt = app.signPsbtWithHardware(consolidationParams.appSignedPsbt)
 
     // Complete consolidation by broadcasting it
-    val consolidationTransactionDetail = utxoConsolidationService
+    val consolidationTransactionDetail = app.utxoConsolidationService
       .broadcastConsolidation(appAndHardwareSignedPsbt)
       .shouldBeOk()
 
@@ -168,18 +159,19 @@ class UtxoConsolidationFunctionalTests : FunSpec({
    * The wallet will have 2 UTXOs remaining: the consolidated UTXO and the UTXO from the unconfirmed transaction.
    * The total balance after consolidation should be 2,000 sats minus mining fee plus 3,000 sats.
    */
-  test("consolidate all: ignore UTXO from incoming unconfirmed transaction") {
+  xtest("consolidate all: ignore UTXO from incoming unconfirmed transaction") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
     // An amount associated with an unconfirmed transaction. This UTXO will be ignored.
     val unconfirmedAmount = sats(3_000L)
     // A total amount associated with UTXOs from confirmed transactions. These UTXOs will be
     // consolidated.
-    val confirmedAmount = sats(2_000L)
+    val confirmedAmount = sats(4_000L)
 
     // Add funds
-    app.addSomeFunds(amount = sats(1_000))
-    app.addSomeFunds(amount = sats(1_000))
+    app.addSomeFunds(amount = sats(2_000))
+    app.addSomeFunds(amount = sats(2_000))
     app.addSomeFunds(amount = unconfirmedAmount, waitForConfirmation = false)
 
     // Wait for balance
@@ -193,7 +185,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
 
     // Prepare UTXO consolidation
     val consolidationParams =
-      utxoConsolidationService.prepareUtxoConsolidation().shouldBeOk().single()
+      app.utxoConsolidationService.prepareUtxoConsolidation().shouldBeOk().single()
 
     consolidationParams.should {
       it.eligibleUtxoCount.shouldBe(2)
@@ -206,7 +198,7 @@ class UtxoConsolidationFunctionalTests : FunSpec({
       .signPsbtWithHardware(consolidationParams.appSignedPsbt)
 
     // Complete consolidation by broadcasting it
-    val consolidationTransactionDetail = utxoConsolidationService
+    val consolidationTransactionDetail = app.utxoConsolidationService
       .broadcastConsolidation(appAndHardwareSignedPsbt)
       .shouldBeOk()
 

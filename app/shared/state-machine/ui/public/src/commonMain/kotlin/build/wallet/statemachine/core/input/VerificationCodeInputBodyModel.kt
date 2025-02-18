@@ -50,7 +50,7 @@ fun VerificationCodeInputBodyModel(
   bottomSheetModel = errorOverlay
 )
 
-internal data class VerificationCodeInputFormBodyModel(
+data class VerificationCodeInputFormBodyModel(
   val title: String,
   val subtitle: String,
   val value: String,
@@ -75,7 +75,7 @@ internal data class VerificationCodeInputFormBodyModel(
                 placeholderText = "Verification code",
                 onValueChange = { newValue, _ -> onValueChange(newValue) },
                 keyboardType = Number,
-                masksText = false
+                transformation = null
               ),
             resendCodeContent = resendCodeContent,
             skipForNowContent = skipForNowContent

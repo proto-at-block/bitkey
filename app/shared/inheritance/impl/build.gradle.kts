@@ -37,6 +37,7 @@ kotlin {
         implementation(projects.shared.relationshipsImpl)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.keyValueStoreFake)
+        implementation(projects.shared.onboardingImpl)
       }
     }
   }

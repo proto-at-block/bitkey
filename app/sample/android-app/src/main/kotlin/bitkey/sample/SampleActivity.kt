@@ -16,7 +16,11 @@ class SampleActivity : ComponentActivity() {
 
     setContent {
       val screenModel = sampleAppComponent.sampleAppUiStateMachine.model(props = Unit)
-      App(model = screenModel, uiModelMap = SampleAppUiModelMap)
+      App(
+        model = screenModel,
+        deviceInfo = sampleAppComponent.deviceInfoProvider.getDeviceInfo(),
+        accelerometer = null
+      )
     }
   }
 }

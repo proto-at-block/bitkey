@@ -7,4 +7,4 @@ import dev.zacsweers.redacted.annotations.Redacted
 data class MoneyAmountModel(
   val primaryAmount: String,
   val secondaryAmount: String,
-) : Model()
+) : Model

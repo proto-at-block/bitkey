@@ -71,7 +71,7 @@ class EnableNotificationsUiStateMachineImpl(
   }
 }
 
-private data class EnableNotificationsBodyModel(
+data class EnableNotificationsBodyModel(
   val subline: String,
   val onClick: () -> Unit,
   val leadingToolbarAccessory: ToolbarAccessoryModel,

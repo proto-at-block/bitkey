@@ -1,7 +1,7 @@
 package build.wallet.ui.app.wallet.card
 
+import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.ui.app.moneyhome.card.*
 import build.wallet.ui.app.moneyhome.card.PreviewCloudBackupHealthCard
 import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardBuyOwnBitkey
 import build.wallet.ui.app.moneyhome.card.PreviewMoneyHomeCardDeviceUpdate
@@ -26,6 +26,30 @@ class MoneyHomeCardSnapshots : FunSpec({
   test("Money Home Card Price Card Loaded") {
     paparazzi.snapshot {
       PreviewMoneyHomePriceCard(isLoading = false)
+    }
+  }
+
+  test("Money Home Card Price Card Large Font") {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_6.copy(fontScale = 1.5f)) {
+      PreviewMoneyHomePriceCard(isLoading = false)
+    }
+  }
+
+  test("Money Home Card Price Card Large Font Loading") {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_6.copy(fontScale = 1.5f)) {
+      PreviewMoneyHomePriceCard(isLoading = true)
+    }
+  }
+
+  test("Money Home Card Price Card Huge Font") {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_6.copy(fontScale = 2f)) {
+      PreviewMoneyHomePriceCard(isLoading = false)
+    }
+  }
+
+  test("Money Home Card Price Card Huge Font Loading") {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_6.copy(fontScale = 2f)) {
+      PreviewMoneyHomePriceCard(isLoading = true)
     }
   }
 

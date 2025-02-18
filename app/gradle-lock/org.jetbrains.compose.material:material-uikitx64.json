@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.material:material-uikitx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "material-uikitx64-1.7.1-metadata.jar": "d228b0d369e7d6568b6457c3442173ba6e0b71b75c1f8f89b66e0a93434f3d50"
+                        "material-uikitx64-1.7.3-metadata.jar": "d228b0d369e7d6568b6457c3442173ba6e0b71b75c1f8f89b66e0a93434f3d50"
                     }
                 },
                 {
                     "artifacts": {
-                        "material.klib": "7659aa380a0d140254d11587a61dacdb9cf103a74266638e22fe744fa76cadc4"
+                        "material.klib": "ec0fb08ddfae2f5042acba50f582794d10787a870f8d025eca5844039d917241"
                     }
                 }
             ],

@@ -1,9 +1,11 @@
 package build.wallet.statemachine.cloud.health
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.backup.health.CloudBackupHealthDashboardScreen
 
-// TODO(BKR-805): implement UI as per design specs
 data class CloudBackupHealthDashboardBodyModel(
   override val onBack: () -> Unit,
   val mobileKeyBackupStatusCard: CloudBackupHealthStatusCardModel,
@@ -11,4 +13,9 @@ data class CloudBackupHealthDashboardBodyModel(
 ) : BodyModel() {
   // TODO(BKR-868): implement analytics
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    CloudBackupHealthDashboardScreen(modifier, model = this)
+  }
 }

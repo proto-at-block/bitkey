@@ -7,10 +7,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class NetworkReachabilityProviderMock(
+  key: String,
   turbine: (String) -> Turbine<Any>,
 ) : NetworkReachabilityProvider {
   val updateNetworkReachabilityForConnectionCalls =
-    turbine("updateNetworkReachabilityForConnection calls")
+    turbine("$key updateNetworkReachabilityForConnection calls")
 
   private val internetReachability = MutableStateFlow(NetworkReachability.REACHABLE)
   private val f8eReachability = MutableStateFlow(NetworkReachability.UNREACHABLE)
@@ -29,21 +30,7 @@ class NetworkReachabilityProviderMock(
   }
 
   override suspend fun updateNetworkReachabilityForConnection(
-    httpClient: HttpClient,
-    reachability: NetworkReachability,
-    connection: NetworkConnection,
-  ) {
-    when (connection) {
-      is NetworkConnection.HttpClientNetworkConnection.F8e -> f8eReachability.value = reachability
-      else -> {} // no-op
-    }
-    updateNetworkReachabilityForConnectionCalls.add(
-      UpdateNetworkReachabilityForConnectionParams(reachability, connection)
-    )
-  }
-
-  @Suppress("OVERRIDE_DEPRECATION")
-  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient?,
     reachability: NetworkReachability,
     connection: NetworkConnection,
   ) {

@@ -82,8 +82,7 @@ class CreateKeyboxUiStateMachineImpl(
               hwActivation = currentState.hwActivation
             )
             .onSuccess {
-              // noop - Full account is created and onboarding state is updated.
-              //          Data state machine takes care of the rest.
+              props.onAccountCreated(it)
             }
             .onFailure {
               state = when (it) {

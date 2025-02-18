@@ -101,8 +101,11 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
   context("Upgrading Lite Account") {
     val fullAccount = FullAccountMock
-    accountService.accountState.value =
-      Ok(AccountStatus.LiteAccountUpgradingToFullAccount(fullAccount))
+    val status = AccountStatus.LiteAccountUpgradingToFullAccount(
+      liteAccount = LiteAccountMock,
+      onboardingAccount = FullAccountMock
+    )
+    accountService.accountState.value = Ok(status)
     recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
       Err(NoRecoveryInProgress)
 

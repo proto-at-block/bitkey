@@ -1,8 +1,5 @@
 use crate::Network;
-use instrumentation::metrics::{
-    factory::{Histogram, MetricsFactory, ObservableGauge},
-    Unit,
-};
+use instrumentation::metrics::factory::{Histogram, MetricsFactory, ObservableGauge};
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -37,4 +34,4 @@ pub static BLOCKCHAIN_POLLER_IN_SYNC: Lazy<ObservableGauge<u64>> =
 
 // Measures the spread of how long it takes to ping the current Electrum servers.
 pub static ELECTRUM_PING_RESPONSE_TIME: Lazy<Histogram<u64>> =
-    Lazy::new(|| FACTORY.u64_histogram("electrum_time_to_ping", Some(Unit::new("ms"))));
+    Lazy::new(|| FACTORY.u64_histogram("electrum_time_to_ping", Some("ms")));

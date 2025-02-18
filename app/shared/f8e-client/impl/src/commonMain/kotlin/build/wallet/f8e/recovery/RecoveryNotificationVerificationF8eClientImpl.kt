@@ -6,6 +6,9 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -32,15 +35,14 @@ class RecoveryNotificationVerificationF8eClientImpl(
     touchpoint: NotificationTouchpoint,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment,
-      fullAccountId,
-      hwFactorProofOfPossession = hardwareProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify/send-verification-code") {
           withDescription("Send verification code during recovery")
           setRedactedBody(SendVerificationCodeRequest(touchpoint.touchpointId))
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          hardwareProofOfPossession?.run(::withHardwareFactor)
         }
       }.map { Unit }
   }
@@ -51,15 +53,14 @@ class RecoveryNotificationVerificationF8eClientImpl(
     verificationCode: String,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, F8eError<VerifyTouchpointClientErrorCode>> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment,
-      fullAccountId,
-      hwFactorProofOfPossession = hardwareProofOfPossession
-    )
+    return f8eHttpClient.authenticated()
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify/verify-code") {
           withDescription("Verify notification touchpoint during recovery")
           setRedactedBody(VerifyTouchpointRequest(verificationCode))
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          hardwareProofOfPossession?.run(::withHardwareFactor)
         }
       }
       .map { Unit }

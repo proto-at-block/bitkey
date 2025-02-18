@@ -4,9 +4,7 @@ pub use opentelemetry::metrics::{
     Counter, Histogram, ObservableCounter, ObservableGauge, UpDownCounter,
 };
 
-use crate::{
-    metrics::error::MetricsError, metrics::KeyValue, metrics::Unit, middleware::RouterName,
-};
+use crate::{metrics::error::MetricsError, metrics::KeyValue, middleware::RouterName};
 
 pub trait ObservableCallbackRegistry<T> {
     fn register_callback(
@@ -31,11 +29,11 @@ impl MetricsFactory {
         }
     }
 
-    pub fn u64_counter(&self, name: impl std::fmt::Display, unit: Option<Unit>) -> Counter<u64> {
+    pub fn u64_counter(&self, name: impl std::fmt::Display, unit: Option<&str>) -> Counter<u64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let counter = self.meter.u64_counter(fqn);
         if let Some(unit) = unit {
-            return counter.with_unit(unit).init();
+            return counter.with_unit(unit.to_owned()).init();
         }
         counter.init()
     }
@@ -43,12 +41,12 @@ impl MetricsFactory {
     pub fn u64_observable_counter(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> ObservableCounter<u64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let counter = self.meter.u64_observable_counter(fqn);
         if let Some(unit) = unit {
-            return counter.with_unit(unit).init();
+            return counter.with_unit(unit.to_owned()).init();
         }
         counter.init()
     }
@@ -56,12 +54,12 @@ impl MetricsFactory {
     pub fn i64_up_down_counter(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> UpDownCounter<i64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let counter = self.meter.i64_up_down_counter(fqn);
         if let Some(unit) = unit {
-            return counter.with_unit(unit).init();
+            return counter.with_unit(unit.to_owned()).init();
         }
         counter.init()
     }
@@ -69,12 +67,12 @@ impl MetricsFactory {
     pub fn f64_histogram(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> Histogram<f64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let histogram = self.meter.f64_histogram(fqn);
         if let Some(unit) = unit {
-            return histogram.with_unit(unit).init();
+            return histogram.with_unit(unit.to_owned()).init();
         }
         histogram.init()
     }
@@ -82,12 +80,12 @@ impl MetricsFactory {
     pub fn u64_histogram(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> Histogram<u64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let histogram = self.meter.u64_histogram(fqn);
         if let Some(unit) = unit {
-            return histogram.with_unit(unit).init();
+            return histogram.with_unit(unit.to_owned()).init();
         }
         histogram.init()
     }
@@ -95,12 +93,12 @@ impl MetricsFactory {
     pub fn u64_observable_gauge(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> ObservableGauge<u64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let gauge = self.meter.u64_observable_gauge(fqn);
         if let Some(unit) = unit {
-            return gauge.with_unit(unit).init();
+            return gauge.with_unit(unit.to_owned()).init();
         }
         gauge.init()
     }
@@ -108,12 +106,12 @@ impl MetricsFactory {
     pub fn f64_observable_gauge(
         &self,
         name: impl std::fmt::Display,
-        unit: Option<Unit>,
+        unit: Option<&str>,
     ) -> ObservableGauge<f64> {
         let fqn = format!("{}.{}", self.namespace, name);
         let gauge = self.meter.f64_observable_gauge(fqn);
         if let Some(unit) = unit {
-            return gauge.with_unit(unit).init();
+            return gauge.with_unit(unit.to_owned()).init();
         }
         gauge.init()
     }

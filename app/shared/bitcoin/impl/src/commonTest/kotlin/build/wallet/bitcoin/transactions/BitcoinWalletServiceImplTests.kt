@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
+@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
 
 package build.wallet.bitcoin.transactions
 
@@ -15,6 +15,10 @@ import build.wallet.bitcoin.wallet.shouldBeZero
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock2
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitNoEvents
+import build.wallet.coroutines.turbine.awaitUntil
+import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.money.BitcoinMoney
@@ -34,20 +38,20 @@ import build.wallet.time.ClockFake
 import build.wallet.time.someInstant
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 class BitcoinWalletServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
 
   val account = FullAccountMock
   val wallet = SpendingWalletMock(turbines::create, account.keybox.activeSpendingKeyset.localId)
@@ -65,6 +69,7 @@ class BitcoinWalletServiceImplTests : FunSpec({
   val appSessionManager = AppSessionManagerFake()
   val currencyConverter = CurrencyConverterFake()
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(wallet)
+  val syncFrequency = 100.milliseconds
 
   lateinit var service: BitcoinWalletServiceImpl
 
@@ -78,7 +83,8 @@ class BitcoinWalletServiceImplTests : FunSpec({
       exchangeRateService = exchangeRateService,
       outgoingTransactionDetailDao = outgoingTransactionDetailDao,
       bitcoinBlockchain = bitcoinBlockchain,
-      feeRateEstimator = BitcoinFeeRateEstimatorMock()
+      feeRateEstimator = BitcoinFeeRateEstimatorMock(),
+      bitcoinWalletSyncFrequency = BitcoinWalletSyncFrequency(syncFrequency)
     )
     clock.reset()
     wallet.reset()
@@ -90,23 +96,21 @@ class BitcoinWalletServiceImplTests : FunSpec({
     bitcoinBlockchain.reset()
     appSpendingWalletProvider.spendingWallet = wallet
 
+    accountService.reset()
     accountService.accountState.value = Ok(ActiveAccount(account))
   }
 
   test("transactions data updates appropriately") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.transactionsData().test {
       wallet.initializeCalls.awaitItem()
       wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
 
-      // Initial value
-      awaitItem().shouldBeNull()
-
-      // Loaded
-      with(awaitItem().shouldNotBeNull()) {
+      awaitUntilNotNull().apply {
         balance.shouldBeZero()
         transactions.shouldBeEmpty()
         fiatBalance.shouldNotBeNull().shouldBeZero()
@@ -153,15 +157,16 @@ class BitcoinWalletServiceImplTests : FunSpec({
     // Fake a missing exchange rate
     currencyConverter.conversionRate = null
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.transactionsData().test {
       wallet.initializeCalls.awaitItem()
       wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
 
-      awaitItem().shouldBeNull()
+      awaitUntil { it != null }
 
       wallet.balanceFlow.value = BitcoinBalanceFake
       with(awaitItem().shouldNotBeNull()) {
@@ -182,17 +187,16 @@ class BitcoinWalletServiceImplTests : FunSpec({
   }
 
   test("sync transactions") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.transactionsData().test {
       wallet.initializeCalls.awaitItem()
       wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
 
-      awaitItem().shouldBeNull()
-
-      with(awaitItem().shouldNotBeNull()) {
+      awaitUntilNotNull().apply {
         balance.shouldBeZero()
         transactions.shouldBeEmpty()
       }
@@ -204,12 +208,13 @@ class BitcoinWalletServiceImplTests : FunSpec({
   }
 
   test("initialize wallet and launch periodic sync") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     wallet.initializeCalls.awaitItem()
     wallet.launchPeriodicSyncCalls.awaitItem()
+    wallet.syncCalls.awaitItem()
 
     // Changing the account should retrigger syncs
     appSpendingWalletProvider.spendingWallet = newWallet
@@ -217,10 +222,12 @@ class BitcoinWalletServiceImplTests : FunSpec({
 
     newWallet.initializeCalls.awaitItem().shouldBe(Unit)
     newWallet.launchPeriodicSyncCalls.awaitItem()
+    newWallet.syncCalls.awaitItem()
   }
 
   test("foregrounding the app should cause an immediate sync") {
     appSessionManager.appSessionState.value = AppSessionState.BACKGROUND
+    val backgroundScope = createBackgroundScope()
     backgroundScope.launch {
       service.executeWork()
     }
@@ -237,37 +244,59 @@ class BitcoinWalletServiceImplTests : FunSpec({
   }
 
   test("wallet is updated when keyset changes") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
+    wallet.initializeCalls.awaitItem()
+    wallet.launchPeriodicSyncCalls.awaitItem()
+    wallet.syncCalls.awaitItem()
 
     service.spendingWallet().test {
-      awaitItem().shouldBeNull() // initial value
-
-      wallet.initializeCalls.awaitItem()
-      wallet.launchPeriodicSyncCalls.awaitItem()
-      awaitItem().shouldBe(wallet)
-
-      // Change some account data but keep the spending keys
-      val differentAccountSameKeys = newAccount.copy(accountId = FullAccountId("new-account-id"))
-      accountService.accountState.value = Ok(ActiveAccount(differentAccountSameKeys))
-      expectNoEvents()
+      awaitUntil(wallet)
 
       appSpendingWalletProvider.spendingWallet = newWallet
       accountService.accountState.value = Ok(ActiveAccount(newAccount))
 
+      awaitItem().shouldBe(newWallet)
       newWallet.initializeCalls.awaitItem()
       newWallet.launchPeriodicSyncCalls.awaitItem()
-      awaitItem().shouldBe(newWallet)
+      newWallet.syncCalls.awaitItem()
+    }
+  }
+
+  test("wallet is not updated when keyset do not change") {
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
+
+    service.spendingWallet().test {
+      awaitUntil(wallet)
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
+      wallet.syncCalls.awaitItem()
+
+      // Change some account data but keep the spending keys
+      val differentAccountSameKeys = newAccount.copy(accountId = FullAccountId("new-account-id"))
+      accountService.accountState.value = Ok(ActiveAccount(differentAccountSameKeys))
+      delay(syncFrequency)
+      awaitNoEvents()
+
+      wallet.initializeCalls.awaitItem()
+      wallet.launchPeriodicSyncCalls.awaitItem()
     }
   }
 
   test("broadcast transaction") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
+    wallet.initializeCalls.awaitItem()
+    wallet.launchPeriodicSyncCalls.awaitItem()
+    wallet.syncCalls.awaitItem()
 
     service.broadcast(PsbtMock, estimatedTransactionPriority = FASTEST).shouldBeOk()
+
+    wallet.syncCalls.awaitItem()
 
     bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(PsbtMock)
     outgoingTransactionDetailDao.insertCalls.awaitItem()
@@ -278,33 +307,30 @@ class BitcoinWalletServiceImplTests : FunSpec({
   }
 
   test("load transactions data") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
-    }
-
-    service.transactionsData().test {
-      awaitItem().shouldBeNull() // Initial loading
-      awaitItem().shouldNotBeNull()
     }
 
     wallet.initializeCalls.awaitItem()
     wallet.launchPeriodicSyncCalls.awaitItem()
+    wallet.syncCalls.awaitItem()
+
+    service.transactionsData().test {
+      awaitUntil { it != null }
+    }
   }
 
   test("building psbts for all transaction priorities") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.transactionsData().test {
       wallet.initializeCalls.awaitItem()
       wallet.launchPeriodicSyncCalls.awaitItem()
-
-      // Initial value
-      awaitItem().shouldBe(null)
-
-      // loaded data
-      awaitItem().shouldNotBeNull()
+      wallet.syncCalls.awaitItem()
+      // loaded otNull()
+      awaitUntil { it != null }
 
       val sendAmount = BitcoinTransactionSendAmount.ExactAmount(
         money = BitcoinMoney.sats(1_000_000)
@@ -318,7 +344,7 @@ class BitcoinWalletServiceImplTests : FunSpec({
   }
 
   test("building psbts for all transaction priorities errors if psbts not created") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
@@ -327,12 +353,9 @@ class BitcoinWalletServiceImplTests : FunSpec({
     service.transactionsData().test {
       wallet.initializeCalls.awaitItem()
       wallet.launchPeriodicSyncCalls.awaitItem()
-
-      // Initial value
-      awaitItem().shouldBe(null)
-
+      wallet.syncCalls.awaitItem()
       // loaded data
-      awaitItem().shouldNotBeNull()
+      awaitUntil { it != null }
 
       val sendAmount = BitcoinTransactionSendAmount.ExactAmount(
         money = BitcoinMoney.sats(1_000_000)

@@ -10,9 +10,9 @@ import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInModel
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInProps
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
+import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -45,7 +45,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   test("google sign in - success") {
     googleSignInStateMachine.emitModel(GoogleSignInModel.SuccessfullySignedIn(cloudAccount))
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       googleSignInStateMachine.props.forceSignOut.shouldBeFalse()
       awaitBody<LoadingSuccessBodyModel>()
 
@@ -56,7 +56,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   test("google sign in - force sign out first") {
     googleSignInStateMachine.emitModel(GoogleSignInModel.SuccessfullySignedIn(cloudAccount))
 
-    stateMachine.test(props.copy(forceSignOut = true)) {
+    stateMachine.testWithVirtualTime(props.copy(forceSignOut = true)) {
       googleSignInStateMachine.props.forceSignOut.shouldBeTrue()
       awaitBody<LoadingSuccessBodyModel>()
 
@@ -67,7 +67,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   test("google sign in - in progress") {
     googleSignInStateMachine.emitModel(SigningIn)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<LoadingSuccessBodyModel>()
     }
   }
@@ -75,7 +75,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   test("google sign in - failure") {
     googleSignInStateMachine.emitModel(GoogleSignInModel.SignInFailure(Error("oops")))
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<LoadingSuccessBodyModel>()
     }
 
@@ -85,7 +85,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   test("google sign in - cannot exit from loading") {
     googleSignInStateMachine.emitModel(SigningIn)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<LoadingSuccessBodyModel> {
         onBack.shouldBeNull()
       }

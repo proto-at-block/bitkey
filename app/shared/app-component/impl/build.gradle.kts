@@ -60,6 +60,8 @@ kotlin {
         api(projects.shared.priceChartImpl)
         api(projects.shared.inheritanceImpl)
         api(projects.shared.relationshipsImpl)
+        api(projects.shared.secureEnclaveImpl)
+        api(projects.shared.uiCoreImpl)
       }
     }
 
@@ -75,6 +77,7 @@ kotlin {
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.moneyFake)
         implementation(projects.shared.platformFake)
+        implementation(projects.shared.secureEnclaveFake)
       }
     }
   }

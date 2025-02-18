@@ -17,11 +17,12 @@ import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.recovery.RecoverySyncFrequency
 import build.wallet.recovery.RecoverySyncFrequencyComponent
 import build.wallet.relationships.RelationshipsCryptoFake
-import build.wallet.time.ControlledDelayer
-import build.wallet.time.Delayer
-import build.wallet.time.DelayerComponent
+import build.wallet.secureenclave.SecureEnclave
+import build.wallet.secureenclave.SecureEnclaveFake
+import build.wallet.statemachine.root.UiDelaysComponent
+import kotlinx.coroutines.CoroutineScope
 import me.tatarka.inject.annotations.Provides
-import software.amazon.lastmile.kotlin.inject.anvil.*
+import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -31,25 +32,28 @@ import kotlin.time.Duration.Companion.seconds
 @Suppress("TooManyFunctions")
 @MergeComponent(
   scope = AppScope::class,
+  // Components and interfaces that we replace for testing purposes.
+  // These interfaces are substituted below using `@Provides`.
   exclude = [
-    // Components and interfaces that we replace for testing purposes.
-    // These interfaces are substituted below using `@Provides`.
     BdkBlockchainFactoryImpl::class,
+    CoroutinesComponent::class,
     CloudKeyValueStoreImpl::class,
-    DelayerComponent::class,
     ExchangeRateF8eClientImpl::class,
-    RecoverySyncFrequencyComponent::class
+    RecoverySyncFrequencyComponent::class,
+    UiDelaysComponent::class
   ]
 )
 @SingleIn(AppScope::class)
 abstract class JvmAppComponentImpl(
+  @get:Provides override val appCoroutineScope: CoroutineScope,
   @get:Provides val appDir: String?,
   @get:Provides val bdkBlockchainFactory: BdkBlockchainFactory,
   @get:Provides override val writableCloudStoreAccountRepository:
     WritableCloudStoreAccountRepository,
   @get:Provides override val cloudKeyValueStore: CloudKeyValueStore,
   @get:Provides override val cloudFileStore: CloudFileStore,
-) : JvmAppComponent, JvmActivityComponent.Factory {
+) : JvmAppComponent,
+  JvmActivityComponent.Factory {
   @Provides
   @SingleIn(AppScope::class) // RelationshipsCryptoFake has state.
   fun provideRelationshipsCryptoFake(
@@ -81,9 +85,6 @@ abstract class JvmAppComponentImpl(
   @Provides
   fun provideHardwareAttestation(): HardwareAttestation = HardwareAttestationFake()
 
-  @Provides
-  fun provideDelayer(): Delayer = ControlledDelayer()
-
   // we pass a fake exchange rate service to avoid calls to 3rd party exchange rate services during tests
   @Provides
   @SingleIn(AppScope::class) // ExchangeRateF8eClientFake is stateful.
@@ -97,4 +98,7 @@ abstract class JvmAppComponentImpl(
 
   @Provides
   fun provideNfcSessionProvider(): NfcSessionProvider = NfcSessionFake.Companion
+
+  @Provides
+  fun provideSecureEnclave(): SecureEnclave = SecureEnclaveFake()
 }

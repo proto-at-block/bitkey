@@ -1,6 +1,6 @@
 package build.wallet.statemachine.account.create.lite
 
-import build.wallet.bitkey.account.LiteAccount
+import build.wallet.bitkey.account.Account
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -17,5 +17,5 @@ data class CreateLiteAccountUiProps(
   val onBack: () -> Unit,
   val showBeTrustedContactIntroduction: Boolean,
   val inviteCode: String?,
-  val onAccountCreated: (LiteAccount) -> Unit,
+  val onAccountCreated: (Account) -> Unit,
 )

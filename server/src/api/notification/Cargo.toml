@@ -7,7 +7,7 @@ version = "0.1.0"
 [dependencies]
 async-trait = { workspace = true }
 axum = { workspace = true }
-axum-extra = { version = "0.9.2", features = ["typed-header"] }
+axum-extra = { workspace = true }
 axum-macros = { workspace = true }
 base64 = { workspace = true }
 bimap = "0.6.3"

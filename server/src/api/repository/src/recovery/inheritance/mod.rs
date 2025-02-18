@@ -20,10 +20,16 @@ pub mod fetch;
 pub mod persist;
 
 pub(super) const PARTITION_KEY: &str = "partition_key";
+pub(super) const IDX_SORT_KEY: &str = "created_at";
 
 pub(super) const RECOVERY_RELATIONSHIP_ID_IDX: &str = "by_recovery_relationship_id";
 pub(super) const RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY: &str = "recovery_relationship_id";
-const RECOVERY_RELATIONSHIP_ID_IDX_SORT_KEY: &str = "created_at";
+
+pub(super) const BENEFACTOR_ACCOUNT_ID_IDX: &str = "by_benefactor_account_id_to_created_at";
+pub(super) const BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY: &str = "benefactor_account_id";
+
+pub(super) const BENEFICIARY_ACCOUNT_ID_IDX: &str = "by_beneficiary_account_id_to_created_at";
+pub(super) const BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY: &str = "beneficiary_account_id";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "_InheritanceRow_type")]
@@ -85,6 +91,11 @@ impl Repository for InheritanceRepository {
             .key_type(KeyType::Hash)
             .build()?;
 
+        let idx_sk = AttributeDefinition::builder()
+            .attribute_name(IDX_SORT_KEY)
+            .attribute_type(ScalarAttributeType::S)
+            .build()?;
+
         let recovery_relationship_id_idx_pk = AttributeDefinition::builder()
             .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY)
             .attribute_type(ScalarAttributeType::S)
@@ -93,12 +104,34 @@ impl Repository for InheritanceRepository {
             .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY)
             .key_type(KeyType::Hash)
             .build()?;
-        let recovery_relationship_id_idx_sk = AttributeDefinition::builder()
-            .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_SORT_KEY)
+        let recovery_relationship_id_idx_sk_ks = KeySchemaElement::builder()
+            .attribute_name(IDX_SORT_KEY)
+            .key_type(KeyType::Range)
+            .build()?;
+
+        let benefactor_account_id_idx_pk = AttributeDefinition::builder()
+            .attribute_name(BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY)
             .attribute_type(ScalarAttributeType::S)
             .build()?;
-        let recovery_relationship_id_idx_sk_ks = KeySchemaElement::builder()
-            .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_SORT_KEY)
+        let benefactor_account_id_idx_pk_ks = KeySchemaElement::builder()
+            .attribute_name(BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY)
+            .key_type(KeyType::Hash)
+            .build()?;
+        let benefactor_account_id_idx_sk_ks = KeySchemaElement::builder()
+            .attribute_name(IDX_SORT_KEY)
+            .key_type(KeyType::Range)
+            .build()?;
+
+        let beneficiary_account_id_idx_pk = AttributeDefinition::builder()
+            .attribute_name(BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY)
+            .attribute_type(ScalarAttributeType::S)
+            .build()?;
+        let beneficiary_account_id_idx_pk_ks = KeySchemaElement::builder()
+            .attribute_name(BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY)
+            .key_type(KeyType::Hash)
+            .build()?;
+        let beneficiary_account_id_idx_sk_ks = KeySchemaElement::builder()
+            .attribute_name(IDX_SORT_KEY)
             .key_type(KeyType::Range)
             .build()?;
 
@@ -108,8 +141,10 @@ impl Repository for InheritanceRepository {
             .table_name(table_name)
             .key_schema(partition_ks)
             .attribute_definitions(pk)
+            .attribute_definitions(idx_sk)
             .attribute_definitions(recovery_relationship_id_idx_pk)
-            .attribute_definitions(recovery_relationship_id_idx_sk)
+            .attribute_definitions(benefactor_account_id_idx_pk)
+            .attribute_definitions(beneficiary_account_id_idx_pk)
             .billing_mode(BillingMode::PayPerRequest)
             .global_secondary_indexes(
                 GlobalSecondaryIndex::builder()
@@ -117,6 +152,22 @@ impl Repository for InheritanceRepository {
                     .projection(Projection::builder().projection_type(All).build())
                     .key_schema(recovery_relationship_id_idx_pk_ks)
                     .key_schema(recovery_relationship_id_idx_sk_ks)
+                    .build()?,
+            )
+            .global_secondary_indexes(
+                GlobalSecondaryIndex::builder()
+                    .index_name(BENEFACTOR_ACCOUNT_ID_IDX)
+                    .projection(Projection::builder().projection_type(All).build())
+                    .key_schema(benefactor_account_id_idx_pk_ks)
+                    .key_schema(benefactor_account_id_idx_sk_ks)
+                    .build()?,
+            )
+            .global_secondary_indexes(
+                GlobalSecondaryIndex::builder()
+                    .index_name(BENEFICIARY_ACCOUNT_ID_IDX)
+                    .projection(Projection::builder().projection_type(All).build())
+                    .key_schema(beneficiary_account_id_idx_pk_ks)
+                    .key_schema(beneficiary_account_id_idx_sk_ks)
                     .build()?,
             )
             .send()

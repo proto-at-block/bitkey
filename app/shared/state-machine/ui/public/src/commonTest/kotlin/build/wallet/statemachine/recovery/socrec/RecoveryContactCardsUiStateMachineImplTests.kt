@@ -1,13 +1,14 @@
 package build.wallet.statemachine.recovery.socrec
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.relationships.BeneficiaryInvitationFake
 import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.Relationships
-import build.wallet.recovery.socrec.SocRecServiceFake
-import build.wallet.statemachine.core.test
+import build.wallet.relationships.RelationshipsServiceMock
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -18,12 +19,14 @@ import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
 
 class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
-  val socRecService = SocRecServiceFake()
+  val relationshipsService = RelationshipsServiceMock(
+    turbine = turbines::create
+  )
 
   val recoveryContactCardsUiStateMachine =
     RecoveryContactCardsUiStateMachineImpl(
       clock = ClockFake(),
-      socRecService = socRecService
+      relationshipsService = relationshipsService
     )
   val onClickCalls = turbines.create<Unit>("onClick call")
   val relationships = Relationships.EMPTY
@@ -33,21 +36,21 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    socRecService.reset()
-    socRecService.socRecRelationships.value = relationships
+    relationshipsService.clear()
+    relationshipsService.relationships.value = relationships
   }
 
   test("no invitations produces no cards") {
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().shouldBeEmpty()
     }
   }
 
   test("1 invitation produces 1 card") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       invitations = listOf(InvitationFake)
     )
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -60,10 +63,10 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("Pending invitation marked as pending") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       invitations = listOf(InvitationFake.copy(expiresAt = DISTANT_FUTURE))
     )
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -74,11 +77,11 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("Expired invitation marked as expired") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       invitations = listOf(InvitationFake.copy(expiresAt = DISTANT_PAST))
     )
 
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -89,7 +92,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("multiple invitations produces multiple cards") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       invitations =
         listOf(
           InvitationFake,
@@ -97,20 +100,20 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         )
     )
 
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().size.shouldBeEqual(2)
     }
   }
 
   test("Failed Unendorsed contact produces a card") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedTrustedContactFake.copy(
           authenticationState = TrustedContactAuthenticationState.FAILED
         )
       )
     )
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -122,7 +125,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("Pake unavailability Unendorsed contact produces a card") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedTrustedContactFake.copy(
           authenticationState = TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
@@ -130,7 +133,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -142,7 +145,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("Tampered Unendorsed contact produces a card") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedTrustedContactFake.copy(
           authenticationState = TrustedContactAuthenticationState.TAMPERED
@@ -150,7 +153,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -162,7 +165,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("Only failed Unendorsed contact produces a card") {
-    socRecService.socRecRelationships.value = relationships.copy(
+    relationshipsService.relationships.value = relationships.copy(
       unendorsedTrustedContacts = listOf(
         UnendorsedTrustedContactFake.copy(
           authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
@@ -173,8 +176,20 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
       awaitItem().shouldBeEmpty()
+    }
+  }
+
+  test("Only show Recovery TC invite cards") {
+    relationshipsService.relationships.value = relationships.copy(
+      invitations = listOf(
+        BeneficiaryInvitationFake.copy(expiresAt = DISTANT_FUTURE),
+        BeneficiaryInvitationFake.copy(expiresAt = DISTANT_PAST)
+      )
+    )
+    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+      awaitItem().size.shouldBeEqual(0)
     }
   }
 })

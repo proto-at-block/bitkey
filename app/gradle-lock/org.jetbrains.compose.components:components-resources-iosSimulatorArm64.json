@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.components:components-resources-iosSimulatorArm64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "library-iossimulatorarm64-1.7.1-metadata.jar": "346ca639a88665abe9890711763dec19814f655bee091bf2bc0c907c0a018d70"
+                        "library-iossimulatorarm64-1.7.3-metadata.jar": "2a8af82f3f4e7dac0a8975a45da196b4fa39e7f9e59f10004e5b665d08637d3b"
                     }
                 },
                 {
                     "artifacts": {
-                        "library.klib": "26e643aa76793face1940ed24be51686c9a03e8c6b88f9e889a0f2e155a66785"
+                        "library.klib": "a56b71aad2150b4aabb9bfdf32a5c0c3d501f817d6592b1124d1c0ca3012f459"
                     }
                 }
             ],

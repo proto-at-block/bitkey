@@ -153,7 +153,7 @@ class SetSpendingLimitUiStateMachineImpl(
     val btcString = moneyDisplayFormatter.format(state.selectedBtcLimit)
     return SuccessBodyModel(
       id = MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_SUCCESS,
-      title = "You're all set.",
+      title = "You're all set",
       message =
         "Now you can spend up to $fiatString " +
           "($btcString) per day with just your phone.",

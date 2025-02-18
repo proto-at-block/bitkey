@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-android",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-coroutines-release.aar": "d7ac0c891c70f2d67f91e39be81e5541965a2315d2a637bd598d465783d8060c"
+                        "multiplatform-settings-coroutines-release.aar": "15f9d51b86c068e753ba52e6482f955af4f2a988748705cbf8c266fa06477c60"
                     }
                 }
             ],

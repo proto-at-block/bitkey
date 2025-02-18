@@ -150,7 +150,7 @@ class PartnershipPurchaseServiceImpl(
               minVersion = it.minVersion
             )
           },
-          partnerName = redirectType.name
+          partnerName = partnerInfo.name
         )
       RedirectUrlType.WIDGET ->
         PartnerRedirectionMethod.Web(

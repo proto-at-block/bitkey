@@ -5,13 +5,13 @@ use database::{
     ddb::{try_to_item, DatabaseError, Repository},
 };
 
-use crate::signed_psbt_cache::entities::CachedPsbt;
+use crate::signed_psbt_cache::entities::CachedPsbtTxid;
 
-use super::SignedPsbtCacheRepository;
+use super::PsbtTxidCacheRepository;
 
-impl SignedPsbtCacheRepository {
+impl PsbtTxidCacheRepository {
     #[instrument(skip(self, cached_psbt))]
-    pub async fn persist(&self, cached_psbt: &CachedPsbt) -> Result<(), DatabaseError> {
+    pub async fn persist(&self, cached_psbt: &CachedPsbtTxid) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
         let item = try_to_item(cached_psbt, database_object)?;

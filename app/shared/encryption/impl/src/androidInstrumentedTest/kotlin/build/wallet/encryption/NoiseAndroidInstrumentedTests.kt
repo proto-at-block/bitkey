@@ -1,7 +1,8 @@
 package build.wallet.encryption
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import build.wallet.crypto.HardwareBackedDhImpl
 import build.wallet.crypto.NoiseContextImpl
 import build.wallet.rust.core.NoiseRole
@@ -47,8 +48,8 @@ class NoiseAndroidInstrumentedTests {
 
   @Test
   fun testNoiseHardwareBacked() {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val se = SecureEnclaveImpl(context)
+    val application = ApplicationProvider.getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
 
     val clientKeyPair = se.generateP256KeyPair(
       SeKeySpec(

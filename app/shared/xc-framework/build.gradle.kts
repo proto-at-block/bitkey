@@ -57,27 +57,17 @@ kotlin {
       projects.shared.fwupPublic,
       projects.shared.memfaultImpl,
       projects.shared.memfaultPublic,
-      projects.shared.moneyImpl,
-      projects.shared.moneyPublic,
       projects.shared.nfcImpl,
       projects.shared.nfcPublic,
       projects.shared.contactMethodImpl,
       projects.shared.contactMethodPublic,
       projects.shared.platformImpl,
       projects.shared.platformPublic,
-      projects.shared.priceChartImpl,
-      projects.shared.priceChartPublic,
       projects.shared.recoveryImpl,
       projects.shared.recoveryPublic,
       projects.shared.routerPublic,
-      projects.shared.mobilePayImpl,
-      projects.shared.mobilePayPublic,
       projects.shared.sqldelightImpl,
       projects.shared.sqldelightPublic,
-      projects.shared.stateMachineUiPublic,
-      projects.shared.timeImpl,
-      projects.shared.timePublic,
-      projects.shared.uiCorePublic,
       projects.shared.workerPublic,
       projects.shared.secureEnclavePublic,
       projects.shared.secureEnclaveImpl
@@ -102,7 +92,6 @@ kotlin {
   val exposedDependencies =
     listOf(
       projects.shared.accountPublic,
-      projects.shared.amountPublic,
       projects.shared.analyticsPublic,
       // ActivityComponentImpl is the top level DI component that provides the rest of the KMP
       // dependencies, so `impl` is expected here.
@@ -122,12 +111,9 @@ kotlin {
       projects.shared.datadogPublic,
       projects.shared.emergencyAccessKitFake,
       projects.shared.emergencyAccessKitImpl,
-      projects.shared.emergencyAccessKitPublic,
+      // projects.shared.emergencyAccessKitPublic,
       projects.shared.encryptionPublic,
       projects.shared.f8eClientPublic,
-      // TODO: currently used by iOS NFC state machine
-      //  Remove once iOS moves to shared state machine
-      projects.shared.fwupImpl,
       projects.shared.fwupPublic,
       projects.shared.firmwareImpl,
       projects.shared.firmwarePublic,
@@ -135,27 +121,14 @@ kotlin {
       projects.shared.keyboxPublic,
       projects.shared.loggingPublic,
       projects.shared.memfaultPublic,
-      projects.shared.moneyPublic,
-      // TODO: currently used by iOS NFC state achine
-      //  Remove once iOS moves to shared state machine
-      projects.shared.nfcImpl,
       projects.shared.nfcPublic,
       projects.shared.notificationsPublic,
       projects.shared.platformImpl,
       projects.shared.platformPublic,
       projects.shared.contactMethodPublic,
       projects.shared.contactMethodImpl,
-      projects.shared.mobilePayPublic,
-      projects.shared.recoveryPublic,
       projects.shared.routerPublic,
-      projects.shared.stateMachineUiPublic,
-      projects.shared.stateMachineFrameworkPublic,
-      // TODO: currently used by iOS VerificationInProgressModel
-      //  Remove once iOS moves to shared state machine
       projects.shared.timeImpl,
-      projects.shared.timePublic,
-      projects.shared.uiCorePublic,
-      projects.shared.priceChartPublic,
       projects.shared.secureEnclavePublic,
       libs.native.nserror.kt
     )

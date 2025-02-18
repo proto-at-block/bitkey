@@ -1,6 +1,7 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
@@ -13,12 +14,8 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration
 
@@ -27,29 +24,20 @@ class RecoverySyncerImpl(
   val recoveryDao: RecoveryDao,
   val getRecoveryStatusF8eClient: GetDelayNotifyRecoveryStatusF8eClient,
   val appSessionManager: AppSessionManager,
+  private val recoveryLock: RecoveryLock,
 ) : RecoverySyncer {
-  /**
-   * A mutex used to ensure only one call to sync is in flight at a time
-   * and to record unusually long syncs.
-   */
-  private val syncLock = Mutex(locked = false)
-
   override fun launchSync(
     scope: CoroutineScope,
     syncFrequency: Duration,
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
   ) {
-    scope.launch {
-      while (isActive) {
-        if (appSessionManager.isAppForegrounded()) {
-          performSync(
-            fullAccountId = fullAccountId,
-            f8eEnvironment = f8eEnvironment
-          )
-        }
-
-        delay(syncFrequency)
+    scope.launchTicker(syncFrequency) {
+      if (appSessionManager.isAppForegrounded()) {
+        performSync(
+          fullAccountId = fullAccountId,
+          f8eEnvironment = f8eEnvironment
+        )
       }
     }
   }
@@ -59,7 +47,7 @@ class RecoverySyncerImpl(
     f8eEnvironment: F8eEnvironment,
   ): Result<Unit, SyncError> =
     coroutineBinding {
-      syncLock.withLock {
+      recoveryLock.withLock {
         val serverRecovery =
           getRecoveryStatusF8eClient.getStatus(f8eEnvironment, fullAccountId)
             .mapError { CouldNotFetchServerRecovery(it) }

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.ddms:ddmlib",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "ddmlib-31.3.2.jar": "88afc3e88f0b27dff3d4686765d140cb172161a710708e1861dda6fd689c117c"
+                        "ddmlib-31.4.2.jar": "f98b88cfe0fe729d755f0bf6d5fc21e20f89aea9e630860dc0f75dcbec6fec0b"
                     }
                 }
             ],

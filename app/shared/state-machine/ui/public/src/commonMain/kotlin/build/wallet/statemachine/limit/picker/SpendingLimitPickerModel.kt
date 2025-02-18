@@ -1,11 +1,14 @@
 package build.wallet.statemachine.limit.picker
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
+import build.wallet.ui.app.limit.SpendingLimitPickerScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -54,6 +57,11 @@ data class SpendingLimitPickerModel(
         onClick = StandardClick(onSetLimitClick)
       )
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    SpendingLimitPickerScreen(modifier, model = this)
+  }
 }
 
 sealed class EntryMode {

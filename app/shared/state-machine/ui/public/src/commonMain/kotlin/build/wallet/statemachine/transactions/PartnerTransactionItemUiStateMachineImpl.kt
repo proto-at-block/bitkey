@@ -3,14 +3,16 @@ package build.wallet.statemachine.transactions
 import androidx.compose.runtime.*
 import build.wallet.activity.Transaction
 import build.wallet.activity.bitcoinTotal
+import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.money.FiatMoney
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnershipTransactionStatus
 import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.statemachine.data.money.convertedOrNull
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.list.ListItemModel
@@ -34,18 +36,40 @@ class PartnerTransactionItemUiStateMachineImpl(
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
 
-    val fiatAmountFormatted by remember(props.transaction.details.fiatAmount) {
+    val totalToUse = when (val bitcoinTransaction = props.transaction.bitcoinTransaction) {
+      null -> props.transaction.details.cryptoAmount?.let { BitcoinMoney(value = it.toBigDecimal()) }
+      else -> when (bitcoinTransaction.transactionType) {
+        Incoming, UtxoConsolidation -> bitcoinTransaction.subtotal
+        Outgoing -> bitcoinTransaction.total
+      }
+    }
+
+    val fiatAmount = totalToUse?.let {
+      convertedOrNull(
+        converter = currencyConverter,
+        fromAmount = it,
+        toCurrency = fiatCurrency,
+        atTime = props.transaction.bitcoinTransaction?.let { bitcoinTransaction ->
+          when (bitcoinTransaction.transactionType) {
+            Incoming, UtxoConsolidation -> bitcoinTransaction.confirmationTime()
+            Outgoing -> bitcoinTransaction.broadcastTime ?: bitcoinTransaction.confirmationTime()
+          }
+        }
+      )
+    }
+
+    val fiatAmountFormatted by remember(fiatAmount) {
       derivedStateOf {
         val prefix = when (props.transaction.details.type) {
           PartnershipTransactionType.PURCHASE, PartnershipTransactionType.TRANSFER -> "+ "
           PartnershipTransactionType.SALE -> ""
         }
 
-        val formatted = props.transaction.details.fiatAmount?.let {
-          "$prefix${moneyDisplayFormatter.format(FiatMoney(fiatCurrency, it.toBigDecimal()))}"
+        val formatted = fiatAmount?.let {
+          "$prefix${moneyDisplayFormatter.format(it)}"
         }
 
-        formatted ?: ""
+        formatted ?: "~~"
       }
     }
 

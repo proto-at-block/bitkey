@@ -1,4 +1,5 @@
 use account::error::AccountError;
+use account::service::FetchAccountInput;
 use tracing::instrument;
 use types::account::entities::FullAccount;
 
@@ -7,6 +8,7 @@ use types::recovery::inheritance::claim::{
     InheritanceClaimCanceledBy, InheritanceClaimPending,
 };
 
+use super::create_inheritance_claim::should_use_shortened_delay;
 use super::fetch_pending_claims_as_beneficiary;
 use super::{error::ServiceError, Service};
 
@@ -77,8 +79,29 @@ impl Service {
                 InheritanceClaimPending::recreate(pending_claim, auth_keys)?;
             let recreated_claim = self
                 .repository
-                .persist_inheritance_claim(&InheritanceClaim::Pending(recreate_pending_claim))
+                .persist_inheritance_claim(&InheritanceClaim::Pending(
+                    recreate_pending_claim.clone(),
+                ))
                 .await?;
+
+            let relationship_id = &pending_claim.common_fields.recovery_relationship_id;
+            let relationship = self
+                .recovery_relationship_service
+                .get_recovery_relationship(relationship_id)
+                .await?;
+            let benefactor = self
+                .account_service
+                .fetch_full_account(FetchAccountInput {
+                    account_id: &relationship.common_fields().customer_account_id,
+                })
+                .await?;
+            self.schedule_notifications_for_pending_claim(
+                &recreate_pending_claim,
+                &input.beneficiary.id,
+                &relationship,
+                should_use_shortened_delay(&benefactor, input.beneficiary),
+            )
+            .await?;
             updated_claims.push(recreated_claim);
         }
         Ok(updated_claims)

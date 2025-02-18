@@ -6,7 +6,6 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagDao
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.*
-import build.wallet.platform.device.DeviceInfoProvider
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
 
@@ -34,13 +33,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun composeUiFeatureFlag(
-    featureFlagDao: FeatureFlagDao,
-    deviceInfoProvider: DeviceInfoProvider,
-  ) = ComposeUiFeatureFlag(featureFlagDao, deviceInfoProvider)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun expectedTransactionsPhase2FeatureFlag(featureFlagDao: FeatureFlagDao) =
     ExpectedTransactionsPhase2FeatureFlag(featureFlagDao)
 
@@ -58,6 +50,11 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun inheritanceFeatureFlag(featureFlagDao: FeatureFlagDao) =
     InheritanceFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun inheritanceMarketingFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    InheritanceMarketingFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -81,11 +78,6 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun sellBitcoinQuotesEnabledFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    SellBitcoinQuotesEnabledFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun softwareWalletIsEnabledFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
 
@@ -102,23 +94,21 @@ interface FeatureFlagsComponent {
     feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag,
     firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag,
     inheritanceFeatureFlag: InheritanceFeatureFlag,
+    inheritanceMarketingFeatureFlag: InheritanceMarketingFeatureFlag,
     nfcHapticsOnConnectedIsEnabledFeatureFlag: NfcHapticsOnConnectedIsEnabledFeatureFlag,
     promptSweepFeatureFlag: PromptSweepFeatureFlag,
     sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
     sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
-    sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag,
     softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
-    composeUiFeatureFlag: ComposeUiFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       promptSweepFeatureFlag,
       inheritanceFeatureFlag,
-      composeUiFeatureFlag,
+      inheritanceMarketingFeatureFlag,
       coachmarksGlobalFeatureFlag,
       asyncNfcSigningFeatureFlag,
       utxoMaxConsolidationCountFeatureFlag,
-      sellBitcoinQuotesEnabledFeatureFlag,
       feeBumpIsAvailableFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       softwareWalletIsEnabledFeatureFlag,

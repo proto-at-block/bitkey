@@ -32,14 +32,13 @@ import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVer
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.*
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
 import build.wallet.statemachine.notifications.NotificationTouchpointSubmissionRequest.SendingTouchpointToServer
-import build.wallet.time.Delayer
+import build.wallet.statemachine.root.ActionSuccessDuration
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 @BitkeyInject(ActivityScope::class)
 class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
-  private val delayer: Delayer,
   private val emailInputUiStateMachine: EmailInputUiStateMachine,
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
@@ -47,6 +46,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val verificationCodeInputStateMachine: VerificationCodeInputStateMachine,
   private val uiErrorHintSubmitter: UiErrorHintSubmitter,
+  private val actionSuccessDuration: ActionSuccessDuration,
 ) : NotificationTouchpointInputAndVerificationUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -452,7 +452,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       is SendingActivationToServerSuccessUiState -> {
         // Side effect
         LaunchedEffect("end-flow-after-delay") {
-          delayer.delay(3.seconds)
+          delay(actionSuccessDuration.value)
           props.onSuccess()
         }
         // Return model

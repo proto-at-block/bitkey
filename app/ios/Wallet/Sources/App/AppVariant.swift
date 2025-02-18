@@ -7,6 +7,8 @@ extension AppVariant {
             return AppVariant.development
         #elseif INTERNAL
             return AppVariant.team
+        #elseif ALPHA
+            return AppVariant.alpha
         #elseif BETA
             return AppVariant.beta
         #elseif RELEASE

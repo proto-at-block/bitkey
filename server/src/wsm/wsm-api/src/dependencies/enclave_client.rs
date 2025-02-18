@@ -12,13 +12,18 @@ use thiserror::Error;
 use tracing::{event, instrument};
 
 use wsm_common::enclave_log::LogBuffer;
-use wsm_common::messages::api::AttestationDocResponse;
+use wsm_common::messages::api::{
+    AttestationDocResponse, EvaluatePinRequest, EvaluatePinResponse, NoiseInitiateBundleRequest,
+    NoiseInitiateBundleResponse,
+};
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
+    EnclaveContinueShareRefreshRequest, EnclaveContinueShareRefreshResponse,
     EnclaveCreateKeyRequest, EnclaveCreateSelfSovereignBackupRequest,
     EnclaveCreateSelfSovereignBackupResponse, EnclaveDeriveKeyRequest,
     EnclaveGeneratePartialSignaturesRequest, EnclaveGeneratePartialSignaturesResponse,
     EnclaveInitiateDistributedKeygenRequest, EnclaveInitiateDistributedKeygenResponse,
+    EnclaveInitiateShareRefreshRequest, EnclaveInitiateShareRefreshResponse,
     LoadIntegrityKeyRequest,
 };
 use wsm_common::messages::{
@@ -170,6 +175,36 @@ impl EnclaveClient {
     }
 
     #[instrument(skip(self))]
+    pub async fn initiate_share_refresh(
+        &self,
+        req: EnclaveInitiateShareRefreshRequest,
+    ) -> anyhow::Result<EnclaveInitiateShareRefreshResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "initiate-share-refresh",
+                req.dek_id.clone(),
+                req,
+            ))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn continue_share_refresh(
+        &self,
+        req: EnclaveContinueShareRefreshRequest,
+    ) -> anyhow::Result<EnclaveContinueShareRefreshResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new(
+                "continue-share-refresh",
+                req.dek_id.clone(),
+                req,
+            ))
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
     pub async fn derive_key(&self, req: EnclaveDeriveKeyRequest) -> anyhow::Result<DerivedKey> {
         let result = self
             .post_request_with_dek(SecretRequest::new("derive-key", req.dek_id.clone(), req))
@@ -193,6 +228,45 @@ impl EnclaveClient {
             .send()
             .await?;
         handle_enclave_logs(&result).await;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn initiate_secure_channel(
+        &self,
+        bundle: Vec<u8>,
+        server_static_pubkey: &str,
+    ) -> anyhow::Result<NoiseInitiateBundleResponse> {
+        let result = self
+            .client
+            .post(self.endpoint.join("initiate-secure-channel")?)
+            .json(&NoiseInitiateBundleRequest {
+                bundle,
+                server_static_pubkey: server_static_pubkey.to_string(),
+            })
+            .send()
+            .await?;
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn evaluate_pin(
+        &self,
+        sealed_request: Vec<u8>,
+        noise_session_id: String,
+    ) -> anyhow::Result<EvaluatePinResponse> {
+        let result = self
+            .client
+            .post(self.endpoint.join("evaluate-pin")?)
+            .json(&EvaluatePinRequest {
+                sealed_request,
+                noise_session_id,
+            })
+            .send()
+            .await?;
+        if result.status() != 200 {
+            bail!("Error from the enclave: {}", result.text().await?);
+        }
         Ok(result.json().await?)
     }
 

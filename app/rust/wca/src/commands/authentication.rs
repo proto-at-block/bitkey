@@ -111,9 +111,9 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
         .ok_or(CommandError::MissingMessage)?;
 
     match message {
-        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::from_i32(status)
+        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::try_from(status)
         {
-            Some(DeriveRspStatus::Success) => match descriptor {
+            Ok(DeriveRspStatus::Success) => match descriptor {
                 Some(descriptor) => {
                     let dpub: DescriptorPublicKey = descriptor.try_into()?;
                     match dpub {
@@ -124,11 +124,11 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
                 }
                 None => Err(CommandError::InvalidResponse),
             },
-            Some(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
-            Some(DeriveRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(DeriveRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            Some(DeriveRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            None => Err(CommandError::InvalidResponse),
+            Ok(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
+            Ok(DeriveRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(DeriveRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Ok(DeriveRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Err(_) => Err(CommandError::InvalidResponse),
         },
         _ => Err(CommandError::MissingMessage),
     }
@@ -178,9 +178,9 @@ fn get_unlock_method() -> Result<UnlockInfo, CommandError> {
             method,
             fingerprint_index,
         }) => Ok(UnlockInfo {
-            method: match UnlockMethod::from_i32(method) {
-                Some(m) => m,
-                None => return Err(CommandError::InvalidResponse),
+            method: match UnlockMethod::try_from(method) {
+                Ok(m) => m,
+                Err(_) => return Err(CommandError::InvalidResponse),
             },
             fingerprint_index: Some(fingerprint_index),
         }),

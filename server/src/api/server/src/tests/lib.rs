@@ -10,7 +10,9 @@ use account::service::{
     CreateSoftwareAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
     FetchOrCreatePhoneTouchpointInput,
 };
+use authn_authz::routes::NoiseInitiateBundleRequest;
 
+use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
 use bdk_utils::bdk::bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey};
 use bdk_utils::bdk::bitcoin::OutPoint;
 use bdk_utils::bdk::keys::DescriptorSecretKey;
@@ -589,6 +591,50 @@ pub(crate) async fn update_recovery_relationship_invitation_expiration(
         .persist_recovery_relationship(&RecoveryRelationship::Invitation(invitation))
         .await
         .unwrap();
+}
+
+const NOISE_SERVER_PUBKEY: [u8; 65] = [
+    0x04, 0x6d, 0x0f, 0x2d, 0x82, 0x02, 0x4c, 0x8a, 0x9d, 0xef, 0xa3, 0x4a, 0xc4, 0xa8, 0x2f, 0x65,
+    0x92, 0x47, 0xb3, 0x8e, 0x0f, 0xdf, 0x30, 0x24, 0xd5, 0x79, 0xd9, 0x81, 0xf9, 0xed, 0x7a, 0x86,
+    0x61, 0xf8, 0xef, 0xe8, 0xbd, 0x86, 0xdc, 0x1b, 0xa0, 0x5f, 0xc9, 0x86, 0xf1, 0xc9, 0xf1, 0x2e,
+    0x45, 0x0e, 0xdc, 0xb1, 0xc3, 0x4d, 0x07, 0x2c, 0x7c, 0xde, 0x13, 0xa8, 0x97, 0x76, 0x70, 0x50,
+    0xab,
+];
+
+pub async fn setup_noise_secure_channel(
+    client: &TestClient,
+) -> (crypto::noise::NoiseContext, Vec<u8>) {
+    let noise_client_privkey = crypto::noise::PrivateKey::InMemory {
+        secret_bytes: crypto::noise::generate_keypair().0,
+    };
+    let client_noise_context = crypto::noise::NoiseContext::new(
+        crypto::noise::NoiseRole::Initiator,
+        noise_client_privkey,
+        Some(NOISE_SERVER_PUBKEY.to_vec()),
+        None,
+    )
+    .unwrap();
+    let client_noise_bundle = client_noise_context.initiate_handshake().unwrap();
+    let request = NoiseInitiateBundleRequest {
+        bundle: client_noise_bundle,
+        server_static_pubkey: b64.encode(NOISE_SERVER_PUBKEY),
+    };
+    let actual_response = client.initate_noise_secure_channel(&request).await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+    let response = actual_response.body.unwrap();
+    let server_noise_bundle = response.bundle;
+    let noise_session = response.noise_session;
+    client_noise_context
+        .advance_handshake(server_noise_bundle)
+        .unwrap();
+    client_noise_context.finalize_handshake().unwrap();
+
+    (client_noise_context, noise_session)
 }
 
 pub(crate) struct OffsetClock {

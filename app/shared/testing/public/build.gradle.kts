@@ -17,6 +17,7 @@ kotlin {
         api(libs.kmp.test.kotest.framework.api)
         api(libs.kmp.test.kotlin.coroutines)
         api(libs.kmp.test.turbine)
+        api(libs.kmp.test.ktor.client.mock)
         api(projects.shared.loggingTesting)
       }
     }

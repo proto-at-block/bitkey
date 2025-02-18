@@ -29,7 +29,6 @@ import build.wallet.statemachine.notifications.*
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.*
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.*
-import build.wallet.statemachine.settings.full.notifications.Source.Settings
 import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -174,6 +173,12 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               accountConfig = (props.account as FullAccount).keybox.config,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
+              onSuccess = {
+                state = TogglingNotificationChannelUiState(
+                  notificationChannel = NotificationChannel.Email,
+                  hwFactorProofOfPossession = null
+                )
+              },
               onClose = {
                 state = ShowingNotificationsSettingsUiState()
               }
@@ -396,7 +401,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     }
 
     return RecoveryChannelsSettingsFormBodyModel(
-      source = Settings,
+      source = props.source,
       missingRecoveryMethods = missingRecoveryMethods,
       pushItem = RecoveryChannelsSettingsFormItemModel(
         enabled = when {
@@ -413,6 +418,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
             ShowingNotificationsSettingsUiState(
               BottomSheetOverlayState(
                 bottomSheetModel = PushToggleOverlay(
+                  source = props.source,
                   pushRecoveryEnabled = pushRecoveryEnabled,
                   updateState = updateState
                 )
@@ -436,29 +442,22 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               ShowingNotificationsSettingsUiState(
                 overlayState = BottomSheetOverlayState(
                   bottomSheetModel = SMSEditSheetModel(
+                    source = props.source,
                     onCancel = { updateState(ShowingNotificationsSettingsUiState()) },
                     onEnableDisable = {
                       updateState(
                         ShowingNotificationsSettingsUiState(
                           overlayState = AlertOverlayState(
-                            alertModel = ButtonAlertModel(
-                              title = "Are you sure you want to disable SMS recovery?",
-                              subline = "The more recovery channels you have, the more secure your Bitkey is.",
-                              onDismiss = {
+                            alertModel = disableSmsRecoveryAlertModel(
+                              onKeep = {
                                 updateState(ShowingNotificationsSettingsUiState())
                               },
-                              primaryButtonText = "Disable SMS recovery",
-                              onPrimaryButtonClick = {
+                              onDisable = {
                                 updateState(
                                   DisablingNotificationChannelProofOfHwPossessionUiState(
                                     NotificationChannel.Sms
                                   )
                                 )
-                              },
-                              primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
-                              secondaryButtonText = "Keep SMS recovery",
-                              onSecondaryButtonClick = {
-                                updateState(ShowingNotificationsSettingsUiState())
                               }
                             )
                           )
@@ -478,6 +477,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               ShowingNotificationsSettingsUiState(
                 overlayState = BottomSheetOverlayState(
                   bottomSheetModel = SMSEditSheetModel(
+                    source = props.source,
                     onCancel = {
                       updateState(ShowingNotificationsSettingsUiState())
                     },
@@ -503,6 +503,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                 ShowingNotificationsSettingsUiState(
                   overlayState = BottomSheetOverlayState(
                     bottomSheetModel = SMSNonUSSheetModel(
+                      source = props.source,
                       onCancel = {
                         updateState(ShowingNotificationsSettingsUiState())
                       },
@@ -532,7 +533,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
           onClick = { updateState(EnteringAndVerifyingEmailUiState) }.takeIf { !isLoading }
         ),
       alertModel = (stateVal.overlayState as? DelayedAlertOverlayState)?.alertModel,
-      continueOnClick = null,
+      continueOnClick = props.onContinue,
       onBack = props.onBack,
       learnOnClick = {
         updateState(ShowLearnRecoveryWebView)
@@ -542,40 +543,32 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   }
 
   private fun PushToggleOverlay(
+    source: Source,
     pushRecoveryEnabled: Boolean,
     updateState: (RecoveryState) -> Unit,
   ): SheetModel {
     return PushToggleSheetModel(
+      source = source,
       onCancel = { updateState(ShowingNotificationsSettingsUiState()) },
       isEnabled = pushRecoveryEnabled,
       onToggle = {
         if (pushRecoveryEnabled) {
           updateState(
             ShowingNotificationsSettingsUiState(
-              overlayState =
-                AlertOverlayState(
-                  alertModel =
-                    ButtonAlertModel(
-                      title = "Are you sure you want to disable recovery push notifications?",
-                      subline = "The more recovery channels you have, the more secure your Bitkey is.",
-                      onDismiss = {
-                        updateState(ShowingNotificationsSettingsUiState())
-                      },
-                      primaryButtonText = "Disable push notifications",
-                      onPrimaryButtonClick = {
-                        updateState(
-                          DisablingNotificationChannelProofOfHwPossessionUiState(
-                            NotificationChannel.Push
-                          )
-                        )
-                      },
-                      primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
-                      secondaryButtonText = "Keep push notifications",
-                      onSecondaryButtonClick = {
-                        updateState(ShowingNotificationsSettingsUiState())
-                      }
+              overlayState = AlertOverlayState(
+                alertModel = disableRecoveryPushNotificationsAlertModel(
+                  onKeep = {
+                    updateState(ShowingNotificationsSettingsUiState())
+                  },
+                  onDisable = {
+                    updateState(
+                      DisablingNotificationChannelProofOfHwPossessionUiState(
+                        NotificationChannel.Push
+                      )
                     )
+                  }
                 )
+              )
             )
           )
         } else {

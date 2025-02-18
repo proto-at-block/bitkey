@@ -15,12 +15,12 @@ mod persist;
 pub(crate) const PARTITION_KEY: &str = "txid";
 
 #[derive(Clone)]
-pub struct SignedPsbtCacheRepository {
+pub struct PsbtTxidCacheRepository {
     connection: Connection,
 }
 
 #[async_trait]
-impl Repository for SignedPsbtCacheRepository {
+impl Repository for PsbtTxidCacheRepository {
     fn new(connection: Connection) -> Self {
         Self { connection }
     }

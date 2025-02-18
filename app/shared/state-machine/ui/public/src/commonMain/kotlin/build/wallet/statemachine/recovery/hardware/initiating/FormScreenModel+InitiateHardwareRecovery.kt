@@ -45,7 +45,7 @@ fun NewDeviceReadyQuestionModel(
     }
 )
 
-private data class NewDeviceReadyQuestionBodyModel(
+data class NewDeviceReadyQuestionBodyModel(
   val primaryAction: ButtonModel?,
   val secondaryAction: ButtonModel? = null,
   val showBack: Boolean,

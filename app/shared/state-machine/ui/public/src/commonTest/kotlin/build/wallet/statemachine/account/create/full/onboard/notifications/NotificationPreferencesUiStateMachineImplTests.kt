@@ -9,13 +9,13 @@ import build.wallet.platform.settings.SystemSettingsLauncherMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.account.notifications.NotificationPermissionRequesterMock
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachineImpl
 import build.wallet.statemachine.notifications.NotificationsPreferencesCachedProviderMock
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
@@ -47,15 +47,15 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   )
 
   test("show tos if terms not accepted") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Try and hit "Continue" right away
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         ctaWarning.shouldBeNull()
         primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
       }
 
       // Assert that we show some terms
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         ctaWarning.shouldNotBeNull().text.shouldBe("Agree to our Terms and Privacy Policy to continue.")
 
         // Simulate tapping the ToS button
@@ -65,12 +65,12 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       }
 
       // Terms warning should go away
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         ctaWarning.shouldBeNull()
       }
 
       // Icon should be filled
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
         tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
           .shouldBeInstanceOf<ListItemAccessory.IconAccessory>()
@@ -80,8 +80,8 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   }
 
   test("calls onComplete when done") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         // Simulate tapping the ToS button
         val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
         tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
@@ -91,18 +91,18 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
       }
 
       // Re-render the screen with the TOS selected
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         // Tap Continue
         primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
       }
 
       // Transition to a loading state, where the primary button shows a loading spinner
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
       }
 
       // Once more go back to the editing state
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
       }
       // Finally, onComplete is called.

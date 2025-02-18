@@ -43,14 +43,14 @@ class NoiseIosTests: XCTestCase {
         // Initialize Noise context for client and server
         let clientNoiseContext = try NoiseContextImpl(
             role: NoiseRole.initiator,
-            privkeyName: clientKeyPair.privateKey.name,
+            privateKey: core.PrivateKey.hardwareBacked(name: clientKeyPair.privateKey.name),
             theirPublicKey: serverPublicKey.bytes.asData(),
             dh: hardwareBackedDhClient
         )
 
         let serverNoiseContext = try NoiseContextImpl(
             role: NoiseRole.responder,
-            privkeyName: serverKeyPair.privateKey.name,
+            privateKey: core.PrivateKey.hardwareBacked(name: serverKeyPair.privateKey.name),
             theirPublicKey: nil,
             dh: hardwareBackedDhServer
         )

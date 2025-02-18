@@ -4,6 +4,7 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.equals.shouldNotBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -11,7 +12,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicReference
 
 class DualAppTests : FunSpec({
-  suspend fun runApp(appRef: AtomicReference<AppTester>): AppTester {
+  suspend fun TestScope.runApp(appRef: AtomicReference<AppTester>): AppTester {
     val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
     appRef.set(app)

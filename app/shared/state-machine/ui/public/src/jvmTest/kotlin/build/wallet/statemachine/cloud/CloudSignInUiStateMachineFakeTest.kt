@@ -7,7 +7,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -39,7 +39,7 @@ class CloudSignInUiStateMachineFakeTest : FunSpec({
 
   test("already signed in") {
     cloudStoreAccountRepository.set(fakeAccount)
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
         .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       onSignedInCalled.awaitItem().shouldBe(fakeAccount)
@@ -47,7 +47,7 @@ class CloudSignInUiStateMachineFakeTest : FunSpec({
   }
 
   test("sign in") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
         .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       awaitItem().shouldBeTypeOf<CloudSignInModelFake>()
@@ -59,7 +59,7 @@ class CloudSignInUiStateMachineFakeTest : FunSpec({
   }
 
   test("force sign out") {
-    stateMachine.test(props.copy(forceSignOut = true)) {
+    stateMachine.testWithVirtualTime(props.copy(forceSignOut = true)) {
       awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
         .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       awaitItem().shouldBeTypeOf<CloudSignInModelFake>()

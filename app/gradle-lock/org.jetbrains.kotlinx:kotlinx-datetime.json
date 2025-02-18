@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-datetime",
     "components": [
         {
-            "version": "0.5.0",
+            "version": "0.6.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-datetime-metadata-0.5.0.jar": "c68fc909255622768621df6cec116929fdf9fabd09d70260e4c56058a1113e20"
+                        "kotlinx-datetime-metadata-0.6.1.jar": "764f96016833ac8cdfe66ff1ca820908f55e1f2e6e70a302a37de5d44e65f7fd"
                     }
                 }
             ],

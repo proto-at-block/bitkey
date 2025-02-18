@@ -64,7 +64,7 @@ internal fun timeoutSession(
   { session, commands ->
     // iOS both does its own timeout *and* blocks, despite claiming to be suspend
     // [W-5082]: Disabled due to toxic reaction with integration tests!
-    // withTimeout(timeout) {
+    // withTimeoutThrowing(timeout) {
     next(session, commands)
     // }
   }

@@ -3,7 +3,7 @@ package build.wallet.ui.components.card
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -27,14 +27,20 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.progress.CircularProgressIndicator
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.callout.CalloutModel
-import build.wallet.ui.model.icon.*
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import org.jetbrains.compose.resources.Font
 
 @Composable
-fun PendingClaimContent(model: CardModel.CardContent.PendingClaim) {
+fun PendingClaimContent(
+  model: CardModel.CardContent.PendingClaim,
+  modifier: Modifier = Modifier,
+) {
   Box(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxWidth()
       .background(
         color = WalletTheme.colors.calloutInformationBackground,
@@ -106,18 +112,20 @@ fun PendingClaimContent(model: CardModel.CardContent.PendingClaim) {
 
       Column {
         if (model.isPendingClaim) {
-          IconButton(
-            modifier = Modifier
-              .padding(start = 12.dp, end = 0.dp),
-            iconModel = IconModel(
-              icon = Icon.SmallIconXFilled,
-              iconSize = IconSize.Accessory,
-              iconTint = IconTint.Information
-            ),
-            onClick = {
-              model.onClick?.invoke()
-            }
-          )
+          model.onClick?.let {
+            IconButton(
+              modifier = Modifier
+                .padding(start = 12.dp, end = 0.dp),
+              iconModel = IconModel(
+                icon = Icon.SmallIconXFilled,
+                iconSize = IconSize.Accessory,
+                iconTint = IconTint.Information
+              ),
+              onClick = {
+                it.invoke()
+              }
+            )
+          }
         } else {
           CalloutButton(
             Icon.SmallIconArrowRight,

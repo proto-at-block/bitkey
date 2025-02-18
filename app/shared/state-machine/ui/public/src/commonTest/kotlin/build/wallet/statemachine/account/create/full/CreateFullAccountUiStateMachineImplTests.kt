@@ -1,22 +1,25 @@
 package build.wallet.statemachine.account.create.full
 
-import build.wallet.bitkey.keybox.KeyboxMock
+import app.cash.turbine.plusAssign
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.onboarding.CreateFullAccountContext.NewFullAccount
 import build.wallet.onboarding.CreateFullAccountServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiProps
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachine
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.CreateFullAccountData.ActivatingAccountData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreatingAccountData
-import build.wallet.statemachine.ui.robots.awaitLoadingScreen
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 
 class CreateFullAccountUiStateMachineImplTests : FunSpec({
 
   val createFullAccountService = CreateFullAccountServiceFake()
+  val rollbackCalls = turbines.create<Unit>("rollback calls")
+  val onboardingCompleteCalls = turbines.create<Unit>("onboarding complete calls")
 
   val stateMachine =
     CreateAccountUiStateMachineImpl(
@@ -26,9 +29,10 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
           "creating-keybox"
         ) {},
       onboardFullAccountUiStateMachine =
-        object : OnboardFullAccountUiStateMachine, ScreenStateMachineMock<OnboardFullAccountUiProps>(
-          "onboarding-keybox"
-        ) {},
+        object : OnboardFullAccountUiStateMachine,
+          ScreenStateMachineMock<OnboardFullAccountUiProps>(
+            "onboarding-keybox"
+          ) {},
       replaceWithLiteAccountRestoreUiStateMachine =
         object : ReplaceWithLiteAccountRestoreUiStateMachine,
           ScreenStateMachineMock<ReplaceWithLiteAccountRestoreUiProps>(
@@ -42,52 +46,81 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
     )
 
   val props = CreateAccountUiProps(
-    createFullAccountData = CreatingAccountData(
-      context = NewFullAccount,
-      rollback = {}
-    )
+    context = NewFullAccount,
+    rollback = {
+      rollbackCalls += Unit
+    },
+    fullAccount = FullAccountMock,
+    onOnboardingComplete = {
+      onboardingCompleteCalls += Unit
+    }
   )
 
-  test("CreateKeyboxData screen") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CreateKeyboxUiProps>()
+  test("start with existing full account") {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onOnboardingComplete()
+      }
+
+      onboardingCompleteCalls.awaitItem()
+
+      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 
-  test("OnboardKeyboxData screen") {
-    stateMachine.test(
-      props.copy(
-        createFullAccountData = CreateFullAccountData.OnboardingAccountData(
-          keybox = KeyboxMock,
-          isSkipCloudBackupInstructions = false,
-          onFoundLiteAccountWithDifferentId = {},
-          onOverwriteFullAccountCloudBackupWarning = {},
-          onOnboardingComplete = {}
-        )
-      )
-    ) {
-      awaitScreenWithBodyModelMock<OnboardFullAccountUiProps>()
+  test("start with no account") {
+    stateMachine.testWithVirtualTime(props.copy(fullAccount = null)) {
+      awaitBodyMock<CreateKeyboxUiProps> {
+        onAccountCreated(FullAccountMock)
+      }
+
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onOnboardingComplete()
+      }
+
+      onboardingCompleteCalls.awaitItem()
+
+      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 
-  test("ActivatingAccountData screen") {
-    stateMachine.test(props.copy(createFullAccountData = ActivatingAccountData(KeyboxMock))) {
-      awaitLoadingScreen(id = null)
+  test("start with existing lite account backup") {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onFoundLiteAccountWithDifferentId(CloudBackupV2WithLiteAccountMock)
+      }
+
+      awaitBodyMock<ReplaceWithLiteAccountRestoreUiProps> {
+        onAccountUpgraded(FullAccountMock)
+      }
+
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onOnboardingComplete()
+      }
+
+      onboardingCompleteCalls.awaitItem()
+
+      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 
-  test("OverwriteFullAccountCloudBackupData screen") {
-    stateMachine.test(
-      props.copy(
-        createFullAccountData =
-          CreateFullAccountData.OverwriteFullAccountCloudBackupData(
-            keybox = KeyboxMock,
-            onOverwrite = {},
-            rollback = {}
-          )
-      )
-    ) {
-      awaitScreenWithBodyModelMock<OverwriteFullAccountCloudBackupUiProps>()
+  test("start with existing full account backup") {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onOverwriteFullAccountCloudBackupWarning()
+      }
+
+      awaitBodyMock<OverwriteFullAccountCloudBackupUiProps> {
+        onOverwrite()
+      }
+
+      awaitBodyMock<OnboardFullAccountUiProps> {
+        onOnboardingComplete()
+      }
+
+      onboardingCompleteCalls.awaitItem()
+
+      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 })

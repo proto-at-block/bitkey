@@ -22,12 +22,12 @@ import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetails
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
@@ -109,14 +109,14 @@ class SendUiStateMachineImplTests : FunSpec({
     val amountToSend = 60_000UL
 
     test("Golden path from send button") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         // Step 1: User enters some address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
         // Step 2: User enters some amount they want to send
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
               sendAmount = ExactAmount(BitcoinMoney.sats(amountToSend.toBigInteger()))
@@ -125,12 +125,12 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 3: User selects intended fee rate
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onContinue(FASTEST, feeMap)
         }
 
         // Step 4: User views and broadcasts their transaction
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
+        awaitBodyMock<TransferConfirmationUiProps> {
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = amountToSend,
@@ -140,7 +140,7 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 5: User is shown the "Transfer Initiated" screen
-        awaitScreenWithBodyModelMock<TransferInitiatedUiProps> {
+        awaitBodyMock<TransferInitiatedUiProps> {
           val transferAmount = BitcoinMoney.sats(amountToSend.toBigInteger())
 
           with(
@@ -154,12 +154,12 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("going back to amount entry initializes with btc currency") {
-      stateMachine.test(props) {
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
               ExactAmount(BitcoinMoney.zero())
@@ -167,26 +167,26 @@ class SendUiStateMachineImplTests : FunSpec({
           )
         }
 
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onBack()
         }
 
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
         }
       }
     }
 
     test("going back from transfer confirmation rehydrates the right data for previous steps") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val moneyToSend = BitcoinMoney.sats(amountToSend.toBigInteger())
         // Step 1: User enters some address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
         // Step 2: User enters some amount they want to send
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
               ExactAmount(moneyToSend)
@@ -195,23 +195,23 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 3: User selects intended fee rate
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onContinue(FASTEST, feeMap)
         }
 
         // Step 4: User reviews the transaction but hits "Back" button
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
+        awaitBodyMock<TransferConfirmationUiProps> {
           onBack()
         }
 
         // Step 5: User is taken back to transfer amount input screen, with amount prefilled
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           initialAmount.shouldBe(moneyToSend)
           onBack()
         }
 
         // Step 6: User is taken back to address entry screen with the correct recipient address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           address.shouldBe(someBitcoinAddress)
         }
       }
@@ -220,14 +220,14 @@ class SendUiStateMachineImplTests : FunSpec({
 
   context("User is sending all") {
     test("Golden path") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         // Step 1: User enters some address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
         // Step 2: User enters some amount they want to send
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
               SendAll
@@ -236,13 +236,13 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 3: User selects intended fee rate
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onContinue(FASTEST, feeMap)
         }
 
         // Step 4: User views and broadcasts their transaction. It is at this state machine where
         // BDK will assemble the "sweep" PSBT (`createAppSignedPsbt`)
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
+        awaitBodyMock<TransferConfirmationUiProps> {
           val psbtToBroadcast =
             PsbtMock.copy(
               amountSats = 60_000UL,
@@ -252,7 +252,7 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 5: User is shown the "Transfer Initiated" screen
-        awaitScreenWithBodyModelMock<TransferInitiatedUiProps> {
+        awaitBodyMock<TransferInitiatedUiProps> {
           val transferAmount = BitcoinMoney.sats(60_000UL.toBigInteger())
 
           with(
@@ -266,14 +266,14 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("going back from transfer confirmation rehydrates the right data for previous steps") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         // Step 1: User enters some address
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
         // Step 2: User enters some amount they want to send
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(
             ContinueTransferParams(
               SendAll
@@ -282,24 +282,24 @@ class SendUiStateMachineImplTests : FunSpec({
         }
 
         // Step 3: User selects intended fee rate
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onContinue(FASTEST, feeMap)
         }
 
         // Step 4: User views and broadcasts their transaction. It is at this state machine where
         // BDK will assemble the "sweep" PSBT (`createAppSignedPsbt`)
-        awaitScreenWithBodyModelMock<TransferConfirmationUiProps> {
+        awaitBodyMock<TransferConfirmationUiProps> {
           onBack()
         }
 
         // Step 5: User is taken back to transfer amount input screen, with zero amount.
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           initialAmount.shouldBe(FiatMoney.zero(USD))
           onBack()
         }
 
         // Step 6: User is taken back to address entry screen with the correct recipient address.
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           address.shouldBe(someBitcoinAddress)
         }
       }
@@ -315,12 +315,12 @@ class SendUiStateMachineImplTests : FunSpec({
             clock.now - 5.minutes
           )
         )
-      stateMachine.test(props) {
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           exchangeRates.shouldBeNull()
         }
       }
@@ -328,20 +328,20 @@ class SendUiStateMachineImplTests : FunSpec({
 
     test("going back to amount entry without exchange rates initializes with btc currency") {
       rateSyncer.exchangeRates.value = listOf()
-      stateMachine.test(props) {
-        awaitScreenWithBodyModelMock<BitcoinAddressRecipientUiProps> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
 
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           onContinueClick(ContinueTransferParams(SendAll))
         }
 
-        awaitScreenWithBodyModelMock<FeeSelectionUiProps> {
+        awaitBodyMock<FeeSelectionUiProps> {
           onBack()
         }
 
-        awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
+        awaitBodyMock<TransferAmountEntryUiProps> {
           initialAmount.currency.shouldBe(BTC)
         }
       }

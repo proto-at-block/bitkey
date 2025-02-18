@@ -257,11 +257,18 @@ data "aws_iam_policy_document" "secrets_policy_shop_api_secrets" {
   statement {
     resources = [
       "arn:aws:secretsmanager:*:*:secret:${var.name}/**",
+      "arn:aws:secretsmanager:*:*:secret:interop/fromagerie/**",
+      "arn:aws:secretsmanager:*:*:secret:interop/web-shop-api/**",
     ]
     actions = [
       "secretsmanager:GetSecretValue",
     ]
   }
+}
+
+resource "aws_iam_role_policy" "service_secrets_policy" {
+  role   = module.service.task_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 
 resource "aws_iam_role_policy" "web_revenue_reporting_secrets_policy_exec" {

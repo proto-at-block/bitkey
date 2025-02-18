@@ -1,17 +1,18 @@
 package build.wallet.statemachine.recovery.inprogress.waiting
 
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel.ButtonStyle.Destructive
 
-fun CancelRecoveryAlertModel(
+fun cancelRecoveryAlertModel(
   onConfirm: () -> Unit,
   onDismiss: () -> Unit,
 ) = ButtonAlertModel(
-  title = "Are you sure you want to cancel?",
+  title = "Are you sure you want to cancel recovery?",
   subline = "Cancelling will undo any progress you’ve done so far.",
-  onDismiss = onDismiss,
-  primaryButtonText = "Cancel recovery",
+  primaryButtonText = "Cancel",
   onPrimaryButtonClick = onConfirm,
-  primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
+  primaryButtonStyle = Destructive,
   secondaryButtonText = "Nevermind",
-  onSecondaryButtonClick = onDismiss
+  onSecondaryButtonClick = onDismiss,
+  onDismiss = onDismiss
 )

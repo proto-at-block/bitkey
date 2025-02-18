@@ -15,12 +15,12 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiProps
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.TimeZoneProviderMock
 import io.kotest.core.spec.style.FunSpec
@@ -63,8 +63,8 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
   test("initial state with no spending limit") {
     mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
 
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<SpendingLimitPickerUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<SpendingLimitPickerUiProps> {
         initialLimit.shouldBe(FiatMoney.zero(USD))
       }
     }
@@ -77,8 +77,8 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
       currentSpendingLimit = SpendingLimitMock.amount
     )
 
-    stateMachine.test(testProps) {
-      awaitScreenWithBodyModelMock<SpendingLimitPickerUiProps> {
+    stateMachine.testWithVirtualTime(testProps) {
+      awaitBodyMock<SpendingLimitPickerUiProps> {
         initialLimit.shouldBe(SpendingLimitMock.amount)
       }
     }
@@ -87,21 +87,21 @@ class SetSpendingLimitUiStateMachineImplTests : FunSpec({
   test("onSaveLimit leads to saving limit loading screen") {
     val limit = SpendingLimit(active = true, FiatMoney.usd(100.0), TimeZone.UTC)
 
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<SpendingLimitPickerUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<SpendingLimitPickerUiProps> {
         onSaveLimit(
           FiatMoney.usd(100.0),
           BitcoinMoney.btc(1.0),
           HwFactorProofOfPossession("")
         )
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         message.shouldNotBeNull().shouldBe("Saving Limit...")
       }
       mobilePayService.setLimitCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().run {
-          headline.shouldBe("You're all set.")
+          headline.shouldBe("You're all set")
           sublineModel.shouldNotBeNull().string.shouldBe(
             "Now you can spend up to $100.00 (100,000,000 sats) per day with just your phone."
           )

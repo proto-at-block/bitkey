@@ -3,7 +3,7 @@ package build.wallet.statemachine.settings.full
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiProps
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiStateMachineImpl
 import build.wallet.time.TimeZoneFormatterMock
@@ -24,7 +24,7 @@ class SpendingLimitCardUiStateMachineImplTests : FunSpec({
     )
 
   test("spending limit card with 0 remaining amount") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       with(awaitItem()) {
         titleText.shouldBe("Today’s limit")
         dailyResetTimezoneText.shouldBe("Resets at 3:00am PDT")
@@ -36,7 +36,7 @@ class SpendingLimitCardUiStateMachineImplTests : FunSpec({
   }
 
   test("spending limit card with $1.00 remaining amount") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(remainingAmount = FiatMoney.usd(100))
     ) {
       with(awaitItem()) {
@@ -50,7 +50,7 @@ class SpendingLimitCardUiStateMachineImplTests : FunSpec({
   }
 
   test("spending limit card with $0.50 remaining amount") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(remainingAmount = FiatMoney.usd(50))
     ) {
       with(awaitItem()) {
@@ -64,7 +64,7 @@ class SpendingLimitCardUiStateMachineImplTests : FunSpec({
   }
 
   test("spending limit card with $0.33 remaining amount") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(remainingAmount = FiatMoney.usd(33))
     ) {
       with(awaitItem()) {

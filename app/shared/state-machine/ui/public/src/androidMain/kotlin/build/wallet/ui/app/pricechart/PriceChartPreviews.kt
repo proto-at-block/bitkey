@@ -6,6 +6,7 @@ import build.wallet.pricechart.BitcoinPriceDetailsBodyModel
 import build.wallet.pricechart.ChartHistory
 import build.wallet.pricechart.ChartType
 import build.wallet.pricechart.DataPoint
+import build.wallet.ui.model.render
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList

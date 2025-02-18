@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
@@ -15,6 +10,7 @@ import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.socialRecoveryTrustedContacts
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
@@ -66,7 +62,7 @@ internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val backupRestorer: FullAccountCloudBackupRestorer,
   private val cloudBackupDao: CloudBackupDao,
@@ -458,8 +454,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           .bind()
 
       val fullAccountId = FullAccountId(authData.accountId)
-      authTokenDao
-        .setTokensOfScope(fullAccountId, authData.authTokens, tokenScope)
+      authTokensService
+        .setTokens(fullAccountId, authData.authTokens, tokenScope)
         .mapError { Error(it) }
         .bind()
 
@@ -506,7 +502,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           SocRecChallengeState(
             accountId = FullAccountId(authData.accountId),
             f8eEnvironment = state.f8eEnvironment,
-            contacts = relationships.endorsedTrustedContacts.toImmutableList(),
+            contacts = relationships.endorsedTrustedContacts.socialRecoveryTrustedContacts()
+              .toImmutableList(),
             isUsingSocRecFakes = state.backupFeatures.isUsingSocRecFakes,
             accountFeatures = state.accountFeatures,
             backupFeatures = state.backupFeatures

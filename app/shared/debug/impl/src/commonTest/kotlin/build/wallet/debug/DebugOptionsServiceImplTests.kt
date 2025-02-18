@@ -11,8 +11,6 @@ import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class DebugOptionsServiceImplTests : FunSpec({
-  coroutineTestScope = true
-
   lateinit var debugOptionsService: DebugOptionsServiceImpl
   val sqlDriverFactory = inMemorySqlDriver().factory
   val defaultDebugOptionsDecider = DefaultDebugOptionsDeciderImpl(AppVariant.Customer)

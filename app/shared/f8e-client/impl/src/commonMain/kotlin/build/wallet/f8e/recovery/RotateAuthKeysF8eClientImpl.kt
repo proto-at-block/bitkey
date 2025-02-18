@@ -11,6 +11,10 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withAppAuthKey
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.catching
@@ -56,15 +60,14 @@ class RotateAuthKeysF8eClientImpl(
       ).bind()
 
       f8eHttpClient
-        .authenticated(
-          f8eEnvironment,
-          fullAccountId,
-          hwFactorProofOfPossession = hwFactorProofOfPossession,
-          appFactorProofOfPossessionAuthKey = oldAppAuthPublicKey
-        )
+        .authenticated()
         .catching {
           post("/api/accounts/${fullAccountId.serverId}/authentication-keys") {
             withDescription("Rotating auth keys")
+            withEnvironment(f8eEnvironment)
+            withAccountId(fullAccountId)
+            withAppAuthKey(oldAppAuthPublicKey)
+            withHardwareFactor(hwFactorProofOfPossession)
             setRedactedBody(
               RotateAuthKeysetResponse(
                 application = AuthenticationKey(

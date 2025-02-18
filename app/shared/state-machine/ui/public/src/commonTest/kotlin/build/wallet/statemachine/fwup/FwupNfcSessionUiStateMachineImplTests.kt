@@ -12,11 +12,10 @@ import build.wallet.fwup.*
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.nfc.*
 import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.*
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigatorMock
-import build.wallet.time.ControlledDelayer
+import build.wallet.statemachine.ui.awaitBody
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -37,7 +36,6 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     FwupNfcSessionUiStateMachineImpl(
       enableNfcNavigator = EnableNfcNavigatorMock(),
       eventTracker = eventTracker,
-      delayer = ControlledDelayer(),
       fwupProgressCalculator = FwupProgressCalculatorMock(),
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapability = NfcReaderCapabilityMock(),
@@ -68,15 +66,15 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("happy path") {
     nfcTransactor.transactResult = Ok(Unit)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
       }
 
       nfcTransactor.transactCalls.awaitItem()
 
-      awaitScreenWithBody<FwupNfcBodyModel> {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Successfully updated")
         status.shouldBeTypeOf<Success>()
         onCancel.shouldBeNull()
@@ -96,8 +94,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("in progress cancel") {
     nfcTransactor.transactResult = Ok(Unit)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
         onCancel.shouldNotBeNull().invoke()
@@ -107,7 +105,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
       // TODO(W-4584): Make testing this better simulate reality where [NfcTransactor] wouldn't
       // have responded in this case.
-      awaitScreenWithBody<FwupNfcBodyModel>()
+      awaitBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
       onDoneCalls.awaitItem()
 
@@ -117,8 +115,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("onTagConnected") {
     nfcTransactor.transactResult = Ok(Unit)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
       }
@@ -129,7 +127,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
       // TODO(W-4584): Make testing this better simulate reality where [NfcTransactor] wouldn't
       // have responded in this case.
-      awaitScreenWithBody<FwupNfcBodyModel>()
+      awaitBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
       onDoneCalls.awaitItem()
 
@@ -138,7 +136,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
         TrackedAction(ACTION_APP_SCREEN_IMPRESSION, NFC_DETECTED, FWUP)
       )
 
-      awaitScreenWithBody<FwupNfcBodyModel> {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Updating...")
         status.shouldBeTypeOf<InProgress>()
       }
@@ -147,8 +145,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("onTagDisconnected") {
     nfcTransactor.transactResult = Ok(Unit)
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
       }
@@ -159,12 +157,12 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
       // TODO(W-4584): Make testing this better simulate reality where [NfcTransactor] wouldn't
       // have responded in this case.
-      awaitScreenWithBody<FwupNfcBodyModel>()
+      awaitBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
       onDoneCalls.awaitItem()
 
       transactCalls.onTagDisconnected()
-      awaitScreenWithBody<FwupNfcBodyModel> {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Device no longer detected,\nhold device to phone")
         status.shouldBeTypeOf<LostConnection>()
       }
@@ -173,8 +171,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("failure - user cancellation") {
     nfcTransactor.transactResult = Err(NfcException.IOSOnly.UserCancellation())
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
       }
@@ -187,8 +185,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   test("failure - other") {
     nfcTransactor.transactResult = Err(NfcException.CommandError())
-    stateMachine.test(props) {
-      awaitScreenWithBody<FwupNfcBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FwupNfcBodyModel> {
         status.text.shouldBe("Hold device here behind phone")
         status.shouldBeTypeOf<Searching>()
       }

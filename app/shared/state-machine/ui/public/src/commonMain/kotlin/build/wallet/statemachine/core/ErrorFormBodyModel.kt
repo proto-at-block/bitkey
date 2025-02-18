@@ -29,7 +29,7 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: () -> Unit = {},
+  onLoaded: (() -> Unit)? = null,
   errorData: ErrorData,
   secondaryButtonIcon: Icon? = null,
 ) = ErrorFormBodyModelWithOptionalErrorData(
@@ -60,7 +60,7 @@ fun ErrorFormBodyModel(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: () -> Unit = {},
+  onLoaded: (() -> Unit)? = null,
   secondaryButtonIcon: Icon? = null,
 ) = ErrorFormBodyModelWithOptionalErrorData(
   title = title,
@@ -90,12 +90,12 @@ fun ErrorFormBodyModelWithOptionalErrorData(
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
-  onLoaded: () -> Unit = {},
+  onLoaded: (() -> Unit)? = null,
   errorData: ErrorData?,
   secondaryButtonIcon: Icon? = null,
 ): FormBodyModel {
   return formBodyModel(
-    onLoaded = { onLoaded() },
+    onLoaded = onLoaded,
     id = eventTrackerScreenId,
     eventTrackerContext = eventTrackerContext,
     onBack = onBack,

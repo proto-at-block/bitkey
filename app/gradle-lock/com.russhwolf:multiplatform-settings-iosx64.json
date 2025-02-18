@@ -2,16 +2,16 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-iosx64",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-iosx64-1.1.1-metadata.jar": "a11b62af0c9bc9606c9a9c18fa1b6051eeae82412855e541642b9038da0fb6c2"
+                        "multiplatform-settings-iosx64-1.2.0-metadata.jar": "cd0ad68778669e392dfe49e4436a16b0c36ee72a473ed7abe4465f700cc2d091"
                     }
                 },
                 {
                     "artifacts": {
-                        "multiplatform-settings.klib": "688383069fc0df6d248da3e7880b5724408a40f527c20c28c0f7d5f374fa724e"
+                        "multiplatform-settings.klib": "3c3b60760446521b276f0a1a790599a6a7f72e7fe8397c0c1f476e111f295772"
                     }
                 }
             ],

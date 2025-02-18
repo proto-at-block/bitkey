@@ -3,12 +3,13 @@ package build.wallet.testing.ext
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.testing.AppTester
+import build.wallet.withRealTimeout
 import com.github.michaelbull.result.getOrThrow
 import kotlinx.coroutines.flow.first
+import kotlin.time.Duration.Companion.seconds
 
 suspend fun AppTester.getActiveAppGlobalAuthKey(): AppKey<AppGlobalAuthKey> {
   val account = getActiveFullAccount()
@@ -20,15 +21,12 @@ suspend fun AppTester.getActiveAppGlobalAuthKey(): AppKey<AppGlobalAuthKey> {
   return AppKey(appGlobalAuthPublicKey, appGlobalAuthPrivateKey)
 }
 
-/**
- * Returns and asserts the active lite account
- */
-suspend fun AppTester.getActiveLiteAccount(): LiteAccount {
-  return getActiveAccount() as? LiteAccount ?: error("active Lite Account not found")
-}
-
 suspend fun AppTester.getActiveAccount(): Account {
-  val accountStatus = accountService.accountStatus().first().getOrThrow()
+  // TODO: add Flow#realTimeout extension?
+  val accountStatus = withRealTimeout(3.seconds) {
+    accountService.accountStatus()
+      .first().getOrThrow()
+  }
   return (accountStatus as? AccountStatus.ActiveAccount)?.account
     ?: error("active account not found")
 }

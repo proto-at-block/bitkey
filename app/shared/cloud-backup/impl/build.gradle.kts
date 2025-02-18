@@ -32,6 +32,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.accountFake)
+        implementation(projects.shared.analyticsFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.recoveryFake)
         implementation(projects.shared.bitkeyPrimitivesFake)

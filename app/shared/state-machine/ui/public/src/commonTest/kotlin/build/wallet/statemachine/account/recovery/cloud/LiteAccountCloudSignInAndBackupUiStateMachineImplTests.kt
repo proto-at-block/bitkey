@@ -22,13 +22,13 @@ import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachineMock
 import build.wallet.statemachine.recovery.cloud.RectifiableErrorHandlingUiStateMachineMock
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -72,33 +72,33 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Uploads backup") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
       onBackupSavedCalls.awaitItem()
     }
   }
 
   test("Encounters unrectifiable error") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = UnrectifiableCloudBackupError(Throwable("bar"))
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
-      awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
         clickPrimaryButton()
       }
       onBackupFailedCalls.awaitItem()
@@ -106,26 +106,26 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Handles rectifiable error") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBodyModelMock<RectifiableErrorHandlingProps> {
+      awaitBodyMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
         // Unset this error, so we don't loop back.
         cloudBackupRepository.returnWriteError = null
         onReturn()
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       onBackupSavedCalls.awaitItem()
@@ -133,20 +133,20 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Cannot handle rectifiable error") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBodyModelMock<RectifiableErrorHandlingProps> {
+      awaitBodyMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
         onFailure(null)
       }
@@ -155,21 +155,21 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Cannot create backup") {
-    stateMachine.test(props = props) {
+    stateMachine.testWithVirtualTime(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = {
         Err(SocRecKeysRetrievalError(Throwable("bar")))
       }
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
         onSignedIn(CloudAccountMock("foo"))
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+      awaitBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
+      awaitBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
         clickPrimaryButton()
       }
       onBackupFailedCalls.awaitItem()

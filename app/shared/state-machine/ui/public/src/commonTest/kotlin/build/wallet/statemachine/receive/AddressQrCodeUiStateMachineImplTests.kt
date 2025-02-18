@@ -12,11 +12,11 @@ import build.wallet.platform.clipboard.ClipboardMock
 import build.wallet.platform.sharing.SharingManagerMock
 import build.wallet.platform.sharing.SharingManagerMock.SharedText
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.awaitBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
-import build.wallet.time.ControlledDelayer
+import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -25,6 +25,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration.Companion.milliseconds
 
 class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val clipboard = ClipboardMock()
@@ -35,7 +36,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val stateMachine =
     AddressQrCodeUiStateMachineImpl(
       clipboard = clipboard,
-      delayer = ControlledDelayer(),
+      restoreCopyAddressStateDelay = RestoreCopyAddressStateDelay(10.milliseconds),
       sharingManager = sharingManager,
       bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock(),
       bitcoinAddressService = bitcoinAddressService
@@ -55,7 +56,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   }
 
   test("show screen with address and QR code") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Loading address and QR code
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<QrCode>()) {
@@ -76,7 +77,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   }
 
   test("get new address when onRefreshClick called") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Loading address and QR code
       awaitBody<AddressQrCodeBodyModel> {}
 
@@ -109,7 +110,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   }
 
   test("copy address to clipboard") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem()
 
       awaitBody<AddressQrCodeBodyModel> {
@@ -132,7 +133,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   }
 
   test("share address") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem()
 
       awaitBody<AddressQrCodeBodyModel> {

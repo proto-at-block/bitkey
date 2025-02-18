@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedResponseBody
@@ -39,14 +41,13 @@ class SupportTicketF8eClientImpl(
     ticket: CreateTicketDTO,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId
-      )
+      .authenticated()
       .bodyResult<CreateTicketResponse> {
         post("/api/customer_feedback") {
           withDescription("Create support ticket.")
           setRedactedBody(ticket)
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
         }
       }
       .mapUnit()
@@ -57,13 +58,11 @@ class SupportTicketF8eClientImpl(
     accountId: AccountId,
   ): Result<TicketFormDTO, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<TicketFormDTO> {
         get("/api/support/ticket-form") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId, AuthTokenScope.Recovery)
           withDescription("Fetch support ticket form.")
         }
       }
@@ -77,15 +76,14 @@ class SupportTicketF8eClientImpl(
     source: Source,
   ): Result<String, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = accountId
-      )
+      .authenticated()
       .bodyResult<AttachmentUploadResponse> {
         post("/api/support/attachments?filename=${filename.encodeURLQueryComponent()}") {
           withDescription("Upload attachment")
           headers["Content-Type"] = mimeType.name
           setUnredactedBody(StreamAssetContent(source))
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
         }
       }
       .map { it.token }

@@ -3,10 +3,9 @@ package build.wallet.bitkey.relationships
 /**
  * Common interface for an invitation or trusted contact.
  */
-sealed interface TrustedContact {
+sealed interface TrustedContact : RecoveryEntity {
   @Deprecated("Use typed ID", ReplaceWith("id"))
-  val relationshipId: String
-  val id: RelationshipId get() = RelationshipId(relationshipId)
+  override val relationshipId: String
   val trustedContactAlias: TrustedContactAlias
   val roles: Set<TrustedContactRole>
 }

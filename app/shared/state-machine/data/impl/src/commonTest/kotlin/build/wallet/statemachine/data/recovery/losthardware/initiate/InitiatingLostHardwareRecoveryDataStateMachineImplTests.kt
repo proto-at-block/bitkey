@@ -12,18 +12,15 @@ import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
-import build.wallet.time.ControlledDelayer
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
+import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString.Companion.encodeUtf8
+import kotlin.time.Duration.Companion.seconds
 
 class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
@@ -40,9 +37,9 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   val stateMachine =
     InitiatingLostHardwareRecoveryDataStateMachineImpl(
       appKeysGenerator = appKeysGenerator,
-      delayer = ControlledDelayer(),
       lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
-      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient
+      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
+      minimumLoadingDuration = MinimumLoadingDuration(0.seconds)
     )
 
   beforeTest {
@@ -52,7 +49,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery -- success") {
-    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {
@@ -75,7 +72,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
         )
       )
 
-    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {
@@ -99,7 +96,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
         )
       )
 
-    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {

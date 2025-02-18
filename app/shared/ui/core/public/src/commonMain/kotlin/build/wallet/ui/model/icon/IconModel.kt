@@ -153,6 +153,8 @@ sealed interface IconBackgroundType {
       Information,
 
       InheritanceSurface,
+
+      Dark,
     }
   }
 

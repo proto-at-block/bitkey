@@ -5,16 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,9 +35,9 @@ import kotlin.time.Duration.Companion.seconds
  It displays temporarily at the bottom of the screen with an animated appearance and dismissal
  */
 @Composable
-fun Toast(model: ToastModel?) {
+fun Toast(model: ToastModel) {
   val isVisible by produceState(false, model) {
-    value = model != null
+    value = true
     delay(2.5.seconds)
     value = false
   }
@@ -109,9 +100,9 @@ internal fun ToastComposable(model: ToastModel?) {
           Box(
             modifier = Modifier
               .padding(top = 20.dp, start = 2.dp)
-              .background(Color.White, shape = CircleShape)
+              .background(model.iconStrokeColor.color(), shape = CircleShape)
               .size(icon.iconSize.dp - 4.dp, icon.iconSize.dp - 4.dp)
-          ).takeIf { model.whiteIconStroke }
+          ).takeIf { model.iconStrokeColor != ToastModel.IconStrokeColor.Unspecified }
           IconImage(
             modifier = Modifier
               .padding(top = 18.dp, bottom = 34.dp, end = 8.dp),
@@ -133,3 +124,10 @@ internal fun ToastComposable(model: ToastModel?) {
     }
   }
 }
+
+private fun ToastModel.IconStrokeColor.color() =
+  when (this) {
+    ToastModel.IconStrokeColor.Unspecified -> Color.Unspecified
+    ToastModel.IconStrokeColor.White -> Color.White
+    ToastModel.IconStrokeColor.Black -> Color.Black
+  }

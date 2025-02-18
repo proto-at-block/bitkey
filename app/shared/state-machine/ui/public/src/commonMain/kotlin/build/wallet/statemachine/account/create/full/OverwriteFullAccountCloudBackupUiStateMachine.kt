@@ -1,8 +1,8 @@
 package build.wallet.statemachine.account.create.full
 
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.account.CreateFullAccountData.OverwriteFullAccountCloudBackupData
 
 /**
  * Handles the case where a full account cloud backup is discovered during the upload cloud backup
@@ -13,5 +13,7 @@ interface OverwriteFullAccountCloudBackupUiStateMachine :
   StateMachine<OverwriteFullAccountCloudBackupUiProps, ScreenModel>
 
 data class OverwriteFullAccountCloudBackupUiProps(
-  val data: OverwriteFullAccountCloudBackupData,
+  val keybox: Keybox,
+  val onOverwrite: () -> Unit,
+  val rollback: () -> Unit,
 )

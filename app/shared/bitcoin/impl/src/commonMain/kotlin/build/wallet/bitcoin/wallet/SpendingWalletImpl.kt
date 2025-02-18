@@ -14,11 +14,11 @@ import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.*
 import build.wallet.catchingResult
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.ensure
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.platform.app.AppSessionManager
-import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -89,13 +89,9 @@ class SpendingWalletImpl(
     scope: CoroutineScope,
     interval: Duration,
   ): Job {
-    // Set up periodic syncs based on the given frequency
-    return scope.launch(syncContext) {
-      while (isActive) {
-        if (appSessionManager.isAppForegrounded()) {
-          sync()
-        }
-        delay(interval)
+    return scope.launchTicker(interval, syncContext) {
+      if (appSessionManager.isAppForegrounded()) {
+        sync()
       }
     }
   }

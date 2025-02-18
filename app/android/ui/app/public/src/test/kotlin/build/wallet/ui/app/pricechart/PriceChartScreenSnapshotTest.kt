@@ -4,6 +4,7 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.pricechart.*
+import build.wallet.ui.model.render
 import build.wallet.ui.tooling.PreviewWalletTheme
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.collections.immutable.ImmutableList

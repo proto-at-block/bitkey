@@ -9,12 +9,12 @@ import build.wallet.phonenumber.PhoneNumber
 import build.wallet.phonenumber.PhoneNumberFormatterMock
 import build.wallet.phonenumber.PhoneNumberMock
 import build.wallet.phonenumber.PhoneNumberValidatorMock
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
@@ -73,8 +73,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   test("initial state - example number") {
     phoneNumberValidator.dialingCodeForCurrentRegion = 3
     phoneNumberValidator.exampleFormattedNumberForCurrentRegion = "+0 11-11-11"
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Enter your phone number")
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.placeholderText.shouldBe("+0 11-11-11")
@@ -87,8 +87,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   test("initial state - no example number") {
     phoneNumberValidator.dialingCodeForCurrentRegion = 4
     phoneNumberValidator.exampleFormattedNumberForCurrentRegion = null
-    stateMachine.test(props.copy(dataInputStyle = Edit)) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(dataInputStyle = Edit)) {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Edit your phone number")
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.placeholderText.shouldBe("Phone number")
@@ -99,8 +99,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("close") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .leadingAccessory.shouldNotBeNull().shouldBeInstanceOf<IconAccessory>()
           .model.onClick.shouldNotBeNull().invoke()
@@ -110,8 +110,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("skip sheet - go back") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .trailingAccessory.shouldNotBeNull().shouldBeInstanceOf<ButtonAccessory>()
           .model.onClick.shouldNotBeNull().invoke()
@@ -127,8 +127,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("skipBottomSheetProvider passed as null") {
-    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
+      awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .trailingAccessory.shouldBeNull()
       }
@@ -139,14 +139,14 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
     val newValue = "123456"
     phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
     phoneNumberValidator.validatePhoneNumberResult = null
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           primaryButton.shouldNotBeNull().shouldBeDisabled()
           fieldModel.onValueChange(newValue)
         }
       }
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(phoneNumberFormatter.formatPartialPhoneNumberResult)
           primaryButton.shouldNotBeNull().shouldBeDisabled()
@@ -158,8 +158,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   test("national number onValueChange valid number") {
     val newValue = "123456"
     phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           primaryButton.shouldNotBeNull().shouldBeDisabled()
           phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
@@ -167,7 +167,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(PhoneNumberMock.formattedDisplayValue)
           primaryButton.shouldNotBeNull().shouldBeEnabled()
@@ -177,8 +177,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("error - touchpoint already active") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
         phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
         mainContentList.first().shouldBeInstanceOf<TextInput>()
@@ -193,7 +193,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       }
 
       // Submitting
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Send error in the callback
       val submitPhoneNumber = onSubmitPhoneNumberCalls.awaitItem()
@@ -219,8 +219,8 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("error - unsupported country code - skip") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
         phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
         mainContentList.first().shouldBeInstanceOf<TextInput>()
@@ -235,7 +235,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       }
 
       // Submitting
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Send error in the callback
       val submitPhoneNumber = onSubmitPhoneNumberCalls.awaitItem()
@@ -263,7 +263,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
   }
 
   test("error - unsupported country code - not skippable") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         primaryButtonText = "Got it",
         primaryButtonOnClick = null,
@@ -271,7 +271,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
         secondaryButtonOnClick = null
       )
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
         phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
         mainContentList.first().shouldBeInstanceOf<TextInput>()
@@ -286,7 +286,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       }
 
       // Submitting
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
 
       // Send error in the callback
       val submitPhoneNumber = onSubmitPhoneNumberCalls.awaitItem()

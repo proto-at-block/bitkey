@@ -19,11 +19,13 @@ import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppReco
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.sync.withLock
 
 @BitkeyInject(AppScope::class)
 class LostAppRecoveryInitiatorImpl(
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
+  private val recoveryLock: RecoveryLock,
 ) : LostAppRecoveryInitiator {
   override suspend fun initiate(
     fullAccountConfig: FullAccountConfig,
@@ -35,41 +37,43 @@ class LostAppRecoveryInitiatorImpl(
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, InitiateDelayNotifyAppRecoveryError> =
     coroutineBinding {
-      // Persist local pending recovery state
-      recoveryDao
-        .setLocalRecoveryProgress(
-          CreatedPendingKeybundles(
-            fullAccountId = fullAccountId,
-            appKeyBundle = newAppKeys,
-            hwKeyBundle = hardwareKeysForRecovery.newKeyBundle,
-            lostFactor = App,
-            appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
+      recoveryLock.withLock {
+        // Persist local pending recovery state
+        recoveryDao
+          .setLocalRecoveryProgress(
+            CreatedPendingKeybundles(
+              fullAccountId = fullAccountId,
+              appKeyBundle = newAppKeys,
+              hwKeyBundle = hardwareKeysForRecovery.newKeyBundle,
+              lostFactor = App,
+              appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
+            )
           )
-        )
-        .logFailure { "Failed to set local recovery progress when initiating DN recovery for Lost App." }
-        .mapError(::FailedToPersistRecoveryStateError)
-        .bind()
-
-      // Initiate recovery with f8e
-      val serverRecovery =
-        initiateAccountDelayNotifyF8eClient
-          .initiate(
-            f8eEnvironment = f8eEnvironment,
-            fullAccountId = fullAccountId,
-            lostFactor = App,
-            appGlobalAuthKey = newAppKeys.authKey,
-            appRecoveryAuthKey = newAppKeys.recoveryAuthKey,
-            hwFactorProofOfPossession = hwFactorProofOfPossession,
-            delayPeriod = fullAccountConfig.delayNotifyDuration,
-            hardwareAuthKey = hardwareKeysForRecovery.newKeyBundle.authKey
-          )
-          .mapError { F8eInitiateDelayNotifyError(it) }
+          .logFailure { "Failed to set local recovery progress when initiating DN recovery for Lost App." }
+          .mapError(::FailedToPersistRecoveryStateError)
           .bind()
-          .serverRecovery
 
-      recoveryDao.setActiveServerRecovery(serverRecovery)
-        .logFailure { "Failed to set active server recovery when initiating DN recovery for Lost App." }
-        .mapError(::FailedToPersistRecoveryStateError)
-        .bind()
+        // Initiate recovery with f8e
+        val serverRecovery =
+          initiateAccountDelayNotifyF8eClient
+            .initiate(
+              f8eEnvironment = f8eEnvironment,
+              fullAccountId = fullAccountId,
+              lostFactor = App,
+              appGlobalAuthKey = newAppKeys.authKey,
+              appRecoveryAuthKey = newAppKeys.recoveryAuthKey,
+              hwFactorProofOfPossession = hwFactorProofOfPossession,
+              delayPeriod = fullAccountConfig.delayNotifyDuration,
+              hardwareAuthKey = hardwareKeysForRecovery.newKeyBundle.authKey
+            )
+            .mapError { F8eInitiateDelayNotifyError(it) }
+            .bind()
+            .serverRecovery
+
+        recoveryDao.setActiveServerRecovery(serverRecovery)
+          .logFailure { "Failed to set active server recovery when initiating DN recovery for Lost App." }
+          .mapError(::FailedToPersistRecoveryStateError)
+          .bind()
+      }
     }
 }

@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.NetworkingError
@@ -22,10 +24,12 @@ class OnboardingF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
   ): Result<Unit, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .catching {
         post(urlString = "/api/accounts/${fullAccountId.serverId}/complete-onboarding") {
           withDescription("Complete onboarding")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(EmptyRequestBody)
         }
       }

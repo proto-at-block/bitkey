@@ -4,7 +4,6 @@ import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId
 import build.wallet.home.GettingStartedTask.TaskState
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -22,15 +21,11 @@ import io.kotest.matchers.shouldNotBe
 import kotlinx.coroutines.flow.first
 
 class CreateFullAccountFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  beforeTest {
-    app = launchNewApp()
-  }
 
   // if we have previously persisted app keys we restore those and return them (to keep account
   // creation idempotent). Otherwise, we create a new app key bundle for account creation.
   test("createAppKeys is idempotent - same keys are returned when called multiple times") {
+    val app = launchNewApp()
     val keys1 = app.createFullAccountService.createAppKeys().shouldBeOk()
     val keys2 = app.createFullAccountService.createAppKeys().shouldBeOk()
 
@@ -43,6 +38,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("createAppKeys returns new keys if onboarding state is cleared") {
+    val app = launchNewApp()
     val keys1 = app.createFullAccountService.createAppKeys().shouldBeOk()
     app.onboardingAppKeyKeystore.clear().shouldBeOk()
     val keys2 = app.createFullAccountService.createAppKeys().shouldBeOk()
@@ -56,6 +52,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("create and activate brand new full account using fake hardware keys successfully") {
+    val app = launchNewApp()
     // Create app keys
     val appKeys = app.createFullAccountService.createAppKeys().shouldBeOk()
     // Pair hardware
@@ -95,6 +92,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("create and activate full account for migrating lite account to full account") {
+    val app = launchNewApp()
     // Set up a Lite account
     val protectedCustomerApp = launchNewApp()
     protectedCustomerApp.onboardFullAccountWithFakeHardware()
@@ -149,6 +147,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("cannot pair hardware that is already in use") {
+    val app = launchNewApp()
     // Pair hardware with one account
     app.onboardFullAccountWithFakeHardware()
 
@@ -165,6 +164,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("createAccount - cannot create account using app key that is already associated with an account") {
+    val app = launchNewApp()
     // Pair hardware with one account
     val account = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.
@@ -188,6 +188,7 @@ class CreateFullAccountFunctionalTests : FunSpec({
   }
 
   test("createAccount - when reusing same app and hardware keys, we get the same account") {
+    val app = launchNewApp()
     // Pair hardware with one account
     val account1 = app.onboardFullAccountWithFakeHardware()
     // Setup quirk: reset the keybox database so that we can create a new account.

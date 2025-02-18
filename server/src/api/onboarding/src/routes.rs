@@ -175,10 +175,6 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/spending-key-definition",
                 put(activate_spending_key_definition),
             )
-            .route(
-                "/api/accounts/:account_id/self-sovereign-backup",
-                post(create_self_sovereign_backup),
-            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -231,7 +227,6 @@ impl From<RouteState> for SwaggerEndpoint {
         initiate_distributed_keygen,
         continue_distributed_keygen,
         activate_spending_key_definition,
-        create_self_sovereign_backup,
     ),
     components(
         schemas(
@@ -286,8 +281,6 @@ impl From<RouteState> for SwaggerEndpoint {
             ContinueDistributedKeygenResponse,
             ActivateSpendingKeyDefinitionRequest,
             ActivateSpendingKeyDefinitionResponse,
-            CreateSelfSovereignBackupRequest,
-            CreateSelfSovereignBackupResponse,
         ),
     ),
     tags(
@@ -1486,18 +1479,24 @@ pub async fn rotate_spending_keyset(
     Ok(Json(RotateSpendingKeysetResponse {}))
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InititateDistributedKeygenRequest {
     pub network: bdk_utils::bdk::bitcoin::Network,
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct InititateDistributedKeygenResponse {
     pub key_definition_id: KeyDefinitionId,
-    pub sealed_response: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
 }
 
 #[instrument(skip(account_service))]
@@ -1521,7 +1520,6 @@ pub async fn initiate_distributed_keygen(
 ) -> Result<Json<InititateDistributedKeygenResponse>, ApiError> {
     // TODO: Are there ever sweeps? Or should this only ever be called once in the lifetime of a software account?
     // If there are sweeps, does this need to be time-delayed, or does activation?
-
     let account = account_service
         .fetch_software_account(FetchAccountInput {
             account_id: &account_id,
@@ -1545,7 +1543,8 @@ pub async fn initiate_distributed_keygen(
         .initiate_distributed_keygen(
             &key_definition_id.to_string(),
             request.network,
-            &request.sealed_request,
+            request.sealed_request,
+            request.noise_session,
         )
         .await
         .map_err(|e| {
@@ -1572,10 +1571,14 @@ pub async fn initiate_distributed_keygen(
     }))
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ContinueDistributedKeygenRequest {
-    pub sealed_request: String,
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
@@ -1630,7 +1633,8 @@ pub async fn continue_distributed_keygen(
         .continue_distributed_keygen(
             &key_definition_id.to_string(),
             distributed_key.network.into(),
-            &request.sealed_request,
+            request.sealed_request,
+            request.noise_session,
         )
         .await
         .map_err(|e| {
@@ -1652,91 +1656,6 @@ pub async fn continue_distributed_keygen(
         .await?;
 
     Ok(Json(ContinueDistributedKeygenResponse {}))
-}
-
-#[serde_as]
-#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct CreateSelfSovereignBackupRequest {
-    #[serde_as(as = "Base64")]
-    pub sealed_request: Vec<u8>,
-    #[serde_as(as = "Base64")]
-    pub noise_session: Vec<u8>,
-}
-
-#[serde_as]
-#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct CreateSelfSovereignBackupResponse {
-    #[serde_as(as = "Base64")]
-    pub sealed_response: Vec<u8>,
-}
-
-#[instrument(skip(account_service))]
-#[utoipa::path(
-    post,
-    path = "/api/accounts/{account_id}/self-sovereign-backup",
-    params(
-        ("account_id" = AccountId, Path, description = "AccountId"),
-        ("key_definition_id" = KeyDefinitionId, Path, description = "KeyDefinitionId"),
-    ),
-    request_body = CreateSelfSovereignBackupRequest,
-    responses(
-        (status = 200, description = "Created self-sovereign backup", body=CreateSelfSovereignBackupResponse),
-        (status = 404, description = "Account not found")
-    ),
-)]
-pub async fn create_self_sovereign_backup(
-    Path(account_id): Path<AccountId>,
-    State(account_service): State<AccountService>,
-    State(wsm_client): State<WsmClient>,
-    Json(request): Json<CreateSelfSovereignBackupRequest>,
-) -> Result<Json<CreateSelfSovereignBackupResponse>, ApiError> {
-    let account = account_service
-        .fetch_software_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await?;
-
-    let key_definition_id = account
-        .active_key_definition_id
-        .ok_or(RouteError::NoActiveSpendKeyset)?;
-
-    let Some(key_definition) = account.spending_key_definitions.get(&key_definition_id) else {
-        return Err(ApiError::GenericNotFound(
-            "Key definition not found".to_string(),
-        ));
-    };
-
-    let SpendingKeyDefinition::DistributedKey(distributed_key) = key_definition else {
-        return Err(ApiError::GenericBadRequest(
-            "Key definition is not a distributed key".to_string(),
-        ));
-    };
-
-    if !distributed_key.dkg_complete {
-        return Err(ApiError::GenericConflict(
-            "Keygen is not complete for key definition".to_string(),
-        ));
-    }
-
-    let response = wsm_client
-        .create_self_sovereign_backup(
-            &key_definition_id.to_string(),
-            distributed_key.network.into(),
-            request.sealed_request,
-            request.noise_session,
-        )
-        .await
-        .map_err(|e| {
-            let msg = "Failed to create self-sovereign backup in WSM";
-            error!("{msg}: {e}");
-            ApiError::GenericInternalApplicationError(msg.to_string())
-        })?;
-
-    Ok(Json(CreateSelfSovereignBackupResponse {
-        sealed_response: response.sealed_response,
-    }))
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]

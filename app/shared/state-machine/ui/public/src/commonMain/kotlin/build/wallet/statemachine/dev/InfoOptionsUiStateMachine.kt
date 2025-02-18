@@ -10,4 +10,8 @@ import build.wallet.ui.model.list.ListGroupModel
  * - app version
  * - OS version
  */
-interface InfoOptionsUiStateMachine : StateMachine<Unit, ListGroupModel>
+interface InfoOptionsUiStateMachine : StateMachine<InfoOptionsProps, ListGroupModel>
+
+data class InfoOptionsProps(
+  val onPasteboardCopy: (name: String) -> Unit,
+)

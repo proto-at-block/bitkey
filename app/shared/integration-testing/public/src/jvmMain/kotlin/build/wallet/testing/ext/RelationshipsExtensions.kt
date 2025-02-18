@@ -14,7 +14,6 @@ import io.kotest.assertions.withClue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.isActive
 import kotlin.time.Duration
@@ -26,7 +25,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
   withClue("await TC is verified and backed up") {
-    appUiStateMachine.test(props = Unit, useVirtualTime = false) {
+    appUiStateMachine.test(props = Unit) {
       // Wait until TC is synced and verified
       awaitRelationships { relationships ->
         relationships.endorsedTrustedContacts.any {

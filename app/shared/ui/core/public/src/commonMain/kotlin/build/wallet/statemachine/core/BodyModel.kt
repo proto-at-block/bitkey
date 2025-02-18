@@ -2,11 +2,12 @@ package build.wallet.statemachine.core
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
-import build.wallet.ui.model.Model
+import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.toast.ToastModel
 
-abstract class BodyModel : Model() {
+abstract class BodyModel : ComposeModel {
   /**
    * A unique ID and optional context used to track screens across the app.
    *
@@ -31,11 +32,13 @@ abstract class BodyModel : Model() {
   fun asRootScreen(
     alertModel: ButtonAlertModel? = null,
     bottomSheetModel: SheetModel? = null,
+    toastModel: ToastModel? = null,
   ) = ScreenModel(
     body = this,
     presentationStyle = Root,
     alertModel = alertModel,
-    bottomSheetModel = bottomSheetModel
+    bottomSheetModel = bottomSheetModel,
+    toastModel = toastModel
   )
 
   /**
@@ -44,7 +47,6 @@ abstract class BodyModel : Model() {
   fun asSheetModalScreen(onClosed: () -> Unit) =
     SheetModel(
       body = this,
-      dragIndicatorVisible = true,
       onClosed = onClosed
     )
 
@@ -54,11 +56,13 @@ abstract class BodyModel : Model() {
   fun asModalScreen(
     alertModel: AlertModel? = null,
     bottomSheetModel: SheetModel? = null,
+    toastModel: ToastModel? = null,
   ) = ScreenModel(
     body = this,
     presentationStyle = Modal,
     alertModel = alertModel,
-    bottomSheetModel = bottomSheetModel
+    bottomSheetModel = bottomSheetModel,
+    toastModel = toastModel
   )
 
   /**

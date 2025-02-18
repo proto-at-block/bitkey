@@ -1,6 +1,7 @@
 package build.wallet.statemachine.app
 
 import androidx.compose.runtime.Composable
+import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
@@ -10,17 +11,20 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountConfigMock
-import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
 import build.wallet.bootstrap.AppState
 import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
 import build.wallet.bootstrap.LoadAppServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.datadog.DatadogRumMonitorFake
 import build.wallet.debug.DebugOptions
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.inappsecurity.BiometricAuthServiceFake
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -32,13 +36,16 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.biometric.BiometricPromptProps
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
-import build.wallet.statemachine.core.*
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardingAccountData
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit
+import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
@@ -63,15 +70,19 @@ import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitR
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
+import build.wallet.statemachine.root.SplashScreenDelay
+import build.wallet.statemachine.root.WelcomeToBitkeyScreenDuration
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
-import build.wallet.time.Delayer
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.worker.AppWorkerExecutorMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.milliseconds
 
 class AppUiStateMachineImplTests : FunSpec({
 
@@ -93,7 +104,7 @@ class AppUiStateMachineImplTests : FunSpec({
     object : SomeoneElseIsRecoveringUiStateMachine,
       ScreenStateMachineMock<SomeoneElseIsRecoveringUiProps>(id = "someone-else-recovering") {}
   val accountDataStateMachine =
-    object : AccountDataStateMachine, StateMachineMock<Unit, AccountData>(
+    object : AccountDataStateMachine, StateMachineMock<AccountDataProps, AccountData>(
       initialModel = CheckingActiveAccountData
     ) {}
   val loadAppService = LoadAppServiceFake()
@@ -124,7 +135,6 @@ class AppUiStateMachineImplTests : FunSpec({
   val appWorkerExecutor = AppWorkerExecutorMock(turbines::create)
 
   val gettingStartedData = GettingStartedData(
-    startFullAccountCreation = {},
     startLiteAccountCreation = {},
     startRecovery = {},
     startEmergencyAccessRecovery = {},
@@ -134,6 +144,8 @@ class AppUiStateMachineImplTests : FunSpec({
 
   val biometricAuthService = BiometricAuthServiceFake()
 
+  val datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
+
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {
     loadAppService.reset()
@@ -142,7 +154,6 @@ class AppUiStateMachineImplTests : FunSpec({
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
-        delayer = Delayer.Default,
         debugMenuStateMachine =
           object : DebugMenuStateMachine, ScreenStateMachineMock<DebugMenuProps>(
             id = "debug-menu"
@@ -181,7 +192,12 @@ class AppUiStateMachineImplTests : FunSpec({
             }
           }
         },
-        biometricAuthService = biometricAuthService
+        biometricAuthService = biometricAuthService,
+        accountService = AccountServiceFake(),
+        datadogRumMonitor = datadogRumMonitor,
+        splashScreenDelay = SplashScreenDelay(10.milliseconds),
+        welcomeToBitkeyScreenDuration = WelcomeToBitkeyScreenDuration(10.milliseconds),
+        deviceInfoProvider = DeviceInfoProviderMock()
       )
   }
 
@@ -198,8 +214,8 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("Loading while checking for account data") {
     accountDataStateMachine.emitModel(CheckingActiveAccountData)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       cancelAndIgnoreRemainingEvents()
     }
@@ -207,10 +223,10 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("ActiveKeyboxLoadedData") {
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<HomeUiProps> {
+      awaitBodyMock<HomeUiProps> {
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
         lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
@@ -221,45 +237,26 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
 
       loadAppService.appState.value = AppState.Undetermined
 
-      awaitScreenWithBodyModelMock<HomeUiProps> {
+      awaitBodyMock<HomeUiProps> {
         account.shouldBe(ActiveKeyboxLoadedDataMock.account)
         lostHardwareRecoveryData.shouldBe(ActiveKeyboxLoadedDataMock.lostHardwareRecoveryData)
       }
     }
   }
 
-  test("CreatingAccountData") {
-    accountDataStateMachine.emitModel(
-      NoActiveAccountData.CreatingFullAccountData(
-        createFullAccountData = OnboardingAccountData(
-          keybox = KeyboxMock,
-          isSkipCloudBackupInstructions = false,
-          onFoundLiteAccountWithDifferentId = {},
-          onOverwriteFullAccountCloudBackupWarning = {},
-          onOnboardingComplete = {}
-        )
-      )
-    )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
-      eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<CreateAccountUiProps>()
-    }
-  }
-
   test("ReadyToChooseAccountAccessKeyboxData") {
     accountDataStateMachine.emitModel(gettingStartedData)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<ChooseAccountAccessUiProps>()
+      awaitBodyMock<ChooseAccountAccessUiProps>()
     }
   }
 
@@ -285,25 +282,10 @@ class AppUiStateMachineImplTests : FunSpec({
         )
       )
     )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<LostAppRecoveryUiProps>()
-    }
-  }
-
-  test("RecoveringLiteAccountData") {
-    accountDataStateMachine.emitModel(
-      NoActiveAccountData.RecoveringLiteAccountData(
-        cloudBackup = CloudBackupV2WithLiteAccountMock,
-        onAccountCreated = {},
-        onExit = {}
-      )
-    )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
-      eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<LiteAccountCloudBackupRestorationUiProps>()
+      awaitBodyMock<LostAppRecoveryUiProps>()
     }
   }
 
@@ -313,19 +295,19 @@ class AppUiStateMachineImplTests : FunSpec({
         onExit = {}
       )
     )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<EmergencyAccessKitRecoveryUiStateMachineProps>()
+      awaitBodyMock<EmergencyAccessKitRecoveryUiStateMachineProps>()
     }
   }
 
   test("NoLongerRecoveringKeyboxData") {
     accountDataStateMachine.emitModel(AccountData.NoLongerRecoveringFullAccountData(App))
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<NoLongerRecoveringUiProps>()
+      awaitBodyMock<NoLongerRecoveringUiProps>()
     }
   }
 
@@ -337,10 +319,10 @@ class AppUiStateMachineImplTests : FunSpec({
         fullAccountId = FullAccountIdMock
       )
     )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<SomeoneElseIsRecoveringUiProps>()
+      awaitBodyMock<SomeoneElseIsRecoveringUiProps>()
     }
   }
 
@@ -348,14 +330,14 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
 
       loadAppService.appState.value = HasActiveSoftwareAccount(SoftwareAccountMock)
 
-      awaitScreenWithBodyModelMock<HomeUiProps> {
+      awaitBodyMock<HomeUiProps> {
         account.shouldBe(SoftwareAccountMock)
       }
     }
@@ -365,22 +347,22 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(gettingStartedData)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
 
       loadAppService.appState.value = AppState.Undetermined
 
-      awaitScreenWithBodyModelMock<ChooseAccountAccessUiProps> {
+      awaitBodyMock<ChooseAccountAccessUiProps> {
         onSoftwareWalletCreated(SoftwareAccountMock)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         message.shouldBe("Welcome to Bitkey")
       }
 
-      awaitScreenWithBodyModelMock<HomeUiProps> {
+      awaitBodyMock<HomeUiProps> {
         account.shouldBe(SoftwareAccountMock)
       }
     }
@@ -390,10 +372,99 @@ class AppUiStateMachineImplTests : FunSpec({
     biometricAuthService.isBiometricAuthRequiredFlow.value = true
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
-      awaitScreenWithBodyModelMock<BiometricPromptProps>()
+      awaitBodyMock<BiometricPromptProps>()
+    }
+  }
+
+  test("Launching from an onboarding account") {
+    loadAppService.appState.value = AppState.OnboardingFullAccount(account = FullAccountMock)
+
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+
+      awaitBodyMock<CreateAccountUiProps> {
+        onOnboardingComplete(FullAccountMock)
+      }
+
+      accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
+
+      awaitBody<LoadingSuccessBodyModel> {
+        message.shouldBe("Welcome to Bitkey")
+      }
+
+      awaitBodyMock<HomeUiProps> {
+        account.shouldBe(FullAccountMock)
+      }
+    }
+  }
+
+  test("creating a lite account") {
+    loadAppService.appState.value = null
+
+    accountDataStateMachine.emitModel(
+      NoActiveAccountData.CheckingCloudBackupData(
+        intent = AccountData.StartIntent.BeTrustedContact,
+        inviteCode = "invite-code",
+        onStartCloudRecovery = {},
+        onStartLostAppRecovery = {},
+        onImportEmergencyAccessKit = {},
+        onExit = {}
+      )
+    )
+
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+      expectNoEvents()
+
+      loadAppService.appState.value = AppState.Undetermined
+
+      awaitBodyMock<GettingStartedRoutingProps> {
+        onStartLiteAccountCreation("invite-code")
+      }
+
+      awaitBodyMock<CreateLiteAccountUiProps> {
+        onAccountCreated(LiteAccountMock)
+      }
+
+      awaitBodyMock<LiteHomeUiProps>()
+    }
+  }
+
+  test("recovering a lite account") {
+    loadAppService.appState.value = null
+
+    accountDataStateMachine.emitModel(
+      NoActiveAccountData.CheckingCloudBackupData(
+        intent = AccountData.StartIntent.BeTrustedContact,
+        inviteCode = "invite-code",
+        onStartCloudRecovery = {},
+        onStartLostAppRecovery = {},
+        onImportEmergencyAccessKit = {},
+        onExit = {}
+      )
+    )
+
+    stateMachine.testWithVirtualTime(Unit) {
+      awaitBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+      expectNoEvents()
+
+      loadAppService.appState.value = AppState.Undetermined
+
+      awaitBodyMock<GettingStartedRoutingProps> {
+        onStartLiteAccountRecovery(CloudBackupV2WithLiteAccountMock)
+      }
+
+      awaitBodyMock<LiteAccountCloudBackupRestorationUiProps> {
+        onLiteAccountRestored(LiteAccountMock)
+      }
+
+      awaitBodyMock<LiteHomeUiProps>()
     }
   }
 })

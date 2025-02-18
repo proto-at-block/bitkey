@@ -6,12 +6,14 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import build.wallet.f8e.error.code.F8eClientErrorCode
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.relationships.Relationships
 import com.github.michaelbull.result.Result
@@ -115,6 +117,11 @@ interface RelationshipsService {
     inviteCode: String,
   ): Result<ProtectedCustomer, AcceptInvitationCodeError>
 
+  suspend fun retrieveInvitationPromotionCode(
+    account: Account,
+    invitationCode: String,
+  ): Result<PromotionCode?, RetrieveInvitationPromotionCodeError>
+
   /**
    * Clear all local social relationship data.
    */
@@ -155,4 +162,17 @@ sealed interface AcceptInvitationCodeError {
 
   data class F8ePropagatedError(val error: F8eError<AcceptTrustedContactInvitationErrorCode>) :
     AcceptInvitationCodeError
+}
+
+sealed interface RetrieveInvitationPromotionCodeError {
+  val cause: Error
+
+  data class InvalidInvitationCode(
+    override val cause: Error,
+  ) : RetrieveInvitationPromotionCodeError
+
+  data class F8ePropagatedError(val error: F8eError<F8eClientErrorCode>) :
+    RetrieveInvitationPromotionCodeError {
+    override val cause: Error = error.error
+  }
 }

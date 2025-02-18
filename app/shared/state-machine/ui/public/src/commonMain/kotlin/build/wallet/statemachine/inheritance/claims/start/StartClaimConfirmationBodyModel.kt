@@ -22,7 +22,7 @@ data class StartClaimConfirmationBodyModel(
     ),
     header = FormHeaderModel(
       headline = "Submit inheritance claim",
-      subline = "Once a claim is submitted the process cannot be canceled. Keep notifications enabled to ensure you receive important communication during the process."
+      subline = "Keep notifications enabled to ensure you receive important communication during the process."
     ),
     primaryButton = ButtonModel(
       text = "Continue",

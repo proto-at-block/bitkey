@@ -1,3 +1,5 @@
+@file:OptIn(KotestInternal::class)
+
 package build.wallet.testing
 
 import build.wallet.bdk.BdkBlockchainFactoryImpl
@@ -12,42 +14,63 @@ import build.wallet.bitcoin.blockchain.RegtestControl
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
 import build.wallet.cloud.store.*
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.di.JvmActivityComponent
 import build.wallet.di.JvmAppComponent
 import build.wallet.di.JvmAppComponentImpl
 import build.wallet.di.create
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
-import build.wallet.logging.*
-import build.wallet.nfc.*
+import build.wallet.logging.LogLevel
+import build.wallet.logging.Logger
+import build.wallet.logging.logTesting
+import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManagerImpl
 import build.wallet.platform.data.databasesDir
 import build.wallet.platform.data.filesDir
+import build.wallet.platform.random.uuid
 import build.wallet.store.KeyValueStoreFactoryImpl
-import kotlinx.coroutines.coroutineScope
+import io.kotest.common.KotestInternal
+import io.kotest.core.test.TestScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.*
 import kotlin.time.Duration.Companion.ZERO
 
 const val BITCOIN_NETWORK_ENV_VAR_NAME = "BITCOIN_NETWORK"
 const val F8E_ENV_ENV_VAR_NAME = "F8E_ENVIRONMENT"
 
+/**
+ * @param testScope parent coroutine scope of this [build.wallet.testing.AppTester] instance, in this
+ * case it's the coroutine scope tied to the test itself.
+ */
 @Suppress("TooManyFunctions")
 class AppTester(
+  private val testScope: TestScope,
   appComponent: JvmAppComponent,
   activityComponent: JvmActivityComponent,
   internal val blockchainControl: BlockchainControl,
-  val treasuryWallet: TreasuryWallet,
   internal val initialF8eEnvironment: F8eEnvironment,
   val initialBitcoinNetworkType: BitcoinNetworkType,
   val isUsingSocRecFakes: Boolean,
 ) : JvmAppComponent by appComponent, JvmActivityComponent by activityComponent {
+  val treasuryWallet: TreasuryWallet by lazy {
+    runBlocking {
+      TreasuryWalletFactory(
+        bitcoinBlockchain = appComponent.bitcoinBlockchain,
+        blockchainControl = blockchainControl,
+        spendingWalletProvider = appComponent.spendingWalletProvider,
+        bdkDescriptorSecretKeyFactory = BdkDescriptorSecretKeyFactoryImpl(),
+        bdkDescriptorFactory = BdkDescriptorFactoryImpl(),
+        feeEstimator = appComponent.bitcoinFeeRateEstimator
+      ).create(initialBitcoinNetworkType)
+    }
+  }
+
   /**
    * Creates a new [AppTester] that share data with an existing app instance.
    * It is not safe to continue using the previous [AppTester] instance after calling this method.
@@ -56,8 +79,13 @@ class AppTester(
     bdkBlockchainFactory: BdkBlockchainFactory? = null,
     f8eEnvironment: F8eEnvironment? = null,
     executeWorkers: Boolean = true,
-  ): AppTester =
-    launchApp(
+  ): AppTester {
+    // Cancel
+    appCoroutineScope.run {
+      cancel()
+      coroutineContext.job.cancelAndJoin()
+    }
+    return testScope.launchApp(
       existingAppDir = fileDirectoryProvider.appDir(),
       bdkBlockchainFactory = bdkBlockchainFactory,
       f8eEnvironment = f8eEnvironment,
@@ -67,12 +95,13 @@ class AppTester(
       hardwareSeed = fakeHardwareKeyStore.getSeed(),
       executeWorkers = executeWorkers
     )
+  }
 
   companion object {
     /**
      * Creates a brand new [AppTester].
      */
-    suspend fun launchNewApp(
+    suspend fun TestScope.launchNewApp(
       bdkBlockchainFactory: BdkBlockchainFactory? = null,
       f8eEnvironment: F8eEnvironment? = null,
       bitcoinNetworkType: BitcoinNetworkType? = null,
@@ -81,8 +110,8 @@ class AppTester(
       hardwareSeed: FakeHardwareKeyStore.Seed? = null,
       isUsingSocRecFakes: Boolean = false,
       executeWorkers: Boolean = true,
-    ): AppTester =
-      launchApp(
+    ): AppTester {
+      return launchApp(
         existingAppDir = null,
         bdkBlockchainFactory,
         f8eEnvironment,
@@ -93,15 +122,29 @@ class AppTester(
         isUsingSocRecFakes,
         executeWorkers
       )
+    }
 
     /**
-     * Creates an [AppTester] instance
+     * Creates an [AppTester] instance. Note that each [AppTester] instance is tied to a coroutine
+     * scope of the test, see [AppTester.testScope].
+     *
+     * Usage:
+     * ```kotlin
+     * test("my test") {
+     *   val app = launchApp()
+     *   // use AppTester
+     *
+     *   // AppTester's coroutine scope and its jobs will be auto-cancelled
+     *   // at the end of a test.
+     * }
+     * ```
+     *
      * @param existingAppDir Specify where application data (databases) should be saved.
      * If there is existing data in the directory, it will be used by the new app.
      * @param executeWorkers if true, all [AppWorker]s will be executed.
      */
     @Suppress("NAME_SHADOWING")
-    private suspend fun launchApp(
+    private suspend fun TestScope.launchApp(
       existingAppDir: String? = null,
       bdkBlockchainFactory: BdkBlockchainFactory? = null,
       f8eEnvironment: F8eEnvironment? = null,
@@ -130,8 +173,12 @@ class AppTester(
         } ?: REGTEST
       val bdkBlockchainFactory = bdkBlockchainFactory ?: BdkBlockchainFactoryImpl()
 
-      val appDir = initAppDir(existingAppDir)
+      val appTesterId = uuid()
+      val appDir = initAppDir(appTesterId = appTesterId, existingAppDir = existingAppDir)
+
+      val appScope = createBackgroundScope(CoroutineName("AppTester-$appTesterId"))
       val appComponent = createAppComponent(
+        appScope = appScope,
         appDir = appDir,
         bdkBlockchainFactory = bdkBlockchainFactory,
         cloudStoreAccountRepositoryOverride = cloudStoreAccountRepository,
@@ -144,14 +191,6 @@ class AppTester(
       val blockchainControl = createBlockchainControl(bitcoinNetworkType)
       val activityComponent = appComponent.activityComponent()
 
-      val treasury = TreasuryWalletFactory(
-        bitcoinBlockchain = appComponent.bitcoinBlockchain,
-        blockchainControl = blockchainControl,
-        spendingWalletProvider = appComponent.spendingWalletProvider,
-        bdkDescriptorSecretKeyFactory = BdkDescriptorSecretKeyFactoryImpl(),
-        bdkDescriptorFactory = BdkDescriptorFactoryImpl()
-      ).create(bitcoinNetworkType)
-
       appComponent.debugOptionsService.apply {
         setBitcoinNetworkType(bitcoinNetworkType)
         setIsHardwareFake(true)
@@ -163,10 +202,8 @@ class AppTester(
 
       // TODO(W-9704): execute workers by default
       if (executeWorkers) {
-        coroutineScope {
-          launch {
-            appComponent.appWorkerExecutor.executeAll()
-          }
+        appComponent.appCoroutineScope.launch {
+          appComponent.appWorkerExecutor.executeAll()
         }
 
         // Wait for feature flags to be initialized
@@ -176,10 +213,10 @@ class AppTester(
       }
 
       return AppTester(
+        testScope = this,
         appComponent = appComponent,
         activityComponent = activityComponent,
         blockchainControl = blockchainControl,
-        treasuryWallet = treasury,
         initialF8eEnvironment = f8eEnvironment,
         initialBitcoinNetworkType = bitcoinNetworkType,
         isUsingSocRecFakes = isUsingSocRecFakes
@@ -188,14 +225,16 @@ class AppTester(
   }
 }
 
-private fun initAppDir(existingAppDir: String?): String {
+private fun initAppDir(
+  appTesterId: String,
+  existingAppDir: String?,
+): String {
   val appDir =
     if (existingAppDir != null) {
       existingAppDir
     } else {
       val rootDir = (System.getProperty("user.dir") + "/_build/bitkey/appdata")
-      val uuid = UUID.randomUUID().toString()
-      rootDir.join(uuid)
+      rootDir.join(appTesterId)
     }
   logTesting { "App data directory is $appDir" }
   val fileDirectoryProvider = FileDirectoryProviderImpl(appDir)
@@ -205,6 +244,7 @@ private fun initAppDir(existingAppDir: String?): String {
 }
 
 private fun createAppComponent(
+  appScope: CoroutineScope,
   appDir: String,
   bdkBlockchainFactory: BdkBlockchainFactory,
   cloudStoreAccountRepositoryOverride: CloudStoreAccountRepository? = null,
@@ -223,6 +263,7 @@ private fun createAppComponent(
     fileManager = fileManager
   )
   return JvmAppComponentImpl::class.create(
+    appCoroutineScope = appScope,
     appDir = appDir,
     bdkBlockchainFactory = bdkBlockchainFactory,
     writableCloudStoreAccountRepository = writableCloudStoreAccountRepository,

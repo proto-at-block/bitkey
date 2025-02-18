@@ -10,6 +10,7 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.crypto.SealedData
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.ErrorSource.Network
@@ -210,6 +211,16 @@ private class MetricsNfcCommandsImpl(
 
   override suspend fun queryAuthentication(session: NfcSession) =
     measure("queryAuthentication") { commands.queryAuthentication(session) }
+
+  override suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ) = measure("sealData") { commands.sealData(session, unsealedData) }
+
+  override suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ) = measure("unsealData") { commands.unsealData(session, sealedData) }
 
   override suspend fun sealKey(
     session: NfcSession,

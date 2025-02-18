@@ -1,5 +1,6 @@
 package build.wallet
 
+import build.wallet.coroutines.withTimeoutThrowing
 import kotlinx.coroutines.*
 import kotlin.time.Duration
 
@@ -26,7 +27,19 @@ import kotlin.time.Duration
 suspend fun <T> withRealTimeout(
   timeout: Duration,
   block: suspend CoroutineScope.() -> T,
-): T = withRealTime { withTimeout(timeout, block) }
+): T {
+  val context = currentCoroutineContext()
+  return withRealTime {
+    withTimeoutThrowing(timeout) {
+      // withRealTime overrides original context to ensure a real dispatcher is used.
+      // So we need to switch back to original context to preserve context elements (eg cancellation handlers).
+      // See https://github.com/Kotlin/kotlinx.coroutines/issues/3588.
+      withContext(context) {
+        block()
+      }
+    }
+  }
+}
 
 /**
  * Suspends the current coroutine for a real-time [duration], bypassing any test dispatchers

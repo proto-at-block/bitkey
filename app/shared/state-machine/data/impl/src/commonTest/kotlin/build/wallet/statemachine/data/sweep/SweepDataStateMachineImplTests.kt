@@ -24,7 +24,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepServiceMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
@@ -91,7 +91,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   test("failed to generate sweep") {
     sweepService.prepareSweepResult = Err(Error())
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
       awaitItem().shouldBeTypeOf<GeneratePsbtsFailedData>()
     }
@@ -100,7 +100,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   test("no funds found") {
     sweepService.prepareSweepResult = Ok(null)
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
       awaitItem().shouldBeTypeOf<NoFundsFoundData>()
@@ -126,7 +126,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
     )
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
       val psbtsGenerated = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
@@ -181,7 +181,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
     )
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
       val psbtsGeneratedData = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
@@ -234,7 +234,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     val appSignedPsbtMock = PsbtMock.copyBase64("app-signed")
     serverSigner.signWithSpecificKeysetResult = Err(NetworkError(Error("Dang")))
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
       awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
         .startSweep()
@@ -262,7 +262,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     )
     bitcoinWalletService.broadcastError = Generic(cause = Exception("Dang."), message = null)
 
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
       awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()
         .startSweep()

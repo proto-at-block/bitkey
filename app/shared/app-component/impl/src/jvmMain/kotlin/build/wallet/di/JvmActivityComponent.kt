@@ -1,8 +1,10 @@
 package build.wallet.di
 
 import build.wallet.nfc.NfcTransactor
+import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachine
+import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
@@ -29,8 +31,10 @@ interface JvmActivityComponent {
   val addingTcsUiStateMachine: AddingTrustedContactUiStateMachine
   val appUiStateMachine: AppUiStateMachine
   val feedbackUiStateMachine: FeedbackUiStateMachine
+  val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine
   val lostHardwareRecoveryUiStateMachine: LostHardwareRecoveryUiStateMachine
   val nfcTransactor: NfcTransactor
+  val notificationsStateMachine: EnableNotificationsUiStateMachine
   val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine
   val partnershipsTransferUiStateMachine: PartnershipsTransferUiStateMachine
   val recoveringKeyboxUiStateMachine: LostAppRecoveryUiStateMachine

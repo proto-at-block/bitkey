@@ -9,6 +9,7 @@ import build.wallet.analytics.v1.Action.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.recovery.getEventId
@@ -22,13 +23,11 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
-import build.wallet.statemachine.recovery.inprogress.waiting.CancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotifyInProgressScreenModel
+import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.time.DurationFormatter
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 
 /**
@@ -72,9 +71,8 @@ class RecoveryInProgressUiStateMachineImpl(
 
         // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
         LaunchedEffect("update-delay-progress") {
-          while (isActive) {
+          launchTicker(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE) {
             remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
-            delay(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE)
           }
         }
 
@@ -91,24 +89,23 @@ class RecoveryInProgressUiStateMachineImpl(
               onExit = props.onExit
             ).asScreen(
               presentationStyle = props.presentationStyle,
-              alertModel =
-                if (confirmingCancellation) {
-                  CancelRecoveryAlertModel(
-                    onConfirm = {
-                      eventTracker.track(ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_CANCEL)
-                      recoveryInProgressData.cancel()
-                      confirmingCancellation = false
-                    },
-                    onDismiss = {
-                      eventTracker.track(
-                        ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_DISMISS_STOP_RECOVERY
-                      )
-                      confirmingCancellation = false
-                    }
-                  )
-                } else {
-                  null
-                }
+              alertModel = if (confirmingCancellation) {
+                cancelRecoveryAlertModel(
+                  onConfirm = {
+                    eventTracker.track(ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_CANCEL)
+                    recoveryInProgressData.cancel()
+                    confirmingCancellation = false
+                  },
+                  onDismiss = {
+                    eventTracker.track(
+                      ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_DISMISS_STOP_RECOVERY
+                    )
+                    confirmingCancellation = false
+                  }
+                )
+              } else {
+                null
+              }
             )
 
           Hardware ->
@@ -123,26 +120,25 @@ class RecoveryInProgressUiStateMachineImpl(
               onExit = props.onExit ?: {} // TODO(W-3276): handle
             ).asScreen(
               presentationStyle = props.presentationStyle,
-              alertModel =
-                if (confirmingCancellation) {
-                  CancelRecoveryAlertModel(
-                    onConfirm = {
-                      eventTracker.track(
-                        ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_CANCEL
-                      )
-                      recoveryInProgressData.cancel()
-                      confirmingCancellation = false
-                    },
-                    onDismiss = {
-                      eventTracker.track(
-                        ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_DISMISS_STOP_RECOVERY
-                      )
-                      confirmingCancellation = false
-                    }
-                  )
-                } else {
-                  null
-                }
+              alertModel = if (confirmingCancellation) {
+                cancelRecoveryAlertModel(
+                  onConfirm = {
+                    eventTracker.track(
+                      ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_CANCEL
+                    )
+                    recoveryInProgressData.cancel()
+                    confirmingCancellation = false
+                  },
+                  onDismiss = {
+                    eventTracker.track(
+                      ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_DISMISS_STOP_RECOVERY
+                    )
+                    confirmingCancellation = false
+                  }
+                )
+              } else {
+                null
+              }
             )
         }
       }

@@ -1,17 +1,15 @@
 package build.wallet.google.signin
 
-import build.wallet.catchingResult
+import build.wallet.coroutines.withTimeoutResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.logging.*
-import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
@@ -20,14 +18,12 @@ class GoogleSignOutActionImpl(
 ) : GoogleSignOutAction {
   override suspend fun signOut(): Result<Unit, GoogleSignOutError> {
     logDebug { "Signing out from Google accounts" }
-    return catchingResult {
-      withTimeout(10.seconds) {
-        withContext(Dispatchers.IO) {
-          with(googleSignInClientProvider.clientForGoogleDrive) {
-            // Revoking access disconnects customer's Google account from our app.
-            revokeAccess().continueWith { signOut() }
-          }.await()
-        }
+    return withTimeoutResult(10.seconds) {
+      withContext(Dispatchers.IO) {
+        with(googleSignInClientProvider.clientForGoogleDrive) {
+          // Revoking access disconnects customer's Google account from our app.
+          revokeAccess().continueWith { signOut() }
+        }.await()
       }
     }
       .map {

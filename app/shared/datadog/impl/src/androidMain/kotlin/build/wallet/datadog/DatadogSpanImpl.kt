@@ -1,6 +1,6 @@
 package build.wallet.datadog
 
-import com.datadog.trace.api.interceptor.MutableSpan
+import com.datadog.opentracing.DDSpan
 import io.opentracing.Span
 
 internal data class DatadogSpanImpl(
@@ -8,7 +8,7 @@ internal data class DatadogSpanImpl(
 ) : DatadogSpan {
   override var resourceName: String? = null
     set(value) {
-      (span as? MutableSpan)?.resourceName = value
+      (span as DDSpan).resourceName = value
       field = value
     }
 
@@ -24,7 +24,7 @@ internal data class DatadogSpanImpl(
   }
 
   override fun finish(cause: Throwable) {
-    (span as? MutableSpan)?.setError(true)
+    (span as DDSpan).setError(true)
     setTag("error.type", cause::class.simpleName.orEmpty())
     setTag("error.msg", cause.message.orEmpty())
     setTag("error.stack", cause.stackTraceToString())

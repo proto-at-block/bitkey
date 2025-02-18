@@ -11,6 +11,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.fromJsonString
 import build.wallet.ktor.result.NetworkingError
@@ -32,10 +34,12 @@ class ListKeysetsF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
   ): Result<List<SpendingKeyset>, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
         get("/api/accounts/${fullAccountId.serverId}/keysets") {
           withDescription("Get keysets from f8e")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
         }
       }
       .map { body ->

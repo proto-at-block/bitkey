@@ -33,6 +33,17 @@ inline fun Modifier.thenIf(
   )
 }
 
+inline fun <T> Modifier.thenIfNotNull(
+  value: T?,
+  block: Modifier.(T) -> Modifier,
+): Modifier {
+  return if (value == null) {
+    this
+  } else {
+    then(block(value))
+  }
+}
+
 /**
  * Sets test tag as resource ID to this semantics node, if the tag is provided.
  * The test tag can be used to find nodes in UI testing frameworks.

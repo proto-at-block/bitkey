@@ -14,6 +14,7 @@ import build.wallet.cloud.backup.local.BackupStorageError
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.RelationshipsKeysDaoFake
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -22,8 +23,8 @@ import io.kotest.matchers.shouldBe
 
 class LiteAccountCloudBackupRestorerImplTests : FunSpec({
 
-  val authTokenDao = AuthTokenDaoMock(turbines::create)
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
+  val authTokensService = AuthTokensServiceFake()
   val appPrivateKeyDaoFake = AppPrivateKeyDaoFake()
   val cloudBackupDao = CloudBackupDaoFake()
   val accountService = AccountServiceFake()
@@ -33,14 +34,14 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       appPrivateKeyDao = appPrivateKeyDaoFake,
       relationshipsKeysDao = RelationshipsKeysDaoFake(),
       accountAuthenticator = accountAuthenticator,
-      authTokenDao = authTokenDao,
+      authTokensService = authTokensService,
       cloudBackupDao = cloudBackupDao,
       accountService = accountService
     )
 
   beforeTest {
     accountAuthenticator.reset()
-    authTokenDao.reset()
+    authTokensService.reset()
     appPrivateKeyDaoFake.reset()
     accountService.reset()
   }
@@ -52,17 +53,13 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem().shouldBe(
       CloudBackupV2WithLiteAccountMock.appRecoveryAuthKeypair.publicKey
     )
-    authTokenDao.setTokensCalls.awaitItem().shouldBe(
-      AuthTokenDaoMock.SetTokensParams(
-        accountId = LiteAccountIdMock,
-        tokens =
-          AccountAuthTokens(
-            accessToken = AccessToken(raw = "access-token-fake"),
-            refreshToken = RefreshToken(raw = "refresh-token-fake")
-          ),
-        scope = Recovery
+    authTokensService.getTokens(LiteAccountIdMock, Recovery)
+      .shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken(raw = "access-token-fake"),
+          refreshToken = RefreshToken(raw = "refresh-token-fake")
+        )
       )
-    )
     appPrivateKeyDaoFake
       .asymmetricKeys
       .shouldBe(
@@ -109,17 +106,13 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
     accountAuthenticator.authCalls.awaitItem().shouldBe(
       CloudBackupV2WithLiteAccountMock.appRecoveryAuthKeypair.publicKey
     )
-    authTokenDao.setTokensCalls.awaitItem().shouldBe(
-      AuthTokenDaoMock.SetTokensParams(
-        accountId = LiteAccountIdMock,
-        tokens =
-          AccountAuthTokens(
-            accessToken = AccessToken(raw = "access-token-fake"),
-            refreshToken = RefreshToken(raw = "refresh-token-fake")
-          ),
-        scope = Recovery
+    authTokensService.getTokens(LiteAccountIdMock, Recovery)
+      .shouldBeOk(
+        AccountAuthTokens(
+          accessToken = AccessToken(raw = "access-token-fake"),
+          refreshToken = RefreshToken(raw = "refresh-token-fake")
+        )
       )
-    )
     appPrivateKeyDaoFake
       .asymmetricKeys
       .shouldBe(

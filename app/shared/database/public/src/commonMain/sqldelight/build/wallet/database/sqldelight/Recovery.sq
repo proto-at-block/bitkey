@@ -44,8 +44,10 @@ CREATE TABLE localRecoveryAttemptEntity(
   serverKeysetId                  TEXT,
   serverSpendingKey               TEXT AS F8eSpendingPublicKey,
   -- presence of above means spendingKeysRotated status
-  backedUpToCloud                 INTEGER AS Boolean NOT NULL
+  backedUpToCloud                 INTEGER AS Boolean NOT NULL,
   -- presence of above means backed up to cloud status
+  ddkBackedUp                     INTEGER AS Boolean NOT NULL DEFAULT 0
+  -- presence of above means we've sealed the ddk with new hardware (HW Recovery) & uploaded to F8e
 );
 
 getServerRecovery:
@@ -75,9 +77,9 @@ clear {
 }
 
 markAsInitiated:
-INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, authKeysRotated, serverKeysetId, serverSpendingKey, authKeysRotated, backedUpToCloud, hadServerRecovery)
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, appGlobalAuthKeyHwSignature, lostFactor, sealedCsek, authKeysRotated, serverKeysetId, serverSpendingKey, authKeysRotated, ddkBackedUp, backedUpToCloud, hadServerRecovery)
 -- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, 0, 0, 0);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, 0, 0, 0, 0);
 
 -- To protect against race conditions where we might not get a server sync between the time we
 -- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery
@@ -98,6 +100,9 @@ UPDATE localRecoveryAttemptEntity SET sealedCsek = NULL;
 
 markSpendingKeysRotated:
 UPDATE localRecoveryAttemptEntity SET serverKeysetId = ?, serverSpendingKey = ?;
+
+markDdkBackedUp:
+UPDATE localRecoveryAttemptEntity SET ddkBackedUp = 1;
 
 markCloudBackedUp:
 UPDATE localRecoveryAttemptEntity SET backedUpToCloud = 1;

@@ -1,6 +1,3 @@
-// DO NOT EDIT.
-// This file is generated from design tokens in the wallet/style folder.
-
 package build.wallet.ui.tokens
 
 import androidx.compose.runtime.Composable
@@ -19,6 +16,8 @@ import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
 import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
 import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
+import build.wallet.statemachine.core.Icon.InheritancePlanHero
+import build.wallet.statemachine.core.Icon.InheritanceShowcase
 import build.wallet.statemachine.core.Icon.LargeIconAdd
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
@@ -30,6 +29,7 @@ import build.wallet.statemachine.core.Icon.LargeIconReceive
 import build.wallet.statemachine.core.Icon.LargeIconSend
 import build.wallet.statemachine.core.Icon.LargeIconShieldPerson
 import build.wallet.statemachine.core.Icon.LargeIconSpeedometer
+import build.wallet.statemachine.core.Icon.LargeIconWarning
 import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.Icon.LargeIconWarningStroked
 import build.wallet.statemachine.core.Icon.MediumIconQrCode
@@ -146,6 +146,8 @@ private val Icon.drawableRes: DrawableResource
       BuyOwnBitkeyHero -> Res.drawable.buy_own_bitkey_hero
       CloudBackupEmergencyAccessKit -> Res.drawable.cloud_backup_emergency_access_kit
       CloudBackupMobileKey -> Res.drawable.cloud_backup_mobile_key
+      InheritanceShowcase -> Res.drawable.inheritance_showcase
+      InheritancePlanHero -> Res.drawable.inheritance_plan_hero
       LargeIconAdd -> Res.drawable.large_icon_add
       LargeIconConsolidationFilled -> Res.drawable.large_icon_consolidation_filled
       LargeIconMinus -> Res.drawable.large_icon_minus
@@ -157,6 +159,7 @@ private val Icon.drawableRes: DrawableResource
       LargeIconSend -> Res.drawable.large_icon_send
       LargeIconShieldPerson -> Res.drawable.large_icon_shield_person
       LargeIconSpeedometer -> Res.drawable.large_icon_speedometer
+      LargeIconWarning -> Res.drawable.large_icon_warning
       LargeIconWarningFilled -> Res.drawable.large_icon_warning_filled
       LargeIconWarningStroked -> Res.drawable.large_icon_warning_stroked
       MediumIconQrCode -> Res.drawable.medium_icon_qr_code

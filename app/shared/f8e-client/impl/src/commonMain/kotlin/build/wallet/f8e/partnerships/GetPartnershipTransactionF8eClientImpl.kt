@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedResponseBody
@@ -30,14 +32,13 @@ class GetPartnershipTransactionF8eClientImpl(
     transactionType: PartnershipTransactionType,
   ): Result<F8ePartnershipTransaction, NetworkingError> {
     return client
-      .authenticated(
-        accountId = accountId,
-        f8eEnvironment = f8eEnvironment
-      )
+      .authenticated()
       .bodyResult<PartnershipTransactionResponse> {
         get("/api/partnerships/partners/${partner.value}/transactions/${partnershipTransactionId.value}") {
           parameter("type", transactionType.name)
           withDescription("Get partnership transaction")
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
         }
       }
       .map {

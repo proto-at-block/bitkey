@@ -1,3 +1,4 @@
+use account::service::FetchAccountInput;
 use notification::payloads::inheritance_claim_period_almost_over::InheritanceClaimPeriodAlmostOverPayload;
 use notification::payloads::inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload;
 use notification::payloads::inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload;
@@ -6,7 +7,7 @@ use notification::service::ScheduleNotificationsInput;
 use notification::{NotificationPayload, NotificationPayloadBuilder};
 use tokio::{join, try_join};
 use tracing::instrument;
-use types::account::entities::Account;
+use types::account::entities::FullAccount;
 use types::account::identifiers::AccountId;
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimPending};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
@@ -23,7 +24,7 @@ use crate::service::social::relationship::get_recovery_relationships::{
 };
 
 pub struct CreateInheritanceClaimInput<'a> {
-    pub beneficiary_account: &'a Account,
+    pub beneficiary_account: &'a FullAccount,
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub auth_keys: InheritanceClaimAuthKeys,
 }
@@ -49,13 +50,15 @@ impl Service {
         // Check to see if the given Recovery Relationships are valid
         let (relationships, all_claims) = fetch_relationships_and_claims(
             self,
-            input.beneficiary_account.get_id(),
+            &input.beneficiary_account.id,
             &input.recovery_relationship_id,
         )
         .await?;
 
         let relationship =
             filter_endorsed_relationship(relationships.customers, &input.recovery_relationship_id)?;
+        let benefactor_account_id = relationship.common_fields().customer_account_id.to_owned();
+        let beneficiary_account_id = input.beneficiary_account.id.to_owned();
 
         // TODO: Ensure that there is a package for this relationship after W-9369
 
@@ -64,16 +67,23 @@ impl Service {
 
         // TODO: Add contestation scenario for Lite Accounts
 
+        let benefactor = self
+            .account_service
+            .fetch_full_account(FetchAccountInput {
+                account_id: &relationship.common_fields().customer_account_id,
+            })
+            .await?;
+
         let id = InheritanceClaimId::gen()?;
+        let use_test_delay_end_time =
+            should_use_shortened_delay(&benefactor, input.beneficiary_account);
         let pending_claim = InheritanceClaimPending::new(
             id.clone(),
             input.recovery_relationship_id,
+            benefactor_account_id,
+            beneficiary_account_id,
             input.auth_keys,
-            input
-                .beneficiary_account
-                .get_common_fields()
-                .properties
-                .is_test_account,
+            use_test_delay_end_time,
         );
 
         let claim = self
@@ -81,8 +91,28 @@ impl Service {
             .persist_inheritance_claim(&InheritanceClaim::Pending(pending_claim.clone()))
             .await?;
 
-        let (benefactor_payload, beneficiary_payload) =
-            generate_notification_payloads(&id, &relationship, &pending_claim)?;
+        self.schedule_notifications_for_pending_claim(
+            &pending_claim,
+            &input.beneficiary_account.id,
+            &relationship,
+            use_test_delay_end_time,
+        )
+        .await?;
+        Ok(claim)
+    }
+
+    pub(crate) async fn schedule_notifications_for_pending_claim(
+        &self,
+        pending_claim: &InheritanceClaimPending,
+        beneficiary_account_id: &AccountId,
+        relationship: &RecoveryRelationship,
+        has_shortened_delay: bool,
+    ) -> Result<(), ServiceError> {
+        let (benefactor_payload, beneficiary_payload) = generate_notification_payloads(
+            &pending_claim.common_fields.id,
+            relationship,
+            pending_claim,
+        )?;
 
         try_join!(
             // Schedule notifications for the benefactor
@@ -92,22 +122,23 @@ impl Service {
                     notification_type: ScheduleNotificationType::InheritanceClaimPeriodInitiated(
                         pending_claim.delay_end_time,
                         RecoveryRelationshipRole::ProtectedCustomer,
+                        has_shortened_delay,
                     ),
                     payload: benefactor_payload,
                 }),
             // Schedule notifications for the beneficiary
             self.notification_service
                 .schedule_notifications(ScheduleNotificationsInput {
-                    account_id: input.beneficiary_account.get_id().clone(),
+                    account_id: beneficiary_account_id.clone(),
                     notification_type: ScheduleNotificationType::InheritanceClaimPeriodInitiated(
                         pending_claim.delay_end_time,
                         RecoveryRelationshipRole::TrustedContact,
+                        has_shortened_delay,
                     ),
                     payload: beneficiary_payload,
                 }),
         )?;
-
-        Ok(claim)
+        Ok(())
     }
 }
 
@@ -253,4 +284,12 @@ fn generate_notification_payloads(
             ))
             .build()?,
     ))
+}
+
+pub(crate) fn should_use_shortened_delay(
+    benefactor: &FullAccount,
+    beneficiary: &FullAccount,
+) -> bool {
+    benefactor.common_fields.properties.is_test_account
+        && beneficiary.common_fields.properties.is_test_account
 }

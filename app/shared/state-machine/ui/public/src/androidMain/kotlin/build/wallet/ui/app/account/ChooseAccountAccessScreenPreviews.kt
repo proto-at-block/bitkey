@@ -10,12 +10,11 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun ChooseAccountAccessScreenPreview() {
   PreviewWalletTheme {
     ChooseAccountAccessScreen(
-      model =
-        ChooseAccountAccessModel(
-          onLogoClick = {},
-          onSetUpNewWalletClick = {},
-          onMoreOptionsClick = {}
-        )
+      model = ChooseAccountAccessModel(
+        onLogoClick = {},
+        onSetUpNewWalletClick = {},
+        onMoreOptionsClick = {}
+      )
     )
   }
 }

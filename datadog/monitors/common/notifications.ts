@@ -323,3 +323,72 @@ export class SnsFailureCompositeMonitor extends Construct {
     });
   }
 }
+
+interface SnsAnomalousPublishVolumeConfig {
+  environment: string,
+  tags: string[],
+  query_window?: string,
+  algorithm?: string,
+  deviations?: number,
+  direction?: string,
+  interval?: number,
+  alert_window?: string,
+  seasonality?: string,
+  threshold?: number,
+  recipients: string[],
+  dataDogLink?: string,
+}
+
+const snsAnomalousPublishVolumeConfigDefaults: Partial<SnsAnomalousPublishVolumeConfig> = {
+  query_window: "2w",
+  algorithm: "robust",
+  deviations: 1,
+  direction: "below",
+  interval: 7200,
+  alert_window: "2d",
+  seasonality: "daily",
+  threshold: 0.25,
+}
+
+/**
+ * SnsAnomalousPublishVolumeMonitor alerts if the SNS publish volume falls below that predicted by the anomaly detection
+ * algorithm for a configurable number of data points within the specified window.
+ * https://docs.datadoghq.com/monitors/types/anomaly/
+ */
+export class SnsAnomalousPublishVolumeMonitor extends Construct {
+  constructor(scope: Construct, id: string, config: SnsAnomalousPublishVolumeConfig) {
+    super(scope, id);
+
+    config = {
+      ...snsAnomalousPublishVolumeConfigDefaults,
+      ...config,
+    };
+
+    const {
+      environment,
+      tags,
+      query_window,
+      algorithm,
+      deviations,
+      direction,
+      interval,
+      alert_window,
+      seasonality,
+      threshold,
+      recipients,
+      dataDogLink,
+    } = config;
+    
+    const query = `avg(last_${query_window}):anomalies(sum:bitkey.notifications.sns.publish.attempt{${[`env:${environment}`].concat(tags).join(",")}}.as_count(), '${algorithm}', ${deviations}, direction='${direction}', interval=${interval}, alert_window='last_${alert_window}', count_default_zero='true', seasonality='${seasonality}') >= ${threshold}`;
+
+    new Monitor(this, 'sns_failure_composite', {
+      query,
+      name: `SNS anomalous publish volume on env:${environment}`,
+      message: `SNS publish volume is anomalous.`,
+      type: "query alert",
+      tags,
+      dataDogLink,
+      recipients,
+    });
+  }
+}

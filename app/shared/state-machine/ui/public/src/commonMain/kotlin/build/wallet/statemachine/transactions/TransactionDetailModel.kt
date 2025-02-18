@@ -60,8 +60,7 @@ data class TransactionDetailModel(
       leadingAccessory = BackAccessory(onClick = onClose)
     ),
     mainContentList = content,
-    id = MoneyHomeEventTrackerScreenId.TRANSACTION_DETAIL,
-    enableComposeRendering = true
+    id = MoneyHomeEventTrackerScreenId.TRANSACTION_DETAIL
   )
 
 /**

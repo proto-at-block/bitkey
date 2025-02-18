@@ -5,6 +5,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.Alpha
 import build.wallet.platform.config.AppVariant.Beta
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
@@ -24,7 +25,7 @@ class AnalyticsOptionsUiStateMachineImpl(
     // Only show this option in development or team builds.
     return when (appVariant) {
       Beta, Customer, Emergency -> null
-      Development, Team ->
+      Development, Alpha, Team ->
         ListGroupModel(
           style = ListGroupStyle.DIVIDER,
           items =

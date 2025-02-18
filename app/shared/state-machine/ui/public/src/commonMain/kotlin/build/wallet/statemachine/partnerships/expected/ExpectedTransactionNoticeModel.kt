@@ -87,6 +87,5 @@ data class ExpectedTransactionNoticeModel(
     ),
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
-    ),
-    enableComposeRendering = true
+    )
   )

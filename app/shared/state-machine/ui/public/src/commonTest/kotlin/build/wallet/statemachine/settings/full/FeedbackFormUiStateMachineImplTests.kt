@@ -4,30 +4,30 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiStateMachineImpl
 import build.wallet.statemachine.settings.full.feedback.FillingFormBodyModel
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.support.*
-import build.wallet.time.ControlledDelayer
 import build.wallet.time.DateTimeFormatterMock
 import io.kotest.core.spec.style.FunSpec
+import kotlin.time.Duration.Companion.milliseconds
 
 class FeedbackFormUiStateMachineImplTests : FunSpec({
 
-  val delayer = ControlledDelayer()
   val supportTicketRepository = SupportTicketRepositoryFake()
   val supportTicketFormValidator = SupportTicketFormValidatorFake()
   val dateTimeFormatter = DateTimeFormatterMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val stateMachine = FeedbackFormUiStateMachineImpl(
-    delayer = delayer,
     supportTicketRepository = supportTicketRepository,
     supportTicketFormValidator = supportTicketFormValidator,
     dateTimeFormatter = dateTimeFormatter,
-    inAppBrowserNavigator = inAppBrowserNavigator
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    actionSuccessDuration = ActionSuccessDuration(0.milliseconds)
   )
 
   val props = FeedbackFormUiProps(
@@ -43,9 +43,9 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
   )
 
   test("smoke test") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // A silly smoke test to make sure the state machine doesn't crash. INC-3635.
-      awaitScreenWithBody<FillingFormBodyModel>()
+      awaitBody<FillingFormBodyModel>()
     }
   }
 })

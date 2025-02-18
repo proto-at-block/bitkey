@@ -142,7 +142,7 @@ private fun TransactionDetailsModel.toFormContent(
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           DataList.Data(
-            title = "Network Fees",
+            title = "Network fees",
             onTitle = onNetworkFeesClick,
             titleIcon =
               IconModel(

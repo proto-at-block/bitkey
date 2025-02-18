@@ -1,10 +1,12 @@
 package build.wallet.pricechart
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.pricechart.ui.*
-import build.wallet.statemachine.core.ComposeBodyModel
+import build.wallet.pricechart.ui.BitcoinPriceChartScreen
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -32,10 +34,10 @@ data class BitcoinPriceDetailsBodyModel(
     leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
   ),
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
-) : ComposeBodyModel() {
+) : BodyModel() {
   @Composable
-  override fun render() {
-    BitcoinPriceChartScreen(model = this)
+  override fun render(modifier: Modifier) {
+    BitcoinPriceChartScreen(modifier, model = this)
   }
 }
 

@@ -1,7 +1,8 @@
 package build.wallet.encryption
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import build.wallet.crypto.SSBLocalWrappingPublicKeys
 import build.wallet.crypto.SSBServerBundle
 import build.wallet.crypto.SelfSovereignBackupImpl
@@ -59,7 +60,8 @@ class SelfSovereignBackupInstrumentedTest {
 
   @Test
   fun testSsb() {
-    val se = SecureEnclaveImpl(InstrumentationRegistry.getInstrumentation().targetContext)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
     val hkdf = HkdfImpl()
     val symmetricKeyEncryptor = SymmetricKeyEncryptorImpl()
     val ssb = SelfSovereignBackupImpl(
@@ -83,7 +85,8 @@ class SelfSovereignBackupInstrumentedTest {
 
   @Test
   fun testSsbRotation() {
-    val se = SecureEnclaveImpl(InstrumentationRegistry.getInstrumentation().targetContext)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
     val hkdf = HkdfImpl()
     val symmetricKeyEncryptor = SymmetricKeyEncryptorImpl()
     val ssb = SelfSovereignBackupImpl(

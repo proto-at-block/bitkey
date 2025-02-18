@@ -7,6 +7,7 @@ import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.recover
 import io.kotest.assertions.fail
 import kotlinx.coroutines.flow.first
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -27,6 +28,9 @@ suspend fun AppTester.completeRecoveryDelayPeriodOnF8e() {
 private suspend fun AppTester.getFullAccountId(): FullAccountId {
   try {
     return getActiveFullAccount().accountId
+  } catch (e: CancellationException) {
+    // Cancellations are expected, rethrow to ensure structured cancellation.
+    throw e
   } catch (_: Exception) {
     val recovery = recoveryDao.activeRecovery().first().recover { null }.value
     if (recovery is Recovery.StillRecovering) {

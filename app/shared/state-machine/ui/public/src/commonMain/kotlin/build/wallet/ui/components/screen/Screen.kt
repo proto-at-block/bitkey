@@ -8,12 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
@@ -28,8 +23,8 @@ import build.wallet.ui.components.toast.Toast
 import build.wallet.ui.compose.gestures.onTwoFingerDoubleTap
 import build.wallet.ui.compose.gestures.onTwoFingerTripleTap
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.model.UiModelContent
 import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.render
 import build.wallet.ui.model.toast.ToastModel
 import build.wallet.ui.theme.WalletTheme
 
@@ -52,7 +47,7 @@ fun Screen(
       modifier = modifier,
       addSystemBarsPadding = style.addSystemBarsPadding,
       bodyContent = {
-        UiModelContent(model = model.body)
+        model.body.render()
       },
       statusBannerContent = {
         var statusBannerModel by remember {
@@ -74,9 +69,7 @@ fun Screen(
             animationSpec = tween(durationMillis = 300)
           )
         ) {
-          statusBannerModel?.let {
-            UiModelContent(model = it)
-          }
+          statusBannerModel?.render()
 
           LaunchedEffect("reset-banner-model") {
             if (model.statusBannerModel == null) {

@@ -54,6 +54,7 @@ class PartnershipTransactionsServiceImplTests : FunSpec({
     accountService.setActiveAccount(FullAccountMock)
     daoMock.reset()
     getPartnershipsF8eClient.reset()
+    clock.reset()
   }
 
   fun service() =
@@ -194,6 +195,7 @@ class PartnershipTransactionsServiceImplTests : FunSpec({
 
   test("Sync Most Recent Transaction -- Not Found") {
     val service = service()
+    clock.now = FakePartnershipTransaction.created + 15.minutes
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
         id = PartnershipTransactionId("test-transaction-id"),
@@ -217,6 +219,33 @@ class PartnershipTransactionsServiceImplTests : FunSpec({
     result.shouldBe(Ok(null))
     daoMock.deleteTransactionCalls.awaitItem()
       .shouldBe(PartnershipTransactionId("test-transaction-id"))
+  }
+
+  test("Sync Most Recent Transaction -- Not Found w/in 15 minutes of creation") {
+    val service = service()
+    clock.now = FakePartnershipTransaction.created + 1.minutes
+    daoMock.getByIdResult = Ok(
+      FakePartnershipTransaction.copy(
+        id = PartnershipTransactionId("test-transaction-id"),
+        partnerInfo = PartnerInfo(
+          partnerId = PartnerId("test-partner"),
+          name = "test-partner-name",
+          logoUrl = null,
+          logoBadgedUrl = null
+        )
+      )
+    )
+    getPartnershipsF8eClient.response = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
+
+    val result = service.syncTransaction(testId)
+
+    daoMock.getByIdCalls.awaitItem()
+    val (fetchedPartnerId, fetchedTransactionId) = getPartnershipsF8eClient.getTransactionCalls.awaitItem()
+
+    fetchedPartnerId.shouldBe(PartnerId("test-partner"))
+    fetchedTransactionId.shouldBe(PartnershipTransactionId("test-transaction-id"))
+    result.shouldBe(Ok(null))
+    daoMock.deleteTransactionCalls.expectNoEvents()
   }
 
   test("Sync Most Recent Transaction -- Server Error") {

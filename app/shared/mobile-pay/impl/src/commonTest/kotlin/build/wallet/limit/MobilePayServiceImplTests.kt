@@ -1,3 +1,5 @@
+@file:OptIn(DelicateCoroutinesApi::class)
+
 package build.wallet.limit
 
 import app.cash.turbine.test
@@ -13,6 +15,9 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitNoEvents
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
@@ -32,21 +37,17 @@ import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
-import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.milliseconds
 
 class MobilePayServiceImplTests : FunSpec({
-  coroutineTestScope = true
-
   val eventTracker = EventTrackerMock(turbines::create)
   val spendingLimitDao = SpendingLimitDaoFake()
   val spendingLimitF8eClient = MobilePaySpendingLimitF8eClientMock()
@@ -57,6 +58,7 @@ class MobilePayServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val currencyConverter = CurrencyConverterFake()
   val mobilePaySigningF8eClient = MobilePaySigningF8eClientMock(turbines::create)
+  val syncFrequency = 100.milliseconds
 
   val mobilePayBalance = MobilePayBalance(
     spent = BitcoinMoney.zero(),
@@ -96,14 +98,15 @@ class MobilePayServiceImplTests : FunSpec({
       accountService = accountService,
       currencyConverter = currencyConverter,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      mobilePaySigningF8eClient = mobilePaySigningF8eClient
+      mobilePaySigningF8eClient = mobilePaySigningF8eClient,
+      mobilePaySyncFrequency = MobilePaySyncFrequency(syncFrequency)
     )
   }
 
   val hwPop = HwFactorProofOfPossession("")
 
   test("executeWork refreshes mobile pay status when transactions are loaded") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
 
@@ -116,40 +119,31 @@ class MobilePayServiceImplTests : FunSpec({
   test("executeWork periodically refreshes mobile pay status") {
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
-    runTest {
-      backgroundScope.launch {
-        mobilePayService.executeWork()
-      }
-
-      runCurrent()
-      mobilePayStatusProvider.refreshStatusCalls.awaitItem()
-
-      // Refresh should be called every 30 minutes
-      advanceTimeBy(10.minutes)
-      mobilePayStatusProvider.refreshStatusCalls.expectNoEvents()
-      advanceTimeBy(21.minutes)
-      mobilePayStatusProvider.refreshStatusCalls.awaitItem()
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
     }
+
+    mobilePayStatusProvider.refreshStatusCalls.awaitItem()
+    mobilePayStatusProvider.refreshStatusCalls.expectNoEvents()
+
+    mobilePayStatusProvider.refreshStatusCalls.awaitItem()
   }
 
   test("executeWork periodic sync does not refresh if app is backgrounded") {
     appSessionManager.appDidEnterBackground()
     bitcoinWalletService.transactionsData.value = TransactionsDataMock
 
-    runTest {
-      backgroundScope.launch {
-        mobilePayService.executeWork()
-      }
-
-      runCurrent()
-      mobilePayStatusProvider.refreshStatusCalls.expectNoEvents()
-
-      advanceTimeBy(31.minutes)
-      mobilePayStatusProvider.refreshStatusCalls.expectNoEvents()
-
-      appSessionManager.appDidEnterForeground()
-      mobilePayStatusProvider.refreshStatusCalls.awaitItem()
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
     }
+
+    mobilePayStatusProvider.refreshStatusCalls.awaitNoEvents()
+
+    delay(syncFrequency)
+    mobilePayStatusProvider.refreshStatusCalls.awaitNoEvents()
+
+    appSessionManager.appDidEnterForeground()
+    mobilePayStatusProvider.refreshStatusCalls.awaitItem()
   }
 
   test("enable mobile pay by setting the limit for the first time") {
@@ -250,7 +244,7 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("mobilePayData defaults to null") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
 
@@ -260,7 +254,7 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("mobilePayData is null if not an active full account") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     mobilePayStatusProvider.status.value = mobilePayEnabled
@@ -275,7 +269,7 @@ class MobilePayServiceImplTests : FunSpec({
       expectNoEvents()
 
       accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
-      awaitItem().shouldBe(mobilePayDataEnabled)
+      awaitUntil(mobilePayDataEnabled)
 
       accountService.accountState.value = Ok(OnboardingAccount(FullAccountMock))
       awaitItem().shouldBeNull()
@@ -283,16 +277,14 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("mobilePayData updates if currency preference changes") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
-      awaitItem().shouldBeNull()
-
-      awaitItem().shouldBe(mobilePayDataEnabled)
+      awaitUntil(mobilePayDataEnabled)
 
       fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value = EUR
       awaitItem().shouldBe(mobilePayDataEnabled.copy(remainingFiatSpendingAmount = eur(100)))
@@ -300,16 +292,14 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("mobilePayData updates if underlying mobile pay status changes") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
-      awaitItem().shouldBeNull()
-
-      awaitItem().shouldBe(mobilePayDataEnabled)
+      awaitUntil(mobilePayDataEnabled)
 
       mobilePayStatusProvider.status.value =
         MobilePayDisabled(mostRecentSpendingLimit = SpendingLimitMock)
@@ -318,7 +308,7 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("mobilePayData correctly calculates remainingFiatSpendingAmount") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
@@ -334,9 +324,7 @@ class MobilePayServiceImplTests : FunSpec({
     mobilePayStatusProvider.status.value = mobilePayEnabledWithSpentBtc
 
     mobilePayService.mobilePayData.test {
-      awaitItem().shouldBeNull()
-
-      awaitItem().shouldBe(
+      awaitUntil(
         MobilePayEnabledData(
           activeSpendingLimit = mobilePayEnabledWithSpentBtc.activeSpendingLimit,
           balance = mobilePayEnabledWithSpentBtc.balance,
@@ -358,7 +346,8 @@ class MobilePayServiceImplTests : FunSpec({
 
   test("error signing a psbt with mobile pay") {
     accountService.setActiveAccount(FullAccountMock)
-    mobilePaySigningF8eClient.signWithSpecificKeysetResult = Err(HttpError.NetworkError(Error("no sign")))
+    mobilePaySigningF8eClient.signWithSpecificKeysetResult =
+      Err(HttpError.NetworkError(Error("no sign")))
     mobilePayService.signPsbtWithMobilePay(PsbtMock)
       .isErr
       .shouldBeTrue()
@@ -369,15 +358,14 @@ class MobilePayServiceImplTests : FunSpec({
   test(
     "Given previous transactions and new transaction are below limit, mobile pay is available"
   ) {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
-      awaitItem().shouldBe(null)
-      awaitItem().shouldBe(mobilePayDataEnabled)
+      awaitUntil(mobilePayDataEnabled)
     }
 
     mobilePayService.getDailySpendingLimitStatus(
@@ -388,15 +376,14 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("Given that transaction amount is above the limit, hardware is required") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
     mobilePayStatusProvider.status.value = mobilePayEnabled
 
     mobilePayService.mobilePayData.test {
-      awaitItem().shouldBe(null)
-      awaitItem().shouldBe(mobilePayDataEnabled)
+      awaitUntil(mobilePayDataEnabled)
     }
 
     mobilePayService.getDailySpendingLimitStatus(
@@ -407,7 +394,7 @@ class MobilePayServiceImplTests : FunSpec({
   }
 
   test("Given that balance is null, hardware is required") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       mobilePayService.executeWork()
     }
     accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))

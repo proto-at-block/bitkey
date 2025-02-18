@@ -9,6 +9,7 @@ import build.wallet.bitkey.relationships.ChallengeWrapper
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.cloud.backup.v2.FullAccountKeys
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.XCiphertext
@@ -31,8 +32,6 @@ import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
@@ -103,8 +102,7 @@ class RecoveryChallengeUiStateMachineImpl(
             "Failed to add device token for account during Social Recovery"
           }
 
-          while (isActive) {
-            delay(5.seconds)
+          launchTicker(5.seconds) {
             props.actions.getChallengeById(current.challenge.challenge.challengeId)
               .onSuccess { updated ->
                 state = current.copy(challenge = updated)

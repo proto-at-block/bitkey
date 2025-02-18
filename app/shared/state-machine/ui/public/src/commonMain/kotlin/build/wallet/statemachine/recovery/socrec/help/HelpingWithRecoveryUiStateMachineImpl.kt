@@ -16,19 +16,19 @@ import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFo
 import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.SecurityNoticeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
-import build.wallet.time.Delayer
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 @BitkeyInject(ActivityScope::class)
 class HelpingWithRecoveryUiStateMachineImpl(
-  private val delayer: Delayer,
   private val socialChallengeVerifier: SocialChallengeVerifier,
   private val relationshipsKeysRepository: RelationshipsKeysRepository,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : HelpingWithRecoveryUiStateMachine {
   @Composable
   override fun model(props: HelpingWithRecoveryUiProps): ScreenModel {
@@ -153,7 +153,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
   @Composable
   private fun SuccessfulVerifiedRecoveryCodeModel(exit: () -> Unit): BodyModel {
     LaunchedEffect("verifying-recovery-code") {
-      delayer.delay(3.seconds)
+      delay(minimumLoadingDuration.value)
       exit()
     }
 

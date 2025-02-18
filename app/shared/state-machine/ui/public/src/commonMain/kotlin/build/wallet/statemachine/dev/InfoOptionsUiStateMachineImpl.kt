@@ -29,7 +29,7 @@ class InfoOptionsUiStateMachineImpl(
   private val clipboard: Clipboard,
 ) : InfoOptionsUiStateMachine {
   @Composable
-  override fun model(props: Unit): ListGroupModel {
+  override fun model(props: InfoOptionsProps): ListGroupModel {
     var state by remember { mutableStateOf(State()) }
 
     if (state.accountId == null) {
@@ -40,7 +40,7 @@ class InfoOptionsUiStateMachineImpl(
               when (status) {
                 is AccountStatus.ActiveAccount -> status.account
                 is AccountStatus.OnboardingAccount -> status.account
-                is AccountStatus.LiteAccountUpgradingToFullAccount -> status.account
+                is AccountStatus.LiteAccountUpgradingToFullAccount -> status.onboardingAccount
                 AccountStatus.NoAccount -> null
               }
             state = state.copy(accountId = account?.accountId?.serverId ?: "N/A")
@@ -60,6 +60,7 @@ class InfoOptionsUiStateMachineImpl(
 
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
+      header = "Identifiers (tap to copy)",
       items =
         listOfNotNull(
           // Don't show Account ID in Customer build
@@ -93,6 +94,7 @@ class InfoOptionsUiStateMachineImpl(
             item.copy(
               onClick = {
                 item.sideText?.let { clipboard.setItem(PlainText(data = it)) }
+                props.onPasteboardCopy(item.title)
               }
             )
           }

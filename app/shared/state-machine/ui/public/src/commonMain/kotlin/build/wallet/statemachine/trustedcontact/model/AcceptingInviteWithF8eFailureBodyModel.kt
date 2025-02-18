@@ -10,16 +10,15 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 
-private const val OWN_TRUSTED_CONTACT_SUBLINE_IOS = "Due to security reasons, another iCloud and device needs to be used to be a Trusted Contact for this wallet."
-private const val OWN_TRUSTED_CONTACT_SUBLINE_ANDROID = "Due to security reasons, another Google Drive and device needs to be used to be a Trusted Contact for this wallet."
-
 fun AcceptingInviteWithF8eFailureBodyModel(
+  isInheritance: Boolean,
   onBack: () -> Unit,
   onRetry: () -> Unit,
   devicePlatform: DevicePlatform,
   error: AcceptInvitationCodeError,
 ): BodyModel {
-  val title = "We couldn’t complete your enrollment as a Trusted Contact"
+  val subject = if (isInheritance) "beneficiary" else "Trusted Contact"
+  val title = "We couldn’t complete your enrollment as a $subject"
   val eventTrackerScreenId = TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
 
   return when (error) {
@@ -40,7 +39,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
               ACCOUNT_ALREADY_TRUSTED_CONTACT -> {
                 return ErrorFormBodyModel(
                   title = "You’re already protecting this person",
-                  subline = "You’ve already accepted an invite to be a Trusted Contact for the Bitkey owner who sent this invite, and can’t accept a second time using this Bitkey account.",
+                  subline = "You’ve already accepted an invite to be a $subject for the Bitkey owner who sent this invite, and can’t accept a second time using this Bitkey account.",
                   primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
                   eventTrackerScreenId = TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
                 )
@@ -48,13 +47,13 @@ fun AcceptingInviteWithF8eFailureBodyModel(
               CUSTOMER_IS_TRUSTED_CONTACT -> {
                 // Special case for when the user is trying to enroll as a TC for themselves.
                 return ErrorFormBodyModel(
-                  title = "You can't be your own Trusted Contact",
+                  title = "You can't be your own $subject",
                   subline =
                     when (devicePlatform) {
                       DevicePlatform.Jvm,
                       DevicePlatform.Android,
-                      -> OWN_TRUSTED_CONTACT_SUBLINE_ANDROID
-                      DevicePlatform.IOS -> OWN_TRUSTED_CONTACT_SUBLINE_IOS
+                      -> "Due to security reasons, another Google Drive and device needs to be used to be a $subject for this wallet."
+                      DevicePlatform.IOS -> "Due to security reasons, another iCloud and device needs to be used to be a $subject for this wallet."
                     },
                   primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
                   eventTrackerScreenId = TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE

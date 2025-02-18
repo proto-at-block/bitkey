@@ -16,7 +16,7 @@ import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.platform.settings.LocaleProviderFake
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryProps
 import build.wallet.statemachine.money.amount.MoneyAmountEntryUiStateMachine
@@ -69,7 +69,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       )
 
     test("produces correct primary and secondary amounts") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val model = awaitItem()
         model.primaryAmount.shouldBe(FiatMoney.usd(1.0))
         model.secondaryAmount.shouldBe(BitcoinMoney.btc(3.0))
@@ -77,7 +77,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
     }
 
     test("keypad should show decimal") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val model = awaitItem()
         model.keypadModel.showDecimal.shouldBeTrue()
       }
@@ -99,7 +99,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       }
 
       test("produces correct primary and secondary amounts") {
-        stateMachine.test(props) {
+        stateMachine.testWithVirtualTime(props) {
           val model = awaitItem()
           model.primaryAmount.shouldBe(BitcoinMoney.btc(1.0))
           model.secondaryAmount.shouldBe(FiatMoney.usd(3.0))
@@ -107,7 +107,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       }
 
       test("keypad should show decimal") {
-        stateMachine.test(props) {
+        stateMachine.testWithVirtualTime(props) {
           val model = awaitItem()
           model.keypadModel.showDecimal.shouldBeTrue()
         }
@@ -119,7 +119,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       }
 
       test("produces correct primary and secondary amounts") {
-        stateMachine.test(props) {
+        stateMachine.testWithVirtualTime(props) {
           val model = awaitItem()
           model.primaryAmount.shouldBe(BitcoinMoney.sats(ONE_BTC_IN_SATOSHIS))
           model.secondaryAmount.shouldBe(FiatMoney.usd(3.0))
@@ -127,7 +127,7 @@ class MoneyCalculatorUiStateMachineImplTests : FunSpec({
       }
 
       test("keypad should not show decimal") {
-        stateMachine.test(props) {
+        stateMachine.testWithVirtualTime(props) {
           val model = awaitItem()
           model.keypadModel.showDecimal.shouldBeFalse()
         }

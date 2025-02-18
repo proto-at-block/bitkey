@@ -2,11 +2,11 @@ package build.wallet.bitcoin.fees
 
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachabilityProvider
-import build.wallet.availability.networkReachabilityPlugin
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.*
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
+import build.wallet.f8e.client.plugins.networkReachabilityPlugin
 import build.wallet.ktor.result.client.installLogging
 import io.ktor.client.*
 import io.ktor.client.plugins.*

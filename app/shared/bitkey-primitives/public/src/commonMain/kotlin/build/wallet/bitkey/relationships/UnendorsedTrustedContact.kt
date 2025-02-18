@@ -31,3 +31,12 @@ data class UnendorsedTrustedContact(
   @SerialName("trusted_contact_roles")
   override val roles: Set<TrustedContactRole>,
 ) : TrustedContact
+
+/**
+ * We sync all relationships, including inheritance beneficiaries which start as [UnendorsedTrustedContact]s.
+ * This filters that to only be the [UnendorsedTrustedContact]s that are relevant for Social Recovery
+ * purposes.
+ */
+fun List<UnendorsedTrustedContact>.socialRecoveryUnendorsedTrustedContacts(): List<UnendorsedTrustedContact> {
+  return this.filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) }
+}

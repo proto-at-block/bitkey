@@ -1,10 +1,13 @@
 use std::str::FromStr;
 
+use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::Router;
 use axum::{extract::State, Json};
 use http_server::router::RouterBuilder;
+use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use tracing::{error, instrument};
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
 use userpool::userpool::{AuthTokens, UserPoolError, UserPoolService};
@@ -14,7 +17,7 @@ use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use errors::ApiError;
-use feature_flags::service::Service as FeatureFlagService;
+use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
 use wsm_rust_client::{SigningService, WsmClient};
@@ -27,7 +30,7 @@ pub struct RouteState(
     pub UserPoolService,
     pub AccountService,
     pub WsmClient,
-    pub FeatureFlagService,
+    pub FeatureFlagsService,
 );
 
 impl RouterBuilder for RouteState {
@@ -40,6 +43,10 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/attestation/wsm",
                 get(acquire_wsm_attestation_document),
+            )
+            .route(
+                "/api/secure-channel/initiate",
+                post(initiate_wsm_secure_channel),
             )
             .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
@@ -63,6 +70,7 @@ impl From<RouteState> for SwaggerEndpoint {
         authenticate_with_recovery,
         get_tokens,
         acquire_wsm_attestation_document,
+        initiate_wsm_secure_channel,
     ),
     components(
         schemas(
@@ -110,7 +118,7 @@ pub struct AuthenticateWithRecoveryResponse {
 //TODO[BKR-608]: Remove this once we're using /api/authenticate
 #[instrument(
     fields(username),
-    skip(account_service, user_pool_service, feature_flag_service)
+    skip(account_service, user_pool_service, feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -124,20 +132,27 @@ pub struct AuthenticateWithRecoveryResponse {
 pub async fn authenticate_with_recovery(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
-    State(feature_flag_service): State<FeatureFlagService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    headers: HeaderMap,
     Json(request): Json<AuthenticateWithRecoveryAuthkeyRequest>,
 ) -> Result<Json<AuthenticateWithRecoveryResponse>, ApiError> {
+    let pubkey = request.recovery_auth_pubkey;
+
+    if let Some(app_installation_id) = headers
+        .get(APP_INSTALLATION_ID_HEADER_NAME)
+        .and_then(|id| id.to_str().ok())
+    {
+        log_debug_info_if_applicable(
+            &feature_flags_service,
+            app_installation_id,
+            &AuthRequestKey::from(request),
+        );
+    }
+
     let pubkeys_to_account = account_service
-        .fetch_account_id_by_recovery_pubkey(FetchAccountByAuthKeyInput {
-            pubkey: request.recovery_auth_pubkey,
-        })
+        .fetch_account_id_by_recovery_pubkey(FetchAccountByAuthKeyInput { pubkey })
         .await?;
 
-    log_debug_info_if_applicable(
-        &feature_flag_service,
-        &pubkeys_to_account.id,
-        &AuthRequestKey::from(request),
-    );
     tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let user = CognitoUser::Recovery(pubkeys_to_account.id.clone());
@@ -179,7 +194,7 @@ pub struct AuthenticateWithHardwareResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flag_service)
+    skip(account_service, user_pool_service, feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -193,20 +208,27 @@ pub struct AuthenticateWithHardwareResponse {
 pub async fn authenticate_with_hardware(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
-    State(feature_flag_service): State<FeatureFlagService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    headers: HeaderMap,
     Json(request): Json<AuthenticateWithHardwareRequest>,
 ) -> Result<Json<AuthenticateWithHardwareResponse>, ApiError> {
+    let pubkey = request.hw_auth_pubkey;
+
+    if let Some(app_installation_id) = headers
+        .get(APP_INSTALLATION_ID_HEADER_NAME)
+        .and_then(|id| id.to_str().ok())
+    {
+        log_debug_info_if_applicable(
+            &feature_flags_service,
+            app_installation_id,
+            &AuthRequestKey::from(request),
+        );
+    }
+
     let pubkeys_to_account = account_service
-        .fetch_account_id_by_hw_pubkey(FetchAccountByAuthKeyInput {
-            pubkey: request.hw_auth_pubkey,
-        })
+        .fetch_account_id_by_hw_pubkey(FetchAccountByAuthKeyInput { pubkey })
         .await?;
 
-    log_debug_info_if_applicable(
-        &feature_flag_service,
-        &pubkeys_to_account.id,
-        &AuthRequestKey::from(request),
-    );
     tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let user = CognitoUser::Hardware(pubkeys_to_account.id.clone());
@@ -249,7 +271,7 @@ pub struct AuthenticationResponse {
 
 #[instrument(
     fields(account_id),
-    skip(account_service, user_pool_service, feature_flag_service)
+    skip(account_service, user_pool_service, feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -263,9 +285,21 @@ pub struct AuthenticationResponse {
 pub async fn authenticate(
     State(account_service): State<AccountService>,
     State(user_pool_service): State<UserPoolService>,
-    State(feature_flag_service): State<FeatureFlagService>,
+    State(feature_flags_service): State<FeatureFlagsService>,
+    headers: HeaderMap,
     Json(request): Json<AuthenticationRequest>,
 ) -> Result<Json<AuthenticationResponse>, ApiError> {
+    if let Some(app_installation_id) = headers
+        .get(APP_INSTALLATION_ID_HEADER_NAME)
+        .and_then(|id| id.to_str().ok())
+    {
+        log_debug_info_if_applicable(
+            &feature_flags_service,
+            app_installation_id,
+            &request.auth_request_key,
+        );
+    }
+
     let (requested_cognito_user, pubkeys_to_account) = match request.auth_request_key {
         AuthRequestKey::HwPubkey(pubkey) => {
             let pubkeys_to_account = account_service
@@ -296,11 +330,6 @@ pub async fn authenticate(
         }
     };
 
-    log_debug_info_if_applicable(
-        &feature_flag_service,
-        &pubkeys_to_account.id,
-        &request.auth_request_key,
-    );
     tracing::Span::current().record("account_id", pubkeys_to_account.id.to_string());
 
     let auth_challenge = user_pool_service
@@ -342,6 +371,11 @@ pub struct GetTokensResponse {
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub struct GetAttestationDocumentResponse {
     pub document_b64: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct InitiateWsmSecureChannelResponse {
+    pub noise_bundle: String,
 }
 
 #[instrument(fields(account_id), skip(user_pool_service))]
@@ -432,5 +466,45 @@ pub async fn acquire_wsm_attestation_document(
 
     Ok(Json(GetAttestationDocumentResponse {
         document_b64: BASE64.encode(rsp.document),
+    }))
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct NoiseInitiateBundleRequest {
+    #[serde_as(as = "Base64")]
+    pub bundle: Vec<u8>,
+    pub server_static_pubkey: String,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct NoiseInitiateBundleResponse {
+    #[serde_as(as = "Base64")]
+    pub bundle: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
+}
+
+#[instrument(skip(wsm_client))]
+#[utoipa::path(post, path = "/api/secure-channel/initiate")]
+pub async fn initiate_wsm_secure_channel(
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<NoiseInitiateBundleRequest>,
+) -> Result<Json<NoiseInitiateBundleResponse>, ApiError> {
+    let rsp = wsm_client
+        .initiate_secure_channel(request.bundle, &request.server_static_pubkey)
+        .await
+        .map_err(|e| {
+            let msg = "Failed to initiate secure channel";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    Ok(Json(NoiseInitiateBundleResponse {
+        bundle: rsp.bundle,
+        noise_session: rsp.noise_session,
     }))
 }

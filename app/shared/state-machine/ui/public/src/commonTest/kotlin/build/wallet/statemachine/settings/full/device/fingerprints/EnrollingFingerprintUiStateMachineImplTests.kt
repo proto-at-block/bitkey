@@ -12,12 +12,12 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -51,8 +51,8 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
   test("start enrollment then cancel") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<*>> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<*>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onCancel()
       }
@@ -64,9 +64,9 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("cancelling confirmation goes back to instructions") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       startEnrollmentAndTapSaveFingerprint(nfcCommandsMock)
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onCancel()
       }
@@ -74,15 +74,15 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       // Check that the most recent fingerprints are retrieved
       nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         header.headline.shouldBe("Add a new fingerprint")
       }
     }
   }
 
   test("backing out of instructions invokes props.onCancel") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Boolean>> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(true)
       }
@@ -91,7 +91,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
 
       // See the fingerprint instructions and tap the "Save fingerprint" button, which prompts to
       // tap again for enrollment status
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         header.headline.shouldBe("Add a new fingerprint")
         onBack.invoke()
       }
@@ -101,7 +101,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("successful enrollment returns latest fingerprints") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       startEnrollmentAndTapSaveFingerprint(nfcCommandsMock)
 
       val enrolledFingerprints = EnrolledFingerprints(
@@ -111,7 +111,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
           FingerprintHandle(index = 2, label = "Right Thumb")
         )
       )
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(EnrollmentStatusResult.Complete(enrolledFingerprints))
       }
@@ -122,10 +122,10 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("enrollment incomplete shows an error") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       startEnrollmentAndTapSaveFingerprint(nfcCommandsMock)
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<EnrollmentStatusResult>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(EnrollmentStatusResult.Incomplete)
       }
@@ -144,7 +144,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
           }
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         header.headline.shouldBe("Add a new fingerprint")
       }
     }
@@ -155,7 +155,7 @@ private suspend fun StateMachineTester<EnrollingFingerprintProps, ScreenModel>.s
   nfcCommandsMock: NfcCommandsMock,
 ) = apply {
   // Start the fingerprint enrollment
-  awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Boolean>> {
+  awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>> {
     session(NfcSessionFake(), nfcCommandsMock)
     onSuccess(true)
   }
@@ -164,7 +164,7 @@ private suspend fun StateMachineTester<EnrollingFingerprintProps, ScreenModel>.s
 
   // See the fingerprint instructions and tap the "Save fingerprint" button, which prompts to
   // tap again for enrollment status
-  awaitScreenWithBody<PairNewHardwareBodyModel> {
+  awaitBody<PairNewHardwareBodyModel> {
     header.headline.shouldBe("Add a new fingerprint")
     primaryButton.apply {
       text.shouldBe("Save fingerprint")

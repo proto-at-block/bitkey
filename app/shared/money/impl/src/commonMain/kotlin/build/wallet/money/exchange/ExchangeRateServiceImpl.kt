@@ -2,23 +2,21 @@ package build.wallet.money.exchange
 
 import build.wallet.account.AccountService
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.money.currency.Currency
 import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.app.AppSessionState
-import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 
 @BitkeyInject(AppScope::class)
 class ExchangeRateServiceImpl(
@@ -27,6 +25,7 @@ class ExchangeRateServiceImpl(
   private val appSessionManager: AppSessionManager,
   private val clock: Clock,
   private val accountService: AccountService,
+  private val exchangeRateSyncFrequency: ExchangeRateSyncFrequency,
 ) : ExchangeRateService, ExchangeRateSyncWorker {
   private val exchangeRatesCache = MutableStateFlow<List<ExchangeRate>>(emptyList())
 
@@ -40,11 +39,6 @@ class ExchangeRateServiceImpl(
     extraBufferCapacity = 1,
     onBufferOverflow = DROP_OLDEST
   )
-
-  /**
-   * Determines how frequently to sync exchange rates.
-   */
-  private val periodicSyncDelay = 1.minutes
 
   override val exchangeRates: StateFlow<List<ExchangeRate>> = exchangeRatesCache
 
@@ -96,12 +90,9 @@ class ExchangeRateServiceImpl(
       }
 
       // Send request for sync periodically
-      launch {
-        while (isActive) {
-          activeF8eEnvironmentState.value?.let { f8eEnvironment ->
-            syncRequests.emit(f8eEnvironment)
-          }
-          delay(duration = periodicSyncDelay)
+      launchTicker(exchangeRateSyncFrequency.value) {
+        activeF8eEnvironmentState.value?.let { f8eEnvironment ->
+          syncRequests.emit(f8eEnvironment)
         }
       }
 

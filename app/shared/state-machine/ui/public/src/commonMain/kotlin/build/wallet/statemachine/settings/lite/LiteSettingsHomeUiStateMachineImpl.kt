@@ -59,7 +59,8 @@ class LiteSettingsHomeUiStateMachineImpl(
           props = LiteTrustedContactManagementProps(
             account = props.account,
             acceptInvite = null,
-            onExit = { uiState = State.ShowingAllSettingsList }
+            onExit = { uiState = State.ShowingAllSettingsList },
+            onAccountUpgraded = props.onAccountUpgraded
           )
         )
 
@@ -83,7 +84,8 @@ class LiteSettingsHomeUiStateMachineImpl(
       is State.ShowingDebugMenu ->
         debugMenuStateMachine.model(
           props = DebugMenuProps(
-            onClose = { uiState = State.ShowingAllSettingsList }
+            onClose = { uiState = State.ShowingAllSettingsList },
+            onAppDataDeleted = props.onAppDataDeleted
           )
         )
     }

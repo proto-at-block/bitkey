@@ -1,6 +1,7 @@
 package build.wallet.statemachine.inheritance.claims.start
 
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
@@ -23,6 +24,7 @@ internal data class ClaimStartedBodyModel(
       leadingAccessory = CloseAccessory(onClose)
     ),
     header = FormHeaderModel(
+      icon = Icon.LargeIconCheckFilled,
       headline = "Inheritance claim submitted",
       subline = "The claim process has started. Your funds will be available for transfer on $completeTime. Keep notifications enabled to ensure you don’t miss important communication."
     ),

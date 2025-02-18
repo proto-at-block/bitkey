@@ -9,7 +9,7 @@ import build.wallet.bitcoin.transactions.TransactionsActivityServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.Some
@@ -80,7 +80,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
   test("model with All visibility") {
     transactionsActivityService.transactions.value = txnListAllPending + txnListAllConfirmed
 
-    stateMachine.test(createProps(transactionVisibility = All)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility = All)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {
@@ -99,7 +99,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     transactionsActivityService.transactions.value =
       listOf(BitcoinWalletTransaction(BitcoinTransactionFake))
 
-    stateMachine.test(createProps(transactionVisibility)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {
@@ -116,7 +116,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
     ).map(::BitcoinWalletTransaction)
-    stateMachine.test(createProps(transactionVisibility)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {
@@ -133,7 +133,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake)),
       BitcoinTransactionFake
     ).map(::BitcoinWalletTransaction)
-    stateMachine.test(createProps(transactionVisibility)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {
@@ -150,7 +150,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake,
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
     ).map(::BitcoinWalletTransaction)
-    stateMachine.test(createProps(transactionVisibility)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {
@@ -167,7 +167,7 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake,
       BitcoinTransactionFake
     ).map(::BitcoinWalletTransaction)
-    stateMachine.test(createProps(transactionVisibility)) {
+    stateMachine.testWithVirtualTime(createProps(transactionVisibility)) {
       awaitItem().shouldBeNull() // Initial loading
 
       awaitItem().shouldNotBeNull().should {

@@ -121,7 +121,6 @@ fun consolidationInfoSheetModel(
   onBack: () -> Unit,
 ) = SheetModel(
   onClosed = onBack,
-  dragIndicatorVisible = true,
   body = ConsolidationInfoBodyModel(
     eventTrackerScreenId = eventTrackerScreenId,
     title = title,

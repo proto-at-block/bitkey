@@ -18,16 +18,6 @@ module "iam" {
   exec_policy_arns = var.exec_policy_arns
 }
 
-moved {
-  from = module.ecs_service.aws_ecs_service.default[0]
-  to   = module.ecs_service.aws_ecs_service.ignore_changes_task_definition[0]
-}
-
-moved {
-  from = module.ecs_service.aws_ecs_task_definition.default[0]
-  to   = aws_ecs_task_definition.this
-}
-
 module "ecs_service" {
   source    = "git::https://github.com/cloudposse/terraform-aws-ecs-alb-service-task//?ref=48f5647aac773871b75ccf433b71343af2ad9c1e" // Ref 0.7.0
   namespace = var.namespace == "default" ? "" : var.namespace

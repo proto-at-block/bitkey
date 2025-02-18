@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-auth",
     "components": [
         {
-            "version": "20.7.0",
+            "version": "21.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-auth-20.7.0.aar": "150494d7a052abaaac9bb829a28c8ad26ac3ca59c576c16967bdbe28aaaa4e16"
+                        "play-services-auth-21.2.0.aar": "265b7e3424cd06bc98e8db74a5b84b99ac3a05b56a80ca69319d7835c28316d0"
                     }
                 }
             ],

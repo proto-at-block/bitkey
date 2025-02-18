@@ -18,6 +18,7 @@ sealed interface ListItemAccessory {
 
   data class ContactAvatarAccessory(
     val name: String,
+    val isLoading: Boolean,
   ) : ListItemAccessory {
     val initials = buildString(2) {
       val letters = name
@@ -59,6 +60,10 @@ sealed interface ListItemAccessory {
 
   data class TextAccessory(
     val text: String,
+  ) : ListItemAccessory
+
+  data class CheckAccessory(
+    val isChecked: Boolean,
   ) : ListItemAccessory
 
   /**

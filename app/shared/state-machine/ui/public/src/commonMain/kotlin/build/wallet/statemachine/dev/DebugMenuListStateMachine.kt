@@ -20,4 +20,6 @@ data class DebugMenuListProps(
   val firmwareData: FirmwareData?,
   val onSetState: (DebugMenuState) -> Unit,
   val onClose: () -> Unit,
+  val onAppDataDeleted: () -> Unit,
+  val onPasteboardCopy: (name: String) -> Unit,
 )

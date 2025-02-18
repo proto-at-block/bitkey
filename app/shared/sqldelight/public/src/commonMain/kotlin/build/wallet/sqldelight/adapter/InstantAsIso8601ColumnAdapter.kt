@@ -15,7 +15,7 @@ import kotlinx.datetime.Instant
  */
 object InstantAsIso8601ColumnAdapter : ColumnAdapter<Instant, String> {
   override fun decode(databaseValue: String): Instant {
-    return Instant.parse(isoString = databaseValue)
+    return Instant.parse(databaseValue)
   }
 
   override fun encode(value: Instant): String {

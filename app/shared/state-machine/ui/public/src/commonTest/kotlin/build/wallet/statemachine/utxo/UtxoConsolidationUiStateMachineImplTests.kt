@@ -16,10 +16,14 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
 import com.github.michaelbull.result.Ok
@@ -65,39 +69,39 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Loading the consolidation psbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       // Confirmation screen.
       // Emits twice due to currency conversion.
-      awaitScreenWithBody<UtxoConsolidationConfirmationModel>()
-      awaitScreenWithBody<UtxoConsolidationConfirmationModel> {
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
         balanceTitle.shouldBe("Wallet balance")
         // tap continue
         onContinue.invoke()
       }
 
       // Tap & Hold info half sheet
-      awaitScreenWithSheetModelBody<TapAndHoldToConsolidateUtxosBodyModel> {
+      awaitSheet<TapAndHoldToConsolidateUtxosBodyModel> {
         onConsolidate()
       }
 
       // Nfc signing
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>> {
         shouldShowLongRunningOperation.shouldBeTrue()
         onSuccess(PsbtMock) // NB: Psbt doesn't match the consolidation params
       }
 
       // Broadcasting the psbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       // And finally, showing the transaction sent modal
-      awaitScreenWithBody<UtxoConsolidationTransactionSentModel>()
+      awaitBody<UtxoConsolidationTransactionSentModel>()
     }
   }
 
@@ -119,12 +123,12 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         // loading state
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         // Max count info screen
         id.shouldBe(UTXO_CONSOLIDATION_EXCEEDED_MAX_COUNT)
         primaryButton.shouldNotBeNull().onClick()
@@ -132,8 +136,8 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
 
       // Continuing should proceed to confirmation screen
       // Emits twice due to currency conversion.
-      awaitScreenWithBody<UtxoConsolidationConfirmationModel>()
-      awaitScreenWithBody<UtxoConsolidationConfirmationModel> {
+      awaitBody<UtxoConsolidationConfirmationModel>()
+      awaitBody<UtxoConsolidationConfirmationModel> {
         balanceTitle.shouldBe("Value of UTXOs")
       }
     }

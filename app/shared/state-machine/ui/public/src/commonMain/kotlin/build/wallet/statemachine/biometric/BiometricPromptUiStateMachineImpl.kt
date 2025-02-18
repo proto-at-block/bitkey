@@ -1,6 +1,7 @@
 package build.wallet.statemachine.biometric
 
 import androidx.compose.runtime.*
+import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.app.AppSessionManager
@@ -47,7 +48,10 @@ class BiometricPromptUiStateMachineImpl(
 
         SplashBodyModel(
           bitkeyWordMarkAnimationDelay = 0.seconds,
-          bitkeyWordMarkAnimationDuration = 0.seconds
+          bitkeyWordMarkAnimationDuration = 0.seconds,
+          eventTrackerScreenInfo = EventTrackerScreenInfo(
+            eventTrackerScreenId = BiometricPromptScreenId.BIOMETRIC_PROMPT_SPLASH_SCREEN
+          )
         ).asRootFullScreen(colorMode = ScreenColorMode.Dark)
       }
       UiState.Authenticated -> null

@@ -2,18 +2,16 @@ package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.BEING_TRUSTED_CONTACT_INTRODUCTION
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
+import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.getSharedInviteCode
@@ -33,8 +31,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
     inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -46,10 +43,9 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     app.onboardFullAccountWithFakeHardware()
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      awaitUntilBody<EnteringProtectedCustomerNameBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -68,8 +64,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val secondInviter = launchNewApp()
     secondInviter.onboardFullAccountWithFakeHardware()
     secondInviter.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(secondInviter),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(secondInviter)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -79,10 +74,9 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // onboarded tester uses the invite
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      awaitUntilBody<EnteringProtectedCustomerNameBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -92,8 +86,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
     inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -104,18 +97,17 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val app = launchNewApp()
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(BEING_TRUSTED_CONTACT_INTRODUCTION) {
-        clickPrimaryButton()
+      awaitUntilBody<BeTrustedContactIntroductionModel> {
+        onContinue()
       }
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION) {
+      awaitUntilBody<LoadingSuccessBodyModel>(CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      awaitUntilBody<EnteringProtectedCustomerNameBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -125,8 +117,7 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
     inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp),
-      useVirtualTime = false
+      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -139,15 +130,14 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
       .set(CloudStoreAccountFake.TrustedContactFake)
     Router.route = Route.from("https://bitkey.world/links/downloads/trusted-contact#$inviteCode")
     app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
+      props = Unit
     ) {
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccountFake.TrustedContactFake)
-      awaitUntilScreenWithBody<FormBodyModel>(BEING_TRUSTED_CONTACT_INTRODUCTION) {
-        clickPrimaryButton()
+      awaitUntilBody<BeTrustedContactIntroductionModel> {
+        onContinue()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME)
+      awaitUntilBody<EnteringProtectedCustomerNameBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }

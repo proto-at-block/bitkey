@@ -3,6 +3,7 @@ package build.wallet.statemachine.data.keybox
 import androidx.compose.runtime.*
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
+import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
@@ -25,8 +26,12 @@ import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
 import build.wallet.recovery.RecoverySyncFrequency
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.keybox.AccountData.*
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
@@ -37,8 +42,8 @@ import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class AccountDataStateMachineImpl(
-  private val hasActiveFullAccountDataStateMachine: HasActiveFullAccountDataStateMachine,
-  private val hasActiveLiteAccountDataStateMachine: HasActiveLiteAccountDataStateMachine,
+  private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
+  private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
   private val accountService: AccountService,
   private val recoverySyncer: RecoverySyncer,
@@ -47,77 +52,71 @@ class AccountDataStateMachineImpl(
   private val debugOptionsService: DebugOptionsService,
 ) : AccountDataStateMachine {
   @Composable
-  override fun model(props: Unit): AccountData {
+  override fun model(props: AccountDataProps): AccountData {
     val activeAccountResult = rememberActiveAccount()
     val activeRecoveryResult = rememberActiveRecovery()
-    val debugOptions = remember { debugOptionsService.options() }
-      .collectAsState(initial = null).value
+    val debugOptions by remember { debugOptionsService.options() }
+      .collectAsState(initial = null)
 
-    if (debugOptions == null) {
+    return if (debugOptions == null || activeAccountResult == null) {
       // If we don't have results yet, we're still checking
-      return CheckingActiveAccountData
-    }
+      CheckingActiveAccountData
+    } else {
+      activeAccountResult
+        .mapBoth(
+          success = {
+            // We have results from the DB for active account,
+            when (val account = activeAccountResult.value) {
+              is FullAccount? -> {
+                // now get the active recovery from the DB
+                activeAccountResult.mapBoth(
+                  success = {
+                    maybePollRecoveryStatus(
+                      activeKeybox = account?.keybox,
+                      activeRecovery = activeRecoveryResult.value
+                    )
 
-    if (activeAccountResult == null) {
-      // If we don't have results yet, we're still checking
-      return CheckingActiveAccountData
-    }
+                    // We have results from DB for both keybox and recovery.
+                    // First, try to create [KeyboxData] based on recovery state.
+                    fullAccountDataBasedOnRecovery(
+                      debugOptions = debugOptions!!,
+                      activeAccount = account,
+                      activeRecovery = activeRecoveryResult.value,
+                      onLiteAccountCreated = props.onLiteAccountCreated
+                    )
+                  },
+                  failure = {
+                    maybePollRecoveryStatus(
+                      activeKeybox = account?.keybox,
+                      activeRecovery = NoActiveRecovery
+                    )
+                    NoActiveAccountData(
+                      debugOptions = debugOptions!!,
+                      activeRecovery = null,
+                      onLiteAccountCreated = props.onLiteAccountCreated
+                    )
+                  }
+                )
+              }
 
-    return activeAccountResult
-      .mapBoth(
-        success = {
-          // We have results from the DB for active account,
-          when (val account = activeAccountResult.value) {
-            is LiteAccount ->
-              hasActiveLiteAccountDataStateMachine.model(
-                props = HasActiveLiteAccountDataProps(account = account)
-              )
-
-            is FullAccount? -> {
-              // now get the active recovery from the DB
-              activeAccountResult.mapBoth(
-                success = {
-                  maybePollRecoveryStatus(
-                    activeKeybox = account?.keybox,
-                    activeRecovery = activeRecoveryResult.value
-                  )
-
-                  // We have results from DB for both keybox and recovery.
-                  // First, try to create [KeyboxData] based on recovery state.
-                  fullAccountDataBasedOnRecovery(
-                    debugOptions = debugOptions,
-                    activeAccount = account,
-                    activeRecovery = activeRecoveryResult.value
-                  )
-                },
-                failure = {
-                  maybePollRecoveryStatus(
-                    activeKeybox = account?.keybox,
-                    activeRecovery = NoActiveRecovery
-                  )
-                  NoActiveAccountData(
-                    debugOptions = debugOptions,
-                    activeRecovery = null
-                  )
-                }
-              )
+              else -> {
+                NoActiveAccountData(
+                  debugOptions = debugOptions!!,
+                  activeRecovery = null,
+                  onLiteAccountCreated = props.onLiteAccountCreated
+                )
+              }
             }
-
-            else -> {
-              NoActiveAccountData(
-                debugOptions = debugOptions,
-                activeRecovery = null
-              )
-            }
+          },
+          failure = {
+            NoActiveAccountData(
+              debugOptions = debugOptions!!,
+              activeRecovery = null,
+              onLiteAccountCreated = props.onLiteAccountCreated
+            )
           }
-        },
-        failure = {
-          NoActiveAccountData(
-            debugOptions = debugOptions,
-            activeRecovery = null
-          )
-        }
-      )
+        )
+    }
   }
 
   @Composable
@@ -125,6 +124,7 @@ class AccountDataStateMachineImpl(
     debugOptions: DebugOptions,
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
+    onLiteAccountCreated: (LiteAccount) -> Unit,
   ): AccountData {
     /*
     [shouldShowSomeoneElseIsRecoveringIfPresent] tracks whether we are showing an app-level notice
@@ -167,7 +167,8 @@ class AccountDataStateMachineImpl(
           accountDataBasedOnAccount(
             debugOptions = debugOptions,
             activeAccount = activeAccount,
-            activeRecovery = activeRecovery
+            activeRecovery = activeRecovery,
+            onLiteAccountCreated = onLiteAccountCreated
           )
         }
       }
@@ -177,7 +178,8 @@ class AccountDataStateMachineImpl(
         accountDataBasedOnAccount(
           debugOptions = debugOptions,
           activeAccount = activeAccount,
-          activeRecovery = activeRecovery
+          activeRecovery = activeRecovery,
+          onLiteAccountCreated = onLiteAccountCreated
         )
       }
     }
@@ -188,12 +190,14 @@ class AccountDataStateMachineImpl(
     debugOptions: DebugOptions,
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
+    onLiteAccountCreated: (LiteAccount) -> Unit,
   ): AccountData {
     return when (activeAccount) {
       null -> {
         NoActiveAccountData(
           debugOptions = debugOptions,
-          activeRecovery = activeRecovery as? StillRecovering
+          activeRecovery = activeRecovery as? StillRecovering,
+          onLiteAccountCreated = onLiteAccountCreated
         )
       }
 
@@ -211,14 +215,34 @@ class AccountDataStateMachineImpl(
             }
           }
 
-        hasActiveFullAccountDataStateMachine.model(
-          HasActiveFullAccountDataProps(
-            account = activeAccount,
-            hardwareRecovery = hardwareRecovery
-          )
-        )
+        hasActiveFullAccountData(activeAccount, hardwareRecovery)
       }
     }
+  }
+
+  /** Manages the state of the case when we have an active Full Account ready to use. */
+  @Composable
+  private fun hasActiveFullAccountData(
+    account: FullAccount,
+    hardwareRecovery: StillRecovering?,
+  ): HasActiveFullAccountData {
+    hardwareRecovery?.let {
+      require(it.factorToRecover == Hardware)
+    }
+    val pendingAuthKeyRotationAttempt by remember {
+      fullAccountAuthKeyRotationService.observePendingKeyRotationAttemptUntilNull()
+    }.collectAsState(initial = null)
+
+    // TODO: We should probably have a third "None" value, so that we can differentiate between
+    //  loading and no pending attempt to mitigate any possible screen flashes.
+    pendingAuthKeyRotationAttempt?.let {
+      return RotatingAuthKeys(account, pendingAttempt = it)
+    }
+
+    val lostHardwareRecoveryData = lostHardwareRecoveryDataStateMachine
+      .model(LostHardwareRecoveryProps(account, hardwareRecovery))
+
+    return ActiveFullAccountLoadedData(account, lostHardwareRecoveryData)
   }
 
   @Composable
@@ -226,9 +250,9 @@ class AccountDataStateMachineImpl(
     return remember {
       accountService.accountStatus()
         .mapResult { (it as? AccountStatus.ActiveAccount)?.account }
-        // Software accounts do not rely on the account DSM; filter them out so that this DSM
+        // Software and lite accounts do not rely on the account DSM; filter them out so that this DSM
         // does not reset app state when a software account is activated.
-        .filterNot { it.get() is SoftwareAccount }
+        .filterNot { it.get() is SoftwareAccount || it.get() is LiteAccount }
         .distinctUntilChanged()
     }.collectAsState(null).value
   }
@@ -243,6 +267,7 @@ class AccountDataStateMachineImpl(
   private fun NoActiveAccountData(
     debugOptions: DebugOptions,
     activeRecovery: StillRecovering?,
+    onLiteAccountCreated: (LiteAccount) -> Unit,
   ): AccountData {
     val scope = rememberStableCoroutineScope()
     return noActiveAccountDataStateMachine.model(
@@ -252,6 +277,9 @@ class AccountDataStateMachineImpl(
         onAccountCreated = { account ->
           scope.launch {
             accountService.setActiveAccount(account)
+            if (account is LiteAccount) {
+              onLiteAccountCreated(account)
+            }
           }
         }
       )

@@ -52,10 +52,14 @@ private suspend fun DbSpecDsl.migrateAndInstallFixtures(version: Long) {
 
       this::class.java.classLoader.getResource("fixtures/$targetVersion.sql")
         ?.readText()
+        ?.let { text ->
+          text.lineSequence()
+            .filterNot { it.trim().startsWith("--") }
+            .joinToString("\n")
+        }
         ?.split(';')
         ?.map { it.trim() }
         ?.filter { it.isNotBlank() }
-        ?.filterNot { it.startsWith("--") }
         ?.map { statement ->
           runCatching { driver.execute(null, statement, 0).await() }
             .getOrElse { throw failure("Error while executing fixture query: $statement", it) }

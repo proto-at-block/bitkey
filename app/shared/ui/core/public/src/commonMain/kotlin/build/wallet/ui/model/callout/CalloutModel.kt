@@ -20,9 +20,11 @@ data class CalloutModel(
   val leadingIcon: Icon? = null,
   val trailingIcon: Icon? = null,
   val onClick: Click? = null,
+  val onTitleClick: Click? = null,
 ) {
   enum class Treatment {
     Default,
+    DefaultCentered,
     Information,
     Success,
     Warning,

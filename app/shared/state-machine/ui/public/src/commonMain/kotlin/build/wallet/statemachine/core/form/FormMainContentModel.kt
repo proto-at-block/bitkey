@@ -4,12 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.statemachine.core.ComposableRenderedModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.app.core.form.UpsellContainer
+import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
@@ -73,6 +74,7 @@ sealed class FormMainContentModel {
     val content: Content,
     val title: String,
     val body: LabelModel,
+    val treatment: Treatment = Treatment.DEFAULT,
   ) : FormMainContentModel() {
     sealed class Content {
       data class IconContent(
@@ -89,6 +91,11 @@ sealed class FormMainContentModel {
           open val looping: Boolean = false
         }
       }
+    }
+
+    enum class Treatment {
+      DEFAULT,
+      INHERITANCE,
     }
   }
 
@@ -370,6 +377,14 @@ sealed class FormMainContentModel {
   ) : FormMainContentModel()
 
   /**
+   * Allows a [CardModel] to be rendered in the [FormMainContentModel] list
+   * @property item - the [CalloutModel] to be rendered
+   */
+  data class CalloutCard(
+    val item: CardModel,
+  ) : FormMainContentModel()
+
+  /**
    * Shows a hero of the Money Home screen with the given primary and secondary amount
    * display strings.
    */
@@ -395,7 +410,7 @@ sealed class FormMainContentModel {
     val body: String,
     val primaryButton: ButtonModel,
     val secondaryButton: ButtonModel,
-  ) : FormMainContentModel(), ComposableRenderedModel {
+  ) : FormMainContentModel(), ComposeModel {
     override val key: String = "upsell"
 
     @Composable

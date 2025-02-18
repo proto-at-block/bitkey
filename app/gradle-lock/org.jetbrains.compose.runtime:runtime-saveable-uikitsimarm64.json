@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-uikitsimarm64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "runtime-saveable-uikitsimarm64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime-saveable.klib": "be8bedcaf1b72e30ff8348250867c4896f3daea662009001afbb067981b5def5"
+                        "runtime-saveable.klib": "3400af083abcbcef58cb8de292a6f260fa6156109ac4c874fa3543c135ce8ab3"
                     }
                 }
             ],

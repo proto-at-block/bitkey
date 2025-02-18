@@ -1,6 +1,9 @@
 package build.wallet.ui.model.status
 
-import build.wallet.ui.model.Model
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import build.wallet.ui.components.status.StatusBanner
+import build.wallet.ui.model.ComposeModel
 
 /**
  * Model for a status banner UI component that is meant to be attached to the top edge of the
@@ -14,4 +17,9 @@ data class StatusBannerModel(
   val title: String,
   val subtitle: String?,
   val onClick: (() -> Unit)?,
-) : Model()
+) : ComposeModel {
+  @Composable
+  override fun render(modifier: Modifier) {
+    StatusBanner(modifier, model = this)
+  }
+}

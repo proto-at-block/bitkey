@@ -37,6 +37,8 @@ class SecureEnclaveFake : SecureEnclave {
     )
   }
 
+  override fun isFake(): Boolean = true
+
   private fun generateFakePrivateKey(): ByteArray = Random.nextBytes(32)
 
   private fun generateFakePublicKey(privateKeyBytes: ByteArray): ByteArray {

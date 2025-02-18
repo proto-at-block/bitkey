@@ -7,6 +7,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVersion
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import platform.UIKit.UIDevice
 
@@ -15,6 +16,7 @@ class PlatformInfoProviderImpl(
   appId: AppId,
   appVersion: AppVersion,
   osVersionInfoProvider: OsVersionInfoProvider,
+  deviceInfoProvider: DeviceInfoProvider,
 ) : PlatformInfoProvider {
   private val platformInfoLazy by lazy {
     PlatformInfo(
@@ -24,7 +26,7 @@ class PlatformInfoProviderImpl(
       os_type = OS_TYPE_IOS,
       os_version = osVersionInfoProvider.getOsVersion(),
       device_make = "Apple",
-      device_model = UIDevice.currentDevice.model,
+      device_model = deviceInfoProvider.getDeviceInfo().deviceModel,
       app_id = appId.value
     )
   }

@@ -18,8 +18,8 @@ class NetworkReachabilityProviderImpl(
   private val internetNetworkReachabilityService: InternetNetworkReachabilityService,
   private val networkReachabilityEventDao: NetworkReachabilityEventDao,
 ) : NetworkReachabilityProvider {
-  private var internetStatusMutableFlow = MutableStateFlow(REACHABLE)
-  private var f8eStatusMutableFlowMap:
+  private val internetStatusMutableFlow = MutableStateFlow(REACHABLE)
+  private val f8eStatusMutableFlowMap:
     MutableMap<F8eEnvironment, MutableStateFlow<NetworkReachability>> =
     mutableMapOf()
 
@@ -40,15 +40,7 @@ class NetworkReachabilityProviderImpl(
   }
 
   override suspend fun updateNetworkReachabilityForConnection(
-    httpClient: HttpClient,
-    reachability: NetworkReachability,
-    connection: NetworkConnection,
-  ) {
-    error("Not implemented")
-  }
-
-  @Suppress("OVERRIDE_DEPRECATION")
-  override suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient?,
     reachability: NetworkReachability,
     connection: NetworkConnection,
   ) {
@@ -63,25 +55,28 @@ class NetworkReachabilityProviderImpl(
     // Update the flows based on the status
     when (reachability) {
       REACHABLE ->
-        updateFlowsForReachableConnection(connection)
+        updateFlowsForReachableConnection(httpClient, connection)
 
       UNREACHABLE -> {
-        updateFlowsForUnreachableConnection(connection)
+        updateFlowsForUnreachableConnection(httpClient, connection)
         // TODO (W-5711): Set up polling for re-connection
       }
     }
   }
 
-  private suspend fun updateFlowsForReachableConnection(connection: NetworkConnection) {
+  private suspend fun updateFlowsForReachableConnection(
+    httpClient: HttpClient?,
+    connection: NetworkConnection,
+  ) {
     if (connection is F8e) {
       // If the connection is F8e and it is reporting REACHABLE, immediately update the flow.
       f8eStatusMutableFlow(connection.environment).emit(REACHABLE)
-    } else {
+    } else if (httpClient != null) {
       // If the connection is not F8e and the status of F8e is UNREACHABLE, do a general F8e
       // connection check (not endpoint specific) and update the flow based on that.
       f8eEnvironment?.let { environment ->
         if (f8eStatusMutableFlow(environment).value == UNREACHABLE) {
-          f8eNetworkReachabilityService.checkConnection(environment)
+          f8eNetworkReachabilityService.checkConnection(httpClient, environment)
             .onSuccess { f8eStatusMutableFlow(environment).emit(REACHABLE) }
         }
       }
@@ -92,13 +87,16 @@ class NetworkReachabilityProviderImpl(
     internetStatusMutableFlow.emit(REACHABLE)
   }
 
-  private suspend fun updateFlowsForUnreachableConnection(connection: NetworkConnection) {
+  private suspend fun updateFlowsForUnreachableConnection(
+    httpClient: HttpClient?,
+    connection: NetworkConnection,
+  ) {
     // Update F8e flow if the connection is F8e
-    if (connection is F8e) {
+    if (connection is F8e && httpClient != null) {
       // First perform a general F8e connection check (not endpoint specific) to double-check that
       // there’s not an isolated incident with the specific endpoint that experienced a failure,
       // and update the reachability based on that check
-      f8eNetworkReachabilityService.checkConnection(connection.environment)
+      f8eNetworkReachabilityService.checkConnection(httpClient, connection.environment)
         .onSuccess { f8eStatusMutableFlow(connection.environment).emit(REACHABLE) }
         .onFailure { f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE) }
     }

@@ -5,8 +5,8 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
 import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.matchers.shouldBeLoading
 import build.wallet.statemachine.ui.matchers.shouldHaveText
 import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
@@ -31,8 +31,8 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel local recovery") {
-    stateMachine.test(props) {
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
 
         val formBody = body as FormBodyModel
@@ -44,7 +44,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+      awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
 
         val formBody = body as FormBodyModel
@@ -61,8 +61,8 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
   test("fail to cancel local recovery and successfully retry") {
     recoveryDao.clearCallResult = Err(DbQueryError(cause = null))
 
-    stateMachine.test(props) {
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
         val formBody = body as FormBodyModel
         formBody.run {
@@ -73,7 +73,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+      awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
         val formBody = body as FormBodyModel
         formBody.run {
@@ -84,7 +84,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
 
       recoveryDao.clearCalls.awaitItem()
 
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+      awaitUntilScreenWithBody<FormBodyModel> {
         val formBody = body as FormBodyModel
         formBody.run {
           header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
@@ -100,7 +100,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
         body.primaryButton.click()
       }
 
-      awaitUntilScreenModelWithBody<FormBodyModel> {
+      awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
         val formBody = body as FormBodyModel
         formBody.run {

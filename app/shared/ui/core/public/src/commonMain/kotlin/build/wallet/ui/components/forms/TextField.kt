@@ -17,18 +17,13 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
-import androidx.compose.ui.text.Paragraph
-import androidx.compose.ui.text.ParagraphIntrinsics
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.*
+import androidx.compose.ui.text.input.*
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Characters
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.None
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Sentences
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Words
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.button.Button
@@ -37,15 +32,17 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.*
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
+import build.wallet.ui.model.input.TextFieldModel.TextTransformation.INVITE_CODE
+import build.wallet.ui.model.input.TextFieldModel.TextTransformation.PASSWORD
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import androidx.compose.material3.TextField as MaterialTextField
 
+@Suppress("CyclomaticComplexMethod")
 @Composable
 fun TextField(
   modifier: Modifier = Modifier,
@@ -63,16 +60,21 @@ fun TextField(
   }
 
   // State for managing TextField's text value and cursor position
-  var textState by remember(model.value, model.selectionOverride) {
+  var textState by remember(model.selectionOverride) {
+    val initialValue = when (model.transformation) {
+      // Remove formatting from invite code to be applied via VisualTransformation
+      INVITE_CODE -> model.value.replace("-", "")
+      else -> model.value
+    }
     mutableStateOf(
       TextFieldValue(
-        text = model.value,
+        text = initialValue,
         selection =
           model.selectionOverride
             // Apply the overridden selection from the model if present
             ?.let { TextRange(it.first, it.last) }
             // Otherwise, use value's length as initial.
-            ?: TextRange(model.value.length)
+            ?: TextRange(initialValue.length)
       )
     )
   }
@@ -83,16 +85,31 @@ fun TextField(
     value = textState,
     labelType = labelType,
     onValueChange = { newTextFieldValue ->
+      val newValue = when {
+        model.transformation == INVITE_CODE && newTextFieldValue.text.contains('-') -> {
+          // Remove any user entered hyphens from single character input or pasteboard action
+          val newText = newTextFieldValue.text.replace("-", "")
+          TextFieldValue(
+            text = newText,
+            selection = textState.selection
+              // maintain cursor position if we are ignoring a single new character
+              .takeIf { it.start == it.end && it.end != textState.text.length }
+              // likely pasted complete text, move cursor to end
+              ?: TextRange(newText.length)
+          )
+        }
+        else -> newTextFieldValue
+      }
       model.maxLength?.let { maxLength ->
-        if (newTextFieldValue.text.length <= maxLength) {
-          textState = newTextFieldValue
+        if (newValue.text.length <= maxLength) {
+          textState = newValue
           model.onValueChange(
             textState.text,
             textState.selection.start..textState.selection.end
           )
         }
       } ?: run {
-        textState = newTextFieldValue
+        textState = newValue
         model.onValueChange(
           textState.text,
           textState.selection.start..textState.selection.end
@@ -126,10 +143,21 @@ fun TextField(
       KeyboardActions(
         onDone = model.onDone?.let { { it.invoke() } }
       ),
+    // While a VisualTransformation is applied, the iOS cursor
+    // will not automatically appear with the 'paste' option
+    // when selecting a text field.
+    // Here we disable any VisualTransformation while the TextField
+    // is blank to ensure the option is provided up front.
+    // See https://youtrack.jetbrains.com/issue/CMP-4502
     visualTransformation =
-      when (model.masksText) {
-        true -> PasswordVisualTransformation()
-        false -> VisualTransformation.None
+      if (textState.text.isEmpty()) {
+        VisualTransformation.None
+      } else {
+        when (model.transformation) {
+          PASSWORD -> PasswordVisualTransformation()
+          INVITE_CODE -> InviteCodeTransformation
+          null -> VisualTransformation.None
+        }
       }
   )
 }

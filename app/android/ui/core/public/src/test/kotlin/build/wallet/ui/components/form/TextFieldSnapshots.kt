@@ -3,6 +3,7 @@ package build.wallet.ui.components.form
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.ui.components.forms.TextFieldNoTextAndNoFocusPreview
+import build.wallet.ui.components.forms.TextFieldWithInviteCodeTransformation
 import build.wallet.ui.components.forms.TextFieldWithTextAndNoFocusPreview
 import io.kotest.core.spec.style.FunSpec
 
@@ -19,6 +20,12 @@ class TextFieldSnapshots : FunSpec({
   test("with text and no focus") {
     paparazzi.snapshot {
       TextFieldWithTextAndNoFocusPreview()
+    }
+  }
+
+  test("with invite code transformation") {
+    paparazzi.snapshot {
+      TextFieldWithInviteCodeTransformation()
     }
   }
 })

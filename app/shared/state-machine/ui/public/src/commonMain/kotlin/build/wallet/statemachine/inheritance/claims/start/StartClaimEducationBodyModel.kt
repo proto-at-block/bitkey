@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
@@ -18,13 +18,13 @@ data class StartClaimEducationBodyModel(
     id = InheritanceEventTrackerScreenId.StartClaimEducationScreen,
     onBack = onBack,
     toolbar = ToolbarModel(
-      leadingAccessory = BackAccessory(onBack)
+      heroContent = ToolbarModel.HeroContent.InheritanceExplainer,
+      leadingAccessory = CloseAccessory(onBack)
     ),
     header = FormHeaderModel(
-      headline = "How Inheritance Works",
-      subline = " • A claim cannot be canceled once submitted\n" +
-        " • There will be a 6-month waiting period before funds are released\n" +
-        " • After the waiting period, your funds will automatically transfer to your account"
+      headline = "How inheritance works",
+      subline = "There will be a 6-month waiting period before funds are released.\n\n" +
+        "After the waiting period, your funds will be available for transfer."
     ),
     primaryButton = ButtonModel(
       text = "Continue",

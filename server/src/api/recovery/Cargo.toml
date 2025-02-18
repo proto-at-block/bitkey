@@ -15,7 +15,7 @@ once_cell = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-serde_with = { workspace = true }
+serde_with = { workspace = true, features = ["base64"] }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
@@ -37,6 +37,7 @@ instrumentation = { workspace = true }
 migration = { workspace = true }
 mobile_pay = { workspace = true }
 notification = { workspace = true }
+promotion_code = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
 screener = { workspace = true }
 types = { workspace = true, features = ["recovery"] }

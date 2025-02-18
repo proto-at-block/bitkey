@@ -15,8 +15,8 @@ interface DatadogRumMonitor {
    */
   fun startView(
     key: String,
-    name: String,
-    attributes: Map<String, String>,
+    name: String = key,
+    attributes: Map<String, String> = emptyMap(),
   )
 
   /**
@@ -27,7 +27,7 @@ interface DatadogRumMonitor {
    */
   fun stopView(
     key: String,
-    attributes: Map<String, String>,
+    attributes: Map<String, String> = emptyMap(),
   )
 
   /**

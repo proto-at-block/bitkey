@@ -1,9 +1,12 @@
 package build.wallet.statemachine.account
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.account.ChooseAccountAccessScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -49,4 +52,9 @@ data class ChooseAccountAccessModel(
         )
       }
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    ChooseAccountAccessScreen(modifier, model = this)
+  }
 }

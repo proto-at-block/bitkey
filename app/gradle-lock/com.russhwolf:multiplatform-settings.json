@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-metadata-1.1.1.jar": "a46bba15d687fccf0178e68bc9d3d9aa1380d0211ee7b65e9cfa439563f030a5"
+                        "multiplatform-settings-metadata-1.2.0.jar": "9d40b95b84147598c4d2606d49958158167a13322a9c02f6df3323e90de4dda0"
                     }
                 }
             ],

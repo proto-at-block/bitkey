@@ -66,20 +66,34 @@ class LoadAppServiceImplTests : FunSpec({
   }
 
   context("has active lite account") {
-    test("undetermined app state") {
+    test("HasActiveLiteAccount app state") {
       accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
 
-      service.loadAppState().shouldBe(AppState.Undetermined)
+      service.loadAppState().shouldBe(AppState.HasActiveLiteAccount(LiteAccountMock))
+    }
+  }
+
+  context("has lite account onboarding to full account") {
+    test("LiteAccountOnboardingToFullAccount app state") {
+      accountService.accountState.value = Ok(
+        AccountStatus.LiteAccountUpgradingToFullAccount(
+          LiteAccountMock,
+          FullAccountMock
+        )
+      )
+
+      service.loadAppState()
+        .shouldBe(AppState.LiteAccountOnboardingToFullAccount(LiteAccountMock, FullAccountMock))
     }
   }
 
   context("has onboarding full account") {
-    test("undetermined app state") {
+    test("OnboardingFullAccount app state") {
       accountService.accountState.value = Ok(
         AccountStatus.OnboardingAccount(FullAccountMock)
       )
 
-      service.loadAppState().shouldBe(AppState.Undetermined)
+      service.loadAppState().shouldBe(AppState.OnboardingFullAccount(FullAccountMock))
     }
   }
 

@@ -1,6 +1,7 @@
 package build.wallet.inheritance
 
 import build.wallet.bitkey.inheritance.InheritanceClaim
+import build.wallet.bitkey.inheritance.InheritanceClaimId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -16,5 +17,5 @@ interface InheritanceCardService {
    * Dismisses a pending beneficiary claim card. User will no longer see the pending claim card
    * until the claim changes to the locked state
    */
-  suspend fun dismissPendingBeneficiaryClaimCard(claimId: String)
+  suspend fun dismissPendingBeneficiaryClaimCard(claimId: InheritanceClaimId)
 }

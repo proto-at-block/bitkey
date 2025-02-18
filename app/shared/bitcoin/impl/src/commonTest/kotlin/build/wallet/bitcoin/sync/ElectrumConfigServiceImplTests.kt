@@ -5,6 +5,8 @@ import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.F8eEnvironment.Production
@@ -14,12 +16,8 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 
 class ElectrumConfigServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
 
   val signetElectrumServer = F8eDefined(ElectrumServerDetails("chicken.info", "1234"))
   val mainnetElectrumServer = F8eDefined(ElectrumServerDetails("chicken.info", "50002"))
@@ -54,30 +52,29 @@ class ElectrumConfigServiceImplTests : FunSpec({
   }
 
   test("executeWork syncs f8e electrum config") {
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
-
-      runCurrent()
-      getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
-      electrumServerRepository.f8eDefinedElectrumConfig.value
-        .shouldBe(signetElectrumServer)
-
-      // Changing the bitcoin network should cause a resync
-      debugOptionsService.setBitcoinNetworkType(BITCOIN)
-      getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
-      electrumServerRepository.f8eDefinedElectrumConfig.value
-        .shouldBe(mainnetElectrumServer)
-
-      // Changing the f8e environment should cause a resync
-      debugOptionsService.setF8eEnvironment(Production)
-      getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
-
-      // Other options don't cause a resync
-      debugOptionsService.setIsTestAccount(false)
-      getBdkConfigurationF8eClient.getConfigurationCalls.expectNoEvents()
+    createBackgroundScope().launch {
+      service.executeWork()
     }
+
+    getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
+    electrumServerRepository.f8eDefinedElectrumConfig.test {
+      awaitUntil(signetElectrumServer)
+    }
+
+    // Changing the bitcoin network should cause a resync
+    debugOptionsService.setBitcoinNetworkType(BITCOIN)
+    getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
+    electrumServerRepository.f8eDefinedElectrumConfig.test {
+      awaitUntil(mainnetElectrumServer)
+    }
+
+    // Changing the f8e environment should cause a resync
+    debugOptionsService.setF8eEnvironment(Production)
+    getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
+
+    // Other options don't cause a resync
+    debugOptionsService.setIsTestAccount(false)
+    getBdkConfigurationF8eClient.getConfigurationCalls.expectNoEvents()
   }
 
   test("electrumServerPreference updates when user preference changes") {

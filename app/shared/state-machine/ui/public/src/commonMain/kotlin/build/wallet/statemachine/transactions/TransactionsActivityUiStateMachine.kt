@@ -49,4 +49,4 @@ data class TransactionsActivityProps(
 data class TransactionsActivityModel(
   val listModel: ListGroupModel,
   val hasMoreTransactions: Boolean,
-) : Model()
+) : Model

@@ -1,14 +1,8 @@
 package build.wallet.ui.components.label
 
-import androidx.compose.animation.animateColor
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Ease
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.getValue
+import androidx.compose.animation.core.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
@@ -18,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.theme.WalletTheme
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Creates a shimmer effect on the Composable by applying
@@ -56,29 +52,43 @@ fun Modifier.loadingScrim(
 ): Modifier {
   return composed {
     val loadingColor = WalletTheme.colors.loadingBackground
-    val transition = rememberInfiniteTransition(label = "loading-scrim")
-    val color by transition.animateColor(
-      label = "loading-scrim-color",
-      initialValue = loadingColor.copy(if (isLoading) 1f else 0f),
-      targetValue = loadingColor.copy(
+    var targetColor by remember {
+      mutableStateOf(
+        loadingColor.copy(alpha = if (isLoading) 1f else 0f)
+      )
+    }
+    val shimmerSpec = tween<Color>(durationMillis = 1000, easing = Ease)
+    val transitionSpec = tween<Color>(durationMillis = 300, easing = Ease)
+    val color by animateColorAsState(
+      label = "loading-scrim-shimmer-color",
+      targetValue = targetColor,
+      animationSpec = shimmerSpec
+    )
+    val disabledColor by animateColorAsState(
+      label = "loading-scrim-disabled-color",
+      targetValue = if (isLoading) loadingColor else loadingColor.copy(alpha = 0f),
+      animationSpec = transitionSpec
+    )
+    val maskColorAnimated by animateColorAsState(
+      label = "loading-scrim-mask",
+      targetValue = if (isLoading) maskColor else maskColor.copy(alpha = 0f),
+      animationSpec = transitionSpec
+    )
+    LaunchedEffect(isLoading, isShimmering) {
+      targetColor = loadingColor.copy(
         when {
           isLoading -> if (isShimmering) 0.6f else 1f
           else -> 0f
         }
-      ),
-      animationSpec = infiniteRepeatable(
-        repeatMode = RepeatMode.Reverse,
-        animation = tween(
-          durationMillis = 500,
-          delayMillis = 1000,
-          easing = Ease
-        )
       )
-    )
-    val maskColorAnimated by animateColorAsState(
-      label = "loading-scrim-mask",
-      targetValue = if (isLoading) maskColor else maskColor.copy(alpha = 0f)
-    )
+      while (isLoading && isShimmering) {
+        targetColor = when (targetColor.alpha) {
+          1f -> color.copy(alpha = 0.6f)
+          else -> color.copy(alpha = 1f)
+        }
+        delay(1.seconds)
+      }
+    }
     drawWithContent {
       drawContent()
       drawIntoCanvas {
@@ -90,8 +100,8 @@ fun Modifier.loadingScrim(
           size = size
         )
         drawRoundRect(
-          color = color,
-          cornerRadius = cornerRadius,
+          color = if (isLoading) color else disabledColor,
+          cornerRadius = CornerRadius(radius, radius),
           size = size
         )
       }

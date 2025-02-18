@@ -1,26 +1,20 @@
 package bitkey.sample.ui.settings.account
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import bitkey.sample.functional.Account
 import bitkey.sample.functional.AccountRepository
 import bitkey.sample.ui.error.ErrorScreen
 import bitkey.sample.ui.settings.SettingsScreen
+import bitkey.ui.framework.Navigator
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.ui.framework.Navigator
-import build.wallet.ui.framework.Screen
-import build.wallet.ui.framework.ScreenPresenter
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 data class AccountSettingsScreen(
   val account: Account,
   val onAccountDeleted: () -> Unit,
-  val onExit: () -> Unit,
 ) : Screen
 
 class AccountSettingsScreenPresenter(
@@ -43,7 +37,7 @@ class AccountSettingsScreenPresenter(
             navigator.goTo(
               ErrorScreen(
                 message = "Error deleting account: ${it.message}",
-                exitScreen = screen
+                origin = screen
               )
             )
           }
@@ -60,8 +54,7 @@ class AccountSettingsScreenPresenter(
         navigator.goTo(
           SettingsScreen(
             account = screen.account,
-            onAccountDeleted = screen.onAccountDeleted,
-            onExit = screen.onExit
+            onAccountDeleted = screen.onAccountDeleted
           )
         )
       }

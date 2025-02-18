@@ -15,6 +15,7 @@ kotlin {
       dependencies {
         api(projects.shared.resultPublic)
         api(libs.kmp.okio)
+        implementation(projects.shared.stdlibPublic)
       }
     }
 

@@ -5,6 +5,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -50,9 +51,11 @@ class ExchangeRateF8eClientImpl(
     currencyCode: String,
     timestamps: List<Instant>,
   ): Result<List<ExchangeRate>, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<ResponseBody> {
         post("/api/exchange-rates/historical") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
           setRedactedBody(HistoricalRateRequest(currencyCode, timestamps.map { it.epochSeconds }))
         }
       }
@@ -71,9 +74,11 @@ class ExchangeRateF8eClientImpl(
     days: Duration,
     maxPricePoints: Int,
   ): Result<ExchangeRateChartData, NetworkingError> =
-    f8eHttpClient.authenticated(f8eEnvironment, accountId)
+    f8eHttpClient.authenticated()
       .bodyResult<ExchangeRateChartDataDTO> {
         post("/api/exchange-rates/chart") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(accountId)
           setRedactedBody(
             HistoricalBtcExchangeRateChartData(
               currencyCode,

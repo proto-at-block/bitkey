@@ -6,10 +6,10 @@ import androidx.compose.ui.Modifier
 import build.wallet.Progress
 import build.wallet.pricechart.DataPoint
 import build.wallet.pricechart.PriceDirection
-import build.wallet.statemachine.core.ComposableRenderedModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.card.PendingClaimContent
+import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
@@ -25,7 +25,7 @@ import kotlin.time.Duration
  */
 data class MoneyHomeCardsModel(
   val cards: ImmutableList<CardModel>,
-) : Model()
+) : Model
 
 /**
  * Model representing a card that can be rendered on the Money Home screen via [MoneyHomeCardsUiStateMachine]
@@ -47,8 +47,10 @@ data class CardModel(
   val content: CardContent?,
   val style: CardStyle,
   val onClick: (() -> Unit)? = null,
+  val primaryButton: ButtonModel? = null,
+  val secondaryButton: ButtonModel? = null,
   val animation: ImmutableList<AnimationSet>? = null,
-) : Model() {
+) : Model {
   /** The style of the card */
   sealed class CardStyle {
     data object Plain : CardStyle()
@@ -108,11 +110,12 @@ data class CardModel(
       val progress: Progress,
       val onClick: (() -> Unit)?,
       override val key: String = "pending-claim",
-    ) : CardContent, ComposableRenderedModel {
+    ) : CardContent, ComposeModel {
       @Composable
       override fun render(modifier: Modifier) {
         PendingClaimContent(
-          model = this
+          model = this,
+          modifier = modifier
         )
       }
     }

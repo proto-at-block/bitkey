@@ -2,11 +2,11 @@
     "module-identifier": "org.apache.maven:maven-artifact",
     "components": [
         {
-            "version": "3.9.1",
+            "version": "3.9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "maven-artifact-3.9.1.jar": "1b673d76cf8777344c6350d588533ea394dd93fe9a1b2bff319d96cb0dde74f2"
+                        "maven-artifact-3.9.6.jar": "ad7a0fb408f8e47585ccc0d0011e0b501d93bfc9888d369bbd4a043d19475073"
                     }
                 }
             ],

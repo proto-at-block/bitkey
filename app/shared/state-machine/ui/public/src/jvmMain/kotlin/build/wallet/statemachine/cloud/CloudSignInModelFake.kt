@@ -1,5 +1,7 @@
 package build.wallet.statemachine.cloud
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.cloud.store.CloudStoreAccount
@@ -21,4 +23,9 @@ data class CloudSignInModelFake(
       eventTrackerContext = null,
       eventTrackerShouldTrack = false
     ),
-) : BodyModel()
+) : BodyModel() {
+  @Composable
+  override fun render(modifier: Modifier) {
+    error("Not implemented")
+  }
+}

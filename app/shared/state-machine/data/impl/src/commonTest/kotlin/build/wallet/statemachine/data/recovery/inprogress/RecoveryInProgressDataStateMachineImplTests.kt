@@ -1,3 +1,5 @@
+@file:OptIn(DelicateCoroutinesApi::class)
+
 package build.wallet.statemachine.data.recovery.inprogress
 
 import app.cash.turbine.plusAssign
@@ -11,6 +13,7 @@ import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
+import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -18,38 +21,43 @@ import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.relationships.RelationshipsFake
 import build.wallet.ktor.result.HttpError
+import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
+import build.wallet.nfc.transaction.UnsealData
 import build.wallet.notifications.DeviceTokenManagerError.NoDeviceToken
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.*
+import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.*
-import build.wallet.recovery.RecoveryCanceler.RecoveryCancelerError.F8eCancelDelayNotifyError
-import build.wallet.relationships.EndorseTrustedContactsServiceMock
-import build.wallet.relationships.RelationshipsServiceMock
+import build.wallet.relationships.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
-import build.wallet.time.ClockFake
-import build.wallet.time.ControlledDelayer
+import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.core.test.testCoroutineScheduler
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import io.ktor.util.*
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlin.time.Duration.Companion.minutes
+import okio.ByteString.Companion.decodeBase64
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class RecoveryInProgressDataStateMachineImplTests : FunSpec({
-  val clock = ClockFake()
-  val lostAppRecoveryCanceler = RecoveryCancelerMock(turbines::create)
+  val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
+  val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
   val csekGenerator = CsekGeneratorMock()
   val csekDao = CsekDaoFake()
   val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
@@ -60,16 +68,24 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create)
+  val relationshipsKeysRepository = RelationshipsKeysRepository(
+    relationshipsCrypto = RelationshipsCryptoFake(),
+    relationshipKeysDao = RelationshipsKeysDaoFake()
+  )
   val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
   val fakeChallenge = SignedChallenge.HardwareSignedChallenge(
     challenge = DelayNotifyRecoveryChallengeFake,
     signature = ""
   )
+  val delegatedDecryptionKeyService = DelegatedDecryptionKeyServiceMock(
+    uploadCalls = turbines.create("upload calls")
+  )
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
-      recoveryCanceler = lostAppRecoveryCanceler,
-      clock = clock,
+      lostHardwareRecoveryService = lostHardwareRecoveryService,
+      lostAppAndCloudRecoveryService = lostAppAndCloudRecoveryService,
+      clock = Clock.System,
       csekGenerator = csekGenerator,
       csekDao = csekDao,
       recoveryAuthCompleter = recoveryAuthCompleter,
@@ -78,26 +94,39 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoverySyncer = recoverySyncer,
       accountAuthenticator = accountAuthorizer,
       recoveryDao = recoveryDao,
-      delayer = ControlledDelayer(),
       deviceTokenManager = deviceTokenManager,
       relationshipsService = relationshipsService,
-      endorseTrustedContactsService = trustedContactKeyAuthenticator
+      endorseTrustedContactsService = trustedContactKeyAuthenticator,
+      delegatedDecryptionKeyService = delegatedDecryptionKeyService,
+      relationshipsKeysRepository = relationshipsKeysRepository,
+      minimumLoadingDuration = MinimumLoadingDuration(0.seconds)
     )
 
   beforeTest {
-    clock.reset()
     csekDao.reset()
     deviceTokenManager.reset()
     relationshipsService.relationshipsFlow.emit(RelationshipsFake)
   }
 
-  fun recovery(delayStartTime: Instant = clock.now) =
+  val delayDuration = 100.milliseconds
+
+  fun recovery(delayStartTime: Instant = Clock.System.now()) =
     StillRecoveringInitiatedRecoveryMock.copy(
       factorToRecover = App,
       serverRecovery =
         StillRecoveringInitiatedRecoveryMock.serverRecovery.copy(
           delayStartTime = delayStartTime,
-          delayEndTime = delayStartTime + 2.minutes
+          delayEndTime = delayStartTime + delayDuration
+        )
+    )
+
+  fun hardwareRecovery(delayStartTime: Instant = Clock.System.now()) =
+    StillRecoveringInitiatedRecoveryMock.copy(
+      factorToRecover = Hardware,
+      serverRecovery =
+        StillRecoveringInitiatedRecoveryMock.serverRecovery.copy(
+          delayStartTime = delayStartTime,
+          delayEndTime = delayStartTime + delayDuration
         )
     )
 
@@ -120,16 +149,17 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   test("recovery is ready to complete") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-      }
+    delay(delayDuration)
+    stateMachine.test(
+      props = props(recovery),
+      testTimeout = 20.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
     }
   }
 
-  // TODO(W-3249): test is not working because we don't know how to manage `delay` in tests.
-  xtest("delay period is pending, advance by 1 minute, still pending") {
+  test("delay period is pending, wait for part of the delay duration, still pending") {
     val recovery = recovery()
     stateMachine.test(props(recovery)) {
       awaitItem().let {
@@ -139,15 +169,15 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.delayPeriodEndTime.shouldBe(recovery.serverRecovery.delayEndTime)
       }
 
-      // Move clock but not ahead of delay period end time
-      testCoroutineScheduler.advanceTimeBy(1.minutes)
+      // Move clock but not ahead of delay period end time, still pending
+      awaitNoEvents(timeout = 10.milliseconds)
 
-      expectNoEvents()
+      // Ready later
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
     }
   }
 
-  // TODO(W-3249): test is not working because we don't know how to manage `delay` in tests.
-  xtest("delay period is pending, advance by 2 minutes, recovery ready to complete") {
+  test("delay period is pending, wait for delay to complete, recovery ready to complete") {
     val recovery = recovery()
     stateMachine.test(props(recovery)) {
       awaitItem().let {
@@ -157,16 +187,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.delayPeriodEndTime.shouldBe(recovery.serverRecovery.delayEndTime)
       }
 
-      // Move clock ahead of delay period end time
-      testCoroutineScheduler.advanceTimeBy(2.minutes)
-
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-      }
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
     }
   }
 
-  test("cancel recovery while delay period is pending") {
+  test("cancel lost app and cloud recovery while delay period is pending") {
     val recovery = recovery()
     stateMachine.test(props(recovery)) {
       awaitItem().let {
@@ -181,13 +206,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
       }
 
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
-
       awaitItem().shouldBeTypeOf<CancellingData>()
     }
   }
 
-  test("cancel hw recovery while delay period is pending") {
+  test("cancel lost hw recovery while delay period is pending") {
     val recovery = recovery()
     stateMachine.test(
       props(recovery.copy(factorToRecover = Hardware))
@@ -199,16 +222,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.cancel()
       }
 
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
-
       awaitItem().shouldBeTypeOf<CancellingData>()
     }
   }
 
-  test("cancel hw recovery when it is ready to be completed") {
+  test("cancel lost hw recovery when it is ready to be completed") {
     val recovery = recovery().copy(factorToRecover = Hardware)
     // Move clock ahead of delay period end time
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(
       props(recovery)
     ) {
@@ -218,22 +239,19 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<CancellingData>()
-
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
     }
   }
 
-  test("attempt to cancel recovery but it fails ") {
+  test("attempt to cancel lost app and cloud recovery but it fails ") {
     val recovery = recovery()
     // Move clock ahead of delay period end time
-    clock.advanceBy(2.minutes)
-    lostAppRecoveryCanceler.result =
+    delay(delayDuration)
+    lostAppAndCloudRecoveryService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(F8eError.UnhandledException(HttpError.UnhandledException(Throwable())))
       )
 
     stateMachine.test(props(recovery)) {
-
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
         it.cancel()
@@ -244,9 +262,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CancellingData>()
-      }
+      awaitItem().shouldBeTypeOf<CancellingData>()
 
       awaitItem().let {
         it.shouldBeTypeOf<FailedToCancelRecoveryData>()
@@ -254,16 +270,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
     }
   }
 
-  test("cancel recovery when it is ready to be completed and requires notification comms") {
+  test("cancel lost app and cloud recovery when it is ready to be completed and requires notification comms") {
     val recovery = recovery()
     // Move clock ahead of delay period end time
-    clock.advanceBy(2.minutes)
-    lostAppRecoveryCanceler.result =
+    delay(delayDuration)
+    lostAppAndCloudRecoveryService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(
           SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED)
@@ -280,13 +294,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
       }
 
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
-
       awaitItem().shouldBeTypeOf<CancellingData>()
 
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-        lostAppRecoveryCanceler.result = Ok(Unit)
+        lostAppAndCloudRecoveryService.reset()
         onComplete()
       }
 
@@ -294,18 +306,16 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<AwaitingProofOfPossessionForCancellationData>()
         it.addHardwareProofOfPossession(HwFactorProofOfPossession(""))
       }
-
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<CancellingData>()
     }
   }
 
-  test("cancel hw recovery when it is ready to be completed and requires notification comms") {
+  test("cancel lost hw recovery when it is ready to be completed and requires notification comms") {
     val recovery = recovery().copy(factorToRecover = Hardware)
     // Move clock ahead of delay period end time
-    clock.advanceBy(2.minutes)
-    lostAppRecoveryCanceler.result =
+    delay(delayDuration)
+    lostHardwareRecoveryService.cancelResult =
       Err(
         F8eCancelDelayNotifyError(
           SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED)
@@ -317,17 +327,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.cancel()
       }
 
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
-
       awaitItem().shouldBeTypeOf<CancellingData>()
 
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsForCancellationData>()
-        lostAppRecoveryCanceler.result = Ok(Unit)
+        lostHardwareRecoveryService.reset()
         onComplete()
       }
-
-      lostAppRecoveryCanceler.cancelCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<CancellingData>()
     }
@@ -336,7 +342,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   test("rollback instead of signing challenge and csek") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -352,16 +358,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.nfcTransaction.onCancel()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-      }
+      awaitItem().shouldBeTypeOf<ReadyToCompleteRecoveryData>()
     }
   }
 
   test("csekDao set failure") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -381,9 +385,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedToRotateAuthData>()
-      }
+      awaitItem().shouldBeTypeOf<FailedToRotateAuthData>()
     }
   }
 
@@ -393,7 +395,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
 
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
 
     stateMachine.test(props(recovery)) {
       awaitItem().let {
@@ -435,6 +437,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().let {
+        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.nfcTransaction.onSuccess(
+          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+        )
+      }
+
       // Rotate spending keys
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
@@ -464,6 +473,26 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
@@ -476,7 +505,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       updateProps(
@@ -496,17 +524,154 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       // Sweeping funds
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-      }
+      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
   test("complete recovery") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys
+      accountAuthorizer.authResults = mutableListOf(accountAuthorizer.defaultErrorAuthResult)
+      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndCsek(
+            signedChallenge = fakeChallenge,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        accountAuthorizer.authCalls.awaitItem()
+        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
+      }
+
+      updateProps(
+        props(
+          RotatedAuthKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            factorToRecover = recovery.factorToRecover,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      awaitItem().let {
+        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.nfcTransaction.onSuccess(
+          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+        )
+      }
+
+      // Rotate spending keys
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
+        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+          .shouldBeTypeOf<RotatedSpendingKeys>()
+      }
+
+      updateProps(
+        props(
+          CreatedSpendingKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      relationshipsService.syncCalls.awaitItem()
+
+      // Backing up new keybox
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingCloudBackupData>()
+        it.sealedCsek.shouldBe(SealedCsekFake)
+        it.onBackupFinished()
+      }
+
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
+
+      updateProps(
+        props(
+          BackedUpToCloud(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            f8eSpendingKeyset = F8eSpendingKeysetMock
+          )
+        )
+      )
+
+      // Sweeping funds
+      awaitItem().shouldBeTypeOf<PerformingSweepData>()
+    }
+  }
+
+  test("complete hardware recovery") {
+    val recovery = hardwareRecovery()
+    delay(delayDuration)
+    stateMachine.test(
+      props = props(recovery),
+      turbineTimeout = 10.seconds
+    ) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
         it.startComplete()
@@ -576,6 +741,35 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().shouldBeTypeOf<PerformingDdkBackupData>()
+      awaitItem().let {
+        it.shouldBeTypeOf<SealingDelegatedDecryptionKeyData>()
+        it.nfcTransaction.onSuccess(
+          SealDelegatedDecryptionKey.SealedDataResult(
+            "FakeSealedData".encodeBase64().decodeBase64()!!
+          )
+        )
+        delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
+      }
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
@@ -588,7 +782,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       updateProps(
@@ -608,16 +801,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       // Sweeping funds
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-      }
+      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
   test("exit and restart sweep") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -659,6 +850,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().let {
+        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.nfcTransaction.onSuccess(
+          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+        )
+      }
+
       // Rotate spending keys
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
@@ -673,6 +871,26 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       updateProps(
         props(
           CreatedSpendingKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            factorToRecover = recovery.factorToRecover,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
             fullAccountId = recovery.fullAccountId,
             appSpendingKey = recovery.appSpendingKey,
             appGlobalAuthKey = recovery.appGlobalAuthKey,
@@ -729,16 +947,14 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.retry()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-      }
+      awaitItem().shouldBeTypeOf<PerformingSweepData>()
     }
   }
 
   test("fail and retry cloud backup") {
     val recovery = recovery()
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -780,15 +996,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().let {
+        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.nfcTransaction.onSuccess(
+          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+        )
+      }
+
       // Rotate spending keys
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
 
@@ -797,6 +1018,26 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       updateProps(
         props(
           CreatedSpendingKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
             fullAccountId = recovery.fullAccountId,
             appSpendingKey = recovery.appSpendingKey,
             appGlobalAuthKey = recovery.appGlobalAuthKey,
@@ -828,9 +1069,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.retry()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-      }
+      awaitItem().shouldBeTypeOf<PerformingCloudBackupData>()
     }
   }
 
@@ -839,7 +1078,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
       DeviceTokenManagerResult.Err(NoDeviceToken)
     // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
+    delay(delayDuration)
     stateMachine.test(props(recovery)) {
       awaitItem().let {
         it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
@@ -881,15 +1120,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().let {
+        it.shouldBeTypeOf<FetchingSealedDelegatedDecryptionKeyStringData>()
+        it.nfcTransaction.onSuccess(
+          UnsealData.UnsealedDataResult("unsealed-data".encodeBase64().decodeBase64()!!)
+        )
+      }
+
       // Rotate spending keys
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
         it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      }
+      awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
       updateProps(
         props(
@@ -908,6 +1152,26 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
+      awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      updateProps(
+        props(
+          DdkBackedUp(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            sealedCsek = SealedCsekFake,
+            f8eSpendingKeyset = F8eSpendingKeysetMock
+          )
+        )
+      )
+
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
@@ -919,7 +1183,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       }
 
       recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     }
   }

@@ -1,5 +1,6 @@
 package build.wallet.fwup
 
+import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.debug.DebugOptionsService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -20,14 +21,13 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.recoverIf
-import kotlinx.coroutines.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.hours
 
 @BitkeyInject(AppScope::class)
 class FirmwareDataServiceImpl(
@@ -36,6 +36,7 @@ class FirmwareDataServiceImpl(
   private val fwupDataDao: FwupDataDao,
   private val appSessionManager: AppSessionManager,
   private val debugOptionsService: DebugOptionsService,
+  private val firmwareUpdateSyncFrequency: FirmwareUpdateSyncFrequency,
 ) : FirmwareDataService, FirmwareDataSyncWorker {
   private val isHardwareFakeCache = MutableStateFlow(false)
   private val internalSyncFlow = MutableStateFlow(Unit)
@@ -51,13 +52,12 @@ class FirmwareDataServiceImpl(
           }
       }
 
-      // We want to check for new firmware when we first load the model
-      // and then once every hour after that
-      val checkForNewFirmwareFrequency = 1.hours
+      val syncTicker = tickerFlow(firmwareUpdateSyncFrequency.value)
+        .filter { appSessionManager.isAppForegrounded() }
       launch {
         combine(
           isHardwareFakeCache,
-          syncTicker(delay = checkForNewFirmwareFrequency),
+          syncTicker,
           firmwareDeviceInfoDao.deviceInfo()
         ) { isHardwareFake, _, _ ->
           if (!isHardwareFake) {
@@ -91,16 +91,6 @@ class FirmwareDataServiceImpl(
       }
     }
   }
-
-  private fun syncTicker(delay: Duration) =
-    flow {
-      while (currentCoroutineContext().isActive) {
-        if (appSessionManager.isAppForegrounded()) {
-          emit(Unit)
-        }
-        delay(delay)
-      }
-    }
 
   override suspend fun updateFirmwareVersion(fwupData: FwupData): Result<Unit, Error> {
     if (isHardwareFakeCache.value) {

@@ -64,10 +64,11 @@ fun HeroAmount(
         )
       }
     },
-    collapsedContent = {
+    collapsedContent = { placeholder ->
       CollapsedMoneyView(
         height = 36.dp,
-        modifier = Modifier
+        modifier = Modifier,
+        shimmer = !placeholder
       )
     }
   )

@@ -12,6 +12,10 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.*
+import build.wallet.statemachine.trustedcontact.view.ViewingInvitationProps
+import build.wallet.statemachine.trustedcontact.view.ViewingInvitationUiStateMachine
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactProps
+import build.wallet.statemachine.trustedcontact.view.ViewingRecoveryContactUiStateMachine
 import kotlinx.datetime.Clock
 
 @BitkeyInject(ActivityScope::class)

@@ -15,6 +15,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -50,17 +51,6 @@ class FeatureFlagsF8eClientImpl(
     accountId: AccountId?,
     flagKeys: List<String>,
   ): Result<List<FeatureFlagsF8eClient.F8eFeatureFlag>, NetworkingError> {
-    val httpClient = when (accountId) {
-      null ->
-        f8eHttpClient.unauthenticated()
-      is FullAccountId ->
-        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
-      is LiteAccountId ->
-        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Recovery)
-      is SoftwareAccountId ->
-        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
-    }
-
     val url =
       accountId?.let {
         "/api/accounts/${it.serverId}/feature-flags"
@@ -73,8 +63,18 @@ class FeatureFlagsF8eClientImpl(
         .logFailure { "Failed to get App Installation" }
         .getOrElse { AppInstallation(localId = "", hardwareSerialNumber = null) }
 
-    return httpClient.bodyResult<FeatureFlagsResponse> {
+    return if (accountId == null) {
+      f8eHttpClient.unauthenticated()
+    } else {
+      f8eHttpClient.authenticated()
+    }.bodyResult<FeatureFlagsResponse> {
       post(url) {
+        when (accountId) {
+          null -> Unit
+          is FullAccountId -> withAccountId(accountId, Global)
+          is LiteAccountId -> withAccountId(accountId, Recovery)
+          is SoftwareAccountId -> withAccountId(accountId, Global)
+        }
         withEnvironment(f8eEnvironment)
         setRedactedBody(
           RequestBody(

@@ -16,4 +16,5 @@ interface DebugMenuStateMachine : StateMachine<DebugMenuProps, ScreenModel>
  */
 data class DebugMenuProps(
   val onClose: () -> Unit,
+  val onAppDataDeleted: () -> Unit,
 )

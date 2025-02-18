@@ -40,22 +40,3 @@ extension Color {
     }
 
 }
-
-// MARK: -
-
-public extension UIColor {
-
-    var highlightedColor: UIColor {
-        switch self {
-        case .bitkeyPrimary:
-            return .bitkeyPrimary.withAlphaComponent(0.85)
-
-        case .secondary:
-            return .secondary.withAlphaComponent(0.1)
-
-        default:
-            return self
-        }
-    }
-
-}

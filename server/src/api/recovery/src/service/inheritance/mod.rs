@@ -1,34 +1,39 @@
-use super::social::relationship::Service as RecoveryRelationshipService;
-use crate::service::inheritance::error::ServiceError;
-use crate::service::social::relationship::get_recovery_relationships::{
-    GetRecoveryRelationshipsInput, GetRecoveryRelationshipsOutput,
-};
-use account::service::{FetchAccountInput, Service as AccountService};
+use std::sync::Arc;
 
+use tokio::join;
+use tracing::{event, instrument, Level};
+
+use account::service::{FetchAccountInput, Service as AccountService};
 use bdk_utils::DescriptorKeyset;
 use feature_flags::service::Service as FeatureFlagsService;
 use notification::service::Service as NotificationService;
+use promotion_code::service::Service as PromotionCodeService;
 use repository::recovery::inheritance::InheritanceRepository;
 use screener::service::Service as ScreenerService;
-use std::sync::Arc;
-use tokio::join;
-use tracing::{event, instrument, Level};
 use types::account::entities::Account;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
 
+use super::social::relationship::Service as RecoveryRelationshipService;
+use crate::service::inheritance::error::ServiceError;
+use crate::service::social::relationship::get_recovery_relationships::{
+    GetRecoveryRelationshipsInput, GetRecoveryRelationshipsOutput,
+};
+
 pub mod cancel_inheritance_claim;
 pub mod create_inheritance_claim;
+pub mod has_incompleted_claim;
 pub mod packages;
 pub mod update_inheritance_claim_destination;
 
+pub mod complete_inheritance_claim;
 pub(crate) mod error;
 pub mod get_inheritance_claims;
 pub mod lock_inheritance_claim;
 pub mod recreate_pending_claims_for_beneficiary;
-pub mod sign_and_complete_inheritance_claim;
+pub mod shorten_delay;
 
 #[cfg(test)]
 mod tests;
@@ -41,6 +46,7 @@ pub struct Service {
     pub account_service: AccountService,
     pub feature_flags_service: FeatureFlagsService,
     pub screener_service: Arc<ScreenerService>,
+    pub promotion_code_service: PromotionCodeService,
 }
 
 impl Service {
@@ -52,6 +58,7 @@ impl Service {
         account_service: AccountService,
         feature_flags_service: FeatureFlagsService,
         screener_service: Arc<ScreenerService>,
+        promotion_code_service: PromotionCodeService,
     ) -> Self {
         Self {
             repository,
@@ -60,6 +67,7 @@ impl Service {
             account_service,
             feature_flags_service,
             screener_service,
+            promotion_code_service,
         }
     }
 

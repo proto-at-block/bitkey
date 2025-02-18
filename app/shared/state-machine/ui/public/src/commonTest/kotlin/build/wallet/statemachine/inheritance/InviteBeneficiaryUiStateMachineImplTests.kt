@@ -7,10 +7,10 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -30,12 +30,13 @@ class InviteBeneficiaryUiStateMachineImplTests : FunSpec({
 
   val props = InviteBeneficiaryUiProps(
     account = FullAccountMock,
-    onExit = {}
+    onExit = {},
+    onInvited = {}
   )
 
   test("happy path") {
-    inviteBeneficiaryUiStateMachine.test(props) {
-      awaitScreenWithBodyModelMock<AddingTrustedContactUiProps>("adding-trusted-contact") {
+    inviteBeneficiaryUiStateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<AddingTrustedContactUiProps>("adding-trusted-contact") {
         onAddTc(
           TrustedContactAlias("alias"),
           HwFactorProofOfPossession("signed-token")

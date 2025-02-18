@@ -1,11 +1,9 @@
 package build.wallet.auth
 
 import build.wallet.account.AccountService
-import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationAuthError
+import build.wallet.auth.LiteAccountCreationError.*
 import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationDatabaseError.FailedToSaveAccount
 import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationDatabaseError.FailedToSaveAuthTokens
-import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationF8eError
-import build.wallet.auth.LiteAccountCreationError.LiteAccountKeyGenerationError
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.di.AppScope
@@ -20,7 +18,7 @@ import com.github.michaelbull.result.mapError
 class LiteAccountCreatorImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val accountService: AccountService,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val appKeysGenerator: AppKeysGenerator,
   private val createLiteAccountF8eClient: CreateLiteAccountF8eClient,
 ) : LiteAccountCreator {
@@ -59,8 +57,8 @@ class LiteAccountCreatorImpl(
           .authTokens
 
       // Persist the account auth tokens
-      authTokenDao
-        .setTokensOfScope(accountId, authTokens, AuthTokenScope.Recovery)
+      authTokensService
+        .setTokens(accountId, authTokens, AuthTokenScope.Recovery)
         .mapError { FailedToSaveAuthTokens(it) }
         .bind()
 

@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -27,9 +29,11 @@ class MobilePaySigningF8eClientImpl(
     keysetId: String,
     psbt: Psbt,
   ): Result<Psbt, NetworkingError> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<SignTransactionResponse> {
         post("/api/accounts/${fullAccountId.serverId}/keysets/$keysetId/sign-transaction") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             SignTransactionRequest(
               psbt = psbt.base64

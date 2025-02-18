@@ -37,4 +37,5 @@ dependencies {
   implementation(libs.jvm.zxing)
 
   testImplementation(projects.shared.bitkeyPrimitivesFake)
+  testImplementation(projects.shared.inheritancePublic)
 }

@@ -14,9 +14,9 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.pricechart.BitcoinPriceCardPreferenceFake
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldContainExactly
@@ -52,7 +52,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository.clear()
     currencyConverter.reset()
     fiatCurrenciesService.reset()
-    hideBalancePreference.clear()
+    hideBalancePreference.reset()
     bitcoinPriceCardPreference.clear()
     bitcoinWalletService.reset()
   }
@@ -60,8 +60,8 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
   test("update fiat currency preference") {
     fiatCurrenciesService.allFiatCurrencies.value = listOf(USD, GBP)
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<AppearancePreferenceFormModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<AppearancePreferenceFormModel> {
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")
         moneyHomeHero.secondaryAmount.shouldBe("0 sats")
@@ -69,7 +69,7 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
         onFiatCurrencyPreferenceClick()
       }
 
-      awaitScreenWithBody<FiatCurrencyListFormModel> {
+      awaitBody<FiatCurrencyListFormModel> {
         selectedCurrency.shouldBe(USD)
         currencyList.shouldContainExactly(USD, GBP)
         onCurrencySelection(GBP)
@@ -77,8 +77,8 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().action.shouldBe(ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
 
-      awaitUntilScreenWithBody<AppearancePreferenceFormModel>(
-        expectedBodyContentMatch = {
+      awaitUntilBody<AppearancePreferenceFormModel>(
+        matching = {
           // Wait for the fiat currency preference to be updated, which might or might not happen
           // in the next model.
           it.fiatCurrencyPreferenceString == "GBP"

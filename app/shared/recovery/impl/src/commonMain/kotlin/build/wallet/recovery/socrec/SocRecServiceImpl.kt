@@ -1,6 +1,9 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.relationships.TrustedContactRole
+import build.wallet.bitkey.relationships.socialRecoveryProtectedCustomers
+import build.wallet.bitkey.relationships.socialRecoveryTrustedContacts
+import build.wallet.bitkey.relationships.socialRecoveryUnendorsedTrustedContacts
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.relationships.Relationships
@@ -23,12 +26,9 @@ class SocRecServiceImpl(
       Relationships(
         invitations = relationships.invitations
           .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
-        endorsedTrustedContacts = relationships.endorsedTrustedContacts
-          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
-        unendorsedTrustedContacts = relationships.unendorsedTrustedContacts
-          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) },
-        protectedCustomers = relationships.protectedCustomers
-          .filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) }
+        endorsedTrustedContacts = relationships.endorsedTrustedContacts.socialRecoveryTrustedContacts(),
+        unendorsedTrustedContacts = relationships.unendorsedTrustedContacts.socialRecoveryUnendorsedTrustedContacts(),
+        protectedCustomers = relationships.protectedCustomers.socialRecoveryProtectedCustomers()
           .toImmutableList()
       )
     }

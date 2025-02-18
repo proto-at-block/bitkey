@@ -1,0 +1,21 @@
+CREATE TABLE inheritance_upsell_view (
+    id TEXT NOT NULL PRIMARY KEY,
+    viewed INTEGER NOT NULL DEFAULT 0
+);
+
+insert:
+INSERT OR REPLACE INTO inheritance_upsell_view (id)
+VALUES (?);
+
+setViewed:
+UPDATE inheritance_upsell_view
+SET viewed = 1
+WHERE id = ?;
+
+get:
+SELECT *
+FROM inheritance_upsell_view
+WHERE id = ?;
+
+reset:
+DELETE FROM inheritance_upsell_view; 

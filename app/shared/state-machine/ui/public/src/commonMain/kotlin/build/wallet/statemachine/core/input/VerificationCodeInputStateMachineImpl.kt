@@ -1,16 +1,9 @@
 package build.wallet.statemachine.core.input
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.v1.Action.ACTION_APP_EMAIL_RESEND
-import build.wallet.analytics.v1.Action.ACTION_APP_EMAIL_RESEND_SKIP_FOR_NOW
-import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND
-import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW
+import build.wallet.analytics.v1.Action.*
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
@@ -25,14 +18,9 @@ import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCode
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.AvailableState
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.BlockedState
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.ErrorState
-import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.LoadingState
+import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.ResendCodeState.*
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.SkipBottomSheetState
 import build.wallet.time.DurationFormatter
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
@@ -65,25 +53,23 @@ class VerificationCodeInputStateMachineImpl(
 
     // Update the resend state every 1 second
     LaunchedEffect("update-resend-code-state") {
-      while (isActive) {
-        state =
-          state.copy(
-            resendCodeState =
-              state.resendCodeState.calculateState(
-                clock = clock,
-                durationFormatter = durationFormatter,
-                onSendCodeAgain = {
-                  hasResentCodeOnce = true
-                  resendCode(
-                    clock, durationFormatter, eventTracker, props,
-                    setState = { produceState ->
-                      state = produceState(state)
-                    }
-                  )
-                }
-              )
-          )
-        delay(1.seconds)
+      launchTicker(1.seconds) {
+        state = state.copy(
+          resendCodeState =
+            state.resendCodeState.calculateState(
+              clock = clock,
+              durationFormatter = durationFormatter,
+              onSendCodeAgain = {
+                hasResentCodeOnce = true
+                resendCode(
+                  clock, durationFormatter, eventTracker, props,
+                  setState = { produceState ->
+                    state = produceState(state)
+                  }
+                )
+              }
+            )
+        )
       }
     }
 

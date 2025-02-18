@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
 import androidx.compose.runtime.*
+import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
@@ -28,7 +29,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
-import build.wallet.statemachine.recovery.inprogress.waiting.CancelRecoveryAlertModel
+import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import kotlinx.coroutines.launch
@@ -77,7 +78,7 @@ class CompletingRecoveryUiStateMachineImpl(
           presentationStyle = props.presentationStyle,
           alertModel =
             if (confirmingCancellation) {
-              CancelRecoveryAlertModel(
+              cancelRecoveryAlertModel(
                 onConfirm = {
                   props.completingRecoveryData.cancel()
                   confirmingCancellation = false
@@ -121,6 +122,24 @@ class CompletingRecoveryUiStateMachineImpl(
           )
         )
 
+      is FetchingSealedDelegatedDecryptionKeyStringData ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = props.completingRecoveryData.nfcTransaction,
+            screenPresentationStyle = props.presentationStyle,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_UNSEAL_DDK
+          )
+        )
+
+      is SealingDelegatedDecryptionKeyData ->
+        nfcSessionUIStateMachine.model(
+          NfcSessionUIStateMachineProps(
+            transaction = props.completingRecoveryData.nfcTransaction,
+            screenPresentationStyle = props.presentationStyle,
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SEAL_DDK
+          )
+        )
+
       is RotatingAuthKeysWithF8eData ->
         LoadingBodyModel(
           message = "Updating your credentials...",
@@ -131,6 +150,36 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerShouldTrack = false
         ).asScreen(presentationStyle = props.presentationStyle)
+
+      is DelegatedDecryptionKeyErrorStateData ->
+        ErrorFormBodyModel(
+          title = "Unable to fetch Trusted Contact & inheritance data",
+          subline =
+            """
+            Make sure you are connected to the internet and try again. You may choose to remove
+            trusted contacts and inheritance relationships, which will not cause funds to be lost,
+            but trusted contact and inheritance will need to be setup again.
+            """.trimIndent(),
+          primaryButton =
+            ButtonDataModel(
+              text = "Retry",
+              onClick = props.completingRecoveryData.onRetry
+            ),
+          secondaryButton =
+            ButtonDataModel(
+              text = "Remove Trusted Contacts & Inheritance data",
+              onClick = props.completingRecoveryData.onContinue
+            ),
+          errorData = ErrorData(
+            segment = when (props.completingRecoveryData.physicalFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+            },
+            actionDescription = "Fetching and restoring delegated decryption key",
+            cause = props.completingRecoveryData.cause
+          ),
+          eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR
+        ).asScreen(props.presentationStyle)
 
       is AwaitingHardwareProofOfPossessionData ->
         proofOfPossessionNfcStateMachine.model(
@@ -273,6 +322,41 @@ class CompletingRecoveryUiStateMachineImpl(
                 cause = Error("Failed sweeping funds to complete recovery for lost hardware")
               )
           }
+        ).asScreen(props.presentationStyle)
+
+      is PerformingDdkBackupData ->
+        LoadingBodyModel(
+          message = "Updating backup...",
+          id =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_UPLOAD,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_DDK_UPLOAD
+            ),
+          eventTrackerShouldTrack = false
+        ).asScreen(props.presentationStyle)
+
+      is FailedPerformingDdkBackupData ->
+        ErrorFormBodyModelWithOptionalErrorData(
+          title = "We were unable to update backup",
+          subline = StringModel("Please try again."),
+          errorData = props.completingRecoveryData.cause?.let { cause ->
+            ErrorData(
+              cause = cause,
+              actionDescription = "Uploading backup after recovery",
+              segment = RecoverySegment.CloudBackup.FullAccount.Upload
+            )
+          },
+          primaryButton =
+            ButtonDataModel(
+              text = "Retry",
+              onClick = props.completingRecoveryData.retry
+            ),
+          eventTrackerScreenId =
+            props.completingRecoveryData.physicalFactor.getEventId(
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,
+              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_DDK_UPLOAD_FAILURE
+            ),
+          eventTrackerShouldTrack = false
         ).asScreen(props.presentationStyle)
 
       is FailedPerformingCloudBackupData ->

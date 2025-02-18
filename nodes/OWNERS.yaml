@@ -1,8 +1,0 @@
-# Notifies groups and individuals about pull requests.
-# Note: You must have a chain of OWNERS.yaml files from the root directory to each nested
-# subdirectory in order to customize behavior for specific directories.
-#
-# See https://git.sqcorp.co/projects/SQ/repos/square-stash-plugins/browse/owner-owl for
-# available options.
-r: [bitkey-software]
-include_ancestors: false

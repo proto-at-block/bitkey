@@ -69,12 +69,12 @@ fn get_fingerprint_enrollment_status(
         diagnostics,
     }) = message
     {
-        if let Some(status) = GetFingerprintEnrollmentStatusRspStatus::from_i32(rsp_status) {
+        if let Ok(status) = GetFingerprintEnrollmentStatusRspStatus::try_from(rsp_status) {
             if status != GetFingerprintEnrollmentStatusRspStatus::Success {
                 return Err(CommandError::GeneralCommandError);
             }
-            let fingerprint_status = FingerprintEnrollmentStatus::from_i32(fingerprint_status)
-                .ok_or(CommandError::GeneralCommandError)?;
+            let fingerprint_status = FingerprintEnrollmentStatus::try_from(fingerprint_status)
+                .map_err(|_| CommandError::GeneralCommandError)?;
             Ok(FingerprintEnrollmentResult {
                 status: fingerprint_status,
                 pass_count: Some(pass_count),
@@ -117,18 +117,18 @@ fn start_fingerprint_enrollment(index: u32, label: String) -> Result<bool, Comma
         rsp_status, ..
     }) = message
     {
-        match StartFingerprintEnrollmentRspStatus::from_i32(rsp_status) {
-            Some(StartFingerprintEnrollmentRspStatus::Unspecified) => {
+        match StartFingerprintEnrollmentRspStatus::try_from(rsp_status) {
+            Ok(StartFingerprintEnrollmentRspStatus::Unspecified) => {
                 Err(CommandError::UnspecifiedCommandError)
             }
-            Some(StartFingerprintEnrollmentRspStatus::Success) => Ok(true),
-            Some(StartFingerprintEnrollmentRspStatus::Error) => {
+            Ok(StartFingerprintEnrollmentRspStatus::Success) => Ok(true),
+            Ok(StartFingerprintEnrollmentRspStatus::Error) => {
                 Err(CommandError::GeneralCommandError)
             }
-            Some(StartFingerprintEnrollmentRspStatus::Unauthenticated) => {
+            Ok(StartFingerprintEnrollmentRspStatus::Unauthenticated) => {
                 Err(CommandError::Unauthenticated)
             }
-            None => Ok(false),
+            Err(_) => Ok(false),
         }
     } else {
         Err(CommandError::MissingMessage)

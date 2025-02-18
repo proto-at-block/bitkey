@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-coroutines",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-coroutines-metadata-1.1.1.jar": "47d855e39fe6fea38320fdfa556ee312a9e1f178101454175da6c7264a959430"
+                        "multiplatform-settings-coroutines-metadata-1.2.0.jar": "9583407e61e67692b4d5450e93250013293fd0e36311f2e9b57856c311d24e27"
                     }
                 }
             ],

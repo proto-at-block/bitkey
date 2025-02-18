@@ -160,8 +160,16 @@ internal class BitkeyInjectSymbolProcessor(
       // If no explicit bound types are specified, use direct supertypes of the implementation.
       val boundTypesToUse = explicitBoundTypes.ifEmpty { directSuperTypes }
       addImplProvider(impl, scope)
-      boundTypesToUse.forEach { boundType ->
-        addBindingProvider(impl, boundType, implementationQualifier)
+
+      // If the bound type is the only and the impl type itself, no need to add binding provider.
+      val isBoundTypeSameAsImpl = boundTypesToUse.singleOrNull()?.let { boundType ->
+        impl.asType(emptyList()).isAssignableFrom(boundType)
+      } == true
+
+      if (!isBoundTypeSameAsImpl) {
+        boundTypesToUse.forEach { boundType ->
+          addBindingProvider(impl, boundType, implementationQualifier)
+        }
       }
     }
 
@@ -232,7 +240,10 @@ internal class BitkeyInjectSymbolProcessor(
     val className = impl.toClassName()
 
     // Extract constructor parameters
-    val constructorParams = impl.primaryConstructor?.parameters.orEmpty()
+    val constructorParams = impl.primaryConstructor
+      ?.parameters
+      .orEmpty()
+      .filter { !it.hasDefault }
 
     val funSpecBuilder = FunSpec.builder("provide${className.simpleName}")
       .addAnnotation(Provides::class)

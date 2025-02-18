@@ -7,7 +7,7 @@ package build.wallet.money.display
  */
 enum class BitcoinDisplayUnit(val displayText: String) {
   /** Display the amount in the main unit as a decimal value, i.e. 0.001 BTC */
-  Bitcoin(displayText = "Bitcoin"),
+  Bitcoin(displayText = "BTC"),
 
   /** Display the amount in the fractional unit as a whole number, i.e. 100,000 sats  */
   Satoshi(displayText = "Sats"),

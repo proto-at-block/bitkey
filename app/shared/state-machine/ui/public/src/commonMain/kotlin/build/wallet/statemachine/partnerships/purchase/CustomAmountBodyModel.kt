@@ -1,10 +1,13 @@
 package build.wallet.statemachine.partnerships.purchase
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
+import build.wallet.ui.app.partnerships.CustomAmountScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -49,4 +52,9 @@ data class CustomAmountBodyModel(
         onClick = StandardClick(onNext)
       )
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    CustomAmountScreen(modifier, model = this)
+  }
 }

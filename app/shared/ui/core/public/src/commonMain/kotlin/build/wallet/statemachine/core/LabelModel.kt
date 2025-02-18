@@ -12,6 +12,8 @@ sealed interface LabelModel {
    */
   data class StringModel(override val string: String) : LabelModel
 
+  data class CalloutModel(override val string: String) : LabelModel
+
   data class LinkSubstringModel internal constructor(
     override val string: String,
     val underline: Boolean,

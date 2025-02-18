@@ -1,9 +1,11 @@
 package build.wallet.bootstrap
 
 import build.wallet.account.AccountService
+import build.wallet.account.AccountStatus
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bootstrap.AppState.HasActiveSoftwareAccount
 import build.wallet.di.AppScope
@@ -44,14 +46,20 @@ class LoadAppServiceImpl(
               account = account
             )
           }
-          else -> {
-            AppState.Undetermined
-          }
+          is LiteAccount -> AppState.HasActiveLiteAccount(account = account)
+          else -> AppState.Undetermined
         }
       }
-      else -> {
-        AppState.Undetermined
+      is AccountStatus.OnboardingAccount -> when (val account = accountStatus.account) {
+        is FullAccount -> AppState.OnboardingFullAccount(account = account)
+        else -> AppState.Undetermined
       }
+      is AccountStatus.LiteAccountUpgradingToFullAccount ->
+        AppState.LiteAccountOnboardingToFullAccount(
+          activeAccount = accountStatus.liteAccount,
+          onboardingAccount = accountStatus.onboardingAccount
+        )
+      else -> AppState.Undetermined
     }
   }
 

@@ -60,6 +60,7 @@ class F8eHttpClientLoggerTests : FunSpec({
     }
   }
 
+  Logger.setMinSeverity(Severity.Debug)
   Logger.setLogWriters(object : LogWriter() {
     override fun log(
       severity: Severity,
@@ -133,15 +134,15 @@ class F8eHttpClientLoggerTests : FunSpec({
     )
   }
 
-  test("production logs redacted request data") {
+  test("production logs minimal request and response data") {
     logs.clear()
     http = createClient {
       tag = "prod-tests-f8e-log"
       debug = false
-      sanitize("X-Test") { "***${it.last()}" }
     }
 
-    val response = http.shouldNotBeNull().post {
+    val response = http.shouldNotBeNull().post("/api/test/endpoint") {
+      withDescription("My Test Request")
       contentType(ContentType.Application.Json)
       setRedactedBody(TestRequestData("request"))
       header("X-Test", "test")
@@ -157,31 +158,9 @@ class F8eHttpClientLoggerTests : FunSpec({
     val (requestTag, requestMessage) = logs[0]
     val (responseTag, responseMessage) = logs[1]
     requestTag.shouldBeEqual("prod-tests-f8e-log")
-    requestMessage.shouldBeEqual(
-      """|REQUEST: http://localhost
-         |METHOD: POST
-         |HEADERS
-         |-> X-Test: ***t
-         |EXTRAS
-         |Test Extra
-         |kotlin.Unit
-         |BODY START
-         |TestRequestData(test=██)
-         |BODY END
-      """.trimMargin()
-    )
+    requestMessage.shouldBeEqual("REQUEST: My Test Request - POST /api/test/endpoint")
+
     responseTag.shouldBeEqual("prod-tests-f8e-log")
-    responseMessage.shouldBeEqual(
-      """|RESPONSE: 200 OK
-         |METHOD: POST
-         |FROM: http://localhost
-         |HEADERS
-         |-> X-Test: ***e
-         |BODY Content-Type: application/json
-         |BODY START
-         |TestResponseData(test=██)
-         |BODY END
-      """.trimMargin()
-    )
+    responseMessage.shouldBeEqual("RESPONSE: My Test Request - POST /api/test/endpoint - 200")
   }
 })

@@ -1,7 +1,6 @@
 package build.wallet.di
 
 import build.wallet.feature.FeatureFlagService
-import build.wallet.feature.flags.ComposeUiFeatureFlag
 import build.wallet.nfc.NfcTransactor
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
@@ -23,7 +22,6 @@ interface IosActivityComponent {
   val appUiStateMachine: AppUiStateMachine
   val biometricPromptUiStateMachine: BiometricPromptUiStateMachine
   val nfcTransactor: NfcTransactor
-  val composUiFeatureFlag: ComposeUiFeatureFlag
   val featureFlagService: FeatureFlagService
 
   /**

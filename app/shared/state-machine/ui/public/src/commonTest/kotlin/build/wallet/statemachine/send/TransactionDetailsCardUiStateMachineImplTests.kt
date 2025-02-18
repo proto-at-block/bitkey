@@ -7,7 +7,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnerInfoFake
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.transactions.TransactionDetails
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -36,7 +36,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
       )
 
     test("Generates correct detail model type") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val transactionDetails =
           awaitItem().transactionDetailModelType.shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
@@ -47,21 +47,21 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
 
     test("Shows correct arrival estimate") {
       val transactionDetails = props.transactionDetails.shouldBeTypeOf<TransactionDetails.Regular>()
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         awaitItem().transactionSpeedText.shouldBe("~10 minutes")
       }
       val thirtyMinutesTransactionDetail =
         transactionDetails.copy(
           estimatedTransactionPriority = EstimatedTransactionPriority.THIRTY_MINUTES
         )
-      stateMachine.test(props.copy(transactionDetails = thirtyMinutesTransactionDetail)) {
+      stateMachine.testWithVirtualTime(props.copy(transactionDetails = thirtyMinutesTransactionDetail)) {
         awaitItem().transactionSpeedText.shouldBe("~30 minutes")
       }
       val sixtyMinutesTransactionDetail =
         transactionDetails.copy(
           estimatedTransactionPriority = EstimatedTransactionPriority.SIXTY_MINUTES
         )
-      stateMachine.test(props.copy(transactionDetails = sixtyMinutesTransactionDetail)) {
+      stateMachine.testWithVirtualTime(props.copy(transactionDetails = sixtyMinutesTransactionDetail)) {
         awaitItem().transactionSpeedText.shouldBe("~60 minutes")
       }
     }
@@ -81,7 +81,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
       )
 
     test("Generates correct detail model type with correct transfer amounts") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val transactionDetails =
           awaitItem().transactionDetailModelType.shouldBeTypeOf<TransactionDetailModelType.SpeedUp>()
 
@@ -92,7 +92,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
     }
 
     test("Shows fastest arrival estimate") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         awaitItem().transactionSpeedText.shouldBe("~10 minutes")
       }
     }
@@ -112,7 +112,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
     )
 
     test("Generates correct detail model type with correct transfer amounts") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         val transactionDetails = awaitItem().transactionDetailModelType
           .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
@@ -125,7 +125,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
     }
 
     test("Shows correct arrival estimate") {
-      stateMachine.test(props) {
+      stateMachine.testWithVirtualTime(props) {
         awaitItem().transactionSpeedText.shouldBe("~10 minutes")
       }
 
@@ -133,7 +133,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
         estimatedTransactionPriority = EstimatedTransactionPriority.THIRTY_MINUTES
       )
       val thirtyMinutesProps = props.copy(transactionDetails = thirtyMinutesSellDetail)
-      stateMachine.test(thirtyMinutesProps) {
+      stateMachine.testWithVirtualTime(thirtyMinutesProps) {
         awaitItem().transactionSpeedText.shouldBe("~30 minutes")
       }
 
@@ -141,7 +141,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
         estimatedTransactionPriority = EstimatedTransactionPriority.SIXTY_MINUTES
       )
       val sixtyMinutesProps = props.copy(transactionDetails = sixtyMinutesSellDetail)
-      stateMachine.test(sixtyMinutesProps) {
+      stateMachine.testWithVirtualTime(sixtyMinutesProps) {
         awaitItem().transactionSpeedText.shouldBe("~60 minutes")
       }
     }
@@ -151,7 +151,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
         feeAmount = BitcoinMoney.btc(0.0)
       )
       val zeroFeeProps = props.copy(transactionDetails = zeroFeeSellDetail)
-      stateMachine.test(zeroFeeProps) {
+      stateMachine.testWithVirtualTime(zeroFeeProps) {
         val transactionDetails = awaitItem().transactionDetailModelType
           .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 
@@ -163,7 +163,7 @@ class TransactionDetailsCardUiStateMachineImplTests : FunSpec({
 
     test("Handles null exchange rates by showing BTC as primary") {
       val propsWithNullRates = props.copy(exchangeRates = null)
-      stateMachine.test(propsWithNullRates) {
+      stateMachine.testWithVirtualTime(propsWithNullRates) {
         val transactionDetails = awaitItem().transactionDetailModelType
           .shouldBeTypeOf<TransactionDetailModelType.Regular>()
 

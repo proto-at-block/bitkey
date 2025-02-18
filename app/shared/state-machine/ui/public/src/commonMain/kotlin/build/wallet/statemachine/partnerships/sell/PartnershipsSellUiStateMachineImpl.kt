@@ -7,8 +7,6 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.SellBitcoinMaxAmountFeatureFlag
 import build.wallet.feature.flags.SellBitcoinMinAmountFeatureFlag
-import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -36,7 +34,6 @@ class PartnershipsSellUiStateMachineImpl(
     PartnershipsSellConfirmationUiStateMachine,
   private val transferAmountEntryUiStateMachine: TransferAmountEntryUiStateMachine,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag,
   private val sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
   private val sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -48,8 +45,7 @@ class PartnershipsSellUiStateMachineImpl(
     var state: SellState by remember {
       when {
         props.confirmedSale != null -> mutableStateOf(SellConfirmation(props.confirmedSale))
-        sellBitcoinQuotesEnabledFeatureFlag.isEnabled() -> mutableStateOf(EnteringSellAmount)
-        else -> mutableStateOf(ListSellPartners)
+        else -> mutableStateOf(EnteringSellAmount)
       }
     }
 
@@ -82,8 +78,8 @@ class PartnershipsSellUiStateMachineImpl(
           onBack = props.onBack,
           initialAmount = initialAmount,
           exchangeRates = exchangeRates,
-          minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value?.let { BitcoinMoney.btc(it.value) },
-          maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value?.let { BitcoinMoney.btc(it.value) },
+          minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
+          maxAmount = sellBitcoinMaxAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
           allowSendAll = false,
           onContinueClick = { continueTransferParams ->
             sellAmount = when (continueTransferParams.sendAmount) {
@@ -101,13 +97,7 @@ class PartnershipsSellUiStateMachineImpl(
             exchangeRates = exchangeRates,
             keybox = props.account.keybox,
             onBack = {
-              if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
-                state = EnteringSellAmount
-              } else {
-                // If we're not showing the amount entry screen, we should just go back to the previous screen
-                // as we don't have a way to go back to the amount entry screen
-                props.onBack()
-              }
+              state = EnteringSellAmount
             },
             onPartnerRedirected = { method, transaction ->
               handlePartnerRedirected(
@@ -140,11 +130,7 @@ class PartnershipsSellUiStateMachineImpl(
             account = props.account,
             confirmedPartnerSale = currentState.confirmedPartnerSale,
             onBack = {
-              state = if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
-                EnteringSellAmount
-              } else {
-                ListSellPartners
-              }
+              EnteringSellAmount
             },
             exchangeRates = emptyImmutableList(),
             onDone = { partnerInfo ->

@@ -3,8 +3,11 @@ package build.wallet.gradle.logic
 import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
+import com.android.build.gradle.internal.tasks.CompileArtProfileTask
+import com.android.build.gradle.internal.tasks.MergeArtProfileTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.withType
 
 /**
  * Apply this plugin using `build.wallet.android.app` ID on an Android application project that
@@ -23,6 +26,14 @@ internal class AndroidAppPlugin : Plugin<Project> {
 
       android {
         commonConfiguration(project)
+
+        tasks.withType<CompileArtProfileTask>().configureEach {
+          enabled = false
+        }
+
+        tasks.withType<MergeArtProfileTask>().configureEach {
+          enabled = false
+        }
       }
     }
 }

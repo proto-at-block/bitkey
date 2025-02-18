@@ -1,17 +1,14 @@
 package build.wallet.money.display
 
 import app.cash.turbine.test
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.sqldelight.inMemorySqlDriver
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.shouldBe
 
 class BitcoinDisplayPreferenceRepositoryImplTests : FunSpec({
-
-  coroutineTestScope = true
-
   lateinit var bitcoinDisplayPreferenceDao: BitcoinDisplayPreferenceDao
 
   fun TestScope.repository(): BitcoinDisplayPreferenceRepositoryImpl {
@@ -19,7 +16,7 @@ class BitcoinDisplayPreferenceRepositoryImplTests : FunSpec({
     val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
     bitcoinDisplayPreferenceDao = BitcoinDisplayPreferenceDaoImpl(databaseProvider)
     return BitcoinDisplayPreferenceRepositoryImpl(
-      appScope = backgroundScope,
+      appScope = createBackgroundScope(),
       bitcoinDisplayPreferenceDao = bitcoinDisplayPreferenceDao
     )
   }

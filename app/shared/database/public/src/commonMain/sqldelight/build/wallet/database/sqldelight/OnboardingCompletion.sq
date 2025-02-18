@@ -1,0 +1,16 @@
+CREATE TABLE onboarding_completion (
+    id TEXT NOT NULL PRIMARY KEY,
+    completion_timestamp INTEGER
+);
+
+insert:
+INSERT OR REPLACE INTO onboarding_completion (id, completion_timestamp)
+VALUES (?, ?);
+
+get:
+SELECT *
+FROM onboarding_completion
+WHERE id = ?;
+
+reset:
+DELETE FROM onboarding_completion; 

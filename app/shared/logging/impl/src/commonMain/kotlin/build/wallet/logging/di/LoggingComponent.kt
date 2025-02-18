@@ -18,6 +18,7 @@ interface LoggingComponent {
   ): LogStore {
     return when (appVariant) {
       AppVariant.Development -> logStoreInMemory
+      AppVariant.Alpha -> logStoreInMemory
       AppVariant.Team -> logStoreInMemory
       AppVariant.Beta -> logStoreInMemory
       AppVariant.Customer -> boundedInMemoryLogStore

@@ -24,8 +24,11 @@ import kotlinx.coroutines.*
 @BitkeyInject(AppScope::class)
 class BitkeyDatabaseProviderImpl(
   sqlDriverFactory: SqlDriverFactory,
-  appScope: CoroutineScope = CoroutineScope(SupervisorJob()),
+  appScope: CoroutineScope,
 ) : BitkeyDatabaseProvider {
+  constructor(sqlDriverFactory: SqlDriverFactory) :
+    this(sqlDriverFactory, CoroutineScope(SupervisorJob()))
+
   private val database: Deferred<BitkeyDatabase> =
     appScope.async(Dispatchers.IO, CoroutineStart.LAZY) {
       val driver = sqlDriverFactory

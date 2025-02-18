@@ -19,8 +19,8 @@ import kotlinx.datetime.TimeZone
  */
 suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
   val account = getActiveFullAccount()
-  val accessToken = authTokensRepository
-    .getAuthTokens(account.accountId, AuthTokenScope.Global)
+  val accessToken = authTokensService
+    .getTokens(account.accountId, AuthTokenScope.Global)
     .toErrorIfNull { IllegalStateException("Auth tokens missing.") }
     .getOrThrow()
     .accessToken

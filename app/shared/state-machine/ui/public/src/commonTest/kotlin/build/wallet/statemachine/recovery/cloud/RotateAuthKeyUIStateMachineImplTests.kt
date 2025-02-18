@@ -16,10 +16,10 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
@@ -58,21 +58,21 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   }
 
   test("deactivate other devices -- success") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Initial loading state
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         secondaryButton
           .shouldNotBeNull()
           .shouldBeDisabled()
       }
       // Kick Other People Out
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         clickSecondaryButton()
       }
 
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps>(
+      awaitBodyMock<ProofOfPossessionNfcProps>(
         id = "hw-proof-of-possession"
       ) {
         request.shouldBeTypeOf<Request.HwKeyProofAndAccountSignature>()
@@ -84,38 +84,38 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         )
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         this.id.shouldBe(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
       }
     }
   }
 
   test("deactivate other devices -- failure") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
         Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
       }
 
       // Initial loading state
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         secondaryButton
           .shouldNotBeNull()
           .shouldBeDisabled()
       }
       // Kick Other People Out
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         clickSecondaryButton()
       }
 
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps>(
+      awaitBodyMock<ProofOfPossessionNfcProps>(
         id = "hw-proof-of-possession"
       ) {
         request.shouldBeTypeOf<Request.HwKeyProofAndAccountSignature>()
@@ -127,13 +127,13 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         )
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         this.id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED)
         primaryButton.shouldNotBeNull()
         secondaryButton.shouldNotBeNull()
@@ -142,21 +142,21 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   }
 
   test("don't deactivate other devices") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Initial loading state
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         secondaryButton
           .shouldNotBeNull()
           .shouldBeDisabled()
       }
       // Don't kick Other People Out
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull()
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id.shouldBe(InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }

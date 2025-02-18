@@ -8,9 +8,10 @@ use types::recovery::{
 
 use crate::{
     clients::iterable::IterableCampaignType,
+    definitions::NavigationScreenId,
     email::EmailPayload,
     entities::NotificationCompositeKey,
-    push::{AndroidChannelId, SNSPushPayload},
+    push::{AndroidChannelId, SNSPushPayload, SNSPushPayloadExtras},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
@@ -44,11 +45,18 @@ impl
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
 
-        let (importance, message, campaign_type) = match payload.recipient_account_role {
+        let (importance, message, campaign_type, extras) = match payload.recipient_account_role {
             RecoveryRelationshipRole::ProtectedCustomer => {
                 (AndroidChannelId::UrgentSecurity,
                     "[Action required] An inheritance claim has been started for your Bitkey wallet. Decline the claim to retain control of your funds.".to_string(),
-                IterableCampaignType::InheritanceClaimInitiatedAsBenefactor
+                IterableCampaignType::InheritanceClaimInitiatedAsBenefactor,
+                SNSPushPayloadExtras {
+                    inheritance_claim_id: Some(payload.inheritance_claim_id.to_string()),
+                    navigate_to_screen_id: Some(
+                        (NavigationScreenId::InheritanceDeclineClaim as i32).to_string(),
+                    ),
+                    ..Default::default()
+                },
                 )
             }
             RecoveryRelationshipRole::TrustedContact => {
@@ -57,7 +65,11 @@ impl
                         "Your inheritance claim has been initiated. Your funds will be available for transfer on {}.",
                         payload.delay_end_time.format(format_description!("[day] [month repr:short] [year]"))?,
                     ),
-                IterableCampaignType::InheritanceClaimInitiatedAsBeneficiary
+                IterableCampaignType::InheritanceClaimInitiatedAsBeneficiary,
+                SNSPushPayloadExtras {
+                    inheritance_claim_id: Some(payload.inheritance_claim_id.to_string()),
+                    ..Default::default()
+                },
                 )
             }
         };
@@ -84,6 +96,7 @@ impl
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: importance,
+                extras,
                 ..Default::default()
             }),
             sms_payload: Some(SmsPayload {

@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-base",
     "components": [
         {
-            "version": "18.0.1",
+            "version": "18.3.0",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-base-18.0.1.aar": "2896d76f432be52167295bb9ce45ade25c310aeffc04d28cf8db6a15868e83de"
+                        "play-services-base-18.3.0.aar": "94066a46047e3d593eb652383e7767e0630385ecd75133e68c21124aa96b8dc2"
                     }
                 }
             ],

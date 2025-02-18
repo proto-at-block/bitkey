@@ -2,7 +2,7 @@ package build.wallet.debug
 
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
-import build.wallet.auth.AuthTokenDao
+import build.wallet.auth.AuthTokensService
 import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
@@ -42,7 +42,7 @@ class AppDataDeleterImpl(
   private val appVariant: AppVariant,
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val accountService: AccountService,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val keyboxDao: KeyboxDao,
   private val notificationTouchpointDao: NotificationTouchpointDao,
@@ -87,7 +87,7 @@ class AppDataDeleterImpl(
       fwupDataDao.clear()
       firmwareDeviceInfoDao.clear()
       firmwareMetadataDao.clear()
-      authTokenDao.clear()
+      authTokensService.clear()
       transactionPriorityPreference.clear()
       onboardingAppKeyKeystore.clear()
       fiatCurrencyPreferenceRepository.clear()

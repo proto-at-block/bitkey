@@ -14,11 +14,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.ParagraphStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.money_home_hero
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -27,11 +29,13 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
+import build.wallet.statemachine.core.form.BackgroundTreatment
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.core.fadingEdge
+import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.explainer.Explainer
@@ -74,125 +78,159 @@ import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
-fun FormScreen(model: FormBodyModel) {
+fun FormScreen(
+  model: FormBodyModel,
+  modifier: Modifier = Modifier,
+) {
   if (model.keepScreenOn) {
     KeepScreenOn()
   }
 
   LaunchedEffect("form-screen-loaded") {
-    model.onLoaded()
+    model.onLoaded?.invoke()
   }
 
-  Box(
-    modifier =
-      Modifier.thenIf(model.renderContext == Screen) {
-        Modifier.fillMaxSize()
+  FormScreen(
+    modifier = modifier.thenIf(model.renderContext == Screen) {
+      Modifier.fillMaxSize()
+    },
+    onBack = model.onBack,
+    renderContext = model.renderContext,
+    background = if (model.backgroundTreatment == BackgroundTreatment.Inheritance) {
+      WalletTheme.colors.inheritanceSurface
+    } else {
+      WalletTheme.colors.background
+    },
+    headerToMainContentSpacing = when (val header = model.header) {
+      null -> 16
+      else ->
+        when (header.sublineModel) {
+          null -> 24
+          else -> 16
+        }
+    },
+    toolbarContent = {
+      model.toolbar?.let {
+        Toolbar(it)
       }
-  ) {
-    FormScreen(
-      onBack = model.onBack,
-      fullHeight = model.renderContext == Screen,
-      headerToMainContentSpacing =
-        when (val header = model.header) {
-          null -> 16
-          else ->
-            when (header.sublineModel) {
-              null -> 24
-              else -> 16
-            }
-        },
-      toolbarContent = {
-        model.toolbar?.let {
-          Toolbar(it)
-        }
-      },
-      headerContent =
-        model.header?.let { header ->
-          {
-            Header(
-              model = header,
-              headlineLabelType = LabelType.Title1
+    },
+    headerContent = model.header?.let { header ->
+      {
+        Header(
+          model = header,
+          headlineLabelType = LabelType.Title1
+        )
+      }
+    },
+    mainContent = {
+      model.mainContentList.forEachIndexed { index, mainContent ->
+        when (mainContent) {
+          is Spacer ->
+            Spacer(
+              modifier = mainContent.height?.let { Modifier.height(it.dp) }
+                ?: Modifier.weight(1F)
             )
-          }
-        },
-      mainContent = {
-        model.mainContentList.forEachIndexed { index, mainContent ->
-          when (mainContent) {
-            is Spacer ->
-              Spacer(
-                modifier =
-                  mainContent.height?.let { Modifier.height(it.dp) }
-                    ?: Modifier.weight(1F)
-              )
-            is Divider -> Divider()
-            is Explainer -> Explainer(statements = mainContent.items)
-            is DataList -> DataGroup(rows = mainContent)
-            is FeeOptionList -> FeeOptionList(mainContent)
-            is VerificationCodeInput -> VerificationCodeInput(mainContent)
-            is TextInput -> TextInput(mainContent)
-            is TextArea -> TextArea(mainContent)
-            is AddressInput -> AddressTextField(mainContent)
-            is DatePicker -> DatePicker(mainContent)
-            is Timer -> Timer(model = mainContent)
-            is WebView -> WebView(mainContent.url)
-            is Button -> Button(model = mainContent.item)
-            is ListGroup -> ListGroup(model = mainContent.listGroupModel)
-            is Loader -> FormLoader()
-            is MoneyHomeHero -> MoneyHomeHero(model = mainContent)
-            is Picker -> Picker(model = mainContent)
-            is StepperIndicator -> StepperIndicator(model = mainContent)
-            is Callout -> Callout(model = mainContent.item)
-            is Showcase -> Showcase(model = mainContent)
-            is CircularTabRow -> CircularTabRow(model = mainContent.item)
-            is Upsell -> mainContent.render(modifier = Modifier)
-          }
-          if (index < model.mainContentList.lastIndex) {
-            Spacer(modifier = Modifier.height(16.dp))
-          }
+          is Divider -> Divider()
+          is Explainer -> Explainer(statements = mainContent.items)
+          is DataList -> DataGroup(rows = mainContent)
+          is FeeOptionList -> FeeOptionList(mainContent)
+          is VerificationCodeInput -> VerificationCodeInput(mainContent)
+          is TextInput -> TextInput(mainContent)
+          is TextArea -> TextArea(mainContent)
+          is AddressInput -> AddressTextField(mainContent)
+          is DatePicker -> DatePicker(mainContent)
+          is Timer -> Timer(model = mainContent)
+          is WebView -> WebView(mainContent.url)
+          is Button -> Button(model = mainContent.item)
+          is ListGroup -> ListGroup(model = mainContent.listGroupModel)
+          is Loader -> FormLoader()
+          is MoneyHomeHero -> MoneyHomeHero(model = mainContent)
+          is Picker -> Picker(model = mainContent)
+          is StepperIndicator -> StepperIndicator(model = mainContent)
+          is Callout -> Callout(model = mainContent.item)
+          is CalloutCard -> MoneyHomeCard(model = mainContent.item)
+          is Showcase -> Showcase(model = mainContent)
+          is CircularTabRow -> CircularTabRow(model = mainContent.item)
+          is Upsell -> mainContent.render(modifier = Modifier)
         }
-      },
-      footerContent =
-        when {
-          model.primaryButton != null || model.secondaryButton != null -> {
-            {
-              model.ctaWarning?.let {
-                CallToActionLabel(model = it)
-                Spacer(Modifier.height(12.dp))
-              }
-              model.primaryButton?.toFooterButton()
-              model.secondaryButton?.let { secondaryButton ->
-                Spacer(Modifier.height(16.dp))
-                secondaryButton.toFooterButton()
-              }
-              model.tertiaryButton?.let { tertiaryButton ->
-                Spacer(Modifier.height(16.dp))
-                tertiaryButton.toFooterButton()
-              }
-            }
-          }
+        if (index < model.mainContentList.lastIndex) {
+          Spacer(modifier = Modifier.height(16.dp))
+        }
+      }
+      if (
+        model.disableFixedFooter &&
+        (model.primaryButton != null || model.secondaryButton != null)
+      ) {
+        FooterContent(model)
+      }
+    },
+    footerContent = when {
+      model.disableFixedFooter -> null
+      model.primaryButton != null || model.secondaryButton != null -> {
+        { FooterContent(model) }
+      }
+      else -> null
+    }
+  )
+}
 
-          else -> null
-        }
-    )
+@Composable
+private fun FooterContent(model: FormBodyModel) {
+  model.ctaWarning?.let {
+    CallToActionLabel(model = it)
+    Spacer(Modifier.height(12.dp))
+  }
+  model.primaryButton?.toFooterButton()
+  model.secondaryButton?.let { secondaryButton ->
+    model.primaryButton?.let {
+      Spacer(Modifier.height(16.dp))
+    }
+    secondaryButton.toFooterButton()
+  }
+  model.tertiaryButton?.let { tertiaryButton ->
+    if (model.primaryButton != null || model.secondaryButton != null) {
+      Spacer(Modifier.height(16.dp))
+    }
+    tertiaryButton.toFooterButton()
   }
 }
 
 @Composable
-private fun Showcase(model: Showcase) {
+fun Showcase(model: Showcase) {
+  val backgroundColor = when (model.treatment) {
+    Showcase.Treatment.DEFAULT -> Color.Transparent
+    Showcase.Treatment.INHERITANCE -> WalletTheme.colors.inheritanceSurface
+  }
+
+  // used to adjust spacing and padding to avoid scrolling on smaller devices
+  val smallDeviceWidth = 374.dp
+
   Column(
-    modifier = Modifier.fillMaxSize(),
+    modifier = Modifier
+      .fillMaxSize()
+      .background(backgroundColor),
     horizontalAlignment = CenterHorizontally,
     verticalArrangement = Arrangement.Top
   ) {
     when (val content = model.content) {
       is Showcase.Content.IconContent -> {
-        Image(
-          modifier = Modifier
-            .aspectRatio(1f)
-            .padding(horizontal = 24.dp),
-          painter = content.icon.painter(),
-          contentDescription = null
-        )
+        BoxWithConstraints {
+          Image(
+            modifier = when (model.treatment) {
+              Showcase.Treatment.DEFAULT ->
+                Modifier
+                  .aspectRatio(1f)
+                  .padding(horizontal = 24.dp)
+              Showcase.Treatment.INHERITANCE ->
+                Modifier
+                  .thenIf(maxWidth <= smallDeviceWidth) {
+                    Modifier.padding(horizontal = 60.dp)
+                  }
+            },
+            painter = content.icon.painter(),
+            contentDescription = null
+          )
+        }
       }
       is Showcase.Content.VideoContent -> {
         val scope = rememberStableCoroutineScope()
@@ -221,25 +259,57 @@ private fun Showcase(model: Showcase) {
       }
     }
 
+    if (model.treatment == Showcase.Treatment.INHERITANCE) {
+      BoxWithConstraints {
+        Spacer(
+          modifier = Modifier.thenIf(maxWidth > smallDeviceWidth) {
+            Modifier.height(26.dp)
+          }
+        )
+      }
+    }
+
     Column(
       modifier = Modifier
         .fillMaxWidth()
         .padding(horizontal = 8.dp),
       verticalArrangement = Arrangement.Top,
-      horizontalAlignment = CenterHorizontally
+      horizontalAlignment = when (model.treatment) {
+        Showcase.Treatment.DEFAULT -> CenterHorizontally
+        Showcase.Treatment.INHERITANCE -> Alignment.Start
+      }
     ) {
       Label(
         model = StringModel(model.title),
-        treatment = LabelTreatment.Primary,
-        type = LabelType.Body1Medium,
-        alignment = TextAlign.Center
+        treatment = when (model.treatment) {
+          Showcase.Treatment.DEFAULT -> LabelTreatment.Primary
+          Showcase.Treatment.INHERITANCE -> LabelTreatment.PrimaryDark
+        },
+        type = when (model.treatment) {
+          Showcase.Treatment.DEFAULT -> LabelType.Body1Medium
+          Showcase.Treatment.INHERITANCE -> LabelType.Header1
+        },
+        alignment = when (model.treatment) {
+          Showcase.Treatment.DEFAULT -> TextAlign.Center
+          Showcase.Treatment.INHERITANCE -> TextAlign.Start
+        }
       )
-      Spacer(modifier = Modifier.height(6.dp))
+
+      if (model.treatment == Showcase.Treatment.DEFAULT) {
+        Spacer(modifier = Modifier.height(6.dp))
+      }
+
       Label(
         model = model.body,
         treatment = LabelTreatment.Secondary,
-        type = LabelType.Body2Regular,
-        alignment = TextAlign.Center
+        type = when (model.treatment) {
+          Showcase.Treatment.DEFAULT -> LabelType.Body2Regular
+          Showcase.Treatment.INHERITANCE -> LabelType.Body1Regular
+        },
+        alignment = when (model.treatment) {
+          Showcase.Treatment.DEFAULT -> TextAlign.Center
+          Showcase.Treatment.INHERITANCE -> TextAlign.Start
+        }
       )
     }
   }
@@ -262,6 +332,11 @@ private fun Explainer(statements: ImmutableList<Statement>) {
         body =
           when (val body = item.body) {
             is StringModel -> AnnotatedString(body.string)
+            is LabelModel.CalloutModel -> buildAnnotatedString {
+              pushStyle(SpanStyle(fontSize = 24.sp, fontWeight = FontWeight.W600))
+              pushStyle(ParagraphStyle(lineHeight = 32.sp))
+              append(body.string)
+            }
             is StringWithStyledSubstringModel ->
               buildAnnotatedString {
                 append(body.string)
@@ -422,9 +497,10 @@ private fun MoneyHomeHero(model: MoneyHomeHero) {
           treatment = LabelTreatment.Secondary
         )
       },
-      collapsedContent = {
+      collapsedContent = { placeholder ->
         CollapsedMoneyView(
-          height = 16.dp
+          height = 16.dp,
+          shimmer = !placeholder
         )
       }
     )

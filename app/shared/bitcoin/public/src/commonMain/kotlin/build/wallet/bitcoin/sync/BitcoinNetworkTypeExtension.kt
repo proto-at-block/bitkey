@@ -64,12 +64,12 @@ fun BitcoinNetworkType.blockstreamElectrumServerDetails(
         host = "electrum.blockstream.info",
         port = "50002"
       )
-    // We use our own nodes here since Blockstream does not host a public Signet Electrum server.
+    // We use Mempool here since Blockstream does not host a public Signet Electrum server.
     SIGNET ->
       ElectrumServerDetails(
         protocol = "ssl",
-        host = "electrum.nodes.wallet.build",
-        port = "51002"
+        host = "bitkey.mempool.space",
+        port = "60602"
       )
     TESTNET ->
       ElectrumServerDetails(

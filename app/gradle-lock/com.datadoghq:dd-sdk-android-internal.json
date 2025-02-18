@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-internal",
+    "components": [
+        {
+            "version": "2.14.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-internal-2.14.0.aar": "ca4ab365d3e04f51a0aa81c38a16af25d51d3f2ab376f86a8ccd7b52580a2d8d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

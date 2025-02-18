@@ -5,10 +5,11 @@ import build.wallet.ktor.result.HttpBodyError
 import build.wallet.partnerships.*
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.time.DateTimeFormatterMock
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -21,6 +22,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.LocalDateTime
+import kotlin.time.Duration.Companion.milliseconds
 
 class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   val dateTimeFormatter = DateTimeFormatterMock()
@@ -35,7 +37,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   val stateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
     dateTimeFormatter = dateTimeFormatter,
     partnershipTransactionsService = partnershipTransactionsService,
-    delayer = {}
+    minimumLoadingDuration = MinimumLoadingDuration(0.milliseconds)
   )
   val onBack = turbines.create<Unit>("on back calls")
   val onViewCalls = turbines.create<PartnerRedirectionMethod>("view in partner app calls")
@@ -47,7 +49,8 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     onViewInPartnerApp = { method -> onViewCalls.add(method) },
     event = PartnershipEvent.TransactionCreated
   )
-  val testPartner = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("test-partner-id"))
+  val testPartner =
+    PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("test-partner-id"))
 
   afterTest {
     partnershipTransactionsService.reset()
@@ -59,10 +62,10 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
         partnerInfo = testPartner
       )
     )
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.updateRecentTransactionStatusCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header?.iconModel?.iconImage.shouldBeTypeOf<IconImage.UrlImage>().url.shouldBe("test-logo")
         header?.headline.shouldContain("Test Partner")
         primaryButton.shouldNotBeNull().onClick()
@@ -75,18 +78,23 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   test("Known Partner Deeplink") {
     partnershipTransactionsService.updateRecentTransactionStatusResponse = Ok(
       FakePartnershipTransaction.copy(
-        partnerInfo = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("CashApp"))
+        partnerInfo = PartnerInfo(
+          "test-logo",
+          "test-logo-badged",
+          "Test Partner",
+          PartnerId("CashApp")
+        )
       )
     )
 
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         partner = PartnerId("CashApp")
       )
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.updateRecentTransactionStatusCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
         secondaryButton.shouldNotBeNull().onClick()
         onViewCalls.awaitItem().should {
@@ -100,17 +108,22 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   test("Known Partner Weblink") {
     partnershipTransactionsService.updateRecentTransactionStatusResponse = Ok(
       FakePartnershipTransaction.copy(
-        partnerInfo = PartnerInfo("test-logo", "test-logo-badged", "Test Partner", PartnerId("Coinbase"))
+        partnerInfo = PartnerInfo(
+          "test-logo",
+          "test-logo-badged",
+          "Test Partner",
+          PartnerId("Coinbase")
+        )
       )
     )
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         partner = PartnerId("Coinbase")
       )
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.updateRecentTransactionStatusCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
         secondaryButton.shouldNotBeNull().onClick()
         onViewCalls.awaitItem().should {
@@ -130,12 +143,12 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
         logoBadgedUrl = null
       )
     ).let(::Ok)
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(event = PartnershipEvent.WebFlowCompleted)
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.fetchMostRecentCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
         secondaryButton.shouldNotBeNull().onClick()
         onViewCalls.awaitItem().should {
@@ -148,10 +161,10 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
 
   test("No Transaction Found") {
     partnershipTransactionsService.fetchMostRecentResult = Ok(null)
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(event = PartnershipEvent.WebFlowCompleted)
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.fetchMostRecentCalls.awaitItem()
       onBack.awaitItem()
     }
@@ -159,30 +172,31 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
 
   test("Transaction Fetch Error") {
     partnershipTransactionsService.fetchMostRecentResult = Err(Error())
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(event = PartnershipEvent.WebFlowCompleted)
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.fetchMostRecentCalls.awaitItem()
       onBack.awaitItem()
     }
   }
 
   test("Unknown Event") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(event = PartnershipEvent("unknown-event"))
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
       onBack.awaitItem()
     }
   }
 
   test("Fail Partner call") {
-    partnershipTransactionsService.updateRecentTransactionStatusResponse = Err(HttpBodyError.UnhandledError(RuntimeException("test-error")))
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+    partnershipTransactionsService.updateRecentTransactionStatusResponse =
+      Err(HttpBodyError.UnhandledError(RuntimeException("test-error")))
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel>()
       partnershipTransactionsService.updateRecentTransactionStatusCalls.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header?.iconModel?.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon.shouldBe(Icon.Bitcoin)
         header?.headline.shouldNotContain("Test Partner")
         secondaryButton.shouldBeNull()

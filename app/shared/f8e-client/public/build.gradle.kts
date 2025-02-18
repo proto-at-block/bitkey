@@ -32,6 +32,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.testingPublic)
       }
     }
   }

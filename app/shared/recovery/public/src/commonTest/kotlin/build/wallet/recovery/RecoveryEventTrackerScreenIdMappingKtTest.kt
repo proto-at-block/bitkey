@@ -1,6 +1,7 @@
 package build.wallet.recovery
 
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
@@ -20,7 +21,8 @@ class RecoveryEventTrackerScreenIdMappingKtTest : FunSpec({
         // These screens don't exist for lost hardware recovery
         LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE,
         LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E,
-        LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
+        LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS,
+        LOST_APP_DELAY_NOTIFY_DDK_LOADING_ERROR
       )
     DelayNotifyRecoveryEventTrackerScreenId.entries
       .filter { !excluded.contains(it) }

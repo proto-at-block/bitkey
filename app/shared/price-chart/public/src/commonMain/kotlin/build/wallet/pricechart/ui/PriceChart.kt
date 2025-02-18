@@ -149,11 +149,11 @@ fun PriceChart(
           canvasWidth = adjustedCanvasWidth,
           canvasHeight = constraints.maxHeight.toFloat()
         )
-        if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
-          lineEndOffset = sparklinePathMeasurer.run {
-            setPath(path, false)
-            getPosition(length)
-          }
+      }
+      if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
+        lineEndOffset = sparklinePathMeasurer.run {
+          setPath(path, false)
+          getPosition(length)
         }
       }
       backgroundPath = WrappedPath(path)
@@ -178,10 +178,10 @@ fun PriceChart(
           canvasWidth = adjustedCanvasWidth,
           canvasHeight = constraints.maxHeight.toFloat()
         )
-        lineSplitOffset = activePathMeasurer.run {
-          setPath(path, false)
-          getPosition(length)
-        }
+      }
+      lineSplitOffset = activePathMeasurer.run {
+        setPath(path, false)
+        getPosition(length)
       }
       foregroundPath = WrappedPath(path)
     }

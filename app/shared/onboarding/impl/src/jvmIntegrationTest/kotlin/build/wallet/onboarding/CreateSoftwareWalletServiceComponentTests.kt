@@ -4,7 +4,6 @@ import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeErrOfType
@@ -16,26 +15,22 @@ import kotlinx.coroutines.flow.first
 
 class CreateSoftwareWalletServiceComponentTests : FunSpec({
 
-  lateinit var app: AppTester
-  lateinit var service: CreateSoftwareWalletService
-
-  beforeTest {
-    app = launchNewApp()
-    service = app.createSoftwareWalletService
-  }
-
   context("happy path") {
-    xtest("successfully create software account") {
+    test("successfully create software account") {
+      val app = launchNewApp()
       app.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
 
-      service.createAccount().shouldBeOkOfType<SoftwareAccount>()
+      app.createSoftwareWalletService.createAccount().shouldBeOkOfType<SoftwareAccount>()
     }
 
-    xtest("make bdk wallet") {
+    test("make bdk wallet") {
+      val app = launchNewApp()
       app.softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
-      val softwareAccount = service.createAccount().shouldBeOkOfType<SoftwareAccount>()
+      val softwareAccount =
+        app.createSoftwareWalletService.createAccount().shouldBeOkOfType<SoftwareAccount>()
       val wallet: WatchingWallet =
-        app.keysetWalletProvider.getWatchingWallet(softwareAccount.keybox)
+        app.keysetWalletProvider
+          .getWatchingWallet(softwareAccount.keybox)
           .shouldBeOk()
 
       wallet.getNewAddress().shouldBeOk()
@@ -45,23 +40,27 @@ class CreateSoftwareWalletServiceComponentTests : FunSpec({
         amount = BitcoinMoney.sats(50_000L)
       )
 
-      wallet.balance().first()
-        .total.shouldBe(BitcoinMoney.sats(50_000L))
+      wallet
+        .balance()
+        .first()
+        .total
+        .shouldBe(BitcoinMoney.sats(50_000L))
     }
   }
 
   context("unhappy path") {
-
     test("workflow fails when an account already exists") {
+      val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
 
-      service.createAccount().shouldBeErrOfType<Error>()
+      app.createSoftwareWalletService.createAccount().shouldBeErrOfType<Error>()
     }
 
     test("workflow fails when feature flag is disabled") {
+      val app = launchNewApp()
       app.softwareWalletIsEnabledFeatureFlag.setFlagValue(false)
 
-      service.createAccount().shouldBeErrOfType<Error>()
+      app.createSoftwareWalletService.createAccount().shouldBeErrOfType<Error>()
     }
   }
 })

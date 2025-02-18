@@ -6,11 +6,12 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 
 fun LoadKeyFailureBodyModel(
+  isInheritance: Boolean,
   onBack: () -> Unit,
   onRetry: () -> Unit,
 ): BodyModel {
   return ErrorFormBodyModel(
-    title = "We couldn’t complete your enrollment as a Trusted Contact",
+    title = "We couldn’t complete your enrollment as a ${if (isInheritance) "beneficiary" else "Trusted Contact" }",
     subline = "Please try again.",
     secondaryButton = ButtonDataModel(text = "Back", onClick = onBack),
     primaryButton = ButtonDataModel(text = "Retry", onClick = onRetry),

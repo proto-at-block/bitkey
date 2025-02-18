@@ -16,9 +16,6 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class PartnershipPurchaseFunctionalTests : FunSpec({
-
-  coroutineTestScope = true
-
   test("error loading purchase quotes without account") {
     val app = launchNewApp()
     app.partnershipPurchaseService.loadPurchaseQuotes(usd(10.00)).shouldBeErrOfType<Error>()

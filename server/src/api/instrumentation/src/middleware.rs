@@ -97,7 +97,7 @@ impl HttpMetrics {
             http_response: meter.u64_counter("bitkey.http.response").init(),
             http_response_latency: meter
                 .f64_histogram("bitkey.http.response.latency")
-                .with_unit(opentelemetry::metrics::Unit::new("ms"))
+                .with_unit("ms")
                 .init(),
             http_active_request: meter
                 .i64_up_down_counter("bitkey.http.active_request")

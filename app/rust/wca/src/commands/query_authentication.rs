@@ -21,13 +21,13 @@ fn query_authentication() -> Result<bool, CommandError> {
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::QueryAuthenticationRsp(QueryAuthenticationRsp { rsp_status, .. }) = message {
-        match QueryAuthenticationRspStatus::from_i32(rsp_status) {
-            Some(QueryAuthenticationRspStatus::Unspecified) => {
+        match QueryAuthenticationRspStatus::try_from(rsp_status) {
+            Ok(QueryAuthenticationRspStatus::Unspecified) => {
                 Err(CommandError::UnspecifiedCommandError)
             }
-            Some(QueryAuthenticationRspStatus::Authenticated) => Ok(true),
-            Some(QueryAuthenticationRspStatus::Unauthenticated) => Ok(false),
-            _ => Err(CommandError::InvalidResponse),
+            Ok(QueryAuthenticationRspStatus::Authenticated) => Ok(true),
+            Ok(QueryAuthenticationRspStatus::Unauthenticated) => Ok(false),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)

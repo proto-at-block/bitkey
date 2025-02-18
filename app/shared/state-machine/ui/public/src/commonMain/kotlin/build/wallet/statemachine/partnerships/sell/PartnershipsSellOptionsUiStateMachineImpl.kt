@@ -11,8 +11,6 @@ import build.wallet.f8e.partnerships.GetSaleQuoteListF8eClient
 import build.wallet.f8e.partnerships.GetSellRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType
-import build.wallet.feature.flags.SellBitcoinQuotesEnabledFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logError
 import build.wallet.money.BitcoinMoney
@@ -24,8 +22,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -36,8 +32,6 @@ import build.wallet.statemachine.partnerships.PartnershipsSegment
 import build.wallet.statemachine.partnerships.sell.PartnershipsSellState.QuotesState
 import build.wallet.statemachine.partnerships.sell.PartnershipsSellState.RedirectState
 import build.wallet.ui.model.icon.IconImage
-import build.wallet.ui.model.icon.IconImage.LocalImage
-import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -46,8 +40,6 @@ import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
 import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
-import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.Err
@@ -69,7 +61,6 @@ class PartnershipsSellOptionsUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val eventTracker: EventTracker,
   private val moneyFormatter: MoneyDisplayFormatter,
-  private val sellBitcoinQuotesEnabledFeatureFlag: SellBitcoinQuotesEnabledFeatureFlag,
 ) : PartnershipsSellOptionsUiStateMachine {
   @Composable
   override fun model(props: PartnershipsSellOptionsUiProps): ScreenModel {
@@ -151,20 +142,13 @@ class PartnershipsSellOptionsUiStateMachineImpl(
               onBack = props.onBack
             )
           }
-          else -> if (sellBitcoinQuotesEnabledFeatureFlag.isEnabled()) {
+          else -> {
             return ListSaleQuotesModel(
               formattedSellAmount,
               quotes = currentState.quotes,
               fiatCurrency = fiatCurrency,
               onSelectPartnerQuote = { currentState.onPartnerSelected(it.partnerInfo) },
               onBack = props.onBack
-            )
-          } else {
-            return ListSellPartnersModel(
-              id = SellEventTrackerScreenId.SELL_PARTNERS_LIST,
-              props,
-              partners = currentState.quotes.map { it.partnerInfo }.toImmutableList(),
-              onPartnerSelected = currentState.onPartnerSelected
             )
           }
         }
@@ -223,91 +207,6 @@ class PartnershipsSellOptionsUiStateMachineImpl(
         )
       }
     }
-  }
-
-  @Composable
-  private fun ListSellPartnersModel(
-    id: SellEventTrackerScreenId,
-    props: PartnershipsSellOptionsUiProps,
-    partners: ImmutableList<PartnerInfo>,
-    onPartnerSelected: (PartnerInfo) -> Unit,
-  ): ScreenModel {
-    val partnerItems =
-      partners.map { partner ->
-        ListItemModel(
-          leadingAccessory =
-            IconAccessory(
-              model =
-                IconModel(
-                  iconImage =
-                    when (val url = partner.logoUrl) {
-                      null -> LocalImage(Bitcoin)
-                      else ->
-                        UrlImage(
-                          url = url,
-                          fallbackIcon = Bitcoin
-                        )
-                    },
-                  iconSize = IconSize.Large
-                )
-            ),
-          trailingAccessory = IconAccessory(
-            model =
-              IconModel(
-                iconImage = LocalImage(SmallIconCaretRight),
-                iconSize = IconSize.Small,
-                iconTint = IconTint.On30
-              )
-          ),
-          title = partner.name,
-          onClick = { onPartnerSelected(partner) },
-          treatment = PRIMARY
-        )
-      }.toMutableList()
-
-    val comingSoonModel =
-      ListItemModel(
-        title = "More partners coming soon...",
-        leadingAccessory =
-          IconAccessory(
-            model =
-              IconModel(
-                iconImage = LocalImage(Icon.SmallIconStar),
-                iconSize = IconSize.Regular,
-                iconTint = IconTint.On30
-              )
-          ),
-        treatment = ListItemTreatment.SECONDARY
-      )
-
-    partnerItems.add(comingSoonModel)
-
-    val partnersGroupModel =
-      ListGroupModel(
-        items = partnerItems.toImmutableList(),
-        style = CARD_ITEM
-      )
-    return SellPartnersModel(
-      id = id,
-      content = ListGroup(listGroupModel = partnersGroupModel),
-      onBack = props.onBack
-    )
-  }
-
-  @Composable
-  private fun SellPartnersModel(
-    id: SellEventTrackerScreenId,
-    content: FormMainContentModel,
-    onBack: () -> Unit,
-  ): ScreenModel {
-    return ScreenModel(
-      body = SellPartnersFormBodyModel(
-        onBack = onBack,
-        content = content,
-        id = id
-      ),
-      presentationStyle = ScreenPresentationStyle.ModalFullScreen
-    )
   }
 
   @Composable
@@ -452,25 +351,6 @@ class PartnershipsSellOptionsUiStateMachineImpl(
     ).asModalFullScreen()
   }
 }
-
-private class SellPartnersFormBodyModel(
-  private val content: FormMainContentModel,
-  override val id: SellEventTrackerScreenId,
-  override val onBack: () -> Unit,
-) : FormBodyModel(
-    onBack = onBack,
-    toolbar = ToolbarModel(
-      leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory { onBack() }
-    ),
-    header = FormHeaderModel(
-      headline = "Sell",
-      subline = "Select a partner to sell bitcoin."
-    ),
-    mainContentList = immutableListOf(content),
-    primaryButton = null,
-    id = id,
-    renderContext = Screen
-  )
 
 class SellQuotesFormBodyModel(
   private val formattedSellAmount: String,

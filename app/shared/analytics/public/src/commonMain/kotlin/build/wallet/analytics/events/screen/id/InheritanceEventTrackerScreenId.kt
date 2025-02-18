@@ -60,4 +60,45 @@ enum class InheritanceEventTrackerScreenId : EventTrackerScreenId {
    * Confirmation that the transaction has been sent.
    */
   ClaimComplete,
+
+  /**
+   * Screen informing the user that their claim is complete but the
+   * benefactor's wallet is empty.
+   */
+  ClaimEmpty,
+
+  /**
+   * Canceling the claim.
+   */
+  CancelingClaim,
+
+  /**
+   * Upsell screen for inheritance.
+   */
+  Upsell,
+
+  /**
+   * Screen to show the promo code upsell
+   */
+  PromoCodeUpsell,
+
+  /**
+   * Loading screen shown when we look up a claim for denial
+   */
+  StartDenyClaim,
+
+  /**
+   * Modal screen shown with the option to deny a submitted claim.
+   */
+  DenyClaim,
+
+  /**
+   * Screen shown when we attempt to remove a benefactor with an approved claim.
+   */
+  BeneficiaryApprovedClaimWarning,
+
+  /**
+   * Screen show when we attempt to remove a beneficiary with an approved claim
+   */
+  BenefactorApprovedClaimWarning,
 }

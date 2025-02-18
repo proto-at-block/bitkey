@@ -1,27 +1,29 @@
 package build.wallet.statemachine.account
 
+import bitkey.ui.framework.NavigatorModelFake
+import bitkey.ui.framework.NavigatorPresenterFake
+import bitkey.ui.screens.demo.DemoModeDisabledScreen
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.account.create.full.CreateAccountUiProps
+import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.demo.DemoModeConfigUiProps
-import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -37,6 +39,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     ScreenStateMachineMock<CreateSoftwareWalletProps>(
       id = "create-software-wallet"
     ) {}
+  val navigatorPresenter = NavigatorPresenterFake()
 
   fun buildStateMachine(appVariant: AppVariant) =
     ChooseAccountAccessUiStateMachineImpl(
@@ -45,20 +48,21 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<DebugMenuProps>(
           id = "debug-menu"
         ) {},
-      demoModeConfigUiStateMachine = object : DemoModeConfigUiStateMachine,
-        ScreenStateMachineMock<DemoModeConfigUiProps>(
-          id = "demo-mode"
-        ) {},
+      navigatorPresenter = navigatorPresenter,
       deviceInfoProvider = DeviceInfoProviderMock(),
       emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
       softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
-      createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
+      createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine,
+      createAccountUiStateMachine = object : CreateAccountUiStateMachine,
+        ScreenStateMachineMock<CreateAccountUiProps>(
+          id = "create-account"
+        ) {},
+      inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
     )
 
   val stateMachine = buildStateMachine(appVariant = AppVariant.Development)
 
   val startRecoveryCalls = turbines.create<Unit>("startRecovery calls")
-  val startFullAccountCreationCalls = turbines.create<Unit>("startFullAccountCreation calls")
   val startLiteAccountCreationCalls = turbines.create<Unit>("startLiteAccountCreation calls")
   val startEmergencyAccessRecoveryCalls =
     turbines.create<Unit>("startEmergencyAccessRecovery calls")
@@ -67,7 +71,6 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val props = ChooseAccountAccessUiProps(
     chooseAccountAccessData = GettingStartedData(
       startRecovery = { startRecoveryCalls.add(Unit) },
-      startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
       startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
       startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
       wipeExistingDevice = { wipeExistingDeviceCalls.add(Unit) },
@@ -81,44 +84,39 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("initial state") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel>()
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel>()
     }
   }
 
   test("create full account") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons.first().shouldNotBeNull().onClick()
       }
 
-      startFullAccountCreationCalls.awaitItem()
+      awaitBodyMock<CreateAccountUiProps>("create-account")
     }
   }
 
   test("create full account - is navigating back") {
-    stateMachine.test(props.copy(props.chooseAccountAccessData.copy(isNavigatingBack = true))) {
-      awaitScreenWithBody<ChooseAccountAccessModel>()
+    stateMachine.testWithVirtualTime(props.copy(props.chooseAccountAccessData.copy(isNavigatingBack = true))) {
+      awaitBody<ChooseAccountAccessModel>()
     }
   }
 
   test("create lite account") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[0]
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onBeTrustedContactClick()
       }
 
-      // Click through the BeTrustedContactIntroductionModel
-      awaitScreenWithBody<FormBodyModel> {
-        clickPrimaryButton()
+      awaitBody<BeTrustedContactIntroductionModel> {
+        onContinue()
       }
 
       startLiteAccountCreationCalls.awaitItem()
@@ -126,20 +124,13 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("recover wallet") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[1]
-          .also {
-            it.title.shouldBe("Restore your wallet")
-          }
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onRestoreYourWalletClick()
       }
 
       startRecoveryCalls.awaitItem()
@@ -150,44 +141,24 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
 
     test("create hardware and software wallet options are shown") {
-      stateMachine.test(props) {
-        awaitScreenWithBody<ChooseAccountAccessModel> {
+      stateMachine.testWithVirtualTime(props) {
+        awaitBody<ChooseAccountAccessModel> {
           buttons[0].shouldNotBeNull().onClick()
         }
 
-        awaitScreenWithBody<FormBodyModel> {
-          val buttons = mainContentList
-            .first()
-            .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-            .listGroupModel
-
-          buttons.items[0]
-            .title
-            .shouldBe("Use Bitkey hardware")
-
-          buttons.items[1]
-            .title
-            .shouldBe("Use this device")
-        }
+        awaitBody<CreateAccountOptionsModel>()
       }
     }
   }
 
   test("wipe existing device") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[2]
-          .also {
-            it.title.shouldBe("Wipe an existing device")
-          }
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onResetExistingDevice.shouldNotBeNull().invoke()
       }
 
       wipeExistingDeviceCalls.awaitItem()
@@ -197,20 +168,13 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   test("emergency access recovery button shows in eak builds") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[0]
-          .also {
-            it.title.shouldBe("Import using Emergency Access Kit")
-          }
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<EmergencyAccountAccessMoreOptionsFormBodyModel> {
+        onRestoreEmergencyAccessKit()
       }
 
       startEmergencyAccessRecoveryCalls.awaitItem()
@@ -218,35 +182,36 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("shows debug menu in development build") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         onLogoClick()
       }
-      awaitScreenWithBodyModelMock<DebugMenuProps> {
+      awaitBodyMock<DebugMenuProps> {
         onClose()
       }
-      awaitScreenWithBody<ChooseAccountAccessModel>()
+      awaitBody<ChooseAccountAccessModel>()
     }
   }
 
   test("shows demo mode in customer build") {
     val customerStateMachine = buildStateMachine(AppVariant.Customer)
-    customerStateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    customerStateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         onLogoClick()
       }
-      awaitScreenWithBodyModelMock<DemoModeConfigUiProps> {
-        onBack()
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBe(DemoModeDisabledScreen)
+        onExit()
       }
-      awaitScreenWithBody<ChooseAccountAccessModel>()
+      awaitBody<ChooseAccountAccessModel>()
     }
   }
 
   test("EAK disabled paths") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<ChooseAccountAccessModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<ChooseAccountAccessModel> {
         buttons[0].shouldNotBeNull().onClick()
       }
       awaitItem().should {
@@ -254,16 +219,8 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
         it.body.shouldBeTypeOf<ChooseAccountAccessModel>()
           .buttons[1].onClick()
       }
-      awaitScreenWithBody<FormBodyModel> {
-        // Only "Import using Emergency Access Kit" is included in the EAK build.
-        mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[0]
-          .also {
-            it.title.shouldBe("Import using Emergency Access Kit")
-          }
-          .onClick.shouldNotBeNull().invoke()
+      awaitBody<EmergencyAccountAccessMoreOptionsFormBodyModel> {
+        onRestoreEmergencyAccessKit()
       }
       startEmergencyAccessRecoveryCalls.awaitItem()
     }

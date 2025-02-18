@@ -2,10 +2,10 @@ use serde::{Deserialize, Deserializer};
 use types::recovery::social::PAKE_PUBLIC_KEY_STRING_LENGTH;
 
 pub mod delay_notify;
+pub mod distributed_keys;
 pub mod inheritance;
 pub mod relationship;
 pub mod social_challenge;
-
 pub const INHERITANCE_ENABLED_FLAG_KEY: &str = "inheritance-enabled";
 
 fn deserialize_pake_pubkey<'de, D>(deserializer: D) -> Result<String, D::Error>

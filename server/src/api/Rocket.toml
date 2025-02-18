@@ -15,6 +15,8 @@ ses = "test"
 iterable = { mode = "test" }
 sns = "test"
 twilio = { mode = "test" }
+webhook = { mode = "test" }
+web_shop = { mode = "test" }
 zendesk = { mode = "test" }
 screener = { mode = "test" }
 allow_test_accounts_with_mainnet_keysets = true
@@ -95,33 +97,38 @@ iterable.recovery_completed_delay_period_lost_hw_campaign_id = 9234993
 iterable.recovery_canceled_delay_period_lost_app_campaign_id = 9235101
 iterable.recovery_canceled_delay_period_lost_hw_campaign_id = 9235091
 iterable.recovery_relationship_invitation_accepted_received_by_protected_customer_campaign_id = 9235205
-iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id = 0
+iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 12397826
+iterable.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id = 12398592
 iterable.recovery_relationship_deleted_campaign_id = 9235258
-iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id = 0
+iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id = 12397867
+iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id = 12397835
+iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 12397862
+iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id = 12397848
 iterable.social_challenge_response_received_campaign_id = 9235231
-iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 0
-iterable.inheritance_claim_almost_over_as_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 0
-iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 0
-iterable.inheritance_claim_initiated_as_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_period_completed_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 0
+iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 12396525
+iterable.inheritance_claim_almost_over_as_beneficiary_campaign_id = 12397794
+iterable.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id = 12396008
+iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 12398066
+iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 12395334
+iterable.inheritance_claim_initiated_as_beneficiary_campaign_id = 12395410
+iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 12396522
+iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 12396503
+iterable.inheritance_claim_period_completed_by_benefactor_campaign_id = 12398488
+iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 12398490
 iterable.marketing_channel_id = 87983
 iterable.transactional_channel_id = 87984
 iterable.account_security_message_type_id = 125365
 iterable.money_movement_message_type_id = 125366
 iterable.product_marketing_message_type_id = 125367
-iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 0 
+iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12397809
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"
+# Web Shop
+web_shop.mode = "environment"
+web_shop.base_url = "https://web-shop-api.bitkeystaging.com"
+# Webhook
+webhook.mode = "environment"
 screener = { mode = "s3" }
 monitored_electrum_nodes = [
     { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
@@ -155,33 +162,38 @@ iterable.recovery_completed_delay_period_lost_hw_campaign_id = 9234993
 iterable.recovery_canceled_delay_period_lost_app_campaign_id = 9235101
 iterable.recovery_canceled_delay_period_lost_hw_campaign_id = 9235091
 iterable.recovery_relationship_invitation_accepted_received_by_protected_customer_campaign_id = 9235205
-iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id = 0
+iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 12397826
+iterable.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id = 12398592
 iterable.recovery_relationship_deleted_campaign_id = 9235258
-iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 0
-iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id = 0
+iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id = 12397867
+iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id = 12397835
+iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 12397862
+iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id = 12397848
 iterable.social_challenge_response_received_campaign_id = 9235231
-iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 0
-iterable.inheritance_claim_almost_over_as_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 0
-iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 0
-iterable.inheritance_claim_initiated_as_beneficiary_campaign_id = 0
-iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_period_completed_by_benefactor_campaign_id = 0
-iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 0
+iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 12396525
+iterable.inheritance_claim_almost_over_as_beneficiary_campaign_id = 12397794
+iterable.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id = 12396008
+iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 12398066
+iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 12395334
+iterable.inheritance_claim_initiated_as_beneficiary_campaign_id = 12395410
+iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 12396522
+iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 12396503
+iterable.inheritance_claim_period_completed_by_benefactor_campaign_id = 12398488
+iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 12398490
 iterable.marketing_channel_id = 87983
 iterable.transactional_channel_id = 87984
 iterable.account_security_message_type_id = 125365
 iterable.money_movement_message_type_id = 125366
 iterable.product_marketing_message_type_id = 125367
-iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 0
+iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12397809
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"
+# Web Shop
+web_shop.mode = "environment"
+web_shop.base_url = "https://web-shop-api.bitkeystaging.com"
+# Webhook
+webhook.mode = "environment"
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 monitored_electrum_nodes = [
@@ -216,34 +228,39 @@ iterable.recovery_completed_delay_period_lost_hw_campaign_id = 9284334
 iterable.recovery_canceled_delay_period_lost_app_campaign_id = 9284409
 iterable.recovery_canceled_delay_period_lost_hw_campaign_id = 9284374
 iterable.recovery_relationship_invitation_accepted_received_by_protected_customer_campaign_id = 9284438
-iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 11696451
+iterable.recovery_relationship_invitation_accepted_received_by_benefactor_campaign_id = 12609258
 iterable.recovery_relationship_invitation_accepted_received_by_beneficiary_campaign_id = 11696296
 iterable.recovery_relationship_deleted_campaign_id = 9284488
 iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_benefactor_campaign_id = 11705234
 iterable.recovery_relationship_invitation_deleted_by_benefactor_received_by_beneficiary_campaign_id = 11698700
-iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 11698750
+iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_benefactor_campaign_id = 12610834
 iterable.recovery_relationship_invitation_deleted_by_beneficiary_received_by_beneficiary_campaign_id = 11698724
 iterable.social_challenge_response_received_campaign_id = 9284476
-iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 11713217
+iterable.inheritance_claim_almost_over_as_benefactor_campaign_id = 12611107
 iterable.inheritance_claim_almost_over_as_beneficiary_campaign_id = 11713212
 iterable.inheritance_claim_canceled_by_beneficiary_received_by_beneficiary_campaign_id = 11621282
-iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 11622176
-iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 11622200
-iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 11618407
-iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 11620640
+iterable.inheritance_claim_canceled_by_benefactor_received_by_beneficiary_campaign_id = 11622149
+iterable.inheritance_claim_canceled_by_benefactor_received_by_benefactor_campaign_id = 12611330
+iterable.inheritance_claim_canceled_by_beneficiary_received_by_benefactor_campaign_id = 12611373
+iterable.inheritance_claim_initiated_as_benefactor_campaign_id = 12611054
 iterable.inheritance_claim_initiated_as_beneficiary_campaign_id = 11620686
 iterable.inheritance_claim_period_completed_by_benefactor_campaign_id = 11622214
-iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 11622219
+iterable.inheritance_claim_period_completed_by_beneficiary_campaign_id = 12611285
 iterable.marketing_channel_id = 87980
 iterable.transactional_channel_id = 87981
 iterable.account_security_message_type_id = 125506
 iterable.money_movement_message_type_id = 125507
 iterable.product_marketing_message_type_id = 125505
-iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 11632636
+iterable.recovery_relationship_benefactor_invitation_pending_campaign_id = 12610561
 # Twilio
 twilio.mode = "environment"
 twilio.default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c"
-twilio.status_callback_override = "https://api.bitkey.world/api/twilio/status-callback" 
+twilio.status_callback_override = "https://api.bitkey.world/api/twilio/status-callback"
+# Web Shop
+web_shop.mode = "environment"
+web_shop.base_url = "https://web-shop-api.bitkeyproduction.com"
+# Webhook
+webhook.mode = "environment"
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 allow_test_accounts_with_mainnet_keysets = true

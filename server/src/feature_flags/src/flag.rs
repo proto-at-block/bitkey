@@ -252,7 +252,7 @@ impl FeatureFlag {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ContextKey {
     Account(String, HashMap<&'static str, String>),
     AppInstallation(String, HashMap<&'static str, String>),

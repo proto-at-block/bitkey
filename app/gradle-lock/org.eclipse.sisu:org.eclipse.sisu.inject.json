@@ -2,11 +2,11 @@
     "module-identifier": "org.eclipse.sisu:org.eclipse.sisu.inject",
     "components": [
         {
-            "version": "0.3.5",
+            "version": "0.9.0.M2",
             "variants": [
                 {
                     "artifacts": {
-                        "org.eclipse.sisu.inject-0.3.5.jar": "c5994010bcdce1d2bd603a4d50c47191ddbd7875d1157b23aaa26d33c82fda13"
+                        "org.eclipse.sisu.inject-0.9.0.M2.jar": "9b62bcfc352a2ec87da8b01e37c952a54d358bbb1af3f212648aeafe7ab2dbb5"
                     }
                 }
             ],

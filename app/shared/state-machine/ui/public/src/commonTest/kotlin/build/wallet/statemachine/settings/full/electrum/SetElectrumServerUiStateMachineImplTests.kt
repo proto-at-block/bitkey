@@ -9,13 +9,13 @@ import build.wallet.bitcoin.sync.ElectrumReachabilityMock
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.onValueChange
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.root.ActionSuccessDuration
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -24,6 +24,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
 import io.kotest.matchers.types.shouldBeInstanceOf
+import kotlin.time.Duration.Companion.milliseconds
 
 class SetElectrumServerUiStateMachineImplTests : FunSpec({
 
@@ -41,26 +42,25 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
   val electrumPreferenceMock = ElectrumServerSettingProviderMock(turbine = turbines::create)
   val reachabilityMock = ElectrumReachabilityMock(Ok(Unit))
   val unreachabilityMock = ElectrumReachabilityMock(Err(Unreachable(BdkError.Generic(null, null))))
-  val delayer = ControlledDelayer()
+  val actionSuccessDuration = ActionSuccessDuration(10.milliseconds)
 
   lateinit var stateMachine: SetElectrumServerUiStateMachineImpl
 
   beforeTest {
-    delayer.reset()
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
-        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
-        electrumReachability = reachabilityMock
+        electrumReachability = reachabilityMock,
+        actionSuccessDuration = actionSuccessDuration
       )
   }
 
   test("save reachable electrum server") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBeEmpty()
           primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
@@ -68,7 +68,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newHost)
         }
@@ -80,37 +80,37 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
           clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         // Should have saved electrum preference
         electrumPreferenceMock.setCalls.awaitItem()
         onSetServerCalls.awaitItem().shouldBe(Unit)
       }
 
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("do not save unreachable electrum server, show error screen") {
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
-        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
-        electrumReachability = unreachabilityMock
+        electrumReachability = unreachabilityMock,
+        actionSuccessDuration = actionSuccessDuration
       )
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBeEmpty()
           primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
@@ -118,7 +118,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newHost)
         }
@@ -130,25 +130,25 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
           clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header?.headline.shouldBe("Unable to contact Electrum server")
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE)
       }
@@ -158,16 +158,16 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
   test("if Electrum server is incompatible, show error screen") {
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
-        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
-        electrumReachability = ElectrumReachabilityMock(Err(IncompatibleNetwork))
+        electrumReachability = ElectrumReachabilityMock(Err(IncompatibleNetwork)),
+        actionSuccessDuration = actionSuccessDuration
       )
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBeEmpty()
           primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
@@ -175,7 +175,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newHost)
         }
@@ -187,25 +187,25 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
           clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header?.headline.shouldBe("Incompatible Electrum server")
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE)
       }

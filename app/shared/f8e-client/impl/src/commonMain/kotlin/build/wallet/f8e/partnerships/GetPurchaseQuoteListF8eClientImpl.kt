@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClient.Success
 import build.wallet.ktor.result.*
 import build.wallet.money.FiatMoney
@@ -28,12 +30,11 @@ class GetPurchaseQuoteListF8eClientImpl(
     paymentMethod: String,
   ): Result<Success, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        accountId = fullAccountId,
-        f8eEnvironment = f8eEnvironment
-      )
+      .authenticated()
       .bodyResult<ResponseBody> {
         post("/api/partnerships/purchases/quotes") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             RequestBody(
               country = countryCodeGuesser.countryCode().uppercase(),

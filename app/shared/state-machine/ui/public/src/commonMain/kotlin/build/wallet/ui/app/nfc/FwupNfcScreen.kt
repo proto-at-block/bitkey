@@ -13,10 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.*
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -27,9 +24,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.android_nfc_tap
+import bitkey.shared.ui_core_public.generated.resources.ios_nfc_tap
+import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.core.TimerDirection.Clockwise
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.*
+import build.wallet.ui.app.LocalDeviceInfo
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
@@ -54,7 +54,89 @@ fun FwupNfcScreen(
   model: FwupNfcBodyModel,
 ) {
   KeepScreenOn()
-  FwupNfcScreenInternal(model = model, modifier = modifier)
+  when (LocalDeviceInfo.current.devicePlatform) {
+    DevicePlatform.IOS -> {
+      FwupNfcScreenInternalIos(model = model, modifier = modifier)
+    }
+    else -> {
+      FwupNfcScreenInternal(model = model, modifier = modifier)
+    }
+  }
+}
+
+@Composable
+internal fun FwupNfcScreenInternalIos(
+  model: FwupNfcBodyModel,
+  modifier: Modifier = Modifier,
+) {
+  val nfcBlue = WalletTheme.colors.nfcBlue.copy(alpha = 0.6f)
+  Column(
+    modifier = modifier
+      .fillMaxSize()
+      .background(
+        Brush.verticalGradient(
+          colors = listOf(Color.Black, WalletTheme.colors.nfcBlue)
+        )
+      ),
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    Spacer(modifier = Modifier.height(48.dp))
+    Box {
+      Spacer(
+        modifier = Modifier
+          .matchParentSize()
+          .drawBehind {
+            drawRect(
+              brush = Brush.verticalGradient(
+                colors = listOf(Color.Transparent, nfcBlue, Color.Transparent),
+                startY = size.height,
+                endY = 0f
+              )
+            )
+          }
+          .blur(28.dp, BlurredEdgeTreatment.Rectangle)
+      )
+      Column(
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+      ) {
+        Image(
+          alignment = Alignment.Center,
+          painter = painterResource(Res.drawable.ios_nfc_tap),
+          contentDescription = ""
+        )
+        when (model.status) {
+          is Searching -> {
+            StatusLabel(
+              text = "Ready to Update",
+              labelType = LabelType.Title1
+            )
+            StatusLabel(
+              text = "Hold device to phone",
+              labelType = LabelType.Body2Regular
+            )
+          }
+          is InProgress -> {
+            StatusLabel(
+              text = "Updating...",
+              labelType = LabelType.Title1
+            )
+            StatusLabel(
+              text = "Continue holding to phone",
+              labelType = LabelType.Body2Regular
+            )
+          }
+          is LostConnection,
+          is Success,
+          -> Unit
+        }
+      }
+    }
+  }
 }
 
 @Composable
@@ -80,7 +162,12 @@ fun FwupNfcScreenInternal(
 
       StatusIndicator(status = model.status)
 
-      StatusLabel(status = model.status)
+      Box(modifier = Modifier.weight(1F)) {
+        StatusLabel(
+          text = model.status.text,
+          modifier = Modifier.align(Alignment.TopCenter)
+        )
+      }
 
       Button(
         text = "Cancel",
@@ -236,32 +323,32 @@ private fun StatusIndicator(status: FwupNfcBodyModel.Status) {
 
 @Suppress("FunctionName")
 @Composable
-private fun ColumnScope.StatusLabel(status: FwupNfcBodyModel.Status) {
-  Box(modifier = Modifier.weight(1F)) {
-    // Fade animation between status text changes
-    AnimatedContent(
-      modifier = Modifier.fillMaxWidth(),
-      targetState = status.text,
-      transitionSpec = {
-        fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
-          fadeOut(animationSpec = tween(durationMillis = 500))
-      },
-      contentAlignment = Alignment.Center,
-      label = "FwupNfcStatusLabelAnimation"
-    ) { text ->
-      Label(
-        text = text,
-        modifier =
-          Modifier
-            .align(Alignment.TopCenter),
-        style =
-          WalletTheme.labelStyle(
-            type = LabelType.Title2,
-            treatment = Primary,
-            alignment = TextAlign.Center
-          ).copy(color = WalletTheme.colors.translucentForeground)
-      )
-    }
+private fun StatusLabel(
+  text: String,
+  modifier: Modifier = Modifier,
+  labelType: LabelType = LabelType.Title2,
+) {
+  // Fade animation between status text changes
+  AnimatedContent(
+    modifier = Modifier.fillMaxWidth(),
+    targetState = text,
+    transitionSpec = {
+      fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
+        fadeOut(animationSpec = tween(durationMillis = 500))
+    },
+    contentAlignment = Alignment.Center,
+    label = "FwupNfcStatusLabelAnimation"
+  ) { currentText ->
+    Label(
+      text = currentText,
+      modifier = modifier,
+      style =
+        WalletTheme.labelStyle(
+          type = labelType,
+          treatment = Primary,
+          alignment = TextAlign.Center
+        ).copy(color = WalletTheme.colors.translucentForeground)
+    )
   }
 }
 

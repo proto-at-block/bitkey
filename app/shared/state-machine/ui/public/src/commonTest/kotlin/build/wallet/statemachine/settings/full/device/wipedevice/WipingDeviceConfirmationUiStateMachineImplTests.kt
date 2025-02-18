@@ -5,14 +5,14 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.callout.CalloutModel
@@ -46,8 +46,8 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   )
 
   test("onBack calls") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         val icon = toolbar.shouldNotBeNull()
           .leadingAccessory
           .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
@@ -61,8 +61,8 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("test content and unchecked checkboxes") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<FormMainContentModel.ListGroup>()
           header.shouldNotBeNull().apply {
@@ -97,16 +97,16 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("CTA warning is shown when not all messages are checked and hidden when all messages are checked") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         checkBoxAtIndex(0)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton?.onClick.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.size.shouldBe(2)
         mainContentList[1].apply {
           shouldBeInstanceOf<FormMainContentModel.Callout>()
@@ -122,7 +122,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
 
       awaitItem()
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList.size.shouldBe(1)
         mainContentList[0].apply {
           shouldBeInstanceOf<FormMainContentModel.ListGroup>()
@@ -142,16 +142,16 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("show and dismiss ScanAndWipeConfirmationSheet") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         checkBoxAtIndex(0)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         checkBoxAtIndex(1)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().apply {
           // Simulate clicking the wipe button to show the sheet
           onClick.invoke()
@@ -178,8 +178,9 @@ fun FormBodyModel.checkBoxAtIndex(index: Int) {
   mainContentList[0].apply {
     shouldBeInstanceOf<FormMainContentModel.ListGroup>()
 
-    listGroupModel.items[index].leadingAccessory.shouldBeInstanceOf<ListItemAccessory.IconAccessory>().apply {
-      onClick.shouldNotBeNull().invoke()
-    }
+    listGroupModel.items[index].leadingAccessory.shouldBeInstanceOf<ListItemAccessory.IconAccessory>()
+      .apply {
+        onClick.shouldNotBeNull().invoke()
+      }
   }
 }

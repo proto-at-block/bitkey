@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:sdklib",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "sdklib-31.3.2.jar": "4826724b88f6c9ecbf1ad93a1b4edfd80941cef9d54093d645cf0796238dd0b2"
+                        "sdklib-31.4.2.jar": "51b499a01f398d6b671911f9d85b3114fde5e462f57b0040c5f0fcab1bdbfc22"
                     }
                 }
             ],

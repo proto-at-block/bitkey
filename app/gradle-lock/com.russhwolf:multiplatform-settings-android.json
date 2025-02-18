@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-android",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-release.aar": "500cba76d695fce49fabcd84f98da4e3f519cd8f6649129e07467d7acde61cc4"
+                        "multiplatform-settings-release.aar": "dc3b0503634fbef861739aeef1af80ff0b4d13b6e3dd2404d65b19731848b987"
                     }
                 }
             ],

@@ -222,7 +222,7 @@ class PartnershipsTransferUiStateMachineImpl(
                       minVersion = it.minVersion
                     )
                   },
-                partnerName = currentState.partnerInfo.partnerId.value
+                partnerName = currentState.partnerInfo.name
               ),
               currentState.localTransaction
             )
@@ -268,7 +268,6 @@ class PartnershipsTransferUiStateMachineImpl(
           renderContext = Sheet,
           onBack = onBack
         ),
-      dragIndicatorVisible = true,
       size = MIN40,
       onClosed = onExit
     )
@@ -351,7 +350,6 @@ class PartnershipsTransferUiStateMachineImpl(
         content = content,
         onBack = onBack
       ),
-      dragIndicatorVisible = true,
       onClosed = onExit
     )
   }
@@ -374,7 +372,6 @@ class PartnershipsTransferUiStateMachineImpl(
         content = content,
         onBack = onBack
       ),
-      dragIndicatorVisible = true,
       onClosed = onExit
     )
   }
@@ -405,7 +402,6 @@ class PartnershipsTransferUiStateMachineImpl(
         id = id,
         context = context
       ),
-      dragIndicatorVisible = false,
       size = MIN40,
       onClosed = onExit
     )

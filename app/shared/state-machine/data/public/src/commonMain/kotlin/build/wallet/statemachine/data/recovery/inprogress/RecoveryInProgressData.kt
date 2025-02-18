@@ -11,7 +11,9 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.transaction.NfcTransaction
+import build.wallet.nfc.transaction.SealDelegatedDecryptionKey
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
+import build.wallet.nfc.transaction.UnsealData
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
 import com.github.michaelbull.result.getOrElse
@@ -97,8 +99,8 @@ sealed interface RecoveryInProgressData {
      */
     sealed interface RotatingAuthData : CompletingRecoveryData {
       /**
-       * Indicates that delay period has passed and we are now ready to complete recovery with
-       * f8e.
+       * Indicates that delay period has passed, we've loaded all necessary data, and we are now
+       * ready to complete recovery with f8e.
        *
        * @property canCancelRecovery indicates if the recovery can be cancelled by customer.
        * Customer can cancel recovery if the recovery process has initiated (delay pending or finished),
@@ -148,6 +150,21 @@ sealed interface RecoveryInProgressData {
       ) : RotatingAuthData
     }
 
+    data class FetchingSealedDelegatedDecryptionKeyStringData(
+      val nfcTransaction: NfcTransaction<UnsealData.UnsealedDataResult>,
+    ) : RotatingAuthData
+
+    data class SealingDelegatedDecryptionKeyData(
+      val nfcTransaction: NfcTransaction<SealDelegatedDecryptionKey.SealedDataResult>,
+    ) : RotatingAuthData
+
+    data class DelegatedDecryptionKeyErrorStateData(
+      val physicalFactor: PhysicalFactor,
+      val cause: Error,
+      val onRetry: () -> Unit,
+      val onContinue: () -> Unit,
+    ) : RotatingAuthData
+
     /**
      * Indicates that we are the stage where we have completed D&N recovery with f8e and now are
      * creating new spending keys.
@@ -195,6 +212,20 @@ sealed interface RecoveryInProgressData {
      * uploading them to f8e.
      */
     data object RegeneratingTcCertificatesData : CompletingRecoveryData
+
+    /**
+     * Encrypting and backing up new keyset and app private keys. Once backup is finished,
+     * should move to [PerformingSweepData].
+     */
+    data class PerformingDdkBackupData(
+      val physicalFactor: PhysicalFactor,
+    ) : CompletingRecoveryData
+
+    data class FailedPerformingDdkBackupData(
+      val physicalFactor: PhysicalFactor,
+      val cause: Throwable?,
+      val retry: () -> Unit,
+    ) : CompletingRecoveryData
 
     /**
      * Encrypting and backing up new keyset and app private keys. Once backup is finished,

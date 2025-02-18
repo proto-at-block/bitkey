@@ -14,7 +14,7 @@ import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.time.DateTimeFormatter
-import build.wallet.time.Delayer
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
@@ -24,7 +24,7 @@ import com.github.michaelbull.result.onSuccess
 class ExpectedTransactionNoticeUiStateMachineImpl(
   private val partnershipTransactionsService: PartnershipTransactionsService,
   private val dateTimeFormatter: DateTimeFormatter,
-  private val delayer: Delayer,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : ExpectedTransactionNoticeUiStateMachine {
   @Composable
   override fun model(props: ExpectedTransactionNoticeProps): ScreenModel {
@@ -34,7 +34,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
       is State.LoadingPartnershipDetails -> LaunchedEffect("load partnership details") {
         when (props.event) {
           PartnershipEvent.TransactionCreated -> {
-            state = delayer.withMinimumDelay {
+            state = withMinimumDelay(minimumLoadingDuration.value) {
               props.partner?.let {
                 partnershipTransactionsService
                   .updateRecentTransactionStatusIfExists(
@@ -66,12 +66,11 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
           logError { "No partner transaction ID specified. Exiting Notice Screen." }
           props.onBack()
         } else {
-          delayer
-            .withMinimumDelay {
-              partnershipTransactionsService.syncTransaction(
-                transactionId = props.partnerTransactionId
-              )
-            }
+          withMinimumDelay(minimumLoadingDuration.value) {
+            partnershipTransactionsService.syncTransaction(
+              transactionId = props.partnerTransactionId
+            )
+          }
             .onSuccess { transaction ->
               if (transaction != null) {
                 state = State.TransactionDetails(

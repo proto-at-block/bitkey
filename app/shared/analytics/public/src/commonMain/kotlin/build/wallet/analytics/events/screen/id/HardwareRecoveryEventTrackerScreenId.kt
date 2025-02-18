@@ -22,6 +22,9 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Hardware recovery via D+N is ready to complete */
   LOST_HW_DELAY_NOTIFY_READY,
 
+  /** Error loading ddk for recovery */
+  LOST_HW_DELAY_NOTIFY_DDK_RECOVERY_DATA_LOADING_ERROR,
+
   /** Loading screen shown when rotating auth keys for hardware D+N */
   LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
 
@@ -60,6 +63,12 @@ enum class HardwareRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Error screen shown when an error was encountered uploading cloud backup */
   LOST_HW_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE,
+
+  /** Loading screen shown when uploading DDK backup */
+  LOST_HW_DELAY_NOTIFY_DDK_UPLOAD,
+
+  /** Error screen shown when an error was encountered uploading DDK backup */
+  LOST_HW_DELAY_NOTIFY_DDK_UPLOAD_FAILURE,
 
   /** Loading screen while cancelling recovery during D+N. */
   LOST_HW_DELAY_NOTIFY_CANCELLATION,

@@ -12,6 +12,7 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import com.russhwolf.settings.coroutines.SuspendSettings
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 
@@ -19,7 +20,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   lateinit var keystore: OnboardingAppKeyKeystore
   lateinit var secureStore: SuspendSettings
 
-  beforeTest {
+  suspend fun TestScope.launchAndPrepareApp() {
     launchNewApp().run {
       keystore = onboardingAppKeyKeystore
       secureStore = secureStoreFactory.getOrCreate("onboarding-app-keys")
@@ -27,6 +28,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("already has keys") {
+    launchAndPrepareApp()
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
@@ -48,6 +50,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("missing recovery auth key") {
+    launchAndPrepareApp()
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(key = "network-key", value = "BITCOIN")
@@ -56,6 +59,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("missing spending key") {
+    launchAndPrepareApp()
     secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
       key = "app-recovery-auth-key",
@@ -67,6 +71,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("missing global auth key") {
+    launchAndPrepareApp()
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(
       key = "app-recovery-auth-key",
@@ -78,6 +83,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("network type mismatch") {
+    launchAndPrepareApp()
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
@@ -90,6 +96,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("persist keys") {
+    launchAndPrepareApp()
     keystore.persistAppKeys(
       spendingKey = AppSpendingPublicKeyMock,
       globalAuthKey = AppGlobalAuthPublicKeyMock,
@@ -110,6 +117,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("override keys") {
+    launchAndPrepareApp()
     keystore.persistAppKeys(
       spendingKey = AppSpendingPublicKeyMock,
       globalAuthKey = AppGlobalAuthPublicKeyMock,
@@ -137,6 +145,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("clear keystore") {
+    launchAndPrepareApp()
     keystore.persistAppKeys(
       spendingKey = AppSpendingPublicKeyMock,
       globalAuthKey = AppGlobalAuthPublicKeyMock,

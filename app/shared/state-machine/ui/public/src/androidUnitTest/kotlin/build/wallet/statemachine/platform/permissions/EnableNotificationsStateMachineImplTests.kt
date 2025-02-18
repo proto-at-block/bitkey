@@ -11,8 +11,7 @@ import build.wallet.platform.permissions.PermissionCheckerMock
 import build.wallet.statemachine.account.notifications.NotificationPermissionRequesterMock
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle.Back
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -48,10 +47,11 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
     // we behave the same here as if it was not enabled
     // we usually will not see this state as there should be checks
     // before hand that should bypass using this state machine if enabled
-    stateMachine.test(props) {
-      val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
-      notificationPermissionRequester.successful = true
-      formModel.primaryButton.shouldNotBeNull().onClick()
+    stateMachine.testWithVirtualTime(props) {
+      awaitItem().shouldBeInstanceOf<EnableNotificationsBodyModel>().run {
+        notificationPermissionRequester.successful = true
+        onClick()
+      }
       notificationPermissionRequester.requestNotificationPermissionCalls.awaitItem()
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -63,10 +63,11 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
   }
 
   test("enable notifications screen with notification enabled") {
-    stateMachine.test(props) {
-      val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
-      notificationPermissionRequester.successful = true
-      formModel.primaryButton.shouldNotBeNull().onClick()
+    stateMachine.testWithVirtualTime(props) {
+      awaitItem().shouldBeInstanceOf<EnableNotificationsBodyModel>().run {
+        notificationPermissionRequester.successful = true
+        onClick()
+      }
       notificationPermissionRequester.requestNotificationPermissionCalls.awaitItem()
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -78,10 +79,11 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
   }
 
   test("enable notifications screen with notification disabled") {
-    stateMachine.test(props) {
-      val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
-      notificationPermissionRequester.successful = false
-      formModel.primaryButton.shouldNotBeNull().onClick()
+    stateMachine.testWithVirtualTime(props) {
+      awaitItem().shouldBeInstanceOf<EnableNotificationsBodyModel>().run {
+        notificationPermissionRequester.successful = false
+        onClick()
+      }
       notificationPermissionRequester.requestNotificationPermissionCalls.awaitItem()
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -93,9 +95,10 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
   }
 
   test("onBack gets called") {
-    stateMachine.test(props) {
-      val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
-      formModel.onBack?.invoke()
+    stateMachine.testWithVirtualTime(props) {
+      awaitItem().shouldBeInstanceOf<EnableNotificationsBodyModel>().run {
+        onBack.shouldNotBeNull().invoke()
+      }
 
       onBackCalls.awaitItem().shouldBe(Unit)
     }

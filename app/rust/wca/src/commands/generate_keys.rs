@@ -28,17 +28,17 @@ pub(crate) fn derive(
         .ok_or(CommandError::MissingMessage)?;
 
     match message {
-        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::from_i32(status)
+        Msg::DeriveRsp(DeriveRsp { status, descriptor }) => match DeriveRspStatus::try_from(status)
         {
-            Some(DeriveRspStatus::Success) => match descriptor {
+            Ok(DeriveRspStatus::Success) => match descriptor {
                 Some(descriptor) => Ok(descriptor.try_into()?),
                 None => Err(CommandError::InvalidResponse),
             },
-            Some(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
-            Some(DeriveRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(DeriveRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            Some(DeriveRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            None => Err(CommandError::InvalidResponse),
+            Ok(DeriveRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
+            Ok(DeriveRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(DeriveRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Ok(DeriveRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Err(_) => Err(CommandError::InvalidResponse),
         },
         _ => Err(CommandError::MissingMessage),
     }

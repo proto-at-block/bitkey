@@ -34,7 +34,7 @@ impl Service {
     /// * The updated inheritance claim
     ///     
     #[instrument(skip(self, input))]
-    pub async fn update_claim(
+    async fn update_claim(
         &self,
         input: UpdateInheritanceProcessWithDestinationInput<'_>,
     ) -> Result<InheritanceClaim, ServiceError> {

@@ -1,19 +1,19 @@
 package build.wallet.inheritance
 
 import app.cash.turbine.Turbine
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import build.wallet.bitkey.inheritance.*
 import build.wallet.bitkey.inheritance.BeneficiaryClaim.PendingClaim
-import build.wallet.bitkey.inheritance.BeneficiaryCompleteClaimFake
-import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
-import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.relationships.*
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.relationships.Relationships
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.Instant
 
 class InheritanceServiceMock(
   val syncCalls: Turbine<Keybox>,
@@ -23,10 +23,12 @@ class InheritanceServiceMock(
   var completeClaimResult: Result<BeneficiaryClaim.CompleteClaim, Error> =
     Ok(BeneficiaryCompleteClaimFake),
   var startClaimResult: Result<PendingClaim, Error> = Ok(BeneficiaryPendingClaimFake),
+  var cancelClaimResult: Result<Unit, Error> = Ok(Unit),
+  val cancelClaimCalls: Turbine<Unit>? = null,
 ) : InheritanceService {
   private val defaultRelationships = Relationships(
     invitations = listOf(),
-    endorsedTrustedContacts = listOf(EndorsedBeneficiaryFake),
+    endorsedTrustedContacts = listOf(),
     unendorsedTrustedContacts = listOf(),
     protectedCustomers = immutableListOf()
   )
@@ -34,10 +36,9 @@ class InheritanceServiceMock(
   var invitation = InvitationFake
 
   override val claims = MutableStateFlow<List<InheritanceClaim>>(emptyList())
-  override val relationshipsWithPendingClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
-  override val relationshipsWithNoActiveClaims = MutableStateFlow<List<RelationshipId>>(emptyList())
-  override val relationshipsWithCancelableClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
-  override val relationshipsWithCompletableClaim = MutableStateFlow<List<RelationshipId>>(emptyList())
+  override val claimsSnapshot = MutableStateFlow(ClaimsSnapshot(Instant.DISTANT_PAST, InheritanceClaims.EMPTY))
+  override val beneficiaryClaimState = MutableStateFlow<ImmutableList<ContactClaimState.Beneficiary>>(emptyImmutableList())
+  override val benefactorClaimState = MutableStateFlow<ImmutableList<ContactClaimState.Benefactor>>(emptyImmutableList())
 
   val relationships = MutableStateFlow(defaultRelationships)
   override val inheritanceRelationships = relationships
@@ -72,6 +73,11 @@ class InheritanceServiceMock(
     return loadApprovedClaimResult
   }
 
+  override suspend fun cancelClaims(relationshipId: RelationshipId): Result<Unit, Throwable> {
+    cancelClaimCalls?.add(Unit)
+    return cancelClaimResult
+  }
+
   override suspend fun completeClaimTransfer(
     relationshipId: RelationshipId,
     details: InheritanceTransactionDetails,
@@ -79,10 +85,30 @@ class InheritanceServiceMock(
     return completeClaimResult
   }
 
+  override suspend fun completeClaimWithoutTransfer(
+    relationshipId: RelationshipId,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable> {
+    return completeClaimResult
+  }
+
   fun reset() {
     invitation = InvitationFake
     relationships.value = defaultRelationships
-    relationshipsWithPendingClaim.value = emptyList()
-    claims.value = emptyList()
+  }
+
+  /**
+   * Helper method to simulate active inheritance by adding an endorsed beneficiary
+   */
+  fun setHasActiveInheritance(active: Boolean) {
+    relationships.value = if (active) {
+      Relationships(
+        invitations = listOf(),
+        endorsedTrustedContacts = listOf(EndorsedBeneficiaryFake),
+        unendorsedTrustedContacts = listOf(),
+        protectedCustomers = immutableListOf()
+      )
+    } else {
+      defaultRelationships
+    }
   }
 }

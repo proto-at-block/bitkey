@@ -24,9 +24,9 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.AndroidOnly.*
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.*
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
-import build.wallet.time.Delayer
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.delay
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Connected as ConnectedState
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching as SearchingState
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success as SuccessState
@@ -81,7 +81,6 @@ interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<
 
 @BitkeyInject(ActivityScope::class)
 class NfcSessionUIStateMachineImpl(
-  private val delayer: Delayer,
   private val nfcReaderCapability: NfcReaderCapability,
   private val enableNfcNavigator: EnableNfcNavigator,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -135,7 +134,7 @@ class NfcSessionUIStateMachineImpl(
           ).onSuccess {
             newState = Success
 
-            delayer.delay(
+            delay(
               NfcSuccessScreenDuration(
                 devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
                 isHardwareFake = props.isHardwareFake
@@ -167,7 +166,7 @@ class NfcSessionUIStateMachineImpl(
                   eventTrackerScreenId = NFC_INITIATE,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asFullScreen()
+            ).asPlatformNfcScreen()
           }
 
           is Communicating -> {
@@ -187,7 +186,7 @@ class NfcSessionUIStateMachineImpl(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_DETECTED,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asFullScreen()
+            ).asPlatformNfcScreen()
           }
 
           is Success -> {
@@ -199,7 +198,7 @@ class NfcSessionUIStateMachineImpl(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_SUCCESS,
                   eventTrackerContext = props.eventTrackerContext
                 )
-            ).asFullScreen()
+            ).asPlatformNfcScreen()
           }
         }
 

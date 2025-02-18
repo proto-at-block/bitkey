@@ -32,7 +32,7 @@ class F8eEnvironmentPickerUiStateMachineImpl(
   override fun model(props: F8eEnvironmentPickerUiProps): ListGroupModel? {
     // Only show this option in development and team builds.
     when (appVariant) {
-      AppVariant.Development, AppVariant.Team -> Unit
+      AppVariant.Development, AppVariant.Alpha, AppVariant.Team -> Unit
       AppVariant.Beta, AppVariant.Customer, AppVariant.Emergency -> return null
     }
 

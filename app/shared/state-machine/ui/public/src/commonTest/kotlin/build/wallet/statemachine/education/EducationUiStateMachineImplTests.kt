@@ -2,8 +2,8 @@ package build.wallet.statemachine.education
 
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import io.kotest.core.spec.style.FunSpec
@@ -51,8 +51,8 @@ class EducationUiStateMachineImplTests : FunSpec({
     )
 
   test("onExit is called when the close button is clicked") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<EducationBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EducationBodyModel> {
         onDismiss()
       }
 
@@ -61,8 +61,8 @@ class EducationUiStateMachineImplTests : FunSpec({
   }
 
   test("education screen iterates through items appropriately") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<EducationBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<EducationBodyModel> {
         progressPercentage.value.shouldBe(1 / 3f)
         title.shouldBe("title")
         subtitle.shouldBe("subtitle")
@@ -72,7 +72,7 @@ class EducationUiStateMachineImplTests : FunSpec({
         onClick()
       }
 
-      awaitScreenWithBody<EducationBodyModel> {
+      awaitBody<EducationBodyModel> {
         progressPercentage.value.shouldBe(2 / 3f)
         title.shouldBe("title2")
         subtitle.shouldBeNull()
@@ -82,7 +82,7 @@ class EducationUiStateMachineImplTests : FunSpec({
         onClick()
       }
 
-      awaitScreenWithBody<EducationBodyModel> {
+      awaitBody<EducationBodyModel> {
         progressPercentage.value.shouldBe(1f)
         title.shouldBe("title3")
         subtitle.shouldBe("subtitle3")

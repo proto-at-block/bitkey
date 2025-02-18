@@ -19,7 +19,7 @@ import com.github.michaelbull.result.mapError
 @BitkeyInject(AppScope::class)
 class LiteToFullAccountUpgraderImpl(
   private val accountAuthenticator: AccountAuthenticator,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val deviceTokenManager: DeviceTokenManager,
   private val keyboxDao: KeyboxDao,
   private val upgradeAccountF8eClient: UpgradeAccountF8eClient,
@@ -60,8 +60,8 @@ class LiteToFullAccountUpgraderImpl(
           .bind()
           .authTokens
 
-      authTokenDao
-        .setTokensOfScope(accountId, authTokens, AuthTokenScope.Global)
+      authTokensService
+        .setTokens(accountId, authTokens, AuthTokenScope.Global)
         .mapError { AccountCreationError.AccountCreationDatabaseError.FailedToSaveAuthTokens(it) }
         .bind()
 

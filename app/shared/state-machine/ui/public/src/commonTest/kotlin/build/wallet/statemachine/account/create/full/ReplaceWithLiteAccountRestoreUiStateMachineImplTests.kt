@@ -16,11 +16,10 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -45,22 +44,19 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
   val fullAccountIdToReplace = FullAccountId("full-account-id-to-replace")
   val keybox = KeyboxMock.copy(fullAccountId = fullAccountIdToReplace)
 
-  val props =
-    ReplaceWithLiteAccountRestoreUiProps(
-      CreateFullAccountData.ReplaceWithLiteAccountRestoreData(
-        keyboxToReplace = keybox,
-        liteAccountCloudBackup = CloudBackupV2WithLiteAccountMock,
-        onAccountUpgraded = onAccountUpgradedCalls::add,
-        onBack = {}
-      )
-    )
+  val props = ReplaceWithLiteAccountRestoreUiProps(
+    keyboxToReplace = keybox,
+    liteAccountCloudBackup = CloudBackupV2WithLiteAccountMock,
+    onAccountUpgraded = onAccountUpgradedCalls::add,
+    onBack = {}
+  )
 
   test("happy path") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(
+      awaitBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       )
 
@@ -75,13 +71,13 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
   }
 
   test("upgrade failure and retry") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       liteAccountBackupToFullAccountUpgrader.result =
         Err(LiteAccountBackupToFullAccountUpgrader.UpgradeError("boom"))
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+      awaitBodyMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(
+      awaitBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
@@ -95,17 +91,17 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
         .shouldBe(CloudBackupV2WithLiteAccountMock to keybox)
 
       // Retry
-      awaitScreenWithBody<FormBodyModel>(
+      awaitBody<FormBodyModel>(
         CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_LITE_ACCOUNT_CLOUD_BACKUP_AFTER_ONBOARDING
       ) {
         liteAccountBackupToFullAccountUpgrader.reset()
         primaryButton!!.onClick()
       }
 
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+      awaitBodyMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingSuccessBodyModel>(
+      awaitBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)

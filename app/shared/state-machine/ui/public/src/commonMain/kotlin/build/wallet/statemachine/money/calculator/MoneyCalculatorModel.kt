@@ -23,4 +23,4 @@ data class MoneyCalculatorModel(
   val secondaryAmount: Money?,
   val amountModel: MoneyAmountEntryModel,
   val keypadModel: KeypadModel,
-) : Model()
+) : Model

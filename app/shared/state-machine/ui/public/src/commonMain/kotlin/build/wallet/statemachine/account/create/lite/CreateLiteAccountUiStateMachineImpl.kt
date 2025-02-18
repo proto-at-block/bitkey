@@ -14,7 +14,11 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.debug.DebugOptionsService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.InheritanceFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.router.Route
+import build.wallet.router.Router
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
@@ -23,6 +27,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -40,24 +45,44 @@ class CreateLiteAccountUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
   private val debugOptionsService: DebugOptionsService,
+  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
 ) : CreateLiteAccountUiStateMachine {
   @Composable
   override fun model(props: CreateLiteAccountUiProps): ScreenModel {
-    var uiState: State by remember(props.inviteCode) {
+    var inviteCode by remember { mutableStateOf(props.inviteCode) }
+
+    var uiState: State by remember(inviteCode) {
       mutableStateOf(
         if (props.showBeTrustedContactIntroduction) {
           // If we are not skipping the introduction, show it.
-          State.ShowingBeTrustedContactIntroduction(props.inviteCode ?: "")
+          State.ShowingBeTrustedContactIntroduction(inviteCode ?: "")
         } else {
-          if (props.inviteCode != null) {
+          if (inviteCode != null) {
             // If we are skipping the introduction, create the account immediately with invite code.
-            State.CreatingLiteAccount(props.inviteCode)
+            State.CreatingLiteAccount(inviteCode!!)
           } else {
             // If there is no invite code, we need to enter one.
             State.EnteringInviteCode("")
           }
         }
       )
+    }
+
+    LaunchedEffect("deep-link-routing") {
+      Router.onRouteChange { route ->
+        when (route) {
+          is Route.TrustedContactInvite -> {
+            eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK)
+            inviteCode = route.inviteCode
+            return@onRouteChange true
+          }
+          is Route.BeneficiaryInvite -> {
+            inviteCode = route.inviteCode
+            return@onRouteChange true
+          }
+          else -> false
+        }
+      }
     }
 
     return when (val state = uiState) {
@@ -102,7 +127,10 @@ class CreateLiteAccountUiStateMachineImpl(
               } else {
                 props.onBack
               }
-            ).toBackRetreat()
+            ).toBackRetreat(),
+          variant = TrustedContactFeatureVariant.Generic(
+            isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
+          )
         ).asRootScreen()
       }
 
@@ -196,9 +224,12 @@ class CreateLiteAccountUiStateMachineImpl(
               account = state.liteAccount,
               inviteCode = state.inviteCode,
               onDone = {
-                props.onAccountCreated(state.liteAccount)
+                props.onAccountCreated(it)
               },
-              screenPresentationStyle = Root
+              screenPresentationStyle = Root,
+              variant = TrustedContactFeatureVariant.Generic(
+                isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
+              )
             )
         )
       }

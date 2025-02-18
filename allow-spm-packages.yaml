@@ -5,3 +5,5 @@ packages:
     reason: "Required for core functionality of the project."
   - url: "https://github.com/rickclephas/kmp-nativecoroutines"
     reason: "Required for KMP"
+  - url: "https://github.com/DataDog/opentelemetry-swift-packages.git"
+    reason: "Used by dd-sdk-ios to provide OpenTelemetry API packages in various forms that are missing from the main repo (https://github.com/open-telemetry/opentelemetry-swift)"

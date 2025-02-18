@@ -1,9 +1,12 @@
 package build.wallet.statemachine.settings.full.electrum
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.settings.electrum.CustomElectrumServerScreen
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
@@ -40,6 +43,11 @@ data class CustomElectrumServerBodyModel(
       ),
     disableAlertModel = disableAlertModel
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    CustomElectrumServerScreen(modifier, model = this)
+  }
 }
 
 fun disableCustomElectrumServerAlertModel(

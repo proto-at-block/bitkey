@@ -1,7 +1,7 @@
 package build.wallet.debug.cloud
 
 import build.wallet.cloud.backup.CloudBackupRepositoryFake
-import build.wallet.cloud.backup.shouldBeEmpty
+import build.wallet.cloud.backup.awaitNoBackups
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.platform.config.AppVariant
@@ -37,7 +37,7 @@ class CloudBackupDeleterImplTests : FunSpec({
     test("delete cloud backup for $variant variant") {
       cloudBackupDeleter(variant).delete()
 
-      cloudBackupRepository.shouldBeEmpty()
+      cloudBackupRepository.awaitNoBackups()
     }
   }
 })

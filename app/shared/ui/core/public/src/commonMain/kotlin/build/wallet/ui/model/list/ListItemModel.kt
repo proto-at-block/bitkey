@@ -102,5 +102,6 @@ fun ListItemAccessory.disable(): ListItemAccessory {
     is TextAccessory -> this
     is CircularCharacterAccessory -> this
     is ContactAvatarAccessory -> this
+    is CheckAccessory -> this
   }
 }

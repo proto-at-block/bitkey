@@ -207,7 +207,7 @@ class EventTrackerImpl(
     return accountService.accountStatus().first().get()?.let {
       when (it) {
         is AccountStatus.ActiveAccount -> it.account
-        is AccountStatus.LiteAccountUpgradingToFullAccount -> it.account
+        is AccountStatus.LiteAccountUpgradingToFullAccount -> it.onboardingAccount
         AccountStatus.NoAccount -> null
         is AccountStatus.OnboardingAccount -> it.account
       }

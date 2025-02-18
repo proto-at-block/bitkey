@@ -32,19 +32,17 @@ fn unseal_key(sealed_key: SealedKey) -> Result<UnsealedKey, CommandError> {
         unsealed_csek,
     }) = message
     {
-        match UnsealCsekRspStatus::from_i32(rsp_status) {
-            Some(UnsealCsekRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Some(UnsealCsekRspStatus::Success) => {
+        match UnsealCsekRspStatus::try_from(rsp_status) {
+            Ok(UnsealCsekRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(UnsealCsekRspStatus::Success) => {
                 unsealed_csek.try_into().map_err(CommandError::KeySizeError)
             }
-            Some(UnsealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(UnsealCsekRspStatus::UnsealError) => {
-                Err(CommandError::SealCsekResponseUnsealError)
-            }
-            Some(UnsealCsekRspStatus::Unauthenticated) => {
+            Ok(UnsealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(UnsealCsekRspStatus::UnsealError) => Err(CommandError::SealCsekResponseUnsealError),
+            Ok(UnsealCsekRspStatus::Unauthenticated) => {
                 Err(CommandError::SealCsekResponseUnauthenticatedError)
             }
-            None => Err(CommandError::InvalidResponse),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)

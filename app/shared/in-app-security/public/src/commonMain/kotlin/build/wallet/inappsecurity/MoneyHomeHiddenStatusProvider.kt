@@ -1,5 +1,7 @@
 package build.wallet.inappsecurity
 
+import build.wallet.inappsecurity.MoneyHomeHiddenStatus.HIDDEN
+import build.wallet.inappsecurity.MoneyHomeHiddenStatus.VISIBLE
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -13,11 +15,14 @@ interface MoneyHomeHiddenStatusProvider {
   val hiddenStatus: StateFlow<MoneyHomeHiddenStatus>
 
   /**
-   * Toggle the status between [MoneyHomeHiddenStatus.HIDDEN] and [MoneyHomeHiddenStatus.VISIBLE]
+   * Toggle the status between [HIDDEN] and [VISIBLE].
    */
   fun toggleStatus()
 }
 
+/**
+ * Determines if current wallet balance should be shown (btc and fiat amount) or hidden (as ****).
+ */
 enum class MoneyHomeHiddenStatus {
   HIDDEN,
   VISIBLE,

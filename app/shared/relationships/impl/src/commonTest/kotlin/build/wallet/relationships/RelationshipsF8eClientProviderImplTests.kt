@@ -11,6 +11,7 @@ import build.wallet.f8e.relationships.RelationshipsF8eClientImpl
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.TestScope
+import kotlinx.datetime.Clock
 
 class RelationshipsF8eClientProviderImplTests : FunSpec({
   val accountService = AccountServiceFake()
@@ -21,7 +22,8 @@ class RelationshipsF8eClientProviderImplTests : FunSpec({
   )
   val socRecFake = RelationshipsF8eClientFake(
     uuidGenerator = { "fake-uuid" },
-    backgroundScope = TestScope()
+    backgroundScope = TestScope(),
+    clock = Clock.System
   )
   val provider = RelationshipsF8eClientProviderImpl(
     accountService = accountService,

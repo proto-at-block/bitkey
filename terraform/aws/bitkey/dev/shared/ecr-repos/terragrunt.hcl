@@ -10,7 +10,7 @@ inputs = {
   repos = [
     "partnerships-cash-app-key-rotator",
     "wallet-api",
-    "wsm-enclave",
+    "web-site",
     "wsm-api",
     "wsm-enclave",
   ]

@@ -12,6 +12,7 @@ import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.CancellationException
 
 /**
  * Using the [request] data, [logRequest] builds a complete
@@ -54,7 +55,7 @@ internal fun logRequestException(
   cause: Throwable,
 ) {
   logError(tag = tag) {
-    "REQUEST ${context.url.build()} failed with exception: $cause"
+    "REQUEST: ${context.method.value} ${context.url.encodedPath} failed with error: $cause"
   }
 }
 
@@ -224,6 +225,9 @@ private fun OutgoingContent.WriteChannelContent.toReadChannel(): ByteReadChannel
 internal suspend inline fun ByteReadChannel.tryReadText(charset: Charset): String? =
   try {
     readRemaining().readText(charset = charset)
+  } catch (e: CancellationException) {
+    // Cancellations are expected, rethrow to ensure structured cancellation.
+    throw e
   } catch (cause: Throwable) {
     null
   }

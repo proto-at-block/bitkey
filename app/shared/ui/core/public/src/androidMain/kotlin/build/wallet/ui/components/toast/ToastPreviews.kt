@@ -12,7 +12,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
 @Composable
-internal fun ToastPreview() {
+internal fun ToastWithStrokeColorPreview() {
   PreviewWalletTheme {
     Column {
       ToastComposable(
@@ -23,7 +23,27 @@ internal fun ToastPreview() {
             iconTint = IconTint.Success
           ),
           title = "This is a toast",
-          whiteIconStroke = true
+          iconStrokeColor = ToastModel.IconStrokeColor.White
+        )
+      )
+    }
+  }
+}
+
+@Preview
+@Composable
+internal fun ToastPreview() {
+  PreviewWalletTheme {
+    Column {
+      ToastComposable(
+        model = ToastModel(
+          leadingIcon = IconModel(
+            icon = Icon.SmallIconCheckFilled,
+            iconSize = IconSize.Accessory,
+            iconTint = IconTint.Primary
+          ),
+          title = "This is a toast",
+          iconStrokeColor = ToastModel.IconStrokeColor.Unspecified
         )
       )
     }

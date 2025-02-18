@@ -24,14 +24,14 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -141,10 +141,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     )
 
   test("initiating lost hardware recovery ui -- success through awaiting new hardware") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = awaitingProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -152,7 +152,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
@@ -160,7 +160,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBodyModelMock<PairNewHardwareProps> {
+      awaitBodyMock<PairNewHardwareProps> {
         request
           .shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
           .onSuccess(
@@ -183,10 +183,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- close instructions") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = awaitingProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -199,10 +199,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- back from new device ready question") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = awaitingProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -210,7 +210,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
@@ -218,7 +218,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull()()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -228,10 +228,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- no from new device ready question") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = awaitingProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -239,7 +239,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
@@ -261,10 +261,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   test(
     "initiating lost hardware recovery ui -- no from new device ready question and dismiss"
   ) {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = awaitingProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -306,10 +306,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- success through initiating with f8e") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = initiatingProps
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
@@ -319,10 +319,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- rollback while initiating with f8e") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = initiatingProps
     ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
@@ -334,10 +334,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = failedInitiatingF8eProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
       }
@@ -345,10 +345,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure retry") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = failedInitiatingF8eProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
         clickPrimaryButton()
@@ -358,10 +358,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure rollback") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props = failedInitiatingF8eProps
     ) {
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
         clickSecondaryButton()
@@ -371,8 +371,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- verifying comms") {
-    stateMachine.test(props = verifyingNotificationCommsProps) {
-      awaitScreenWithBodyModelMock<RecoveryNotificationVerificationUiProps> {
+    stateMachine.testWithVirtualTime(props = verifyingNotificationCommsProps) {
+      awaitBodyMock<RecoveryNotificationVerificationUiProps> {
         fullAccountId.shouldBe(FullAccountIdMock)
         f8eEnvironment.shouldBe(F8eEnvironment.Production)
         localLostFactor.shouldBe(Hardware)

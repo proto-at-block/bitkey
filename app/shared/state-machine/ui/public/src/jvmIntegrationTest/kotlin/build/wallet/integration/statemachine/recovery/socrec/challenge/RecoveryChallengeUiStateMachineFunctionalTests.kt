@@ -27,7 +27,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -35,6 +35,7 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.list.ListItemAccessory
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -82,7 +83,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   lateinit var relationshipsF8eClientFake: RelationshipsF8eClientFake
   lateinit var socRecF8eClientFake: SocRecF8eClientFake
 
-  beforeAny {
+  suspend fun TestScope.launchAndPrepareApp() {
     app = launchNewApp(isUsingSocRecFakes = true)
     relationshipsF8eClientFake =
       (app.relationshipsF8eClientProvider.get() as RelationshipsF8eClientFake)
@@ -100,6 +101,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Start Challenge") {
+    launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
@@ -115,21 +117,20 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
         message.shouldNotBeNull().shouldBe("Starting Recovery...")
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         onBack.shouldNotBeNull().invoke()
         onExitCalls.awaitItem()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
         )
@@ -159,6 +160,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Start Challenge Failed") {
+    launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     socRecF8eClientFake.fakeNetworkingError =
       HttpError.ServerError(HttpResponseMock(HttpStatusCode.InternalServerError))
@@ -176,20 +178,20 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_CHALLENGE_FAILED).clickPrimaryButton()
+      awaitUntilBody<FormBodyModel>(RECOVERY_CHALLENGE_FAILED).clickPrimaryButton()
       onExitCalls.awaitItem()
     }
   }
 
   test("TC Verification Code") {
+    launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.recoveryChallengeUiStateMachine.test(
       props = RecoveryChallengeUiProps(
@@ -205,18 +207,17 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
         )
@@ -231,7 +232,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           .model
           .onClick()
       }
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TC_VERIFICATION_CODE
         )
@@ -254,7 +255,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           .title.replace("-", "").shouldBeEqual(code)
         onBack.shouldNotBeNull().invoke()
       }
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
         )
@@ -263,6 +264,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Resume Challenge") {
+    launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     var challengeId: String? = null
     app.recoveryChallengeUiStateMachine.test(
@@ -279,15 +281,14 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
       challengeId = socRecF8eClientFake.challenges.single().response.challengeId
@@ -306,15 +307,14 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
         onExit = { onExitCalls.add(Unit) },
         onKeyRecovered = { onRecoveryCalls.add(it) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
       socRecF8eClientFake.challenges.single().response.challengeId.shouldBe(challengeId)
@@ -322,6 +322,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   }
 
   test("Complete Challenge") {
+    launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
 
     suspend fun simulateRespondToChallenge() {
@@ -361,19 +362,18 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     )
 
     app.recoveryChallengeUiStateMachine.test(
-      props = props,
-      useVirtualTime = false
+      props = props
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
       )
 
@@ -383,20 +383,19 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     simulateRespondToChallenge()
 
     app.recoveryChallengeUiStateMachine.test(
-      props = props,
-      useVirtualTime = false
+      props = props
     ) {
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
         )
@@ -415,7 +414,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           .shouldBe(true)
         primaryButton?.onClick?.invoke()
       }
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RESTORE_APP_KEY)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         onRecoveryCalls.awaitItem()

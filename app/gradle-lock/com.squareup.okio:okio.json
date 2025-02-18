@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.okio:okio",
     "components": [
         {
-            "version": "3.9.0",
+            "version": "3.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-metadata-3.9.0.jar": "e518a59856273a1fce18ac7d13ddfc690defa6122d7e5cd00cae19b62d0347d9"
+                        "okio-metadata-3.9.1.jar": "99c8ebbc4995f29dd58b05d75583fcc8b957db21eeeb8c5d89733f0d34955897"
                     }
                 }
             ],

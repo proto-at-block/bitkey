@@ -11,9 +11,9 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.support.*
 import build.wallet.time.DateTimeFormatter
-import build.wallet.time.Delayer
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
@@ -25,16 +25,16 @@ import build.wallet.ui.model.switch.SwitchModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.*
+import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
-import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(ActivityScope::class)
 class FeedbackFormUiStateMachineImpl(
-  private val delayer: Delayer,
   private val supportTicketRepository: SupportTicketRepository,
   private val supportTicketFormValidator: SupportTicketFormValidator,
   private val dateTimeFormatter: DateTimeFormatter,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val actionSuccessDuration: ActionSuccessDuration,
 ) : FeedbackFormUiStateMachine {
   @Composable
   override fun model(props: FeedbackFormUiProps): ScreenModel {
@@ -449,7 +449,7 @@ class FeedbackFormUiStateMachineImpl(
   @Composable
   private fun SubmitSuccessful(onClose: () -> Unit): ScreenModel {
     LaunchedEffect("feedback-submit-success") {
-      delayer.delay(2.seconds)
+      delay(actionSuccessDuration.value)
       onClose()
     }
 

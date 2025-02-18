@@ -3,7 +3,10 @@ package build.wallet.ui.app.core
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.app.paparazzi.snapshotSheet
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 import io.kotest.core.spec.style.FunSpec
@@ -28,6 +31,15 @@ class ErrorScreenSnapshots : FunSpec({
       FormScreen(errorWithBack)
     }
   }
+
+  test("error sheet") {
+    paparazzi.snapshotSheet(
+      SheetModel(
+        body = errorForSheet,
+        onClosed = {}
+      )
+    )
+  }
 })
 
 private val errorWithSublineModel =
@@ -38,6 +50,15 @@ private val errorWithSublineModel =
     secondaryButton = ButtonDataModel(text = "Go Back", onClick = {}),
     eventTrackerScreenId = null
   )
+
+private val errorForSheet = ErrorFormBodyModel(
+  title = "Error message",
+  subline = "Error description",
+  primaryButton = ButtonDataModel(text = "Done", onClick = {}),
+  secondaryButton = ButtonDataModel(text = "Go Back", onClick = {}),
+  eventTrackerScreenId = null,
+  renderContext = RenderContext.Sheet
+)
 
 private val errorWithoutSublineModel =
   ErrorFormBodyModel(

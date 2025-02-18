@@ -70,7 +70,7 @@ class OnboardFullAccountUiStateMachineImpl(
             fullAccountCloudSignInAndBackupUiStateMachine.model(
               props = FullAccountCloudSignInAndBackupProps(
                 sealedCsek = currentState.step.sealedCsek,
-                keybox = props.keybox,
+                keybox = props.fullAccount.keybox,
                 onBackupFailed = {
                   state = ErrorHandlingOnboardingStep(
                     step = currentState.step,
@@ -82,7 +82,7 @@ class OnboardFullAccountUiStateMachineImpl(
                   state = CompletingOnboardingStep(currentState.step)
                 },
                 onExistingAppDataFound = { cloudBackup, proceed ->
-                  if (cloudBackup?.accountId == props.keybox.fullAccountId.serverId) {
+                  if (cloudBackup?.accountId == props.fullAccount.keybox.fullAccountId.serverId) {
                     // It's OK to overwrite the backup if it's for the same account
                     proceed()
                   } else if (cloudBackup !is CloudBackupV2 || cloudBackup.fullAccountFields != null) {
@@ -104,8 +104,8 @@ class OnboardFullAccountUiStateMachineImpl(
           is NotificationPreferences -> {
             notificationPreferencesSetupUiStateMachine.model(
               props = NotificationPreferencesSetupUiProps(
-                accountId = props.keybox.fullAccountId,
-                accountConfig = props.keybox.config,
+                accountId = props.fullAccount.keybox.fullAccountId,
+                accountConfig = props.fullAccount.keybox.config,
                 source = Onboarding,
                 onComplete = {
                   state = CompletingOnboardingStep(currentState.step)

@@ -33,7 +33,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
   cloudStoreAccountForBackup: CloudStoreAccountFake? = null,
   delayNotifyDuration: Duration = 1.seconds,
 ): FullAccount {
-  fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+  fakeNfcCommands.wipeDevice()
   debugOptionsService.apply {
     setBitcoinNetworkType(initialBitcoinNetworkType)
     setIsHardwareFake(true)

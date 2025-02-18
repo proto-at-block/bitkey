@@ -1,13 +1,15 @@
 package build.wallet.inheritance
 
-import build.wallet.bitkey.inheritance.BeneficiaryClaim
+import app.cash.turbine.Turbine
+import build.wallet.bitkey.inheritance.InheritanceClaim
 import build.wallet.bitkey.inheritance.InheritanceClaims
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class InheritanceClaimsRepositoryMock(
-  private val fetchClaimsResult: Result<InheritanceClaims, Error> = Ok(InheritanceClaims.EMPTY),
+  val updateSingleClaimCalls: Turbine<InheritanceClaim>,
+  var fetchClaimsResult: Result<InheritanceClaims, Error> = Ok(InheritanceClaims.EMPTY),
 ) : InheritanceClaimsRepository {
   override val claims = MutableStateFlow<Result<InheritanceClaims, Error>>(Ok(InheritanceClaims.EMPTY))
 
@@ -15,5 +17,7 @@ class InheritanceClaimsRepositoryMock(
     return fetchClaimsResult
   }
 
-  override suspend fun updateSingleClaim(claim: BeneficiaryClaim) {}
+  override suspend fun updateSingleClaim(claim: InheritanceClaim) {
+    updateSingleClaimCalls.add(claim)
+  }
 }

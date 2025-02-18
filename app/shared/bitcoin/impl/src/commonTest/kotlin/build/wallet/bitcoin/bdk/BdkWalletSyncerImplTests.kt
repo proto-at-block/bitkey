@@ -35,7 +35,7 @@ class BdkWalletSyncerImplTests : FunSpec({
       turbines::create,
       initialSetting = Default(F8eDefinedElectrumServerMock)
     )
-  val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
+  val networkReachabilityProvider = NetworkReachabilityProviderMock("", turbines::create)
 
   val bdkWallet = BdkWalletMock(turbines::create)
   lateinit var walletSyncer: BdkWalletSyncerImpl

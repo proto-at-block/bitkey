@@ -31,7 +31,10 @@ class AccountServiceImpl(
           // We have active account, check if we also have an onboarding full account
           // (i.e. Lite Account is upgrading).
           if (activeAccount is LiteAccount && onboardingAccount is FullAccount) {
-            LiteAccountUpgradingToFullAccount(onboardingAccount)
+            LiteAccountUpgradingToFullAccount(
+              liteAccount = activeAccount,
+              onboardingAccount = onboardingAccount
+            )
           } else {
             ActiveAccount(activeAccount)
           }

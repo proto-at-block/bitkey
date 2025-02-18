@@ -5,9 +5,10 @@ use types::recovery::social::relationship::RecoveryRelationshipId;
 
 use crate::{
     clients::iterable::IterableCampaignType,
+    definitions::NavigationScreenId,
     email::EmailPayload,
     entities::NotificationCompositeKey,
-    push::{AndroidChannelId, SNSPushPayload},
+    push::{AndroidChannelId, SNSPushPayload, SNSPushPayloadExtras},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
@@ -54,6 +55,12 @@ impl
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: AndroidChannelId::UrgentSecurity,
+                extras: SNSPushPayloadExtras {
+                    navigate_to_screen_id: Some(
+                        (NavigationScreenId::ManageInheritance as i32).to_string(),
+                    ),
+                    ..Default::default()
+                },
                 ..Default::default()
             }),
             sms_payload: Some(SmsPayload {

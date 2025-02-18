@@ -11,6 +11,7 @@ import build.wallet.ktor.result.HttpError
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.combine
 
 class NetworkReachabilityProviderImplTests : FunSpec({
@@ -18,6 +19,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
   val internetNetworkReachabilityService = InternetNetworkReachabilityServiceMock(turbines::create)
   val networkReachabilityEventDao = NetworkReachabilityEventDaoMock(turbines::create)
   lateinit var provider: NetworkReachabilityProviderImpl
+  val client = HttpClient()
 
   beforeEach {
     f8eNetworkReachabilityF8eClient.reset()
@@ -41,7 +43,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
     provider.f8eAndInternetPairFlow().test {
       awaitItem().shouldBe(Pair(REACHABLE, REACHABLE))
 
-      provider.updateNetworkReachabilityForConnection(UNREACHABLE, F8e(F8eEnvironment.Production))
+      provider.updateNetworkReachabilityForConnection(client, UNREACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
       f8eNetworkReachabilityF8eClient.checkConnectionCalls.awaitItem()
       internetNetworkReachabilityService.checkConnectionCalls.awaitItem()
@@ -55,7 +57,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
       awaitItem().shouldBe(Pair(REACHABLE, REACHABLE))
 
       f8eNetworkReachabilityF8eClient.checkConnectionResult = Err(HttpError.UnhandledException(Throwable()))
-      provider.updateNetworkReachabilityForConnection(UNREACHABLE, F8e(F8eEnvironment.Production))
+      provider.updateNetworkReachabilityForConnection(client, UNREACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
       f8eNetworkReachabilityF8eClient.checkConnectionCalls.awaitItem()
       internetNetworkReachabilityService.checkConnectionCalls.awaitItem()
@@ -70,7 +72,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
 
       f8eNetworkReachabilityF8eClient.checkConnectionResult = Err(HttpError.UnhandledException(Throwable()))
       internetNetworkReachabilityService.checkConnectionResult = Err(HttpError.UnhandledException(Throwable()))
-      provider.updateNetworkReachabilityForConnection(UNREACHABLE, F8e(F8eEnvironment.Production))
+      provider.updateNetworkReachabilityForConnection(client, UNREACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
       f8eNetworkReachabilityF8eClient.checkConnectionCalls.awaitItem()
       internetNetworkReachabilityService.checkConnectionCalls.awaitItem()
@@ -78,7 +80,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
       awaitItem().shouldBe(Pair(UNREACHABLE, REACHABLE))
       awaitItem().shouldBe(Pair(UNREACHABLE, UNREACHABLE))
 
-      provider.updateNetworkReachabilityForConnection(REACHABLE, F8e(F8eEnvironment.Production))
+      provider.updateNetworkReachabilityForConnection(client, REACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
 
       awaitItem().shouldBe(Pair(REACHABLE, UNREACHABLE))
@@ -92,7 +94,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
 
       f8eNetworkReachabilityF8eClient.checkConnectionResult = Err(HttpError.UnhandledException(Throwable()))
       internetNetworkReachabilityService.checkConnectionResult = Err(HttpError.UnhandledException(Throwable()))
-      provider.updateNetworkReachabilityForConnection(UNREACHABLE, F8e(F8eEnvironment.Production))
+      provider.updateNetworkReachabilityForConnection(client, UNREACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
       f8eNetworkReachabilityF8eClient.checkConnectionCalls.awaitItem()
       internetNetworkReachabilityService.checkConnectionCalls.awaitItem()
@@ -100,7 +102,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
       awaitItem().shouldBe(Pair(UNREACHABLE, REACHABLE))
       awaitItem().shouldBe(Pair(UNREACHABLE, UNREACHABLE))
 
-      provider.updateNetworkReachabilityForConnection(REACHABLE, Memfault)
+      provider.updateNetworkReachabilityForConnection(client, REACHABLE, Memfault)
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
       f8eNetworkReachabilityF8eClient.checkConnectionCalls.awaitItem()
 

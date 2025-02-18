@@ -36,9 +36,10 @@ use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
     AccountVerifyTouchpointRequest, ActivateSpendingKeyDefinitionRequest,
     CompleteOnboardingRequest, ContinueDistributedKeygenRequest, CreateAccountRequest,
-    CreateSelfSovereignBackupRequest, InititateDistributedKeygenRequest, UpgradeAccountRequest,
+    InititateDistributedKeygenRequest, UpgradeAccountRequest,
 };
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
+use recovery::routes::distributed_keys::CreateSelfSovereignBackupRequest;
 use serde_json::{json, Value};
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network as AccountNetwork;
@@ -68,7 +69,9 @@ use crate::{
     tests,
     tests::{
         gen_services,
-        lib::{create_full_account, create_new_authkeys, create_pubkey},
+        lib::{
+            create_full_account, create_new_authkeys, create_pubkey, setup_noise_secure_channel,
+        },
         requests::{axum::TestClient, CognitoAuthentication, Response},
     },
     GenServiceOverrides,
@@ -1953,6 +1956,9 @@ async fn software_onboarding_keygen_activation_test() {
 
     let account_id = actual_response.body.unwrap().account_id;
 
+    // One session for onboarding
+    let (client_noise_context, noise_session) = setup_noise_secure_channel(&client).await;
+
     let (app_share_package, sealed_request) = {
         // Fake app
         use crypto::frost::dkg::app::initiate_dkg;
@@ -1966,13 +1972,17 @@ async fn software_onboarding_keygen_activation_test() {
         );
 
         let request_bytes = serde_json::to_vec(&request).unwrap();
+        let sealed_request_bytes = client_noise_context
+            .encrypt_message(&request_bytes)
+            .unwrap();
 
-        (initiate_result, b64.encode(request_bytes))
+        (initiate_result, sealed_request_bytes)
     };
 
     let request = InititateDistributedKeygenRequest {
         network: Network::Signet,
         sealed_request,
+        noise_session: noise_session.clone(),
     };
     let actual_response = client
         .initiate_distributed_keygen(&account_id.to_string(), &request)
@@ -1992,7 +2002,9 @@ async fn software_onboarding_keygen_activation_test() {
         use crypto::frost::dkg::{app::continue_dkg, SharePackage};
         use crypto::frost::KeyCommitments;
 
-        let response_bytes = b64.decode(body.sealed_response.as_bytes()).unwrap();
+        let response_bytes = client_noise_context
+            .decrypt_message(&body.sealed_response)
+            .unwrap();
         let response = serde_json::from_slice::<Value>(&response_bytes).unwrap();
 
         let server_share_package_value = response.get("server_share_package").unwrap();
@@ -2016,12 +2028,17 @@ async fn software_onboarding_keygen_activation_test() {
             }
         );
 
-        let request_bytes = serde_json::to_vec(&request).unwrap();
+        let unsealed_request_bytes = serde_json::to_vec(&request).unwrap();
 
-        b64.encode(request_bytes)
+        client_noise_context
+            .encrypt_message(&unsealed_request_bytes)
+            .unwrap()
     };
 
-    let request = ContinueDistributedKeygenRequest { sealed_request };
+    let request = ContinueDistributedKeygenRequest {
+        sealed_request,
+        noise_session: noise_session.clone(),
+    };
     let actual_response = client
         .continue_distributed_keygen(
             &account_id.to_string(),
@@ -2058,15 +2075,21 @@ async fn software_onboarding_keygen_activation_test() {
     );
 
     let (lka, lkn) = generate_lka_lkn();
-    let sealed_request = json!(
+    let unsealed_request = json!(
         {
             "lka_pub": b64.encode(lka.public_key().to_sec1_bytes()),
             "lkn_pub": b64.encode(lkn.public_key().to_sec1_bytes()),
         }
     );
+
+    let unsealed_request_bytes = serde_json::to_vec(&unsealed_request).unwrap();
+    let sealed_request_bytes = client_noise_context
+        .encrypt_message(&unsealed_request_bytes)
+        .unwrap();
+
     let request = CreateSelfSovereignBackupRequest {
-        sealed_request: serde_json::to_vec(&sealed_request).unwrap(),
-        noise_session: vec![],
+        sealed_request: sealed_request_bytes,
+        noise_session,
     };
 
     let actual_response = client
@@ -2079,22 +2102,33 @@ async fn software_onboarding_keygen_activation_test() {
         actual_response.body_string
     );
 
-    let sealed_response = serde_json::from_slice::<serde_json::Value>(
-        actual_response.body.unwrap().sealed_response.as_slice(),
+    let sealed_response_bytes = actual_response.body.unwrap().sealed_response;
+
+    let unsealed_response = serde_json::from_slice::<Value>(
+        &client_noise_context
+            .decrypt_message(&sealed_response_bytes)
+            .unwrap(),
     )
     .unwrap();
+
     let eph_pub = b64
-        .decode(sealed_response.get("eph_pub").unwrap().as_str().unwrap())
+        .decode(unsealed_response.get("eph_pub").unwrap().as_str().unwrap())
         .unwrap()
         .try_into()
         .unwrap();
     let nonce = b64
-        .decode(sealed_response.get("nonce").unwrap().as_str().unwrap())
+        .decode(unsealed_response.get("nonce").unwrap().as_str().unwrap())
         .unwrap()
         .try_into()
         .unwrap();
     let ciphertext = b64
-        .decode(sealed_response.get("ciphertext").unwrap().as_str().unwrap())
+        .decode(
+            unsealed_response
+                .get("ciphertext")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
         .unwrap();
     decrypt_ssb(
         lka,

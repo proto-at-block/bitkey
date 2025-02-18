@@ -6,6 +6,9 @@ import build.wallet.datadog.DatadogTracer
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.http.encodedPath
 import io.ktor.util.AttributeKey
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.withContext
 
 const val SPAN_NAME = "client.request"
 
@@ -40,10 +43,14 @@ val DatadogTracerPlugin = createClientPlugin(
     request.attributes.put(spanKey, span)
   }
   onResponse { response ->
-    response.call.attributes[spanKey].apply {
-      setTag("http.status_code", response.status.value.toString())
-      setTag("http.version", response.version.toString())
-      finish()
+    // datadog span "finish()" causes a disk read violation when this is run on the main thread,
+    // so we switch to IO context
+    withContext(Dispatchers.IO) {
+      response.call.attributes[spanKey].apply {
+        setTag("http.status_code", response.status.value.toString())
+        setTag("http.version", response.version.toString())
+        finish()
+      }
     }
   }
 }

@@ -5,6 +5,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.Outg
 import build.wallet.bitcoin.transactions.BitcoinTransactionMock
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
@@ -16,16 +18,11 @@ import build.wallet.partnerships.PartnershipTransactionStatus.PENDING
 import build.wallet.partnerships.PartnershipTransactionStatus.SUCCESS
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
 
 class TransactionsActivityServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
 
   val partnershipTransactionsService = PartnershipTransactionsServiceMock(
     clearCalls = turbines.create("clear calls"),
@@ -113,75 +110,66 @@ class TransactionsActivityServiceImplTests : FunSpec({
   }
 
   test("executeWork populates transactions cache") {
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
 
-      service.transactions.test {
-        awaitItem().shouldContainExactly(
-          Transaction.PartnershipTransaction(
-            details = partnershipTxWithMatch,
-            bitcoinTransaction = btcTxWithMatch
-          ),
-          Transaction.PartnershipTransaction(
-            details = partnershipTxWithoutMatch,
-            bitcoinTransaction = null
-          )
+    service.transactions.test {
+      awaitItem().shouldContainExactly(
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithMatch,
+          bitcoinTransaction = btcTxWithMatch
+        ),
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithoutMatch,
+          bitcoinTransaction = null
         )
+      )
 
-        bitcoinWalletService.setTransactions(listOf())
-        runCurrent()
-        awaitItem().shouldContainExactly(
-          Transaction.PartnershipTransaction(
-            details = partnershipTxWithMatch,
-            bitcoinTransaction = null
-          ),
-          Transaction.PartnershipTransaction(
-            details = partnershipTxWithoutMatch,
-            bitcoinTransaction = null
-          )
+      bitcoinWalletService.setTransactions(listOf())
+      awaitItem().shouldContainExactly(
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithMatch,
+          bitcoinTransaction = null
+        ),
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithoutMatch,
+          bitcoinTransaction = null
         )
+      )
 
-        partnershipTransactionsService.transactions.value = listOf(partnershipTxWithMatch)
-        runCurrent()
-        awaitItem().shouldContainExactly(
-          Transaction.PartnershipTransaction(
-            details = partnershipTxWithMatch,
-            bitcoinTransaction = null
-          )
+      partnershipTransactionsService.transactions.value = listOf(partnershipTxWithMatch)
+      awaitItem().shouldContainExactly(
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithMatch,
+          bitcoinTransaction = null
         )
-      }
+      )
     }
   }
 
   test("transactionById returns a flow of single transaction") {
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
 
-      service.transactionById(partnershipTxWithMatch.id.value).test {
-        awaitItem().shouldNotBeNull()
-          .shouldBe(
-            Transaction.PartnershipTransaction(
-              details = partnershipTxWithMatch,
-              bitcoinTransaction = null
-            )
-          )
-      }
+    service.transactionById(partnershipTxWithMatch.id.value).test {
+      awaitUntil(
+        Transaction.PartnershipTransaction(
+          details = partnershipTxWithMatch,
+          bitcoinTransaction = btcTxWithMatch
+        )
+      )
     }
   }
 
   test("transactionById returns null when transaction is not found") {
-    runTest {
-      backgroundScope.launch {
-        service.executeWork()
-      }
+    createBackgroundScope().launch {
+      service.executeWork()
+    }
 
-      service.transactionById("not-found").test {
-        awaitItem().shouldBe(null)
-      }
+    service.transactionById("not-found").test {
+      awaitItem().shouldBe(null)
     }
   }
 })

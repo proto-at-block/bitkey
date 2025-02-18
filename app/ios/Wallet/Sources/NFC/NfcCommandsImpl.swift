@@ -202,6 +202,29 @@ public final class NfcCommandsImpl: NfcCommands {
         )
     }
 
+    public func sealData(
+        session: NfcSession,
+        unsealedData: OkioByteString
+    ) async throws -> OkioByteString {
+        let sealedData = try await SealKey(unsealedKey: unsealedData.toByteArray().asUInt8Array())
+            .transceive(session: session)
+        return OkioKt.ByteString(data: Data(sealedData))
+    }
+
+    public func unsealData(
+        session: NfcSession,
+        sealedData: OkioByteString
+    ) async throws -> OkioByteString {
+        return try await OkioKt
+            .ByteString(data: Data(
+                UnsealKey(
+                    sealedKey: sealedData.toByteArray()
+                        .asUInt8Array()
+                )
+                .transceive(session: session)
+            ))
+    }
+
     public func sealKey(session: NfcSession, unsealedKey: Csek) async throws -> OkioByteString {
         let unsealedKey = unsealedKey.key.raw.toByteArray().asUInt8Array()
         let sealedKey = try await SealKey(unsealedKey: unsealedKey)

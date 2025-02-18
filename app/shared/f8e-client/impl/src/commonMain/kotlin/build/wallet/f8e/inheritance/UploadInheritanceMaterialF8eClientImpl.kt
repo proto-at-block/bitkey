@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.catching
 import build.wallet.ktor.result.setUnredactedBody
@@ -22,14 +24,14 @@ class UploadInheritanceMaterialF8eClientImpl(
     fullAccountId: FullAccountId,
     inheritanceMaterial: InheritanceMaterial,
   ): Result<Unit, Throwable> {
-    return f8eClient.authenticated(
-      f8eEnvironment,
-      fullAccountId
-    ).catching {
-      post("/api/accounts/${fullAccountId.serverId}/recovery/inheritance/packages") {
-        withDescription("Uploading Inheritance Material")
-        setUnredactedBody(inheritanceMaterial)
-      }
-    }.mapUnit()
+    return f8eClient.authenticated()
+      .catching {
+        post("/api/accounts/${fullAccountId.serverId}/recovery/inheritance/packages") {
+          withDescription("Uploading Inheritance Material")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          setUnredactedBody(inheritanceMaterial)
+        }
+      }.mapUnit()
   }
 }

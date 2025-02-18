@@ -19,6 +19,7 @@ import build.wallet.statemachine.export.ExportToolsUiProps
 import build.wallet.statemachine.export.ExportToolsUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceManagementUiProps
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
+import build.wallet.statemachine.inheritance.ManagingInheritanceTab
 import build.wallet.statemachine.money.currency.AppearancePreferenceProps
 import build.wallet.statemachine.money.currency.AppearancePreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
@@ -31,7 +32,7 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.*
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.*
 import build.wallet.statemachine.settings.full.device.DeviceSettingsProps
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps
@@ -74,7 +75,9 @@ class SettingsHomeUiStateMachineImpl(
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
-    var state: State by remember { mutableStateOf(ShowingAllSettingsUiState) }
+    var state: SettingsListState by remember {
+      mutableStateOf(props.settingsListState ?: ShowingAllSettingsUiState)
+    }
 
     return when (state) {
       is ShowingAllSettingsUiState -> {
@@ -109,7 +112,7 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.NotificationPreferences {
                         state = ShowingNotificationPreferencesUiState
                       },
-                      SettingsListUiProps.SettingsListRow.RecoveryChannels {
+                      SettingsListUiProps.SettingsListRow.CriticalAlerts {
                         state = ShowingRecoveryChannelsUiState
                       },
                       SettingsListUiProps.SettingsListRow.MobilePay {
@@ -137,7 +140,7 @@ class SettingsHomeUiStateMachineImpl(
                         state = ShowingUtxoConsolidationUiState
                       },
                       SettingsListUiProps.SettingsListRow.InheritanceManagement {
-                        state = ShowingInheritanceUiState
+                        state = ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)
                       }.takeIf { inheritanceFeatureFlag.isEnabled() },
                       SettingsListUiProps.SettingsListRow.ExportTools {
                         state = ShowingExportToolsUiState
@@ -255,7 +258,10 @@ class SettingsHomeUiStateMachineImpl(
 
       is ShowingDebugMenuUiState -> debugMenuStateMachine.model(
         DebugMenuProps(
-          onClose = { state = ShowingAllSettingsUiState }
+          onClose = { state = ShowingAllSettingsUiState },
+          onAppDataDeleted = {
+            // no-op, this will be handled by the data state machine
+          }
         )
       )
       ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
@@ -272,10 +278,12 @@ class SettingsHomeUiStateMachineImpl(
           }
         )
       )
-      ShowingInheritanceUiState -> inheritanceManagementUiStateMachine.model(
+      is ShowingInheritanceUiState -> inheritanceManagementUiStateMachine.model(
         props = InheritanceManagementUiProps(
           account = props.account as FullAccount,
-          onBack = { state = ShowingAllSettingsUiState }
+          selectedTab = (state as ShowingInheritanceUiState).selectedTab,
+          onBack = { state = ShowingAllSettingsUiState },
+          onGoToUtxoConsolidation = { state = ShowingUtxoConsolidationUiState }
         )
       )
       is ShowingExportToolsUiState -> exportToolsUiStateMachine.model(
@@ -286,58 +294,60 @@ class SettingsHomeUiStateMachineImpl(
     }
   }
 
-  private sealed class State {
+  sealed class SettingsListState {
     /**
      * Showing home of all settings.
      */
-    data object ShowingAllSettingsUiState : State()
+    data object ShowingAllSettingsUiState : SettingsListState()
 
     /**
      * Showing settings for Mobile Pay.
      */
-    data object ShowingMobilePaySettingsUiState : State()
+    data object ShowingMobilePaySettingsUiState : SettingsListState()
 
     /**
      * Showing notification preferences for transactions and marketing
      */
-    data object ShowingNotificationPreferencesUiState : State()
+    data object ShowingNotificationPreferencesUiState : SettingsListState()
 
     /**
      * Showing recovery channel configuration
      */
-    data object ShowingRecoveryChannelsUiState : State()
+    data object ShowingRecoveryChannelsUiState : SettingsListState()
 
     /**
      * Showing settings for custom Electrum server
      */
-    data object ShowingCustomElectrumServerSettingsUiState : State()
+    data object ShowingCustomElectrumServerSettingsUiState : SettingsListState()
 
-    data object ShowingBitkeyDeviceSettingsUiState : State()
+    data object ShowingBitkeyDeviceSettingsUiState : SettingsListState()
 
-    data object ShowingAppearancePreferenceUiState : State()
+    data object ShowingAppearancePreferenceUiState : SettingsListState()
 
-    data object ShowingSendFeedbackUiState : State()
+    data object ShowingSendFeedbackUiState : SettingsListState()
 
-    data object ShowingHelpCenterUiState : State()
+    data object ShowingHelpCenterUiState : SettingsListState()
 
-    data object ShowingTrustedContactsUiState : State()
+    data object ShowingTrustedContactsUiState : SettingsListState()
 
-    data object ShowingCloudBackupHealthUiState : State()
+    data object ShowingCloudBackupHealthUiState : SettingsListState()
 
     /**
      * Showing the UI for rotating the app auth key,
      * removing access from other mobile devices.
      */
-    data object ShowingRotateAuthKeyUiState : State()
+    data object ShowingRotateAuthKeyUiState : SettingsListState()
 
-    data object ShowingDebugMenuUiState : State()
+    data object ShowingDebugMenuUiState : SettingsListState()
 
-    data object ShowingBiometricSettingUiState : State()
+    data object ShowingBiometricSettingUiState : SettingsListState()
 
-    data object ShowingUtxoConsolidationUiState : State()
+    data object ShowingUtxoConsolidationUiState : SettingsListState()
 
-    data object ShowingInheritanceUiState : State()
+    data class ShowingInheritanceUiState(
+      val selectedTab: ManagingInheritanceTab,
+    ) : SettingsListState()
 
-    data object ShowingExportToolsUiState : State()
+    data object ShowingExportToolsUiState : SettingsListState()
   }
 }

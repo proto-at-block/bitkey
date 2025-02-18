@@ -59,20 +59,6 @@ export class ShopApiOrderUpdateJobMonitors extends Construct {
                 warning: "2",
             },
         }
-        const orderPaymentUseCase = "OrderPaymentsUsecase";
-        new Monitor(this, "order_payments_execution_rate_too_low", {
-            query: metric_sum_query(
-                `sum:trace.${orderPaymentUseCase}_run.hits{service:${serviceName},env:${environment}}.as_count()`,
-                window,
-                executionRateConfig.monitorThresholds.critical,
-                Comparator.Below
-                ),
-                name: `[${serviceName}] Execution rate too low for ${orderPaymentUseCase}`,
-                message:
-                `[${serviceName}]: Periodic job's execution rate is too low for ${orderPaymentUseCase}.`,
-                tags: tags,
-                ...executionRateConfig,
-            });
             
         const orderUpdatesUsecase = "FetchOrderUpdatesUsecase";
         const executionRateWindow = "15m";

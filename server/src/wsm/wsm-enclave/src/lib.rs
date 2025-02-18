@@ -42,6 +42,8 @@ use crypto::frost::KeyCommitments;
 use crypto::frost::Participant;
 use crypto::frost::ShareDetails;
 use crypto::ssb::server::create_ssb;
+use noise_cache::KeyType;
+use noise_cache::NoiseCache;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 use serde::Deserialize;
@@ -54,15 +56,23 @@ use tokio::sync::RwLock;
 use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::AttestationDocResponse;
+use wsm_common::messages::api::EvaluatePinRequest;
+use wsm_common::messages::api::EvaluatePinResponse;
+use wsm_common::messages::api::NoiseInitiateBundleRequest;
+use wsm_common::messages::api::NoiseInitiateBundleResponse;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenRequest;
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
+use wsm_common::messages::enclave::EnclaveContinueShareRefreshRequest;
+use wsm_common::messages::enclave::EnclaveContinueShareRefreshResponse;
 use wsm_common::messages::enclave::EnclaveCreateSelfSovereignBackupRequest;
 use wsm_common::messages::enclave::EnclaveCreateSelfSovereignBackupResponse;
 use wsm_common::messages::enclave::EnclaveGeneratePartialSignaturesRequest;
 use wsm_common::messages::enclave::EnclaveGeneratePartialSignaturesResponse;
 use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenRequest;
 use wsm_common::messages::enclave::EnclaveInitiateDistributedKeygenResponse;
+use wsm_common::messages::enclave::EnclaveInitiateShareRefreshRequest;
+use wsm_common::messages::enclave::EnclaveInitiateShareRefreshResponse;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
     EnclaveDeriveKeyRequest, EnclaveSignRequest, KmsRequest, LoadIntegrityKeyRequest,
@@ -81,12 +91,15 @@ use crate::settings::Settings;
 mod aad;
 mod frost;
 mod kms_tool;
+mod noise_cache;
 mod psbt_verification;
 mod settings;
 
 const GLOBAL_CONTEXT: &[u8] = b"WsmIntegrityV1";
 const INTEGRITY_KEY_ID: &str = "integrity";
 const TEST_INTEGRITY_KEY_B64: &str = include_str!("../../keys/test_integrity_key.b64");
+const STATIC_SERVER_NOISE_PRIVATE_KEY: &str =
+    "22b483ea6904d7e924a5ec38ee03cd0e283fa7613cb0bcf771e84ab47aa9654e";
 
 type KeyStore = Arc<RwLock<HashMap<String, KeySpec>>>;
 type GlobalNsmCtx = Arc<NsmCtx>;
@@ -400,6 +413,70 @@ async fn attestation_doc(
     }
 }
 
+async fn initiate_secure_channel(
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
+    Json(request): Json<NoiseInitiateBundleRequest>,
+) -> Result<Json<NoiseInitiateBundleResponse>, WsmError> {
+    let log_buffer = LogBuffer::new();
+
+    let mut random_bytes = [0u8; 8];
+    rand::thread_rng().fill_bytes(&mut random_bytes[..]);
+    let session_id = BASE64.encode(random_bytes);
+    let server_static_pubkey = request.server_static_pubkey;
+
+    // Look up the session in the cache; if it exists, return an error.
+    if noise_cache.write().await.get_session(&session_id).is_some() {
+        return Err(WsmError::ServerError {
+            message: "Session cookie already exists in cache".to_string(),
+            log_buffer: log_buffer.clone(),
+        });
+    }
+
+    let key_type = match KeyType::from_str(&server_static_pubkey) {
+        Some(key_type) => key_type,
+        None => {
+            return Err(WsmError::ServerError {
+                message: "Unknown public key".to_string(),
+                log_buffer: log_buffer.clone(),
+            });
+        }
+    };
+
+    let mut noise_cache = noise_cache.write().await;
+    let noise_ctx = noise_cache.add_session(session_id.clone(), key_type);
+
+    let response =
+        noise_ctx
+            .advance_handshake(request.bundle)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to advance handshake: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+    let response = response.ok_or_else(|| WsmError::ServerError {
+        message: "Failed to get response from handshake".to_string(),
+        log_buffer: log_buffer.clone(),
+    })?;
+
+    if !noise_ctx.is_handshake_finished() {
+        return Err(WsmError::ServerError {
+            message: "Handshake not finished".to_string(),
+            log_buffer: log_buffer.clone(),
+        });
+    }
+
+    noise_ctx
+        .finalize_handshake()
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to finalize handshake: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    Ok(Json(NoiseInitiateBundleResponse {
+        bundle: response,
+        noise_session_id: session_id,
+    }))
+}
+
 async fn get_integrity_key(
     keystore: &KeyStore,
     log_buffer: &mut LogBuffer,
@@ -608,6 +685,58 @@ async fn create_key(
     })))
 }
 
+// Decrypts a ciphertext with the Noise secure channel
+async fn noise_unseal(
+    noise_cache: &Arc<RwLock<NoiseCache>>,
+    log_buffer: &mut LogBuffer,
+    ciphertext: Vec<u8>,
+    session_id: &String,
+) -> Result<Vec<u8>, WsmError> {
+    let mut noise_cache = noise_cache.write().await;
+    let noise_ctx = noise_cache
+        .get_session(session_id)
+        .ok_or_else(|| WsmError::ServerError {
+            message: "Failed to get session".to_string(),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let plaintext_bytes =
+        noise_ctx
+            .decrypt_message(&ciphertext)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to decrypt sealed request: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    Ok(plaintext_bytes)
+}
+
+// Encrypts the plaintext bytes to the Noise secure channel and returns the ciphertext
+async fn noise_seal(
+    noise_cache: &Arc<RwLock<NoiseCache>>,
+    log_buffer: &mut LogBuffer,
+    plaintext_bytes: &[u8],
+    session_id: &String,
+) -> Result<Vec<u8>, WsmError> {
+    let mut noise_cache = noise_cache.write().await;
+    let noise_ctx = noise_cache
+        .get_session(session_id)
+        .ok_or_else(|| WsmError::ServerError {
+            message: "Failed to get session".to_string(),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let ciphertext_bytes =
+        noise_ctx
+            .encrypt_message(plaintext_bytes)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to encrypt message: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    Ok(ciphertext_bytes)
+}
+
 #[derive(Deserialize, Serialize, Debug)]
 struct InitiateDistributedKeygenSealedRequest {
     pub app_share_package: SharePackage,
@@ -621,27 +750,35 @@ struct InitiateDistributedKeygenSealedResponse {
 
 async fn initiate_distributed_keygen(
     State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
     Json(request): Json<EnclaveInitiateDistributedKeygenRequest>,
 ) -> Result<Json<EnclaveInitiateDistributedKeygenResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
-    let sealed_request_bytes = BASE64
-        .decode(request.sealed_request.as_bytes())
-        .map_err(|e| WsmError::ServerError {
-            message: format!("Failed to decode sealed request: {}", e),
+    // Try to get the DEK now. If it's not found, we'll get an error and bail early.
+    // Noise decryption is stateful, as snow automatically bumps the nonce when we decrypt. So,
+    // if we don't get the DEK here, we'll try to double decrypt the request, which will fail the second time.
+    let datakey = get_dek(&request.dek_id, keystore, &mut log_buffer).await?;
+
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let unsealed_request =
+        serde_json::from_slice::<InitiateDistributedKeygenSealedRequest>(&unsealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to deserialize sealed request: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
-    let sealed_request =
-        serde_json::from_slice::<InitiateDistributedKeygenSealedRequest>(&sealed_request_bytes)
-            .map_err(|e| WsmError::ServerError {
-                message: format!("Failed to deserialize sealed request: {}", e),
-                log_buffer: log_buffer.clone(),
-            })?;
-
     let initiate_result =
-        initiate_dkg(&sealed_request.app_share_package).map_err(|e| WsmError::ServerError {
+        initiate_dkg(&unsealed_request.app_share_package).map_err(|e| WsmError::ServerError {
             message: format!("Failed to initiate dkg: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
@@ -654,13 +791,21 @@ async fn initiate_distributed_keygen(
         server_key_commitments,
     };
 
-    let sealed_response_bytes =
+    let unsealed_response_bytes =
         serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
             message: format!("Failed to serialize sealed response: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
-    let datakey = get_dek(&request.dek_id, keystore, &mut log_buffer).await?;
+    // Actually encrypt the "sealed_response"
+    let sealed_response_bytes = noise_seal(
+        &noise_cache,
+        &mut log_buffer,
+        &unsealed_response_bytes,
+        &request.noise_session_id,
+    )
+    .await?;
+
     let (wrapped_share_details, wrapped_share_details_nonce) = encrypt_share_details(
         &request.root_key_id,
         &datakey,
@@ -670,7 +815,7 @@ async fn initiate_distributed_keygen(
     )?;
 
     Ok(Json(EnclaveInitiateDistributedKeygenResponse {
-        sealed_response: BASE64.encode(sealed_response_bytes),
+        sealed_response: sealed_response_bytes,
         aggregate_public_key,
         wrapped_share_details,
         wrapped_share_details_nonce,
@@ -684,13 +829,14 @@ struct ContinueDistributedKeygenSealedRequest {
 
 async fn continue_distributed_keygen(
     State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
     Json(request): Json<EnclaveContinueDistributedKeygenRequest>,
 ) -> Result<Json<EnclaveContinueDistributedKeygenResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
     let share_details = decode_wrapped_share_details(
-        keystore.clone(),
+        keystore,
         &request.wrapped_share_details,
         &request.wrapped_share_details_nonce,
         &request.dek_id,
@@ -700,21 +846,23 @@ async fn continue_distributed_keygen(
     )
     .await?;
 
-    let sealed_request_bytes = BASE64
-        .decode(request.sealed_request.as_bytes())
-        .map_err(|e| WsmError::ServerError {
-            message: format!("Failed to decode sealed request: {}", e),
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let unsealed_request =
+        serde_json::from_slice::<ContinueDistributedKeygenSealedRequest>(&unsealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to deserialize sealed request: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
-    let sealed_request =
-        serde_json::from_slice::<ContinueDistributedKeygenSealedRequest>(&sealed_request_bytes)
-            .map_err(|e| WsmError::ServerError {
-                message: format!("Failed to deserialize sealed request: {}", e),
-                log_buffer: log_buffer.clone(),
-            })?;
-
-    continue_dkg(share_details, &sealed_request.app_key_commitments).map_err(|e| {
+    continue_dkg(share_details, &unsealed_request.app_key_commitments).map_err(|e| {
         WsmError::ServerError {
             message: format!("Failed to continue dkg: {}", e),
             log_buffer: log_buffer.clone(),
@@ -722,6 +870,66 @@ async fn continue_distributed_keygen(
     })?;
 
     Ok(Json(EnclaveContinueDistributedKeygenResponse {}))
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct EvaluatePinSealedRequest {
+    pub prf_input: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct EvaluatePinSealedResponse {
+    pub prf_output: String,
+}
+
+async fn evaluate_pin(
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
+    Json(request): Json<EvaluatePinRequest>,
+) -> Result<Json<EvaluatePinResponse>, WsmError> {
+    let mut log_buffer = LogBuffer::new();
+
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let unsealed_request = serde_json::from_slice::<EvaluatePinSealedRequest>(
+        &unsealed_request_bytes,
+    )
+    .map_err(|e| WsmError::ServerError {
+        message: format!("Failed to deserialize sealed request: {}", e),
+        log_buffer: log_buffer.clone(),
+    })?;
+
+    let sealed_response = EvaluatePinSealedResponse {
+        prf_output: format!(
+            "TODO: Implement OPRF. Received PRF input: {}",
+            unsealed_request.prf_input
+        ),
+    };
+
+    let unsealed_response_bytes =
+        serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize sealed response: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    // Actually encrypt the "sealed_response"
+    let sealed_response_bytes = noise_seal(
+        &noise_cache,
+        &mut log_buffer,
+        &unsealed_response_bytes,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    Ok(Json(EvaluatePinResponse {
+        sealed_response: sealed_response_bytes,
+    }))
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -738,13 +946,14 @@ struct SignTransactionSealedResponse {
 
 async fn generate_partial_signatures(
     State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
     Json(request): Json<EnclaveGeneratePartialSignaturesRequest>,
 ) -> Result<Json<EnclaveGeneratePartialSignaturesResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
     let share_details = decode_wrapped_share_details(
-        keystore.clone(),
+        keystore,
         &request.wrapped_share_details,
         &request.wrapped_share_details_nonce,
         &request.dek_id,
@@ -754,26 +963,28 @@ async fn generate_partial_signatures(
     )
     .await?;
 
-    let sealed_request_bytes = BASE64
-        .decode(request.sealed_request.as_bytes())
-        .map_err(|e| WsmError::ServerError {
-            message: format!("Failed to decode sealed request: {}", e),
-            log_buffer: log_buffer.clone(),
-        })?;
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
 
-    let sealed_request = serde_json::from_slice::<SignTransactionSealedRequest>(
-        &sealed_request_bytes,
+    let unsealed_request = serde_json::from_slice::<SignTransactionSealedRequest>(
+        &unsealed_request_bytes,
     )
     .map_err(|e| WsmError::ServerError {
         message: format!("Failed to deserialize sealed request: {}", e),
         log_buffer: log_buffer.clone(),
     })?;
 
-    let mut signer = Signer::new(Participant::Server, sealed_request.psbt, share_details)
+    let mut signer = Signer::new(Participant::Server, unsealed_request.psbt, share_details)
         .expect("Could not create signer");
 
     let partial_signatures = signer
-        .generate_partial_signatures(sealed_request.signing_commitments)
+        .generate_partial_signatures(unsealed_request.signing_commitments)
         .map_err(|e| WsmError::ServerError {
             message: format!("Failed to generate partial signatures: {}", e),
             log_buffer: log_buffer.clone(),
@@ -784,14 +995,23 @@ async fn generate_partial_signatures(
         partial_signatures,
     };
 
-    let sealed_response_bytes =
+    let unsealed_response_bytes =
         serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
             message: format!("Failed to serialize sealed response: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
+    // Actually encrypt the "sealed_response"
+    let sealed_response_bytes = noise_seal(
+        &noise_cache,
+        &mut log_buffer,
+        &unsealed_response_bytes,
+        &request.noise_session_id,
+    )
+    .await?;
+
     Ok(Json(EnclaveGeneratePartialSignaturesResponse {
-        sealed_response: BASE64.encode(sealed_response_bytes),
+        sealed_response: sealed_response_bytes,
     }))
 }
 
@@ -817,13 +1037,14 @@ struct CreateSelfSovereignBackupSealedResponse {
 
 async fn create_self_sovereign_backup(
     State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
     Json(request): Json<EnclaveCreateSelfSovereignBackupRequest>,
 ) -> Result<Json<EnclaveCreateSelfSovereignBackupResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
     let mut log_buffer = LogBuffer::new();
 
     let share_details = decode_wrapped_share_details(
-        keystore.clone(),
+        keystore,
         &request.wrapped_share_details,
         &request.wrapped_share_details_nonce,
         &request.dek_id,
@@ -833,24 +1054,31 @@ async fn create_self_sovereign_backup(
     )
     .await?;
 
-    // TODO: Decrypt sealed request before decoding it W-10274
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
 
-    let sealed_request =
-        serde_json::from_slice::<CreateSelfSovereignBackupSealedRequest>(&request.sealed_request)
+    let unsealed_request =
+        serde_json::from_slice::<CreateSelfSovereignBackupSealedRequest>(&unsealed_request_bytes)
             .map_err(|e| WsmError::ServerError {
             message: format!("Failed to deserialize sealed request: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
     let backup = create_ssb(
-        sealed_request
+        unsealed_request
             .lka_pub
             .try_into()
             .map_err(|_| WsmError::ServerError {
                 message: "Invalid length for lka_pub".to_string(),
                 log_buffer: log_buffer.clone(),
             })?,
-        sealed_request
+        unsealed_request
             .lkn_pub
             .try_into()
             .map_err(|_| WsmError::ServerError {
@@ -870,17 +1098,158 @@ async fn create_self_sovereign_backup(
         ciphertext: backup.ciphertext,
     };
 
-    let sealed_response_bytes =
+    let unsealed_response_bytes =
         serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
             message: format!("Failed to serialize sealed response: {}", e),
             log_buffer: log_buffer.clone(),
         })?;
 
-    // TODO: Encrypt sealed response before returning it W-10274
+    // Actually encrypt the "sealed_response"
+    let sealed_response_bytes = noise_seal(
+        &noise_cache,
+        &mut log_buffer,
+        &unsealed_response_bytes,
+        &request.noise_session_id,
+    )
+    .await?;
 
     Ok(Json(EnclaveCreateSelfSovereignBackupResponse {
         sealed_response: sealed_response_bytes,
     }))
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct InitiateShareRefreshSealedRequest {
+    pub app_refresh_package: (), // TODO (W-10349): Model with crypto types
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct InitiateShareRefreshSealedResponse {
+    pub server_refresh_package: (), // TODO (W-10349): Model with crypto types
+    pub server_key_commitments: (), // TODO (W-10349): Model with crypto types
+}
+
+async fn initiate_share_refresh(
+    State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
+    Json(request): Json<EnclaveInitiateShareRefreshRequest>,
+) -> Result<Json<EnclaveInitiateShareRefreshResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let datakey = get_dek(&request.dek_id, keystore.clone(), &mut log_buffer).await?;
+
+    let share_details = decode_wrapped_share_details(
+        keystore,
+        &request.wrapped_share_details,
+        &request.wrapped_share_details_nonce,
+        &request.dek_id,
+        &request.root_key_id,
+        Some(request.network),
+        &mut log_buffer,
+    )
+    .await?;
+
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let _unsealed_request =
+        serde_json::from_slice::<InitiateShareRefreshSealedRequest>(&unsealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to deserialize sealed request: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    let (pending_share_details, server_refresh_package, server_key_commitments) = {
+        // TODO (W-10349): delegate to crypto implementation to initiate share refresh
+        (share_details, (), ())
+    };
+
+    let sealed_response = InitiateShareRefreshSealedResponse {
+        server_refresh_package,
+        server_key_commitments,
+    };
+
+    let unsealed_response_bytes =
+        serde_json::to_vec(&sealed_response).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to serialize sealed response: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    // Actually encrypt the "sealed_response"
+    let sealed_response_bytes = noise_seal(
+        &noise_cache,
+        &mut log_buffer,
+        &unsealed_response_bytes,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let (wrapped_pending_share_details, wrapped_pending_share_details_nonce) =
+        encrypt_share_details(
+            &request.root_key_id,
+            &datakey,
+            &pending_share_details,
+            Some(request.network),
+            &mut log_buffer,
+        )?;
+
+    Ok(Json(EnclaveInitiateShareRefreshResponse {
+        sealed_response: sealed_response_bytes,
+        wrapped_pending_share_details,
+        wrapped_pending_share_details_nonce,
+    }))
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct ContinueShareRefreshSealedRequest {
+    pub app_key_commitments: (), // TODO (W-10349): Model with crypto types
+}
+
+async fn continue_share_refresh(
+    State(route_state): State<RouteState>,
+    State(noise_cache): State<Arc<RwLock<NoiseCache>>>,
+    Json(request): Json<EnclaveContinueShareRefreshRequest>,
+) -> Result<Json<EnclaveContinueShareRefreshResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let _share_details = decode_wrapped_share_details(
+        keystore,
+        &request.wrapped_pending_share_details,
+        &request.wrapped_pending_share_details_nonce,
+        &request.dek_id,
+        &request.root_key_id,
+        Some(request.network),
+        &mut log_buffer,
+    )
+    .await?;
+
+    // Decrypt the sealed request
+    let unsealed_request_bytes = noise_unseal(
+        &noise_cache,
+        &mut log_buffer,
+        request.sealed_request,
+        &request.noise_session_id,
+    )
+    .await?;
+
+    let _unsealed_request =
+        serde_json::from_slice::<InitiateShareRefreshSealedRequest>(&unsealed_request_bytes)
+            .map_err(|e| WsmError::ServerError {
+                message: format!("Failed to deserialize sealed request: {}", e),
+                log_buffer: log_buffer.clone(),
+            })?;
+
+    // TODO (W-10349): delegate to crypto implementation to continue share refresh
+
+    Ok(Json(EnclaveContinueShareRefreshResponse {}))
 }
 
 async fn derive_key(
@@ -1194,6 +1563,7 @@ pub struct RouteState {
     keystore: KeyStore,
     kms_tool: Arc<KmsTool>,
     nsm_ctx: Arc<NsmCtx>,
+    noise_cache: Arc<RwLock<NoiseCache>>,
 }
 
 impl From<RouteState> for Router {
@@ -1223,6 +1593,10 @@ impl From<RouteState> for Router {
                 "/create-self-sovereign-backup",
                 post(create_self_sovereign_backup),
             )
+            .route("/initiate-secure-channel", post(initiate_secure_channel))
+            .route("/evaluate-pin", post(evaluate_pin))
+            .route("/initiate-share-refresh", post(initiate_share_refresh))
+            .route("/continue-share-refresh", post(continue_share_refresh))
             .with_state(state)
     }
 }
@@ -1231,11 +1605,13 @@ pub async fn axum() -> (TcpListener, Router) {
     let settings = Settings::new().unwrap();
     let kms_tool = KmsTool::new(settings.run_mode);
     let nsm_ctx = NsmCtx::new().unwrap();
+    let noise_cache = NoiseCache::new();
 
     let router = Router::from(RouteState {
         keystore: new_keystore(),
         kms_tool: Arc::new(kms_tool),
         nsm_ctx: Arc::new(nsm_ctx),
+        noise_cache: Arc::new(RwLock::new(noise_cache)),
     });
 
     let addr = SocketAddr::from((settings.address, settings.port));
@@ -1245,6 +1621,8 @@ pub async fn axum() -> (TcpListener, Router) {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     use std::sync::Arc;
 
     use axum::body::Body;
@@ -1252,7 +1630,7 @@ mod tests {
     use axum::response::{IntoResponse, Response};
     use axum::routing::get;
     use axum::{http, Router};
-    use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+    use base64::engine::general_purpose::STANDARD as BASE64;
 
     use bdk::bitcoin::hashes::sha256;
     use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
@@ -1282,11 +1660,13 @@ mod tests {
     fn get_client() -> Router {
         let kms_tool = KmsTool::new(RunMode::Test);
         let nsm_ctx = NsmCtx::new().unwrap();
+        let noise_cache = NoiseCache::new();
 
         Router::from(RouteState {
             keystore: new_keystore(),
             kms_tool: Arc::new(kms_tool),
             nsm_ctx: Arc::new(nsm_ctx),
+            noise_cache: Arc::new(RwLock::new(noise_cache)),
         })
     }
 

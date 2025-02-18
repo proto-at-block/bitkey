@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:kermit-bugsnag-iosarm64",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-bugsnag-iosarm64-2.0.3-metadata.jar": "ed8f77756c8aa27bcaed72d735208c80f497ced766600df96d65009f8b1e93f3"
+                        "kermit-bugsnag-iosarm64-2.0.4-metadata.jar": "5b450acb36c5836e23159c198ca65eb3dea43eb543eb28e996d885f53ed6988b"
                     }
                 },
                 {

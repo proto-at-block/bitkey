@@ -61,8 +61,8 @@ class SettingsListUiStateMachineImpl(
                 InheritanceManagement::class,
                 RotateAuthKey::class,
                 CloudBackupHealth::class,
-                TrustedContacts::class,
-                RecoveryChannels::class
+                CriticalAlerts::class,
+                TrustedContacts::class
               )
           ),
           SettingsSection(
@@ -109,7 +109,8 @@ class SettingsListUiStateMachineImpl(
         .coachmarksToDisplay(
           coachmarkIds = setOf(
             CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.BiometricUnlockCoachmark,
+            CoachmarkIdentifier.InheritanceCoachmark
           )
         ).onSuccess {
           coachmarksToDisplay = it
@@ -145,7 +146,7 @@ class SettingsListUiStateMachineImpl(
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is AppearancePreference -> Pair(SmallIconPaintBrush, "Appearance")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
-        is RecoveryChannels -> Pair(SmallIconRecovery, "Recovery Methods")
+        is CriticalAlerts -> Pair(SmallIconWarning, "Critical Alerts")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
         is ContactUs -> Pair(SmallIconAnnouncement, "Contact Us")
         is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
@@ -185,6 +186,7 @@ class SettingsListUiStateMachineImpl(
           coachmarksToDisplay
             .contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)
         is Biometric -> coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)
+        is InheritanceManagement -> coachmarksToDisplay.contains(CoachmarkIdentifier.InheritanceCoachmark)
         else -> false
       }
     )
@@ -220,7 +222,7 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.mobilePay == Available
       is AppearancePreference ->
         appFunctionalityStatus.featureStates.fiatExchangeRates == Available
-      is NotificationPreferences, is RecoveryChannels ->
+      is NotificationPreferences, is CriticalAlerts ->
         appFunctionalityStatus.featureStates.notifications == Available
       is CustomElectrumServer ->
         appFunctionalityStatus.featureStates.customElectrumServer == Available

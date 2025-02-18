@@ -1,4 +1,5 @@
 extern crate core;
+use reqwest::header::{COOKIE, SET_COOKIE};
 pub use wsm_common::derivation::WSMSupportedDomain;
 pub use wsm_common::messages::api::CreatedSigningKey;
 
@@ -8,14 +9,18 @@ use async_trait::async_trait;
 use reqwest_middleware::ClientBuilder;
 use reqwest_tracing::TracingMiddleware;
 use serde::{Deserialize, Serialize};
+use serde_with::{base64::Base64, serde_as};
 use tracing::instrument;
 use url::Url;
 use wsm_common::bitcoin::Network;
 use wsm_common::messages::api::{
     AttestationDocResponse, ContinueDistributedKeygenRequest, ContinueDistributedKeygenResponse,
-    CreateRootKeyRequest, CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
-    GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse, GetIntegritySigRequest,
-    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
+    ContinueShareRefreshRequest, ContinueShareRefreshResponse, CreateRootKeyRequest,
+    CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, EvaluatePinRequest,
+    EvaluatePinResponse, GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse,
+    GetIntegritySigRequest, GetIntegritySigResponse, InitiateDistributedKeygenRequest,
+    InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
 };
 
 pub use wsm_common::messages::{
@@ -34,6 +39,8 @@ pub enum Error {
     Wsm(String),
     #[error("Not Implemented: {0}")]
     NotImplemented(String),
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
 }
 
 #[derive(Deserialize, Serialize)]
@@ -62,6 +69,21 @@ pub struct SignedBlob {
     pub root_key_id: String,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct NoiseSession {
+    pub cookie: String,
+    pub id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize)]
+pub struct NoiseInitiateBundleResponseWithSession {
+    #[serde_as(as = "Base64")]
+    pub bundle: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
+}
+
 #[async_trait]
 pub trait SigningService {
     async fn health_check(&self) -> Result<String, Error>;
@@ -74,19 +96,22 @@ pub trait SigningService {
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<InitiateDistributedKeygenResponse, Error>;
     async fn continue_distributed_keygen(
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<ContinueDistributedKeygenResponse, Error>;
     async fn generate_partial_signatures(
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<GeneratePartialSignaturesResponse, Error>;
     async fn create_self_sovereign_backup(
         &self,
@@ -95,6 +120,20 @@ pub trait SigningService {
         sealed_request: Vec<u8>,
         noise_session: Vec<u8>,
     ) -> Result<CreateSelfSovereignBackupResponse, Error>;
+    async fn initiate_share_refresh(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<InitiateShareRefreshResponse, Error>;
+    async fn continue_share_refresh(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<ContinueShareRefreshResponse, Error>;
     async fn sign_psbt(
         &self,
         root_key_id: &str,
@@ -107,6 +146,16 @@ pub trait SigningService {
         root_key_id: &str,
     ) -> Result<GetIntegritySigResponse, Error>;
     async fn get_attestation_document(&self) -> Result<AttestationDocResponse, Error>;
+    async fn initiate_secure_channel(
+        &self,
+        bundle: Vec<u8>,
+        server_static_pubkey: &str,
+    ) -> Result<NoiseInitiateBundleResponseWithSession, Error>;
+    async fn evaluate_pin(
+        &self,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<EvaluatePinResponse, Error>;
 }
 
 #[derive(Clone)]
@@ -196,16 +245,21 @@ impl SigningService for WsmClient {
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<InitiateDistributedKeygenResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
         let res = self
             .client
             .post(self.endpoint.join("initiate-distributed-keygen")?)
             .json(&InitiateDistributedKeygenRequest {
                 root_key_id: root_key_id.to_string(),
                 network,
-                sealed_request: sealed_request.to_string(),
+                sealed_request,
+                noise_session_id: noise_session.id,
             })
+            .header(COOKIE, noise_session.cookie)
             .send()
             .await?;
 
@@ -217,16 +271,21 @@ impl SigningService for WsmClient {
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<ContinueDistributedKeygenResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
         let res = self
             .client
             .post(self.endpoint.join("continue-distributed-keygen")?)
             .json(&ContinueDistributedKeygenRequest {
                 root_key_id: root_key_id.to_string(),
                 network,
-                sealed_request: sealed_request.to_string(),
+                sealed_request,
+                noise_session_id: noise_session.id,
             })
+            .header(COOKIE, noise_session.cookie)
             .send()
             .await?;
 
@@ -238,15 +297,19 @@ impl SigningService for WsmClient {
         &self,
         root_key_id: &str,
         network: Network,
-        sealed_request: &str,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<GeneratePartialSignaturesResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
         let res = self
             .client
             .post(self.endpoint.join("generate-partial-signatures")?)
             .json(&GeneratePartialSignaturesRequest {
                 root_key_id: root_key_id.to_string(),
                 network,
-                sealed_request: sealed_request.to_string(),
+                sealed_request,
+                noise_session_id: noise_session.id,
             })
             .send()
             .await?;
@@ -260,8 +323,10 @@ impl SigningService for WsmClient {
         root_key_id: &str,
         network: Network,
         sealed_request: Vec<u8>,
-        _noise_session: Vec<u8>,
+        noise_session: Vec<u8>,
     ) -> Result<CreateSelfSovereignBackupResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
         let res = self
             .client
             .post(self.endpoint.join("create-self-sovereign-backup")?)
@@ -269,8 +334,60 @@ impl SigningService for WsmClient {
                 root_key_id: root_key_id.to_string(),
                 network,
                 sealed_request,
-                noise_session_id: "".to_string(), // TODO: extract from session once we merge stickiness logic W-10274
+                noise_session_id: noise_session.id,
             })
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn initiate_share_refresh(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<InitiateShareRefreshResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
+        let res = self
+            .client
+            .post(self.endpoint.join("initiate-share-refresh")?)
+            .json(&InitiateShareRefreshRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request,
+                noise_session_id: noise_session.id,
+            })
+            .header(COOKIE, noise_session.cookie)
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn continue_share_refresh(
+        &self,
+        root_key_id: &str,
+        network: Network,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<ContinueShareRefreshResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
+        let res = self
+            .client
+            .post(self.endpoint.join("continue-share-refresh")?)
+            .json(&ContinueShareRefreshRequest {
+                root_key_id: root_key_id.to_string(),
+                network,
+                sealed_request,
+                noise_session_id: noise_session.id,
+            })
+            .header(COOKIE, noise_session.cookie)
             .send()
             .await?;
 
@@ -322,6 +439,68 @@ impl SigningService for WsmClient {
         let res = self
             .client
             .get(self.endpoint.join("attestation-doc")?)
+            .send()
+            .await?;
+
+        self.handle_wsm_response(res).await
+    }
+
+    #[instrument]
+    async fn initiate_secure_channel(
+        &self,
+        bundle: Vec<u8>,
+        server_static_pubkey: &str,
+    ) -> Result<NoiseInitiateBundleResponseWithSession, Error> {
+        let res = self
+            .client
+            .post(self.endpoint.join("initiate-secure-channel")?)
+            .json(&NoiseInitiateBundleRequest {
+                bundle,
+                server_static_pubkey: server_static_pubkey.to_string(),
+            })
+            .send()
+            .await?;
+
+        let headers = res.headers().clone();
+        let cookie = headers
+                .get_all(SET_COOKIE)
+                .iter()
+                .filter_map(|v| v.to_str().ok())
+                .find(|v| v.contains("AWSALB="))
+                .unwrap_or_else(|| {
+                    eprintln!("No AWSALB cookie found; using default 'fake-cookie'. This may occur in local environments without ALB.");
+                    "fake-cookie"
+                });
+
+        let wsm_response: NoiseInitiateBundleResponse = self.handle_wsm_response(res).await?;
+
+        let noise_session = NoiseSession {
+            cookie: cookie.to_string(),
+            id: wsm_response.noise_session_id,
+        };
+
+        Ok(NoiseInitiateBundleResponseWithSession {
+            bundle: wsm_response.bundle,
+            noise_session: serde_json::to_vec(&noise_session)?,
+        })
+    }
+
+    #[instrument]
+    async fn evaluate_pin(
+        &self,
+        sealed_request: Vec<u8>,
+        noise_session: Vec<u8>,
+    ) -> Result<EvaluatePinResponse, Error> {
+        let noise_session = serde_json::from_slice::<NoiseSession>(&noise_session)?;
+
+        let res = self
+            .client
+            .post(self.endpoint.join("evaluate-pin")?)
+            .json(&EvaluatePinRequest {
+                sealed_request,
+                noise_session_id: noise_session.id,
+            })
+            .header(COOKIE, noise_session.cookie)
             .send()
             .await?;
 

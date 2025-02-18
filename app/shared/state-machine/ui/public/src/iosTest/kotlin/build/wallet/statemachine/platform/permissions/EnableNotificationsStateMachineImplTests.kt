@@ -11,7 +11,7 @@ import build.wallet.statemachine.account.notifications.NotificationPermissionReq
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle.Back
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -51,7 +51,7 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
     )
 
   test("enable notifications screen with notification enabled") {
-    stateMachineWithNotificationsOn.test(props) {
+    stateMachineWithNotificationsOn.testWithVirtualTime(props) {
       val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
       formModel.primaryButton.shouldNotBeNull().text.shouldBe("Enable")
       notificationPermissionRequester.successful = true
@@ -67,14 +67,14 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
   }
 
   test("enable notifications screen with notification disabled") {
-    stateMachineWithNotificationsOff.test(props) {
+    stateMachineWithNotificationsOff.testWithVirtualTime(props) {
       val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
       formModel.primaryButton.shouldNotBeNull().text.shouldBe("Open settings")
     }
   }
 
   test("onBack gets called") {
-    stateMachineWithNotificationsOff.test(props) {
+    stateMachineWithNotificationsOff.testWithVirtualTime(props) {
       val formModel = awaitItem().shouldBeInstanceOf<FormBodyModel>()
       formModel.onBack?.invoke()
 

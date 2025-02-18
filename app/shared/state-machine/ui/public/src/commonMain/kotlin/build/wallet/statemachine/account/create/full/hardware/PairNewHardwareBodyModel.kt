@@ -1,17 +1,16 @@
 package build.wallet.statemachine.account.create.full.hardware
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.platform.random.uuid
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.app.account.create.hardware.PairNewHardwareScreen
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.model.video.VideoStartingPosition
@@ -47,7 +46,7 @@ data class PairNewHardwareBodyModel(
     }
   }
 
-  private val unique = eventTrackerScreenInfo?.eventTrackerScreenId?.name ?: uuid().random()
+  private val unique = eventTrackerScreenInfo?.eventTrackerScreenId?.name ?: uuid()
   override val key: String = "${this::class.qualifiedName}-$unique."
 
   fun toolbarModel(onRefreshClick: () -> Unit) =
@@ -78,4 +77,9 @@ data class PairNewHardwareBodyModel(
         onClick = StandardClick(onClick)
       )
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    PairNewHardwareScreen(modifier, model = this)
+  }
 }

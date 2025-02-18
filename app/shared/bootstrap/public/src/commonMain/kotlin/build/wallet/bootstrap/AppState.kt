@@ -2,6 +2,7 @@ package build.wallet.bootstrap
 
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
 
 /**
@@ -25,6 +26,34 @@ sealed interface AppState {
    */
   data class HasActiveSoftwareAccount(
     val account: SoftwareAccount,
+  ) : AppState
+
+  /**
+   * Indicates there is an active [LiteAccount].
+   */
+  data class HasActiveLiteAccount(
+    val account: LiteAccount,
+  ) : AppState
+
+  /**
+   * Indicates there is an account created via f8e but there are still [OnboardingKeyboxStep]s to
+   * complete
+   *
+   * @property account the [FullAccount] created via f8e
+   */
+  data class OnboardingFullAccount(
+    val account: FullAccount,
+  ) : AppState
+
+  /**
+   * Indicates there is a lite account that has been upgraded to a full account but needs to complete
+   * the remaining [OnboardingKeyboxStep]s
+   *
+   * @property account the [FullAccount] created via f8e
+   */
+  data class LiteAccountOnboardingToFullAccount(
+    val activeAccount: LiteAccount,
+    val onboardingAccount: FullAccount,
   ) : AppState
 
   /**

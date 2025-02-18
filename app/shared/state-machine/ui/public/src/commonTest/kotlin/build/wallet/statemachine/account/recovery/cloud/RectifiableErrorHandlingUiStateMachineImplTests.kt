@@ -10,9 +10,9 @@ import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachineImp
 import build.wallet.statemachine.cloud.RectifiableErrorMessages
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -53,8 +53,8 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
     )
 
   test("Pressing Back calls onFailure") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(props.screenId) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<FormBodyModel>(props.screenId) {
         onBack.shouldNotBeNull().invoke()
         failureCalls.awaitItem()
       }
@@ -62,8 +62,8 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Pressing Cancel calls onFailure") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(props.screenId) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<FormBodyModel>(props.screenId) {
         secondaryButton.shouldNotBeNull().onClick.invoke()
         failureCalls.awaitItem()
       }
@@ -71,8 +71,8 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Has expected messaging") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(props.screenId) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<FormBodyModel>(props.screenId) {
         header.shouldNotBeNull().let { head ->
           head.headline.shouldNotBeNull().shouldBeEqual(props.messages.title)
           head.sublineModel.shouldNotBeNull().string.shouldBeEqual(props.messages.subline)
@@ -82,12 +82,12 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Pressing Try Again shows loading screen and returns") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<FormBodyModel>(props.screenId) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<FormBodyModel>(props.screenId) {
         clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>(CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR) {
+      awaitBody<LoadingSuccessBodyModel>(CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       returnCalls.awaitItem()

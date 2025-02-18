@@ -9,7 +9,7 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.time.Delayer
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -17,13 +17,14 @@ import com.github.michaelbull.result.onSuccess
 @BitkeyInject(AppScope::class)
 class CloudSignInUiStateMachineImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
-  private val delayer: Delayer,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : CloudSignInUiStateMachine {
   @Composable
   override fun model(props: CloudSignInUiProps): BodyModel {
     LaunchedEffect("checking-account") {
-      delayer
-        .withMinimumDelay { cloudStoreAccountRepository.currentAccount(cloudServiceProvider()) }
+      withMinimumDelay(minimumLoadingDuration.value) {
+        cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
+      }
         .onSuccess { account ->
           when (account) {
             null -> props.onSignInFailure(Error("No cloud store account found."))

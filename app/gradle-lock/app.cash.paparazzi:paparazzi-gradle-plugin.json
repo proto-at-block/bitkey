@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.paparazzi:paparazzi-gradle-plugin",
     "components": [
         {
-            "version": "1.3.4",
+            "version": "1.3.5",
             "variants": [
                 {
                     "artifacts": {
-                        "paparazzi-gradle-plugin-1.3.4.jar": "317b9c4174706eadf3525c705479e4a7b34a38fe5d54123a6822d7e5f1fa66ca"
+                        "paparazzi-gradle-plugin-1.3.5.jar": "7271964599266bf81ddb0483d57c2dfa65990204d616897a63ff1f33242b9eb5"
                     }
                 }
             ],

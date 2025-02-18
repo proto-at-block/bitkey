@@ -15,14 +15,14 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle.Close
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -85,8 +85,8 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   )
 
   test("initial state - zero limit") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<SpendingLimitPickerModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<SpendingLimitPickerModel> {
         with(entryMode.shouldBeTypeOf<EntryMode.Keypad>().amountModel) {
           primaryAmount.shouldBe("$0")
           secondaryAmount.shouldBe("0 sats")
@@ -99,8 +99,8 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   test("initial state - nonzero limit") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<SpendingLimitPickerModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<SpendingLimitPickerModel> {
         entryMode.shouldBeTypeOf<EntryMode.Keypad>()
         setLimitButtonModel.isEnabled.shouldBeTrue()
       }
@@ -108,8 +108,8 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose prop is called for onBack") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<SpendingLimitPickerModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<SpendingLimitPickerModel> {
         onBack()
       }
       onCloseCalls.awaitItem().shouldBe(Unit)
@@ -117,8 +117,8 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose prop is called for toolbar") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<SpendingLimitPickerModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<SpendingLimitPickerModel> {
         toolbarModel.leadingAccessory.shouldBeTypeOf<IconAccessory>()
           .model.onClick.invoke()
       }
@@ -128,15 +128,15 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
   test("onTokenRefresh returns SpendingLimitPickerModel with loading button") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // initial state
-      awaitScreenWithBody<SpendingLimitPickerModel> {
+      awaitBody<SpendingLimitPickerModel> {
         setLimitButtonModel.isLoading.shouldBeFalse()
         setLimitButtonModel.onClick()
       }
 
       // hw proof of possession
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+      awaitBodyMock<ProofOfPossessionNfcProps> {
         val model = onTokenRefresh.shouldNotBeNull().invoke()
         val limitBody = model.body.shouldBeInstanceOf<SpendingLimitPickerModel>()
         limitBody.setLimitButtonModel.isLoading.shouldBeTrue()
@@ -146,7 +146,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
   test("onTokenRefreshError returns SpendingLimitPickerModel with error sheet") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // initial state
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
@@ -156,7 +156,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
       }
 
       // hw proof of possession
-      awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+      awaitBodyMock<ProofOfPossessionNfcProps> {
         val model = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
         model.bottomSheetModel.shouldNotBeNull()
       }

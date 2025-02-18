@@ -2,6 +2,8 @@ use notification::payloads::recovery_relationship_benefactor_invitation_pending:
 use notification::schedule::ScheduleNotificationType;
 use notification::service::ScheduleNotificationsInput;
 use notification::NotificationPayloadBuilder;
+use promotion_code::entities::CodeKey;
+use tokio::try_join;
 use tracing::instrument;
 use types::account::entities::FullAccount;
 use types::account::identifiers::AccountId;
@@ -50,7 +52,12 @@ impl Service {
 
         let account_properties = &input.customer_account.common_fields.properties;
         let (code, code_bit_length) = gen_code();
-        let expires_at = gen_expiration(account_properties);
+        let role = input
+            .trusted_contact
+            .roles
+            .first()
+            .ok_or(ServiceError::MissingTrustedContactRoles)?;
+        let expires_at = gen_expiration(role, account_properties);
 
         self.validate_under_max_tc_limit(&input.customer_account.id, &input.trusted_contact.roles)
             .await?;
@@ -69,6 +76,25 @@ impl Service {
             .repository
             .persist_recovery_relationship(&relationship)
             .await?;
+
+        if input
+            .trusted_contact
+            .roles
+            .contains(&TrustedContactRole::Beneficiary)
+        {
+            let customer_account_id = input.customer_account.id.clone();
+            let benefactor_key = CodeKey::inheritance_benefactor(customer_account_id.clone());
+            let beneficiary_key = CodeKey::inheritance_beneficiary(customer_account_id.clone());
+            let _ = try_join!(
+                self.promotion_code_service
+                    .generate_code(&benefactor_key, &customer_account_id),
+                self.promotion_code_service
+                    .generate_code(&beneficiary_key, &customer_account_id)
+            )
+            .map_err(|e| {
+                tracing::error!("Failed to generate promotional codes: {e:?}");
+            });
+        }
 
         if input
             .trusted_contact

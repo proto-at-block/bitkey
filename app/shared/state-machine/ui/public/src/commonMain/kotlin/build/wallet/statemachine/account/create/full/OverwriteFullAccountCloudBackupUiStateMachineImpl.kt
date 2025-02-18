@@ -1,12 +1,7 @@
 package build.wallet.statemachine.account.create.full
 
 import OverwriteExistingBackupConfirmationAlert
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.auth.OnboardingFullAccountDeleter
 import build.wallet.di.ActivityScope
@@ -38,7 +33,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
         OverwriteFullAccountCloudBackupWarningModel(
           onOverwriteExistingBackup = {
             alert = OverwriteExistingBackupConfirmationAlert(
-              onConfirm = props.data.onOverwrite,
+              onConfirm = props.onOverwrite,
               onCancel = {
                 alert = null
               }
@@ -50,8 +45,8 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
       State.ScanningHardwareForCancellation -> {
         proofOfPossessionNfcStateMachine.model(
           ProofOfPossessionNfcProps(
-            fullAccountId = props.data.keybox.fullAccountId,
-            fullAccountConfig = props.data.keybox.config,
+            fullAccountId = props.keybox.fullAccountId,
+            fullAccountConfig = props.keybox.config,
             request =
               Request.HwKeyProof(
                 onSuccess = { proof ->
@@ -67,15 +62,15 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
         LaunchedEffect("deleting-account") {
           onboardingFullAccountDeleter
             .deleteAccount(
-              props.data.keybox.fullAccountId,
-              props.data.keybox.config.f8eEnvironment,
+              props.keybox.fullAccountId,
+              props.keybox.config.f8eEnvironment,
               state.proofOfPossession
             )
             .onFailure {
               uiState = State.Failed
             }
             .onSuccess {
-              props.data.rollback()
+              props.rollback()
             }
         }
         LoadingBodyModel(

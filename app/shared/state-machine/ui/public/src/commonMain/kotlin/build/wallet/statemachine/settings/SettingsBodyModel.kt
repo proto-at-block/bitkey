@@ -1,9 +1,12 @@
 package build.wallet.statemachine.settings
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
+import build.wallet.ui.app.settings.SettingsScreen
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
@@ -44,4 +47,9 @@ data class SettingsBodyModel(
     ),
     sectionModels = sectionModels
   )
+
+  @Composable
+  override fun render(modifier: Modifier) {
+    SettingsScreen(modifier, model = this)
+  }
 }

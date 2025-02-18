@@ -11,6 +11,7 @@ import build.wallet.availability.NetworkConnection.HttpClientNetworkConnection.F
 import build.wallet.availability.NetworkReachability.REACHABLE
 import build.wallet.availability.NetworkReachability.UNREACHABLE
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.F8eEnvironment.Development
@@ -18,15 +19,12 @@ import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Emergency
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 
 class AppFunctionalityServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
 
   val accountService = AccountServiceFake()
   val debugOptionsService = DebugOptionsServiceFake()
@@ -66,14 +64,14 @@ class AppFunctionalityServiceImplTests : FunSpec({
   }
 
   test("limited functionality on start when internet becomes unreachable") {
-    networkReachabilityProvider.internetReachabilityFlow.value = UNREACHABLE
-
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.status.test {
       awaitItem().shouldBe(FullFunctionality) // default value
+
+      networkReachabilityProvider.internetReachabilityFlow.value = UNREACHABLE
 
       awaitItem().shouldBe(
         LimitedFunctionality(
@@ -87,18 +85,18 @@ class AppFunctionalityServiceImplTests : FunSpec({
   }
 
   test("eventual limited functionality when internet becomes unreachable") {
-    networkReachabilityEventDao.insertReachabilityEvent(
-      connection = NetworkConnection.ElectrumSyncerNetworkConnection,
-      reachability = REACHABLE
-    )
-    networkReachabilityProvider.internetReachabilityFlow.value = UNREACHABLE
-
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.status.test {
       awaitItem().shouldBe(FullFunctionality) // default value
+
+      networkReachabilityEventDao.insertReachabilityEvent(
+        connection = NetworkConnection.ElectrumSyncerNetworkConnection,
+        reachability = REACHABLE
+      )
+      networkReachabilityProvider.internetReachabilityFlow.value = UNREACHABLE
 
       awaitItem().shouldBe(
         LimitedFunctionality(
@@ -112,14 +110,14 @@ class AppFunctionalityServiceImplTests : FunSpec({
   }
 
   test("inactive app status when unauthenticated") {
-    f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
-
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.status.test {
       awaitItem().shouldBe(FullFunctionality) // default value
+
+      f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
 
       awaitItem().shouldBe(
         LimitedFunctionality(
@@ -130,14 +128,14 @@ class AppFunctionalityServiceImplTests : FunSpec({
   }
 
   test("limited f8e functionality when f8e becomes unreachable") {
-    networkReachabilityProvider.f8eEnvironmentReachabilityFlow.value = UNREACHABLE
-
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.status.test {
       awaitItem().shouldBe(FullFunctionality) // default value
+
+      networkReachabilityProvider.f8eEnvironmentReachabilityFlow.value = UNREACHABLE
 
       awaitItem().shouldBe(
         LimitedFunctionality(
@@ -150,18 +148,18 @@ class AppFunctionalityServiceImplTests : FunSpec({
   }
 
   test("eventual limited f8e functionality when f8e becomes unreachable") {
-    networkReachabilityEventDao.insertReachabilityEvent(
-      connection = F8e(Development),
-      reachability = REACHABLE
-    )
-    networkReachabilityProvider.f8eEnvironmentReachabilityFlow.value = UNREACHABLE
-
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 
     service.status.test {
       awaitItem().shouldBe(FullFunctionality) // default value
+
+      networkReachabilityEventDao.insertReachabilityEvent(
+        connection = F8e(Development),
+        reachability = REACHABLE
+      )
+      networkReachabilityProvider.f8eEnvironmentReachabilityFlow.value = UNREACHABLE
 
       awaitItem().shouldBe(
         LimitedFunctionality(
@@ -183,7 +181,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
       appVariant = Emergency
     )
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 

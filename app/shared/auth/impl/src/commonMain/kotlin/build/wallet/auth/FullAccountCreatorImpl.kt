@@ -32,7 +32,7 @@ class FullAccountCreatorImpl(
   private val keyboxDao: KeyboxDao,
   private val createFullAccountF8eClient: CreateFullAccountF8eClient,
   private val accountAuthenticator: AccountAuthenticator,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val deviceTokenManager: DeviceTokenManager,
   private val uuidGenerator: UuidGenerator,
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
@@ -136,19 +136,18 @@ class FullAccountCreatorImpl(
     tokenScope: AuthTokenScope,
   ): Result<Unit, AccountCreationError> {
     return coroutineBinding {
-      val authTokens =
-        accountAuthenticator
-          .appAuth(
-            f8eEnvironment = f8eEnvironment,
-            appAuthPublicKey = appAuthPublicKey,
-            authTokenScope = tokenScope
-          )
-          .mapError { AccountCreationAuthError(it) }
-          .bind()
-          .authTokens
+      val authTokens = accountAuthenticator
+        .appAuth(
+          f8eEnvironment = f8eEnvironment,
+          appAuthPublicKey = appAuthPublicKey,
+          authTokenScope = tokenScope
+        )
+        .mapError { AccountCreationAuthError(it) }
+        .bind()
+        .authTokens
 
-      authTokenDao
-        .setTokensOfScope(accountId, authTokens, tokenScope)
+      authTokensService
+        .setTokens(accountId, authTokens, tokenScope)
         .mapError { FailedToSaveAuthTokens(it) }
         .bind()
     }

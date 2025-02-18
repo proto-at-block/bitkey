@@ -1,0 +1,6 @@
+CREATE TABLE onboarding_completion (
+    id TEXT NOT NULL PRIMARY KEY,
+    completion_timestamp INTEGER
+);
+
+PRAGMA foreign_key_check;

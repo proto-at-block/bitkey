@@ -21,7 +21,7 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
   private fun DependencyLockingExtension.registerIgnoredModules() {
     // These libraries are used only in tests, and they are KMP which means they uses host platform dependent library coordinates which the locking doesn't support currently.
     ignoredModules.add("app.cash.paparazzi:layoutlib-*")
-    ignoredModules.add("com.android.tools.layoutlib:layoutlib-runtime-*")
+    ignoredModules.add("com.android.tools.layoutlib:layoutlib-runtime")
 
     // This dependency cannot be locked because different configurations from the same group can rightfully use two different versions: '1.0' and '9999.0-empty-to-avoid-conflict-with-guava'.
     // See https://mvnrepository.com/artifact/com.google.guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava
@@ -72,11 +72,13 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.android.gson,
       libs.android.google.errorprone.annotations,
       libs.android.google.guava,
-      libs.android.google.gms.play.services.tasks,
+      libs.android.google.gms.play.services.base,
       libs.android.google.gms.play.services.basement,
+      libs.android.google.gms.play.services.tasks,
       libs.android.core.asProvider(),
       libs.android.collection,
       libs.android.layoutlib.api,
+      libs.android.loader,
       libs.android.profileinstaller,
       libs.android.sqlite.asProvider(),
       libs.android.sqlite.framework,

@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -18,6 +19,7 @@ import build.wallet.statemachine.recovery.socrec.list.lite.LiteListingTrustedCon
 import build.wallet.statemachine.recovery.socrec.list.lite.LiteListingTrustedContactsUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 
 @BitkeyInject(ActivityScope::class)
 class LiteTrustedContactManagementUiStateMachineImpl(
@@ -42,7 +44,7 @@ class LiteTrustedContactManagementUiStateMachineImpl(
         liteListingTrustedContactsUiStateMachine.model(
           LiteListingTrustedContactsUiProps(
             account = props.account,
-            onExit = props.onExit,
+            onExit = { props.onExit() },
             onHelpWithRecovery = { protectedCustomer ->
               state =
                 State.HelpingWithRecovery(
@@ -64,8 +66,17 @@ class LiteTrustedContactManagementUiStateMachineImpl(
                 ),
               account = props.account,
               inviteCode = s.inviteCode,
-              onDone = { state = State.ShowingProtectedCustomersList },
-              screenPresentationStyle = ScreenPresentationStyle.Modal
+              onDone = { account ->
+                if (account is FullAccount) {
+                  props.onAccountUpgraded(account)
+                } else {
+                  state = State.ShowingProtectedCustomersList
+                }
+              },
+              screenPresentationStyle = ScreenPresentationStyle.Modal,
+              variant = TrustedContactFeatureVariant.Direct(
+                target = TrustedContactFeatureVariant.Feature.Recovery
+              )
             )
         )
 

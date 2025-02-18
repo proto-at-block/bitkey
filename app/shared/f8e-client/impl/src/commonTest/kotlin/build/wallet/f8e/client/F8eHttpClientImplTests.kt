@@ -17,15 +17,16 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_APP_HEADER
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_HW_HEADER
+import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.debug.NetworkingDebugServiceFake
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.ktor.InlineMockEngine
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.bodyResult
-import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
-import build.wallet.platform.config.AppVersion
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
@@ -41,7 +42,9 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.client.call.*
+import io.ktor.client.engine.*
 import io.ktor.client.engine.mock.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -76,10 +79,10 @@ class F8eHttpClientImplTests : FunSpec({
 
   val fakeAppAuthKeyMessageSigner = AppAuthKeyMessageSignerMock()
   val fakeKeyboxDao = KeyboxDaoMock(turbines::create, KeyboxMock)
-  val authTokensRepository = AuthTokensRepositoryMock()
+  val authTokensService = AuthTokensServiceFake()
 
   beforeTest {
-    authTokensRepository.reset()
+    authTokensService.reset()
   }
 
   val datadogTracer =
@@ -105,53 +108,61 @@ class F8eHttpClientImplTests : FunSpec({
     }
   val deviceInfoProvider = DeviceInfoProviderMock()
 
-  val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
+  val authedNetworkReachabilityProvider =
+    NetworkReachabilityProviderMock("authed", turbines::create)
+  val unauthedNetworkReachabilityProvider =
+    NetworkReachabilityProviderMock("unauthed", turbines::create)
   val networkingDebugService = NetworkingDebugServiceFake()
-  val f8eHttpClientProvider =
-    F8eHttpClientProvider(
-      appId = AppId("world.bitkey.test"),
-      appVersion = AppVersion("2008.10.31"),
-      appVariant = Development,
-      platformInfoProvider = PlatformInfoProviderMock(),
-      datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
-      networkingDebugService = networkingDebugService,
-      appInstallationDao = AppInstallationDaoMock(),
-      countryCodeGuesser = CountryCodeGuesserMock()
-    )
 
   val unauthenticatedMockEngine = InlineMockEngine()
 
-  val unauthenticatedF8eHttpClientFactory = UnauthenticatedF8eHttpClientFactory(
-    appVariant = Development,
-    platformInfoProvider = PlatformInfoProviderMock(),
-    datadogTracer = datadogTracer,
-    deviceInfoProvider = deviceInfoProvider,
-    appInstallationDao = AppInstallationDaoMock(),
-    countryCodeGuesser = CountryCodeGuesserMock(),
-    networkReachabilityProvider = networkReachabilityProvider,
-    networkingDebugService = networkingDebugService,
-    engine = unauthenticatedMockEngine.engine
-  )
-  val client =
-    F8eHttpClientImpl(
-      authTokensRepository = AuthTokensRepositoryMock(),
-      deviceInfoProvider = deviceInfoProvider,
-      proofOfPossessionPluginProvider =
-        ProofOfPossessionPluginProvider(
-          authTokensRepository = authTokensRepository,
+  fun buildClient(overrideEngine: HttpClientEngine? = null): F8eHttpClientImpl {
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
+    return F8eHttpClientImpl(
+      authenticatedF8eHttpClient = AuthenticatedF8eHttpClientImpl(
+        appCoroutineScope = scope,
+        authenticatedF8eHttpClientFactory = AuthenticatedF8eHttpClientFactory(
+          appVariant = Development,
+          platformInfoProvider = PlatformInfoProviderMock(),
+          authTokensService = authTokensService,
+          datadogTracer = datadogTracer,
+          deviceInfoProvider = deviceInfoProvider,
           keyboxDao = fakeKeyboxDao,
-          appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner
-        ),
-      unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
-        appCoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-        unauthenticatedF8eHttpClientFactory = unauthenticatedF8eHttpClientFactory
+          appAuthKeyMessageSigner = fakeAppAuthKeyMessageSigner,
+          appInstallationDao = AppInstallationDaoMock(),
+          countryCodeGuesser = CountryCodeGuesserMock(),
+          networkReachabilityProvider = authedNetworkReachabilityProvider,
+          networkingDebugService = networkingDebugService,
+          engine = overrideEngine
+        )
       ),
-      f8eHttpClientProvider = f8eHttpClientProvider,
-      networkReachabilityProvider = networkReachabilityProvider,
+      unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
+        appCoroutineScope = scope,
+        unauthenticatedF8eHttpClientFactory = UnauthenticatedF8eHttpClientFactory(
+          appVariant = Development,
+          platformInfoProvider = PlatformInfoProviderMock(),
+          datadogTracer = datadogTracer,
+          deviceInfoProvider = deviceInfoProvider,
+          appInstallationDao = AppInstallationDaoMock(),
+          countryCodeGuesser = CountryCodeGuesserMock(),
+          networkReachabilityProvider = unauthedNetworkReachabilityProvider,
+          networkingDebugService = networkingDebugService,
+          engine = unauthenticatedMockEngine.engine
+        )
+      ),
       wsmVerifier = WsmVerifierMock()
     )
+  }
+
+  lateinit var client: F8eHttpClientImpl
+
+  afterTest {
+    client.authenticated().close()
+    client.unauthenticated().close()
+  }
 
   test("datadog tracer plugin is installed and headers are sent") {
+    client = buildClient()
     launch {
       unauthenticatedMockEngine.handle {
         it.headers["a"] shouldBe "1"
@@ -172,7 +183,7 @@ class F8eHttpClientImplTests : FunSpec({
         }
       }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     datadogTracer.spans shouldEndWith
       StubDatadogSpan(
@@ -200,16 +211,17 @@ class F8eHttpClientImplTests : FunSpec({
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
       }
+    client = buildClient(engine)
 
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = engine,
-      accountId = FullAccountId("1234")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
-    }
+    client.authenticated()
+      .bodyResult<EmptyResponseBody> {
+        put("/1234/soda/can") {
+          withEnvironment(F8eEnvironment.Development)
+          withAccountId(FullAccountId("1234"))
+        }
+      }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     datadogTracer.spans shouldEndWith
       StubDatadogSpan(
@@ -226,13 +238,11 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("hw-factor proof of possession adds proper headers") {
-    authTokensRepository.authTokensResult =
-      Ok(
-        AccountAuthTokens(
-          AccessToken("access-token"),
-          RefreshToken("refresh-token")
-        )
-      )
+    val tokens = AccountAuthTokens(
+      AccessToken("access-token"),
+      RefreshToken("refresh-token")
+    )
+    authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
 
     val engine =
       MockEngine {
@@ -245,17 +255,17 @@ class F8eHttpClientImplTests : FunSpec({
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
       }
+    client = buildClient(engine)
 
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = engine,
-      accountId = FullAccountId("1234"),
-      hwFactorProofOfPossession = HwFactorProofOfPossession("hw-signed-token")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      put("/1234/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+        withAccountId(FullAccountId("1234"))
+        withHardwareFactor(HwFactorProofOfPossession("hw-signed-token"))
+      }
     }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     datadogTracer.spans shouldEndWith
       StubDatadogSpan(
@@ -272,6 +282,12 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("app-factor proof of possession adds proper headers") {
+    val tokens = AccountAuthTokens(
+      AccessToken("access-token"),
+      RefreshToken("refresh-token")
+    )
+    authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
+
     fakeAppAuthKeyMessageSigner.result = Ok("signed-access-token")
 
     val mockEngine =
@@ -285,16 +301,16 @@ class F8eHttpClientImplTests : FunSpec({
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
       }
+    client = buildClient(mockEngine)
 
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = mockEngine,
-      accountId = FullAccountId("1234")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      put("/1234/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+        withAccountId(FullAccountId("1234"))
+      }
     }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     datadogTracer.spans shouldEndWith
       StubDatadogSpan(
@@ -311,6 +327,12 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("two-factor proof of possession adds proper headers") {
+    val tokens = AccountAuthTokens(
+      AccessToken("access-token"),
+      RefreshToken("refresh-token")
+    )
+    authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
+
     fakeAppAuthKeyMessageSigner.result = Ok("signed-access-token")
 
     val mockEngine =
@@ -324,17 +346,17 @@ class F8eHttpClientImplTests : FunSpec({
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
       }
+    client = buildClient(mockEngine)
 
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = mockEngine,
-      accountId = FullAccountId("1234"),
-      hwFactorProofOfPossession = HwFactorProofOfPossession("hw-signed-token")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      put("/1234/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+        withAccountId(FullAccountId("1234"))
+        withHardwareFactor(HwFactorProofOfPossession("hw-signed-token"))
+      }
     }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     datadogTracer.spans shouldEndWith
       StubDatadogSpan(
@@ -351,15 +373,15 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("OK response updates network status to REACHABLE") {
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = MockEngine { respondOk() },
-      accountId = FullAccountId("1234")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
+    client = buildClient(MockEngine { respondOk() })
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      put("/1234/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+        withAccountId(FullAccountId("1234"))
+      }
     }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
       .shouldBeTypeOf<NetworkReachabilityProviderMock.UpdateNetworkReachabilityForConnectionParams>()
       .apply {
         connection.shouldBeTypeOf<NetworkConnection.HttpClientNetworkConnection.F8e>()
@@ -368,15 +390,19 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("Error response updates network status to UNREACHABLE") {
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.Development,
-      engine = MockEngine { respondError(HttpStatusCode.ServiceUnavailable) },
-      accountId = FullAccountId("1234")
-    ).bodyResult<EmptyResponseBody> {
-      put("/1234/soda/can")
+    client = buildClient(
+      MockEngine {
+        respondError(HttpStatusCode.ServiceUnavailable)
+      }
+    )
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      put("/1234/soda/can") {
+        withEnvironment(F8eEnvironment.Development)
+        withAccountId(FullAccountId("1234"))
+      }
     }
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
       .shouldBeTypeOf<NetworkReachabilityProviderMock.UpdateNetworkReachabilityForConnectionParams>()
       .apply {
         connection.shouldBeTypeOf<NetworkConnection.HttpClientNetworkConnection.F8e>()
@@ -385,6 +411,7 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("F8e calls disabled when environment is set to ForceOffline - Unauthenticated") {
+    client = buildClient()
     client.unauthenticated().bodyResult<EmptyResponseBody> {
       get("/soda/can") {
         withEnvironment(F8eEnvironment.ForceOffline)
@@ -396,7 +423,7 @@ class F8eHttpClientImplTests : FunSpec({
         .shouldBeTypeOf<HttpError.UnhandledException>()
         .cause.shouldBeTypeOf<OfflineOperationException>()
     }
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
       .shouldBeTypeOf<NetworkReachabilityProviderMock.UpdateNetworkReachabilityForConnectionParams>()
       .apply {
         connection.shouldBeTypeOf<NetworkConnection.HttpClientNetworkConnection.F8e>()
@@ -406,28 +433,50 @@ class F8eHttpClientImplTests : FunSpec({
 
   test("F8e calls disabled when environment is set to ForceOffline - Authenticated") {
     val engine = MockEngine { respondOk() }
-
-    client.authenticated(
-      f8eEnvironment = F8eEnvironment.ForceOffline,
-      engine = engine,
-      accountId = FullAccountId("1234")
-    ).bodyResult<EmptyResponseBody> {
-      get("/soda/can")
+    client = buildClient(engine)
+    client.authenticated().bodyResult<EmptyResponseBody> {
+      get("/soda/can") {
+        withAccountId(FullAccountId("1234"))
+        withEnvironment(F8eEnvironment.ForceOffline)
+      }
     }.should {
       it.getErrorOr(null)
         .shouldNotBeNull()
         .shouldBeTypeOf<HttpError.UnhandledException>()
         .cause.shouldBeTypeOf<OfflineOperationException>()
     }
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
       .shouldBeTypeOf<NetworkReachabilityProviderMock.UpdateNetworkReachabilityForConnectionParams>()
       .apply {
         connection.shouldBeTypeOf<NetworkConnection.HttpClientNetworkConnection.F8e>()
         reachability.shouldBe(NetworkReachability.UNREACHABLE)
       }
   }
+  test("retry requests with socket timeout exceptions") {
+    var requestCount = 0
+    client = buildClient(
+      MockEngine {
+        if (requestCount == 0) {
+          requestCount += 1
+          throw SocketTimeoutException(it)
+        } else {
+          respondOk("hello!")
+        }
+      }
+    )
+
+    client.authenticated().get("/soda/can") {
+      withEnvironment(F8eEnvironment.Development)
+      withAccountId(FullAccountId("1234"))
+    }.status.shouldBe(HttpStatusCode.OK)
+
+    requestCount.shouldBe(1)
+
+    authedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.cancelAndIgnoreRemainingEvents()
+  }
 
   test("targeting plugin is installed and headers are sent") {
+    client = buildClient()
     launch {
       unauthenticatedMockEngine.handle { _ ->
         respond(
@@ -450,7 +499,7 @@ class F8eHttpClientImplTests : FunSpec({
     request.headers["Bitkey-OS-Type"].shouldNotBeNull().shouldBeEqual("OS_TYPE_ANDROID")
     request.headers["Bitkey-OS-Version"].shouldNotBeNull().shouldBeEqual("version_num_1")
 
-    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+    unauthedNetworkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
 
     response.status.isSuccess().shouldBeTrue()
     response.body<EmptyResponseBody>().shouldBe(EmptyResponseBody)

@@ -1,6 +1,7 @@
 package build.wallet.inheritance
 
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.FeatureFlagValue
@@ -14,12 +15,9 @@ import build.wallet.logging.logWarn
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.isActive
-import kotlin.time.Duration.Companion.minutes
 
 @BitkeyInject(AppScope::class)
 class InheritanceMaterialSyncWorkerImpl(
@@ -27,6 +25,7 @@ class InheritanceMaterialSyncWorkerImpl(
   private val inheritanceRelationshipsProvider: InheritanceRelationshipsProvider,
   private val keyboxDao: KeyboxDao,
   private val featureFlag: InheritanceFeatureFlag,
+  private val inheritanceSyncFrequency: InheritanceSyncFrequency,
 ) : InheritanceMaterialSyncWorker {
   override suspend fun executeWork() {
     combine(
@@ -59,14 +58,15 @@ class InheritanceMaterialSyncWorkerImpl(
       return
     }
 
-    while (currentCoroutineContext().isActive) {
-      inheritanceService.syncInheritanceMaterial(keybox)
-        .logFailure { "Failed to sync inheritance material" }
-        .onSuccess {
-          logVerbose { "Inheritance Material Synced" }
-          return
-        }
-      delay(1.minutes)
+    coroutineScope {
+      launchTicker(inheritanceSyncFrequency.value) {
+        inheritanceService.syncInheritanceMaterial(keybox)
+          .logFailure { "Failed to sync inheritance material" }
+          .onSuccess {
+            logVerbose { "Inheritance Material Synced" }
+            return@launchTicker
+          }
+      }
     }
   }
 }

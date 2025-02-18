@@ -11,7 +11,7 @@ import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData
@@ -48,7 +48,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
     )
 
   test("happy path - lost app") {
-    stateMachine.test(canceledByLostHwProps) {
+    stateMachine.testWithVirtualTime(canceledByLostHwProps) {
       awaitItem().let {
         it.shouldBeInstanceOf<ShowingSomeoneElseIsRecoveringData>()
         it.onCancelRecoveryConflict()
@@ -65,7 +65,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
   }
 
   test("happy path - lost hardware") {
-    stateMachine.test(canceledByLostAppProps) {
+    stateMachine.testWithVirtualTime(canceledByLostAppProps) {
       awaitItem().let {
         it.shouldBeInstanceOf<ShowingSomeoneElseIsRecoveringData>()
         it.onCancelRecoveryConflict()
@@ -80,7 +80,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
   test("cancel recovery failure - retry and rollback") {
     cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(F8eError.UnhandledException(HttpError.UnhandledException(Throwable())))
-    stateMachine.test(canceledByLostHwProps) {
+    stateMachine.testWithVirtualTime(canceledByLostHwProps) {
       awaitItem().let {
         it.shouldBeInstanceOf<ShowingSomeoneElseIsRecoveringData>()
         it.onCancelRecoveryConflict()

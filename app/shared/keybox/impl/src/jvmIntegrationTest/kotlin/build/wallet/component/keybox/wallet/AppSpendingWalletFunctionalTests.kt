@@ -9,7 +9,6 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.logging.logTesting
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -32,125 +31,120 @@ import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({
-  lateinit var app: AppTester
 
-  beforeTest {
-    app = launchNewApp()
-  }
+  test("wallet for active spending keyset").config(tags = setOf(FlakyTest)) {
+    val app = launchNewApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    val wallet = app.getActiveWallet()
 
-  test("wallet for active spending keyset")
-    .config(tags = setOf(FlakyTest)) {
-      val account = app.onboardFullAccountWithFakeHardware()
-      val wallet = app.getActiveWallet()
-
-      withClue("wallet and keybox keysets match") {
-        wallet.identifier.shouldBe(account.keybox.activeSpendingKeyset.localId)
-      }
-
-      turbineScope(timeout = 10.seconds) {
-        val balance = wallet.balance().testIn(this)
-        val transactions = wallet.transactions().testIn(this)
-
-        withClue("sync initial balance and transaction history") {
-          wallet.sync().shouldBeOk()
-
-          balance.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
-          transactions.awaitItem().shouldBe(emptyList())
-        }
-
-        withClue("new address is generated") {
-          val address1 = wallet.getNewAddress().shouldBeOk()
-          val address2 = wallet.getNewAddress().shouldBeOk()
-          val address3 = wallet.getNewAddress().shouldBeOk()
-          listOf(address1, address2, address3).shouldBeUnique()
-        }
-
-        val treasury = app.treasuryWallet
-
-        withClue("fund wallet") {
-          val fundingResult = treasury.fund(wallet, BitcoinMoney.sats(10_000))
-          logTesting { "Sending coins to ${fundingResult.depositAddress}" }
-          logTesting { "Funding txid ${fundingResult.tx.id}" }
-
-          wallet.sync().shouldBeOk()
-          balance.awaitItem()
-            .total
-            .shouldBe(BitcoinMoney.sats(10_000))
-
-          transactions.awaitItem()
-            .shouldBeSingleton { tx ->
-              tx.id.shouldBe(fundingResult.tx.id)
-              tx.recipientAddress
-                .shouldNotBeNull().address.shouldBe(fundingResult.depositAddress.address)
-              tx.fee
-                .shouldNotBeNull()
-                .shouldBe(fundingResult.tx.fee)
-              tx.subtotal.fractionalUnitValue.shouldBe(
-                fundingResult.tx.amountSats.toBigInteger()
-              )
-              tx.total.fractionalUnitValue.shouldBe(
-                fundingResult.tx.amountSats.toBigInteger() + fundingResult.tx.fee.fractionalUnitValue
-              )
-              tx.transactionType.shouldBe(Incoming)
-            }
-        }
-
-        withClue("send some back to treasury") {
-          val appSignedPsbt =
-            wallet
-              .createSignedPsbt(
-                SpendingWallet.PsbtConstructionMethod.Regular(
-                  recipientAddress = treasury.getReturnAddress(),
-                  amount = ExactAmount(BitcoinMoney.sats(BigInteger(5_000))),
-                  feePolicy = FeePolicy.MinRelayRate
-                )
-              )
-              .getOrThrow()
-
-          val appAndHwSignedPsbt =
-            app.nfcTransactor.fakeTransact(
-              transaction = { session, commands ->
-                commands.signTransaction(
-                  session = session,
-                  psbt = appSignedPsbt,
-                  spendingKeyset = account.keybox.activeSpendingKeyset
-                )
-              }
-            ).getOrThrow()
-          appAndHwSignedPsbt.amountSats.shouldBe(5_000UL)
-
-          val bitcoinBlockchain = app.bitcoinBlockchain
-          bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
-
-          eventually(
-            eventuallyConfig {
-              duration = 30.seconds
-              interval = 1.seconds
-              initialDelay = 1.seconds
-              listener = {
-                  k,
-                  throwable,
-                ->
-                logTesting {
-                  "Still waiting for transaction to propagate... $throwable of type ${throwable::class}"
-                }
-              }
-            }
-          ) {
-            val timeTaken = measureTimeMillis {
-              wallet.sync().shouldBeOk()
-            }
-            logTesting { "Sync time: $timeTaken ms" }
-            balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
-          }
-
-          treasury.spendingWallet.sync().shouldBeOk()
-        }
-
-        balance.cancelAndIgnoreRemainingEvents()
-        transactions.cancelAndIgnoreRemainingEvents()
-      }
-
-      app.returnFundsToTreasury()
+    withClue("wallet and keybox keysets match") {
+      wallet.identifier.shouldBe(account.keybox.activeSpendingKeyset.localId)
     }
+
+    turbineScope(timeout = 10.seconds) {
+      val balance = wallet.balance().testIn(this)
+      val transactions = wallet.transactions().testIn(this)
+
+      withClue("sync initial balance and transaction history") {
+        wallet.sync().shouldBeOk()
+
+        balance.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+        transactions.awaitItem().shouldBe(emptyList())
+      }
+
+      withClue("new address is generated") {
+        val address1 = wallet.getNewAddress().shouldBeOk()
+        val address2 = wallet.getNewAddress().shouldBeOk()
+        val address3 = wallet.getNewAddress().shouldBeOk()
+        listOf(address1, address2, address3).shouldBeUnique()
+      }
+
+      val treasury = app.treasuryWallet
+
+      withClue("fund wallet") {
+        val fundingResult = treasury.fund(wallet, BitcoinMoney.sats(10_000))
+        logTesting { "Sending coins to ${fundingResult.depositAddress}" }
+        logTesting { "Funding txid ${fundingResult.tx.id}" }
+
+        wallet.sync().shouldBeOk()
+        balance.awaitItem()
+          .total
+          .shouldBe(BitcoinMoney.sats(10_000))
+
+        transactions.awaitItem()
+          .shouldBeSingleton { tx ->
+            tx.id.shouldBe(fundingResult.tx.id)
+            tx.recipientAddress
+              .shouldNotBeNull().address.shouldBe(fundingResult.depositAddress.address)
+            tx.fee
+              .shouldNotBeNull()
+              .shouldBe(fundingResult.tx.fee)
+            tx.subtotal.fractionalUnitValue.shouldBe(
+              fundingResult.tx.amountSats.toBigInteger()
+            )
+            tx.total.fractionalUnitValue.shouldBe(
+              fundingResult.tx.amountSats.toBigInteger() + fundingResult.tx.fee.fractionalUnitValue
+            )
+            tx.transactionType.shouldBe(Incoming)
+          }
+      }
+
+      withClue("send some back to treasury") {
+        val appSignedPsbt =
+          wallet
+            .createSignedPsbt(
+              SpendingWallet.PsbtConstructionMethod.Regular(
+                recipientAddress = treasury.getReturnAddress(),
+                amount = ExactAmount(BitcoinMoney.sats(BigInteger(5_000))),
+                feePolicy = FeePolicy.MinRelayRate
+              )
+            )
+            .getOrThrow()
+
+        val appAndHwSignedPsbt =
+          app.nfcTransactor.fakeTransact(
+            transaction = { session, commands ->
+              commands.signTransaction(
+                session = session,
+                psbt = appSignedPsbt,
+                spendingKeyset = account.keybox.activeSpendingKeyset
+              )
+            }
+          ).getOrThrow()
+        appAndHwSignedPsbt.amountSats.shouldBe(5_000UL)
+
+        val bitcoinBlockchain = app.bitcoinBlockchain
+        bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
+
+        eventually(
+          eventuallyConfig {
+            duration = 30.seconds
+            interval = 1.seconds
+            initialDelay = 1.seconds
+            listener = {
+                k,
+                throwable,
+              ->
+              logTesting {
+                "Still waiting for transaction to propagate... $throwable of type ${throwable::class}"
+              }
+            }
+          }
+        ) {
+          val timeTaken = measureTimeMillis {
+            wallet.sync().shouldBeOk()
+          }
+          logTesting { "Sync time: $timeTaken ms" }
+          balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
+        }
+
+        treasury.sync().shouldBeOk()
+      }
+
+      balance.cancelAndIgnoreRemainingEvents()
+      transactions.cancelAndIgnoreRemainingEvents()
+    }
+
+    app.returnFundsToTreasury()
+  }
 })

@@ -8,13 +8,14 @@ import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.limit.picker.EntryMode.Keypad
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.matchers.shouldBeDisabled
 import build.wallet.statemachine.ui.matchers.shouldBeEnabled
 import build.wallet.statemachine.ui.robots.*
@@ -26,28 +27,26 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class MobilePayE2ETests : FunSpec({
-  coroutineTestScope = true
-
   context("keypad-based mobile pay amount entry") {
     test("set mobile pay") {
       val app = launchNewApp()
       app.onboardFullAccountWithFakeHardware()
 
       app.appUiStateMachine.test(Unit) {
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
+        awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
 
-        awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
+        awaitUntilBody<SettingsBodyModel>(SETTINGS) {
           clickTransferSettings()
         }
 
-        awaitUntilScreenWithBody<MobilePayStatusModel> {
+        awaitUntilBody<MobilePayStatusModel> {
           switchCardModel.switchModel.shouldBeDisabled()
           switchCardModel.switchModel.enable()
         }
 
-        awaitUntilScreenWithBody<SpendingLimitPickerModel> {
+        awaitUntilBody<SpendingLimitPickerModel> {
           setLimitButtonModel.shouldBeDisabled()
           with(entryMode.shouldBeTypeOf<Keypad>()) {
             keypadModel.onButtonPress(KeypadButton.Digit.One)
@@ -58,8 +57,8 @@ class MobilePayE2ETests : FunSpec({
             keypadModel.onButtonPress(KeypadButton.Digit.Zero)
           }
         }
-        awaitUntilScreenWithBody<SpendingLimitPickerModel>(
-          expectedBodyContentMatch = {
+        awaitUntilBody<SpendingLimitPickerModel>(
+          matching = {
             (it.entryMode as Keypad).amountModel.primaryAmount == "$100,000"
           }
         ) {
@@ -67,20 +66,20 @@ class MobilePayE2ETests : FunSpec({
           setLimitButtonModel.onClick()
         }
 
-        awaitUntilScreenWithBody<NfcBodyModel>()
+        awaitUntilBody<NfcBodyModel>()
 
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+        awaitUntilBody<LoadingSuccessBodyModel>(
           MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_LOADING
         )
 
-        awaitUntilScreenWithBody<FormBodyModel>(
+        awaitUntilBody<FormBodyModel>(
           MobilePayEventTrackerScreenId.MOBILE_PAY_LIMIT_UPDATE_SUCCESS
         ) {
           primaryButton.click()
         }
 
-        awaitUntilScreenWithBody<MobilePayStatusModel>(
-          expectedBodyContentMatch = {
+        awaitUntilBody<MobilePayStatusModel>(
+          matching = {
             it.switchCardModel.actionRows.firstOrNull()?.sideText == "$100,000.00"
           }
         )
@@ -92,16 +91,16 @@ class MobilePayE2ETests : FunSpec({
       app.onboardFullAccountWithFakeHardware()
       app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
-      app.appUiStateMachine.test(Unit) {
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
+      app.appUiStateMachine.testWithVirtualTime(Unit) {
+        awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
 
-        awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
+        awaitUntilBody<SettingsBodyModel>(SETTINGS) {
           clickTransferSettings()
         }
 
-        awaitUntilScreenWithBody<MobilePayStatusModel> {
+        awaitUntilBody<MobilePayStatusModel> {
           val dailyLimitActionRow = switchCardModel.actionRows.first()
 
           dailyLimitActionRow.title.shouldBe("Daily limit")
@@ -110,8 +109,8 @@ class MobilePayE2ETests : FunSpec({
           dailyLimitActionRow.onClick()
         }
 
-        awaitUntilScreenWithBody<SpendingLimitPickerModel>(
-          expectedBodyContentMatch = {
+        awaitUntilBody<SpendingLimitPickerModel>(
+          matching = {
             (it.entryMode as Keypad).amountModel.primaryAmount == "$100"
           }
         ) {

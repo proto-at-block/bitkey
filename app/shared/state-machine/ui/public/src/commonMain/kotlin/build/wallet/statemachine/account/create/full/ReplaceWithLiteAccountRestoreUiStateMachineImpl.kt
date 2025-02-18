@@ -1,11 +1,6 @@
 package build.wallet.statemachine.account.create.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.auth.OnboardingFullAccountDeleter
 import build.wallet.di.ActivityScope
@@ -32,7 +27,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
   @Composable
   override fun model(props: ReplaceWithLiteAccountRestoreUiProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.ScanningHardware) }
-    val onboardingKeybox = props.data.keyboxToReplace
+    val onboardingKeybox = props.keyboxToReplace
 
     return when (val state = uiState) {
       is State.ScanningHardware ->
@@ -46,7 +41,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
               ),
             fullAccountId = onboardingKeybox.fullAccountId,
             fullAccountConfig = onboardingKeybox.config,
-            onBack = props.data.onBack,
+            onBack = props.onBack,
             screenPresentationStyle = ScreenPresentationStyle.Modal
           )
         )
@@ -61,11 +56,11 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
             )
             .andThen {
               liteAccountBackupToFullAccountUpgrader.upgradeAccount(
-                cloudBackup = props.data.liteAccountCloudBackup,
+                cloudBackup = props.liteAccountCloudBackup,
                 onboardingKeybox = onboardingKeybox
               )
             }
-            .onSuccess { fullAccount -> props.data.onAccountUpgraded(fullAccount) }
+            .onSuccess { fullAccount -> props.onAccountUpgraded(fullAccount) }
             .onFailure { uiState = State.Failed(it) }
         }
         LoadingBodyModel(

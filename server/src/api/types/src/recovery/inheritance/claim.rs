@@ -1,12 +1,12 @@
+use crate::account::identifiers::AccountId;
 use crate::recovery::social::relationship::RecoveryRelationshipId;
 use crate::{
     account::keys::FullAccountAuthKeys, recovery::social::relationship::RecoveryRelationshipRole,
 };
 use external_identifier::ExternalIdentifier;
 use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, DisplayFromStr};
 
-use bdk_utils::bdk::bitcoin::psbt::Psbt;
+use bdk_utils::bdk::bitcoin::Txid;
 use bdk_utils::bdk::descriptor::ExtendedDescriptor;
 use std::{
     fmt::{self, Display, Formatter},
@@ -64,6 +64,8 @@ pub struct InheritanceClaimCommonFields {
     pub id: InheritanceClaimId,
     pub destination: Option<InheritanceDestination>,
     pub recovery_relationship_id: RecoveryRelationshipId,
+    pub benefactor_account_id: AccountId,
+    pub beneficiary_account_id: AccountId,
     pub auth_keys: InheritanceClaimAuthKeys,
     #[serde(with = "rfc3339")]
     pub created_at: OffsetDateTime,
@@ -106,6 +108,9 @@ impl InheritanceClaimCommonFields {
     }
 }
 
+const INHERITANCE_CLAIM_DELAY_PERIOD_DAYS: i64 = 180;
+const TEST_INHERITANCE_CLAIM_DELAY_PERIOD_MINUTES: i64 = 10;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InheritanceClaimPending {
     #[serde(flatten)]
@@ -118,19 +123,23 @@ impl InheritanceClaimPending {
     pub fn new(
         id: InheritanceClaimId,
         recovery_relationship_id: RecoveryRelationshipId,
+        benefactor_account_id: AccountId,
+        beneficiary_account_id: AccountId,
         auth_keys: InheritanceClaimAuthKeys,
         use_test_delay_end_time: bool,
     ) -> Self {
         let current_time = OffsetDateTime::now_utc();
         let delay_end_time = if use_test_delay_end_time {
-            current_time + Duration::minutes(1)
+            current_time + Duration::minutes(TEST_INHERITANCE_CLAIM_DELAY_PERIOD_MINUTES)
         } else {
-            current_time + Duration::days(180)
+            current_time + Duration::days(INHERITANCE_CLAIM_DELAY_PERIOD_DAYS)
         };
         let common_fields = InheritanceClaimCommonFields {
             id,
             destination: None,
             recovery_relationship_id,
+            benefactor_account_id,
+            beneficiary_account_id,
             auth_keys,
             created_at: current_time,
             updated_at: current_time,
@@ -207,13 +216,19 @@ pub struct InheritanceClaimCanceled {
     pub canceled_by: InheritanceClaimCanceledBy,
 }
 
-#[serde_as]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "completion_method", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum InheritanceCompletionMethod {
+    WithPsbt { txid: Txid },
+    EmptyBalance,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InheritanceClaimCompleted {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimCommonFields,
-    #[serde_as(as = "DisplayFromStr")]
-    pub psbt: Psbt,
+    #[serde(flatten)]
+    pub completion_method: InheritanceCompletionMethod,
     #[serde(with = "rfc3339")]
     pub completed_at: OffsetDateTime,
 }
@@ -256,7 +271,7 @@ impl InheritanceClaim {
             }),
             Self::Completed(completed) => Self::Completed(InheritanceClaimCompleted {
                 common_fields: common_fields.to_owned(),
-                psbt: completed.psbt.to_owned(),
+                completion_method: completed.completion_method.to_owned(),
                 completed_at: completed.completed_at,
             }),
         }

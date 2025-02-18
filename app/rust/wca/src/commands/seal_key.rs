@@ -30,14 +30,14 @@ fn seal_key(key: UnsealedKey) -> Result<SealedKey, CommandError> {
         sealed_csek,
     }) = message
     {
-        match SealCsekRspStatus::from_i32(rsp_status) {
-            Some(SealCsekRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Some(SealCsekRspStatus::Success) => sealed_csek
+        match SealCsekRspStatus::try_from(rsp_status) {
+            Ok(SealCsekRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(SealCsekRspStatus::Success) => sealed_csek
                 .ok_or(CommandError::GeneralCommandError)
                 .map(|s| s.encode_to_vec()),
-            Some(SealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(SealCsekRspStatus::SealError) => Err(CommandError::SealCsekResponseSealError),
-            None => Err(CommandError::InvalidResponse),
+            Ok(SealCsekRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(SealCsekRspStatus::SealError) => Err(CommandError::SealCsekResponseSealError),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)

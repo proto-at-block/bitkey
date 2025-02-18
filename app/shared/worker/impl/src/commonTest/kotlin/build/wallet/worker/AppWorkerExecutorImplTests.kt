@@ -9,6 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Duration.Companion.seconds
 
 class AppWorkerExecutorImplTests : FunSpec({
+  // TODO(W-10571): use real dispatcher.
+  coroutineTestScope = true
+
   val delayedWorker = AppWorkerFake(executionDelay = 2.seconds)
   val immediateWorker = AppWorkerFake()
 
@@ -20,7 +23,7 @@ class AppWorkerExecutorImplTests : FunSpec({
     immediateWorker.reset()
   }
 
-  test("executor executes all workers asynchronously").config(coroutineTestScope = true) {
+  test("executor executes all workers asynchronously") {
     val executor = executor(backgroundScope)
 
     // execute all workers

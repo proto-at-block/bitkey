@@ -13,7 +13,7 @@ import build.wallet.relationships.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
@@ -22,6 +22,7 @@ import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -55,7 +56,6 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     onboardApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -63,7 +63,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       // Expect the lite account backup to be found and we transition to the
       // [ReplaceWithLiteAccountRestoreUiStateMachine]
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
@@ -78,10 +78,10 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
         // completely transparent to the user
         isCloudBackupSkipSignIn = true
       )
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
+      awaitUntilBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
 
@@ -109,7 +109,6 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
     onboardApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -117,12 +116,12 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       // Expect the lite account backup to be found and we transition to the
       // [ReplaceWithLiteAccountRestoreUiStateMachine]
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
@@ -142,7 +141,6 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
     )
     onboardApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
@@ -153,10 +151,10 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
           OnboardingKeyboxStep.NotificationPreferences
         )
       )
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
+      awaitUntilBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
 
@@ -166,7 +164,7 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
 
 private const val PROTECTED_CUSTOMER_NAME = "protected customer"
 
-private suspend fun createLiteAccountWithInvite(): Triple<AppTester, LiteAccount, CloudBackupV2> {
+private suspend fun TestScope.createLiteAccountWithInvite(): Triple<AppTester, LiteAccount, CloudBackupV2> {
   val fullApp = launchNewApp()
   fullApp.onboardFullAccountWithFakeHardware()
   val liteApp = launchNewApp()

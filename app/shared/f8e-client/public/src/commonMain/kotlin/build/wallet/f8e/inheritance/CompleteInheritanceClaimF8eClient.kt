@@ -18,4 +18,12 @@ interface CompleteInheritanceClaimF8eClient {
     claimId: InheritanceClaimId,
     psbt: Psbt,
   ): Result<BeneficiaryClaim.CompleteClaim, Throwable>
+
+  /**
+   * Completes the inheritance claim without a psbt for transferring the funds.
+   */
+  suspend fun completeInheritanceClaimWithoutTransfer(
+    fullAccount: FullAccount,
+    claimId: InheritanceClaimId,
+  ): Result<BeneficiaryClaim.CompleteClaim, Throwable>
 }

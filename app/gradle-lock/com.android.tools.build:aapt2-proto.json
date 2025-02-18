@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:aapt2-proto",
     "components": [
         {
-            "version": "8.3.2-10880808",
+            "version": "8.4.2-11315950",
             "variants": [
                 {
                     "artifacts": {
-                        "aapt2-proto-8.3.2-10880808.jar": "de229d3878fc1d29dfca086c8a0b3714d858f704bb89f97f17f64dda7f1a12e2"
+                        "aapt2-proto-8.4.2-11315950.jar": "66a589c25b2aa3d9b3daa96f07f262e3a157e43e50024234ff419b0578439645"
                     }
                 }
             ],

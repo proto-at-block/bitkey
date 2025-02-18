@@ -22,7 +22,7 @@ import build.wallet.limit.MobilePayEnabledDataMock
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.core.Icon.*
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
@@ -91,14 +91,14 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("card model should be null") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(listOf())
     }
   }
 
   test("add one completed task") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
@@ -110,7 +110,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("onAddBitcoin click") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(AddBitcoin, state = Incomplete))
@@ -126,7 +126,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("onEnableSpendingLimit click") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(EnableSpendingLimit, state = Incomplete))
@@ -142,7 +142,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("onInviteTrustedContact click") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(InviteTrustedContact, state = Incomplete))
@@ -158,7 +158,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("onAddAdditionalFingerprint click") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(AddAdditionalFingerprint, state = Incomplete))
@@ -174,7 +174,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("complete all tasks") {
-    stateMachine.test(props, useVirtualTime = true) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
 
       gettingStartedTaskDao.addTasks(
@@ -256,7 +256,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("EnableSpendingLimit task listener") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(
@@ -286,7 +286,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("AddBitcoin task listener") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(
@@ -317,7 +317,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("InviteTrustedContact task listener") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(
@@ -353,7 +353,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         lastElectrumSyncReachableTime = Instant.DISTANT_PAST
       )
     )
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(

@@ -59,6 +59,8 @@ data class ButtonModel(
     // Styled with a translucent background (white 10% opacity) and white text. Lighter translucent style.
     Translucent10,
 
+    Grayscale20,
+
     // Styled with an opaque black background and white text
     Black,
 

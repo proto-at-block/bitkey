@@ -1,11 +1,16 @@
 package build.wallet.statemachine.account
 
 import androidx.compose.runtime.*
+import bitkey.ui.framework.NavigatorPresenter
+import bitkey.ui.screens.demo.DemoModeDisabledScreen
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
@@ -13,10 +18,10 @@ import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachineImpl.S
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
+import build.wallet.statemachine.account.create.full.CreateAccountUiProps
+import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.demo.DemoModeConfigUiProps
-import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -25,11 +30,13 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 class ChooseAccountAccessUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugMenuStateMachine: DebugMenuStateMachine,
-  private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
+  private val navigatorPresenter: NavigatorPresenter,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
+  private val createAccountUiStateMachine: CreateAccountUiStateMachine,
+  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
@@ -44,7 +51,7 @@ class ChooseAccountAccessUiStateMachineImpl(
       is ShowingCreateAccountOptions -> {
         CreateAccountOptionsModel(
           onBack = { state = ShowingChooseAccountAccess },
-          onUseHardwareClick = props.chooseAccountAccessData.startFullAccountCreation,
+          onUseHardwareClick = { state = CreatingFullAccount },
           onUseThisDeviceClick = {
             state = CreatingSoftwareWallet
           }
@@ -57,7 +64,7 @@ class ChooseAccountAccessUiStateMachineImpl(
             // Only enable the debug menu in non-customer builds
             when (appVariant) {
               Customer -> state = ShowingDemoMode
-              Team, Development -> state = ShowingDebugMenu
+              Team, Development, Alpha -> state = ShowingDebugMenu
               else -> Unit
             }
           },
@@ -68,7 +75,7 @@ class ChooseAccountAccessUiStateMachineImpl(
               if (softwareWalletFlag.value) {
                 state = ShowingCreateAccountOptions
               } else {
-                props.chooseAccountAccessData.startFullAccountCreation()
+                state = CreatingFullAccount
               }
             }
           },
@@ -90,9 +97,14 @@ class ChooseAccountAccessUiStateMachineImpl(
             onBack = { state = ShowingChooseAccountAccess },
             onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
             onBeTrustedContactClick = {
-              state = ShowingBeTrustedContactIntroduction
+              if (inheritanceFeatureFlag.isEnabled()) {
+                props.chooseAccountAccessData.startLiteAccountCreation()
+              } else {
+                state = ShowingBeTrustedContactIntroduction
+              }
             },
-            onResetExistingDevice = props.chooseAccountAccessData.wipeExistingDevice
+            onResetExistingDevice = props.chooseAccountAccessData.wipeExistingDevice,
+            isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
           ).asRootScreen()
         }
       }
@@ -107,7 +119,10 @@ class ChooseAccountAccessUiStateMachineImpl(
 
       is ShowingDebugMenu -> debugMenuStateMachine.model(
         props = DebugMenuProps(
-          onClose = { state = ShowingChooseAccountAccess }
+          onClose = { state = ShowingChooseAccountAccess },
+          onAppDataDeleted = {
+            // no-op, where are already in a state with no data
+          }
         )
       )
 
@@ -120,10 +135,20 @@ class ChooseAccountAccessUiStateMachineImpl(
         )
       )
 
-      is ShowingDemoMode -> demoModeConfigUiStateMachine.model(
-        props = DemoModeConfigUiProps(
-          accountData = props.chooseAccountAccessData,
-          onBack = { state = ShowingChooseAccountAccess }
+      is ShowingDemoMode -> navigatorPresenter.model(
+        initialScreen = DemoModeDisabledScreen,
+        onExit = { state = ShowingChooseAccountAccess }
+      )
+      CreatingFullAccount -> createAccountUiStateMachine.model(
+        props = CreateAccountUiProps(
+          context = CreateFullAccountContext.NewFullAccount,
+          rollback = {
+            state = ShowingChooseAccountAccess
+          },
+          onOnboardingComplete = {
+            // no-op
+            // Data state machine will handle the transition
+          }
         )
       )
     }
@@ -180,5 +205,10 @@ class ChooseAccountAccessUiStateMachineImpl(
      * Showing flow to create a new software wallet.
      */
     data object CreatingSoftwareWallet : State
+
+    /**
+     * Showing flow to create a new full account.
+     */
+    data object CreatingFullAccount : State
   }
 }

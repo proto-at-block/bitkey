@@ -83,12 +83,11 @@ internal fun selectPartnerPurchaseQuoteModel(
       listGroupModel = listGroupModel
     ),
     size = FULL,
-    dragIndicatorVisible = true,
     onClosed = onClosed
   )
 }
 
-private data class SelectPartnerQuoteBodyModel(
+data class SelectPartnerQuoteBodyModel(
   val title: String,
   val subTitle: String,
   val onClosed: () -> Unit,

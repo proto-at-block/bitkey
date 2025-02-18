@@ -11,6 +11,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
@@ -34,9 +35,10 @@ import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
-import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class MobilePayServiceImpl(
@@ -50,16 +52,10 @@ class MobilePayServiceImpl(
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
+  mobilePaySyncFrequency: MobilePaySyncFrequency,
 ) : MobilePayService, MobilePayBalanceSyncWorker {
-  private val syncTicker =
-    flow {
-      while (currentCoroutineContext().isActive) {
-        if (appSessionManager.isAppForegrounded()) {
-          emit(Unit)
-        }
-        delay(30.minutes)
-      }
-    }
+  private val syncTicker = tickerFlow(mobilePaySyncFrequency.value)
+    .filter { appSessionManager.isAppForegrounded() }
 
   override val mobilePayData = MutableStateFlow<MobilePayData?>(null)
 

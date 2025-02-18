@@ -15,6 +15,12 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to sign and rotate keys during app recovery */
   APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
 
+  /** NFC flow to seal ddk during lost hardware recovery */
+  APP_DELAY_NOTIFY_SEAL_DDK,
+
+  /** NFC flow to unseal ddk during lost app recovery */
+  APP_DELAY_NOTIFY_UNSEAL_DDK,
+
   /** NFC flow to get hardware keys during app recovery */
   APP_DELAY_NOTIFY_GET_HW_KEYS,
 
@@ -71,4 +77,7 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** NFC flow to sign a transaction during the utxo consolidation flow */
   UTXO_CONSOLIDATION_SIGN_TRANSACTION,
+
+  /** NFC flow to encrypt the delegated decryption key when accepting a beneficiary invite */
+  SEAL_DELEGATED_DECRYPTION_KEY,
 }

@@ -1,0 +1,23 @@
+package build.wallet.recovery
+
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.HwFactorProofOfPossession
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+
+class LostAppAndCloudRecoveryServiceFake : LostAppAndCloudRecoveryService {
+  var cancelResult: Result<Unit, CancelDelayNotifyRecoveryError> = Ok(Unit)
+
+  override suspend fun cancelRecovery(
+    f8eEnvironment: F8eEnvironment,
+    accountId: FullAccountId,
+    hwProofOfPossession: HwFactorProofOfPossession,
+  ): Result<Unit, CancelDelayNotifyRecoveryError> {
+    return cancelResult
+  }
+
+  fun reset() {
+    cancelResult = Ok(Unit)
+  }
+}

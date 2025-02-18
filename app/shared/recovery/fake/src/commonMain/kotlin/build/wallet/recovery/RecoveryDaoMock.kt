@@ -20,7 +20,7 @@ class RecoveryDaoMock(
     )
   }
 
-  val setActiveServerRecoveryCalls = turbine("setActiveRecovery calls")
+  val setActiveServerRecoveryCalls = turbine("setActiveServerRecoveryCalls calls")
 
   override suspend fun setActiveServerRecovery(
     activeServerRecovery: ServerRecovery?,
@@ -37,7 +37,7 @@ class RecoveryDaoMock(
     return clearCallResult
   }
 
-  val setLocalRecoveryProgressCalls = turbine("setLocalRecoveryProgressCalls")
+  val setLocalRecoveryProgressCalls = turbine("setLocalRecoveryProgress calls")
 
   override suspend fun setLocalRecoveryProgress(
     progress: LocalRecoveryAttemptProgress,

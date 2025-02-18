@@ -19,8 +19,23 @@ object InheritanceAppSegment : AppSegment {
     object Start : AppSegment by childSegment("Start")
 
     /**
+     * Beneficiary process to cancel an inheritance claim
+     */
+    object Cancel : AppSegment by childSegment("Cancel")
+
+    /**
      * Beneficiary process to complete an inheritance claim
      */
     object Complete : AppSegment by childSegment("Complete")
+  }
+
+  /**
+   * Operations related to the benefactor's actions on an inheritance claim.
+   */
+  object BenefactorClaim : AppSegment by childSegment("Claim") {
+    /**
+     * Benefactor process to deny (cancel) an inheritance claim
+     */
+    object Deny : AppSegment by childSegment("Deny")
   }
 }

@@ -4,31 +4,130 @@ import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.logging.logTesting
+import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.ui.model.Model
 import io.kotest.assertions.asClue
 import io.kotest.assertions.assertSoftly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldNotBeInstanceOf
+import kotlin.jvm.JvmName
 
-suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilScreenWithBody(
+/**
+ * Awaits for a body model of type [T] for the [ScreenModel] Turbine receiver.
+ * Executes [validate] with the given [T] model.
+ */
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitBody(
   id: EventTrackerScreenId? = null,
-  crossinline expectedBodyContentMatch: (T) -> Boolean = { _ -> true },
-  block: T.() -> Unit = {},
+  validate: T.() -> Unit = {},
+) {
+  awaitItem().body.let { body ->
+    body.asClue {
+      body.shouldBeInstanceOf<T>()
+
+      body.shouldNotBeInstanceOf<BodyModelMock<*>>()
+
+      if (id != null) {
+        body.eventTrackerScreenInfo
+          .shouldNotBeNull()
+          .eventTrackerScreenId
+          .shouldBe(id)
+      }
+
+      assertSoftly {
+        validate(body)
+      }
+    }
+  }
+}
+
+suspend inline fun <reified T : Any> ReceiveTurbine<ScreenModel>.awaitBodyMock(
+  id: String? = null,
+  validate: T.() -> Unit = {},
+) {
+  awaitItem().body.let { body ->
+    body.asClue {
+      body.shouldBeInstanceOf<BodyModelMock<T>>()
+      body.latestProps.shouldBeInstanceOf<T>()
+      id?.let {
+        body.id.shouldBe(it)
+      }
+      assertSoftly {
+        validate(body.latestProps)
+      }
+    }
+  }
+}
+
+/**
+ * Awaits for a model of type [T] for the [BodyModel] Turbine receiver.
+ * Executes [validate] with the given [T] model.
+ */
+suspend inline fun <reified T : Model> ReceiveTurbine<BodyModel>.awaitBody(
+  validate: T.() -> Unit = {},
+) {
+  awaitItem().let { body ->
+    body.asClue {
+      body.shouldBeInstanceOf<T>()
+      assertSoftly {
+        validate(body)
+      }
+    }
+  }
+}
+
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilBody(
+  id: EventTrackerScreenId? = null,
+  crossinline matching: (T) -> Boolean = { true },
+  validate: T.() -> Unit = {},
 ): T {
-  val body =
-    awaitUntilScreenModelWithBody<T>(id, expectedBodyContentMatch) {
-      block(body as T)
-    }.body as T
+  val body = awaitUntilScreenWithBody<T>(id, matching) {
+    validate(body as T)
+  }.body as T
   return body
 }
 
-suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilScreenModelWithBody(
+@JvmName("awaitSheetFromScreenModelTurbine")
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitSheet(
+  validate: T.() -> Unit = {},
+) {
+  awaitItem().bottomSheetModel?.asClue { sheetModel ->
+    sheetModel.body.shouldBeInstanceOf<T>()
+    sheetModel.body.shouldNotBeInstanceOf<BodyModelMock<*>>()
+
+    assertSoftly {
+      validate(sheetModel.body as T)
+    }
+  }
+}
+
+/**
+ * Awaits for a model of type [T] for the [SheetModel] Turbine receiver.
+ * Executes [validate] with the given [T] model.
+ */
+@JvmName("awaitSheetFromSheetModelTurbine")
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<SheetModel>.awaitSheet(
+  validate: T.() -> Unit = {},
+) {
+  awaitItem().asClue { sheetModel ->
+    sheetModel.body.shouldBeInstanceOf<T>()
+    sheetModel.body.shouldNotBeInstanceOf<BodyModelMock<*>>()
+
+    assertSoftly {
+      validate(sheetModel.body as T)
+    }
+  }
+}
+
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilScreenWithBody(
   id: EventTrackerScreenId? = null,
-  crossinline expectedBodyContentMatch: (T) -> Boolean = { _ -> true },
-  crossinline expectedScreenModelMatch: (ScreenModel) -> Boolean = { _ -> true },
-  block: ScreenModel.() -> Unit = {},
+  crossinline matchingBody: (T) -> Boolean = { _ -> true },
+  crossinline matchingScreen: (ScreenModel) -> Boolean = { _ -> true },
+  validate: ScreenModel.() -> Unit = {},
 ): ScreenModel {
   // Models that were previously seen but do not match predicate. Used for debugging.
   val previousModels = mutableListOf<ScreenModel>()
@@ -40,8 +139,8 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
         val matches =
           it.body is T &&
             (id == null || it.body.eventTrackerScreenInfo?.eventTrackerScreenId == id) &&
-            expectedBodyContentMatch(it.body as T) &&
-            expectedScreenModelMatch(it)
+            matchingBody(it.body as T) &&
+            matchingScreen(it)
         if (!matches) previousModels += it
         matches
       }
@@ -57,7 +156,7 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
     }
   screen.body.asClue {
     assertSoftly {
-      block(screen)
+      validate(screen)
     }
   }
   return screen
@@ -73,26 +172,48 @@ inline fun ScreenModel.toSimpleString(): String {
       // not an exact FormBodyModel type, so add screen ID as a hint
       append(" id=${body.eventTrackerScreenInfo?.eventTrackerScreenId}")
     }
+    bottomSheetModel?.run {
+      append(", bottomSheetModel=SheetModel(body=${body::class.simpleName})")
+    }
     append(")")
   }
 }
 
-suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitScreenWithSheetModelBody(
+/**
+ * Await multiple screens until one is seen with a matching sheet model.
+ */
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUntilSheet(
   id: EventTrackerScreenId? = null,
-  block: T.() -> Unit = {},
+  crossinline matching: (T) -> Boolean = { _ -> true },
+  validate: T.() -> Unit = {},
 ) {
-  awaitItem().bottomSheetModel?.asClue { sheetModel ->
-    sheetModel.body.shouldBeInstanceOf<T>()
+  // Models that were previously seen but do not match predicate. Used for debugging.
+  val previousModels = mutableListOf<ScreenModel>()
 
-    if (id != null) {
-      sheetModel.body.eventTrackerScreenInfo
-        .shouldNotBeNull()
-        .eventTrackerScreenId
-        .shouldBe(id)
+  val screen = try {
+    awaitUntil {
+      logTesting { "Saw ${it.toSimpleString()}" }
+      val matches =
+        it.bottomSheetModel?.body is T &&
+          (id == null || it.bottomSheetModel?.body?.eventTrackerScreenInfo?.eventTrackerScreenId == id) &&
+          matching(it.bottomSheetModel?.body as T)
+      if (!matches) previousModels += it
+      matches
     }
+  } catch (e: AssertionError) {
+    val previousModelsMessage = "Previous models: ${previousModels.map { it.toSimpleString() }}"
+    val message =
+      if (id != null) {
+        "Did not see expected Screen with SheetModel(${T::class.simpleName} id=$id). $previousModelsMessage"
+      } else {
+        "Did not see expected Screen with SheetModel(${T::class.simpleName}). $previousModelsMessage"
+      }
+    throw AssertionError(message, e)
+  }
 
+  screen.bottomSheetModel?.asClue { sheetModel ->
     assertSoftly {
-      block(sheetModel.body as T)
+      validate(sheetModel.body as T)
     }
   }
 }

@@ -1,11 +1,6 @@
 package build.wallet.coroutines.scopes
 
-import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.plus
+import kotlinx.coroutines.*
 
 object CoroutineScopes {
   /**
@@ -23,5 +18,5 @@ object CoroutineScopes {
    *
    * Uses [SupervisorJob] to ensure that parent jobs are not canceled when a child job fails.
    */
-  val AppScope = CoroutineScope(SupervisorJob() + Dispatchers.IO) + CoroutineName("AppScope")
+  val AppScope = CoroutineScope(SupervisorJob() + Dispatchers.Default) + CoroutineName("AppScope")
 }

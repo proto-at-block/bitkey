@@ -14,7 +14,14 @@ data class ToolbarModel(
   val leadingAccessory: ToolbarAccessoryModel? = null,
   val middleAccessory: ToolbarMiddleAccessoryModel? = null,
   val trailingAccessory: ToolbarAccessoryModel? = null,
-)
+  val heroContent: HeroContent? = null,
+) {
+  enum class HeroContent {
+    InheritanceSetup,
+    InheritanceExplainer,
+    PromoCodeHeader,
+  }
+}
 
 data class ToolbarMiddleAccessoryModel(
   val title: String,

@@ -1,3 +1,5 @@
+@file:Suppress("detekt:TooManyFunctions")
+
 package build.wallet.ui.app.moneyhome.card
 
 import androidx.compose.runtime.Composable
@@ -20,9 +22,10 @@ import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardModel
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedTaskRowModel
 import build.wallet.statemachine.moneyhome.lite.card.BuyOwnBitkeyMoneyHomeCardModel
+import build.wallet.statemachine.moneyhome.lite.card.InheritanceMoneyHomeCard
 import build.wallet.statemachine.moneyhome.lite.card.WalletsProtectingMoneyHomeCardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
-import build.wallet.statemachine.recovery.socrec.RecoveryContactCardModel
+import build.wallet.statemachine.trustedcontact.model.TrustedContactCardModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
@@ -33,7 +36,10 @@ import kotlin.math.sin
 
 @Preview
 @Composable
-fun PreviewMoneyHomePriceCard(isLoading: Boolean = false) {
+fun PreviewMoneyHomePriceCard(
+  isLoading: Boolean = false,
+  price: String = "$90,000.00",
+) {
   MoneyHomeCard(
     model =
       CardModel(
@@ -43,13 +49,41 @@ fun PreviewMoneyHomePriceCard(isLoading: Boolean = false) {
           priceChange = "10.00% today",
           priceDirection = PriceDirection.UP,
           lastUpdated = "Updated 12:00am",
-          price = "$90,000.00",
+          price = price,
           data = generateChartData(150)
             .takeUnless { isLoading }
             ?: immutableListOf()
         ),
         style = Outline
       )
+  )
+}
+
+@Preview
+@Composable
+fun PreviewMoneyHomePriceCardLoading() {
+  PreviewMoneyHomePriceCard(isLoading = true)
+}
+
+@Preview(
+  fontScale = 1.5f
+)
+@Composable
+fun PreviewMoneyHomePriceCardLargeFont() {
+  PreviewMoneyHomePriceCard(
+    isLoading = false,
+    price = "$100,000.00"
+  )
+}
+
+@Preview(
+  fontScale = 2f
+)
+@Composable
+fun PreviewMoneyHomePriceCardHugeFont() {
+  PreviewMoneyHomePriceCard(
+    isLoading = false,
+    price = "$100,000.00"
   )
 }
 
@@ -101,7 +135,7 @@ fun PreviewMoneyHomeCardDeviceUpdate() {
 fun PreviewMoneyHomeCardInvitationPending() {
   MoneyHomeCard(
     model =
-      RecoveryContactCardModel(
+      TrustedContactCardModel(
         contact =
           Invitation(
             relationshipId = "foo",
@@ -122,7 +156,7 @@ fun PreviewMoneyHomeCardInvitationPending() {
 fun PreviewMoneyHomeCardInvitationExpired() {
   MoneyHomeCard(
     model =
-      RecoveryContactCardModel(
+      TrustedContactCardModel(
         contact =
           Invitation(
             relationshipId = "foo",
@@ -197,6 +231,17 @@ fun PreviewMoneyHomeCardWalletsProtecting() {
 fun PreviewMoneyHomeCardBuyOwnBitkey() {
   MoneyHomeCard(
     model = BuyOwnBitkeyMoneyHomeCardModel(onClick = {})
+  )
+}
+
+@Preview
+@Composable
+fun PreviewInheritanceMoneyHomeCard() {
+  MoneyHomeCard(
+    model = InheritanceMoneyHomeCard(
+      onIHaveABitkey = {},
+      onGetABitkey = {}
+    )
   )
 }
 

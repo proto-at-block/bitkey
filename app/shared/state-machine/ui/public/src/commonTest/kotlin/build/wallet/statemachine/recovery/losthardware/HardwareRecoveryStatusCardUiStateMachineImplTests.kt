@@ -4,7 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
@@ -48,13 +48,13 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
     )
 
   test("null for InitiatingLostHardwareRecoveryData") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeNull()
     }
   }
 
   test("null for other UndergoingRecoveryData") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         lostHardwareRecoveryData =
           LostHardwareRecoveryInProgressData(
@@ -67,7 +67,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
   }
 
   test("ready to complete") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         lostHardwareRecoveryData =
           LostHardwareRecoveryInProgressData(
@@ -89,7 +89,7 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
   }
 
   test("delay in progress") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         lostHardwareRecoveryData =
           LostHardwareRecoveryInProgressData(

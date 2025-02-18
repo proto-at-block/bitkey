@@ -20,7 +20,7 @@ import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportPasteMobileKeyBodyModel
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitImportWalletBodyModel
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRestoreWalletBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveFullAccount
@@ -84,47 +84,46 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
 
       newApp.appUiStateMachine.test(
         Unit,
-        useVirtualTime = false,
         turbineTimeout = 10.seconds
       ) {
         // Do not find backup, enter the EAK flow.
-        awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+        awaitUntilBody<ChooseAccountAccessModel>()
           .clickMoreOptionsButton()
-        awaitUntilScreenWithBody<FormBodyModel>()
+        awaitUntilBody<FormBodyModel>()
           .restoreButton.onClick.shouldNotBeNull().invoke()
-        awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+        awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
+        awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
           .restoreEmergencyAccessButton.onClick.shouldNotBeNull().invoke()
 
         // Progress through the EAK flow with manual entry.
-        awaitUntilScreenWithBody<EmergencyAccessKitImportWalletBodyModel>()
+        awaitUntilBody<EmergencyAccessKitImportWalletBodyModel>()
           .onEnterManually()
-        awaitUntilScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
+        awaitUntilBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {
           onEnterTextChanged(validData)
         }
-        awaitUntilScreenWithBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>(
-          expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        awaitUntilBody<EmergencyAccessKitImportPasteMobileKeyBodyModel>(
+          matching = { it.primaryButton?.isEnabled == true }
         ) {
           enteredText.shouldBe(validData)
           onContinue()
         }
-        awaitUntilScreenWithBody<EmergencyAccessKitRestoreWalletBodyModel>(
-          expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        awaitUntilBody<EmergencyAccessKitRestoreWalletBodyModel>(
+          matching = { it.primaryButton?.isEnabled == true }
         ) {
           onRestore.shouldNotBeNull().invoke()
         }
 
-        awaitUntilScreenWithBody<NfcBodyModel>()
-        awaitUntilScreenWithBody<NfcBodyModel>()
+        awaitUntilBody<NfcBodyModel>()
+        awaitUntilBody<NfcBodyModel>()
 
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        awaitUntilBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
 
         // Validate that this is the same wallet as originally created.
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>(
-          expectedBodyContentMatch = {
+        awaitUntilBody<MoneyHomeBodyModel>(
+          matching = {
             it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
           }
         )

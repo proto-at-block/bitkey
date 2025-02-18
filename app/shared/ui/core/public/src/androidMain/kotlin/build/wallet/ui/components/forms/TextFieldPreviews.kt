@@ -90,3 +90,16 @@ internal fun TextFieldWithOverflowMultilineText() {
     )
   }
 }
+
+@Preview
+@Composable
+fun TextFieldWithInviteCodeTransformation() {
+  PreviewWalletTheme {
+    TextField(
+      placeholderText = "",
+      value = TextFieldValue("xxxxxxxx"),
+      onValueChange = {},
+      visualTransformation = InviteCodeTransformation
+    )
+  }
+}

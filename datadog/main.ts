@@ -1,5 +1,6 @@
 import { Construct } from "constructs";
 import { App, S3Backend, TerraformStack } from "cdktf";
+import { AuthMonitors } from "./monitors/auth";
 import { DatadogProvider } from "@cdktf/provider-datadog/lib/provider";
 import { FromagerieMonitors } from "./monitors/server";
 import { WsmApiMonitors } from "./monitors/wsm";
@@ -13,6 +14,7 @@ import { RecoveryMonitors } from "./monitors/recovery";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
 import { NotificationsMonitors } from "./monitors/notifications";
 import { SecurityAlertMonitors } from "./monitors/securityAlerts";
+import { WorkerMonitors } from "./monitors/worker";
 import { ShopApiStuckOrdersJobMonitors } from "./monitors/web/shop-api-stuck-orders-job";
 
 class MonitorsStack extends TerraformStack {
@@ -42,6 +44,9 @@ class MonitorsStack extends TerraformStack {
     new MoneyMovementMonitors(this, Environment.STAGING)
     new MoneyMovementMonitors(this, Environment.PRODUCTION)
 
+    new AuthMonitors(this, Environment.STAGING)
+    new AuthMonitors(this, Environment.PRODUCTION)
+
     new ShopApiMonitors(this, Environment.STAGING)
     new ShopApiMonitors(this, Environment.PRODUCTION)
 
@@ -56,6 +61,9 @@ class MonitorsStack extends TerraformStack {
 
     new SecurityAlertMonitors(this, Environment.STAGING)
     new SecurityAlertMonitors(this, Environment.PRODUCTION)
+
+    new WorkerMonitors(this, Environment.STAGING)
+    new WorkerMonitors(this, Environment.PRODUCTION)
   }
 }
 

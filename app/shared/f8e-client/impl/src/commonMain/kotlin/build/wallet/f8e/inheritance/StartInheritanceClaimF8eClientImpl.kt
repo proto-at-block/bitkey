@@ -7,6 +7,8 @@ import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -29,29 +31,29 @@ class StartInheritanceClaimF8eClientImpl(
     fullAccount: FullAccount,
     relationshipId: RelationshipId,
   ): Result<BeneficiaryClaim.PendingClaim, Throwable> {
-    return f8eClient.authenticated(
-      f8eEnvironment = fullAccount.config.f8eEnvironment,
-      accountId = fullAccount.accountId
-    ).bodyResult<StartClaimResponse> {
-      post("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims") {
-        withDescription("Starting Inheritance Claim")
-        setRedactedBody(
-          StartInheritanceClaimRequest(
-            auth = StartInheritanceClaimRequest.Auth(
-              appPubkey = fullAccount.keybox.activeAppKeyBundle.authKey.value,
-              hardwarePubkey = fullAccount.keybox.activeHwKeyBundle.authKey.pubKey.value,
-              recoveryPubkey = fullAccount.keybox.activeAppKeyBundle.recoveryAuthKey.value
-            ),
-            relationshipId = relationshipId
+    return f8eClient.authenticated()
+      .bodyResult<StartClaimResponse> {
+        post("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims") {
+          withDescription("Starting Inheritance Claim")
+          withEnvironment(fullAccount.config.f8eEnvironment)
+          withAccountId(fullAccount.accountId)
+          setRedactedBody(
+            StartInheritanceClaimRequest(
+              auth = StartInheritanceClaimRequest.Auth(
+                appPubkey = fullAccount.keybox.activeAppKeyBundle.authKey.value,
+                hardwarePubkey = fullAccount.keybox.activeHwKeyBundle.authKey.pubKey.value,
+                recoveryPubkey = fullAccount.keybox.activeAppKeyBundle.recoveryAuthKey.value
+              ),
+              relationshipId = relationshipId
+            )
           )
-        )
+        }
+      }.flatMap {
+        when (val result = it.claim) {
+          is BeneficiaryClaim.PendingClaim -> Ok(result)
+          else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
+        }
       }
-    }.flatMap {
-      when (val result = it.claim) {
-        is BeneficiaryClaim.PendingClaim -> Ok(result)
-        else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
-      }
-    }
   }
 
   @Serializable

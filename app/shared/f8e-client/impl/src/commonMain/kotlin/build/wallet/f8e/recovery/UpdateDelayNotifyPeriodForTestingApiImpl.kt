@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -27,10 +29,12 @@ class UpdateDelayNotifyPeriodForTestingApiImpl(
     delayNotifyDuration: Duration,
   ): Result<Unit, NetworkingError> {
     delayNotifyDuration.inWholeSeconds
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .catching {
         put(urlString = "/api/accounts/${fullAccountId.serverId}/delay-notify/test") {
           withDescription("Update delay notify duration")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             Request(delayNotifyDuration.inWholeSeconds.toInt())
           )

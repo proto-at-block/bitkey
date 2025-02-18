@@ -16,10 +16,9 @@ import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -30,13 +29,8 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  beforeTest {
-    app = launchNewApp()
-  }
-
   test("recover keybox with no funds from cloud backup") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
@@ -50,16 +44,15 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     newApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
+      awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
         .clickPrimaryButton()
       screenDecideIfShouldRotate {
         clickPrimaryButton()
@@ -71,10 +64,8 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         cancelAndIgnoreRemainingEvents()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
-        expectedBodyContentMatch = {
-          it.balanceModel.primaryAmount == "$0.00"
-        }
+      awaitUntilBody<MoneyHomeBodyModel>(
+        matching = { it.balanceModel.primaryAmount == "$0.00" }
       )
 
       cancelAndIgnoreRemainingEvents()
@@ -82,6 +73,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
   }
 
   test("recover keybox with some funds from cloud backup") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware(cloudStoreAccountForBackup = CloudStoreAccount1Fake)
     val treasury = app.treasuryWallet
     treasury.fund(app.getActiveWallet(), BitcoinMoney.sats(10_000))
@@ -95,25 +87,22 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     newApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
+      awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
         .clickPrimaryButton()
       screenDecideIfShouldRotate {
         clickPrimaryButton()
       }
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
-        expectedBodyContentMatch = {
-          it.balanceModel.primaryAmount == "$0.00"
-        }
+      awaitUntilBody<MoneyHomeBodyModel>(
+        matching = { it.balanceModel.primaryAmount == "$0.00" }
       )
 
       val wallet = app.getActiveWallet()
@@ -134,6 +123,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
   }
 
   test("Cloud recovery, force exit app in middle of initiating") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
@@ -146,16 +136,15 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     newApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
+      awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_FOUND)
         .clickPrimaryButton()
 
       cancelAndIgnoreRemainingEvents()
@@ -166,24 +155,24 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
 
     newApp.appUiStateMachine.test(
       Unit,
-      useVirtualTime = false,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      awaitUntilBody<ChooseAccountAccessModel>()
     }
   }
 
   test("no cloud backup") {
-    app.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+    val app = launchNewApp()
+    app.appUiStateMachine.test(Unit) {
+      awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
-      awaitUntilScreenWithBody<FormBodyModel>()
+      awaitUntilBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND)
+      awaitUntilBody<FormBodyModel>(CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND)
         .restoreButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
       )
         .clickPrimaryButton()

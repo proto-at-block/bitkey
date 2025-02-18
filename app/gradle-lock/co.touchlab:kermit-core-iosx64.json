@@ -2,16 +2,16 @@
     "module-identifier": "co.touchlab:kermit-core-iosx64",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-core-iosx64-2.0.3-metadata.jar": "c11f60f5bd7bca0f265b6b3e0d5864028a05670c9784bd46127c9b4cc1cd2f03"
+                        "kermit-core-iosx64-2.0.4-metadata.jar": "f6e463ebb15eba0ddeec28a7c173dc537669222b3f8feb9320793eb35964d080"
                     }
                 },
                 {
                     "artifacts": {
-                        "kermit-core.klib": "10019193862cff6ee69ae6fe8ec283ab730f14d1dbe39054c01170e927c41180"
+                        "kermit-core.klib": "feccf5b9466417437e216b1ac61c14f57b8f4f1f96ecd43d47b47beffa01f2c9"
                     }
                 }
             ],

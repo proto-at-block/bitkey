@@ -7,6 +7,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
@@ -100,7 +101,7 @@ class RelationshipsServiceMock(
 
   private val defaultRetrieveInvitationResult:
     Result<IncomingInvitation, RetrieveInvitationCodeError> =
-    Ok(IncomingInvitationFake)
+    Ok(IncomingRecoveryContactInvitationFake)
 
   var retrieveInvitationResult = defaultRetrieveInvitationResult
 
@@ -124,6 +125,19 @@ class RelationshipsServiceMock(
     inviteCode: String,
   ): Result<ProtectedCustomer, AcceptInvitationCodeError> {
     return acceptInvitationResult
+  }
+
+  private val defaultPromoCodeResult:
+    Result<PromotionCode?, RetrieveInvitationPromotionCodeError> =
+    Ok(PromotionCode("fake-promotion-code"))
+
+  var promoCodeResult = defaultPromoCodeResult
+
+  override suspend fun retrieveInvitationPromotionCode(
+    account: Account,
+    invitationCode: String,
+  ): Result<PromotionCode?, RetrieveInvitationPromotionCodeError> {
+    return promoCodeResult
   }
 
   override suspend fun clear(): Result<Unit, Error> {

@@ -34,6 +34,5 @@ class RecoveryAuthCompleterMock(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     destinationAppAuthPubKeys: AppAuthPublicKeys,
-    removeTrustedContacts: Boolean,
   ): Result<Unit, Throwable> = rotateAuthTokenCallResult
 }

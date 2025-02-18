@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-test-android-debug",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-test-debug.aar": "15c5534a725b94026afd65b4854d6cbd89c2211bc5e947daa54dcb7bfe521a49"
+                        "multiplatform-settings-test-debug.aar": "75a2cff8bde8b9921fea58d9a05015243381a4933ac7a57a206272034d6941f6"
                     }
                 }
             ],

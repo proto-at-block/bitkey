@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.analytics-library:protos",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "protos-31.3.2.jar": "b3bb4f776c7da4e49d127063b978e4175de5402e8ecc35e983cfc7311e195898"
+                        "protos-31.4.2.jar": "3cc17200f904645251cf6f67c1281a70691428cde8f417b9b6c54acf89bf1a8a"
                     }
                 }
             ],

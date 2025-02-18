@@ -26,13 +26,7 @@ interface NetworkReachabilityProvider {
    * Updates the [NetworkReachability] for the given [NetworkConnection]
    */
   suspend fun updateNetworkReachabilityForConnection(
-    httpClient: HttpClient,
-    reachability: NetworkReachability,
-    connection: NetworkConnection,
-  )
-
-  @Deprecated("To be removed in favor of the variant which takes an HttpClient.")
-  suspend fun updateNetworkReachabilityForConnection(
+    httpClient: HttpClient? = null,
     reachability: NetworkReachability,
     connection: NetworkConnection,
   )

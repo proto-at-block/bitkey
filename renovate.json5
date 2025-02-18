@@ -5,6 +5,7 @@
     ":preserveSemverRanges",
     ":dependencyDashboard",
     ":disableRateLimiting",
+    ":semanticCommits",
     "schedule:weekly",
     "github>Turbo87/renovate-config//rust/updateToolchain",
   ],
@@ -32,6 +33,12 @@
     {
       "matchManagers": ["git-submodules"],
       "matchPackageNames": ["firmware/third-party/FreeRTOS"],
+      "enabled": false
+    },
+    // BDK and bitcoin related packages should be updated manually
+    {
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["bdk", "bitcoin", "miniscript", "secp256k1"],
       "enabled": false
     },
     // Group related Rust package updates to the same PR

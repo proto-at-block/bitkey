@@ -12,7 +12,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -55,10 +55,9 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      ),
-      useVirtualTime = false
+      )
     ) {
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME
       ) {
         header?.headline.shouldNotBeNull()
@@ -70,18 +69,18 @@ class AddingTrustedContactFunctionalTests : FunSpec({
           fieldModel.onValueChange.invoke("tc-name", 0..6)
         }
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        matching = { it.primaryButton?.isEnabled == true }
       ) {
         clickPrimaryButton()
       }
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         onBack?.invoke()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
-        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+        matching = { it.primaryButton?.isEnabled == true }
       ) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().run {
           // Name field is retained:
@@ -100,11 +99,10 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      ),
-      useVirtualTime = false
+      )
     ) {
       proceedWithFakeNames()
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Save tc-name as a Trusted Contact")
       }
     }
@@ -119,18 +117,17 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      ),
-      useVirtualTime = false
+      )
     ) {
       proceedWithFakeNames()
-      awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
+      awaitUntilBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       proceedNfcScreens()
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       onAddTcCalls.awaitItem()
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Finally, invite tc-name to be your Trusted Contact")
         onBack?.invoke()
         // Pressing back after invite is created should finish the flow:
@@ -148,19 +145,18 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      ),
-      useVirtualTime = false
+      )
     ) {
       proceedWithFakeNames()
-      awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
+      awaitUntilBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       proceedNfcScreens()
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+      awaitUntilBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
+      awaitUntilBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       onAddTcCalls.awaitItem()
-      awaitUntilScreenWithBody<FormBodyModel> {
+      awaitUntilBody<FormBodyModel> {
         header.shouldNotBeNull().run {
           headline.shouldNotBeBlank()
           sublineModel.shouldNotBeNull().string.shouldNotBeBlank()

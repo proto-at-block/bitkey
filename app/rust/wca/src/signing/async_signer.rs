@@ -45,9 +45,9 @@ pub(crate) fn derive_and_sign(
         }
     };
 
-    match crate::fwpb::Status::from_i32(message_outer.status) {
-        Some(crate::fwpb::Status::InProgress) => {}
-        Some(crate::fwpb::Status::Success) => {
+    match crate::fwpb::Status::try_from(message_outer.status) {
+        Ok(crate::fwpb::Status::InProgress) => {}
+        Ok(crate::fwpb::Status::Success) => {
             return check_async_signing_result(message);
         }
         _ => return Err(CommandError::InvalidResponse),
@@ -75,15 +75,13 @@ fn extract_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signatu
     if let fwpb::wallet_rsp::Msg::DeriveAndSignRsp(fwpb::DeriveAndSignRsp { status, signature }) =
         message
     {
-        match DeriveAndSignRspStatus::from_i32(status) {
-            Some(DeriveAndSignRspStatus::Success) => Ok(Signature::from_compact(&signature)?),
-            Some(DeriveAndSignRspStatus::DerivationFailed) => {
-                Err(CommandError::KeyGenerationFailed)
-            }
-            Some(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            Some(DeriveAndSignRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            None => Err(CommandError::InvalidResponse),
+        match DeriveAndSignRspStatus::try_from(status) {
+            Ok(DeriveAndSignRspStatus::Success) => Ok(Signature::from_compact(&signature)?),
+            Ok(DeriveAndSignRspStatus::DerivationFailed) => Err(CommandError::KeyGenerationFailed),
+            Ok(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Ok(DeriveAndSignRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)
@@ -97,8 +95,8 @@ fn got_sync_signing_status(message: &fwpb::wallet_rsp::Msg) -> bool {
         signature: _,
     }) = message
     {
-        match DeriveAndSignRspStatus::from_i32(*status) {
-            Some(DeriveAndSignRspStatus::Unspecified) => false,
+        match DeriveAndSignRspStatus::try_from(*status) {
+            Ok(DeriveAndSignRspStatus::Unspecified) => false,
             _ => true,
         }
     } else {

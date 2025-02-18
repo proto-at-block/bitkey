@@ -20,14 +20,14 @@ import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnroll
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
@@ -85,15 +85,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   )
 
   test("pairing new wallet ui -- success") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -102,13 +102,13 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
@@ -117,7 +117,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(fingerprintEnrolled)
@@ -130,15 +130,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint already enrolled") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -147,7 +147,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(fingerprintEnrolled)
@@ -160,15 +160,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint not enrolled overlay closed") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -177,7 +177,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -195,7 +195,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintNotEnrolled)
@@ -223,15 +223,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint not enrolled button clicked") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -240,7 +240,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -259,7 +259,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintNotEnrolled)
@@ -286,15 +286,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint enrollment restarted overlay closed") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -303,7 +303,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -321,7 +321,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -349,15 +349,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint enrollment restarted button clicked") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -366,7 +366,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -385,7 +385,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_FINGERPRINT))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
@@ -412,15 +412,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back on save fingerprint instructions") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -429,20 +429,20 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<PairingTransactionResponse>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onSuccess(FingerprintEnrollmentStarted)
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
         onBack.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -451,15 +451,15 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- cancel start fingerprint enrollment") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -468,13 +468,13 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_HW_ONBOARDING_OPEN))
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Boolean>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Boolean>>(
         id = nfcSessionUIStateMachine.id
       ) {
         onCancel()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
@@ -483,22 +483,22 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back from showing fingerprint enrollment instructions") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
         primaryButton.onClick()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
         onBack.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
@@ -507,8 +507,8 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back from showing activation instructions") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<PairNewHardwareBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
           .shouldBeEqual(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)

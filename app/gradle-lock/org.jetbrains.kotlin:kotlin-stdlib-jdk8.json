@@ -15,19 +15,6 @@
             ]
         },
         {
-            "version": "1.9.24",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-stdlib-jdk8-1.9.24.jar": "5b5bbfb3e1184b5e13317c3d42237fa24add443b2e7781961eea334db136adb1"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "2.0.21",
             "variants": [
                 {
@@ -37,7 +24,8 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath"
+                "build-classpath",
+                "gradle-plugins[bitkey]"
             ]
         }
     ]

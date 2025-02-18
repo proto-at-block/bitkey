@@ -15,6 +15,7 @@ kotlin {
       dependencies {
         api(projects.shared.platformPublic)
         implementation(projects.shared.loggingPublic)
+        implementation(projects.shared.stdlibPublic)
       }
     }
 

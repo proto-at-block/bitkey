@@ -26,7 +26,7 @@ internal data class InheritanceTransferSuccessScreenModel(
     id = InheritanceEventTrackerScreenId.ClaimComplete,
     header = FormHeaderModel(
       icon = Icon.LargeIconCheckFilled,
-      headline = "Inheritance Transferred",
+      headline = "Inheritance transferred",
       subline = recipientAddress,
       alignment = FormHeaderModel.Alignment.LEADING
     ),

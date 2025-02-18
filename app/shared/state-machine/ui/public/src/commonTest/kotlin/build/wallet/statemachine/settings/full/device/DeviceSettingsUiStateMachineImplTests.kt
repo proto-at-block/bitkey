@@ -17,12 +17,10 @@ import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
@@ -35,6 +33,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFinge
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
@@ -115,8 +115,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         firmwareUpdateState = PendingUpdate(FwupDataMock)
       )
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
 
@@ -135,8 +135,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("metadata is appropriately formatted with no update") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
 
@@ -156,9 +156,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   test("sync device info") {
     firmwareDeviceInfoDao.getDeviceInfo().get().shouldBeNull()
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Device settings
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
           buttons.first().onClick()
@@ -166,20 +166,20 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Syncing info via NFC
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(Ok(Unit))
         firmwareDeviceInfoDao.getDeviceInfo().get().shouldNotBeNull()
       }
 
       // Back to device settings
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("lost or stolen device") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
@@ -187,13 +187,13 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBodyModelMock<LostHardwareRecoveryProps>()
+      awaitBodyMock<LostHardwareRecoveryProps>()
     }
   }
 
   test("onBack calls") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         val icon =
           toolbar.shouldNotBeNull()
             .leadingAccessory
@@ -215,9 +215,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
           fwupData = FwupDataMock.copy(version = version)
         )
     )
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Device settings
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
           val updateButton = hero.shouldNotBeNull().button.shouldNotBeNull()
@@ -227,18 +227,18 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // FWUP-ing
-      awaitScreenWithBodyModelMock<FwupNfcUiProps> {
+      awaitBodyMock<FwupNfcUiProps> {
         onDone()
       }
 
       // Back to device settings
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("Replace device button should be disabled given limited functionality") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
@@ -252,7 +252,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
@@ -263,9 +263,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on manage fingerprints") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Tap the Fingerprint button
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<ListGroup>()
           listGroupModel.items[0].onClick!!()
@@ -273,28 +273,28 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Going to manage fingerprints
-      awaitScreenWithBodyModelMock<ManagingFingerprintsProps> {
+      awaitBodyMock<ManagingFingerprintsProps> {
         onBack()
       }
 
       // Back on the device settings screen
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("tap on manage fingerprints but need fwup") {
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Tap the Fingerprint button
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<ListGroup>()
           listGroupModel.items[0].onClick!!()
         }
       }
 
-      awaitScreenWithBodyModelMock<ManagingFingerprintsProps> {
+      awaitBodyMock<ManagingFingerprintsProps> {
         entryPoint.shouldBe(EntryPoint.DEVICE_SETTINGS)
         onFwUpRequired()
       }
@@ -314,19 +314,19 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // FWUP-ing
-      awaitScreenWithBodyModelMock<FwupNfcUiProps> {
+      awaitBodyMock<FwupNfcUiProps> {
         onDone()
       }
 
       // Back to device settings
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("tap on reset device") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Tap the Reset Device button
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList[1].apply {
           shouldBeInstanceOf<ListGroup>()
           listGroupModel.items[1].onClick!!()
@@ -334,12 +334,12 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Going to manage reset device
-      awaitScreenWithBodyModelMock<WipingDeviceProps> {
+      awaitBodyMock<WipingDeviceProps> {
         onBack()
       }
 
       // Back on the device settings screen
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 })

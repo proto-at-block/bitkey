@@ -259,6 +259,47 @@ class BitkeyInjectSymbolProcessorTests {
   }
 
   @Test
+  fun `bind by the type itself`() {
+    val source = """
+        package build.wallet.test
+
+        import build.wallet.di.AppScope
+        import build.wallet.di.BitkeyInject
+        
+        @BitkeyInject(AppScope::class, boundTypes = [Base::class])
+        class Base
+    """.trimIndent()
+
+    val compilation = compilation(source)
+    val result = compilation.compile()
+
+    assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+    val generatedFile = assertNotNull(compilation.getKspGeneratedFiles().single())
+    assertEquals("BaseComponent.kt", generatedFile.name)
+
+    assertEquals(
+      """
+        package build.wallet.di
+        
+        import build.wallet.test.Base
+        import me.tatarka.inject.annotations.Provides
+        import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
+        import software.amazon.lastmile.kotlin.inject.anvil.`internal`.Origin
+
+        @Origin(value = Base::class)
+        @ContributesTo(scope = AppScope::class)
+        public interface BaseComponent {
+          @Provides
+          @SingleIn(scope = AppScope::class)
+          public fun provideBase(): Base = Base()
+        }
+      """.trimIndent(),
+      generatedFile.readText().trim()
+    )
+  }
+
+  @Test
   fun `ignore duplicate explicit bound types`() {
     val source = """
         package build.wallet.test
@@ -538,5 +579,48 @@ class BitkeyInjectSymbolProcessorTests {
     val result = compilation.compile()
 
     assertEquals(KotlinCompilation.ExitCode.INTERNAL_ERROR, result.exitCode)
+  }
+
+  @Test
+  fun `injected constructor does not inject parameters with default values`() {
+    val source = """
+        package build.wallet.test
+        
+        import build.wallet.di.AppScope
+        import build.wallet.di.BitkeyInject
+        import build.wallet.di.Impl
+        
+        @Impl
+        @BitkeyInject(AppScope::class)
+        class BaseImpl(val text: String = "")
+    """.trimIndent()
+
+    val compilation = compilation(source)
+    val result = compilation.compile()
+
+    assertEquals(KotlinCompilation.ExitCode.OK, result.exitCode)
+
+    val generatedFile = assertNotNull(compilation.getKspGeneratedFiles().single())
+    assertEquals("BaseImplComponent.kt", generatedFile.name)
+
+    assertEquals(
+      """
+        package build.wallet.di
+        
+        import build.wallet.test.BaseImpl
+        import me.tatarka.inject.annotations.Provides
+        import software.amazon.lastmile.kotlin.inject.anvil.ContributesTo
+        import software.amazon.lastmile.kotlin.inject.anvil.`internal`.Origin
+
+        @Origin(value = BaseImpl::class)
+        @ContributesTo(scope = AppScope::class)
+        public interface BaseImplComponent {
+          @Provides
+          @SingleIn(scope = AppScope::class)
+          public fun provideBaseImpl(): BaseImpl = BaseImpl()
+        }
+      """.trimIndent(),
+      generatedFile.readText().trim()
+    )
   }
 }

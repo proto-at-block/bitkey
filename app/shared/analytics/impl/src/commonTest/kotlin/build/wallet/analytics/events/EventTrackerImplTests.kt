@@ -160,12 +160,15 @@ class EventTrackerImplTests : FunSpec({
     }
 
     test("lite account upgrading to full account") {
-      val account = FullAccountMock
+      val fullAccount = FullAccountMock
       accountService.accountState.value = Ok(
-        AccountStatus.LiteAccountUpgradingToFullAccount(account)
+        AccountStatus.LiteAccountUpgradingToFullAccount(
+          liteAccount = LiteAccountMock,
+          onboardingAccount = fullAccount
+        )
       )
 
-      accountService.saveAccountAndBeginOnboarding(account)
+      accountService.saveAccountAndBeginOnboarding(fullAccount)
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
@@ -174,7 +177,7 @@ class EventTrackerImplTests : FunSpec({
 
       persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
       persistedEvent.event.session_id.shouldBe(sessionId)
-      persistedEvent.event.account_id.shouldBe(account.accountId.serverId)
+      persistedEvent.event.account_id.shouldBe(fullAccount.accountId.serverId)
       persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
       persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
       persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())

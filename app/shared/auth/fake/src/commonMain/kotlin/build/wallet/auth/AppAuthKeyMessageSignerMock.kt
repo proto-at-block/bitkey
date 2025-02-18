@@ -16,6 +16,6 @@ class AppAuthKeyMessageSignerMock : AppAuthKeyMessageSigner {
   ): Result<String, Throwable> where T : AppAuthKey, T : CurveType.Secp256K1 = result
 
   fun reset() {
-    result = Err(Throwable())
+    result = Err(Throwable("Mock Message Signer Error"))
   }
 }

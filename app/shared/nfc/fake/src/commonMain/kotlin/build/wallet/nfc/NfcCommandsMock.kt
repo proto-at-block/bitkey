@@ -8,6 +8,7 @@ import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.crypto.SealedData
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
@@ -151,6 +152,16 @@ class NfcCommandsMock(
   override suspend fun lockDevice(session: NfcSession) = true
 
   override suspend fun queryAuthentication(session: NfcSession) = true
+
+  override suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ) = "sealed-data".encodeUtf8()
+
+  override suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ) = "unsealed-data".encodeUtf8()
 
   override suspend fun sealKey(
     session: NfcSession,

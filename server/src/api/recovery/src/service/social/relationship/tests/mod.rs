@@ -3,6 +3,7 @@ use database::ddb;
 use database::ddb::Repository;
 use http_server::config;
 use notification::service::tests::construct_test_notification_service;
+use promotion_code::service::tests::construct_test_promotion_code_service;
 use repository::recovery::social::SocialRecoveryRepository;
 
 pub async fn construct_test_recovery_relationship_service() -> Service {
@@ -13,5 +14,6 @@ pub async fn construct_test_recovery_relationship_service() -> Service {
     Service::new(
         SocialRecoveryRepository::new(ddb_connection),
         construct_test_notification_service().await,
+        construct_test_promotion_code_service().await,
     )
 }

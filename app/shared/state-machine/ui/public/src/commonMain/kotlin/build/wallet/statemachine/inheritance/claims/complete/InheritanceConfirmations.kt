@@ -17,7 +17,7 @@ fun inheritanceConfirmationContent(
   DataList(
     items = immutableListOf(
       DataList.Data(
-        title = "Arrival Time",
+        title = "Arrival time",
         sideText = EstimatedTransactionPriority.inheritancePriority().toFormattedString()
       )
     )
@@ -25,16 +25,16 @@ fun inheritanceConfirmationContent(
   DataList(
     items = immutableListOf(
       DataList.Data(
-        title = "Recipient Receives",
+        title = "Inheritance",
         sideText = amount
       ),
       DataList.Data(
-        title = "Network Fees",
+        title = "Network fees",
         sideText = fees
       )
     ),
     total = DataList.Data(
-      title = "Total",
+      title = "Total received",
       sideText = netReceivePrimary,
       secondarySideText = netReceiveSecondary
     )

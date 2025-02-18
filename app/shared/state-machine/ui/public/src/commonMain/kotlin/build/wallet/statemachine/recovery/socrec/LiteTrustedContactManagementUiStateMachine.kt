@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.socrec
 
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -16,6 +17,7 @@ interface LiteTrustedContactManagementUiStateMachine :
 data class LiteTrustedContactManagementProps(
   val account: LiteAccount,
   val acceptInvite: AcceptInvite?,
+  val onAccountUpgraded: (FullAccount) -> Unit,
   val onExit: () -> Unit,
 ) {
   data class AcceptInvite(val inviteCode: String?)

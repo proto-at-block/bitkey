@@ -1,4 +1,7 @@
-@file:OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
+@file:OptIn(
+  ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class,
+  DelicateCoroutinesApi::class
+)
 
 package build.wallet.money.exchange
 
@@ -8,28 +11,30 @@ import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitNoEvents
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.money.currency.USD
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 class ExchangeRateServiceImplTests : FunSpec({
-  coroutineTestScope = true
   val exchangeRateDao = ExchangeRateDaoFake()
   val exchangeRateF8eClient = ExchangeRateF8eClientFake()
   val appSessionManager = AppSessionManagerFake()
@@ -40,6 +45,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   val exchangeRate1 = USDtoBTC(0.5)
   val exchangeRate2 = USDtoBTC(1.0)
   val eurtoBtcExchangeRate = EURtoBTC(0.7)
+  val syncFrequency = 100.milliseconds
 
   beforeTest {
     appSessionManager.reset()
@@ -57,7 +63,8 @@ class ExchangeRateServiceImplTests : FunSpec({
       exchangeRateF8eClient = exchangeRateF8eClient,
       appSessionManager = appSessionManager,
       accountService = accountService,
-      clock = ClockFake(now = Instant.fromEpochSeconds(500))
+      clock = ClockFake(now = Instant.fromEpochSeconds(500)),
+      exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency)
     )
   }
 
@@ -68,7 +75,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   }
 
   test("sync immediately") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
@@ -85,7 +92,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   }
 
   test("ignore sync failure") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
@@ -110,7 +117,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   }
 
   test("syncs periodically") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
@@ -144,47 +151,46 @@ class ExchangeRateServiceImplTests : FunSpec({
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
     exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
-      // multiple rates stored
-      awaitItem().shouldContainExactly(exchangeRates)
+      awaitUntil(exchangeRates)
       // database updated
       exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
     }
   }
 
   test("sync does not occur while app is backgrounded and resumes once foregrounded") {
-    val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     appSessionManager.appDidEnterBackground()
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
     exchangeRateService.exchangeRates.test {
       awaitItem().shouldBeEmpty() // Initial value
 
+      val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
       exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
       // no rates synced because app is backgrounded
-      expectNoEvents()
+      delay(syncFrequency)
+      awaitNoEvents()
       exchangeRateDao.allExchangeRates.value.shouldBeEmpty()
 
       appSessionManager.appDidEnterForeground()
 
       // rates synced because app is foregrounded
-      awaitItem().shouldContainExactly(exchangeRates)
+      awaitUntil(exchangeRates)
       // database updated
       exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
     }
   }
 
   test("remote sync occurs when manually requesting sync") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
@@ -200,7 +206,7 @@ class ExchangeRateServiceImplTests : FunSpec({
   }
 
   test("remote sync occurs when entering foreground") {
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
@@ -221,13 +227,12 @@ class ExchangeRateServiceImplTests : FunSpec({
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
     exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
-      awaitItem().shouldBe(exchangeRates)
+      awaitUntil(exchangeRates)
 
       exchangeRateService.mostRecentRatesSinceDurationForCurrency(10.minutes, USD)
         .shouldNotBeNull()
@@ -239,13 +244,12 @@ class ExchangeRateServiceImplTests : FunSpec({
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       exchangeRateService.executeWork()
     }
 
     exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
-      awaitItem().shouldBe(exchangeRates)
+      awaitUntil(exchangeRates)
 
       exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, USD)
         .shouldBeNull()
@@ -256,16 +260,12 @@ class ExchangeRateServiceImplTests : FunSpec({
     accountService.accountState.value = Ok(ActiveAccount(SoftwareAccountMock))
     exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
-    runTest {
-      backgroundScope.launch {
-        exchangeRateService.executeWork()
-      }
+    createBackgroundScope().launch {
+      exchangeRateService.executeWork()
+    }
 
-      runCurrent()
-
-      exchangeRateService.exchangeRates.test {
-        awaitItem().shouldContainExactly(listOf(exchangeRate1))
-      }
+    exchangeRateService.exchangeRates.test {
+      awaitUntil(listOf(exchangeRate1))
     }
   }
 
@@ -273,16 +273,12 @@ class ExchangeRateServiceImplTests : FunSpec({
     accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
     exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
-    runTest {
-      backgroundScope.launch {
-        exchangeRateService.executeWork()
-      }
+    createBackgroundScope().launch {
+      exchangeRateService.executeWork()
+    }
 
-      runCurrent()
-
-      exchangeRateService.exchangeRates.test {
-        awaitItem().shouldBeEmpty()
-      }
+    exchangeRateService.exchangeRates.test {
+      awaitItem().shouldBeEmpty()
     }
   }
 })

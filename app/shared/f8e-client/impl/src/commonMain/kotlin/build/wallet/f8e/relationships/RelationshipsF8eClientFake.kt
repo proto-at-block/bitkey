@@ -5,8 +5,10 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
 import build.wallet.crypto.PublicKey
+import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
@@ -15,6 +17,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
+import build.wallet.f8e.error.code.F8eClientErrorCode
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.ktor.result.NetworkingError
@@ -48,7 +51,7 @@ import kotlin.time.Duration.Companion.seconds
 class RelationshipsF8eClientFake(
   private val uuidGenerator: UuidGenerator,
   private val backgroundScope: CoroutineScope,
-  private val clock: Clock = Clock.System,
+  private val clock: Clock,
 ) : RelationshipsF8eClient {
   private val invitations = mutableListOf<InvitationPair>()
   val unendorsedTrustedContacts = mutableListOf<UnendorsedTrustedContact>()
@@ -238,6 +241,28 @@ class RelationshipsF8eClientFake(
     return Ok(Unit)
   }
 
+  override suspend fun uploadSealedDelegatedDecryptionKeyData(
+    accountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    sealedData: SealedData,
+  ): Result<Unit, NetworkingError> {
+    return Ok(Unit)
+  }
+
+  override suspend fun getSealedDelegatedDecryptionKeyData(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): Result<SealedData, NetworkingError> {
+    return Ok(ddkReturnData(accountId, f8eEnvironment))
+  }
+
+  override suspend fun retrieveInvitationPromotionCode(
+    account: Account,
+    invitationCode: String,
+  ): Result<PromotionCode?, F8eError<F8eClientErrorCode>> {
+    return Ok(PromotionCode("fake-promotion-code"))
+  }
+
   fun deleteInvitation(recoveryRelationshipId: String) {
     invitations.removeAll { it.outgoing.relationshipId == recoveryRelationshipId }
   }
@@ -249,5 +274,12 @@ class RelationshipsF8eClientFake(
     protectedCustomers.clear()
     keyCertificates.clear()
     fakeNetworkingError = null
+  }
+
+  fun ddkReturnData(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): ByteString {
+    return ("deadbeef-" + accountId + "-" + f8eEnvironment).encodeUtf8()
   }
 }

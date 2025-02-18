@@ -36,10 +36,7 @@ fun PartnerTransactionItemModel(
         color = IconBackgroundType.Square.Color.Transparent,
         cornerRadius = 0
       ),
-      iconAlignmentInBackground = when {
-        isPending -> IconAlignmentInBackground.Center
-        else -> IconAlignmentInBackground.TopStart
-      },
+      iconAlignmentInBackground = IconAlignmentInBackground.Center,
       badge = when {
         isError -> BadgeType.Error
         isPending -> BadgeType.Loading

@@ -16,4 +16,5 @@ enum class CoachmarkIdentifier(
   MultipleFingerprintsCoachmark("multiple_fingerprints_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_MULTIPLE_FINGERPRINTS),
   BiometricUnlockCoachmark("biometric_unlock_coachmark", Action.ACTION_APP_COACHMARK_VIEWIED_BIOMETRIC_UNLOCK),
   BitcoinPriceChartCoachmark("bitcoin_price_chart_coachmark", Action.ACTION_APP_COACHMARK_VIEWIED_BITCOIN_PRICE_CARD),
+  InheritanceCoachmark("inheritance_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_INHERITANCE),
 }

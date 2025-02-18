@@ -18,6 +18,7 @@ import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
+import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
@@ -61,7 +62,7 @@ class RecoveryTestingStateMachine(
     if (accountStatus is ActiveAccount && accountStatus.account is FullAccount && activeRecovery == NoActiveRecovery) {
       return preStartOrPostRecoveryCompletionScreen(RECOVERY_COMPLETED)
     }
-    val data = dsm.model(Unit)
+    val data = dsm.model(AccountDataProps { })
     return when (data) {
       is GettingStartedData -> {
         data.startRecovery()

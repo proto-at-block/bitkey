@@ -1,10 +1,6 @@
 package build.wallet.statemachine.start
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.isFullAccount
 import build.wallet.di.ActivityScope
@@ -13,13 +9,10 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.data.keybox.AccountData.StartIntent.BeTrustedContact
-import build.wallet.statemachine.data.keybox.AccountData.StartIntent.RestoreBitkey
+import build.wallet.statemachine.data.keybox.AccountData.StartIntent.*
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachine
-import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.BackupLoaded
-import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.LoadingCloudBackup
-import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.SignInFailure
+import build.wallet.statemachine.start.GettingStartedRoutingStateMachineImpl.State.*
 
 @BitkeyInject(ActivityScope::class)
 class GettingStartedRoutingStateMachineImpl(
@@ -33,7 +26,7 @@ class GettingStartedRoutingStateMachineImpl(
       remember(props) {
         when (props.startIntent) {
           RestoreBitkey -> true
-          BeTrustedContact -> false
+          BeTrustedContact, BeBeneficiary -> false
         }
       }
 
@@ -94,9 +87,9 @@ class GettingStartedRoutingStateMachineImpl(
           else -> props.onStartLiteAccountRecovery(backup)
         }
       }
-      BeTrustedContact -> {
+      BeTrustedContact, BeBeneficiary -> {
         when {
-          backup == null -> props.onStartLiteAccountCreation()
+          backup == null -> props.onStartLiteAccountCreation(props.inviteCode)
           backup.isFullAccount() -> props.onStartCloudRecovery(backup)
           else -> props.onStartLiteAccountRecovery(backup)
         }

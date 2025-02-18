@@ -14,15 +14,15 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroProps
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
@@ -68,8 +68,8 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         val icon = toolbar.shouldNotBeNull()
           .leadingAccessory
           .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()
@@ -83,8 +83,8 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   }
 
   test("tap to confirm sheet can be shown and dismissed") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
 
         primaryButton.shouldBeInstanceOf<ButtonModel>().apply {
@@ -100,13 +100,13 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
           .secondaryButton?.onClick?.invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("tap to confirm sheet can be shown and confirmed") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         primaryButton.shouldBeInstanceOf<ButtonModel>().apply {
           text.shouldBe("Wipe device")
@@ -121,7 +121,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
           .primaryButton?.onClick?.invoke()
       }
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Pair<Secp256k1PublicKey, String>>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Pair<Secp256k1PublicKey, String>>> {
         onSuccess(Pair(Secp256k1PublicKey("public"), "success"))
       }
 

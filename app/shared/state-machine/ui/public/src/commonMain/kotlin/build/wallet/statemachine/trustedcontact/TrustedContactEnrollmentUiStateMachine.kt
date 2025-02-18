@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 
 /**
  * A state machine for enrolling as a trusted contact for a customer.
@@ -29,5 +30,6 @@ data class TrustedContactEnrollmentUiProps(
   val account: Account,
   val inviteCode: String?,
   val screenPresentationStyle: ScreenPresentationStyle,
-  val onDone: () -> Unit,
+  val onDone: (Account) -> Unit,
+  val variant: TrustedContactFeatureVariant,
 )

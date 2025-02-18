@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.material:material-icons-core-uikitx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "material-icons-core-uikitx64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "material-icons-core-uikitx64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "material-icons-core.klib": "577f37bb9f72ec36f89153426e23e8834f3c38c37e49bc20ee134a0077ddbb87"
+                        "material-icons-core.klib": "e4a561af29e53045e1a4c312bea61e2618e900d2fa78adcd75e0751d761803fb"
                     }
                 }
             ],

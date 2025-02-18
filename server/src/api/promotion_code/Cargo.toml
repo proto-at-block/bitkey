@@ -1,0 +1,40 @@
+[package]
+edition = { workspace = true }
+name = "promotion_code"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+axum-macros = { workspace = true }
+config = { workspace = true }
+database = { workspace = true }
+http_server = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true }
+reqwest-retry = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+types = { workspace = true, features = ["account", "recovery"] }
+utoipa = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+test-helpers = []
+
+[lints]
+workspace = true

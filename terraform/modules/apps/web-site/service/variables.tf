@@ -45,6 +45,16 @@ variable "memory" {
   description = "The amount of memory (in MiB) used by the task. If using Fargate launch type `task_memory` must match [supported cpu value](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_definition_parameters.html#task_size)"
 }
 
+variable "cpu_architecture" {
+  description = "CPU architecture that containers run on. Must be set to either X86_64 or ARM64"
+  type        = string
+
+  validation {
+    condition     = contains(["X86_64", "ARM64"], var.cpu_architecture)
+    error_message = "Valid values are `X86_64` and `ARM64`"
+  }
+}
+
 variable "deployment_controller_type" {
   type        = string
   description = "Type of deployment controller. Valid values are `CODE_DEPLOY` and `ECS`"
@@ -117,4 +127,10 @@ variable "external_certs" {
   type        = list(string)
   description = "Add additional certificates for external domain names to serve the service on. The ACM certificate must already have been issued"
   default     = []
+}
+
+variable "create_template_task_definition" {
+  type        = bool
+  description = "Whether to create a template task definition and expect an external CI system to update the service with a real task definition. If enabled, task definition changes will be ignored"
+  default     = true
 }

@@ -94,7 +94,13 @@ private fun PermissionDeniedDialog(onClose: () -> Unit) {
         onSecondaryButtonClick = onClose,
         onPrimaryButtonClick = {
           NSURL.URLWithString(UIApplicationOpenSettingsURLString)
-            ?.let { UIApplication.sharedApplication.openURL(it) }
+            ?.let {
+              UIApplication.sharedApplication.openURL(it, options = emptyMap<Any?, Any>()) { success ->
+                if (!success) {
+                  logError { "Failed to open settings" }
+                }
+              }
+            }
             ?: run(onClose)
         }
       )

@@ -11,9 +11,9 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -32,10 +32,12 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
   )
 
   val onExitCalls = turbines.create<Unit>("onExit calls")
+  val onAccountCreatedCalls = turbines.create<Unit>("on account created calls")
 
   val props = CreateKeyboxUiProps(
     context = NewFullAccount,
-    onExit = { onExitCalls += Unit }
+    onExit = { onExitCalls += Unit },
+    onAccountCreated = { onAccountCreatedCalls += Unit }
   )
 
   beforeTest {
@@ -43,14 +45,14 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // creating app keys
-      awaitScreenWithBodyModelMock<PairNewHardwareProps> {
+      awaitBodyMock<PairNewHardwareProps> {
         request.shouldBeTypeOf<PairNewHardwareProps.Request.Preparing>()
       }
 
       // Pairing with HW
-      awaitScreenWithBodyModelMock<PairNewHardwareProps>("hw-onboard") {
+      awaitBodyMock<PairNewHardwareProps>("hw-onboard") {
         val ready = request.shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
         ready.onSuccess(
           FingerprintEnrolled(
@@ -63,9 +65,11 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
       }
 
       // Creating account with f8e
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
+
+      onAccountCreatedCalls.awaitItem()
     }
   }
 })

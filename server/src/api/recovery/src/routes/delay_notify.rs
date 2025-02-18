@@ -1,6 +1,15 @@
 use std::collections::HashSet;
 
 use crate::{
+    ensure_pubkeys_unique,
+    entities::{RecoveryDestination, ToActor, ToActorStrategy},
+    error::RecoveryError,
+    metrics,
+    repository::RecoveryRepository,
+    service::social::challenge::Service as SocialChallengeService,
+    state_machine::{run_recovery_fsm, RecoveryEvent},
+};
+use crate::{
     service::inheritance::{
         recreate_pending_claims_for_beneficiary::RecreatePendingClaimsForBeneficiaryInput,
         Service as InheritanceService,
@@ -38,6 +47,7 @@ use instrumentation::metrics::KeyValue;
 use notification::{entities::NotificationTouchpoint, service::Service as NotificationService};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use serde_with::{base64::Base64, serde_as};
 use time::Duration;
 use tracing::{event, instrument, Level};
 use types::account::{
@@ -46,16 +56,7 @@ use types::account::{
 };
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
-
-use crate::{
-    ensure_pubkeys_unique,
-    entities::{RecoveryDestination, ToActor, ToActorStrategy},
-    error::RecoveryError,
-    metrics,
-    repository::RecoveryRepository,
-    service::social::challenge::Service as SocialChallengeService,
-    state_machine::{run_recovery_fsm, RecoveryEvent},
-};
+use wsm_rust_client::{SigningService, WsmClient};
 
 use super::INHERITANCE_ENABLED_FLAG_KEY;
 
@@ -69,6 +70,7 @@ pub struct RouteState(
     pub RecoveryRepository,
     pub SocialChallengeService,
     pub FeatureFlagsService,
+    pub WsmClient,
 );
 
 impl RouterBuilder for RouteState {
@@ -77,6 +79,16 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/delay-notify/complete",
                 post(complete_delay_notify_transaction),
+            )
+            .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
+            .with_state(self.to_owned())
+    }
+
+    fn recovery_authed_router(&self) -> Router {
+        Router::new()
+            .route(
+                "/api/accounts/:account_id/recovery/evaluate-pin",
+                post(evaluate_pin),
             )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
@@ -847,4 +859,38 @@ pub async fn rotate_authentication_keys(
 
     metrics::AUTH_KEYS_ROTATED.add(1, &[]);
     Ok(Json(RotateAuthenticationKeysResponse {}))
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct EvaluatePinRequest {
+    #[serde_as(as = "Base64")]
+    pub sealed_request: Vec<u8>,
+    #[serde_as(as = "Base64")]
+    pub noise_session: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub struct EvaluatePinResponse {
+    #[serde_as(as = "Base64")]
+    pub sealed_response: Vec<u8>,
+}
+
+#[instrument(err, skip(wsm_client))]
+pub async fn evaluate_pin(
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<EvaluatePinRequest>,
+) -> Result<Json<EvaluatePinResponse>, ApiError> {
+    let wsm_response = wsm_client
+        .evaluate_pin(request.sealed_request, request.noise_session)
+        .await
+        .map_err(|e| {
+            event!(Level::ERROR, "Failed to evaluate OPRF PIN: {:?}", e);
+            ApiError::GenericInternalApplicationError("Failed to evaluate OPRF PIN".to_string())
+        })?;
+
+    Ok(Json(EvaluatePinResponse {
+        sealed_response: wsm_response.sealed_response,
+    }))
 }

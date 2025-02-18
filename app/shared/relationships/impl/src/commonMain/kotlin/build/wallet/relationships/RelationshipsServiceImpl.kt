@@ -9,7 +9,9 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -23,10 +25,11 @@ import build.wallet.mapResult
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import kotlin.random.Random
-import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class RelationshipsServiceImpl(
@@ -38,6 +41,7 @@ class RelationshipsServiceImpl(
   private val appSessionManager: AppSessionManager,
   private val accountService: AccountService,
   appCoroutineScope: CoroutineScope,
+  private val relationshipsSyncFrequency: RelationshipsSyncFrequency,
 ) : RelationshipsService, SyncRelationshipsWorker {
   private val f8eSyncSequencer = F8eSyncSequencer()
 
@@ -71,11 +75,10 @@ class RelationshipsServiceImpl(
           .distinctUntilChanged()
           .collectLatest { account ->
             f8eSyncSequencer.run(account) {
-              while (isActive) {
+              launchTicker(relationshipsSyncFrequency.value) {
                 if (appSessionManager.isAppForegrounded()) {
                   syncAndVerifyRelationships(account)
                 }
-                delay(5.seconds)
               }
             }
           }
@@ -248,6 +251,21 @@ class RelationshipsServiceImpl(
           .mapError { AcceptInvitationCodeError.F8ePropagatedError(it) }
       }
       .also { syncAndVerifyRelationships(account) }
+  }
+
+  override suspend fun retrieveInvitationPromotionCode(
+    account: Account,
+    invitationCode: String,
+  ): Result<PromotionCode?, RetrieveInvitationPromotionCodeError> {
+    return relationshipsCodeBuilder.parseInviteCode(invitationCode)
+      .mapError { RetrieveInvitationPromotionCodeError.InvalidInvitationCode(it) }
+      .andThen { (serverPart, _) ->
+        relationshipsF8eClient().retrieveInvitationPromotionCode(
+          account,
+          serverPart
+        )
+          .mapError { RetrieveInvitationPromotionCodeError.F8ePropagatedError(it) }
+      }
   }
 
   override suspend fun syncAndVerifyRelationships(

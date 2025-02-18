@@ -20,6 +20,7 @@ pub fn debug(
     account_table: String,
     recovery_table: String,
     social_recovery_table: String,
+    inheritance_table: String,
     gap_limit: u32,
     address_balance: bool,
     account_id: String,
@@ -204,7 +205,7 @@ pub fn debug(
     }
 
     println!(
-        "Fetching social recovery relationships from table {}",
+        "Fetching recovery relationships from table {}",
         social_recovery_table
     );
     let social_recovery_relationship_query_result = rt.block_on(async {
@@ -230,12 +231,12 @@ pub fn debug(
     if let Some(items) = social_recovery_relationship_query_result.items() {
         if items.is_empty() {
             println!("******************************************************");
-            println!("No social recovery relationships found");
+            println!("No recovery relationships found");
             println!("******************************************************");
         } else {
             for item in items {
                 println!("******************************************************");
-                println!("Social Recovery Relationship record: {:?}", item);
+                println!("Recovery Relationship record: {:?}", item);
                 println!("******************************************************");
             }
         }
@@ -274,6 +275,78 @@ pub fn debug(
             for item in items {
                 println!("******************************************************");
                 println!("Social Recovery Challenge: {:?}", item);
+                println!("******************************************************");
+            }
+        }
+    }
+
+    println!(
+        "Fetching inheritance claims from table {}",
+        inheritance_table
+    );
+    let inheritance_claims_as_benefactor_results = rt.block_on(async {
+        let ddb_client = aws_sdk_dynamodb::Client::new(&aws_config::load_from_env().await);
+        ddb_client
+            .query()
+            .table_name(inheritance_table.clone())
+            .index_name("by_benefactor_account_id_to_created_at")
+            .key_condition_expression("benefactor_account_id = :benefactor_account_id")
+            .expression_attribute_values(
+                ":benefactor_account_id",
+                AttributeValue::S(account_id.clone()),
+            )
+            .filter_expression("begins_with(partition_key, :partition_key)")
+            .expression_attribute_values(
+                ":partition_key",
+                AttributeValue::S("urn:wallet-inheritance-claim".to_owned()),
+            )
+            .send()
+            .await
+    })?;
+
+    if let Some(items) = inheritance_claims_as_benefactor_results.items() {
+        if items.is_empty() {
+            println!("******************************************************");
+            println!("No inheritance claims found as benefactor");
+            println!("******************************************************");
+        } else {
+            for item in items {
+                println!("******************************************************");
+                println!("Inheritance Claim as benefactor: {:?}", item);
+                println!("******************************************************");
+            }
+        }
+    }
+
+    let inheritance_claims_as_beneficiary_results = rt.block_on(async {
+        let ddb_client = aws_sdk_dynamodb::Client::new(&aws_config::load_from_env().await);
+        ddb_client
+            .query()
+            .table_name(inheritance_table)
+            .index_name("by_beneficiary_account_id_to_created_at")
+            .key_condition_expression("beneficiary_account_id = :beneficiary_account_id")
+            .expression_attribute_values(
+                ":beneficiary_account_id",
+                AttributeValue::S(account_id.clone()),
+            )
+            .filter_expression("begins_with(partition_key, :partition_key)")
+            .expression_attribute_values(
+                ":partition_key",
+                AttributeValue::S("urn:wallet-inheritance-claim".to_owned()),
+            )
+            .send()
+            .await
+    })?;
+
+    if let Some(items) = inheritance_claims_as_beneficiary_results.items() {
+        if items.is_empty() {
+            println!("******************************************************");
+            println!("No inheritance claims found as beneficiary");
+            println!("******************************************************");
+        } else {
+            for item in items {
+                println!("******************************************************");
+                println!("Inheritance Claim as beneficiary: {:?}", item);
                 println!("******************************************************");
             }
         }

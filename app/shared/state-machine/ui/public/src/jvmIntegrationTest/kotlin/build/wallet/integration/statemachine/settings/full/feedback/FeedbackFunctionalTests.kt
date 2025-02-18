@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.full.feedback.FeedbackEventTrackerScreenId
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
-import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.support.SupportTicketField
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -22,6 +22,7 @@ import build.wallet.ui.model.picker.ItemPickerModel
 import io.kotest.assertions.forEachAsClue
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldNotBeEmpty
@@ -39,21 +40,23 @@ class FeedbackFunctionalTests : FunSpec({
 
   lateinit var account: FullAccount
   lateinit var feedbackStateMachine: FeedbackUiStateMachine
-  beforeTest {
+
+  suspend fun TestScope.launchAndPrepareApp() {
     val app = launchNewApp()
     account = app.onboardFullAccountWithFakeHardware()
     feedbackStateMachine = app.feedbackUiStateMachine
   }
 
   test("feedback form loads and closes") {
+    launchAndPrepareApp()
+
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
           f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        ),
-      useVirtualTime = false
+        )
     ) {
       awaitFeedbackFilling {
         withClue("primary button") {
@@ -75,14 +78,15 @@ class FeedbackFunctionalTests : FunSpec({
   }
 
   test("feedback form doesn't close when modified") {
+    launchAndPrepareApp()
+
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
           f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        ),
-      useVirtualTime = false
+        )
     ) {
       withClue("Empty form, filling email") {
         awaitFeedbackFilling {
@@ -149,14 +153,15 @@ class FeedbackFunctionalTests : FunSpec({
   }
 
   test("feedback form submits successfully after filled") {
+    launchAndPrepareApp()
+
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
           f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        ),
-      useVirtualTime = false
+        )
     ) {
       fillForm(
         beforeEach = {
@@ -174,13 +179,13 @@ class FeedbackFunctionalTests : FunSpec({
         }
       )
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+      awaitUntilBody<LoadingSuccessBodyModel>(
         id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMITTING
       ) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(
+      awaitUntilBody<FormBodyModel>(
         id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMIT_SUCCESS
       )
 
@@ -189,14 +194,15 @@ class FeedbackFunctionalTests : FunSpec({
   }
 
   test("subcategory picker shows after choosing category") {
+    launchAndPrepareApp()
+
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
           f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        ),
-      useVirtualTime = false
+        )
     ) {
       awaitFeedbackFilling {
         val categoryPicker =
@@ -307,7 +313,7 @@ class FeedbackFunctionalTests : FunSpec({
     suspend inline fun StateMachineTester<FeedbackUiProps, ScreenModel>.awaitFeedbackFilling(
       block: FormFillingContext.() -> Unit = { },
     ): ScreenModel {
-      return awaitUntilScreenModelWithBody<FormBodyModel>(
+      return awaitUntilScreenWithBody<FormBodyModel>(
         id = FeedbackEventTrackerScreenId.FEEDBACK_FILLING_FORM
       ) {
         val context =

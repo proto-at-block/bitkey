@@ -26,6 +26,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
   val onResetExistingDevice: (() -> Unit)?,
+  val isInheritanceEnabled: Boolean,
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -46,7 +47,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                   iconSize = IconSize.Small
                 )
               ),
-              title = "Be a Trusted Contact",
+              title = if (isInheritanceEnabled) "Enter invite code" else "Be a Trusted Contact",
               onClick = onBeTrustedContactClick,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
             ),

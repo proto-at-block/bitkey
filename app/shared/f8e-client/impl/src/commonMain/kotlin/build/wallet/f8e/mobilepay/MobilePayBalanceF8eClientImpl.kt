@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
@@ -34,9 +36,11 @@ class MobilePayBalanceF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
   ): Result<MobilePayBalance, MobilePayBalanceFailure> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .bodyResult<MobilePayBalanceResponseDTO> {
         get("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           withDescription("Get mobile pay balance")
         }
       }

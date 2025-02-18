@@ -22,8 +22,6 @@ class FeatureFlagServiceFake : FeatureFlagService {
     return Ok(Unit)
   }
 
-  override fun initComposeUiFeatureFlag() = Unit
-
   suspend fun reset() {
     flagsInitialized.value = false
     resetFlags()

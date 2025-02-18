@@ -10,9 +10,9 @@ import build.wallet.cloud.backup.LiteAccountCloudBackupRestorerFake
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
@@ -41,8 +41,8 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   }
 
   test("success") {
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       liteAccountCloudBackupRestorer
@@ -56,15 +56,15 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   test("failure") {
     val throwable = Throwable("foo")
     liteAccountCloudBackupRestorer.returnError = Err(AccountBackupRestorationError(throwable))
-    stateMachine.test(props = props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
+    stateMachine.testWithVirtualTime(props = props) {
+      awaitBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       liteAccountCloudBackupRestorer
         .restoreFromBackupCalls
         .awaitItem()
         .shouldBe(CloudBackupV2WithLiteAccountMock)
-      awaitScreenWithBody<FormBodyModel>(FAILURE_RESTORE_FROM_CLOUD_BACKUP) {
+      awaitBody<FormBodyModel>(FAILURE_RESTORE_FROM_CLOUD_BACKUP) {
         clickPrimaryButton()
       }
       onExitCalls.awaitItem()

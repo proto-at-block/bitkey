@@ -14,9 +14,9 @@ plugins {
 buildLogic {
   app {
     version(
-      yyyy = 2024,
-      version = 75,
-      patch = 3,
+      yyyy = 2025,
+      version = 1,
+      patch = 0,
       build = 1
     )
   }
@@ -125,6 +125,8 @@ licensee {
   allowUrl("https://github.com/bitcoindevkit/bdk/blob/master/LICENSE-APACHE")
   allowUrl("http://www.bouncycastle.org/licence.html")
   allowUrl("https://www.zetetic.net/sqlcipher/license/")
+  allowUrl("https://golang.org/LICENSE")
+  allowUrl("https://opensource.org/licenses/MIT")
 }
 
 dependencies {

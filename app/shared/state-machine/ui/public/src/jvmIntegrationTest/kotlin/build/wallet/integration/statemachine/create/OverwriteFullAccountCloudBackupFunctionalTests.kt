@@ -9,7 +9,7 @@ import build.wallet.statemachine.account.create.full.OverwriteFullAccountCloudBa
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -31,25 +31,24 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     )
     overrideCloudBackupApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
-      awaitUntilScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+      awaitUntilBody<OverwriteFullAccountCloudBackupWarningModel> {
         onOverwriteExistingBackup()
       }
 
       awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
 
       // Uploading cloud backup
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING) {
+      awaitUntilBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       // Cloud backup uploaded
-      awaitUntilScreenWithBody<RecoveryChannelsSetupFormBodyModel>()
+      awaitUntilBody<RecoveryChannelsSetupFormBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -67,18 +66,17 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     )
     overrideCloudBackupApp.appUiStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds
     ) {
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
-      awaitUntilScreenWithBody<OverwriteFullAccountCloudBackupWarningModel> {
+      awaitUntilBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
 
       // Uploading cloud backup
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>(CHOOSE_ACCOUNT_ACCESS)
+      awaitUntilBody<ChooseAccountAccessModel>(CHOOSE_ACCOUNT_ACCESS)
 
       cancelAndIgnoreRemainingEvents()
     }

@@ -18,7 +18,6 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.system.BackHandler
 import build.wallet.ui.tokens.LabelType
 import org.jetbrains.compose.resources.painterResource
 
@@ -27,8 +26,6 @@ fun SplashLockScreen(
   modifier: Modifier = Modifier,
   model: SplashLockModel,
 ) {
-  BackHandler { model.onBack?.invoke() }
-
   Column(
     modifier = modifier
       .background(Color.Black)

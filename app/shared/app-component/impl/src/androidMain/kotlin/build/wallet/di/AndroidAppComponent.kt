@@ -11,7 +11,9 @@ import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVersion
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.notifications.NotificationChannelRepository
+import build.wallet.platform.sensor.Accelerometer
 import kotlinx.coroutines.CoroutineScope
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.MergeComponent
@@ -39,4 +41,6 @@ abstract class AndroidAppComponent(
   abstract val loggingInitializer: LoggerInitializer
   abstract val notificationChannelRepository: NotificationChannelRepository
   abstract val strictModeEnabler: StrictModeEnabler
+  abstract val deviceInfoProvider: DeviceInfoProvider
+  abstract val accelerometer: Accelerometer
 }

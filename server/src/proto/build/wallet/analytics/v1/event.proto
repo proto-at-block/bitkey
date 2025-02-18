@@ -251,7 +251,16 @@ enum Action {
     /** [App] Customer has seen partnerships sale partner */
     ACTION_APP_PARTNERSHIPS_VIEWED_SALE_PARTNER = 68;
 
-    // Next tag is 68
+    /** [App] Customer has seen the inheritance coachmark */
+    ACTION_APP_COACHMARK_VIEWED_INHERITANCE = 69;
+
+    /** [App] Beneficiary indicates they have a Bitkey hardware device */
+    ACTION_APP_SOCREC_BENEFICIARY_HAS_HARDWARE = 70;
+
+    /** [App] Beneficiary indicates they do not have a Bitkey hardware device */
+    ACTION_APP_SOCREC_BENEFICIARY_NO_HARDWARE = 71;
+
+    // Next tag is 72
 }
 
 message PlatformInfo {

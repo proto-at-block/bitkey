@@ -3,7 +3,7 @@ package build.wallet.f8e.demo
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
+import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.RedactedRequestBody
@@ -18,7 +18,7 @@ import kotlinx.serialization.Serializable
 
 @BitkeyInject(AppScope::class)
 class DemoModeF8eClientImpl(
-  private val f8eHttpClient: UnauthenticatedF8eHttpClient,
+  private val f8eHttpClient: F8eHttpClient,
 ) : DemoModeF8eClient {
   override suspend fun initiateDemoMode(
     f8eEnvironment: F8eEnvironment,

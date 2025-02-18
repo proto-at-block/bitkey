@@ -43,12 +43,12 @@ fn fwup_start(patch_size: Option<u32>, fwup_mode: FwupMode) -> Result<bool, Comm
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::FwupStartRsp(FwupStartRsp { rsp_status, .. }) = message {
-        match FwupStartRspStatus::from_i32(rsp_status) {
-            Some(FwupStartRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Some(FwupStartRspStatus::Success) => Ok(true),
-            Some(FwupStartRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(FwupStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            None => Err(CommandError::InvalidResponse),
+        match FwupStartRspStatus::try_from(rsp_status) {
+            Ok(FwupStartRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(FwupStartRspStatus::Success) => Ok(true),
+            Ok(FwupStartRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(FwupStartRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)
@@ -78,12 +78,12 @@ fn fwup_transfer(
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::FwupTransferRsp(FwupTransferRsp { rsp_status, .. }) = message {
-        match FwupTransferRspStatus::from_i32(rsp_status) {
-            Some(FwupTransferRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
-            Some(FwupTransferRspStatus::Success) => Ok(true),
-            Some(FwupTransferRspStatus::Error) => Err(CommandError::GeneralCommandError),
-            Some(FwupTransferRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
-            None => Err(CommandError::InvalidResponse),
+        match FwupTransferRspStatus::try_from(rsp_status) {
+            Ok(FwupTransferRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(FwupTransferRspStatus::Success) => Ok(true),
+            Ok(FwupTransferRspStatus::Error) => Err(CommandError::GeneralCommandError),
+            Ok(FwupTransferRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
+            Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {
         Err(CommandError::MissingMessage)
@@ -112,7 +112,7 @@ fn fwup_finish(
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::FwupFinishRsp(FwupFinishRsp { rsp_status, .. }) = message {
-        FwupFinishRspStatus::from_i32(rsp_status).ok_or(CommandError::InvalidResponse)
+        FwupFinishRspStatus::try_from(rsp_status).map_err(|_| CommandError::InvalidResponse)
     } else {
         Err(CommandError::MissingMessage)
     }

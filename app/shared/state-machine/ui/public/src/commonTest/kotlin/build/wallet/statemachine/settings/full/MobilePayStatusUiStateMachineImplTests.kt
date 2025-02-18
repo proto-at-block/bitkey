@@ -11,9 +11,9 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.settings.full.mobilepay.*
+import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -74,7 +74,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("load mobile pay data") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -89,7 +89,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
 
   test("initial state - without existing spending limit") {
     mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = null)
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
       }
@@ -99,7 +99,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   test("enable without existing spending limit -> set spending limit") {
     mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = null)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
         switchCardModel.switchModel.onCheckedChange(true)
@@ -111,7 +111,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
 
   test("initial state - with existing spending limit") {
     mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Should start with enabled model because that is what's passed in
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -130,7 +130,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   test("enabling -> disabling mobile pay with existing limit") {
     mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Showing limits - Enabled state with existing limit and Daily spend
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -160,7 +160,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   test("enabling -> dismiss disabling mobile pay with existing limit") {
     mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Showing limits - Enabled state with existing limit and Daily spend
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -190,7 +190,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   test("disabled -> enable mobile pay with matching currency") {
     mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Showing limits - Disabled state
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
@@ -206,7 +206,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
     mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Showing limits - Disabled state
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()

@@ -4,6 +4,10 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart.LAZY
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.*
 
 /**
@@ -16,11 +20,11 @@ class UnauthenticatedOnlyF8eHttpClientImpl(
   appCoroutineScope: CoroutineScope,
   private val unauthenticatedF8eHttpClientFactory: UnauthenticatedF8eHttpClientFactory,
 ) : UnauthenticatedF8eHttpClient {
-  private val httpClientFlow: Flow<HttpClient> = flow {
-    emit(unauthenticatedF8eHttpClientFactory.createClient())
-  }.shareIn(appCoroutineScope, SharingStarted.Lazily, replay = 1)
+  private val httpClient = appCoroutineScope.async(Dispatchers.IO, start = LAZY) {
+    unauthenticatedF8eHttpClientFactory.createClient()
+  }
 
   override suspend fun unauthenticated(): HttpClient {
-    return httpClientFlow.first()
+    return httpClient.await()
   }
 }

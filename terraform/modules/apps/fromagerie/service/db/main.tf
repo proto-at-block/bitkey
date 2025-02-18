@@ -381,12 +381,26 @@ module "inheritance_table" {
     { name = "partition_key", type = "S" },
     { name = "created_at", type = "S" },
     { name = "recovery_relationship_id", type = "S" },
+    { name = "benefactor_account_id", type = "S" },
+    { name = "beneficiary_account_id", type = "S" },
   ]
 
   global_secondary_indexes = [
     {
       name            = "by_recovery_relationship_id"
       hash_key        = "recovery_relationship_id"
+      range_key       = "created_at"
+      projection_type = "ALL"
+    },
+    {
+      name            = "by_benefactor_account_id_to_created_at"
+      hash_key        = "benefactor_account_id"
+      range_key       = "created_at"
+      projection_type = "ALL"
+    },
+    {
+      name            = "by_beneficiary_account_id_to_created_at"
+      hash_key        = "beneficiary_account_id"
       range_key       = "created_at"
       projection_type = "ALL"
     },
@@ -403,11 +417,22 @@ module "promotion_code_table" {
 
   create_table = var.create_dynamodb_tables
 
-  name     = var.promotion_code_table_name
-  hash_key = "partition_key"
+  name      = var.promotion_code_table_name
+  hash_key  = "partition_key"
+  range_key = "sort_key"
 
   attributes = [
     { name = "partition_key", type = "S" },
+    { name = "sort_key", type = "S" },
+    { name = "code", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name            = "by_code"
+      hash_key        = "code"
+      projection_type = "ALL"
+    },
   ]
 
   point_in_time_recovery_enabled = true

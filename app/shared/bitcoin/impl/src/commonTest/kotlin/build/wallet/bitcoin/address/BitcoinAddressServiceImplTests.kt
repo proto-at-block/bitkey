@@ -9,6 +9,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.F8eSpendingPublicKeyMock
+import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.notifications.RegisterWatchAddressProcessor
@@ -16,14 +17,11 @@ import build.wallet.queueprocessor.Processor
 import build.wallet.queueprocessor.ProcessorMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.launch
 
 class BitcoinAddressServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
 
   val spendingWallet = SpendingWalletMock(turbines::create)
   val processorMock = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
@@ -49,7 +47,7 @@ class BitcoinAddressServiceImplTests : FunSpec({
   test("generate new address successfully") {
     accountService.setActiveAccount(FullAccountMock)
 
-    backgroundScope.launch {
+    createBackgroundScope().launch {
       service.executeWork()
     }
 

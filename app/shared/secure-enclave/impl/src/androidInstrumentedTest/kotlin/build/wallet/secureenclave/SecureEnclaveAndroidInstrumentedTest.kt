@@ -1,7 +1,8 @@
 package build.wallet.secureenclave
 
+import android.app.Application
+import androidx.test.core.app.ApplicationProvider.getApplicationContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import build.wallet.logging.logTesting
 import build.wallet.secureenclave.SeKeyPurpose.AGREEMENT
 import org.junit.Assert.assertEquals
@@ -14,8 +15,8 @@ import java.security.ProviderException
 class SecureEnclaveAndroidInstrumentedTest {
   @Test
   fun testGenerateP256KeyPair() {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val se = SecureEnclaveImpl(context)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
     val keySpec = SeKeySpec(
       name = "key-testGenerateP256KeyPair",
       purposes = SeKeyPurposes.of(AGREEMENT),
@@ -28,8 +29,8 @@ class SecureEnclaveAndroidInstrumentedTest {
 
   @Test
   fun testDiffieHellman() {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val se = SecureEnclaveImpl(context)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
 
     val clientKeyPair = se.generateP256KeyPair(
       SeKeySpec(
@@ -60,8 +61,8 @@ class SecureEnclaveAndroidInstrumentedTest {
 
   @Test
   fun testKeyUsageConstraints() {
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val se = SecureEnclaveImpl(context)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
 
     val keySpec = SeKeySpec(
       name = "key-testKeyUsageConstraints",
@@ -85,8 +86,8 @@ class SecureEnclaveAndroidInstrumentedTest {
   fun loadPublicKey() {
     val sec1Pubkey = "04e952c94ecd6d4438edaf8939f9164533dedb1c6e822534f800f60f3a116054f47c783dca8bc5193e4cb71c870c0696f7d3d9ed9716413cfeb293f879ee8a9e73"
 
-    val context = InstrumentationRegistry.getInstrumentation().targetContext
-    val se = SecureEnclaveImpl(context)
+    val application = getApplicationContext<Application>()
+    val se = SecureEnclaveImpl(application)
 
     se.loadSePublicKey(SePublicKey(sec1Pubkey.hexToByteArray()))
   }

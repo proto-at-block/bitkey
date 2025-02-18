@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-icons-core-desktop",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "material-icons-core-desktop-1.7.1.jar": "bcf6c853b6db2ff148d2d3aad3b7a7ea54d93fc7b42e0afd840eb6daf1a1c681"
+                        "material-icons-core-desktop-1.7.3.jar": "bcf6c853b6db2ff148d2d3aad3b7a7ea54d93fc7b42e0afd840eb6daf1a1c681"
                     }
                 }
             ],

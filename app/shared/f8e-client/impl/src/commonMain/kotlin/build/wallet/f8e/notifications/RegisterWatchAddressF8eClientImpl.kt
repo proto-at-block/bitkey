@@ -5,6 +5,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.RedactedRequestBody
@@ -25,13 +27,12 @@ class RegisterWatchAddressF8eClientImpl(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<Unit, Error> {
-    return f8eHttpClient.authenticated(
-      f8eEnvironment,
-      fullAccountId
-    )
+    return f8eHttpClient.authenticated()
       .bodyResult<EmptyResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/notifications/addresses") {
           withDescription("Registering (${addressAndKeysetIds.size}) watch addresses")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             RegisterWatchAddressRequest(addressAndKeysetIds)
           )

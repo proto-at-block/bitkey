@@ -17,6 +17,7 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -25,10 +26,9 @@ import kotlinx.coroutines.flow.first
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
-
-  coroutineTestScope = true
 
   lateinit var app: AppTester
   lateinit var relationshipsService: RelationshipsServiceImpl
@@ -43,7 +43,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
   val alias = TrustedContactAlias("trustedContactId")
 
-  beforeTest {
+  suspend fun TestScope.launchAndPrepareApp() {
     app = launchNewApp(isUsingSocRecFakes = true)
 
     relationshipsF8eClientFake =
@@ -63,7 +63,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       relationshipsCodeBuilder = app.relationshipsCodeBuilder,
       appSessionManager = app.appSessionManager,
       accountService = accountService,
-      appCoroutineScope = app.appCoroutineScope
+      appCoroutineScope = app.appCoroutineScope,
+      relationshipsSyncFrequency = RelationshipsSyncFrequency(1.seconds)
     )
 
     endorseTrustedContactsService = EndorseTrustedContactsServiceImpl(
@@ -132,6 +133,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("happy path") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -169,6 +172,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Empty") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -197,6 +202,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Success") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -234,6 +241,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Tamper") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -279,6 +288,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("missing pake data") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -306,6 +317,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("authentication failed due to invalid key confirmation") {
+    launchAndPrepareApp()
+
     val account = app.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
@@ -323,6 +336,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("authentication failed due to wrong pake password") {
+    launchAndPrepareApp()
+
     val account = app.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overridePakeCode = "F00DBAD")
@@ -340,6 +355,8 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
   }
 
   test("one bad contact does not block a good contact") {
+    launchAndPrepareApp()
+
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
     val (tcBad, _) = simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")

@@ -379,11 +379,12 @@ private fun ListItem(
             bottomContent = secondarySideContent?.let {
               { Box { secondarySideContent() } }
             },
-            collapsedContent = {
+            collapsedContent = { placeholder ->
               Box {
                 CollapsedMoneyView(
                   height = 16.dp,
-                  modifier = Modifier.align(Alignment.Center)
+                  modifier = Modifier.align(Alignment.Center),
+                  shimmer = !placeholder
                 )
               }
             }

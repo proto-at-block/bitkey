@@ -36,7 +36,7 @@ http = { workspace = true }
 http-body-util = "0.1.0"
 jwt-authorizer = { workspace = true }
 tower = { workspace = true, features = ["util"] }
-wiremock = "0.6.0"
+wiremock = { workspace = true }
 
 [lints]
 workspace = true

@@ -7,7 +7,7 @@ import dev.zacsweers.redacted.annotations.Redacted
 data class TransactionDetailsModel(
   val transactionDetailModelType: TransactionDetailModelType,
   val transactionSpeedText: String,
-) : Model()
+) : Model
 
 /**
  * Transaction detail display type for transaction confirmation and initiated screens.

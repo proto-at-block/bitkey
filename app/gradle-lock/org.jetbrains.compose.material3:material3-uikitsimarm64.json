@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.material3:material3-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "material3-uikitsimarm64-1.7.1-metadata.jar": "9d575dcc5a86f67f78924589685ff92b630ee1b84759ed224bba89d456462477"
+                        "material3-uikitsimarm64-1.7.3-metadata.jar": "9d575dcc5a86f67f78924589685ff92b630ee1b84759ed224bba89d456462477"
                     }
                 },
                 {
                     "artifacts": {
-                        "material3.klib": "0258405d023cc908c00498a4455db4fee1ab598a2793ac6cb2116762ec04b82b"
+                        "material3.klib": "2d3296d8332a384a91c2afdfe6caeb0aeb06ee210e81b290e29e1655088339b3"
                     }
                 }
             ],

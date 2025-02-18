@@ -6,6 +6,9 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
+import build.wallet.f8e.client.plugins.withHardwareFactor
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.MobilePayErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -38,13 +41,12 @@ class MobilePaySpendingLimitF8eClientImpl(
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = fullAccountId,
-        hwFactorProofOfPossession = hwFactorProofOfPossession
-      )
+      .authenticated()
       .bodyResult<EmptyResponseBody> {
         put("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
+          withHardwareFactor(hwFactorProofOfPossession)
           setRedactedBody(
             RequestBody(
               limit = limit.toServerSpendingLimit(clock)
@@ -59,10 +61,12 @@ class MobilePaySpendingLimitF8eClientImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
   ): Result<Unit, F8eError<MobilePayErrorCode>> {
-    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+    return f8eHttpClient.authenticated()
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
           withDescription("Disable Mobile Pay")
+          withAccountId(fullAccountId)
+          withEnvironment(f8eEnvironment)
           setRedactedBody(EmptyRequestBody)
         }
       }.mapUnit()

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-core-uikitx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-core-uikitx64-1.7.1-metadata.jar": "d28c14f03abfebfd476b5672ed4808d018cb7375eedc718b407157e486df1f04"
+                        "animation-core-uikitx64-1.7.3-metadata.jar": "d28c14f03abfebfd476b5672ed4808d018cb7375eedc718b407157e486df1f04"
                     }
                 },
                 {
                     "artifacts": {
-                        "animation-core.klib": "a6d18a8599fd311f66a33c6f848e76aad146ae14591dd6c426540c505444e34e"
+                        "animation-core.klib": "3698f227a95f7d985e6aa3197cf6b0293ebfa86c789887a3f161a694d2160b72"
                     }
                 }
             ],

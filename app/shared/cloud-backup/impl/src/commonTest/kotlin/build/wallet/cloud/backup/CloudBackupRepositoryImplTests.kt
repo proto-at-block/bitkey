@@ -1,6 +1,8 @@
 package build.wallet.cloud.backup
 
-import build.wallet.auth.AuthTokensRepositoryMock
+import build.wallet.auth.AccountAuthTokensMock
+import build.wallet.auth.AuthTokenScope.Recovery
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.local.BackupStorageError
@@ -10,7 +12,6 @@ import build.wallet.cloud.store.CloudError
 import build.wallet.cloud.store.CloudKeyValueStoreFake
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeOk
-import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -20,18 +21,18 @@ class CloudBackupRepositoryImplTests : FunSpec({
   val cloudAccount = CloudAccountMock(instanceId = "jack")
   val cloudKeyValueStore = CloudKeyValueStoreFake()
   val cloudBackupDao = CloudBackupDaoFake()
-  val authTokensRepository = AuthTokensRepositoryMock()
+  val authTokensService = AuthTokensServiceFake()
 
   val cloudBackupRepository = CloudBackupRepositoryImpl(
     cloudKeyValueStore = cloudKeyValueStore,
     cloudBackupDao = cloudBackupDao,
-    authTokensRepository = authTokensRepository
+    authTokensService = authTokensService
   )
 
   afterTest {
     cloudBackupDao.reset()
     cloudKeyValueStore.reset()
-    authTokensRepository.reset()
+    authTokensService.reset()
   }
 
   backupTestData.forEach {
@@ -40,13 +41,15 @@ class CloudBackupRepositoryImplTests : FunSpec({
 
     context(it.testName) {
       test("write backup to cloud key-value store and dao") {
-        cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true).shouldBeOk(Unit)
+        authTokensService.setTokens(accountId, AccountAuthTokensMock, Recovery)
+        cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true).shouldBeOk()
 
         cloudBackupDao.get(accountId.serverId).shouldBeOk(backup)
         cloudKeyValueStore.getString(cloudAccount, key = "cloud-backup").shouldBeOk(backupJson)
       }
 
       test("write backup - dao error") {
+        authTokensService.setTokens(accountId, AccountAuthTokensMock, Recovery)
         cloudBackupDao.returnError = true
 
         cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true)
@@ -57,6 +60,7 @@ class CloudBackupRepositoryImplTests : FunSpec({
       }
 
       test("write backup - cloud key-value error") {
+        authTokensService.setTokens(accountId, AccountAuthTokensMock, Recovery)
         cloudKeyValueStore.returnError = true
 
         cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true)
@@ -70,7 +74,7 @@ class CloudBackupRepositoryImplTests : FunSpec({
 
       test("write backup - error authenticating") {
         val error = Error("foo")
-        authTokensRepository.authTokensResult = Err(error)
+        authTokensService.refreshAccessTokenError = error
 
         cloudBackupRepository.writeBackup(accountId, cloudAccount, backup, true)
           .shouldBeErr(UnrectifiableCloudBackupError(error))

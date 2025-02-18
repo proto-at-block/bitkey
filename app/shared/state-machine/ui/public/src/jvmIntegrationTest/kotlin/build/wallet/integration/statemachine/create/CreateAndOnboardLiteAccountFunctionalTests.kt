@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -34,7 +34,7 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
     // Going through onboarding with the lite account, becoming a trusted contact
     // and then remove the trusted contact relationship
     val liteAccountApp = launchNewApp()
-    liteAccountApp.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    liteAccountApp.appUiStateMachine.test(Unit) {
       advanceThroughCreateLiteAccountScreens(
         inviteCode = inviteCode
       )
@@ -69,8 +69,8 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
     }
 
   // Back to Money Home, the card should be removed
-  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
-    expectedBodyContentMatch = { body ->
+  awaitUntilBody<LiteMoneyHomeBodyModel>(
+    matching = { body ->
       // Wait until there is 1 card showing
       body.walletsYoureProtectingCount == 0
     }

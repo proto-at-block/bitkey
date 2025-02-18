@@ -27,6 +27,8 @@ import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Ok
@@ -144,20 +146,20 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
 
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         selectedPriority = transactionPriority
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
           IconImage.LocalImage(
             Icon.Bitcoin
@@ -184,7 +186,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       }
 
       // SigningWithHardware
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>(
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>(
         id = nfcSessionUIStateMachine.id
       ) {
         shouldShowLongRunningOperation.shouldBeTrue()
@@ -192,7 +194,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       }
 
       // FinalizingAndBroadcastingTransaction
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -206,16 +208,16 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   }
 
   test("Transaction details update after selecting a new fee from sheet") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       mobilePayService.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(props.sendAmount)
 
       // ViewingTransferConfirmation
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         transactionDetailsCardUiStateMachine.props
           .transactionDetails
           .feeAmount
@@ -236,7 +238,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         transactionDetailsCardUiStateMachine.props
           .transactionDetails
           .feeAmount

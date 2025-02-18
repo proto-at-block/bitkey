@@ -1,13 +1,14 @@
 package build.wallet.di
 
 import build.wallet.account.AccountService
-import build.wallet.auth.AuthTokensRepository
+import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.LiteAccountCreator
 import build.wallet.availability.F8eNetworkReachabilityService
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.export.ExportTransactionsService
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.UtxoConsolidationService
@@ -17,6 +18,7 @@ import build.wallet.cloud.backup.FullAccountCloudBackupCreator
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.local.CloudBackupDao
+import build.wallet.cloud.backup.socrec.SocRecCloudBackupSyncWorker
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccountRepository
@@ -32,6 +34,7 @@ import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
+import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao
@@ -44,10 +47,7 @@ import build.wallet.logging.LoggerInitializer
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.transaction.PairingTransactionProvider
-import build.wallet.onboarding.CreateFullAccountService
-import build.wallet.onboarding.CreateSoftwareWalletService
-import build.wallet.onboarding.OnboardAccountService
-import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
+import build.wallet.onboarding.*
 import build.wallet.partnerships.PartnershipPurchaseService
 import build.wallet.partnerships.PartnershipTransactionsService
 import build.wallet.platform.app.AppSessionManager
@@ -59,7 +59,6 @@ import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.*
 import build.wallet.relationships.*
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
-import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresher
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.worker.AppWorkerExecutor
@@ -83,12 +82,12 @@ interface JvmAppComponent {
   val appSessionManager: AppSessionManager
   val appSpendingWalletProvider: AppSpendingWalletProvider
   val appWorkerExecutor: AppWorkerExecutor
-  val authTokensRepository: AuthTokensRepository
+  val authTokensService: AuthTokensService
   val bitcoinBlockchain: BitcoinBlockchain
   val bitcoinWalletService: BitcoinWalletService
   val cloudBackupDao: CloudBackupDao
   val cloudBackupDeleter: CloudBackupDeleter
-  val cloudBackupRefresher: TrustedContactCloudBackupRefresher
+  val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker
   val cloudBackupRepository: CloudBackupRepository
   val cloudFileStore: CloudFileStore
   val cloudKeyValueStore: CloudKeyValueStore
@@ -98,6 +97,7 @@ interface JvmAppComponent {
   val createSoftwareWalletService: CreateSoftwareWalletService
   val csekGenerator: CsekGenerator
   val debugOptionsService: DebugOptionsService
+  val delegatedDecryptionKeyService: DelegatedDecryptionKeyService
   val exportTransactionsService: ExportTransactionsService
   val extendedKeyGenerator: ExtendedKeyGenerator
   val f8eNetworkReachabilityService: F8eNetworkReachabilityService
@@ -108,6 +108,7 @@ interface JvmAppComponent {
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
   val gettingStartedTaskDao: GettingStartedTaskDao
+  val inheritanceFeatureFlag: InheritanceFeatureFlag
   val keyboxDao: KeyboxDao
   val keysetWalletProvider: KeysetWalletProvider
   val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator
@@ -144,9 +145,11 @@ interface JvmAppComponent {
   val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao
   val socRecStartedChallengeDao: SocRecStartedChallengeDao
   val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag
+  val softwareWalletSigningService: SoftwareWalletSigningService
   val spendingWalletProvider: SpendingWalletProvider
   val sweepDataStateMachine: SweepDataStateMachine
   val updateDelayNotifyPeriodForTestingApi: UpdateDelayNotifyPeriodForTestingApi
   val utxoConsolidationService: UtxoConsolidationService
   val writableCloudStoreAccountRepository: WritableCloudStoreAccountRepository
+  val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
 }

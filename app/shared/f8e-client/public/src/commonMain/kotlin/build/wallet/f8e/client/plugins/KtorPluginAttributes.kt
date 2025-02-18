@@ -19,7 +19,7 @@ import io.ktor.util.*
 val F8eEnvironmentAttribute = AttributeKey<F8eEnvironment>("f8-environment")
 val AccountIdAttribute = AttributeKey<AccountId>("account-id")
 val AuthTokenScopeAttribute = AttributeKey<AuthTokenScope>("auth-token-scope")
-val AppAuthKeyAttribute = AttributeKey<PublicKey<AppAuthKey>>("app-auth-key")
+val AppAuthKeyAttribute = AttributeKey<PublicKey<out AppAuthKey>>("app-auth-key")
 val HwProofOfPossessionAttribute = AttributeKey<HwFactorProofOfPossession>("hw-proof-of-possession")
 val DeviceInfoAttribute = AttributeKey<DeviceInfo>("device-info")
 val PlatformInfoAttribute = AttributeKey<PlatformInfo>("platform-info")
@@ -33,7 +33,7 @@ fun HttpRequestBuilder.withEnvironment(environment: F8eEnvironment) {
   attributes.put(F8eEnvironmentAttribute, environment)
 }
 
-fun HttpRequestBuilder.withAccount(
+fun HttpRequestBuilder.withAccountId(
   accountId: AccountId,
   tokenScope: AuthTokenScope = AuthTokenScope.Global,
 ) {
@@ -46,4 +46,12 @@ fun HttpRequestBuilder.withAccount(
  */
 fun HttpRequestBuilder.disableReachabilityCheck() {
   attributes.put(CheckReachabilityAttribute, false)
+}
+
+fun HttpRequestBuilder.withHardwareFactor(hwFactorProofOfPossession: HwFactorProofOfPossession) {
+  attributes.put(HwProofOfPossessionAttribute, hwFactorProofOfPossession)
+}
+
+fun HttpRequestBuilder.withAppAuthKey(appAuthKey: PublicKey<out AppAuthKey>) {
+  attributes.put(AppAuthKeyAttribute, appAuthKey)
 }

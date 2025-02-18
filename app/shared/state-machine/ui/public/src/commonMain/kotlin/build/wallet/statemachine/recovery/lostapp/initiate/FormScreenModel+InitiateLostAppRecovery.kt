@@ -28,7 +28,7 @@ fun RecoveryConflictModel(
   presentationStyle = presentationStyle
 )
 
-private data class RecoveryConflictBodyModel(
+data class RecoveryConflictBodyModel(
   val cancelingRecoveryLostFactor: PhysicalFactor,
   val onCancelRecovery: () -> Unit,
 ) : FormBodyModel(

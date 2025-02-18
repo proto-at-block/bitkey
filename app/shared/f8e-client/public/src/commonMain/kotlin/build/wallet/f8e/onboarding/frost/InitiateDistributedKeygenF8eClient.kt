@@ -22,6 +22,7 @@ interface InitiateDistributedKeygenF8eClient {
     appAuthKey: PublicKey<AppGlobalAuthKey>,
     networkType: BitcoinNetworkType,
     sealedRequest: SealedRequest,
+    noiseSessionId: String,
   ): Result<InitiateDistributedKeygenResponse, NetworkingError>
 }
 

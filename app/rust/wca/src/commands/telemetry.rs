@@ -29,13 +29,13 @@ fn get_events() -> Result<EventFragment, CommandError> {
         fragment,
     }) = message
     {
-        match EventsGetRspStatus::from_i32(rsp_status) {
-            Some(EventsGetRspStatus::Unspecified) => {
+        match EventsGetRspStatus::try_from(rsp_status) {
+            Ok(EventsGetRspStatus::Unspecified) => {
                 return Err(CommandError::UnspecifiedCommandError)
             }
-            Some(EventsGetRspStatus::Success) => {}
-            Some(EventsGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            None => return Err(CommandError::InvalidResponse),
+            Ok(EventsGetRspStatus::Success) => {}
+            Ok(EventsGetRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         if version != 1 {

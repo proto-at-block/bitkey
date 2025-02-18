@@ -15,6 +15,7 @@ class OnboardAccountServiceImpl(
   private val debugOptionsService: DebugOptionsService,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
+  private val onboardingCompletionService: OnboardingCompletionService,
 ) : OnboardAccountService {
   override suspend fun pendingStep(): Result<OnboardAccountStep?, Throwable> =
     coroutineBinding {
@@ -32,6 +33,8 @@ class OnboardAccountServiceImpl(
       if (notificationsStepState == OnboardingKeyboxStepState.Incomplete && !debugOptions.skipNotificationsOnboarding) {
         return@coroutineBinding NotificationPreferences
       }
+
+      onboardingCompletionService.recordCompletion()
 
       // No more onboarding steps to complete
       null

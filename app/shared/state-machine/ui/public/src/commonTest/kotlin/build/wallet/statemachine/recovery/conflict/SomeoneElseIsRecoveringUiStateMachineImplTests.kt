@@ -8,7 +8,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
@@ -89,7 +89,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
     )
 
   test("ShowingSomeoneElseIsRecoveringData") {
-    stateMachine.test(showingSomeoneElseIsRecoveringDataProps) {
+    stateMachine.testWithVirtualTime(showingSomeoneElseIsRecoveringDataProps) {
       val screen = awaitItem()
 
       screen.bottomSheetModel.shouldBeNull()
@@ -103,7 +103,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
   }
 
   test("CancelingSomeoneElsesRecoveryData") {
-    stateMachine.test(cancelingSomeoneElsesRecoveryDataProps) {
+    stateMachine.testWithVirtualTime(cancelingSomeoneElsesRecoveryDataProps) {
       val screen = awaitItem()
 
       screen.bottomSheetModel.shouldBeNull()
@@ -115,7 +115,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
   }
 
   test("CancelingSomeoneElsesRecoveryFailedData") {
-    stateMachine.test(cancelingSomeoneElsesRecoveryFailedDataProps) {
+    stateMachine.testWithVirtualTime(cancelingSomeoneElsesRecoveryFailedDataProps) {
       val screen = awaitItem()
       val bottomSheet = screen.bottomSheetModel.shouldNotBeNull()
       bottomSheet.onClosed()

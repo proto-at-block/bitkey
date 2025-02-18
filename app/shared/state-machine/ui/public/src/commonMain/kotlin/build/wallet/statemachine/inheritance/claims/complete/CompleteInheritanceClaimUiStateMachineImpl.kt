@@ -2,6 +2,7 @@ package build.wallet.statemachine.inheritance.claims.complete
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
@@ -15,6 +16,8 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
 import build.wallet.statemachine.inheritance.InheritanceAppSegment
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineImpl.State.*
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
@@ -29,7 +32,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
 ) : CompleteInheritanceClaimUiStateMachine {
   @Composable
   override fun model(props: CompleteInheritanceClaimUiStateMachineProps): ScreenModel {
-    var state by remember { mutableStateOf<State>(State.LoadingTransferDetails) }
+    var state by remember { mutableStateOf<State>(LoadingTransferDetails) }
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val exchangeRates by exchangeRateService.exchangeRates.collectAsState()
 
@@ -37,8 +40,13 @@ class CompleteInheritanceClaimUiStateMachineImpl(
       LoadingTransferDetails -> {
         LaunchedEffect("Load Inheritance Details") {
           inheritanceService.loadApprovedClaim(props.relationshipId)
-            .onSuccess { state = State.ConfirmTransfer(it) }
-            .onFailure { state = State.LoadingDetailsFailed(it) }
+            .onSuccess { state = ConfirmTransfer(it) }
+            .onFailure {
+              state = when (it) {
+                is BdkError.InsufficientFunds -> CompletingEmptyWallet(it)
+                else -> LoadingDetailsFailed(it)
+              }
+            }
         }
       }
       is StartingTransfer -> {
@@ -52,13 +60,24 @@ class CompleteInheritanceClaimUiStateMachineImpl(
             .onFailure { state = TransferFailed(it, currentState.details) }
         }
       }
+      is CompletingEmptyWallet -> {
+        LaunchedEffect("Completing Empty Wallet") {
+          inheritanceService
+            .completeClaimWithoutTransfer(props.relationshipId)
+            .onSuccess { state = EmptyWallet(currentState.error) }
+            .onFailure { state = LoadingDetailsFailed(it) }
+        }
+      }
       else -> {}
     }
 
     return when (val currentState = state) {
-      is LoadingTransferDetails -> LoadingBodyModel(
+      is LoadingTransferDetails, is CompletingEmptyWallet -> LoadingBodyModel(
         id = InheritanceEventTrackerScreenId.LoadingClaimDetails,
         onBack = props.onExit
+      ).asModalFullScreen()
+      is EmptyWallet -> EmptyBenefactorWalletScreenModel(
+        onClose = props.onExit
       ).asModalFullScreen()
       is LoadingDetailsFailed -> ErrorFormBodyModel(
         title = "Unable to load inheritance details",
@@ -78,7 +97,8 @@ class CompleteInheritanceClaimUiStateMachineImpl(
           text = "Cancel",
           onClick = props.onExit
         ),
-        onBack = props.onExit
+        onBack = props.onExit,
+        toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onExit))
       ).asModalFullScreen()
       is ConfirmTransfer -> InheritanceTransferConfirmationScreenModel(
         onBack = props.onExit,
@@ -89,7 +109,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         amount = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc,
+            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
@@ -105,13 +125,13 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         netReceivePrimary = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc - currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.amountBtc,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
         ),
         netReceiveSecondary = moneyFormatter.format(
-          currentState.details.psbt.amountBtc - currentState.details.psbt.fee
+          currentState.details.psbt.amountBtc
         )
       ).asModalFullScreen()
       is StartingTransfer -> LoadingBodyModel(
@@ -136,6 +156,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
           text = "Cancel",
           onClick = props.onExit
         ),
+        toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onExit)),
         onBack = props.onExit
       ).asModalFullScreen()
       is Complete -> InheritanceTransferSuccessScreenModel(
@@ -144,7 +165,7 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         amount = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc,
+            fromAmount = currentState.details.psbt.amountBtc + currentState.details.psbt.fee,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
@@ -160,13 +181,13 @@ class CompleteInheritanceClaimUiStateMachineImpl(
         netReceivePrimary = moneyFormatter.format(
           convertedOrZeroWithRates(
             converter = currencyConverter,
-            fromAmount = currentState.details.psbt.amountBtc - currentState.details.psbt.fee,
+            fromAmount = currentState.details.psbt.amountBtc,
             toCurrency = fiatCurrency,
             rates = exchangeRates.toImmutableList()
           ) as FiatMoney
         ),
         netReceiveSecondary = moneyFormatter.format(
-          currentState.details.psbt.amountBtc - currentState.details.psbt.fee
+          currentState.details.psbt.amountBtc
         )
       ).asModalFullScreen()
     }
@@ -207,6 +228,17 @@ class CompleteInheritanceClaimUiStateMachineImpl(
       val error: Throwable,
       val transactionDetails: InheritanceTransactionDetails,
     ) : State
+
+    /**
+     * The inheritance wallet had no funds in it. So we are completing the
+     * claim without a transfer.
+     */
+    data class CompletingEmptyWallet(val error: BdkError.InsufficientFunds) : State
+
+    /**
+     * Error screen to tell the user that the inheritance wallet was empty :(
+     */
+    data class EmptyWallet(val error: BdkError.InsufficientFunds) : State
 
     /**
      * Success Screen when transfer has been successfully initiated

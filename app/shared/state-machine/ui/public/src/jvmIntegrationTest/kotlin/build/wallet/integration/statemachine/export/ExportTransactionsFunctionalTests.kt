@@ -18,9 +18,8 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
@@ -36,13 +35,9 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class ExportTransactionsFunctionalTests : FunSpec({
-  lateinit var app: AppTester
-
-  beforeTest {
-    app = launchNewApp()
-  }
 
   test("e2e – export external, internal, and consolidation transactions") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
@@ -102,6 +97,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
   }
 
   test("e2e - export transactions including inactive keysets") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
     // Make two incoming transactions
@@ -127,41 +123,40 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
     recoveryStateMachine.test(
       props = Unit,
-      useVirtualTime = false,
       testTimeout = 20.seconds,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
+      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
+      awaitUntilBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
+      awaitUntilBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
       app.completeRecoveryDelayPeriodOnF8e()
-      awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
+      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+      awaitUntilBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
+      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING) {
+      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS)
+      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS)
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
+      awaitUntilBody<FormBodyModel>(RECOVERY_COMPLETED)
 
       eventually(
         eventuallyConfig {
@@ -242,6 +237,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
   }
 
   test("export with no transactions") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
     val service = app.exportTransactionsService
@@ -253,6 +249,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
   test("export with pending transaction")
     .config(tags = setOf(IsolatedTest)) {
+      val app = launchNewApp()
 
       // Make pending transaction
       app.onboardFullAccountWithFakeHardware()

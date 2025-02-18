@@ -1,20 +1,13 @@
-use account::service::{FetchAccountInput, Service as AccountService};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::metrics;
-use crate::service::inheritance::cancel_inheritance_claim::CancelInheritanceClaimInput;
-use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
-use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
-use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
-use crate::service::inheritance::sign_and_complete_inheritance_claim::SignAndCompleteInheritanceClaimInput;
-use crate::service::inheritance::update_inheritance_claim_destination::UpdateInheritanceProcessWithDestinationInput;
-use crate::service::inheritance::Service as InheritanceService;
 use axum::{
     extract::{Path, State},
     routing::{get, post, put},
     Json, Router,
 };
+
+use account::service::{FetchAccountInput, Service as AccountService};
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::{generate_electrum_rpc_uris, TransactionBroadcasterTrait};
 use errors::ApiError;
@@ -32,7 +25,6 @@ use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy, InheritanceClaimId,
-    InheritanceDestination,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::inheritance::router::{
@@ -45,6 +37,16 @@ use types::recovery::inheritance::router::{
 use types::recovery::social::relationship::RecoveryRelationshipId;
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::WsmClient;
+
+use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
+use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
+use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
+use crate::service::inheritance::Service as InheritanceService;
+use crate::service::inheritance::{
+    cancel_inheritance_claim::CancelInheritanceClaimInput,
+    complete_inheritance_claim::{CompleteWithoutPsbtInput, SignAndCompleteInheritanceClaimInput},
+};
+use crate::{metrics, service::inheritance::shorten_delay::ShortenDelayForBeneficiaryInput};
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
@@ -84,6 +86,14 @@ impl RouterBuilder for RouteState {
             .route(
                 "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/complete",
                 put(complete_inheritance_claim),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/complete-without-psbt",
+                put(complete_without_psbt_inheritance_claim),
+            )
+            .route(
+                "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/shorten",
+                put(shorten_delay_for_test_beneficiary_account),
             )
             .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
             .with_state(self.to_owned())
@@ -185,20 +195,20 @@ pub async fn create_inheritance_claim(
     State(inheritance_service): State<InheritanceService>,
     Json(request): Json<CreateInheritanceClaimRequest>,
 ) -> Result<Json<CreateInheritanceClaimResponse>, ApiError> {
-    let beneficiary_account = account_service
+    let Account::Full(beneficiary_account) = &account_service
         .fetch_account(FetchAccountInput {
             account_id: &beneficiary_account_id,
         })
-        .await?;
-    if !matches!(beneficiary_account, Account::Full(_)) {
+        .await?
+    else {
         return Err(ApiError::GenericForbidden(
             "Incorrect calling account type".to_string(),
         ));
-    }
+    };
 
     let claim = inheritance_service
         .create_claim(CreateInheritanceClaimInput {
-            beneficiary_account: &beneficiary_account,
+            beneficiary_account,
             recovery_relationship_id: request.recovery_relationship_id,
             auth_keys: request.auth,
         })
@@ -361,16 +371,16 @@ pub async fn cancel_inheritance_claim(
     State(inheritance_service): State<InheritanceService>,
     Json(request): Json<CancelInheritanceClaimRequest>,
 ) -> Result<Json<CancelInheritanceClaimResponse>, ApiError> {
-    let account = account_service
+    let Account::Full(account) = account_service
         .fetch_account(FetchAccountInput {
             account_id: &account_id,
         })
-        .await?;
-    if !matches!(account, Account::Full(_)) {
+        .await?
+    else {
         return Err(ApiError::GenericForbidden(
             "Incorrect calling account type".to_string(),
         ));
-    }
+    };
     let (canceled_by, claim) = inheritance_service
         .cancel_claim(CancelInheritanceClaimInput {
             account: &account,
@@ -390,71 +400,6 @@ pub async fn cancel_inheritance_claim(
             }));
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct UpdateInheritanceProcessWithDestinationRequest {
-    pub destination: InheritanceDestination,
-}
-
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
-pub struct UpdateInheritanceProcessWithDestinationResponse {
-    pub claim: InheritanceClaim,
-}
-
-///
-/// Updating inheritance claims with destination is not required for V1
-/// This route is used by a beneficiary to update the destination for a
-/// pending inheritance claim. To update it, the caller must:
-/// 1) be the beneficiary
-/// 2) the claim must be valid
-/// 3) the claim must be pending
-/// 4) the beneficiary must have a valid recovery relationship with the benefactor.
-///
-#[instrument(err, skip(account_service, inheritance_service))]
-#[utoipa::path(
-    put,
-    path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_id}",
-    params(
-        ("account_id" = AccountId, Path, description = "AccountId"),
-        ("inheritance_id" = InheritanceId, Path, description = "InheritanceId"),
-    ),
-    request_body = UpdateInheritanceProcessWithDestinationRequest,
-    responses(
-        (status = 200, description = "Updated inheritance process with new destination", body=UpdateInheritanceProcessWithDestinationResponse),
-    ),
-)]
-pub async fn update_inheritance_claim(
-    Path((beneficiary_account_id, inheritance_id)): Path<(AccountId, InheritanceClaimId)>,
-    State(account_service): State<AccountService>,
-    State(inheritance_service): State<InheritanceService>,
-    experimentation_claims: ExperimentationClaims,
-    Json(request): Json<UpdateInheritanceProcessWithDestinationRequest>,
-) -> Result<Json<UpdateInheritanceProcessWithDestinationResponse>, ApiError> {
-    let beneficiary_account = account_service
-        .fetch_account(FetchAccountInput {
-            account_id: &beneficiary_account_id,
-        })
-        .await?;
-
-    if !matches!(beneficiary_account, Account::Full(_)) {
-        return Err(ApiError::GenericForbidden(
-            "Incorrect calling account type".to_string(),
-        ));
-    }
-
-    let claim = inheritance_service
-        .update_claim(UpdateInheritanceProcessWithDestinationInput {
-            beneficiary_account: &beneficiary_account,
-            inheritance_claim_id: inheritance_id,
-            destination: request.destination,
-            context_key: experimentation_claims.account_context_key()?,
-        })
-        .await?;
-
-    Ok(Json(UpdateInheritanceProcessWithDestinationResponse {
-        claim,
-    }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -498,18 +443,16 @@ pub async fn lock_inheritance_claim(
     State(inheritance_service): State<InheritanceService>,
     Json(request): Json<LockInheritanceClaimRequest>,
 ) -> Result<Json<LockInheritanceClaimResponse>, ApiError> {
-    let beneficiary_account = account_service
+    let Account::Full(beneficiary_account) = account_service
         .fetch_account(FetchAccountInput {
             account_id: &beneficiary_account_id,
         })
-        .await?;
-
-    if !matches!(beneficiary_account, Account::Full(_)) {
+        .await?
+    else {
         return Err(ApiError::GenericForbidden(
             "Incorrect calling account type".to_string(),
         ));
-    }
-
+    };
     let claim = inheritance_service
         .lock(LockInheritanceClaimInput {
             inheritance_claim_id,
@@ -566,17 +509,16 @@ pub async fn complete_inheritance_claim(
     experimentation_claims: ExperimentationClaims,
     Json(request): Json<CompleteInheritanceClaimRequest>,
 ) -> Result<Json<CompleteInheritanceClaimResponse>, ApiError> {
-    let beneficiary_account = account_service
+    let Account::Full(beneficiary_account) = &account_service
         .fetch_account(FetchAccountInput {
             account_id: &beneficiary_account_id,
         })
-        .await?;
-
-    if !matches!(beneficiary_account, Account::Full(_)) {
+        .await?
+    else {
         return Err(ApiError::GenericForbidden(
             "Incorrect calling account type".to_string(),
         ));
-    }
+    };
     let context_key = experimentation_claims.app_installation_context_key().ok();
     let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service, context_key);
 
@@ -596,10 +538,95 @@ pub async fn complete_inheritance_claim(
             inheritance_claim_id,
             beneficiary_account,
             psbt,
+            context_key: experimentation_claims.account_context_key().ok(),
         })
         .await?;
 
     Ok(Json(CompleteInheritanceClaimResponse {
         claim: InheritanceClaim::Completed(claim).into(),
+    }))
+}
+
+///
+/// This route is used by a beneficiary to complete the locked inheritance claim without providing a PSBT.
+/// This is used when the beneficiary has no funds to claim.
+///
+/// To complete it, the caller must:
+/// 1) be the beneficiary
+/// 2) the claim must be valid & locked
+/// 3) the beneficiary must have a valid recovery relationship with the benefactor.
+///
+#[instrument(err, skip(account_service, inheritance_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/complete-without-psbt",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("inheritance_id" = InheritanceId, Path, description = "InheritanceId"),
+    ),
+    request_body = CompleteInheritanceClaimRequest,
+    responses(
+        (status = 200, description = "Completed inheritance claim", body=CompleteInheritanceClaimResponse),
+    ),
+)]
+pub async fn complete_without_psbt_inheritance_claim(
+    Path((beneficiary_account_id, inheritance_claim_id)): Path<(AccountId, InheritanceClaimId)>,
+    State(account_service): State<AccountService>,
+    State(inheritance_service): State<InheritanceService>,
+) -> Result<Json<CompleteInheritanceClaimResponse>, ApiError> {
+    let beneficiary_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &beneficiary_account_id,
+        })
+        .await?;
+    let claim = inheritance_service
+        .complete_without_psbt(CompleteWithoutPsbtInput {
+            inheritance_claim_id,
+            beneficiary_account: &beneficiary_account,
+        })
+        .await?;
+
+    Ok(Json(CompleteInheritanceClaimResponse {
+        claim: InheritanceClaim::Completed(claim).into(),
+    }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ShortenDelayForBeneficiaryRequest {
+    pub delay_period_seconds: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct ShortenDelayForBeneficiaryResponse {
+    pub claim: BeneficiaryInheritanceClaimView,
+}
+
+#[instrument(err, skip(inheritance_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_claim_id}/shorten",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("inheritance_id" = InheritanceId, Path, description = "InheritanceId"),
+    ),
+    request_body = ShortenDelayForBeneficiaryRequest,
+    responses(
+        (status = 200, description = "Shortened inheritance claim delay", body=ShortenDelayForBeneficiaryResponse),
+    ),
+)]
+pub async fn shorten_delay_for_test_beneficiary_account(
+    Path((beneficiary_account_id, inheritance_claim_id)): Path<(AccountId, InheritanceClaimId)>,
+    State(inheritance_service): State<InheritanceService>,
+    Json(request): Json<ShortenDelayForBeneficiaryRequest>,
+) -> Result<Json<ShortenDelayForBeneficiaryResponse>, ApiError> {
+    let claim = inheritance_service
+        .shorten_delay_for_beneficiary(ShortenDelayForBeneficiaryInput {
+            inheritance_claim_id,
+            beneficiary_account_id,
+            delay_period_seconds: request.delay_period_seconds,
+        })
+        .await?;
+    Ok(Json(ShortenDelayForBeneficiaryResponse {
+        claim: claim.into(),
     }))
 }

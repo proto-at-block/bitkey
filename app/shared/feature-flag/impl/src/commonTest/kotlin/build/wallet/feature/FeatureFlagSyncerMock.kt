@@ -7,14 +7,14 @@ import kotlinx.coroutines.CoroutineScope
 class FeatureFlagSyncerMock(
   turbine: (String) -> Turbine<Any>,
 ) : FeatureFlagSyncer {
-  val initializeSyncLoopCalls = turbine("initialize feature flags sync loop calls")
-  val syncFeatureFlagsCalls = turbine("sync feature flags calls")
+  val initializeSyncLoopCalls = turbine("initializeSyncLoop calls")
+  val syncCalls = turbine("sync calls")
 
   override suspend fun initializeSyncLoop(scope: CoroutineScope) {
     initializeSyncLoopCalls += Unit
   }
 
   override suspend fun sync() {
-    syncFeatureFlagsCalls += Unit
+    syncCalls += Unit
   }
 }

@@ -27,6 +27,7 @@ kotlin {
         api(projects.shared.datadogPublic)
         api(projects.shared.notificationsPublic)
         api(projects.shared.platformPublic)
+        api(projects.shared.f8eClientPublic)
         implementation(libs.kmp.ktor.client.content.negotiation)
         implementation(libs.kmp.ktor.client.auth)
         implementation(libs.kmp.ktor.client.core)

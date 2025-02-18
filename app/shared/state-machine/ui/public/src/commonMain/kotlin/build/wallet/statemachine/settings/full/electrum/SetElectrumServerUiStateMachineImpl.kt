@@ -1,12 +1,6 @@
 package build.wallet.statemachine.settings.full.electrum
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.CustomElectrumServerEventTrackerScreenId
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError.IncompatibleNetwork
@@ -16,20 +10,16 @@ import build.wallet.bitcoin.sync.ElectrumServerDetails
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.time.Delayer
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.root.ActionSuccessDuration
 import com.github.michaelbull.result.mapBoth
-import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.delay
 
 @BitkeyInject(ActivityScope::class)
 class SetElectrumServerUiStateMachineImpl(
-  private val delayer: Delayer,
   val electrumServerSettingProvider: ElectrumServerSettingProvider,
   val electrumReachability: ElectrumReachability,
+  private val actionSuccessDuration: ActionSuccessDuration,
 ) : SetElectrumServerUiStateMachine {
   @Composable
   override fun model(props: SetElectrumServerProps): ScreenModel {
@@ -89,7 +79,7 @@ class SetElectrumServerUiStateMachineImpl(
 
       is State.ElectrumServerIsSetUiState -> {
         LaunchedEffect("custom-electrum-server-save-success") {
-          delayer.delay(2.seconds)
+          delay(actionSuccessDuration.value)
           props.onSetServer()
         }
         SuccessBodyModel(

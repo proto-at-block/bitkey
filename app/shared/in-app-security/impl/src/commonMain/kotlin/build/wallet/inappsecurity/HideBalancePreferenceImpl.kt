@@ -15,8 +15,11 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 @BitkeyInject(AppScope::class)
 class HideBalancePreferenceImpl(
@@ -40,7 +43,7 @@ class HideBalancePreferenceImpl(
       .hideBalancePreferenceQueries
       .getHideBalancePeference()
       .awaitAsOneOrNullResult()
-      .logFailure { "Unable to get Lightning Preference Entity" }
+      .logFailure { "Unable to get Hide Balance Preference" }
       .map { it?.enabled ?: false } // if there is no preference set we assume false
   }
 

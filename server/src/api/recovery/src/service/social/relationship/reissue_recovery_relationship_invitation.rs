@@ -49,7 +49,13 @@ impl Service {
 
         let account_properties = &input.customer_account.common_fields.properties;
         let (code, code_bit_length) = gen_code();
-        let expires_at = gen_expiration(account_properties);
+        let role = invitation
+            .common_fields
+            .trusted_contact_info
+            .roles
+            .first()
+            .ok_or(ServiceError::MissingTrustedContactRoles)?;
+        let expires_at = gen_expiration(role, account_properties);
 
         let mut relationship = RecoveryRelationship::Invitation(invitation.reissue(
             &code,

@@ -403,6 +403,5 @@ private fun requestPushAlertModel(
   primaryButtonText = "Allow",
   onPrimaryButtonClick = onAllow,
   secondaryButtonText = "Don't allow",
-  onSecondaryButtonClick = onDontAllow,
-  secondaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive
+  onSecondaryButtonClick = onDontAllow
 )

@@ -1,5 +1,6 @@
 package build.wallet.f8e
 
+import build.wallet.crypto.NoiseKeyVariant
 import build.wallet.crypto.WsmIntegrityKeyVariant
 import build.wallet.f8e.F8eEnvironment.Custom
 import build.wallet.f8e.F8eEnvironment.Development
@@ -32,7 +33,9 @@ sealed interface F8eEnvironment {
 
   data object Local : F8eEnvironment
 
-  data class Custom(val url: String) : F8eEnvironment
+  data class Custom(
+    val url: String,
+  ) : F8eEnvironment
 
   companion object {
     fun parseString(raw: String): F8eEnvironment =
@@ -111,4 +114,11 @@ val F8eEnvironment.wsmIntegrityKeyVariant: WsmIntegrityKeyVariant
     when (this) {
       Production -> WsmIntegrityKeyVariant.Prod
       else -> WsmIntegrityKeyVariant.Test
+    }
+
+val F8eEnvironment.noiseKeyVariant: NoiseKeyVariant
+  get() =
+    when (this) {
+      Production -> NoiseKeyVariant.Prod
+      else -> NoiseKeyVariant.Test
     }

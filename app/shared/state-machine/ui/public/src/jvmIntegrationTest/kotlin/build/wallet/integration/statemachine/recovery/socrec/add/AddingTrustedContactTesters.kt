@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -19,16 +19,14 @@ import io.kotest.matchers.types.shouldBeTypeOf
 suspend fun StateMachineTester<AddingTrustedContactUiProps, ScreenModel>.proceedWithFakeNames(
   tcName: String = "tc-name",
 ) {
-  awaitUntilScreenWithBody<FormBodyModel>(
+  awaitUntilBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME
   ) {
     mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>()
       .fieldModel.onValueChange.invoke(tcName, tcName.indices)
   }
-  awaitUntilScreenWithBody<FormBodyModel>(
-    expectedBodyContentMatch = {
-      it.primaryButton?.isEnabled == true
-    }
+  awaitUntilBody<FormBodyModel>(
+    matching = { it.primaryButton?.isEnabled == true }
   ) {
     clickPrimaryButton()
   }
@@ -38,9 +36,9 @@ suspend fun StateMachineTester<AddingTrustedContactUiProps, ScreenModel>.proceed
  * Proceed through the NFC screens.
  */
 suspend fun StateMachineTester<AddingTrustedContactUiProps, ScreenModel>.proceedNfcScreens() {
-  awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+  awaitUntilBody<LoadingSuccessBodyModel> {
     state.shouldBe(LoadingSuccessBodyModel.State.Loading)
   }
-  awaitUntilScreenWithBody<NfcBodyModel>()
-  awaitUntilScreenWithBody<NfcBodyModel>()
+  awaitUntilBody<NfcBodyModel>()
+  awaitUntilBody<NfcBodyModel>()
 }

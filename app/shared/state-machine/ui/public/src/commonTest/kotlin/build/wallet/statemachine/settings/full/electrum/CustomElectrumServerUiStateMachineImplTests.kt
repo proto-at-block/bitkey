@@ -5,8 +5,8 @@ import build.wallet.bitcoin.sync.OffElectrumServerPreferenceValueMock
 import build.wallet.bitcoin.sync.OffElectrumServerWithPreviousPreferenceValueMock
 import build.wallet.bitcoin.sync.OnElectrumServerPreferenceValueMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.awaitBody
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -40,7 +40,7 @@ class CustomElectrumServerUiStateMachineImplTests : FunSpec({
   }
 
   test("initial state - without custom electrum server") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<CustomElectrumServerBodyModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
       }
@@ -48,7 +48,7 @@ class CustomElectrumServerUiStateMachineImplTests : FunSpec({
   }
 
   test("enable without custom electrum server -> set electrum server") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<CustomElectrumServerBodyModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
         switchCardModel.switchModel.onCheckedChange(true)
@@ -59,7 +59,7 @@ class CustomElectrumServerUiStateMachineImplTests : FunSpec({
   }
 
   test("enabled custom electrum server -> disable custom electrum server") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(electrumServerPreferenceValue = OnElectrumServerPreferenceValueMock)
     ) {
       electrumConfigService.electrumServerPreference.value = OnElectrumServerPreferenceValueMock

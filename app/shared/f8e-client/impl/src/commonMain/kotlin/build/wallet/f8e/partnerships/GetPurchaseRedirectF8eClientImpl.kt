@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClient.Success
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedRequestBody
@@ -33,12 +35,11 @@ class GetPurchaseRedirectF8eClientImpl(
     quoteId: String?,
   ): Result<Success, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        accountId = fullAccountId,
-        f8eEnvironment = f8eEnvironment
-      )
+      .authenticated()
       .bodyResult<ResponseBody> {
         post("/api/partnerships/purchases/redirects") {
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId)
           setRedactedBody(
             RequestBody(
               address = address.address,

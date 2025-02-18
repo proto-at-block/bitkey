@@ -6,6 +6,8 @@ import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.partnerships.GetSellRedirectF8eClient.Success
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -39,12 +41,11 @@ class GetSellRedirectF8eClientImpl(
         .bind()
 
       f8eHttpClient
-        .authenticated(
-          accountId = fullAccountId,
-          f8eEnvironment = f8eEnvironment
-        )
+        .authenticated()
         .bodyResult<ResponseBody> {
           post("/api/partnerships/sales/redirects") {
+            withEnvironment(f8eEnvironment)
+            withAccountId(fullAccountId)
             setRedactedBody(
               RequestBody(
                 fiatAmount = fiatAmount.value.doubleValue(exactRequired = false),

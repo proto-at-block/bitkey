@@ -1,31 +1,39 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.turbineScope
-import build.wallet.analytics.events.screen.id.ChooseRecoveryNotificationVerificationMethodScreenId.CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
+import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.*
+import build.wallet.statemachine.core.input.VerificationCodeInputFormBodyModel
 import build.wallet.statemachine.core.testIn
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
+import build.wallet.statemachine.recovery.cloud.CloudWarningBodyModel
+import build.wallet.statemachine.recovery.conflict.model.ShowingNoLongerRecoveringBodyModel
+import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
+import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
+import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
+import build.wallet.statemachine.recovery.lostapp.initiate.RecoveryConflictBodyModel
+import build.wallet.statemachine.recovery.sweep.ZeroBalancePromptBodyModel
+import build.wallet.statemachine.recovery.verification.ChooseRecoveryNotificationVerificationMethodModel
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.settings.full.device.DeviceSettingsFormBodyModel
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
@@ -34,6 +42,7 @@ import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -124,7 +133,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         ).onStopRecovery.shouldNotBeNull().invoke()
         lostAppAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
-        lostAppAppTester.awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+        lostAppAppTester.awaitUntilBody<ChooseAccountAccessModel>()
       }
     }
 
@@ -136,7 +145,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         ).onStopRecovery.shouldNotBeNull().invoke()
         lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onPrimaryButtonClick()
-        lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>(SETTINGS_DEVICE_INFO)
+        lostHwAppTester.awaitUntilBody<FormBodyModel>(SETTINGS_DEVICE_INFO)
       }
     }
   }
@@ -146,46 +155,35 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
   cancelOtherRecovery: Boolean = false,
   isContested: Boolean,
 ): DelayAndNotifyNewKeyReady {
-  awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+  awaitUntilBody<MoneyHomeBodyModel>()
     .trailingToolbarAccessoryModel
     .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
     .model.onClick.invoke()
 
-  awaitUntilScreenWithBody<SettingsBodyModel>()
+  awaitUntilBody<SettingsBodyModel>()
     .sectionModels.flatMap { it.rowModels }
     .find { it.title == "Bitkey Device" }
     .shouldNotBeNull()
     .onClick()
 
-  awaitUntilScreenWithBody<FormBodyModel>(
-    expectedBodyContentMatch = {
-      it.mainContentList.any { content ->
-        content is Button && content.item.text == "Replace device"
-      }
-    }
-  ) {
-    (
-      mainContentList.find {
-        it is Button && it.item.text == "Replace device"
-      } as Button
-    ).item.onClick()
-  }
+  awaitUntilBody<DeviceSettingsFormBodyModel>(
+    matching = { it.replaceDeviceEnabled && it.replacementPending == null }
+  ).onReplaceDevice()
 
-  awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
+  awaitUntilBody<HardwareReplacementInstructionsModel>()
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)
+  awaitUntilBody<NewDeviceReadyQuestionBodyModel>()
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
+  awaitUntilBody<PairNewHardwareBodyModel>(HW_ACTIVATION_INSTRUCTIONS)
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
+  awaitUntilBody<PairNewHardwareBodyModel>(HW_PAIR_INSTRUCTIONS)
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
+  awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
     .clickPrimaryButton()
   if (cancelOtherRecovery) {
-    awaitUntilScreenWithBody<FormBodyModel>(
+    awaitUntilBody<RecoveryConflictBodyModel>(
       LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-    )
-      .clickSecondaryButton()
+    ).onCancelRecovery()
     // Verify to cancel other recovery.
     verifyCommsForLostHardware()
   }
@@ -193,7 +191,7 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
   if (isContested) {
     verifyCommsForLostHardware()
   }
-  return awaitUntilScreenWithBody<DelayAndNotifyNewKeyReady>().also {
+  return awaitUntilBody<DelayAndNotifyNewKeyReady>().also {
     it.factorToRecover.shouldBe(PhysicalFactor.Hardware)
   }
 }
@@ -207,67 +205,49 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateAndCompleteLos
     .onClick()
 
   // Start onboarding.
-  awaitUntilScreenWithBody<FormBodyModel>()
-    .primaryButton
-    .shouldNotBeNull()
-    .onClick()
+  awaitUntilBody<SaveBackupInstructionsBodyModel>()
+    .onBackupClick()
 
-  awaitUntilScreenWithBody<CloudSignInModelFake>()
+  awaitUntilBody<CloudSignInModelFake>()
     .signInSuccess(CloudStoreAccount1Fake)
 
-  awaitUntilScreenWithBody<FormBodyModel>(
-    LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-  )
-    .primaryButton
-    .shouldNotBeNull()
-    .onClick()
+  awaitUntilBody<ZeroBalancePromptBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
+    .onDone()
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.verifyCommsForLostHardware() {
-  // This should be the [ChooseRecoveryNotificationVerificationMethodModel]
-  (
-    awaitUntilScreenWithBody<FormBodyModel>(CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD)
-      .mainContentList[0] as ListGroup
-  )
-    .listGroupModel
-    .items
-    .find { it.title == "Email" }.shouldNotBeNull().onClick.shouldNotBeNull()()
-  awaitUntilScreenWithBody<FormBodyModel>(
+  awaitUntilBody<ChooseRecoveryNotificationVerificationMethodModel>()
+    .onEmailClick.shouldNotBeNull().invoke()
+
+  awaitUntilBody<VerificationCodeInputFormBodyModel>(
     LOST_HW_DELAY_NOTIFY_VERIFICATION_ENTRY
-  ).let {
-    (it.mainContentList[0] as VerificationCodeInput).fieldModel.onValueChange(
-      "123456",
-      IntRange.EMPTY
-    )
-  }
+  ).onValueChange("123456")
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.navigateToLostAppRecovery() {
-  awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+  awaitUntilBody<ChooseAccountAccessModel>()
     .clickMoreOptionsButton()
-  awaitUntilScreenWithBody<FormBodyModel>()
-    .restoreButton.onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+  awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
+    .onRestoreYourWalletClick()
+  awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
     .signInSuccess(CloudStoreAccount1Fake)
   // Cloud sign in missing backup
-  awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
-    .restoreButton.onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenWithBody<FormBodyModel>(
-    LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-  )
-    .clickPrimaryButton()
-  awaitUntilScreenWithBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
+  awaitUntilBody<CloudWarningBodyModel>(CLOUD_BACKUP_NOT_FOUND)
+    .onCannotAccessCloud()
+  awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+    .onStartRecovery()
+  awaitUntilBody<EnableNotificationsBodyModel>()
     .clickPrimaryButton()
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.cancelThroughLostAppRecovery() {
   navigateToLostAppRecovery()
   // If canceling, perform the following steps.
-  awaitUntilScreenWithBody<FormBodyModel>(
+  awaitUntilBody<RecoveryConflictBodyModel>(
     LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-  )
-    .clickSecondaryButton()
-  awaitUntilScreenWithBody<FormBodyModel>().onBack.shouldNotBeNull()()
+  ).onCancelRecovery()
+  awaitUntilBody<ChooseRecoveryNotificationVerificationMethodModel>()
+    .onBack()
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostAppRecovery(
@@ -276,10 +256,9 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostAppRecover
 ): DelayAndNotifyNewKeyReady {
   navigateToLostAppRecovery()
   if (cancelOtherRecovery) {
-    awaitUntilScreenWithBody<FormBodyModel>(
+    awaitUntilBody<RecoveryConflictBodyModel>(
       LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-    )
-      .clickSecondaryButton()
+    ).onCancelRecovery()
     // Verify to cancel other recovery.
     verifyCommsForLostApp()
   }
@@ -287,7 +266,7 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostAppRecover
   if (isContested) {
     verifyCommsForLostApp()
   }
-  return awaitUntilScreenWithBody<DelayAndNotifyNewKeyReady>().also {
+  return awaitUntilBody<DelayAndNotifyNewKeyReady>().also {
     it.factorToRecover.shouldBe(PhysicalFactor.App)
   }
 }
@@ -299,41 +278,25 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateAndCompleteLos
     .onCompleteRecovery()
 
   // Start onboarding.
-  awaitUntilScreenWithBody<FormBodyModel>()
-    .primaryButton
-    .shouldNotBeNull()
-    .onClick()
+  awaitUntilBody<SaveBackupInstructionsBodyModel>()
+    .onBackupClick()
 
-  awaitUntilScreenWithBody<CloudSignInModelFake>()
+  awaitUntilBody<CloudSignInModelFake>()
     .signInSuccess(CloudStoreAccount1Fake)
 
-  awaitUntilScreenWithBody<FormBodyModel>(
-    LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-  )
-    .primaryButton
-    .shouldNotBeNull()
-    .onClick()
+  awaitUntilBody<ZeroBalancePromptBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
+    .onDone()
 }
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.verifyCommsForLostApp() {
-  (
-    awaitUntilScreenWithBody<FormBodyModel>(CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD)
-      .mainContentList[0] as ListGroup
-  )
-    .listGroupModel
-    .items
-    .find { it.title == "Email" }.shouldNotBeNull().onClick.shouldNotBeNull()()
-  awaitUntilScreenWithBody<FormBodyModel>(
+  awaitUntilBody<ChooseRecoveryNotificationVerificationMethodModel>()
+    .onEmailClick.shouldNotBeNull().invoke()
+  awaitUntilBody<VerificationCodeInputFormBodyModel>(
     LOST_APP_DELAY_NOTIFY_VERIFICATION_ENTRY
-  ).let {
-    (it.mainContentList[0] as VerificationCodeInput).fieldModel.onValueChange(
-      "123456",
-      IntRange.EMPTY
-    )
-  }
+  ).onValueChange("123456")
 }
 
-private suspend fun testWithTwoApps(
+private suspend fun TestScope.testWithTwoApps(
   isContested: Boolean,
   isUsingSocRecFakes: Boolean = false,
   testContent: suspend CoroutineScope.(
@@ -348,7 +311,7 @@ private suspend fun testWithTwoApps(
   lostHwApp.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
   val fakeHardwareSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
   lostHwApp.deleteBackupsFromFakeCloud()
-  lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+  lostHwApp.fakeNfcCommands.wipeDevice()
 
   // Move the hardware that was lost to a new device
   val lostAppApp = launchNewApp(
@@ -376,15 +339,15 @@ private suspend fun testWithTwoApps(
       // to allow waiting for a new FormScreenModel as a recovery canceled screen.
       lostHwAppTester.initiateLostHardwareRecovery(isContested = false)
         .onBack.shouldNotBeNull()()
-      lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>()
-        .onBack.shouldNotBeNull()()
+      lostHwAppTester.awaitUntilBody<DeviceSettingsFormBodyModel>()
+        .onBack()
 
       // Cancel through lost app recovery.
       lostAppAppTester.cancelThroughLostAppRecovery()
 
       // Wait until sync navigates to the recovery canceled screen and acknowledge.
-      lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>().primaryButton.shouldNotBeNull()
-        .onClick()
+      lostHwAppTester.awaitUntilBody<ShowingNoLongerRecoveringBodyModel>()
+        .onAcknowledge()
     }
 
     // Set seed if it wasn't set already
@@ -398,13 +361,13 @@ private suspend fun testWithTwoApps(
       // Reset hardware and clear backups
       {
         lostHwApp.deleteBackupsFromFakeCloud()
-        lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
-        lostAppApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+        lostHwApp.fakeNfcCommands.wipeDevice()
+        lostAppApp.fakeNfcCommands.wipeDevice()
         lostAppApp.fakeNfcCommands.fakeHardwareKeyStore.setSeed(oldSeed)
       },
       // Reset lostHwAppTester's hardware
       {
-        lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+        lostHwApp.fakeNfcCommands.wipeDevice()
       }
     )
 

@@ -19,12 +19,12 @@ import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import io.kotest.core.spec.style.FunSpec
@@ -87,51 +87,51 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("fee bump happy path") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<TransferConfirmationScreenModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<TransferConfirmationScreenModel> {
         onConfirmClick()
       }
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
         shouldShowLongRunningOperation.shouldBeTrue()
         onSuccess(PsbtMock)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
 
       bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(PsbtMock)
       }
 
-      awaitScreenWithBodyModelMock<TransferInitiatedUiProps>("transfer-initiated") {
+      awaitBodyMock<TransferInitiatedUiProps>("transfer-initiated") {
         onDone()
       }
     }
   }
 
   test("fee bump for utxo consolidation happy path") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         speedUpTransactionDetails = props.speedUpTransactionDetails.copy(
           transactionType = UtxoConsolidation
         )
       )
     ) {
-      awaitScreenWithBody<UtxoConsolidationSpeedUpConfirmationModel> {
+      awaitBody<UtxoConsolidationSpeedUpConfirmationModel> {
         onConfirmClick()
       }
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
+      awaitBodyMock<NfcSessionUIStateMachineProps<Psbt>>("nfc") {
         onSuccess(PsbtMock)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
 
       bitcoinWalletService.broadcastedPsbts.test {
         awaitItem().shouldContainExactly(PsbtMock)
       }
 
-      awaitScreenWithBody<UtxoConsolidationSpeedUpTransactionSentModel> {
+      awaitBody<UtxoConsolidationSpeedUpTransactionSentModel> {
         onDone()
       }
     }

@@ -1,6 +1,3 @@
-// DO NOT EDIT.
-// This file is generated from design tokens in the wallet/style folder.
-
 package build.wallet.statemachine.core
 
 /**
@@ -23,6 +20,8 @@ enum class Icon {
   BuyOwnBitkeyHero,
   CloudBackupEmergencyAccessKit,
   CloudBackupMobileKey,
+  InheritanceShowcase,
+  InheritancePlanHero,
   LargeIconAdd,
   LargeIconConsolidationFilled,
   LargeIconMinus,
@@ -34,6 +33,7 @@ enum class Icon {
   LargeIconSend,
   LargeIconShieldPerson,
   LargeIconSpeedometer,
+  LargeIconWarning,
   LargeIconWarningFilled,
   LargeIconWarningStroked,
   MediumIconQrCode,

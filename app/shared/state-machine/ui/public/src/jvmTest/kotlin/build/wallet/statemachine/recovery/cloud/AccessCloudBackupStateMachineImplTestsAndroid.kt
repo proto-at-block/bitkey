@@ -10,11 +10,11 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -61,15 +61,15 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
   }
 
   test("android - cloud account signed in but cloud backup not found - check cloud again and fail") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         mainContentList
           .first()
           .shouldNotBeNull()
@@ -79,42 +79,36 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
           .onClick.shouldNotBeNull().invoke()
       }
 
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel>()
+      awaitBody<FormBodyModel>()
     }
   }
 
   test("android - cloud account signed in but cloud backup not found - check cloud again and find backup") {
-    stateMachine.test(props) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<CloudWarningBodyModel> {
         cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, requireAuthRefresh = true)
-        mainContentList
-          .first()
-          .shouldNotBeNull()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[0]
-          .onClick.shouldNotBeNull().invoke()
+        onCheckCloudAgain()
       }
 
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+      awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 

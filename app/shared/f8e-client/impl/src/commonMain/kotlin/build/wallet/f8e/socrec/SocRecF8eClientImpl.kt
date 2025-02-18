@@ -13,6 +13,8 @@ import build.wallet.di.Impl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.socrec.models.*
 import build.wallet.ktor.result.EmptyResponseBody
@@ -35,14 +37,12 @@ class SocRecF8eClientImpl(
     trustedContacts: List<StartSocialChallengeRequestTrustedContact>,
   ): Result<SocialChallenge, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = fullAccountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<SocialChallengeResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges") {
           withDescription("Start Social Recovery Challenge")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId, AuthTokenScope.Recovery)
           setRedactedBody(
             StartSocialChallengeRequestBody(
               trustedContacts = trustedContacts
@@ -59,14 +59,12 @@ class SocRecF8eClientImpl(
     challengeId: String,
   ): Result<SocialChallenge, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = f8eEnvironment,
-        accountId = fullAccountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<SocialChallengeResponseBody> {
         get("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges/$challengeId") {
           withDescription("Fetch Social Recovery Challenge")
+          withEnvironment(f8eEnvironment)
+          withAccountId(fullAccountId, AuthTokenScope.Recovery)
         }
       }
       .map { it.challenge }
@@ -78,15 +76,14 @@ class SocRecF8eClientImpl(
     counter: Int,
   ): Result<ChallengeVerificationResponse, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      ).bodyResult<VerifyChallengeResponseBody> {
+      .authenticated()
+      .bodyResult<VerifyChallengeResponseBody> {
         post(
           "/api/accounts/${account.accountId.serverId}/recovery/verify-social-challenge"
         ) {
           withDescription("Verify challenge code")
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId, AuthTokenScope.Recovery)
           setRedactedBody(
             VerifyChallengeRequestBody(
               recoveryRelationshipId = recoveryRelationshipId,
@@ -106,15 +103,14 @@ class SocRecF8eClientImpl(
     resealedDek: XCiphertext,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      ).bodyResult<EmptyResponseBody> {
+      .authenticated()
+      .bodyResult<EmptyResponseBody> {
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/social-challenges/$socialChallengeId"
         ) {
           withDescription("Verify challenge code")
+          withEnvironment(account.config.f8eEnvironment)
+          withAccountId(account.accountId, AuthTokenScope.Recovery)
           setRedactedBody(
             RespondToChallengeRequestBody(
               trustedContactRecoveryPakePubkey = trustedContactRecoveryPakePubkey,

@@ -2,11 +2,11 @@
     "module-identifier": "com.bugsnag:bugsnag-plugin-android-ndk",
     "components": [
         {
-            "version": "6.4.0",
+            "version": "6.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "bugsnag-plugin-android-ndk-6.4.0.aar": "823d5ddfbe5b8187617ce76d2d379ffbf36c111909e90908a81d2c0b5dc66d5c"
+                        "bugsnag-plugin-android-ndk-6.8.0.aar": "5a964c56fc27958d4471ce44cbb922bf606d42f9f02863cd929a780f35349dd2"
                     }
                 }
             ],

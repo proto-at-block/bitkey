@@ -13,9 +13,11 @@ interface InviteBeneficiaryUiStateMachine :
 
 /**
  * @property account - current active account inviting the beneficiary
- * @property onExit - callback invoked once the flow is exited
+ * @property onExit - callback invoked if the flow is exited early
+ * @property onInvited - callback invoked when the flow has completed after sending an invite
  */
 data class InviteBeneficiaryUiProps(
   val account: FullAccount,
   val onExit: () -> Unit,
+  val onInvited: () -> Unit,
 )

@@ -2,16 +2,16 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-iossimulatorarm64",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-coroutines-iossimulatorarm64-1.1.1-metadata.jar": "fa38320773290298f2bee77e171642340140a2fed1edb213785d87dbfa0fbbd9"
+                        "multiplatform-settings-coroutines-iossimulatorarm64-1.2.0-metadata.jar": "87047da64a920ce63c1a2db532cd9156b3947a8fc89235ce9463f3de39e9330a"
                     }
                 },
                 {
                     "artifacts": {
-                        "multiplatform-settings-coroutines.klib": "97961e59c849569ddaeecef3101a935de8ddfa0034c5fca4cb5041afdf7fd13d"
+                        "multiplatform-settings-coroutines.klib": "edfe80f628fd71b1bc4f07d3007e37a051c3c794d40452e0a37cb6b4795fffac"
                     }
                 }
             ],

@@ -2,11 +2,11 @@ package build.wallet.auth
 
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
-import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationAuthError
-import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationF8eError
-import build.wallet.auth.LiteAccountCreationError.LiteAccountKeyGenerationError
+import build.wallet.auth.AuthTokenScope.Recovery
+import build.wallet.auth.LiteAccountCreationError.*
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
+import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.bitkey.keybox.LiteAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError
@@ -19,30 +19,29 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class LiteAccountCreatorImplTests : FunSpec({
 
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val accountService = AccountServiceFake()
-  val authTokenDao = AuthTokenDaoMock(turbines::create)
+  val authTokensService = AuthTokensServiceFake()
   val appKeysGenerator = AppKeysGeneratorMock()
   val createLiteAccountF8eClient = CreateLiteAccountF8eClientMock(turbines::create)
 
-  val creator =
-    LiteAccountCreatorImpl(
-      accountAuthenticator = accountAuthorizer,
-      accountService = accountService,
-      authTokenDao = authTokenDao,
-      appKeysGenerator = appKeysGenerator,
-      createLiteAccountF8eClient = createLiteAccountF8eClient
-    )
+  val creator = LiteAccountCreatorImpl(
+    accountAuthenticator = accountAuthorizer,
+    accountService = accountService,
+    authTokensService = authTokensService,
+    appKeysGenerator = appKeysGenerator,
+    createLiteAccountF8eClient = createLiteAccountF8eClient
+  )
 
   beforeTest {
     accountAuthorizer.reset()
     accountService.reset()
     appKeysGenerator.reset()
     createLiteAccountF8eClient.reset()
+    authTokensService.reset()
   }
 
   test("Happy path") {
@@ -63,10 +62,7 @@ class LiteAccountCreatorImplTests : FunSpec({
     accountAuthorizer.authCalls.awaitItem()
       .shouldBe(recoveryKey)
 
-    authTokenDao.setTokensCalls.awaitItem()
-      .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
-      .tokens.shouldBe(tokens)
-
+    authTokensService.getTokens(LiteAccountId("account-id-fake"), Recovery).shouldBeOk(tokens)
     accountService.accountState.value.get().shouldBe(AccountStatus.OnboardingAccount(account))
   }
 

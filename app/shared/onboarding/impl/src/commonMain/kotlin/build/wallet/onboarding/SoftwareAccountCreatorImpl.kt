@@ -1,8 +1,8 @@
 package build.wallet.onboarding
 
 import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
+import build.wallet.auth.AuthTokensService
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.account.SoftwareAccountConfig
 import build.wallet.bitkey.app.AppAuthKey
@@ -25,7 +25,7 @@ import com.github.michaelbull.result.mapError
 class SoftwareAccountCreatorImpl(
   private val createSoftwareAccountF8eClient: CreateSoftwareAccountF8eClient,
   private val accountAuthenticator: AccountAuthenticator,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
 ) : SoftwareAccountCreator {
   override suspend fun createAccount(
     authKey: PublicKey<AppGlobalAuthKey>,
@@ -36,7 +36,11 @@ class SoftwareAccountCreatorImpl(
       // Create a new account on the server and get a server key back.
       val accountServerResponse =
         createSoftwareAccountF8eClient
-          .createAccount(authKey = authKey, recoveryAuthKey = recoveryAuthKey, accountConfig = config)
+          .createAccount(
+            authKey = authKey,
+            recoveryAuthKey = recoveryAuthKey,
+            accountConfig = config
+          )
           .mapError { SoftwareAccountCreationF8eError(it) }
           .bind()
       val customerAccountId = SoftwareAccountId(accountServerResponse.serverId)
@@ -89,8 +93,8 @@ class SoftwareAccountCreatorImpl(
           .bind()
           .authTokens
 
-      authTokenDao
-        .setTokensOfScope(accountId, authTokens, tokenScope)
+      authTokensService
+        .setTokens(accountId, authTokens, tokenScope)
         .mapError { FailedToSaveAuthTokens(it) }
         .bind()
     }

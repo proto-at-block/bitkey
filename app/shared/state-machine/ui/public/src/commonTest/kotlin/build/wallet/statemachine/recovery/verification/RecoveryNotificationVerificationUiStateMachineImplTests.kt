@@ -18,6 +18,8 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -60,22 +62,22 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onCodeEntered("123")
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -88,22 +90,22 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("Email")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onCodeEntered("123")
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -115,12 +117,12 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult =
       Err(HttpError.NetworkError(Throwable()))
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("We couldn’t load verification for recovery")
         primaryButton.shouldNotBeNull().apply {
           text.shouldBe("Retry")
@@ -128,11 +130,11 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("We couldn’t load verification for recovery")
         secondaryButton.shouldNotBeNull().apply {
           text.shouldBe("Back")
@@ -149,12 +151,12 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         onBack.shouldNotBeNull().invoke()
       }
 
@@ -168,18 +170,18 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.sendVerificationCodeToTouchpointResult =
       Err(HttpError.NetworkError(Throwable()))
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldNotBeNull()
           .shouldBe("We couldn’t send a verification code")
         secondaryButton.shouldNotBeNull().apply {
@@ -190,11 +192,11 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         notificationTouchpointService.sendVerificationCodeToTouchpointResult = Ok(Unit)
 
         header.shouldNotBeNull().headline.shouldNotBeNull()
@@ -205,15 +207,15 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onBack.invoke()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
       }
     }
@@ -225,26 +227,26 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.ConnectivityError(HttpError.NetworkError(Throwable())))
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onCodeEntered("123")
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldNotBeNull()
           .shouldBe("We couldn’t verify the entered code")
 
@@ -255,7 +257,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
       }
     }
   }
@@ -266,26 +268,26 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onCodeEntered("123")
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldNotBeNull()
           .shouldBe("We couldn’t verify the entered code")
 
@@ -296,7 +298,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
       }
     }
@@ -308,26 +310,26 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
-    stateMachine.test(props) {
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
       awaitAndSelectTouchpoint("SMS")
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onCodeEntered("123")
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      awaitScreenWithBody<FormBodyModel> {
+      awaitBody<FormBodyModel> {
         notificationTouchpointService.verifyCodeResult = Ok(Unit)
 
         header.shouldNotBeNull().headline.shouldNotBeNull()
@@ -339,7 +341,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingSuccessBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
@@ -350,7 +352,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
 private suspend fun ReceiveTurbine<ScreenModel>.awaitAndSelectTouchpoint(touchpointName: String) =
   apply {
-    awaitScreenWithBody<FormBodyModel> {
+    awaitBody<FormBodyModel> {
       header.shouldNotBeNull().headline.shouldNotBeNull().shouldBe("Verification Required")
 
       val listModel =

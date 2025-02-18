@@ -25,7 +25,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.*
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState.VerifyingNotificationCommsForCancellationState
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState.VerifyingNotificationCommsForInitiationState
-import build.wallet.time.Delayer
+import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -43,7 +43,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
-  private val delayer: Delayer,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : InitiatingLostHardwareRecoveryDataStateMachine {
   @Composable
   override fun model(
@@ -53,10 +53,9 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     return when (val s = state) {
       is GeneratingNewAppKeys -> {
         LaunchedEffect("building-key-cross-with-hardware-keys") {
-          delayer
-            .withMinimumDelay {
-              appKeysGenerator.generateKeyBundle(props.account.config.bitcoinNetworkType)
-            }
+          withMinimumDelay(minimumLoadingDuration.value) {
+            appKeysGenerator.generateKeyBundle(props.account.config.bitcoinNetworkType)
+          }
             .onSuccess {
               state = OnboardingNewHardware(it)
             }

@@ -6,6 +6,7 @@ use authn_authz::routes::{
     AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
     AuthenticateWithRecoveryAuthkeyRequest, AuthenticateWithRecoveryResponse,
     AuthenticationRequest, AuthenticationResponse, GetTokensRequest, GetTokensResponse,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
 };
 use axum::body::Body;
 use axum::Router;
@@ -33,8 +34,7 @@ use onboarding::routes::{
     ActivateSpendingKeyDefinitionResponse, BdkConfigResponse, CompleteOnboardingRequest,
     CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
-    CreateKeysetRequest, CreateKeysetResponse, CreateSelfSovereignBackupRequest,
-    CreateSelfSovereignBackupResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
+    CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
     RotateSpendingKeysetRequest, UpgradeAccountRequest,
 };
@@ -46,16 +46,18 @@ use privileged_action::routes::{
     GetPrivilegedActionDefinitionsResponse,
 };
 use recovery::routes::delay_notify::{
-    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, RotateAuthenticationKeysRequest,
-    RotateAuthenticationKeysResponse, SendAccountVerificationCodeRequest,
-    SendAccountVerificationCodeResponse, UpdateDelayForTestRecoveryRequest,
-    VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
+    CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, EvaluatePinRequest,
+    EvaluatePinResponse, RotateAuthenticationKeysRequest, RotateAuthenticationKeysResponse,
+    SendAccountVerificationCodeRequest, SendAccountVerificationCodeResponse,
+    UpdateDelayForTestRecoveryRequest, VerifyAccountVerificationCodeRequest,
+    VerifyAccountVerificationCodeResponse,
+};
+use recovery::routes::distributed_keys::{
+    CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse,
 };
 use recovery::routes::inheritance::{
     CancelInheritanceClaimRequest, CancelInheritanceClaimResponse, CreateInheritanceClaimRequest,
-    CreateInheritanceClaimResponse, GetInheritanceClaimsResponse,
-    UpdateInheritanceProcessWithDestinationRequest,
-    UpdateInheritanceProcessWithDestinationResponse, UploadInheritancePackagesRequest,
+    CreateInheritanceClaimResponse, GetInheritanceClaimsResponse, UploadInheritancePackagesRequest,
     UploadInheritancePackagesResponse,
 };
 use recovery::routes::relationship::{
@@ -962,6 +964,24 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn make_request_with_headers<T>(
+        &self,
+        uri: &str,
+        method: &Method,
+        headers: HeaderMap,
+        request_body: Body,
+    ) -> Response<T>
+    where
+        T: DeserializeOwned + Serialize + Sync + Send,
+    {
+        Request::builder()
+            .uri(uri)
+            .with_headers(headers)
+            .json_request(request_body, method.to_owned())
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn update_recovery_relationship(
         &self,
         account_id: &str,
@@ -1570,27 +1590,26 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn update_inheritance_claim(
+    pub(crate) async fn initate_noise_secure_channel(
+        &self,
+        request: &NoiseInitiateBundleRequest,
+    ) -> Response<NoiseInitiateBundleResponse> {
+        Request::builder()
+            .uri("/api/secure-channel/initiate".to_string())
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn evaluate_pin(
         &self,
         account_id: &str,
-        inheritance_id: &str,
-        request: &UpdateInheritanceProcessWithDestinationRequest,
-        keys: &TestAuthenticationKeys,
-    ) -> Response<UpdateInheritanceProcessWithDestinationResponse> {
+        request: &EvaluatePinRequest,
+    ) -> Response<EvaluatePinResponse> {
         Request::builder()
-            .uri(format!(
-                "/api/accounts/{account_id}/recovery/inheritance/claims/{inheritance_id}"
-            ))
-            .with_authentication(
-                &CognitoAuthentication::Recovery,
-                &AccountId::from_str(account_id).unwrap(),
-                (
-                    keys.app.secret_key,
-                    keys.hw.secret_key,
-                    keys.recovery.secret_key,
-                ),
-            )
-            .put(&request)
+            .uri(format!("/api/accounts/{account_id}/recovery/evaluate-pin"))
+            .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
+            .post(&request)
             .call(&self.router)
             .await
     }

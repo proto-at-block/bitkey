@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-auth-base",
     "components": [
         {
-            "version": "18.0.4",
+            "version": "18.0.10",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-auth-base-18.0.4.aar": "ab524b18725d90a3060da75c41d431d337b6d90f5e9539efeedf215a75deb63f"
+                        "play-services-auth-base-18.0.10.aar": "d8bff2c98d239633fb550229e527779425bfb51ff04b96ac0f12d3acba0b1f42"
                     }
                 }
             ],

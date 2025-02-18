@@ -224,7 +224,7 @@ private data class SweepFundsPromptBodyModel(
             sideText = transferAmount.secondaryAmount
           ),
           FormMainContentModel.DataList.Data(
-            title = "Network Fees",
+            title = "Network fees",
             onTitle = onShowNetworkFeesInfo,
             titleIcon =
               IconModel(
@@ -268,7 +268,7 @@ fun zeroBalancePrompt(
   )
 )
 
-private data class ZeroBalancePromptBodyModel(
+data class ZeroBalancePromptBodyModel(
   override val id: EventTrackerScreenId?,
   val onDone: () -> Unit,
 ) : FormBodyModel(

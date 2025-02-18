@@ -1,8 +1,8 @@
 package build.wallet.debug
 
 import build.wallet.statemachine.account.ChooseAccountAccessModel
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeOk
@@ -16,8 +16,8 @@ class AppDataDeleterImplComponentTests : FunSpec({
 
     app.appDataDeleter.deleteAll().shouldBeOk()
 
-    app.appUiStateMachine.test(Unit) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+    app.appUiStateMachine.testWithVirtualTime(Unit) {
+      awaitUntilBody<ChooseAccountAccessModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -26,8 +26,8 @@ class AppDataDeleterImplComponentTests : FunSpec({
     val app = launchNewApp()
     app.appDataDeleter.deleteAll().shouldBeOk()
 
-    app.appUiStateMachine.test(Unit) {
-      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+    app.appUiStateMachine.testWithVirtualTime(Unit) {
+      awaitUntilBody<ChooseAccountAccessModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }

@@ -122,6 +122,7 @@ def replace_patterns(file_patterns, version):
             if changed:
                 f.seek(0)
                 f.write(text)
+                f.truncate()
                 yield filename
             else:
                 raise Exception(f"Could not find pattern '{pattern}' to replace in {filename}")

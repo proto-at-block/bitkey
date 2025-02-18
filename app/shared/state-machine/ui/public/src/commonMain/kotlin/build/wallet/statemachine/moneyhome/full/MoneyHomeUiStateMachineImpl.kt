@@ -6,15 +6,21 @@ import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MON
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.inheritance.InheritanceClaimId
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.InheritanceMarketingFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
+import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.onboarding.OnboardingCompletionService
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransactionId
@@ -36,11 +42,13 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
+import build.wallet.statemachine.inheritance.*
+import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachine
+import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineProps
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -98,15 +106,34 @@ class MoneyHomeUiStateMachineImpl(
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val partnershipsSellUiStateMachine: PartnershipsSellUiStateMachine,
   private val failedPartnerTransactionUiStateMachine: FailedPartnerTransactionUiStateMachine,
+  private val inheritanceMarketingFlag: InheritanceMarketingFeatureFlag,
+  private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
+  private val inheritanceUpsellService: InheritanceUpsellService,
+  private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
+  private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
+  private val onboardingCompletionService: OnboardingCompletionService,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
     val justCompletingSocialRecovery by remember {
       socRecService.justCompletedRecovery()
     }.collectAsState(initial = false)
+
+    val shouldShowUpsell = remember { mutableStateOf(false) }
+
+    val scope = rememberStableCoroutineScope()
+
+    LaunchedEffect("check-for-upsell") {
+      // Ensure onboarding is recorded for users who completed it before
+      // this feature was introduced
+      shouldShowUpsell.value = inheritanceUpsellService.shouldShowUpsell()
+      onboardingCompletionService.recordCompletionIfNotExists()
+    }
+
     var uiState: MoneyHomeUiState by remember(
       props.origin,
-      justCompletingSocialRecovery
+      justCompletingSocialRecovery,
+      shouldShowUpsell.value
     ) {
       val initialState = when (val origin = props.origin) {
         MoneyHomeUiProps.Origin.Launch -> {
@@ -125,6 +152,14 @@ class MoneyHomeUiStateMachineImpl(
                   )
                 else -> ViewingBalanceUiState()
               }
+            inheritanceMarketingFlag.isEnabled() && shouldShowUpsell.value -> {
+              scope.launch {
+                inheritanceUpsellService.markUpsellAsSeen()
+              }
+              ViewingBalanceUiState(
+                bottomSheetDisplayState = InheritanceUpsell
+              )
+            }
             else -> ViewingBalanceUiState()
           }
         }
@@ -353,6 +388,35 @@ class MoneyHomeUiStateMachineImpl(
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
+
+      is DenyInheritanceClaimUiState -> declineInheritanceClaimUiStateMachine.model(
+        props = DeclineInheritanceClaimUiProps(
+          fullAccount = props.account as FullAccount,
+          claimId = state.claimId.value,
+          onBack = { uiState = ViewingBalanceUiState() },
+          onBeneficiaryRemoved = { uiState = ViewingBalanceUiState() },
+          onClaimDeclined = { uiState = ViewingBalanceUiState() }
+        )
+      )
+
+      is CompleteInheritanceClaimUiState -> completeClaimUiStateMachine.model(
+        CompleteInheritanceClaimUiStateMachineProps(
+          relationshipId = state.relationshipId,
+          account = props.account as FullAccount,
+          onExit = { uiState = ViewingBalanceUiState() }
+        )
+      )
+
+      is InheritanceManagementUiState -> {
+        inheritanceManagementUiStateMachine.model(
+          props = InheritanceManagementUiProps(
+            account = props.account as FullAccount,
+            selectedTab = state.selectedTab,
+            onBack = { uiState = ViewingBalanceUiState() },
+            onGoToUtxoConsolidation = { uiState = ConsolidatingUtxosUiState }
+          )
+        )
+      }
     }
   }
 
@@ -502,6 +566,11 @@ sealed interface MoneyHomeUiState {
        * to add an additional fingerprint.
        */
       data object PromptingForFwUpUiState : BottomSheetDisplayState
+
+      /**
+       * Showing the inheritance upsell modal
+       */
+      data object InheritanceUpsell : BottomSheetDisplayState
     }
   }
 
@@ -616,5 +685,28 @@ sealed interface MoneyHomeUiState {
     val partner: PartnerId?,
     val event: PartnershipEvent?,
     val partnerTransactionId: PartnershipTransactionId?,
+  ) : MoneyHomeUiState
+
+  /**
+   * Inheritance management flow presented after the upsell modal
+   *
+   * @property selectedTab - the tab to display
+   */
+  data class InheritanceManagementUiState(
+    val selectedTab: ManagingInheritanceTab,
+  ) : MoneyHomeUiState
+
+  /**
+   * Deny inheritance claim flow, presented modally from the money home card for the benefactor
+   */
+  data class DenyInheritanceClaimUiState(
+    val claimId: InheritanceClaimId,
+  ) : MoneyHomeUiState
+
+  /**
+   * Complete inheritance claim flow, presented modally from the money home card for the beneficiary
+   */
+  data class CompleteInheritanceClaimUiState(
+    val relationshipId: RelationshipId,
   ) : MoneyHomeUiState
 }

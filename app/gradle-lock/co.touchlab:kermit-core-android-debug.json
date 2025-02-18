@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:kermit-core-android-debug",
     "components": [
         {
-            "version": "2.0.3",
+            "version": "2.0.4",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-core-debug.aar": "23831126a1f89f9616e5537bfe9a5e1ef32c728c5544250dbb23bf29e2727085"
+                        "kermit-core-debug.aar": "820c6968ecc6aaf95beaab76a06423e6bf662c877689c45fc3b84b1b93742faf"
                     }
                 }
             ],

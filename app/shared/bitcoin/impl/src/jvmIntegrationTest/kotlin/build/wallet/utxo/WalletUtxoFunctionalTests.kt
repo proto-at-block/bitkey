@@ -2,8 +2,8 @@ package build.wallet.utxo
 
 import app.cash.turbine.test
 import build.wallet.bitcoin.bdk.bitcoinAmount
-import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.utxo.Utxos
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -23,26 +23,17 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapNotNull
 
 class WalletUtxoFunctionalTests : FunSpec({
-  coroutineTestScope = true
-
-  lateinit var app: AppTester
-  lateinit var bitcoinWalletService: BitcoinWalletService
-
-  beforeTest {
-    app = launchNewApp()
-    bitcoinWalletService = app.bitcoinWalletService
-  }
-
-  fun utxos(): Flow<Utxos> {
+  fun AppTester.utxos(): Flow<Utxos> {
     return bitcoinWalletService.transactionsData()
       .mapNotNull { it?.utxos }
       .distinctUntilChanged()
   }
 
   test("no utxos in empty wallet") {
+    val app = launchNewApp()
     app.onboardFullAccountWithFakeHardware()
 
-    utxos().test {
+    app.utxos().test {
       awaitItem().should { utxos ->
         utxos.confirmed.shouldBeEmpty()
         utxos.unconfirmed.shouldBeEmpty()
@@ -51,46 +42,45 @@ class WalletUtxoFunctionalTests : FunSpec({
     }
   }
 
-  test("utxos are loaded after receiving funds")
-    .config(tags = setOf(IsolatedTest)) {
-      app.onboardFullAccountWithFakeHardware()
+  test("utxos are loaded after receiving funds").config(tags = setOf(IsolatedTest)) {
+    val app = launchNewApp()
+    app.onboardFullAccountWithFakeHardware()
 
-      utxos().test {
-        awaitItem().all.shouldBeEmpty()
+    app.utxos().test {
+      awaitItem().all.shouldBeEmpty()
 
-        // Add confirmed utxo
-        app.addSomeFunds(amount = sats(1_000), waitForConfirmation = true)
-        awaitItem()
-          .should { utxos ->
-            utxos.confirmed.shouldHaveSize(1)
-            utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
-            utxos.unconfirmed.shouldBeEmpty()
-            utxos.all.shouldContainExactly(utxos.confirmed)
-          }
+      // Add confirmed utxo
+      app.addSomeFunds(amount = sats(1_000), waitForConfirmation = true)
+      awaitUntil { it.confirmed.size == 1 }
+        .should { utxos ->
+          utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
+          utxos.unconfirmed.shouldBeEmpty()
+          utxos.all.shouldContainExactly(utxos.confirmed)
+        }
 
-        // Add unconfirmed utxo
-        val fundingResult = app.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
-        awaitItem()
-          .should { utxos ->
-            utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
-            utxos.unconfirmed.shouldHaveSize(1)
-            utxos.unconfirmed.single().bitcoinAmount.shouldBe(sats(2_000))
-            utxos.all.shouldContainExactly(utxos.confirmed + utxos.unconfirmed)
-          }
+      // Add unconfirmed utxo
+      val fundingResult = app.addSomeFunds(amount = sats(2_000), waitForConfirmation = false)
+      awaitItem()
+        .should { utxos ->
+          utxos.confirmed.single().bitcoinAmount.shouldBe(sats(1_000))
+          utxos.unconfirmed.shouldHaveSize(1)
+          utxos.unconfirmed.single().bitcoinAmount.shouldBe(sats(2_000))
+          utxos.all.shouldContainExactly(utxos.confirmed + utxos.unconfirmed)
+        }
 
-        // Wait for confirmation
-        app.mineBlock(txid = fundingResult.tx.id)
-        app.waitForFunds { it.confirmed == sats(3_000) }
+      // Wait for confirmation
+      app.mineBlock(txid = fundingResult.tx.id)
+      app.waitForFunds { it.confirmed == sats(3_000) }
 
-        // Both utxos should be confirmed
-        awaitItem()
-          .should { utxos ->
-            utxos.confirmed.shouldHaveSize(2)
-            utxos.confirmed.single { it.bitcoinAmount == sats(1_000) }
-            utxos.confirmed.single { it.bitcoinAmount == sats(2_000) }
-            utxos.unconfirmed.shouldBeEmpty()
-            utxos.all.shouldContainExactly(utxos.confirmed)
-          }
-      }
+      // Both utxos should be confirmed
+      awaitItem()
+        .should { utxos ->
+          utxos.confirmed.shouldHaveSize(2)
+          utxos.confirmed.single { it.bitcoinAmount == sats(1_000) }
+          utxos.confirmed.single { it.bitcoinAmount == sats(2_000) }
+          utxos.unconfirmed.shouldBeEmpty()
+          utxos.all.shouldContainExactly(utxos.confirmed)
+        }
     }
+  }
 })

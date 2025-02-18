@@ -12,15 +12,12 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
-import build.wallet.cloud.store.*
 import build.wallet.di.AndroidActivityComponent
 import build.wallet.di.AndroidAppComponent
-import build.wallet.logging.*
-import build.wallet.nfc.*
+import build.wallet.logging.logInfo
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.ui.app.App
-import build.wallet.ui.app.AppUiModelMap
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -48,16 +45,18 @@ class MainActivity : FragmentActivity() {
     setContent {
       App(
         model = activityComponent.appUiStateMachine.model(Unit),
-        uiModelMap = AppUiModelMap
+        deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
+        accelerometer = appComponent.accelerometer
       )
     }
     createNotificationChannel()
     logEventIfFromNotification()
 
     // From a backend notification
-    intent?.extras?.getInt(Route.DeepLink.NAVIGATE_TO_SCREEN_ID)?.let {
-      Router.route = Route.from(it)
+    intent?.extras?.let {
+      Router.route = Route.from(it.toMap())
     }
+
     // From a deeplink
     intent?.dataString?.let {
       Router.route = Route.from(it)
@@ -73,9 +72,10 @@ class MainActivity : FragmentActivity() {
   override fun onNewIntent(intent: Intent?) {
     super.onNewIntent(intent)
     // From a backend notification
-    intent?.extras?.getInt(Route.DeepLink.NAVIGATE_TO_SCREEN_ID)?.let {
-      Router.route = Route.from(it)
+    intent?.extras?.let {
+      Router.route = Route.from(it.toMap())
     }
+
     // From a deeplink
     intent?.dataString?.let {
       Router.route = Route.from(it)
@@ -151,4 +151,12 @@ class MainActivity : FragmentActivity() {
       }
       .stateIn(lifecycleScope, SharingStarted.Eagerly, false)
   }
+}
+
+fun Bundle.toMap(): Map<String, Any?> {
+  val map = mutableMapOf<String, Any?>()
+  keySet().forEach { key ->
+    map[key] = get(key)
+  }
+  return map
 }

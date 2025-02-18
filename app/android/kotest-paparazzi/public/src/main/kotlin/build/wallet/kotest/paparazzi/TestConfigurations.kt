@@ -2,6 +2,7 @@ package build.wallet.kotest.paparazzi
 
 import app.cash.paparazzi.*
 import com.android.ide.common.rendering.api.SessionParams.RenderingMode
+import com.android.resources.LayoutDirection
 import io.kotest.core.TestConfiguration
 import java.io.File
 
@@ -22,6 +23,8 @@ private val defaultMaxPercentDifference by lazy {
 /**
  * Registers [PaparazziExtension].
  *
+ * @param rtl if `true`, use right to left layout direction.
+ *
  * Usage:
  * ```kotlin
  * class SomeSnapshots : FunSpec({
@@ -40,20 +43,20 @@ fun TestConfiguration.paparazziExtension(
   renderingMode: RenderingMode = RenderingMode.SHRINK,
   showSystemUi: Boolean = false,
   maxPercentDifference: Double = defaultMaxPercentDifference,
+  rtl: Boolean = false,
 ): PaparazziExtension {
   // Name of the spec without "Snapshots" postfix.
   val componentName = requireNotNull(this::class.simpleName).removeSuffix("Snapshots")
-  val paparazzi =
-    Paparazzi(
-      deviceConfig = deviceConfig,
-      renderingMode = renderingMode,
-      showSystemUi = showSystemUi,
-      snapshotHandler = determineHandler(componentName, maxPercentDifference),
-      environment =
-        detectEnvironment().copy(
-          compileSdkVersion = 34
-        )
-    )
+  val paparazzi = Paparazzi(
+    deviceConfig = deviceConfig.copy(
+      layoutDirection = if (rtl) LayoutDirection.RTL else LayoutDirection.LTR
+    ),
+    renderingMode = renderingMode,
+    showSystemUi = showSystemUi,
+    snapshotHandler = determineHandler(componentName, maxPercentDifference),
+    environment = detectEnvironment().copy(compileSdkVersion = 34),
+    supportsRtl = rtl
+  )
   return extension(PaparazziExtension(paparazzi = paparazzi))
 }
 

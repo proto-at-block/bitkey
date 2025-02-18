@@ -1,6 +1,7 @@
 package build.wallet.datadog
 
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.Alpha
 import build.wallet.platform.config.AppVariant.Beta
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
@@ -22,6 +23,7 @@ data class DatadogConfig(
         environmentName =
           when (appVariant) {
             Development -> "development"
+            Alpha -> "alpha"
             Team -> "team"
             Beta -> "beta"
             Customer -> "customer"

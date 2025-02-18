@@ -56,8 +56,7 @@ class EditingFingerprintUiStateMachineImpl : EditingFingerprintUiStateMachine {
             isExistingFingerprint = props.isExistingFingerprint,
             attemptToDeleteLastFingerprint = state.attemptToDeleteLastFingerprint
           ),
-          onClosed = props.onBack,
-          dragIndicatorVisible = true
+          onClosed = props.onBack
         )
       }
     }

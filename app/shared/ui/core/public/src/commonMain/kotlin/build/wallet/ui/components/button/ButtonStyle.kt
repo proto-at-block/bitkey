@@ -49,7 +49,7 @@ fun WalletTheme.buttonStyle(
   treatment: ButtonModel.Treatment,
   size: ButtonModel.Size,
   cornerRadius: Dp = 16.dp,
-  enabled: Boolean,
+  enabled: Boolean = true,
 ): ButtonStyle {
   val textColor = textColor(treatment = treatment)
   val textStyle =
@@ -137,6 +137,7 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
 
     TertiaryDestructive -> colors.destructiveForeground
     Translucent, Translucent10 -> colors.translucentForeground
+    Grayscale20 -> colors.surfaceCorian
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     -> colors.bitkeyPrimary
@@ -165,6 +166,7 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
 
     TertiaryDestructive -> colors.destructive
     Translucent, Translucent10 -> colors.translucentForeground
+    Grayscale20 -> colors.surfaceCorian
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     -> colors.bitkeyPrimary
@@ -195,7 +197,9 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
     Black -> Color.Black
     White -> Color.White
     Warning -> colors.warningForeground
-    Accent -> colors.coachmarkBackground
+    Accent,
+    -> colors.coachmarkBackground
+    Grayscale20 -> colors.grayscale20
   }
 
 @Composable
@@ -223,4 +227,5 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
     White -> Color.White.copy(alpha = 0.4F)
     Warning -> colors.warningForeground.copy(alpha = 0.4F)
     Accent -> colors.coachmarkBackground
+    Grayscale20 -> colors.grayscale20
   }

@@ -72,7 +72,7 @@ class AppAuthPublicKeyProviderImpl(
         is AccountStatus.NoAccount -> null
         is AccountStatus.ActiveAccount -> accountStatus.account
         is AccountStatus.OnboardingAccount -> accountStatus.account
-        is AccountStatus.LiteAccountUpgradingToFullAccount -> accountStatus.account
+        is AccountStatus.LiteAccountUpgradingToFullAccount -> accountStatus.onboardingAccount
       }
 
       if (account != null) {

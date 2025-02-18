@@ -1,3 +1,4 @@
+use feature_flags::flag::ContextKey;
 use std::sync::Arc;
 use strum_macros::Display;
 use time::OffsetDateTime;
@@ -7,6 +8,7 @@ use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::Wallet;
 
+use feature_flags::service::Service as FeatureFlagsService;
 use screener::service::Service as ScreenerService;
 
 use self::address_screening_rule::AddressScreeningRule;
@@ -54,12 +56,16 @@ impl<'a> SpendRuleSet<'a> {
         features: &'a Features,
         spending_history: &'a Vec<&'a SpendingEntry>,
         screener_service: Arc<ScreenerService>,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Self {
         SpendRuleSet::MobilePay {
             rules: vec![
                 Box::new(AddressScreeningRule::new(
                     source_wallet.network(),
                     screener_service,
+                    feature_flags_service,
+                    context_key,
                 )),
                 Box::new(DailySpendingLimitRule::new(
                     source_wallet,
@@ -77,12 +83,16 @@ impl<'a> SpendRuleSet<'a> {
         source_wallet: &'a Wallet<AnyDatabase>,
         destination_wallet: &'a Wallet<AnyDatabase>,
         screener_service: Arc<ScreenerService>,
+        feature_flags_service: FeatureFlagsService,
+        context_key: Option<ContextKey>,
     ) -> Self {
         SpendRuleSet::Sweep {
             rules: vec![
                 Box::new(AddressScreeningRule::new(
                     source_wallet.network(),
                     screener_service,
+                    feature_flags_service,
+                    context_key,
                 )),
                 Box::new(AllPsbtInputsBelongToWalletRule::new(source_wallet)),
                 Box::new(AllPsbtOutputsBelongToWalletRule::new(destination_wallet)),

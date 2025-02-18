@@ -6,21 +6,25 @@ import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.account.SoftwareAccount
 import build.wallet.bitkey.f8e.SoftwareKeyDefinitionId
 import build.wallet.bitkey.keybox.SoftwareKeybox
+import build.wallet.catchingResult
 import build.wallet.debug.DebugOptionsService
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
+import build.wallet.f8e.noiseKeyVariant
 import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClient
 import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClient
 import build.wallet.f8e.onboarding.frost.InitiateDistributedKeygenF8eClient
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.frost.SealedRequest
-import build.wallet.frost.ShareGeneratorFactory
+import build.wallet.frost.ShareGenerator
+import build.wallet.frost.UnsealedRequest
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import io.ktor.util.*
 import kotlinx.coroutines.flow.first
 
 @BitkeyInject(AppScope::class)
@@ -33,10 +37,11 @@ class CreateSoftwareWalletServiceImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val debugOptionsService: DebugOptionsService,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
-  private val shareGeneratorFactory: ShareGeneratorFactory,
+  private val shareGenerator: ShareGenerator,
+  private val noiseService: NoiseService,
 ) : CreateSoftwareWalletService {
-  override suspend fun createAccount(): Result<SoftwareAccount, Throwable> {
-    return coroutineBinding {
+  override suspend fun createAccount(): Result<SoftwareAccount, Throwable> =
+    coroutineBinding {
       val softwareWalletFeatureEnabled = softwareWalletIsEnabledFeatureFlag.isEnabled()
       ensure(softwareWalletFeatureEnabled) {
         Error("Software wallet feature flag is not enabled.")
@@ -74,45 +79,80 @@ class CreateSoftwareWalletServiceImpl(
 
       activeAccount
     }.logFailure { "Error creating software wallet account with fake hw keys." }
-  }
 
   private suspend fun createKeybox(
     account: OnboardingSoftwareAccount,
-  ): Result<SoftwareKeybox, Throwable> {
-    return coroutineBinding {
-      val shareGenerator = shareGeneratorFactory.createShareGenerator()
+  ): Result<SoftwareKeybox, Throwable> =
+    coroutineBinding {
       // TODO add error handling
-      val sealedRequest = shareGenerator.generate().result.value
+      val unsealedRequest = shareGenerator.generate().result.value
 
-      val response = initiateDistributedKeygenF8eClient.initiateDistributedKeygen(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        appAuthKey = account.appGlobalAuthKey,
-        networkType = account.config.bitcoinNetworkType,
-        sealedRequest = sealedRequest
-      ).bind()
+      val noiseSessionState = noiseService
+        .establishNoiseSecureChannel(account.config.f8eEnvironment)
+        .bind()
+      val noiseInitiator = noiseService.getNoiseInitiator()
+
+      val response = catchingResult {
+        initiateDistributedKeygenF8eClient
+          .initiateDistributedKeygen(
+            f8eEnvironment = account.config.f8eEnvironment,
+            accountId = account.accountId,
+            appAuthKey = account.appGlobalAuthKey,
+            networkType = account.config.bitcoinNetworkType,
+            sealedRequest = SealedRequest(
+              (
+                noiseInitiator.encryptMessage(
+                  keyType = account.config.f8eEnvironment.noiseKeyVariant,
+                  message = unsealedRequest.value.decodeBase64Bytes()
+                )
+              ).encodeBase64()
+            ),
+            noiseSessionId = noiseSessionState.sessionId
+          ).bind()
+      }.bind()
 
       val softwareKeyDefinitionId = SoftwareKeyDefinitionId(response.keyDefinitionId)
 
-      val shareDetails = shareGenerator.aggregate(
-        sealedRequest = SealedRequest(response.sealedResponse)
-      ).result.value
-      val continueSealedRequest = shareGenerator.encode(shareDetails).result.value
+      val shareDetails = catchingResult {
+        shareGenerator
+          .aggregate(
+            unsealedRequest = UnsealedRequest(
+              noiseInitiator
+                .decryptMessage(
+                  keyType = account.config.f8eEnvironment.noiseKeyVariant,
+                  ciphertext = response.sealedResponse.decodeBase64Bytes()
+                ).encodeBase64()
+            )
+          ).result.value
+      }.bind()
+      val continueUnsealedRequest = shareGenerator.encode(shareDetails).result.value
 
-      continueDistributedKeygenF8eClient.continueDistributedKeygen(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        softwareKeyDefinitionId = softwareKeyDefinitionId,
-        appAuthKey = account.appGlobalAuthKey,
-        sealedRequest = continueSealedRequest
-      ).bind()
+      catchingResult {
+        continueDistributedKeygenF8eClient
+          .continueDistributedKeygen(
+            f8eEnvironment = account.config.f8eEnvironment,
+            accountId = account.accountId,
+            softwareKeyDefinitionId = softwareKeyDefinitionId,
+            appAuthKey = account.appGlobalAuthKey,
+            sealedRequest = SealedRequest(
+              (
+                noiseInitiator.encryptMessage(
+                  keyType = account.config.f8eEnvironment.noiseKeyVariant,
+                  message = continueUnsealedRequest.value.decodeBase64Bytes()
+                )
+              ).encodeBase64()
+            ),
+            noiseSessionId = noiseSessionState.sessionId
+          ).bind()
+      }.bind()
 
-      activateSpendingDescriptorF8eClient.activateSpendingKey(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
-        appAuthKey = account.appGlobalAuthKey,
-        softwareKeyDefinitionId = softwareKeyDefinitionId
-      ).bind()
+      activateSpendingDescriptorF8eClient
+        .activateSpendingKey(
+          f8eEnvironment = account.config.f8eEnvironment,
+          accountId = account.accountId,
+          appAuthKey = account.appGlobalAuthKey,
+          softwareKeyDefinitionId = softwareKeyDefinitionId
+        ).bind()
 
       SoftwareKeybox(
         id = softwareKeyDefinitionId.value,
@@ -122,5 +162,4 @@ class CreateSoftwareWalletServiceImpl(
         shareDetails
       )
     }.logFailure { "Error creating keybox for software wallet account." }
-  }
 }

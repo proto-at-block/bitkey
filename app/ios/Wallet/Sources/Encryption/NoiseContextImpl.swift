@@ -6,13 +6,13 @@ class NoiseContextImpl: core.NoiseContextProtocol {
 
     public init(
         role: core.NoiseRole,
-        privkeyName: String,
+        privateKey: core.PrivateKey,
         theirPublicKey: Data?,
-        dh: core.HardwareBackedDh
+        dh: core.HardwareBackedDh?
     ) throws {
         coreContext = try core.NoiseContext(
             role: role,
-            privkey: core.PrivateKey.hardwareBacked(name: privkeyName),
+            privkey: privateKey,
             theirPublicKey: theirPublicKey,
             dh: dh
         )

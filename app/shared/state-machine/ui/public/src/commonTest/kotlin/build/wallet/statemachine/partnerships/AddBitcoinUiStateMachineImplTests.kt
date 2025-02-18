@@ -1,7 +1,6 @@
 package build.wallet.statemachine.partnerships
 
 import build.wallet.analytics.events.EventTrackerMock
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -15,18 +14,14 @@ import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipPurchaseServiceFake
 import build.wallet.partnerships.PartnershipTransactionsServiceMock
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitSheetWithBody
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.partnerships.purchase.LoadingBodyModel
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
+import build.wallet.statemachine.partnerships.purchase.SelectPartnerQuoteBodyModel
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
+import build.wallet.statemachine.ui.awaitSheet
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class AddBitcoinUiStateMachineImplTests : FunSpec({
   val partnershipPurchaseService = PartnershipPurchaseServiceFake()
@@ -84,39 +79,29 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   // tests
 
   test("show purchase or transfer") {
-    stateMachine.test(props()) {
+    stateMachine.testWithVirtualTime(props()) {
       // Show purchase or transfer flow
-      awaitSheetWithBody<FormBodyModel> {
-        with(mainContentList[0].shouldBeTypeOf<ListGroup>()) {
-          listGroupModel.items.count().shouldBe(2)
-          listGroupModel.items[0].title.shouldBe("Purchase")
-          listGroupModel.items[1].title.shouldBe("Transfer")
-        }
+      awaitSheet<BuyOrTransferBodyModel> {
+        listGroupModel.items.count().shouldBe(2)
+        listGroupModel.items[0].title.shouldBe("Purchase")
+        listGroupModel.items[1].title.shouldBe("Transfer")
       }
     }
   }
 
   test("resume purchase flow") {
     val purchaseAmount = FiatMoney.Companion.usd(123.0)
-    stateMachine.test(props(purchaseAmount = purchaseAmount)) {
+    stateMachine.testWithVirtualTime(props(purchaseAmount = purchaseAmount)) {
       // load purchase amounts
-      awaitLoader()
+      awaitSheet<LoadingBodyModel>()
 
       // load purchase quotes
-      awaitLoader()
+      awaitSheet<LoadingBodyModel>()
 
       // show purchase quotes
-      awaitSheetWithBody<FormBodyModel> {
-        id.shouldBe(DepositEventTrackerScreenId.PARTNER_QUOTES_LIST)
-      }
+      awaitSheet<SelectPartnerQuoteBodyModel>()
 
       eventTracker.eventCalls.awaitItem()
     }
   }
 })
-
-private suspend fun StateMachineTester<AddBitcoinUiProps, SheetModel>.awaitLoader() {
-  awaitSheetWithBody<FormBodyModel> {
-    mainContentList[0].shouldBeTypeOf<Loader>()
-  }
-}

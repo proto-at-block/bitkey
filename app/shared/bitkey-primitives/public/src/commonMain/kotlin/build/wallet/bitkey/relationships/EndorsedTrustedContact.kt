@@ -23,3 +23,12 @@ data class EndorsedTrustedContact(
 
   val identityKey get() = keyCertificate.delegatedDecryptionKey
 }
+
+/**
+ * We sync all relationships, including inheritance beneficiaries which become [EndorsedTrustedContact]s.
+ * This filters that to only be the [EndorsedTrustedContact]s that are relevant for Social Recovery
+ * purposes.
+ */
+fun List<EndorsedTrustedContact>.socialRecoveryTrustedContacts(): List<EndorsedTrustedContact> {
+  return this.filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) }
+}

@@ -1,7 +1,7 @@
 import { Construct } from "constructs";
 import { getErrorRecipients } from "./recipients";
 import { Environment } from "./common/environments";
-import { SnsFailureCompositeMonitor, SqsQueueLongMonitor, TwilioFailureCompositeMonitor } from "./common/notifications";
+import { SnsAnomalousPublishVolumeMonitor, SnsFailureCompositeMonitor, SqsQueueLongMonitor, TwilioFailureCompositeMonitor } from "./common/notifications";
 
 export class NotificationsMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
@@ -46,6 +46,13 @@ export class NotificationsMonitors extends Construct {
       },
       dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
       recipients: recipients, // TODO: high priority after testing
+    });
+
+    new SnsAnomalousPublishVolumeMonitor(this, "sns_anomalous_publish_volume", {
+      environment,
+      tags: [],
+      recipients: recipients,
+      dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
     });
   }
 }

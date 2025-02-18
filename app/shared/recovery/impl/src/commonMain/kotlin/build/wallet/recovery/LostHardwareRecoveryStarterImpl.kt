@@ -15,11 +15,13 @@ import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHard
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.sync.withLock
 
 @BitkeyInject(AppScope::class)
 class LostHardwareRecoveryStarterImpl(
   private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
+  private val recoveryLock: RecoveryLock,
 ) : LostHardwareRecoveryStarter {
   override suspend fun initiate(
     activeKeybox: Keybox,
@@ -28,31 +30,33 @@ class LostHardwareRecoveryStarterImpl(
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, InitiateDelayNotifyHardwareRecoveryError> =
     coroutineBinding {
-      // Persist local pending recovery state
-      recoveryDao.setLocalRecoveryProgress(
-        CreatedPendingKeybundles(
-          fullAccountId = activeKeybox.fullAccountId,
-          appKeyBundle = destinationAppKeyBundle,
-          hwKeyBundle = destinationHardwareKeyBundle,
-          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-          lostFactor = Hardware
-        )
-      ).mapError { FailedToPersistRecoveryStateError(it) }
+      recoveryLock.withLock {
+        // Persist local pending recovery state
+        recoveryDao.setLocalRecoveryProgress(
+          CreatedPendingKeybundles(
+            fullAccountId = activeKeybox.fullAccountId,
+            appKeyBundle = destinationAppKeyBundle,
+            hwKeyBundle = destinationHardwareKeyBundle,
+            appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+            lostFactor = Hardware
+          )
+        ).mapError { FailedToPersistRecoveryStateError(it) }
 
-      // Initiate delay period with f8e
-      val serviceResponse =
-        initiateAccountDelayNotifyF8eClient.initiate(
-          f8eEnvironment = activeKeybox.config.f8eEnvironment,
-          fullAccountId = activeKeybox.fullAccountId,
-          lostFactor = Hardware,
-          appGlobalAuthKey = destinationAppKeyBundle.authKey,
-          appRecoveryAuthKey = destinationAppKeyBundle.recoveryAuthKey,
-          delayPeriod = activeKeybox.config.delayNotifyDuration,
-          hardwareAuthKey = destinationHardwareKeyBundle.authKey
-        ).mapError { F8eInitiateDelayNotifyError(it) }.bind()
+        // Initiate delay period with f8e
+        val serviceResponse =
+          initiateAccountDelayNotifyF8eClient.initiate(
+            f8eEnvironment = activeKeybox.config.f8eEnvironment,
+            fullAccountId = activeKeybox.fullAccountId,
+            lostFactor = Hardware,
+            appGlobalAuthKey = destinationAppKeyBundle.authKey,
+            appRecoveryAuthKey = destinationAppKeyBundle.recoveryAuthKey,
+            delayPeriod = activeKeybox.config.delayNotifyDuration,
+            hardwareAuthKey = destinationHardwareKeyBundle.authKey
+          ).mapError { F8eInitiateDelayNotifyError(it) }.bind()
 
-      recoveryDao.setActiveServerRecovery(serviceResponse.serverRecovery)
-        .mapError { FailedToPersistRecoveryStateError(it) }
-        .bind()
+        recoveryDao.setActiveServerRecovery(serviceResponse.serverRecovery)
+          .mapError { FailedToPersistRecoveryStateError(it) }
+          .bind()
+      }
     }
 }

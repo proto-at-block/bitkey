@@ -5,10 +5,10 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.ui.model.icon.IconImage.LocalImage
@@ -43,16 +43,16 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   )
 
   test("edit fingerprint label") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Change the fingerprint label
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         mainContentList[0]
           .shouldBeInstanceOf<FormMainContentModel.TextInput>()
           .fieldModel.onValueChange("Right index", 0..0)
       }
 
       // Click Save fingerprint
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         header.shouldNotBeNull()
           .headline.shouldBe("Manage Left Thumb")
 
@@ -70,14 +70,14 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("delete fingerprint and confirm") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Click Delete fingerprint
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         clickPrimaryButton()
       }
 
       // Confirm deletion
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         clickPrimaryButton()
       }
 
@@ -88,9 +88,9 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("select delete fingerprint but cancel") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Click Delete fingerprint
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
           .text.shouldBe("Delete fingerprint")
         secondaryButton.shouldNotBeNull()
@@ -99,7 +99,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       }
 
       // Cancel the deletion
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
           .text.shouldBe("Delete fingerprint")
         secondaryButton.shouldNotBeNull()
@@ -108,15 +108,15 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       }
 
       // Should go back to the first editing screen
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldBe("Save fingerprint")
       }
     }
   }
 
   test("onBack calls") {
-    stateMachine.test(props) {
-      awaitSheetWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(props) {
+      awaitSheet<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .leadingAccessory.shouldBeInstanceOf<IconAccessory>().model.apply {
             iconModel.iconImage.shouldBe(LocalImage(icon = Icon.SmallIconX))
@@ -130,15 +130,15 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("edit fingerprint label for a new fingerprint") {
-    stateMachine.test(props.copy(isExistingFingerprint = false)) {
+    stateMachine.testWithVirtualTime(props.copy(isExistingFingerprint = false)) {
       // Change the fingerprint label
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         mainContentList[0]
           .shouldBeInstanceOf<FormMainContentModel.TextInput>()
           .fieldModel.onValueChange("Right thumb", 0..0)
       }
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // The delete button should not be available
         primaryButton.shouldBeNull()
 
@@ -156,7 +156,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("attempt to delete last fingerprint") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         EnrolledFingerprints(
           maxCount = 3,
@@ -167,7 +167,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
       )
     ) {
       // Click Delete fingerprint
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
           .text.shouldBe("Delete fingerprint")
         secondaryButton.shouldNotBeNull()
@@ -175,7 +175,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitSheetWithBody<FormBodyModel> {
+      awaitSheet<FormBodyModel> {
         // The callout should be visible
         mainContentList[1]
           .shouldBeInstanceOf<FormMainContentModel.Callout>()

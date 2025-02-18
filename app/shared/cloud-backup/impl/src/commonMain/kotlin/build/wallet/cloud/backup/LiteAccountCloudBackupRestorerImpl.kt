@@ -2,8 +2,8 @@ package build.wallet.cloud.backup
 
 import build.wallet.account.AccountService
 import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
+import build.wallet.auth.AuthTokensService
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.LiteAccount
@@ -23,7 +23,7 @@ class LiteAccountCloudBackupRestorerImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val relationshipsKeysDao: RelationshipsKeysDao,
   private val accountAuthenticator: AccountAuthenticator,
-  private val authTokenDao: AuthTokenDao,
+  private val authTokensService: AuthTokensService,
   private val cloudBackupDao: CloudBackupDao,
   private val accountService: AccountService,
 ) : LiteAccountCloudBackupRestorer {
@@ -57,8 +57,8 @@ class LiteAccountCloudBackupRestorerImpl(
           .bind()
 
       val accountId = LiteAccountId(authData.accountId)
-      authTokenDao
-        .setTokensOfScope(accountId, authData.authTokens, AuthTokenScope.Recovery)
+      authTokensService
+        .setTokens(accountId, authData.authTokens, AuthTokenScope.Recovery)
         .mapError(::AccountBackupRestorationError)
         .bind()
 

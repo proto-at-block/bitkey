@@ -135,4 +135,9 @@ interface SecureEnclave {
    */
   @Throws(Error::class)
   fun loadKeyPair(name: String): SeKeyPair
+
+  /**
+   * Whether this secure enclave is fake.
+   */
+  fun isFake(): Boolean
 }

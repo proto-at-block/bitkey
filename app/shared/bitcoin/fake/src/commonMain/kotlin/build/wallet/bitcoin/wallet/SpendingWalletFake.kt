@@ -16,13 +16,17 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.coroutines.flow.launchTicker
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.negate
 import build.wallet.money.sumOf
 import build.wallet.time.someInstant
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -125,11 +129,8 @@ class SpendingWalletFake(
     scope: CoroutineScope,
     interval: Duration,
   ): Job {
-    return scope.launch(Dispatchers.IO) {
-      while (isActive) {
-        sync()
-        delay(interval)
-      }
+    return scope.launchTicker(interval, Dispatchers.IO) {
+      sync()
     }
   }
 

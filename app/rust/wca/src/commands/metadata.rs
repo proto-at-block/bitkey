@@ -44,25 +44,25 @@ fn metadata() -> Result<FirmwareMetadata, CommandError> {
         active_slot,
     }) = message
     {
-        match MetaRspStatus::from_i32(rsp_status) {
-            Some(MetaRspStatus::Unspecified) => return Err(CommandError::UnspecifiedCommandError),
-            Some(MetaRspStatus::Error) => return Err(CommandError::GeneralCommandError),
-            Some(MetaRspStatus::Success) => (),
-            _ => return Err(CommandError::InvalidResponse),
+        match MetaRspStatus::try_from(rsp_status) {
+            Ok(MetaRspStatus::Unspecified) => return Err(CommandError::UnspecifiedCommandError),
+            Ok(MetaRspStatus::Error) => return Err(CommandError::GeneralCommandError),
+            Ok(MetaRspStatus::Success) => (),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         // Translate from protobuf types.
 
         let output_slot: FirmwareSlot;
-        let meta = match fwpb::FirmwareSlot::from_i32(active_slot) {
-            Some(fwpb::FirmwareSlot::SlotA) => match meta_slot_a {
+        let meta = match fwpb::FirmwareSlot::try_from(active_slot) {
+            Ok(fwpb::FirmwareSlot::SlotA) => match meta_slot_a {
                 Some(meta_slot_a) => {
                     output_slot = FirmwareSlot::A;
                     meta_slot_a
                 }
                 _ => return Err(CommandError::InvalidResponse),
             },
-            Some(fwpb::FirmwareSlot::SlotB) => match meta_slot_b {
+            Ok(fwpb::FirmwareSlot::SlotB) => match meta_slot_b {
                 Some(meta_slot_b) => {
                     output_slot = FirmwareSlot::B;
                     meta_slot_b

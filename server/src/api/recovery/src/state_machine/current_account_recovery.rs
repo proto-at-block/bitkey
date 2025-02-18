@@ -249,6 +249,10 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 &[
                     KeyValue::new(metrics::LOST_FACTOR_KEY, lost_factor.to_string()),
                     KeyValue::new(metrics::CREATED_DURING_CONTEST_KEY, self.active_contest),
+                    KeyValue::new(
+                        metrics::MISSING_RECOVERY_AUTH_KEY,
+                        destination.recovery_auth_pubkey.is_none(),
+                    ),
                 ],
             );
 

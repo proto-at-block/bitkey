@@ -29,14 +29,14 @@ pub struct RouteState(pub Partnerships, pub UserPoolService, pub AccountService)
 impl RouteState {
     pub async fn new(
         user_pool_service: UserPoolService,
-        feature_flag_service: FeatureFlagsService,
+        feature_flags_service: FeatureFlagsService,
         account_service: AccountService,
     ) -> Self {
         let secrets_manager = SecretsManager::new().await;
         Self::from_secrets_manager(
             secrets_manager,
             user_pool_service,
-            feature_flag_service,
+            feature_flags_service,
             account_service,
         )
         .await
@@ -45,11 +45,11 @@ impl RouteState {
     pub async fn from_secrets_manager(
         secrets_manager: impl FetchSecret,
         user_pool_service: UserPoolService,
-        feature_flag_service: FeatureFlagsService,
+        feature_flags_service: FeatureFlagsService,
         account_service: AccountService,
     ) -> Self {
         Self(
-            Partnerships::new(secrets_manager, feature_flag_service).await,
+            Partnerships::new(secrets_manager, feature_flags_service).await,
             user_pool_service,
             account_service,
         )
@@ -93,7 +93,7 @@ impl RouterBuilder for RouteState {
 impl From<RouteState> for SwaggerEndpoint {
     fn from(_: RouteState) -> Self {
         (
-            Url::new("Partnerships", "/partnerships/openapi.json"),
+            Url::new("Partnerships", "/docs/partnerships/openapi.json"),
             ApiDoc::openapi(),
         )
     }
@@ -106,6 +106,10 @@ impl From<RouteState> for SwaggerEndpoint {
         get_transfer_redirect,
         list_purchase_quotes,
         get_purchase_redirect,
+        get_purchase_options,
+        list_sale_quotes,
+        get_sales_redirect,
+        get_partner_transaction,
     ),
     components(
         schemas(
@@ -114,7 +118,11 @@ impl From<RouteState> for SwaggerEndpoint {
             ListPurchaseQuotesRequest,
             ListPurchaseQuotesResponse,
             GetPurchaseRedirectRequest,
-            GetRedirectResponse
+            GetRedirectResponse,
+            PurchaseOptionsResponse,
+            ListSaleQuotesResponse,
+            GetRedirectResponse,
+            GetPartnerTransactionResponse,
         )
     ),
     tags(

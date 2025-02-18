@@ -20,12 +20,13 @@ import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.input.SheetModelMock
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
+import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
+import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
@@ -40,6 +41,7 @@ import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.time.ClockFake
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.status.StatusBannerModel
@@ -131,6 +133,9 @@ class HomeUiStateMachineImplTests : FunSpec({
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePayService = mobilePayService,
       partnershipTransactionsService = partnershipsTransactionsService,
+      inheritanceClaimNotificationUiStateMachine = object : InheritanceClaimNotificationUiStateMachine, ScreenStateMachineMock<InheritanceClaimNotificationUiProps>(
+        "inheritance-claim-notifications"
+      ) {},
       appCoroutineScope = appScope
     )
 
@@ -154,34 +159,34 @@ class HomeUiStateMachineImplTests : FunSpec({
   }
 
   test("initial screen is money home") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
+      awaitBodyMock<MoneyHomeUiProps>()
     }
   }
 
   test("switch to settings tab") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         onSettings()
       }
 
-      awaitScreenWithBodyModelMock<SettingsHomeUiProps>()
+      awaitBodyMock<SettingsHomeUiProps>()
     }
   }
 
   test("homeUiBottomSheetStateMachine passes sheet to MoneyHome") {
     homeUiBottomSheetStateMachine.emitModel(SheetModelMock {})
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         homeBottomSheetModel.shouldNotBeNull()
       }
     }
@@ -189,38 +194,38 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("homeUiBottomSheetStateMachine passes sheet to Settings") {
     homeUiBottomSheetStateMachine.emitModel(SheetModelMock {})
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         onSettings()
       }
-      awaitScreenWithBodyModelMock<SettingsHomeUiProps> {
+      awaitBodyMock<SettingsHomeUiProps> {
         homeBottomSheetModel.shouldNotBeNull()
       }
     }
   }
 
   test("homeUiBottomSheetStateMachine onShowSetSpendingLimitFlow presents screen") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
+      awaitBodyMock<MoneyHomeUiProps>()
 
       homeUiBottomSheetStateMachine.props.onShowSetSpendingLimitFlow()
 
-      awaitScreenWithBodyModelMock<SpendingLimitProps>()
+      awaitBodyMock<SpendingLimitProps>()
     }
   }
 
   test("change to currency re-calls currencyChangeMobilePayBottomSheetUpdater") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
+      awaitBodyMock<MoneyHomeUiProps>()
 
       fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
@@ -230,10 +235,10 @@ class HomeUiStateMachineImplTests : FunSpec({
   test("cloud backup health does not sync when app is inactive") {
     appFunctionalityService.status.emit(LimitedFunctionality(InactiveApp))
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
+      awaitBodyMock<MoneyHomeUiProps>()
     }
   }
 
@@ -260,17 +265,17 @@ class HomeUiStateMachineImplTests : FunSpec({
     Router.route =
       Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=01J91MGSEQ5JA0Q456ZQBN61D4")
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
       appScope.runCurrent()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         inAppBrowserNavigator.onCloseCalls.awaitItem()
 
         origin.shouldBe(
@@ -309,18 +314,35 @@ class HomeUiStateMachineImplTests : FunSpec({
     Router.route =
       Route.from("https://bitkey.world/links/app?context=partner_sale&event=transaction_created&source=MoonPay&event_id=not-found-id")
 
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
       appScope.runCurrent()
 
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
+      awaitBodyMock<MoneyHomeUiProps> {
         origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
       }
 
       inAppBrowserNavigator.onCloseCalls.awaitItem()
       partnershipsTransactionsService.getCalls.awaitItem().shouldBe(PartnershipTransactionId("not-found-id"))
+    }
+  }
+
+  test("deep link routing for beneficiary invite") {
+    Router.route = Route.BeneficiaryInvite("inviteCode")
+
+    stateMachine.testWithVirtualTime(props) {
+      awaitSyncLoopCall()
+      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
+
+      awaitBodyMock<MoneyHomeUiProps> {
+        origin.shouldBe(MoneyHomeUiProps.Origin.Launch)
+      }
+
+      awaitBodyMock<TrustedContactEnrollmentUiProps>("trusted-contact-enrollment") {
+        inviteCode.shouldBe("inviteCode")
+      }
     }
   }
 })

@@ -18,10 +18,10 @@ internal data class StartClaimConfirmationPromptBodyModel(
     toolbar = null,
     header = FormHeaderModel(
       headline = "Submit inheritance claim?",
-      subline = "This process cannot be undone."
+      subline = "The owner of this wallet will be notified once the claim has been submitted."
     ),
     primaryButton = ButtonModel(
-      text = "Continue",
+      text = "Submit claim",
       treatment = ButtonModel.Treatment.PrimaryDestructive,
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onConfirm)

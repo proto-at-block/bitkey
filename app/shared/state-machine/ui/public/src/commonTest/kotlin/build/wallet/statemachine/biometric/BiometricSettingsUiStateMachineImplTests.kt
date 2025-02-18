@@ -11,14 +11,13 @@ import build.wallet.platform.biometrics.BiometricPrompterMock
 import build.wallet.platform.biometrics.BiometricTextProviderFake
 import build.wallet.platform.settings.SystemSettingsLauncherMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
-import build.wallet.statemachine.core.awaitScreenWithSheetModelBody
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
-import com.github.michaelbull.result.get
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitSheet
+import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -62,48 +61,45 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("enable biometric security authentication") {
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+      awaitSheet<NfcPromptSheetBodyModel> {
         onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>> {
         onSuccess("success")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        biometricPreference.get()
-          .get()
-          .shouldNotBeNull()
-          .shouldBeTrue()
-      }
+      awaitBody<BiometricSettingsScreenBodyModel>()
+
+      biometricPreference.get().shouldBeOk(true)
     }
   }
 
   test("unable to verify the signature of hw tap") {
     signatureVerifier.isValid = false
 
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+      awaitSheet<NfcPromptSheetBodyModel> {
         onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
       // go to nfc and successfully scan the hw
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>> {
         onSuccess("success")
       }
 
@@ -111,7 +107,7 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       awaitItem().bottomSheetModel.shouldBeNull()
 
       // show the error sheet on the biometrics screen
-      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+      awaitSheet<ErrorSheetBodyModel> {
         headline.shouldBe("Unable to verify your Bitkey device")
       }
     }
@@ -120,17 +116,17 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   test("biometric hardware is not available") {
     biometricPrompter.availabilityError = BiometricError.NoHardware()
 
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+      awaitSheet<ErrorSheetBodyModel> {
         onBack()
       }
 
-      awaitScreenWithSheetModelBody<NotEnrolledErrorSheetBodyModel> {
+      awaitSheet<NotEnrolledErrorSheetBodyModel> {
         headline.shouldBe("Biometric authentication is not available on this device.")
       }
     }
@@ -139,26 +135,26 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   test("unable to enroll from no biometric enrolled") {
     biometricPrompter.enrollError = BiometricError.NoBiometricEnrolled()
 
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+      awaitSheet<NfcPromptSheetBodyModel> {
         onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
       // go to nfc and successfully scan the hw
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>> {
         onSuccess("success")
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+      awaitSheet<ErrorSheetBodyModel> {
         headline.shouldBe("Unable to enable biometrics.")
       }
     }
@@ -167,26 +163,26 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   test("unable to enroll from authentication failure") {
     biometricPrompter.enrollError = BiometricError.AuthenticationFailed()
 
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
-      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+      awaitSheet<NfcPromptSheetBodyModel> {
         onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
       // go to nfc and successfully scan the hw
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>> {
         onSuccess("success")
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithSheetModelBody<ErrorSheetBodyModel> {
+      awaitSheet<ErrorSheetBodyModel> {
         subline.shouldBe("We were unable to verify your biometric authentication. Please try again.")
       }
     }
@@ -194,32 +190,28 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
 
   test("disable biometric security authentication") {
     biometricPreference.set(true)
-    biometricSettingsUiStateMachine.test(props) {
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
       }
 
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeTrue()
         onEnableCheckedChange(false)
       }
 
-      awaitScreenWithSheetModelBody<NfcPromptSheetBodyModel> {
+      awaitSheet<NfcPromptSheetBodyModel> {
         onScanBitkeyDevice()
       }
 
       awaitItem().bottomSheetModel.shouldBeNull()
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
+      awaitBodyMock<NfcSessionUIStateMachineProps<String>> {
         onSuccess("success")
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        biometricPreference.get()
-          .get()
-          .shouldNotBeNull()
-          .shouldBeFalse()
-      }
+      awaitBody<BiometricSettingsScreenBodyModel>()
+      biometricPreference.get().shouldBeOk(false)
     }
   }
 
@@ -228,23 +220,24 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       CoachmarkIdentifier.BiometricUnlockCoachmark
     )
 
-    biometricSettingsUiStateMachine.test(props) {
+    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
       // initial render, not checked
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         coachmark.shouldBeNull()
         isEnabled.shouldBeFalse()
       }
 
       // showing coachmark after fetch, enabling the preference
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
+      awaitBody<BiometricSettingsScreenBodyModel> {
         coachmark.shouldNotBeNull()
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
       }
 
       // coachmark is being hidden
-      awaitScreenWithBody<BiometricSettingsScreenBodyModel> {
-        coachmarkService.turbine.awaitItem().shouldBe(CoachmarkIdentifier.BiometricUnlockCoachmark)
+      awaitBody<BiometricSettingsScreenBodyModel> {
+        coachmarkService.markDisplayedTurbine.awaitItem()
+          .shouldBe(CoachmarkIdentifier.BiometricUnlockCoachmark)
       }
     }
   }

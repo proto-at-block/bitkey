@@ -9,25 +9,24 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.*
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.coroutines.createBackgroundScope
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.relationships.*
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.sqldelight.InMemorySqlDriverFactory
-import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.milliseconds
 
 class RelationshipsServiceImplTests : FunSpec({
-
-  coroutineTestScope = true
-
   val databaseProvider = BitkeyDatabaseProviderImpl(
     InMemorySqlDriverFactory()
   )
@@ -36,12 +35,6 @@ class RelationshipsServiceImplTests : FunSpec({
   val authDao = RelationshipsEnrollmentAuthenticationDaoImpl(appKeyDao, databaseProvider)
 
   lateinit var relationshipsF8eFake: RelationshipsF8eClientFake
-
-  fun TestScope.relationshipsF8eClientFake() =
-    RelationshipsF8eClientFake(
-      uuidGenerator = { "fake-uuid" },
-      backgroundScope = backgroundScope
-    )
 
   val relationshipsCrypto = RelationshipsCryptoFake()
 
@@ -67,8 +60,12 @@ class RelationshipsServiceImplTests : FunSpec({
   val appSessionManager = AppSessionManagerFake()
   val accountService = AccountServiceFake()
 
-  fun TestScope.relationshipsService(): RelationshipsServiceImpl {
-    relationshipsF8eFake = relationshipsF8eClientFake()
+  fun TestScope.relationshipsService(backgroundScope: CoroutineScope): RelationshipsServiceImpl {
+    relationshipsF8eFake = RelationshipsF8eClientFake(
+      uuidGenerator = { "fake-uuid" },
+      backgroundScope = backgroundScope,
+      clock = Clock.System
+    )
     return RelationshipsServiceImpl(
       relationshipsF8eClientProvider = suspend { relationshipsF8eFake },
       relationshipsDao = dao,
@@ -77,7 +74,8 @@ class RelationshipsServiceImplTests : FunSpec({
       relationshipsCodeBuilder = RelationshipsCodeBuilderFake(),
       appSessionManager = appSessionManager,
       accountService = accountService,
-      appCoroutineScope = backgroundScope
+      appCoroutineScope = backgroundScope,
+      relationshipsSyncFrequency = RelationshipsSyncFrequency(100.milliseconds)
     )
   }
 
@@ -93,7 +91,8 @@ class RelationshipsServiceImplTests : FunSpec({
   }
 
   test("sync relationships when db is changed") {
-    val service = relationshipsService()
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
 
     backgroundScope.launch {
       service.executeWork()
@@ -115,14 +114,15 @@ class RelationshipsServiceImplTests : FunSpec({
   }
 
   test("on demand sync and verify relationships") {
-    val service = relationshipsService()
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
 
     backgroundScope.launch {
       service.executeWork()
     }
 
     service.relationships.test {
-      awaitItem().shouldBeNull() // initial loading
+      awaitUntil(Relationships.EMPTY)
 
       // Mark tcAlice's cert as valid
       relationshipsCrypto.validCertificates += tcAliceUnverified.keyCertificate
@@ -139,14 +139,15 @@ class RelationshipsServiceImplTests : FunSpec({
   }
 
   test("sync and verify relationships from service with prefetch") {
-    val service = relationshipsService()
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
 
     backgroundScope.launch {
       service.executeWork()
     }
 
     service.relationships.test {
-      awaitItem().shouldBeNull() // initial loading
+      awaitUntil(Relationships.EMPTY)
 
       // Mark tcAlice's cert as valid
       relationshipsCrypto.validCertificates += tcAliceUnverified.keyCertificate
@@ -163,14 +164,15 @@ class RelationshipsServiceImplTests : FunSpec({
   }
 
   test("invalid trusted contacts are marked as tampered") {
-    val service = relationshipsService()
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
 
     backgroundScope.launch {
       service.executeWork()
     }
 
     service.relationships.test {
-      awaitItem().shouldBeNull() // initial loading
+      awaitUntil(Relationships.EMPTY)
 
       // Mark tcAlice's cert as invalid
       relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
@@ -190,7 +192,8 @@ class RelationshipsServiceImplTests : FunSpec({
   }
 
   test("syncing does not occur while app is in the background") {
-    val service = relationshipsService()
+    val backgroundScope = createBackgroundScope()
+    val service = relationshipsService(backgroundScope)
 
     appSessionManager.appDidEnterBackground()
     backgroundScope.launch {
@@ -198,8 +201,7 @@ class RelationshipsServiceImplTests : FunSpec({
     }
 
     service.relationships.test {
-      awaitItem().shouldBeNull() // initial loading
-      awaitItem().shouldBe(Relationships.EMPTY) // Empty relationships in database
+      awaitUntil(Relationships.EMPTY)
 
       // Mark tcAlice's cert as invalid
       relationshipsCrypto.invalidCertificates += tcAliceUnverified.keyCertificate

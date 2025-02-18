@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.re2j:re2j",
+    "components": [
+        {
+            "version": "1.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "re2j-1.7.jar": "4f657af51ab8bb0909bcc3eb40862d26125af8cbcf92aaaba595fed77f947bc0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

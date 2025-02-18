@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-datastore-android",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-datastore-release.aar": "e9124440c005c84f52ead956ffd71337687a96b26e69c749aa455fd0d0ef9020"
+                        "multiplatform-settings-datastore-release.aar": "8248211a43298f48c31b9e2b1b0eb22fdd4e354ef8030f517606b5da34d7e042"
                     }
                 }
             ],

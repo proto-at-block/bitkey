@@ -19,6 +19,8 @@ import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.f8e.error.toF8eError
@@ -47,14 +49,12 @@ class UpgradeAccountF8eClientImpl(
     keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
   ): Result<UpgradeAccountF8eClient.Success, F8eError<CreateAccountClientErrorCode>> {
     return f8eHttpClient
-      .authenticated(
-        f8eEnvironment = liteAccount.config.f8eEnvironment,
-        accountId = liteAccount.accountId,
-        authTokenScope = AuthTokenScope.Recovery
-      )
+      .authenticated()
       .bodyResult<ResponseBody> {
         post("/api/accounts/${liteAccount.accountId.serverId}/upgrade") {
           withDescription("Upgrade account on f8e")
+          withEnvironment(liteAccount.config.f8eEnvironment)
+          withAccountId(liteAccount.accountId, AuthTokenScope.Recovery)
           setRedactedBody(
             RequestBody(
               appKeyBundle = keyCrossDraft.appKeyBundle,

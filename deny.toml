@@ -10,6 +10,7 @@ ignore = [
     "RUSTSEC-2021-0127", # [W-9317] transitively needed by enclave-tools.
     "RUSTSEC-2024-0370", # [W-9604] utoipa uses proc-macro-error that which is marked as unmaintained.
     "RUSTSEC-2024-0384", # [W-10018] sled and reqwest uses instant which is now marked as unmaintained.
+    "RUSTSEC-2024-0344", # [W-10730] transitively needed by crypto_box and snow.
 ]
 
 

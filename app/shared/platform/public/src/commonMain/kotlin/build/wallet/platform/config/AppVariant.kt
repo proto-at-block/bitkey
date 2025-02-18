@@ -13,6 +13,11 @@ enum class AppVariant {
   Development,
 
   /**
+   * Nightly builds for iOS (Android nightlies use Team currently)
+   */
+  Alpha,
+
+  /**
    * Team internal testing variant
    */
   Team,

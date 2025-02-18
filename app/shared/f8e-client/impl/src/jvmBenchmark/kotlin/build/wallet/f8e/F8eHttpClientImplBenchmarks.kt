@@ -4,7 +4,7 @@ import app.cash.turbine.Turbine
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
-import build.wallet.auth.AuthTokensRepositoryMock
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.availability.NetworkReachabilityProviderMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -42,7 +42,7 @@ import kotlinx.coroutines.runBlocking
 open class F8eHttpClientImplBenchmarks {
   private val fakeAppAuthKeyMessageSigner = AppAuthKeyMessageSignerMock()
   private val fakeKeyboxDao = KeyboxDaoMock({ Turbine() }, KeyboxMock)
-  private val authTokensRepository = AuthTokensRepositoryMock()
+  private val authTokensRepository = AuthTokensServiceFake()
 
   private val engine =
     MockEngine {
@@ -118,7 +118,7 @@ open class F8eHttpClientImplBenchmarks {
 
   private val client =
     F8eHttpClientImpl(
-      authTokensRepository = AuthTokensRepositoryMock(),
+      authTokensRepository = AuthTokensServiceFake(),
       deviceInfoProvider = deviceInfoProvider,
       proofOfPossessionPluginProvider =
         ProofOfPossessionPluginProvider(

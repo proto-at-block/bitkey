@@ -13,6 +13,7 @@ kotlin {
         api(projects.shared.bitkeyPrimitivesFake)
         api(projects.shared.encryptionFake)
         api(projects.shared.relationshipsFake)
+        api(projects.shared.testingPublic)
         implementation(libs.bundles.kmp.test.kotest)
       }
     }

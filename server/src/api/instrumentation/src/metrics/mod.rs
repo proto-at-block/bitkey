@@ -1,4 +1,3 @@
-pub use opentelemetry::metrics::Unit;
 pub use opentelemetry::KeyValue;
 
 pub mod error;

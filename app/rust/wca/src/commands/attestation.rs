@@ -19,14 +19,12 @@ fn get_cert(kind: CertType) -> Result<Vec<u8>, CommandError> {
         .ok_or(CommandError::MissingMessage)?;
 
     if let Msg::CertGetRsp(CertGetRsp { rsp_status, cert }) = message {
-        match CertGetRspStatus::from_i32(rsp_status) {
-            Some(CertGetRspStatus::Unspecified) => {
-                return Err(CommandError::UnspecifiedCommandError)
-            }
-            Some(CertGetRspStatus::Success) => {}
-            Some(CertGetRspStatus::CertReadFail) => return Err(CommandError::CertReadFail),
-            Some(CertGetRspStatus::Unimplemented) => return Err(CommandError::Unimplemented),
-            None => return Err(CommandError::InvalidResponse),
+        match CertGetRspStatus::try_from(rsp_status) {
+            Ok(CertGetRspStatus::Unspecified) => return Err(CommandError::UnspecifiedCommandError),
+            Ok(CertGetRspStatus::Success) => {}
+            Ok(CertGetRspStatus::CertReadFail) => return Err(CommandError::CertReadFail),
+            Ok(CertGetRspStatus::Unimplemented) => return Err(CommandError::Unimplemented),
+            Err(_) => return Err(CommandError::InvalidResponse),
         };
 
         Ok(cert)

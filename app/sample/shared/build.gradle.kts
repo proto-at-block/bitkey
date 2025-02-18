@@ -19,6 +19,7 @@ kotlin {
         implementation(projects.shared.platformPublic)
         implementation(projects.shared.timePublic)
         implementation(projects.shared.uiCoreImpl)
+        implementation(projects.shared.platformImpl)
       }
     }
   }

@@ -8,7 +8,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.send.TransferAmountUiState
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -38,7 +38,7 @@ class TransferCardUiStateMachineImplTests : FunSpec({
   }
 
   test("transfer state is AmountEqualOrAboveBalanceUiState") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
       )
@@ -54,7 +54,7 @@ class TransferCardUiStateMachineImplTests : FunSpec({
   }
 
   test("transfer state is AmountBelowBalanceUiState and requires hardware") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
       )
@@ -74,7 +74,7 @@ class TransferCardUiStateMachineImplTests : FunSpec({
       cause = F8eUnreachable(lastReachableTime = Instant.DISTANT_PAST)
     )
     mobilePayService.status = DailySpendingLimitStatus.MobilePayAvailable
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props.copy(
         transferAmountState = TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
       )

@@ -1,6 +1,3 @@
-// DO NOT EDIT.
-// This file is generated from design tokens in the wallet/style folder.
-
 package build.wallet.ui.tokens
 
 import androidx.compose.ui.graphics.Color
@@ -218,6 +215,18 @@ interface StyleDictionaryColors {
 
   // The color used for sections of the stepper indicator that are incomplete/not in progress.
   val stepperIncomplete: Color
+
+  // Loading indicator background matching the bitkey texture color.
+  val bitkeyLoading: Color
+
+  // The color used for sections of the stepper indicator that are incomplete/not in progress.
+  val surfaceMarigold: Color
+
+  // Color used for onboarding button background.
+  val surfaceCorian: Color
+
+  // Color used for onboarding button background.
+  val grayscale20: Color
 }
 
 val lightStyleDictionaryColors =
@@ -293,6 +302,10 @@ val lightStyleDictionaryColors =
     override val chartElement: Color = Color(0xffe5e5e5)
     override val stepperIncompleteLabel: Color = Color(0xffb2b2b2)
     override val stepperIncomplete: Color = Color(0xfff2f2f2)
+    override val bitkeyLoading: Color = Color(0xff575662)
+    override val surfaceMarigold: Color = Color(0xfffdbb81)
+    override val surfaceCorian: Color = Color(0xff333442)
+    override val grayscale20: Color = Color(0x33333442)
   }
 
 val darkStyleDictionaryColors =
@@ -368,4 +381,8 @@ val darkStyleDictionaryColors =
     override val chartElement: Color = Color(0xffe5e5e5)
     override val stepperIncompleteLabel: Color = Color(0xffb2b2b2)
     override val stepperIncomplete: Color = Color(0xfff2f2f2)
+    override val bitkeyLoading: Color = Color(0xff575662)
+    override val surfaceMarigold: Color = Color(0xfffdbb81)
+    override val surfaceCorian: Color = Color(0x42ff3334)
+    override val grayscale20: Color = Color(0x33333442)
   }

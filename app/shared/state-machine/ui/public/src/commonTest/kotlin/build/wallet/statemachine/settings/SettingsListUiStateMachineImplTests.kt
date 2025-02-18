@@ -13,7 +13,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -83,7 +83,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls props onBack") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>()
         .onBack.shouldNotBeNull().invoke()
       propsOnBackCalls.awaitItem()
@@ -91,7 +91,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("list default") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
@@ -110,7 +110,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   test("cloud backup health setting when mobile backup has problem") {
     cloudBackupHealthRepository.mobileKeyBackupStatus.value =
       MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels
           .first { it.sectionHeaderTitle == "Security & Recovery" }
@@ -185,7 +185,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
@@ -208,7 +208,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("Disabled rows in LimitedFunctionality.InternetUnreachable") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitItem()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
@@ -242,7 +242,7 @@ suspend inline fun <reified T : SettingsListUiProps.SettingsListRow> SettingsLis
   props: SettingsListUiProps,
   propsOnClickCalls: Map<KClass<out SettingsListUiProps.SettingsListRow>, Turbine<Unit>>,
 ) {
-  test(props) {
+  testWithVirtualTime(props) {
     awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
       sectionModels.flatMap { it.rowModels }.first { it.title == rowTitle }
         .onClick()

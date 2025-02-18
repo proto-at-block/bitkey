@@ -1,23 +1,17 @@
 package build.wallet.statemachine.inheritance.claims.start
 
 import androidx.compose.runtime.*
-import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InheritanceEventTrackerScreenId
 import build.wallet.bitkey.inheritance.BeneficiaryClaim
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.inheritance.InheritanceService
-import build.wallet.platform.permissions.Permission.PushNotifications
-import build.wallet.platform.permissions.PermissionChecker
-import build.wallet.platform.permissions.PermissionStatus.Authorized
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.Retreat
-import build.wallet.statemachine.core.RetreatStyle
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
-import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
-import build.wallet.statemachine.platform.permissions.NotificationRationale
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.inheritance.InheritanceAppSegment
+import build.wallet.statemachine.settings.full.notifications.NotificationsService
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
+import build.wallet.statemachine.settings.full.notifications.Source
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.onFailure
@@ -27,14 +21,18 @@ import kotlinx.datetime.toLocalDateTime
 @BitkeyInject(ActivityScope::class)
 class StartClaimUiStateMachineImpl(
   private val inheritanceService: InheritanceService,
-  private val notificationsStateMachine: EnableNotificationsUiStateMachine,
-  private val permissionChecker: PermissionChecker,
+  private val notificationChannelStateMachine: RecoveryChannelSettingsUiStateMachine,
+  private val notificationsService: NotificationsService,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
 ) : StartClaimUiStateMachine {
   @Composable
   override fun model(props: StartClaimUiStateMachineProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.EducationState) }
+    val notificationPreferences = notificationsService.getCriticalNotificationStatus(
+      accountId = props.account.accountId,
+      f8eEnvironment = props.account.config.f8eEnvironment
+    ).collectAsState(null)
 
     when (uiState) {
       State.StartingClaim -> LaunchedEffect("Submit Inheritance Claim") {
@@ -46,6 +44,12 @@ class StartClaimUiStateMachineImpl(
             uiState = State.ClaimSubmissionFailed(error)
           }
       }
+      State.LoadingPermissions -> {
+        when (val result = notificationPreferences.value) {
+          null -> { /* Stay on loading state */ }
+          else -> uiState = nextPermissionsState(result)
+        }
+      }
       else -> {}
     }
 
@@ -53,13 +57,35 @@ class StartClaimUiStateMachineImpl(
       State.EducationState -> StartClaimEducationBodyModel(
         onBack = props.onExit,
         onContinue = {
-          uiState = if (permissionChecker.getPermissionStatus(PushNotifications) != Authorized) {
-            State.PermissionsRequest
-          } else {
-            State.ConfirmStartClaim()
-          }
+          uiState = nextPermissionsState(notificationPreferences.value)
         }
-      ).asModalFullScreen()
+      ).asModalScreen()
+      State.LoadingPermissions -> LoadingBodyModel(
+        id = null,
+        onBack = { uiState = State.EducationState }
+      ).asModalScreen()
+      is State.PermissionsLoadError -> ErrorFormBodyModel(
+        eventTrackerScreenId = null,
+        errorData = ErrorData(
+          segment = InheritanceAppSegment.BeneficiaryClaim.Start,
+          actionDescription = "Loading Permissions to before starting claim",
+          cause = currentState.cause
+        ),
+        title = "Error Loading Notification Preferences",
+        onBack = {
+          uiState = State.EducationState
+        },
+        // Notifications are important, but shouldn't block this flow in an unexpected error,
+        // Allow the user to skip:
+        primaryButton = ButtonDataModel(
+          text = "Skip",
+          onClick = { uiState = State.ConfirmStartClaim() }
+        ),
+        secondaryButton = ButtonDataModel(
+          text = "Cancel",
+          onClick = { uiState = State.EducationState }
+        )
+      ).asModalScreen()
       is State.ConfirmStartClaim -> ScreenModel(
         body = StartClaimConfirmationBodyModel(
           onBack = { uiState = State.EducationState },
@@ -75,31 +101,41 @@ class StartClaimUiStateMachineImpl(
         presentationStyle = ScreenPresentationStyle.ModalFullScreen
       )
       is State.ClaimStarted -> ClaimStartedBodyModel(
-        completeTime = dateTimeFormatter.shortDate(
+        completeTime = dateTimeFormatter.shortDateWithYear(
           localDateTime = currentState.claim.delayEndTime.toLocalDateTime(timeZoneProvider.current())
         ),
         onClose = props.onExit
-      ).asModalFullScreen()
-      State.PermissionsRequest -> notificationsStateMachine.model(
-        EnableNotificationsUiProps(
-          retreat = Retreat(
-            style = RetreatStyle.Close,
-            onRetreat = { uiState = State.ConfirmStartClaim() }
-          ),
-          onComplete = { uiState = State.ConfirmStartClaim() },
-          eventTrackerContext = PushNotificationEventTrackerScreenIdContext.INHERITANCE_CLAIM,
-          rationale = NotificationRationale.Generic
+      ).asModalScreen()
+      State.PermissionsRequest -> notificationChannelStateMachine.model(
+        props = RecoveryChannelSettingsProps(
+          onContinue = {
+            uiState = State.ConfirmStartClaim()
+          },
+          source = Source.InheritanceStartClaim,
+          account = props.account,
+          onBack = { uiState = State.EducationState }
         )
-      ).asModalFullScreen()
+      ).copy(presentationStyle = ScreenPresentationStyle.Modal)
       is State.ClaimSubmissionFailed -> ClaimFailedBodyModel(
         error = currentState.error,
         tryAgain = { uiState = State.StartingClaim },
         cancel = props.onExit
-      ).asModalFullScreen()
+      ).asModalScreen()
       State.StartingClaim -> LoadingBodyModel(
         id = InheritanceEventTrackerScreenId.SubmittingClaim,
         onBack = { uiState = State.EducationState }
-      ).asModalFullScreen()
+      ).asModalScreen()
+    }
+  }
+
+  private fun nextPermissionsState(
+    notificationState: NotificationsService.NotificationStatus?,
+  ): State {
+    return when (notificationState) {
+      NotificationsService.NotificationStatus.Enabled -> State.ConfirmStartClaim()
+      is NotificationsService.NotificationStatus.Missing -> State.PermissionsRequest
+      is NotificationsService.NotificationStatus.Error -> State.PermissionsLoadError(notificationState.cause)
+      null -> State.LoadingPermissions
     }
   }
 
@@ -108,6 +144,19 @@ class StartClaimUiStateMachineImpl(
      * Initial Education screen shown before starting a claim.
      */
     data object EducationState : State
+
+    /**
+     * Loading the notification permissions and preferences to determine
+     * whether to prompt the user to set up critical alerts.
+     */
+    data object LoadingPermissions : State
+
+    /**
+     * An unexpected error occurred when loading notification state.
+     */
+    data class PermissionsLoadError(
+      val cause: Throwable,
+    ) : State
 
     /**
      * Requesting Notification permissions before starting a claim.

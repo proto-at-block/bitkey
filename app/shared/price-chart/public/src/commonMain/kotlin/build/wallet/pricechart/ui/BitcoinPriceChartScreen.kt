@@ -1,8 +1,13 @@
 package build.wallet.pricechart.ui
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,7 +16,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.*
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -30,7 +38,10 @@ import build.wallet.pricechart.ChartType
 import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.icon.Icon
-import build.wallet.ui.components.label.*
+import build.wallet.ui.components.label.Label
+import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.label.loadingScrim
+import build.wallet.ui.components.label.textStyle
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.compose.thenIf
@@ -41,9 +52,12 @@ import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.resources.vectorResource
 
 @Composable
-internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
+internal fun BitcoinPriceChartScreen(
+  modifier: Modifier = Modifier,
+  model: BitcoinPriceDetailsBodyModel,
+) {
   Column(
-    modifier = Modifier
+    modifier = modifier
       .fillMaxSize()
       .padding(horizontal = 16.dp),
     verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),

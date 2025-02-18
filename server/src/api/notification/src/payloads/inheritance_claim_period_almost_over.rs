@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use time::{serde::rfc3339, OffsetDateTime};
 use types::recovery::{
     inheritance::claim::InheritanceClaimId, social::relationship::RecoveryRelationshipRole,
@@ -8,13 +7,17 @@ use types::recovery::{
 
 use crate::{
     clients::iterable::IterableCampaignType,
+    definitions::NavigationScreenId,
     email::EmailPayload,
     entities::NotificationCompositeKey,
-    push::{AndroidChannelId, SNSPushPayload},
+    push::{AndroidChannelId, SNSPushPayload, SNSPushPayloadExtras},
     sms::SmsPayload,
     NotificationError, NotificationMessage,
 };
 
+use super::format_duration;
+
+const NUM_DAYS_LEFT_FIELD: &str = "numDaysLeft";
 const END_DATE_FIELD: &str = "endDate";
 const BENEFICIARY_ALIAS_FIELD: &str = "beneficiaryAlias";
 
@@ -43,18 +46,32 @@ impl
     ) -> Result<Self, Self::Error> {
         let (composite_key, payload) = v;
         let (account_id, _) = composite_key.clone();
+        let num_days_left = format_duration(payload.delay_end_time - OffsetDateTime::now_utc());
 
-        let (importance, message, campaign_type) = match payload.recipient_account_role {
+        let (importance, message, campaign_type, extras) = match payload.recipient_account_role {
             RecoveryRelationshipRole::ProtectedCustomer => {
                 (AndroidChannelId::UrgentSecurity,
-                    "[Action required] You have 3 days left to decline the inheritance claim for your Bitkey wallet and retain control of your funds.".to_string(),
-                IterableCampaignType::InheritanceClaimAlmostOverAsBenefactor
+                    format!(
+                        "[Action required] You have {num_days_left} left to decline the inheritance claim for your Bitkey wallet and retain control of your funds.",
+                    ),
+                    IterableCampaignType::InheritanceClaimAlmostOverAsBenefactor,
+                    SNSPushPayloadExtras {
+                        inheritance_claim_id: Some(payload.inheritance_claim_id.to_string()),
+                        navigate_to_screen_id: Some(
+                            (NavigationScreenId::InheritanceDeclineClaim as i32).to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 )
             }
             RecoveryRelationshipRole::TrustedContact => {
-                (AndroidChannelId::RecoveryAccountSecurity,
-                    "Your inheritance funds will be available for transfer in 3 days.".to_string(),
-                IterableCampaignType::InheritanceClaimAlmostOverAsBeneficiary
+                (
+                    AndroidChannelId::RecoveryAccountSecurity,
+                    format!(
+                        "Your inheritance funds will be available for transfer in {num_days_left}.",
+                    ),
+                    IterableCampaignType::InheritanceClaimAlmostOverAsBeneficiary,
+                    SNSPushPayloadExtras::default(),
                 )
             }
         };
@@ -71,6 +88,7 @@ impl
             email_payload: Some(EmailPayload::Iterable {
                 campaign_type,
                 data_fields: HashMap::from([
+                    (NUM_DAYS_LEFT_FIELD.to_string(), num_days_left),
                     (END_DATE_FIELD.to_string(), formatted_end_date),
                     (
                         BENEFICIARY_ALIAS_FIELD.to_string(),
@@ -81,6 +99,7 @@ impl
             push_payload: Some(SNSPushPayload {
                 message: message.clone(),
                 android_channel_id: importance,
+                extras,
                 ..Default::default()
             }),
             sms_payload: Some(SmsPayload {

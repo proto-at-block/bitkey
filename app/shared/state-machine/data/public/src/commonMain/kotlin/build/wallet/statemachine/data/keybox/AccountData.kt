@@ -1,15 +1,12 @@
 package build.wallet.statemachine.data.keybox
 
 import build.wallet.auth.PendingAuthKeyRotationAttempt
-import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.debug.DebugOptions
-import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
@@ -31,13 +28,12 @@ sealed interface AccountData {
     /**
      * We are checking if there is any persisted recovery or onboarding at app launch.
      */
-    data object CheckingRecoveryOrOnboarding : NoActiveAccountData
+    data object CheckingRecovery : NoActiveAccountData
 
     /**
      * Indicates that there is no active account and no onboarding or recovery in progress.
      */
     data class GettingStartedData(
-      val startFullAccountCreation: () -> Unit,
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
       val startEmergencyAccessRecovery: () -> Unit,
@@ -59,15 +55,6 @@ sealed interface AccountData {
     ) : NoActiveAccountData
 
     /**
-     * Indicates that there is an ongoing "Lost App" recovery in progress for a [LiteAccount].
-     */
-    data class RecoveringLiteAccountData(
-      val cloudBackup: CloudBackup,
-      val onAccountCreated: (Account) -> Unit,
-      val onExit: () -> Unit,
-    ) : NoActiveAccountData
-
-    /**
      * This is a non-onboarded state with a template config used for the non-onboarded device reset flow
      */
     data class ResettingExistingDeviceData(
@@ -84,36 +71,10 @@ sealed interface AccountData {
     ) : NoActiveAccountData
 
     /**
-     * Indicates that there is an ongoing brand new Full Account creation in progress
-     *
-     * @property createFullAccountData provides data for the state of account creation.
-     */
-    data class CreatingFullAccountData(
-      val createFullAccountData: CreateFullAccountData,
-    ) : NoActiveAccountData
-
-    /**
-     * Indicates that there is an ongoing new lite account creation in progress
-     *
-     * @property onRollback Callback to rollback the creation of the lite account.
-     * @property inviteCode The invite code used to create the lite account. Present when coming from
-     * a trusted contact invite deep link.
-     * @property onAccountCreated Invoked when the account creation is complete.
-     */
-    data class CreatingLiteAccountData(
-      val onRollback: () -> Unit,
-      val inviteCode: String?,
-      val onAccountCreated: (LiteAccount) -> Unit,
-    ) : NoActiveAccountData
-
-    /**
      * Indicates that the application is loading cloud backup data to determine how to proceed.
      *
      * @property intent Indicator for the user's intended action when starting onboarding or recovery. Note that this
      *   may not determine the final destination of the experience, depending on the type of cloud backup data found.
-     * @property onStartLiteAccountCreation Invoked when the application should proceed to create a new lite account.
-     * @property onStartLiteAccountRecovery Invoked when the application should start recovery for an existing lite
-     * account from the backup provided.
      * @property onStartCloudRecovery Invoked when the application should start recovery for an existing full account
      * from the backup provided.
      * @property onStartLostAppRecovery Invoked when the application should start recovery for an existing account
@@ -122,8 +83,7 @@ sealed interface AccountData {
      */
     data class CheckingCloudBackupData(
       val intent: StartIntent,
-      val onStartLiteAccountCreation: () -> Unit,
-      val onStartLiteAccountRecovery: (CloudBackup) -> Unit,
+      val inviteCode: String? = null,
       val onStartCloudRecovery: (CloudBackup) -> Unit,
       val onStartLostAppRecovery: () -> Unit,
       val onImportEmergencyAccessKit: () -> Unit,
@@ -147,6 +107,11 @@ sealed interface AccountData {
      * become a trusted contact.
      */
     BeTrustedContact,
+
+    /**
+     * Indicates onboarding was started with the intent to become a beneficiary.
+     */
+    BeBeneficiary,
   }
 
   /**
@@ -174,19 +139,6 @@ sealed interface AccountData {
       val lostHardwareRecoveryData: LostHardwareRecoveryData,
     ) : HasActiveFullAccountData
   }
-
-  /**
-   * An active Lite Account is present.
-   *
-   * @property onUpgradeAccount Callback for when the Lite Account wants to start the upgrade
-   *  process to become a full account. Currently, this needs to happen all within the context
-   *  of the data state machines because they are so reactive to account / keybox state. See
-   *  BKR-643.
-   */
-  data class HasActiveLiteAccountData(
-    val account: LiteAccount,
-    val onUpgradeAccount: () -> Unit,
-  ) : AccountData
 
   /**
    * The keybox was recovering but it was canceled elsewhere, notify customer

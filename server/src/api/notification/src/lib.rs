@@ -88,6 +88,8 @@ pub enum NotificationError {
     SerdeJson(#[from] serde_json::Error),
     #[error(transparent)]
     Queue(#[from] QueueError),
+    #[error("Invalid extras for notification with type {0}")]
+    InvalidExtras(NotificationPayloadType),
 }
 
 impl From<NotificationError> for ApiError {
@@ -101,7 +103,10 @@ impl From<NotificationError> for ApiError {
             | NotificationError::ParseIdentifier
             | NotificationError::ParseEnum(_)
             | NotificationError::SerdeJson(_)
-            | NotificationError::ParseUlid(_) => ApiError::GenericInternalApplicationError(message),
+            | NotificationError::ParseUlid(_)
+            | NotificationError::InvalidExtras(_) => {
+                ApiError::GenericInternalApplicationError(message)
+            }
             NotificationError::AccountError(e) => e.into(),
             NotificationError::Queue(e) => e.into(),
         }

@@ -1,5 +1,6 @@
 import Foundation
 import Shared
+import UIKit
 
 // MARK: -
 
@@ -9,8 +10,6 @@ import Shared
 class AppContext {
 
     // MARK: - Classes
-
-    let appUiStateMachineManager: AppUiStateMachineManager
 
     let notificationManager: NotificationManager
 
@@ -22,7 +21,7 @@ class AppContext {
 
     // MARK: - Life Cycle
 
-    init(appVariant: AppVariant) {
+    init(appVariant: AppVariant, window: UIWindow) {
         self.deviceTokenProvider = DeviceTokenProviderImpl()
         self.sharingManager = SharingManagerImpl()
         let datadogRumMonitor = DatadogRumMonitorImpl()
@@ -30,8 +29,10 @@ class AppContext {
         let datadogTracer = DatadogTracerImpl()
         let secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
         let biometricsPrompter = BiometricPrompterImpl()
-
-        let appViewController = HiddenBarNavigationController()
+        let noiseInitiator = NoiseInitiatorImpl(
+            secureEnclave: SecureEnclaveImpl(),
+            symmetricKeyGenerator: SymmetricKeyGeneratorImpl()
+        )
 
         // Create IosAppComponent with iOS implementations
         self.appComponent = IosAppComponentCreateComponentKt.create(
@@ -57,9 +58,7 @@ class AppContext {
             firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl(),
             frostWalletDescriptorFactory: FrostWalletDescriptorFactoryImpl(),
             hardwareAttestation: HardwareAttestationImpl(),
-            inAppBrowserNavigator: InAppBrowserNavigatorImpl(
-                appViewController: appViewController
-            ),
+            inAppBrowserNavigator: InAppBrowserNavigatorImpl(window: window),
             lightningInvoiceParser: LightningInvoiceParserImpl(),
             logWritersProvider: { context in [DatadogLogWriter(
                 logWriterContextStore: context,
@@ -71,7 +70,7 @@ class AppContext {
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
             phoneNumberLibBindings: PhoneNumberLibBindingsImpl(),
             secp256k1KeyGenerator: secp256k1KeyGenerator,
-            shareGeneratorFactory: ShareGeneratorFactoryImpl(),
+            shareGenerator: ShareGeneratorImpl(),
             sharingManager: sharingManager,
             signatureVerifier: SignatureVerifierImpl(),
             spake2: Spake2Impl(),
@@ -81,7 +80,8 @@ class AppContext {
             teltra: TeltraImpl(),
             wsmVerifier: WsmVerifierImpl(),
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
-            xNonceGenerator: XNonceGeneratorImpl()
+            xNonceGenerator: XNonceGeneratorImpl(),
+            noiseInitiator: noiseInitiator
         )
 
         // Create IosActivityComponent
@@ -94,14 +94,6 @@ class AppContext {
             eventTracker: appComponent.eventTracker,
             pushNotificationPermissionStatusProvider: appComponent
                 .pushNotificationPermissionStatusProvider
-        )
-
-        self.appUiStateMachineManager = AppUiStateMachineManagerImpl(
-            appUiStateMachine: activityComponent.appUiStateMachine as! AppUiStateMachineImpl,
-            appViewController: appViewController,
-            context: .init(
-                qrCodeScannerViewControllerFactory: QRCodeScannerViewControllerFactoryImpl()
-            )
         )
     }
 }

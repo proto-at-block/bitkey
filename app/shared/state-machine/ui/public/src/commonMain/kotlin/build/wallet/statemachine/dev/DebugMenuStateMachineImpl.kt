@@ -6,7 +6,11 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
+import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.nfc.NfcException
+import build.wallet.onboarding.OnboardingCompletionService
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.dev.analytics.AnalyticsUiStateMachine
@@ -24,6 +28,12 @@ import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.toast.ToastModel
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(ActivityScope::class)
 class DebugMenuStateMachineImpl(
@@ -39,14 +49,24 @@ class DebugMenuStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val cloudDevOptionsStateMachine: CloudDevOptionsStateMachine,
   private val firmwareDataService: FirmwareDataService,
+  private val onboardingCompletionService: OnboardingCompletionService,
+  private val inheritanceUpsellService: InheritanceUpsellService,
 ) : DebugMenuStateMachine {
   @Composable
   override fun model(props: DebugMenuProps): ScreenModel {
     var uiState: DebugMenuState by remember { mutableStateOf(DebugMenuState.ShowingDebugMenu) }
 
-    val firmwareData = remember {
+    val firmwareData by remember {
       firmwareDataService.firmwareData()
-    }.collectAsState().value
+    }.collectAsState()
+
+    var pasteboardToast by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect("pasteboard-toast-timeout", pasteboardToast) {
+      if (pasteboardToast != null) {
+        delay(3.seconds)
+        pasteboardToast = null
+      }
+    }
 
     return when (val state = uiState) {
       is DebugMenuState.ShowingDebugMenu ->
@@ -55,9 +75,23 @@ class DebugMenuStateMachineImpl(
             DebugMenuListProps(
               firmwareData = firmwareData,
               onSetState = { uiState = it },
-              onClose = props.onClose
+              onClose = props.onClose,
+              onAppDataDeleted = props.onAppDataDeleted,
+              onPasteboardCopy = { pasteboardToast = it }
             )
-        ).asModalScreen()
+        ).asModalScreen(
+          toastModel = pasteboardToast?.let {
+            ToastModel(
+              leadingIcon = IconModel(
+                icon = Icon.SmallIconCheckStroked,
+                iconSize = IconSize.Small,
+                iconTint = IconTint.Success
+              ),
+              title = "Copied $it",
+              iconStrokeColor = ToastModel.IconStrokeColor.Unspecified
+            )
+          }
+        )
 
       is DebugMenuState.ShowingF8eCustomUrl ->
         f8eCustomUrlStateMachine.model(
@@ -133,6 +167,30 @@ class DebugMenuStateMachineImpl(
               isHardwareFake = state.isHardwareFake
             )
         )
+
+      is DebugMenuState.ClearingOnboardingData -> {
+        LaunchedEffect(state) {
+          when (state) {
+            is DebugMenuState.ClearingOnboardingData.OnboardingTimestamp -> {
+              onboardingCompletionService.clearOnboardingTimestamp()
+              uiState = DebugMenuState.ShowingDebugMenu
+            }
+            is DebugMenuState.ClearingOnboardingData.HasSeenUpsell -> {
+              inheritanceUpsellService.reset()
+              uiState = DebugMenuState.ShowingDebugMenu
+            }
+          }
+        }
+
+        LoadingBodyModel(
+          message = when (state) {
+            is DebugMenuState.ClearingOnboardingData.OnboardingTimestamp -> "Clearing onboarding timestamp..."
+            is DebugMenuState.ClearingOnboardingData.HasSeenUpsell -> "Clearing has seen upsell state..."
+          },
+          onBack = { uiState = DebugMenuState.ShowingDebugMenu },
+          id = null
+        ).asModalScreen()
+      }
     }
   }
 }
@@ -168,4 +226,10 @@ sealed interface DebugMenuState {
   data class ShowingFirmwareMetadata(
     val isHardwareFake: Boolean,
   ) : DebugMenuState
+
+  sealed interface ClearingOnboardingData : DebugMenuState {
+    data object OnboardingTimestamp : ClearingOnboardingData
+
+    data object HasSeenUpsell : ClearingOnboardingData
+  }
 }

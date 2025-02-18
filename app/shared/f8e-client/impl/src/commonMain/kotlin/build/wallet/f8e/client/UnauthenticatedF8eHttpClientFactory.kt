@@ -4,12 +4,15 @@ import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.datadog.DatadogTracer
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
-import io.ktor.client.engine.*
+import io.ktor.client.engine.HttpClientEngine
 
+@BitkeyInject(AppScope::class, boundTypes = [UnauthenticatedF8eHttpClientFactory::class])
 class UnauthenticatedF8eHttpClientFactory(
   appVariant: AppVariant,
   platformInfoProvider: PlatformInfoProvider,
@@ -17,7 +20,7 @@ class UnauthenticatedF8eHttpClientFactory(
   deviceInfoProvider: DeviceInfoProvider,
   appInstallationDao: AppInstallationDao,
   countryCodeGuesser: CountryCodeGuesser,
-  networkReachabilityProvider: NetworkReachabilityProvider?,
+  networkReachabilityProvider: NetworkReachabilityProvider,
   networkingDebugService: NetworkingDebugService,
   engine: HttpClientEngine? = null,
 ) : BaseF8eHttpClientFactory(

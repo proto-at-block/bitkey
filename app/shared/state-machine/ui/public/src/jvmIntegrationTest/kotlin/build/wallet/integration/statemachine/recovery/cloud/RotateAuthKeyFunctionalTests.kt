@@ -10,11 +10,12 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -30,7 +31,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
@@ -38,7 +39,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    secondAppRun.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
@@ -51,21 +52,21 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
 
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    secondAppRun.appUiStateMachine.test(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -81,29 +82,27 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    app.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
 
-  test("User can successfully rotate keys from settings").config(
-    coroutineTestScope = true
-  ) {
+  test("User can successfully rotate keys from settings") {
     val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
 
@@ -121,17 +120,17 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         }
       )
     )
-    app.rotateAuthUIStateMachine.test(props) {
+    app.rotateAuthUIStateMachine.testWithVirtualTime(props) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
@@ -150,30 +149,30 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    secondAppRun.appUiStateMachine.test(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -185,35 +184,35 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
-    firstAppRun.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    firstAppRun.fakeNfcCommands.wipeDevice()
 
-    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
+    firstAppRun.appUiStateMachine.test(Unit) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       // Retry
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       // Dismiss
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -227,13 +226,13 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel> {
+    firstAppRun.appUiStateMachine.test(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel> {
         trailingToolbarAccessoryModel.shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
           .model.onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<SettingsBodyModel> {
+      awaitUntilBody<SettingsBodyModel> {
         val mobileDevicesRow = sectionModels.firstNotNullOfOrNull { section ->
           section.rowModels.firstOrNull {
             it.title.equals("Mobile devices", ignoreCase = true)
@@ -249,27 +248,27 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
+      awaitUntilBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
       }
 
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
+      awaitUntilBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<SettingsBodyModel> {
+      awaitUntilBody<SettingsBodyModel> {
         onBack()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
 
     val secondAppRun = firstAppRun.relaunchApp()
 
-    secondAppRun.appUiStateMachine.test(Unit, useVirtualTime = false) {
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    secondAppRun.appUiStateMachine.test(Unit) {
+      awaitUntilBody<MoneyHomeBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -279,13 +278,13 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 suspend fun ReceiveTurbine<ScreenModel>.screenDecideIfShouldRotate(
   validate: FormBodyModel.() -> Unit,
 ) {
-  awaitUntilScreenWithBody<FormBodyModel>(
+  awaitUntilBody<FormBodyModel>(
     id = InactiveAppEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH,
     // There are two "Rotate if should rotate" screens, one with two buttons and one with one button,
     // both have initial loading state. We need to wait for the loading state to clear.
-    expectedBodyContentMatch = {
+    matching = {
       it.primaryButton?.isEnabled ?: true && it.secondaryButton?.isEnabled ?: true
     },
-    block = validate
+    validate = validate
   )
 }

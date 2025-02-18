@@ -45,12 +45,11 @@ fun BuyOrTransferModel(
       onTransfer = onTransfer,
       onBack = onBack
     ),
-    dragIndicatorVisible = true,
     onClosed = onBack
   )
 }
 
-private data class BuyOrTransferBodyModel(
+data class BuyOrTransferBodyModel(
   val listGroupModel: ListGroupModel,
   val onPurchase: () -> Unit,
   val onTransfer: () -> Unit,

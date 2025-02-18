@@ -2,11 +2,11 @@
     "module-identifier": "com.russhwolf:multiplatform-settings-jvm",
     "components": [
         {
-            "version": "1.1.1",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "multiplatform-settings-jvm-1.1.1.jar": "3c2698e371128d013c25a3eb7d33dfb8b72199bfc6e065671a1c0818c2515cfb"
+                        "multiplatform-settings-jvm-1.2.0.jar": "9cb2de45e673f58aff4f7198b7a3e89e79e2d4f70aa70e499a9936e40acf79b7"
                     }
                 }
             ],

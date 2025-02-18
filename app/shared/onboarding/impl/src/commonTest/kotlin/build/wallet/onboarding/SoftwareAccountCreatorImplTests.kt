@@ -2,8 +2,8 @@ package build.wallet.onboarding
 
 import build.wallet.auth.*
 import build.wallet.auth.AccountAuthenticator.AuthData
-import build.wallet.auth.AuthTokenDaoMock.SetTokensParams
 import build.wallet.auth.AuthTokenScope.Global
+import build.wallet.auth.AuthTokenScope.Recovery
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
@@ -22,18 +22,17 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class SoftwareAccountCreatorImplTests : FunSpec({
 
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
-  val authTokenDao = AuthTokenDaoMock(turbines::create)
+  val authTokensService = AuthTokensServiceFake()
   val createSoftwareAccountF8eClient = CreateSoftwareAccountF8eClientMock(turbines::create)
 
   val creator = SoftwareAccountCreatorImpl(
     createSoftwareAccountF8eClient = createSoftwareAccountF8eClient,
     accountAuthenticator = accountAuthenticator,
-    authTokenDao = authTokenDao
+    authTokensService = authTokensService
   )
 
   val appAuthResult = Ok(
@@ -58,6 +57,7 @@ class SoftwareAccountCreatorImplTests : FunSpec({
   beforeTest {
     accountAuthenticator.reset()
     createSoftwareAccountF8eClient.reset()
+    authTokensService.reset()
   }
 
   test("happy path") {
@@ -87,15 +87,11 @@ class SoftwareAccountCreatorImplTests : FunSpec({
 
     accountAuthenticator.authCalls.awaitItem()
       .shouldBe(AppGlobalAuthPublicKeyMock)
-    authTokenDao.setTokensCalls.awaitItem()
-      .shouldBeTypeOf<SetTokensParams>()
-      .tokens.shouldBe(appAuthTokens)
+    authTokensService.getTokens(accountId, Global).shouldBeOk(appAuthTokens)
 
     accountAuthenticator.authCalls.awaitItem()
       .shouldBe(AppRecoveryAuthPublicKeyMock)
-    authTokenDao.setTokensCalls.awaitItem()
-      .shouldBeTypeOf<SetTokensParams>()
-      .tokens.shouldBe(recoveryAuthTokens)
+    authTokensService.getTokens(accountId, Recovery).shouldBeOk(recoveryAuthTokens)
   }
 
   test("createSoftwareAccountF8eClient failure binds") {
@@ -137,40 +133,25 @@ class SoftwareAccountCreatorImplTests : FunSpec({
     createSoftwareAccountF8eClient.createCalls.awaitItem()
     accountAuthenticator.authCalls.awaitItem()
       .shouldBe(AppGlobalAuthPublicKeyMock)
-    authTokenDao.setTokensCalls.awaitItem()
-      .shouldBe(
-        SetTokensParams(
-          accountId = OnboardingSoftwareAccountMock.accountId,
-          tokens = appAuthResult.unwrap().authTokens,
-          scope = Global
-        )
-      )
+    authTokensService.getTokens(OnboardingSoftwareAccountMock.accountId, Global)
+      .shouldBeOk(appAuthResult.unwrap().authTokens)
 
     accountAuthenticator.authCalls.awaitItem()
       .shouldBe(AppRecoveryAuthPublicKeyMock)
   }
 
   test("authTokenDao failure binds") {
-    val tokens = accountAuthenticator.authResults.first().unwrap().authTokens
-
-    authTokenDao.setTokensResult = Err(Throwable())
-    creator.createAccount(
-      authKey = AppGlobalAuthPublicKeyMock,
-      recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
-      config = SoftwareAccountConfigMock
-    )
+    authTokensService.setTokensError = Error()
+    creator
+      .createAccount(
+        authKey = AppGlobalAuthPublicKeyMock,
+        recoveryAuthKey = AppRecoveryAuthPublicKeyMock,
+        config = SoftwareAccountConfigMock
+      )
       .shouldBeErrOfType<FailedToSaveAuthTokens>()
 
     createSoftwareAccountF8eClient.createCalls.awaitItem()
-    accountAuthenticator.authCalls.awaitItem()
-      .shouldBe(AppGlobalAuthPublicKeyMock)
-    authTokenDao.setTokensCalls.awaitItem()
-      .shouldBe(
-        SetTokensParams(
-          accountId = OnboardingSoftwareAccountMock.accountId,
-          tokens = tokens,
-          scope = Global
-        )
-      )
+    accountAuthenticator.authCalls.awaitItem().shouldBe(AppGlobalAuthPublicKeyMock)
+    authTokensService.getTokens(OnboardingSoftwareAccountMock.accountId, Global).shouldBeOk(null)
   }
 })

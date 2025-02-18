@@ -7,6 +7,7 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.SealedData
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.di.Fake
@@ -42,11 +43,6 @@ class NfcCommandsFake(
   )
   private var enrolledFingerprints =
     EnrolledFingerprints(3, listOf(FingerprintHandle(index = 0, label = "")))
-
-  suspend fun clearHardwareKeysAndFingerprintEnrollment() {
-    fakeHardwareKeyStore.clear()
-    fingerprintEnrollmentResult.status = NOT_IN_PROGRESS
-  }
 
   override suspend fun fwupStart(
     session: NfcSession,
@@ -185,6 +181,31 @@ class NfcCommandsFake(
   private val sealKeySeparator = "---"
 
   /**
+   * "Seals" a ByteString using the same strategy as [NfcCommandsFake.sealKey]
+   */
+  override suspend fun sealData(
+    session: NfcSession,
+    unsealedData: ByteString,
+  ): SealedData {
+    val hwAuthPrivateKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
+    return buildString {
+      append(unsealedData.hex())
+      append(sealKeySeparator)
+      append(hwAuthPrivateKey.bytes.hex())
+    }.encodeUtf8()
+  }
+
+  /**
+   * See [NfcCommandsFake.unsealKey] for implementation details.
+   */
+  override suspend fun unsealData(
+    session: NfcSession,
+    sealedData: SealedData,
+  ): ByteString {
+    return unsealKey(session, sealedData.toUByteList()).toByteString()
+  }
+
+  /**
    * "Seals" a CSEK using actual fake auth key. The sealing process is a simple concatenation of the
    * auth private key and the unsealed key in following format: "unsealedKey---authPrivateKey".
    *
@@ -254,8 +275,13 @@ class NfcCommandsFake(
 
   override suspend fun version(session: NfcSession): UShort = 1u
 
+  suspend fun wipeDevice() {
+    fakeHardwareKeyStore.clear()
+    fingerprintEnrollmentResult.status = NOT_IN_PROGRESS
+  }
+
   override suspend fun wipeDevice(session: NfcSession): Boolean {
-    clearHardwareKeysAndFingerprintEnrollment()
+    wipeDevice()
     return true
   }
 

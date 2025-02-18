@@ -9,6 +9,8 @@ import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.client.plugins.withAccountId
+import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.RedactedResponseBody
@@ -33,26 +35,26 @@ class LockInheritanceClaimF8eClientImpl(
     inheritanceClaimId: InheritanceClaimId,
     signedChallenge: AppSignedChallenge,
   ): Result<BeneficiaryClaim.LockedClaim, Throwable> {
-    return f8eClient.authenticated(
-      f8eEnvironment = fullAccount.config.f8eEnvironment,
-      accountId = fullAccount.accountId
-    ).bodyResult<LockClaimResponse> {
-      put("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims/${inheritanceClaimId.value}/lock") {
-        withDescription("Locking Inheritance Claim")
-        setRedactedBody(
-          LockInheritanceClaimRequest(
-            challenge = signedChallenge.challenge.data,
-            relationshipId = relationshipId,
-            appSignature = signedChallenge.signature
+    return f8eClient.authenticated()
+      .bodyResult<LockClaimResponse> {
+        put("/api/accounts/${fullAccount.accountId.serverId}/recovery/inheritance/claims/${inheritanceClaimId.value}/lock") {
+          withDescription("Locking Inheritance Claim")
+          withEnvironment(fullAccount.config.f8eEnvironment)
+          withAccountId(fullAccount.accountId)
+          setRedactedBody(
+            LockInheritanceClaimRequest(
+              challenge = signedChallenge.challenge.data,
+              relationshipId = relationshipId,
+              appSignature = signedChallenge.signature
+            )
           )
-        )
+        }
+      }.flatMap {
+        when (val result = it.claim) {
+          is BeneficiaryClaim.LockedClaim -> Ok(result)
+          else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
+        }
       }
-    }.flatMap {
-      when (val result = it.claim) {
-        is BeneficiaryClaim.LockedClaim -> Ok(result)
-        else -> Err(IllegalArgumentException("Unexpected claim type: $result"))
-      }
-    }
   }
 
   @Serializable

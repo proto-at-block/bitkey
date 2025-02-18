@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:sdk-common",
     "components": [
         {
-            "version": "31.3.2",
+            "version": "31.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "sdk-common-31.3.2.jar": "81e5391e6b93c8237eda17bb24b26a9b28d5abe7217a5553da2dabf1bd00656d"
+                        "sdk-common-31.4.2.jar": "f38eba4bbfb6d541dc8c2be38c31e7389d0acdc354b234f258b6ee89e8ddce6d"
                     }
                 }
             ],

@@ -11,9 +11,16 @@ interface InheritanceCardUiStateMachine :
   StateMachine<InheritanceCardUiProps, List<CardModel>>
 
 /**
- * @param onClick The action to take when the action button is clicked.
- * This is either dismisses the card if it is pending, or navigates to the claim details if it is locked.
+ * @param completeClaim if a beneficiary taps the button to complete the claim
+ * @param denyClaim if a benefactor taps the button to deny the claim
+ * @param moveFundsCallToAction if a benefactor taps the button on the danger CTA
+ *
  */
 data class InheritanceCardUiProps(
-  val onClick: ((InheritanceClaim) -> Unit)?,
+  val claimFilter: (InheritanceClaim) -> Boolean = { true },
+  val isDismissible: Boolean = true,
+  val includeDismissed: Boolean = false,
+  val completeClaim: (InheritanceClaim) -> Unit,
+  val denyClaim: (InheritanceClaim) -> Unit,
+  val moveFundsCallToAction: () -> Unit,
 )

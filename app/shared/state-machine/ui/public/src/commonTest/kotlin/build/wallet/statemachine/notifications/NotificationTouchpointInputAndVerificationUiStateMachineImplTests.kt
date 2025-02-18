@@ -25,15 +25,20 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.*
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.input.*
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
+import build.wallet.statemachine.root.ActionSuccessDuration
+import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeLoading
-import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -42,6 +47,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration.Companion.milliseconds
 
 class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpec({
 
@@ -53,7 +59,6 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   val stateMachine =
     NotificationTouchpointInputAndVerificationUiStateMachineImpl(
-      delayer = ControlledDelayer(),
       emailInputUiStateMachine =
         object : EmailInputUiStateMachine, ScreenStateMachineMock<EmailInputUiProps>(
           "email-input"
@@ -65,9 +70,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
           "phone-number-input"
         ) {},
       proofOfPossessionNfcStateMachine =
-        object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
-          "proof-of-hw"
-        ) {},
+        object : ProofOfPossessionNfcStateMachine,
+          ScreenStateMachineMock<ProofOfPossessionNfcProps>(
+            "proof-of-hw"
+          ) {},
       verificationCodeInputStateMachine =
         object : VerificationCodeInputStateMachine,
           ScreenStateMachineMock<VerificationCodeInputProps>(
@@ -77,7 +83,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         override fun phoneNone() {}
 
         override fun phoneNotAvailable() {}
-      }
+      },
+      actionSuccessDuration = ActionSuccessDuration(10.milliseconds)
     )
 
   val props =
@@ -117,11 +124,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     // Entering touchpoint
     when (touchpointType) {
       PhoneNumber ->
-        awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+        awaitBodyMock<PhoneNumberInputUiProps> {
           onSubmitPhoneNumber(phoneNumber) {}
         }
       Email ->
-        awaitScreenWithBodyModelMock<EmailInputUiProps> {
+        awaitBodyMock<EmailInputUiProps> {
           onEmailEntered(email) {}
         }
     }
@@ -136,12 +143,12 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     }
 
     // Entering verification code
-    awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+    awaitBodyMock<VerificationCodeInputProps> {
       onCodeEntered(code)
     }
 
     // Sending verification code to server
-    awaitScreenWithBody<LoadingSuccessBodyModel> {
+    awaitBody<LoadingSuccessBodyModel> {
       state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
     }
     with(notificationTouchpointF8eClient.verifyTouchpointCalls.awaitItem()) {
@@ -154,10 +161,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("happy path") {
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(props.copy(touchpointType = touchpointType)) {
+      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
         // Sending activation request to server
-        awaitScreenWithBody<LoadingSuccessBodyModel> {
+        awaitBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
         }
         with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
@@ -167,7 +174,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
 
-        awaitScreenWithBody<LoadingSuccessBodyModel> {
+        awaitBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
         }
 
@@ -180,19 +187,19 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     val hwProofOfPossession = HwFactorProofOfPossession("signed-token")
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(
+      stateMachine.testWithVirtualTime(
         props.copy(entryPoint = Settings, touchpointType = touchpointType)
       ) {
         progressToSendingVerificationCode(touchpointType)
 
         // Activation approval instructions
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           expectActivationInstructions(touchpointType)
           clickPrimaryButton()
         }
 
         // Verifying HW proof
-        awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
+        awaitBodyMock<ProofOfPossessionNfcProps> {
           val errorScreenModel = onTokenRefreshError.shouldNotBeNull().invoke(false) {}
           errorScreenModel.body.shouldBeInstanceOf<FormBodyModel>()
             .expectActivationInstructions(touchpointType)
@@ -208,7 +215,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
 
         // Sending activation request to server
-        awaitScreenWithBody<LoadingSuccessBodyModel> {
+        awaitBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
         }
         with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
@@ -219,7 +226,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
 
-        awaitScreenWithBody<LoadingSuccessBodyModel> {
+        awaitBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
         }
 
@@ -232,9 +239,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     val onErrorCalls = turbines.create<Unit>("on error server failure calls")
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Entering phone number
-      awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+      awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {
           onErrorCalls.add(Unit)
         }
@@ -253,10 +260,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(F8eError.ConnectivityError(NetworkError(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(props.copy(touchpointType = touchpointType)) {
+      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
         // Error screen
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           with(header.shouldNotBeNull()) {
             when (touchpointType) {
               PhoneNumber -> headline.shouldBe("We couldn’t verify this phone number")
@@ -270,7 +277,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
 
         // Go back to Entering verification code
-        awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
+        awaitBodyMock<VerificationCodeInputProps>()
       }
     }
   }
@@ -280,11 +287,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(props.copy(touchpointType = touchpointType)) { // Entering phone number
+      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) { // Entering phone number
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           with(header.shouldNotBeNull()) {
             when (touchpointType) {
               PhoneNumber -> headline.shouldBe("We couldn’t verify this phone number")
@@ -300,11 +307,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         // Go back to Entering touchpoint
         when (touchpointType) {
           PhoneNumber ->
-            awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+            awaitBodyMock<PhoneNumberInputUiProps> {
               prefillValue.shouldBe(PhoneNumberMock)
             }
           Email ->
-            awaitScreenWithBodyModelMock<EmailInputUiProps> {
+            awaitBodyMock<EmailInputUiProps> {
               previousEmail.shouldBe(EmailFake)
             }
         }
@@ -317,11 +324,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_EXPIRED))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(props.copy(touchpointType = touchpointType)) {
+      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           with(header.shouldNotBeNull()) {
             when (touchpointType) {
               PhoneNumber -> headline.shouldBe("We couldn’t verify this phone number")
@@ -337,11 +344,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         // Go back to Entering touchpoint
         when (touchpointType) {
           PhoneNumber ->
-            awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+            awaitBodyMock<PhoneNumberInputUiProps> {
               prefillValue.shouldBe(PhoneNumberMock)
             }
           Email ->
-            awaitScreenWithBodyModelMock<EmailInputUiProps> {
+            awaitBodyMock<EmailInputUiProps> {
               previousEmail.shouldBe(EmailFake)
             }
         }
@@ -354,11 +361,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_MISMATCH))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.test(props.copy(touchpointType = touchpointType)) {
+      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
-        awaitScreenWithBody<FormBodyModel> {
+        awaitBody<FormBodyModel> {
           with(header.shouldNotBeNull()) {
             when (touchpointType) {
               PhoneNumber -> headline.shouldBe("We couldn’t verify this phone number")
@@ -372,7 +379,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
 
         // Go back to Entering verification code
-        awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
+        awaitBodyMock<VerificationCodeInputProps>()
       }
     }
   }
@@ -380,9 +387,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("verify code entry goes back to prefilled touchpoint entry") {
     val phoneNumber = PhoneNumberMock
     notificationTouchpointF8eClient.addTouchpointResult = Ok(phoneNumber.touchpoint())
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Entering phone number
-      awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+      awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {}
       }
 
@@ -390,12 +397,12 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onBack()
       }
 
       // Back to Entering phone number
-      awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+      awaitBodyMock<PhoneNumberInputUiProps> {
         prefillValue.shouldBe(phoneNumber)
       }
     }
@@ -403,9 +410,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("resend code on verify code input screen for sms") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(PhoneNumberMock.touchpoint())
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Entering phone number
-      awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+      awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {}
       }
 
@@ -413,7 +420,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onResendCode(ResendCodeCallbacks({}, {}))
       }
 
@@ -423,20 +430,20 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("going back from verifying email fills in the email input") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
-    stateMachine.test(props.copy(touchpointType = Email)) {
+    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
       // Entering email
-      awaitScreenWithBodyModelMock<EmailInputUiProps> {
+      awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
       }
 
       // Loading, sending email to the server
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onBack()
       }
 
-      awaitScreenWithBodyModelMock<EmailInputUiProps> {
+      awaitBodyMock<EmailInputUiProps> {
         previousEmail.shouldBe(EmailFake)
       }
     }
@@ -445,9 +452,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("properly recover from failure to send email to server") {
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
-    stateMachine.test(props.copy(touchpointType = Email)) {
+    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
       // Entering email
-      awaitScreenWithBodyModelMock<EmailInputUiProps> {
+      awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
       }
 
@@ -457,9 +464,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("resend code on verify code input screen for email") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
-    stateMachine.test(props.copy(touchpointType = Email)) {
+    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
       // Entering email
-      awaitScreenWithBodyModelMock<EmailInputUiProps> {
+      awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
       }
 
@@ -467,7 +474,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
-      awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
+      awaitBodyMock<VerificationCodeInputProps> {
         onResendCode(ResendCodeCallbacks({}, {}))
       }
 
@@ -478,9 +485,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("recover from invalid country code") {
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
-    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+    stateMachine.testWithVirtualTime(props.copy(touchpointType = PhoneNumber)) {
       // Entering phone number
-      awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
+      awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {
           it.shouldBeTypeOf<F8eError.SpecificClientError<AddTouchpointClientErrorCode>>()
         }

@@ -20,7 +20,7 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.75.3
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.1.0
         PROJECT_BUNDLE_VERSION: 1
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -70,7 +70,7 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.team.alpha
           PROJECT_BUNDLE_NAME: "Bitkey Alpha"
           PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
-          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU INTERNAL
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU ALPHA
           KOTLIN_FRAMEWORK_BUILD_TYPE: Release
           GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
         Debug:
@@ -107,13 +107,8 @@ targets:
       - DatadogLogs
       - DatadogRUM
       - DatadogTrace
-    - package: lottie-spm
-      product: Lottie
-    - package: kmp-nativecoroutines
-      product: KMPNativeCoroutinesCombine
     - package: PhoneNumberKit
     - package: ZIPFoundation
-    - package: SVGView
     - package: rust
       products:
         - core
@@ -274,29 +269,21 @@ packages:
     path: ../rust
   bdk-swift:
     url: https://github.com/bitcoindevkit/bdk-swift
-    exactVersion: 0.31.2
+    exactVersion: 0.32.0
   bugsnag-cocoa:
     url: https://github.com/bugsnag/bugsnag-cocoa
     exactVersion: 6.28.0
   dd-sdk-ios:
     url: https://github.com/Datadog/dd-sdk-ios
-    exactVersion: 2.11.1
-  kmp-nativecoroutines:
-    url: https://github.com/rickclephas/kmp-nativecoroutines
-    exactVersion: 1.0.0-ALPHA-31
-  lottie-spm:
-    url: https://github.com/airbnb/lottie-spm
-    exactVersion: 4.3.4
+    exactVersion: 2.18.0
   PhoneNumberKit:
     url: https://github.com/marmelroy/PhoneNumberKit
     exactVersion: 3.7.6
-  SVGView:
-    url: https://github.com/exyte/SVGView.git
-    exactVersion: 1.0.6
   swift-snapshot-testing:
     url: https://github.com/pointfreeco/swift-snapshot-testing
     exactVersion: 1.15.4
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     exactVersion: 0.9.17
+
 

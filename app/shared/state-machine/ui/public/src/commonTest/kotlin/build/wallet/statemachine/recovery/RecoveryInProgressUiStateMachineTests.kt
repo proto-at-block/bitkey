@@ -8,14 +8,14 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
@@ -76,8 +76,8 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
     )
 
   test("FailedToCancelRecoveryData model") {
-    stateMachine.test(failedCancelErrorProps) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(failedCancelErrorProps) {
+      awaitBody<FormBodyModel> {
         clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()
 
@@ -92,8 +92,8 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
   }
 
   test("FailedToCancelRecoveryData networkError model") {
-    stateMachine.test(failedCancelErrorPropsNetworkError) {
-      awaitScreenWithBody<FormBodyModel> {
+    stateMachine.testWithVirtualTime(failedCancelErrorPropsNetworkError) {
+      awaitBody<FormBodyModel> {
         clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()
 

@@ -1,6 +1,6 @@
 package build.wallet.secureenclave
 
-import android.content.Context
+import android.app.Application
 import android.content.pm.PackageManager
 import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
@@ -8,6 +8,8 @@ import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import androidx.annotation.RequiresApi
 import build.wallet.catchingResult
+import build.wallet.di.AppScope
+import build.wallet.di.BitkeyInject
 import build.wallet.logging.logWarn
 import com.github.michaelbull.result.getOrThrow
 import java.math.BigInteger
@@ -16,8 +18,9 @@ import java.security.interfaces.ECPublicKey
 import java.security.spec.*
 import javax.crypto.KeyAgreement
 
+@BitkeyInject(AppScope::class)
 class SecureEnclaveImpl(
-  val context: Context,
+  val application: Application,
 ) : SecureEnclave {
   // This "AndroidKeyStore" is the name of the keystore provider, and must
   // be named exactly that.
@@ -241,7 +244,7 @@ class SecureEnclaveImpl(
 
       // Require StrongBox if available
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
+        application.packageManager.hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE)
       ) {
         builder.setIsStrongBoxBacked(true)
       }
@@ -315,4 +318,6 @@ class SecureEnclaveImpl(
       publicKey = SePublicKey(encodePublicKeyAsSEC1Uncompressed(keyPair.public as ECPublicKey))
     )
   }
+
+  override fun isFake(): Boolean = false
 }

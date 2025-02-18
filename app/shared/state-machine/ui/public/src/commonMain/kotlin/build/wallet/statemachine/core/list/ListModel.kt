@@ -10,4 +10,4 @@ import kotlinx.collections.immutable.ImmutableList
 data class ListModel(
   val headerText: String?,
   val sections: ImmutableList<ListGroupModel>,
-) : Model()
+) : Model

@@ -1,7 +1,10 @@
 package build.wallet.statemachine.dev
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.ui.app.dev.FirmwareMetadataScreen
 
 data class FirmwareMetadataModel(
   val activeSlot: String,
@@ -21,4 +24,9 @@ data class FirmwareMetadataBodyModel(
   // This is only used by the debug menu and will soon be removed,
   // it doesn't need a screen ID
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
-) : BodyModel()
+) : BodyModel() {
+  @Composable
+  override fun render(modifier: Modifier) {
+    FirmwareMetadataScreen(modifier, model = this)
+  }
+}

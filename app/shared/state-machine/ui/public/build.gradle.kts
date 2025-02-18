@@ -1,6 +1,4 @@
-import build.wallet.gradle.logic.GenerateStateMachineDiagramTask
 import build.wallet.gradle.logic.extensions.allTargets
-import build.wallet.gradle.logic.ksp.KspProcessorConfig
 
 plugins {
   id("build.wallet.kmp")
@@ -8,7 +6,6 @@ plugins {
   id("build.wallet.di")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
-  alias(libs.plugins.kotlin.coroutines.native)
   alias(libs.plugins.kotlin.serialization)
   id("build.wallet.redacted")
 }
@@ -176,43 +173,5 @@ kotlin {
         implementation(projects.shared.cloudStoreFake)
       }
     }
-  }
-}
-
-tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {
-  directory = projectDir
-
-  val permanentExcludes = setOf(
-    "ProofOfPossessionNfc",
-    "NfcSessionUI"
-  ).takeUnless {
-    project.hasProperty("overridePermanentExcludes")
-  } ?: emptySet()
-  val configuredExcludes = (project.findProperty("excludingMachineNames") as? String)
-    ?.split(",")
-    ?.map { it.trim() }
-    ?.filter { it.isNotBlank() }
-    ?.toSet()
-    ?: emptySet()
-  machineName = (project.findProperty("machineName") as? String)
-    ?.trim()
-    ?.takeIf { it.isNotBlank() }
-  excludes = permanentExcludes + configuredExcludes
-  outputFile = (project.findProperty("outputFile") as? String)
-    ?.trim()
-    ?.takeIf { it.isNotBlank() }
-    ?.let { file(it) }
-}
-
-buildLogic {
-  ksp {
-    processors(
-      KspProcessorConfig(
-        deps = listOf(projects.gradle.formbodymodelGenerator),
-        android = false,
-        jvm = false,
-        ios = true
-      )
-    )
   }
 }

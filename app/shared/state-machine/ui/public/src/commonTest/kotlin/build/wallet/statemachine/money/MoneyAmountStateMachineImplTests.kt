@@ -6,7 +6,7 @@ import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.statemachine.core.test
+import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachineImpl
@@ -22,7 +22,7 @@ class MoneyAmountStateMachineImplTests : FunSpec({
     )
 
   test("fiat as primary amount - initial model") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       MoneyAmountUiProps(
         primaryMoney = FiatMoney.usd(1.0),
         secondaryAmountCurrency = BTC
@@ -44,7 +44,7 @@ class MoneyAmountStateMachineImplTests : FunSpec({
   }
 
   test("btc as primary amount - initial model") {
-    stateMachine.test(
+    stateMachine.testWithVirtualTime(
       props =
         MoneyAmountUiProps(
           primaryMoney = BitcoinMoney.btc(0.01),

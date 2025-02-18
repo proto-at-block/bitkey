@@ -58,7 +58,7 @@ private fun TransactionDetailsModel.toFormContent(): ImmutableList<FormMainConte
             secondarySideText = transactionDetailModelType.transferAmountSecondaryText
           ),
           Data(
-            title = "Network Fees",
+            title = "Network fees",
             sideText = transactionDetailModelType.feeAmountText,
             secondarySideText = transactionDetailModelType.feeAmountSecondaryText
           )
