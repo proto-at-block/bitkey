@@ -11,7 +11,7 @@ Each directory in our repository is a seperate project— each with its own buil
 | Directory                                      | Description                                                           |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | [`app/android`](app/android)                   | Android mobile app                                                    |
-| [`app/rust`](app/core)                         | Key and wallet management                                             |
+| [`app/rust`](app/rust)                         | Key and wallet management                                             |
 | [`app/ios`](app/ios)                           | iOS mobile app                                                        |
 | [`app/shared`](app/shared)                     | Kotlin Multiplatform code shared between Android and iOS              |
 | [`app/style`](app/style)                       | Style Dictionary (shared)                                             |
