@@ -19,7 +19,7 @@ class CustomElectrumServerUiStateMachineImpl(
 ) : CustomElectrumServerUiStateMachine {
   @Composable
   override fun model(props: CustomElectrumServerUiProps): BodyModel {
-    var state: State by remember {
+    var state: State by remember(props) {
       mutableStateOf(
         State.stateFromElectrumServerPreferenceValue(
           props.electrumServerPreferenceValue

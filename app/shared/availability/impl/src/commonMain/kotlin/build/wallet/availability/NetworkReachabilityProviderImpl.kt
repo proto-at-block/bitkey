@@ -8,7 +8,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import io.ktor.client.*
+import io.ktor.client.HttpClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -99,6 +99,11 @@ class NetworkReachabilityProviderImpl(
       f8eNetworkReachabilityService.checkConnection(httpClient, connection.environment)
         .onSuccess { f8eStatusMutableFlow(connection.environment).emit(REACHABLE) }
         .onFailure { f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE) }
+    } else if (connection is F8e) {
+      // This case should only be hit if the connection is F8e and the httpClient is null due to the
+      // use of the ForceOfflinePlugin. In this case, we can't check the connection, so we just
+      // update the flow to UNREACHABLE.
+      f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE)
     }
 
     // Update internet flow for any connection

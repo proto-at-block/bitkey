@@ -8,7 +8,7 @@ gradle-enterprise = "3.16.2"
 jvmTarget = "11"
 # JDK version for builds
 jvmToolchain = "17"
-bdk = "0.32.0"
+bdk = "0.32.1"
 datadog = "2.14.0"
 detekt = "1.23.6"
 kotlin = "2.0.21"

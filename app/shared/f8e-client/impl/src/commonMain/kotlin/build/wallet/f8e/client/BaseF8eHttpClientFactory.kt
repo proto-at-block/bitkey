@@ -7,16 +7,20 @@ import build.wallet.datadog.DatadogTracer
 import build.wallet.f8e.client.plugins.*
 import build.wallet.f8e.debug.NetworkingDebugService
 import build.wallet.f8e.logging.F8eHttpClientLogger
-import build.wallet.logging.*
+import build.wallet.logging.logDebug
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
-import io.ktor.client.*
-import io.ktor.client.engine.*
-import io.ktor.client.network.sockets.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.serialization.kotlinx.json.*
+import io.ktor.client.HttpClient
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.network.sockets.SocketTimeoutException
+import io.ktor.client.plugins.HttpRequestRetry
+import io.ktor.client.plugins.HttpResponseValidator
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -110,7 +114,7 @@ abstract class BaseF8eHttpClientFactory(
         HttpResponseValidator {
           networkReachabilityPlugin(
             connection = null,
-            networkReachabilityProvider = networkReachabilityProvider
+            networkReachabilityProvider = optionalReachabilityProvider
           )
         }
       }

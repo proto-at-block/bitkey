@@ -2,11 +2,11 @@
     "module-identifier": "org.bitcoindevkit:bdk-android",
     "components": [
         {
-            "version": "0.32.0",
+            "version": "0.32.1",
             "variants": [
                 {
                     "artifacts": {
-                        "bdk-android-0.32.0.aar": "871fd75a9b451a49137431fdee1cdc4ce2220d783a15fb52ed5826df69c5ef4b"
+                        "bdk-android-0.32.1.aar": "e6f24fb5861fb56c132bde4f0cee11b674a988ae92d000d89e88943c341a42ab"
                     }
                 }
             ],
