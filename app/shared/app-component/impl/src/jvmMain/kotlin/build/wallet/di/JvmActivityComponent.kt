@@ -1,5 +1,7 @@
 package build.wallet.di
 
+import build.wallet.f8e.inheritance.ShortenInheritanceClaimF8eClient
+import build.wallet.inheritance.InheritanceClaimsRepository
 import build.wallet.nfc.NfcTransactor
 import build.wallet.statemachine.inheritance.InheritanceManagementUiStateMachine
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
@@ -41,6 +43,8 @@ interface JvmActivityComponent {
   val recoveryChallengeUiStateMachine: RecoveryChallengeUiStateMachine
   val rotateAuthUIStateMachine: RotateAuthKeyUIStateMachine
   val trustedContactManagementUiStateMachine: TrustedContactManagementUiStateMachine
+  val claimsRepository: InheritanceClaimsRepository
+  val shortenClaimF8eClient: ShortenInheritanceClaimF8eClient
 
   /**
    * Factory for creating [JvmActivityComponent] instance:

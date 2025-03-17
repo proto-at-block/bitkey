@@ -75,12 +75,16 @@ internal class BitkeyInjectSymbolProcessor(
   private val codeGenerator: CodeGenerator,
   private val logger: KSPLogger,
 ) : SymbolProcessor {
+  private val hiddenFromObjC = ClassName("kotlin.native.", "HiddenFromObjC")
+
   override fun process(resolver: Resolver): List<KSAnnotated> {
+    val isIosSources = resolver.getAllFiles()
+      .any { it.filePath.contains("src/ios") }
     resolver
       .getSymbolsWithAnnotation(logger, BitkeyInject::class)
       .filterIsInstance<KSClassDeclaration>()
       .forEach { clazz ->
-        generateComponentInterface(clazz)
+        generateComponentInterface(clazz, isIosSources)
       }
 
     return emptyList()
@@ -113,7 +117,10 @@ internal class BitkeyInjectSymbolProcessor(
    * }
    * ```
    */
-  private fun generateComponentInterface(clazz: KSClassDeclaration) {
+  private fun generateComponentInterface(
+    clazz: KSClassDeclaration,
+    isIosSources: Boolean,
+  ) {
     val annotation = clazz.getContributesBindingAnnotation()
     val scope = annotation.getScope()
 
@@ -125,7 +132,7 @@ internal class BitkeyInjectSymbolProcessor(
           .addOriginatingKSFile(clazz.containingFile!!)
           .addOriginAnnotation(clazz)
           .addContributesToAnnotation(scope)
-          .addProvideFunctions(clazz, scope, annotation)
+          .addProvideFunctions(clazz, scope, annotation, isIosSources)
           .build()
       )
       .build()
@@ -151,6 +158,7 @@ internal class BitkeyInjectSymbolProcessor(
     impl: KSClassDeclaration,
     scope: KSType,
     annotation: KSAnnotation,
+    isIosSources: Boolean,
   ): TypeSpec.Builder =
     apply {
       // @Impl or @Fake, if any.
@@ -159,7 +167,7 @@ internal class BitkeyInjectSymbolProcessor(
       val explicitBoundTypes = annotation.getBoundTypes()
       // If no explicit bound types are specified, use direct supertypes of the implementation.
       val boundTypesToUse = explicitBoundTypes.ifEmpty { directSuperTypes }
-      addImplProvider(impl, scope)
+      addImplProvider(impl, scope, isIosSources)
 
       // If the bound type is the only and the impl type itself, no need to add binding provider.
       val isBoundTypeSameAsImpl = boundTypesToUse.singleOrNull()?.let { boundType ->
@@ -168,7 +176,7 @@ internal class BitkeyInjectSymbolProcessor(
 
       if (!isBoundTypeSameAsImpl) {
         boundTypesToUse.forEach { boundType ->
-          addBindingProvider(impl, boundType, implementationQualifier)
+          addBindingProvider(impl, boundType, implementationQualifier, isIosSources)
         }
       }
     }
@@ -201,6 +209,7 @@ internal class BitkeyInjectSymbolProcessor(
     impl: KSClassDeclaration,
     boundType: KSType,
     implementationQualifier: KSAnnotation?,
+    isIosSources: Boolean,
   ): TypeSpec.Builder {
     // "Impl" or "Fake", if any.
     val qualifierName = implementationQualifier?.toClassName()?.simpleName
@@ -212,6 +221,7 @@ internal class BitkeyInjectSymbolProcessor(
         // Provide method name is `provideFooAsImpl` or `provideFooAsFake` if qualifier is present.
         // Otherwise, it's just `provideFoo`.
         .builder("provide${boundType.toClassName().simpleName}$qualifierPostfix")
+        .apply { if (isIosSources) addAnnotation(hiddenFromObjC) }
         .addParameter(
           name = "implementation",
           type = impl.toClassName()
@@ -236,6 +246,7 @@ internal class BitkeyInjectSymbolProcessor(
   private fun TypeSpec.Builder.addImplProvider(
     impl: KSClassDeclaration,
     scope: KSType,
+    isIosSources: Boolean,
   ): TypeSpec.Builder {
     val className = impl.toClassName()
 
@@ -246,6 +257,7 @@ internal class BitkeyInjectSymbolProcessor(
       .filter { !it.hasDefault }
 
     val funSpecBuilder = FunSpec.builder("provide${className.simpleName}")
+      .apply { if (isIosSources) addAnnotation(hiddenFromObjC) }
       .addAnnotation(Provides::class)
       .addSingleInAnnotation(scope)
       .returns(className)

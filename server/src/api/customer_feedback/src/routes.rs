@@ -19,13 +19,17 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use utoipa::{OpenApi, ToSchema};
 
-use crate::clients::{
-    entities::{
-        ChildFieldVisibilityPayload, CreateRequestPayload, CustomFieldValuePayload,
-        RequestCommentPayload, RequesterPayload, TicketFieldOptionPayload, TicketFieldTypePayload,
-        TicketFormEndUserConditionPayload, TicketFormEndUserConditionValuePayload,
+use crate::{
+    clients::{
+        entities::{
+            ChildFieldVisibilityPayload, CreateRequestPayload, CustomFieldValuePayload,
+            RequestCommentPayload, RequesterPayload, TicketFieldOptionPayload,
+            TicketFieldTypePayload, TicketFormEndUserConditionPayload,
+            TicketFormEndUserConditionValuePayload,
+        },
+        zendesk::{ZendeskClient, ZendeskMode},
     },
-    zendesk::{ZendeskClient, ZendeskMode},
+    metrics,
 };
 
 #[derive(Clone, Deserialize)]
@@ -67,6 +71,7 @@ impl RouterBuilder for RouteState {
             .route("/api/customer_feedback", post(create_task))
             .route("/api/support/ticket-form", get(load_form))
             .route("/api/support/attachments", post(upload_attachment))
+            .route_layer(metrics::FACTORY.route_layer("customer_feedback".to_owned()))
             .with_state(self.to_owned())
     }
 }

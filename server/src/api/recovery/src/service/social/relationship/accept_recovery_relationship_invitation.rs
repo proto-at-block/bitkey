@@ -52,6 +52,7 @@ struct NotificationParams {
     trusted_contact_account_id: AccountId,
     trusted_contact_alias: String,
     trusted_contact_roles: Vec<TrustedContactRole>,
+    recovery_relationship_id: RecoveryRelationshipId,
 }
 
 impl Service {
@@ -173,6 +174,7 @@ impl Service {
             trusted_contact_account_id: input.trusted_contact_account_id.to_owned(),
             trusted_contact_alias: trusted_contact_alias.to_owned(),
             trusted_contact_roles: trusted_contact_roles.to_owned(),
+            recovery_relationship_id: input.recovery_relationship_id.to_owned(),
         };
         self.send_notification_for_recovery_relationship_invitation_accepted(notification_params)
             .await?;
@@ -198,6 +200,7 @@ impl Service {
                 .recovery_relationship_invitation_accepted_payload(Some(
                     RecoveryRelationshipInvitationAcceptedPayload {
                         protected_customer_alias: params.customer_alias.to_owned(),
+                        recovery_relationship_id: params.recovery_relationship_id.to_owned(),
                         recipient_account_role: recipient_role,
                         trusted_contact_alias: params.trusted_contact_alias.to_owned(),
                         trusted_contact_roles: params.trusted_contact_roles.to_owned(),

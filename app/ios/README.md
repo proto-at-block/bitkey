@@ -1,6 +1,6 @@
 # iOS
 
-This directory contains the code for the iOS app component of Bitkey. It is mostly UI or implementations that need to be platform-specific. Most business logic and UI and data models live in our shared Kotlin Multiplatform codebase in the `app/shared` directory.
+This directory contains the code for the iOS app component of Bitkey. It is mostly UI or implementations that need to be platform-specific. Most business logic and UI and data models live in our shared Kotlin Multiplatform codebase in `ui`, `domain` and `libs` modules.
 
 ## Deployment
 

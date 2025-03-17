@@ -65,6 +65,15 @@ def apply(
 ):
     """Apply a firmware release to your device. Must specify ONE OF (build_zip, version, fwup)."""
 
+    # Check if `gh` is installed and that you're logged in.
+    if not c.run("gh --version", hide=True).ok:
+        raise Exception("gh is not installed. Please `brew install gh`")
+
+    if not c.run("gh auth status", hide=True).ok:
+        raise Exception(
+            "You're not logged in to Github. Please run `gh auth login`"
+        )
+
     assert (
         sum([bool(build_zip), bool(version), bool(fwup)]) == 1
     ), "Must specify exactly one of build-zip, version, or fwup"

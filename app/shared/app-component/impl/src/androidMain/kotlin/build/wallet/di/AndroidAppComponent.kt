@@ -2,8 +2,8 @@ package build.wallet.di
 
 import android.app.Application
 import androidx.lifecycle.LifecycleObserver
+import bitkey.bugsnag.BugsnagContext
 import build.wallet.analytics.events.EventTracker
-import build.wallet.bugsnag.BugsnagContext
 import build.wallet.debug.StrictModeEnabler
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.logging.LoggerInitializer

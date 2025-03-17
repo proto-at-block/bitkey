@@ -11,6 +11,6 @@ buildLogic {
 
 dependencies {
   api(libs.android.test.paparazzi)
-  api(libs.kmp.test.kotest.framework.api)
+  api(libs.kmp.test.kotest.framework.engine)
   api(projects.android.uiCorePublic)
 }

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-tooling-preview",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-tooling-preview-metadata-1.7.3.jar": "c4bfdfd326ccc96073aca33abdbd04ec0c048e7b9458c12767b753aa1e44ffc9"
+                        "ui-tooling-preview-metadata-1.7.5.jar": "c4bfdfd326ccc96073aca33abdbd04ec0c048e7b9458c12767b753aa1e44ffc9"
                     }
                 }
             ],

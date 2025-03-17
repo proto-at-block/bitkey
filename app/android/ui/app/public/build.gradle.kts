@@ -20,14 +20,23 @@ buildLogic {
   }
 }
 
+kotlin {
+  sourceSets {
+    test {
+      kotlin.srcDir(layout.buildDirectory.dir("generated/snapshots"))
+    }
+  }
+}
+
 dependencies {
   api(projects.android.uiCorePublic)
-  api(projects.shared.stateMachineUiPublic)
-  api(projects.shared.uiCorePublic)
+  api(projects.ui.featuresPublic)
+  api(projects.ui.frameworkPublic)
   api(projects.shared.priceChartPublic)
-  api(projects.shared.nfcPublic)
+  api(projects.domain.nfcPublic)
+  implementation(projects.ui.snapshotGeneratorApiPublic)
 
-  implementation(projects.shared.loggingPublic)
+  implementation(projects.libs.loggingPublic)
   implementation(libs.android.camera.camera2)
   implementation(libs.android.camera.lifecycle)
   implementation(libs.android.camera.view)
@@ -36,6 +45,6 @@ dependencies {
   implementation(libs.kmp.coil.svg)
   implementation(libs.jvm.zxing)
 
-  testImplementation(projects.shared.bitkeyPrimitivesFake)
-  testImplementation(projects.shared.inheritancePublic)
+  testImplementation(projects.domain.bitkeyPrimitivesFake)
+  testImplementation(projects.domain.inheritancePublic)
 }

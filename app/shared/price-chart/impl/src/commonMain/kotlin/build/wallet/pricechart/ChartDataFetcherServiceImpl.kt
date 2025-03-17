@@ -1,9 +1,9 @@
 package build.wallet.pricechart
 
+import bitkey.account.AccountConfigService
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRateF8eClient
@@ -17,14 +17,15 @@ import kotlinx.coroutines.withContext
 class ChartDataFetcherServiceImpl(
   private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val accountConfigService: AccountConfigService,
 ) : ChartDataFetcherService {
   override suspend fun getChartData(
     accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
     chartHistory: ChartHistory,
     maxPricePoints: Int?,
   ): Result<List<DataPoint>, NetworkingError> =
     withContext(Dispatchers.IO) {
+      val f8eEnvironment = accountConfigService.activeOrDefaultConfig().value.f8eEnvironment
       exchangeRateF8eClient.getHistoricalBtcExchangeRateChartData(
         f8eEnvironment = f8eEnvironment,
         accountId = accountId,

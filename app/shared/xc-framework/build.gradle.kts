@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.BitcodeEmbeddingMode.DISABLE
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.di")
   alias(libs.plugins.compose.runtime)
   alias(libs.plugins.compose.compiler)
 }
@@ -18,65 +19,79 @@ kotlin {
    */
   val runtimeDependencies =
     listOf(
-      projects.shared.accountImpl,
-      projects.shared.accountPublic,
-      projects.shared.amountImpl,
-      projects.shared.amountPublic,
-      projects.shared.analyticsImpl,
-      projects.shared.analyticsPublic,
+      projects.libs.bugsnagImpl,
+      projects.libs.bugsnagPublic,
+      projects.libs.datadogPublic,
+      projects.domain.accountImpl,
+      projects.domain.accountPublic,
+      projects.libs.amountImpl,
+      projects.libs.amountPublic,
+      projects.domain.analyticsImpl,
+      projects.domain.analyticsPublic,
       projects.shared.appComponentImpl,
       projects.shared.appComponentPublic,
-      projects.shared.bdkBindingsImpl,
-      projects.shared.bdkBindingsPublic,
-      projects.shared.bitcoinImpl,
-      projects.shared.bitcoinPublic,
-      projects.shared.bitcoinPrimitivesPublic,
-      projects.shared.bitkeyPrimitivesFake,
-      projects.shared.bitkeyPrimitivesPublic,
-      projects.shared.bugsnagImpl,
-      projects.shared.bugsnagPublic,
-      projects.shared.cloudBackupFake,
-      projects.shared.cloudBackupImpl,
-      projects.shared.cloudBackupPublic,
-      projects.shared.cloudStoreImpl,
-      projects.shared.cloudStorePublic,
-      projects.shared.datadogPublic,
-      projects.shared.encryptionPublic,
-      projects.shared.keyValueStoreImpl,
-      projects.shared.keyValueStorePublic,
-      projects.shared.keyboxPublic,
-      projects.shared.loggingImpl,
-      projects.shared.loggingPublic,
-      projects.shared.f8eClientImpl,
-      projects.shared.f8eClientPublic,
-      projects.shared.firmwareImpl,
-      projects.shared.firmwarePublic,
-      projects.shared.frostImpl,
-      projects.shared.frostPublic,
-      projects.shared.fwupImpl,
-      projects.shared.fwupPublic,
-      projects.shared.memfaultImpl,
-      projects.shared.memfaultPublic,
-      projects.shared.nfcImpl,
-      projects.shared.nfcPublic,
-      projects.shared.contactMethodImpl,
-      projects.shared.contactMethodPublic,
-      projects.shared.platformImpl,
-      projects.shared.platformPublic,
-      projects.shared.recoveryImpl,
-      projects.shared.recoveryPublic,
-      projects.shared.routerPublic,
-      projects.shared.sqldelightImpl,
-      projects.shared.sqldelightPublic,
+      projects.libs.bdkBindingsImpl,
+      projects.libs.bdkBindingsPublic,
+      projects.domain.bitcoinImpl,
+      projects.domain.bitcoinPublic,
+      projects.libs.bitcoinPrimitivesPublic,
+      projects.domain.bitkeyPrimitivesFake,
+      projects.domain.bitkeyPrimitivesPublic,
+      projects.domain.cloudBackupImpl,
+      projects.domain.cloudBackupPublic,
+      projects.libs.cloudStoreImpl,
+      projects.libs.cloudStorePublic,
+      projects.libs.encryptionPublic,
+      projects.libs.keyValueStoreImpl,
+      projects.libs.keyValueStorePublic,
+      projects.domain.keyboxPublic,
+      projects.libs.loggingImpl,
+      projects.libs.loggingPublic,
+      projects.domain.f8eClientImpl,
+      projects.domain.f8eClientPublic,
+      projects.domain.firmwareImpl,
+      projects.domain.firmwarePublic,
+      projects.libs.frostImpl,
+      projects.libs.frostPublic,
+      projects.domain.fwupImpl,
+      projects.domain.fwupPublic,
+      projects.libs.memfaultImpl,
+      projects.libs.memfaultPublic,
+      projects.domain.nfcImpl,
+      projects.domain.nfcPublic,
+      projects.libs.contactMethodImpl,
+      projects.libs.contactMethodPublic,
+      projects.libs.platformImpl,
+      projects.libs.platformPublic,
+      projects.domain.recoveryImpl,
+      projects.domain.recoveryPublic,
+      projects.ui.routerPublic,
+      projects.libs.sqldelightImpl,
+      projects.libs.sqldelightPublic,
       projects.shared.workerPublic,
-      projects.shared.secureEnclavePublic,
-      projects.shared.secureEnclaveImpl
+      projects.libs.secureEnclavePublic,
+      projects.libs.secureEnclaveImpl,
+      projects.ui.composeAppControllerPublic
     )
 
+  val testDependencies = listOf(
+    projects.domain.bitkeyPrimitivesFake,
+    projects.domain.cloudBackupFake,
+    projects.domain.emergencyAccessKitFake,
+    projects.domain.emergencyAccessKitImpl,
+    projects.domain.emergencyAccessKitPublic,
+    projects.libs.contactMethodImpl,
+    projects.libs.timeImpl
+  )
+
   sourceSets {
-    commonMain {
+    iosMain {
+      kotlin.srcDirs(layout.buildDirectory.dir("generated/snapshots"))
       dependencies {
         runtimeDependencies.onEach { dep ->
+          api(dep)
+        }
+        testDependencies.forEach { dep ->
           api(dep)
         }
       }
@@ -91,45 +106,34 @@ kotlin {
    */
   val exposedDependencies =
     listOf(
-      projects.shared.accountPublic,
-      projects.shared.analyticsPublic,
+      projects.libs.bugsnagPublic,
+      projects.libs.datadogPublic,
+      projects.domain.accountPublic,
+      projects.domain.analyticsPublic,
       // ActivityComponentImpl is the top level DI component that provides the rest of the KMP
       // dependencies, so `impl` is expected here.
       projects.shared.appComponentImpl,
       projects.shared.appComponentPublic,
-      projects.shared.availabilityPublic,
-      projects.shared.bdkBindingsPublic,
-      projects.shared.bitcoinPublic,
-      projects.shared.bitcoinPrimitivesPublic,
-      projects.shared.bitkeyPrimitivesFake,
-      projects.shared.bitkeyPrimitivesPublic,
-      projects.shared.bugsnagPublic,
-      projects.shared.cloudBackupFake,
-      projects.shared.cloudBackupPublic,
-      projects.shared.cloudStoreImpl,
-      projects.shared.cloudStorePublic,
-      projects.shared.datadogPublic,
-      projects.shared.emergencyAccessKitFake,
-      projects.shared.emergencyAccessKitImpl,
-      // projects.shared.emergencyAccessKitPublic,
-      projects.shared.encryptionPublic,
-      projects.shared.f8eClientPublic,
-      projects.shared.fwupPublic,
-      projects.shared.firmwareImpl,
-      projects.shared.firmwarePublic,
-      projects.shared.frostPublic,
-      projects.shared.keyboxPublic,
-      projects.shared.loggingPublic,
-      projects.shared.memfaultPublic,
-      projects.shared.nfcPublic,
-      projects.shared.notificationsPublic,
-      projects.shared.platformImpl,
-      projects.shared.platformPublic,
-      projects.shared.contactMethodPublic,
-      projects.shared.contactMethodImpl,
-      projects.shared.routerPublic,
-      projects.shared.timeImpl,
-      projects.shared.secureEnclavePublic,
+      projects.libs.bdkBindingsPublic,
+      projects.domain.bitcoinPublic,
+      projects.libs.bitcoinPrimitivesPublic,
+      projects.domain.bitkeyPrimitivesPublic,
+      projects.domain.cloudBackupPublic,
+      projects.libs.cloudStorePublic,
+      projects.domain.databasePublic,
+      projects.libs.encryptionPublic,
+      projects.domain.fwupPublic,
+      projects.domain.firmwarePublic,
+      projects.libs.frostPublic,
+      projects.domain.keyboxPublic,
+      projects.libs.loggingPublic,
+      projects.domain.nfcPublic,
+      projects.domain.notificationsPublic,
+      projects.libs.platformPublic,
+      projects.libs.contactMethodPublic,
+      projects.ui.routerPublic,
+      projects.libs.secureEnclavePublic,
+      projects.ui.composeAppControllerPublic,
       libs.native.nserror.kt
     )
 
@@ -147,7 +151,7 @@ kotlin {
       // Disable iOS bitcode completely.
       embedBitcode(DISABLE)
 
-      exposedDependencies.onEach { dep ->
+      (exposedDependencies + testDependencies).onEach { dep ->
         export(dep)
       }
 

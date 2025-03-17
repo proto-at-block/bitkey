@@ -1,9 +1,11 @@
 package build.wallet.di
 
+import bitkey.account.AccountConfigService
+import bitkey.metrics.MetricTrackerService
+import bitkey.onboarding.CreateLiteAccountService
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
-import build.wallet.auth.LiteAccountCreator
 import build.wallet.availability.F8eNetworkReachabilityService
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
@@ -24,7 +26,6 @@ import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.debug.AppDataDeleter
-import build.wallet.debug.DebugOptionsService
 import build.wallet.debug.cloud.CloudBackupDeleter
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
@@ -54,6 +55,7 @@ import build.wallet.platform.app.AppSessionManager
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
 import build.wallet.platform.sharing.SharingManagerFake
+import build.wallet.recovery.LostAppAndCloudRecoveryService
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.*
@@ -75,6 +77,7 @@ import kotlinx.coroutines.CoroutineScope
 interface JvmAppComponent {
   val accountDataStateMachine: AccountDataStateMachine
   val accountService: AccountService
+  val accountConfigService: AccountConfigService
   val appCoroutineScope: CoroutineScope
   val appDataDeleter: AppDataDeleter
   val appKeysGenerator: AppKeysGenerator
@@ -93,10 +96,10 @@ interface JvmAppComponent {
   val cloudKeyValueStore: CloudKeyValueStore
   val cloudStoreAccountRepository: CloudStoreAccountRepository
   val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
-  val createFullAccountService: CreateFullAccountService
-  val createSoftwareWalletService: CreateSoftwareWalletService
+  val onboardFullAccountService: OnboardFullAccountService
+  val onboardSoftwareAccountService: OnboardSoftwareAccountService
   val csekGenerator: CsekGenerator
-  val debugOptionsService: DebugOptionsService
+  val defaultAccountConfigService: AccountConfigService
   val delegatedDecryptionKeyService: DelegatedDecryptionKeyService
   val exportTransactionsService: ExportTransactionsService
   val extendedKeyGenerator: ExtendedKeyGenerator
@@ -112,7 +115,8 @@ interface JvmAppComponent {
   val keyboxDao: KeyboxDao
   val keysetWalletProvider: KeysetWalletProvider
   val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator
-  val liteAccountCreator: LiteAccountCreator
+  val lostAppAndCloudRecoveryService: LostAppAndCloudRecoveryService
+  val createLiteAccountService: CreateLiteAccountService
   val loggerInitializer: LoggerInitializer
   val messageSigner: MessageSigner
   val mobilePayService: MobilePayService
@@ -152,4 +156,5 @@ interface JvmAppComponent {
   val utxoConsolidationService: UtxoConsolidationService
   val writableCloudStoreAccountRepository: WritableCloudStoreAccountRepository
   val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
+  val metricTrackerService: MetricTrackerService
 }

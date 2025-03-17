@@ -82,7 +82,7 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/backup",
                 get(get_recovery_backup),
             )
-            .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
+            .route_layer(metrics::FACTORY.route_layer("recovery_relationship".to_owned()))
             .with_state(self.to_owned())
     }
 
@@ -112,7 +112,7 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/relationship-invitations/:code/promotion-code",
                 get(get_promotion_code_for_invite_code),
             )
-            .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
+            .route_layer(metrics::FACTORY.route_layer("recovery_relationship".to_owned()))
             .with_state(self.to_owned())
     }
 }

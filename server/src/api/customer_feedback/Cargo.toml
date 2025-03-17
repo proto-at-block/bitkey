@@ -10,6 +10,8 @@ debug-embed = ["rust-embed/debug-embed"]
 [dependencies]
 axum = { workspace = true }
 axum-macros = { workspace = true }
+instrumentation = { workspace = true }
+once_cell = { workspace = true }
 reqwest = { workspace = true }
 rust-embed = { workspace = true }
 serde = { workspace = true }

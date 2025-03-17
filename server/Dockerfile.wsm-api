@@ -1,27 +1,27 @@
 # syntax=docker/dockerfile:1.10
-FROM scratch as source
+FROM scratch AS source
 COPY --link Cargo.lock .
 COPY --link Cargo.toml .
 COPY --link src src
 
-FROM scratch as vendor
+FROM scratch AS vendor
 COPY --link vendor vendor
 
-FROM rust:1.80.1-alpine@sha256:1f5aff501e02c1384ec61bb47f89e3eebf60e287e6ed5d1c598077afc82e83d5 as toolchain
+FROM rust:1.80.1-alpine@sha256:1f5aff501e02c1384ec61bb47f89e3eebf60e287e6ed5d1c598077afc82e83d5 AS toolchain
 COPY --link rust-toolchain.toml .
 RUN cargo version
 RUN apk add --no-cache \
   musl-dev
 RUN cargo --locked install cargo-chef@0.1.68
 
-FROM toolchain as planner
+FROM toolchain AS planner
 WORKDIR /usr/src/server
 COPY --from=vendor . .
 COPY --from=core . ../core
 COPY --from=source . .
 RUN cargo --locked chef prepare --bin wsm-api --recipe-path recipe.json
 
-FROM toolchain as builder
+FROM toolchain AS builder
 WORKDIR /usr/src/server
 COPY --from=vendor . .
 COPY --from=core . ../core
@@ -31,6 +31,6 @@ COPY --from=source . .
 RUN cargo --locked install --bin wsm-api --path src/wsm/wsm-api
 
 # Version managed by dependabot
-FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45 as deployable
+FROM alpine:3.21.0@sha256:21dc6063fd678b478f57c0e13f47560d0ea4eeba26dfc947b2a4f81f686b9f45 AS deployable
 COPY --from=builder /usr/local/cargo/bin/wsm-api .
 CMD ["./wsm-api"]

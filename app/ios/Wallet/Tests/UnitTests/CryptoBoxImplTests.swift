@@ -1,14 +1,15 @@
 import Foundation
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class CryptoBoxImplTests: XCTestCase {
+struct CryptoBoxImplTests {
     let cryptoBox = CryptoBoxImpl()
     let nonceGenerator = XNonceGeneratorImpl()
 
-    func test_encryptAndDecrypt() throws {
+    @Test
+    func encryptAndDecrypt() throws {
         let aliceKeyPair = cryptoBox.generateKeyPair()
         let bobKeyPair = cryptoBox.generateKeyPair()
 
@@ -29,10 +30,11 @@ class CryptoBoxImplTests: XCTestCase {
             sealedData: sealedData
         )
 
-        XCTAssertEqual(decrypted, plaintext)
+        #expect(decrypted == plaintext)
     }
 
-    func test_emptyPlaintext() throws {
+    @Test
+    func emptyPlaintext() throws {
         let aliceKeyPair = cryptoBox.generateKeyPair()
         let bobKeyPair = cryptoBox.generateKeyPair()
 
@@ -53,10 +55,11 @@ class CryptoBoxImplTests: XCTestCase {
             sealedData: sealedData
         )
 
-        XCTAssertEqual(decrypted, plaintext)
+        #expect(decrypted == plaintext)
     }
 
-    func test_bitFlip() throws {
+    @Test
+    func bitFlip() throws {
         let aliceKeyPair = cryptoBox.generateKeyPair()
         let bobKeyPair = cryptoBox.generateKeyPair()
 
@@ -82,14 +85,17 @@ class CryptoBoxImplTests: XCTestCase {
         )
 
         // Bob attempts to decrypt
-        XCTAssertThrowsError(try cryptoBox.decrypt(
-            theirPublicKey: aliceKeyPair.publicKey,
-            myPrivateKey: bobKeyPair.privateKey,
-            sealedData: modifiedSealedData.toOpaqueCiphertext()
-        ))
+        #expect(throws: (any Error).self) {
+            try cryptoBox.decrypt(
+                theirPublicKey: aliceKeyPair.publicKey,
+                myPrivateKey: bobKeyPair.privateKey,
+                sealedData: modifiedSealedData.toOpaqueCiphertext()
+            )
+        }
     }
 
-    func test_wrongKey() throws {
+    @Test
+    func wrongKey() throws {
         let aliceKeyPair = cryptoBox.generateKeyPair()
         let bobKeyPair = cryptoBox.generateKeyPair()
 
@@ -105,10 +111,12 @@ class CryptoBoxImplTests: XCTestCase {
 
         // Bob attempts to decrypt
         let charlieKeyPair = cryptoBox.generateKeyPair()
-        XCTAssertThrowsError(try cryptoBox.decrypt(
-            theirPublicKey: aliceKeyPair.publicKey,
-            myPrivateKey: charlieKeyPair.privateKey,
-            sealedData: sealedData
-        ))
+        #expect(throws: (any Error).self) {
+            try cryptoBox.decrypt(
+                theirPublicKey: aliceKeyPair.publicKey,
+                myPrivateKey: charlieKeyPair.privateKey,
+                sealedData: sealedData
+            )
+        }
     }
 }

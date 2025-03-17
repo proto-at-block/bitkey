@@ -20,8 +20,8 @@ buildLogic {
 }
 
 dependencies {
-  api(projects.shared.amountPublic)
-  api(projects.shared.uiCorePublic)
+  api(projects.libs.amountPublic)
+  api(projects.ui.frameworkPublic)
   api(projects.shared.priceChartPublic)
   api(libs.android.compose.ui.core)
 
@@ -32,5 +32,5 @@ dependencies {
   implementation(libs.jvm.zxing)
   implementation(libs.android.voyager.navigator)
   implementation(libs.android.voyager.transitions)
-  implementation(projects.shared.stateMachineUiPublic)
+  implementation(projects.ui.featuresPublic)
 }

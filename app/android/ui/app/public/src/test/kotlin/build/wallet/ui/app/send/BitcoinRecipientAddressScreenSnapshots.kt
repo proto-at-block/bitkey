@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.send.BitcoinRecipientAddressScreenModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.tooling.PreviewWalletTheme
 import io.kotest.core.spec.style.FunSpec
 
 class BitcoinRecipientAddressScreenSnapshots : FunSpec({
@@ -37,80 +36,72 @@ class BitcoinRecipientAddressScreenSnapshots : FunSpec({
 
 @Composable
 internal fun BitcoinRecipientAddressWithoutEntryScreenPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      BitcoinRecipientAddressScreenModel(
-        enteredText = "",
-        warningText = null,
-        showPasteButton = false,
-        onEnteredTextChanged = {},
-        onContinueClick = null,
-        onBack = {},
-        onScanQrCodeClick = {},
-        onPasteButtonClick = {},
-        showSelfSendWarningWithRedirect = false,
-        onGoToUtxoConsolidation = {}
-      )
+  FormScreen(
+    BitcoinRecipientAddressScreenModel(
+      enteredText = "",
+      warningText = null,
+      showPasteButton = false,
+      onEnteredTextChanged = {},
+      onContinueClick = null,
+      onBack = {},
+      onScanQrCodeClick = {},
+      onPasteButtonClick = {},
+      showSelfSendWarningWithRedirect = false,
+      onGoToUtxoConsolidation = {}
     )
-  }
+  )
 }
 
 @Composable
 internal fun BitcoinRecipientAddressWithoutEntryScreenWithPasteButtonPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      BitcoinRecipientAddressScreenModel(
-        enteredText = "",
-        warningText = null,
-        showPasteButton = true,
-        onEnteredTextChanged = {},
-        onContinueClick = null,
-        onBack = {},
-        onScanQrCodeClick = {},
-        onPasteButtonClick = {},
-        showSelfSendWarningWithRedirect = false,
-        onGoToUtxoConsolidation = {}
-      )
+  FormScreen(
+    BitcoinRecipientAddressScreenModel(
+      enteredText = "",
+      warningText = null,
+      showPasteButton = true,
+      onEnteredTextChanged = {},
+      onContinueClick = null,
+      onBack = {},
+      onScanQrCodeClick = {},
+      onPasteButtonClick = {},
+      showSelfSendWarningWithRedirect = false,
+      onGoToUtxoConsolidation = {}
     )
-  }
+  )
 }
 
 @Composable
 internal fun BitcoinRecipientAddressWithEntryScreenPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      BitcoinRecipientAddressScreenModel(
-        enteredText = "0x1234",
-        warningText = "Some warning text",
-        showPasteButton = false,
-        onEnteredTextChanged = {},
-        onContinueClick = {},
-        onBack = {},
-        onScanQrCodeClick = {},
-        onPasteButtonClick = {},
-        showSelfSendWarningWithRedirect = false,
-        onGoToUtxoConsolidation = {}
-      )
+  FormScreen(
+    BitcoinRecipientAddressScreenModel(
+      enteredText = "0x1234",
+      warningText = "Some warning text",
+      showPasteButton = false,
+      onEnteredTextChanged = {},
+      onContinueClick = {},
+      onBack = {},
+      onScanQrCodeClick = {},
+      onPasteButtonClick = {},
+      showSelfSendWarningWithRedirect = false,
+      onGoToUtxoConsolidation = {}
     )
-  }
+  )
 }
 
 @Composable
 internal fun BitcoinRecipientAddressWithSelfSendWarningPreview() {
-  PreviewWalletTheme {
-    FormScreen(
-      BitcoinRecipientAddressScreenModel(
-        enteredText = "0x1234",
-        warningText = null,
-        showPasteButton = false,
-        onEnteredTextChanged = {},
-        onContinueClick = {},
-        onBack = {},
-        onScanQrCodeClick = {},
-        onPasteButtonClick = {},
-        showSelfSendWarningWithRedirect = true,
-        onGoToUtxoConsolidation = {}
-      )
+  FormScreen(
+    BitcoinRecipientAddressScreenModel(
+      enteredText = "0x1234",
+      warningText = null,
+      showPasteButton = false,
+      onEnteredTextChanged = {},
+      onContinueClick = {},
+      onBack = {},
+      onScanQrCodeClick = {},
+      onPasteButtonClick = {},
+      showSelfSendWarningWithRedirect = true,
+      onGoToUtxoConsolidation = {}
     )
-  }
+  )
 }

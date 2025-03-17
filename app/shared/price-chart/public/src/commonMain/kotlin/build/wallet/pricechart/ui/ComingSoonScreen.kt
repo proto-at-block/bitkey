@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import bitkey.shared.ui_core_public.generated.resources.Res
-import bitkey.shared.ui_core_public.generated.resources.coming_soon
+import bitkey.ui.framework_public.generated.resources.Res
+import bitkey.ui.framework_public.generated.resources.coming_soon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment

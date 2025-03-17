@@ -11,24 +11,24 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.jvm.test.toxiproxy.client)
+        api(projects.libs.datadogPublic)
         api(projects.shared.appComponentImpl)
-        api(projects.shared.devTreasuryPublic)
-        api(projects.shared.nfcFake)
-        api(projects.shared.testingPublic)
-        api(projects.shared.timeFake)
-        api(projects.shared.datadogPublic)
-        implementation(projects.shared.cloudStoreFake)
-        implementation(projects.shared.moneyTesting)
-        implementation(projects.shared.resultPublic)
-        implementation(projects.shared.stdlibPublic)
-        implementation(projects.shared.moneyFake)
+        api(projects.libs.devTreasuryPublic)
+        api(projects.domain.nfcFake)
+        api(projects.libs.testingPublic)
+        api(projects.libs.timeFake)
+        implementation(projects.libs.cloudStoreFake)
+        implementation(projects.libs.moneyTesting)
+        implementation(projects.libs.resultPublic)
+        implementation(projects.libs.stdlibPublic)
+        implementation(projects.libs.moneyFake)
       }
     }
 
     jvmMain {
       dependencies {
-        implementation(projects.shared.moneyFake)
-        implementation(projects.shared.stateMachineFrameworkTesting)
+        implementation(projects.libs.moneyFake)
+        implementation(projects.libs.stateMachineTesting)
       }
     }
   }

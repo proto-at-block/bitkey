@@ -4,8 +4,8 @@ use tracing::instrument;
 use types::account::entities::FullAccount;
 
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
-    InheritanceClaimCanceledBy, InheritanceClaimPending,
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled, InheritanceClaimPending,
+    InheritanceRole,
 };
 
 use super::create_inheritance_claim::should_use_shortened_delay;
@@ -64,7 +64,7 @@ impl Service {
 
             let canceled_claim = InheritanceClaim::Canceled(InheritanceClaimCanceled {
                 common_fields: pending_claim.common_fields.clone(),
-                canceled_by: InheritanceClaimCanceledBy::Beneficiary,
+                canceled_by: InheritanceRole::Beneficiary,
             });
             if !matches!(
                 self.repository
@@ -92,7 +92,7 @@ impl Service {
             let benefactor = self
                 .account_service
                 .fetch_full_account(FetchAccountInput {
-                    account_id: &relationship.common_fields().customer_account_id,
+                    account_id: &recreate_pending_claim.common_fields.benefactor_account_id,
                 })
                 .await?;
             self.schedule_notifications_for_pending_claim(

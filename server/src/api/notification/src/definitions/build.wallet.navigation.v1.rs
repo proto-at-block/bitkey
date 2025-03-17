@@ -30,6 +30,8 @@ pub enum NavigationScreenId {
     InheritanceCompleteClaim = 6,
     /// * The success screen shown to a benefactor when an invite is accepted upon tapping the notification. *
     InheritanceBenefactorInviteAccepted = 7,
+    /// * The success screen shown to a protected customer when an invite is accepted upon tapping the notification. *
+    SocialRecoveryProtectedCustomerInviteAccepted = 8,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -56,6 +58,9 @@ impl NavigationScreenId {
             NavigationScreenId::InheritanceBenefactorInviteAccepted => {
                 "NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED"
             }
+            NavigationScreenId::SocialRecoveryProtectedCustomerInviteAccepted => {
+                "NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -76,6 +81,9 @@ impl NavigationScreenId {
             }
             "NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED" => {
                 Some(Self::InheritanceBenefactorInviteAccepted)
+            }
+            "NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED" => {
+                Some(Self::SocialRecoveryProtectedCustomerInviteAccepted)
             }
             _ => None,
         }

@@ -114,6 +114,7 @@ fun PriceChart(
       animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
     )
     val chartElementColor = WalletTheme.colors.chartElement
+    val chartPriceColor = WalletTheme.colors.foreground60
     val backgroundPathColorTarget by remember {
       derivedStateOf {
         when {
@@ -265,7 +266,7 @@ fun PriceChart(
               labelTextResults.getOrNull(i)?.let { textLayoutResult ->
                 drawText(
                   textLayoutResult = textLayoutResult,
-                  color = Color.Black.copy(alpha = 0.3f),
+                  color = chartPriceColor,
                   topLeft = Offset(
                     x = canvasWidth - textLayoutResult.size.width,
                     y = labelY - textLayoutResult.size.height - 6

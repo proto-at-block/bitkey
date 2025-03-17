@@ -31,5 +31,8 @@ enum NavigationScreenId {
     /** The success screen shown to a benefactor when an invite is accepted upon tapping the notification. **/
     NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED = 7;
 
-    /** The next tag is 8 **/
+    /** The success screen shown to a protected customer when an invite is accepted upon tapping the notification. **/
+    NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED = 8;
+
+    /** The next tag is 9 **/
 }

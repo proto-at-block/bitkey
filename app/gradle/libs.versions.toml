@@ -1,8 +1,6 @@
 # See "Updating Dependencies" docs for extra instructions: https://docs.wallet.build/guides/mobile/architecture/dependencies/#updating-dependencies
 [versions]
 
-gradle-enterprise = "3.16.2"
-
 # Tooling
 # JDK runtime target version
 jvmTarget = "11"
@@ -27,7 +25,6 @@ kmp-kotlin-serialization = "1.7.0"
 kmp-kotlin-result = "2.0.0"
 kmp-ktor = "2.3.12"
 kmp-matthewnelson-encoding = "2.2.1"
-kmp-mosaic = "0.11.0"
 kmp-redacted = "1.10.0"
 kmp-settings = "1.2.0"
 kmp-sqldelight = "2.0.2"
@@ -44,7 +41,7 @@ android-bugsnag-plugin = "8.1.0"
 # Before upgrading the following, please make sure this runs successfully on a physical device.
 # Please also the locked (min + max) Android Studio version in `app/.idea/externalDependencies.xml`.
 android-gradle-plugin = "8.5.2"
-android-compose-ui = "1.7.3"
+android-compose-ui = "1.7.5"
 android-datastore = "1.1.1"
 android-lib-phone-number = "8.13.36"
 android-lifecycle = "2.8.5"
@@ -137,7 +134,6 @@ kmp-aws-secretsmanager = { module = "aws.sdk.kotlin:secretsmanager", version.ref
 # KMP testing libraries
 kmp-test-kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kmp-kotest" }
 kmp-test-kotest-assertions-json = { module = "io.kotest:kotest-assertions-json", version.ref = "kmp-kotest" }
-kmp-test-kotest-framework-api = { module = "io.kotest:kotest-framework-api", version.ref = "kmp-kotest" }
 kmp-test-kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kmp-kotest" }
 kmp-test-kotest-property = { module = "io.kotest:kotest-property", version.ref = "kmp-kotest" }
 kmp-test-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kmp-kotlin-coroutines" }
@@ -222,7 +218,7 @@ android-firebase-messaging = { module = "com.google.firebase:firebase-messaging"
 android-splashscreen = {  module = "androidx.core:core-splashscreen", version = "1.0.1" }
 android-voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "android-voyager" }
 android-voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "android-voyager" }
-android-pbfbox = { module = "com.tom-roush:pdfbox-android", version = "2.0.27.0" }
+android-pdfbox = { module = "com.tom-roush:pdfbox-android", version = "2.0.27.0" }
 android-arch-core-runtime = { module = "androidx.arch.core:core-runtime", version = "2.2.0" }
 android-gson = { module = "com.google.code.gson:gson", version = "2.10.1" }
 android-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version = "1.3.1" }
@@ -265,6 +261,7 @@ jvm-bytebuddy-agent = { module = "net.bytebuddy:byte-buddy-agent", version.ref =
 jvm-commons-codec = { module = "commons-codec:commons-codec", version = "1.17.0" }
 jvm-kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "jvm-kotlinpoet" }
 jvm-kotlinpoet-ksp = { module = "com.squareup:kotlinpoet-ksp", version.ref = "jvm-kotlinpoet" }
+jvm-swiftpoet = { module = "io.outfoxx:swiftpoet", version = "1.6.6" }
 jvm-compileTesting = { module = "dev.zacsweers.kctfork:core", version.ref = "jvm-compileTesting" }
 jvm-compileTesting-ksp = { module = "dev.zacsweers.kctfork:ksp", version.ref = "jvm-compileTesting" }
 
@@ -285,7 +282,6 @@ pluginClasspath-android = { module = "com.android.tools.build:gradle", version.r
 pluginClasspath-android-paparazzi = { module = "app.cash.paparazzi:paparazzi-gradle-plugin", version.ref = "android-paparazzi" }
 pluginClasspath-detekt = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 pluginClasspath-detekt-compose = { module = "com.twitter.compose.rules:detekt", version = "0.0.26" }
-pluginClasspath-gradleEnterprise ={ module = "com.gradle.enterprise:com.gradle.enterprise.gradle.plugin", version.ref = "gradle-enterprise" }
 pluginClasspath-compose-compiler = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 pluginClasspath-kmp = { module = "org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin", version.ref = "kotlin" }
 pluginClasspath-kmp-compose-runtime = { module = "org.jetbrains.compose:org.jetbrains.compose.gradle.plugin", version.ref = "kmp-compose-runtime" }
@@ -293,14 +289,13 @@ pluginClasspath-kmp-kotest = { module = "io.kotest:kotest-framework-multiplatfor
 pluginClasspath-kmp-sqldelight = { module = "app.cash.sqldelight:gradle-plugin", version.ref = "kmp-sqldelight" }
 pluginClasspath-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 pluginClasspath-ksp = { module = "com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
-pluginClasspath-mosaic = { module = "com.jakewharton.mosaic:mosaic-gradle-plugin", version.ref = "kmp-mosaic" }
 pluginClasspath-redacted = { module = "dev.zacsweers.redacted:redacted-compiler-plugin-gradle", version.ref = "kmp-redacted" }
 pluginClasspath-wire = { module = "com.squareup.wire:com.squareup.wire.gradle.plugin", version.ref = "kmp-wire" }
 pluginClasspath-google-services = { module = "com.google.gms:google-services", version = "4.4.1" }
 pluginClasspath-bugsnag-android = { module = "com.bugsnag:bugsnag-android-gradle-plugin", version.ref = "android-bugsnag-plugin" }
 
 [bundles]
-kmp-test-kotest = ["kmp-test-kotest-assertions", "kmp-test-kotest-assertions-json", "kmp-test-kotest-framework-engine", "kmp-test-kotest-framework-api", "kmp-test-kotest-property", "kmp-test-kotlin-coroutines"]
+kmp-test-kotest = ["kmp-test-kotest-assertions", "kmp-test-kotest-assertions-json", "kmp-test-kotest-framework-engine", "kmp-test-kotest-property", "kmp-test-kotlin-coroutines"]
 
 [plugins]
 compose-runtime = { id = "org.jetbrains.compose", version.ref = "kmp-compose-runtime" }
@@ -314,7 +309,6 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kmp = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-mosaic = { id = "com.jakewharton.mosaic", version.ref = "kmp-mosaic" }
 licensee = { id = "app.cash.licensee", version = "1.11.0" }
 paparazzi = { id = "app.cash.paparazzi", version.ref = "android-paparazzi" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "kmp-sqldelight" }

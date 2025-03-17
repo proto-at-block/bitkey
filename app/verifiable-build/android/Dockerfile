@@ -1,4 +1,4 @@
-FROM ubuntu:jammy-20231211.1 as base
+FROM ubuntu:jammy-20231211.1 AS base
 
 ENV ANDROID_BUILD_TOOLS_VERSION="34.0.0"
 ENV ANDROID_NDK_VERSION="25.2.9519653"
@@ -36,7 +36,7 @@ RUN printf "\nkotlin.native.toolchain.enabled=false\n" >> app/gradle.properties
 
 ENTRYPOINT ["/bin/bash", "-c"]
 
-FROM base as build
+FROM base AS build
 
 ARG REPRODUCIBLE_BUILD_VARIABLES
 

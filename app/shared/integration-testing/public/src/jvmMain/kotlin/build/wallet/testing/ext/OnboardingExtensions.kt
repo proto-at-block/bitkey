@@ -1,15 +1,15 @@
 package build.wallet.testing.ext
 
+import bitkey.account.LiteAccountConfig
+import bitkey.notifications.NotificationTouchpoint
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment.Staging
-import build.wallet.notifications.NotificationTouchpoint
 import build.wallet.onboarding.CreateFullAccountContext
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
@@ -34,7 +34,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
   delayNotifyDuration: Duration = 1.seconds,
 ): FullAccount {
   fakeNfcCommands.wipeDevice()
-  debugOptionsService.apply {
+  defaultAccountConfigService.apply {
     setBitcoinNetworkType(initialBitcoinNetworkType)
     setIsHardwareFake(true)
     setF8eEnvironment(initialF8eEnvironment)
@@ -44,12 +44,12 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
   }
 
   // Generate app keys
-  val appKeys = createFullAccountService.createAppKeys().getOrThrow()
+  val appKeys = onboardFullAccountService.createAppKeys().getOrThrow()
   // Activate hardware
   val hwActivation = startAndCompleteFingerprintEnrolment(appKeys.appKeyBundle.authKey)
 
   // Create f8e account
-  val account = createFullAccountService.createAccount(
+  val account = onboardFullAccountService.createAccount(
     context = CreateFullAccountContext.NewFullAccount,
     appKeys = appKeys,
     hwActivation = hwActivation
@@ -99,7 +99,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
   }
 
   // Mark account as active
-  createFullAccountService.activateAccount(keybox = account.keybox).getOrThrow()
+  onboardFullAccountService.activateAccount(keybox = account.keybox).getOrThrow()
 
   return account
 }
@@ -114,7 +114,7 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
 ): LiteAccount {
   // Create Lite Account
   val account =
-    liteAccountCreator
+    createLiteAccountService
       .createAccount(
         LiteAccountConfig(
           bitcoinNetworkType = initialBitcoinNetworkType,

@@ -22,7 +22,10 @@ class AppearancePreferenceFormSnapshots : FunSpec({
             bitcoinDisplayPreferenceString = "Sats",
             bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
             onBitcoinDisplayPreferenceClick = {},
-            onEnableHideBalanceChanged = {}
+            onEnableHideBalanceChanged = {},
+            isThemePreferenceEnabled = true,
+            onThemePreferenceClick = {},
+            themePreferenceString = "System"
           )
       )
     }

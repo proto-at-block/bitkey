@@ -42,7 +42,7 @@ internal class AutomaticKotlinOptInPlugin : Plugin<Project> {
     "androidx.compose.ui.ExperimentalComposeUiApi" to "androidx.compose.ui:ui",
     "io.kotest.common.ExperimentalKotest" to listOf(
       "io.kotest:kotest-common",
-      "io.kotest:kotest-framework-api"
+      "io.kotest:kotest-framework-engine"
     ),
     "com.russhwolf.settings.ExperimentalSettingsApi" to "com.russhwolf:multiplatform-settings",
     "com.russhwolf.settings.ExperimentalSettingsImplementation" to "com.russhwolf:multiplatform-settings",

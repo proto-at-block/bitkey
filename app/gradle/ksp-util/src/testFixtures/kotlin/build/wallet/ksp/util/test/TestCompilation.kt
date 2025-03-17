@@ -19,13 +19,20 @@ import java.util.*
  *
  * @param sources Kotlin source code contents to compile.
  */
-fun compilation(vararg sources: String): KotlinCompilation {
+fun compilation(
+  vararg sources: String,
+  iosSources: Boolean = false,
+): KotlinCompilation {
   return KotlinCompilation().apply {
     allWarningsAsErrors = true
     messageOutputStream = System.out
     inheritClassPath = true
 
-    addSources(*sources)
+    if (iosSources) {
+      optIn = listOf("kotlin.experimental.ExperimentalObjCRefinement")
+    }
+
+    addSources(*sources, iosSources = iosSources)
 
     configureKsp(useKsp2 = true) {
       // Add all symbol processor providers found in the classpath
@@ -45,6 +52,7 @@ fun compilation(vararg sources: String): KotlinCompilation {
  */
 private fun KotlinCompilation.addSources(
   @Language("kotlin") vararg sources: String,
+  iosSources: Boolean,
 ): KotlinCompilation =
   apply {
     this.sources += sources.mapIndexed { index, content ->
@@ -55,7 +63,8 @@ private fun KotlinCompilation.addSources(
         ?.let { "$it/" }
         ?: ""
 
-      val name = "${workingDir.absolutePath}/sources/src/main/java/" +
+      val target = if (iosSources) "iosMain/kotlin" else "main/java"
+      val name = "${workingDir.absolutePath}/sources/src/$target/" +
         "$packageDir/Source$index.kt"
 
       Files.createDirectories(File(name).parentFile.toPath())

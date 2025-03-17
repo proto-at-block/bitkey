@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class BitkeyInjectSymbolProcessorTests {
   @Test
@@ -621,6 +622,35 @@ class BitkeyInjectSymbolProcessorTests {
         }
       """.trimIndent(),
       generatedFile.readText().trim()
+    )
+  }
+
+  @Test
+  fun `generated ios sources add @HiddenFromObjC`() {
+    val source = """
+        package build.wallet.test
+        
+        import build.wallet.di.AppScope
+        import build.wallet.di.BitkeyInject
+        import build.wallet.di.Impl
+        import kotlin.native.HiddenFromObjC
+        
+        @BitkeyInject(AppScope::class)
+        class BaseImpl(val text: String = "")
+    """.trimIndent()
+
+    val compilation = compilation(source, iosSources = true)
+    val result = compilation.compile()
+
+    assertEquals(KotlinCompilation.ExitCode.COMPILATION_ERROR, result.exitCode)
+
+    // This error means the annotation was correctly applied, but the compiler
+    // refused the source because it's compiling for JVM.
+    val lastLogLine = result.messages
+      .trimEnd()
+      .substringAfterLast("\n")
+    assertTrue(
+      lastLogLine.endsWith("Declaration annotated with '@OptionalExpectation' can only be used in common module sources")
     )
   }
 }

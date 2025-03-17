@@ -58,11 +58,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        window?.rootViewController = ComposeIosAppUIController(
-            appUiStateMachine: appContext.activityComponent.appUiStateMachine,
-            deviceInfo: appContext.appComponent.deviceInfoProvider.getDeviceInfo(),
-            accelerometer: appContext.appComponent.accelerometer
-        ).viewController
+        window?.rootViewController = appContext.activityComponent.composeAppUIController
+            .viewController
 
         window?.makeKeyAndVisible()
 

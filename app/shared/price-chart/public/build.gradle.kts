@@ -14,14 +14,14 @@ kotlin {
     commonMain {
       dependencies {
         api(compose.runtime)
-        api(projects.shared.bitkeyPrimitivesPublic)
-        api(projects.shared.uiCorePublic)
+        api(projects.domain.bitkeyPrimitivesPublic)
+        api(projects.ui.frameworkPublic)
         implementation(compose.components.resources)
         implementation(compose.foundation)
         implementation(compose.material)
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
-        implementation(projects.shared.analyticsPublic)
+        implementation(projects.domain.analyticsPublic)
       }
     }
 

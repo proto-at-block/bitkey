@@ -1,8 +1,8 @@
 package build.wallet.ui.app.inheritance.claims.start
 
 import androidx.compose.ui.Modifier
+import bitkey.notifications.NotificationChannel
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.notifications.NotificationChannel
 import build.wallet.statemachine.settings.full.notifications.EnabledState
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelsSettingsFormBodyModel
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelsSettingsFormItemModel

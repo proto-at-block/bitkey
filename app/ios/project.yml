@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2025.1.1
-        PROJECT_BUNDLE_VERSION: 1
+        PROJECT_BUNDLE_SHORT_VERSION: 2025.2.0
+        PROJECT_BUNDLE_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -122,7 +122,7 @@ targets:
       compilerFlags:
         - "-w"
     - path: Wallet/Resources
-    - path: ../shared
+    - path: ../
       includes:
         - "**/src/commonMain/kotlin/**"
         - "**/src/iosMain/kotlin/**"
@@ -137,7 +137,7 @@ targets:
         CADisableMinimumFrameDurationOnPhone: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
-        UIUserInterfaceStyle: Light
+        UIUserInterfaceStyle: Automatic
         UIViewControllerBasedStatusBarAppearance: false
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UILaunchStoryboardName: SplashScreen

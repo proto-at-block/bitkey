@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-text",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-text-metadata-1.7.3.jar": "5bd379bebabeb47ea92b3777bb1ceb31dc93c294b46f264dcf8e4c010f4699fc"
+                        "ui-text-metadata-1.7.5.jar": "5bd379bebabeb47ea92b3777bb1ceb31dc93c294b46f264dcf8e4c010f4699fc"
                     }
                 }
             ],

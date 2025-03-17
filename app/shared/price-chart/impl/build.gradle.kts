@@ -11,17 +11,17 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.databasePublic)
-        api(projects.shared.moneyPublic)
+        api(projects.domain.databasePublic)
+        api(projects.libs.moneyPublic)
       }
     }
 
     commonTest {
       dependencies {
-        implementation(projects.shared.featureFlagFake)
-        implementation(projects.shared.analyticsFake)
-        implementation(projects.shared.sqldelightTesting)
-        implementation(projects.shared.testingPublic)
+        implementation(projects.domain.featureFlagFake)
+        implementation(projects.domain.analyticsFake)
+        implementation(projects.libs.sqldelightTesting)
+        implementation(projects.libs.testingPublic)
       }
     }
   }

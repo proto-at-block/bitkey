@@ -37,6 +37,9 @@ use crate::userpool::UserPoolError::InitiateAuthError;
 //IMPORTANT: Update terraform files and Lambdas when changing these attributes
 const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
 
+// 5 minutes in seconds
+const TEST_EXPIRES_IN_SECONDS: i32 = 300;
+
 #[derive(Debug, Error)]
 pub enum UserPoolError {
     #[error("Could not create user in user pool: {0}")]
@@ -141,6 +144,7 @@ pub struct AuthChallenge {
 pub struct AuthTokens {
     pub access_token: String,
     pub refresh_token: String,
+    pub expires_in: i32,
 }
 
 #[async_trait]
@@ -360,6 +364,7 @@ impl CognitoIdpConnection for CognitoConnection {
                 .access_token
                 .ok_or(UserPoolError::MissingAccessToken)?,
             refresh_token: auth_result.refresh_token.unwrap_or(refresh_token), // if the original refresh token is still good, cognito won't return a new one
+            expires_in: auth_result.expires_in,
         })
     }
 
@@ -391,9 +396,11 @@ impl CognitoIdpConnection for CognitoConnection {
         let refresh_token = authentication_result
             .refresh_token
             .ok_or(UserPoolError::MissingRefreshToken)?;
+        let expires_in = authentication_result.expires_in;
         Ok(AuthTokens {
             access_token,
             refresh_token,
+            expires_in,
         })
     }
 
@@ -857,6 +864,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         Ok(AuthTokens {
             access_token,
             refresh_token,
+            expires_in: TEST_EXPIRES_IN_SECONDS,
         })
     }
 
@@ -916,6 +924,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             Ok(AuthTokens {
                 access_token,
                 refresh_token,
+                expires_in: TEST_EXPIRES_IN_SECONDS,
             })
         } else {
             Err(UserPoolError::InvalidChallengeResponse)

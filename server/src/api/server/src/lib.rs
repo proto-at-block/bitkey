@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::request_baggage::request_baggage;
 use account::service::Service as AccountService;
 use authn_authz::authorizer::{
     authorize_account_or_recovery_token_for_path, authorize_recovery_token_for_path,
@@ -25,7 +26,7 @@ use http_server::router::RouterBuilder;
 use http_server::swagger::SwaggerEndpoint;
 use http_server::{config, healthcheck};
 use instrumentation::metrics::system::init_tokio_metrics;
-use instrumentation::middleware::{request_baggage, HttpMetrics};
+use instrumentation::middleware::HttpMetrics;
 use jwt_authorizer::IntoLayer;
 use mempool_indexer::{
     repository::MempoolIndexerRepository, service::Service as MempoolIndexerService,
@@ -61,6 +62,7 @@ use repository::consent::ConsentRepository;
 use repository::privileged_action::PrivilegedActionRepository;
 use repository::recovery::inheritance::InheritanceRepository;
 use repository::recovery::social::SocialRecoveryRepository;
+use request_logger::{log_requests, RequestLoggerState};
 pub use routes::axum::axum;
 use screener::service::Service as ScreenerService;
 use thiserror::Error;
@@ -72,6 +74,8 @@ use utoipa_swagger_ui::SwaggerUi;
 use wallet_telemetry::{set_global_telemetry, METRICS_REPORTING_PERIOD_SECS};
 use wsm_rust_client::WsmClient;
 
+mod request_baggage;
+mod request_logger;
 mod routes;
 pub mod test_utils;
 
@@ -171,7 +175,14 @@ impl GenServiceOverrides {
     }
 
     pub fn feature_flags(mut self, feature_flags: HashMap<String, String>) -> Self {
-        self.feature_flags = Some(feature_flags);
+        // Globally-required
+        let mut flags = HashMap::from([(
+            "f8e-request-logging-enabled".to_string(),
+            "false".to_string(),
+        )]);
+        flags.extend(feature_flags);
+
+        self.feature_flags = Some(flags);
         self
     }
 
@@ -600,6 +611,8 @@ impl BootstrapBuilder {
         let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
         let health_checks_state = healthcheck::Service;
 
+        let request_logger_state = RequestLoggerState::new(&self.services.feature_flags_service);
+
         let authorizer =
             AuthorizerConfig::from(config::extract::<userpool::userpool::Config>(profile)?)
                 .into_authorizer()
@@ -697,6 +710,10 @@ impl BootstrapBuilder {
             .merge(basic_validation_router)
             .layer(authorizer)
             .merge(unauthed_router)
+            .layer(middleware::from_fn_with_state(
+                request_logger_state,
+                log_requests,
+            ))
             .merge(Router::from(health_checks_state))
             .merge(Router::from(analytics_state))
             .merge(swagger_router)

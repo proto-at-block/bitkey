@@ -240,19 +240,19 @@ private fun Project.configureTests() {
   kotlin {
     sourceSets {
       val commonTest by getting
-      listOf<KotlinSourceSet>(commonTest, commonIntegrationTest).forEach { testSourceSet ->
-        testSourceSet.apply {
-          dependencies {
-            implementation(libs.kmp.kotlin.reflection)
-            implementation(libs.kmp.test.kotest.assertions)
-            implementation(libs.kmp.test.kotest.framework.api)
-            implementation(libs.kmp.test.kotest.framework.engine)
-            implementation(libs.kmp.test.kotest.property)
-            implementation(libs.kmp.test.kotlin.coroutines)
-            implementation(libs.kmp.test.turbine)
+      listOfNotNull<KotlinSourceSet>(commonTest, findByName("commonIntegrationTest"))
+        .forEach { testSourceSet ->
+          testSourceSet.apply {
+            dependencies {
+              implementation(libs.kmp.kotlin.reflection)
+              implementation(libs.kmp.test.kotest.assertions)
+              implementation(libs.kmp.test.kotest.framework.engine)
+              implementation(libs.kmp.test.kotest.property)
+              implementation(libs.kmp.test.kotlin.coroutines)
+              implementation(libs.kmp.test.turbine)
+            }
           }
         }
-      }
     }
   }
 }

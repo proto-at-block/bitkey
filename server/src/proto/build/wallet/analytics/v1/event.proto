@@ -260,7 +260,16 @@ enum Action {
     /** [App] Beneficiary indicates they do not have a Bitkey hardware device */
     ACTION_APP_SOCREC_BENEFICIARY_NO_HARDWARE = 71;
 
-    // Next tag is 72
+    /** [App] Customer sets theme preference to system default */
+    ACTION_APP_THEME_PREFERENCE_SYSTEM = 72;
+
+    /** [App] Customer sets theme preference to light mode */
+    ACTION_APP_THEME_PREFERENCE_LIGHT = 73;
+
+    /** [App] Customer sets theme preference to dark mode */
+    ACTION_APP_THEME_PREFERENCE_DARK = 74;
+
+    // Next tag is 75
 }
 
 message PlatformInfo {

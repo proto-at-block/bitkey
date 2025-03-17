@@ -8,4 +8,5 @@ hermit clean --packages
 hermit update
 
 echo "Building Xcode Project"
+gradle --project-dir=app :shared:app-component-impl:kspKotlinIosSimulatorArm64 --rerun
 just app/xcodegen

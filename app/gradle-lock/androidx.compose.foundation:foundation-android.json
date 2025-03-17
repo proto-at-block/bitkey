@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.foundation:foundation-android",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-release.aar": "f9204174704ee5825f2ac6a66e47412aa7d674bd4c79dc8617b3b1698681c040"
+                        "foundation-release.aar": "b3543b024b275c46324c4df82c9cb4509bffff4e17df6c41d9ca2805f7a61452"
                     }
                 }
             ],

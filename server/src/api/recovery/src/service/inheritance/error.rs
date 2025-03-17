@@ -27,6 +27,10 @@ pub enum ServiceError {
     RecoveryRelationship(#[from] RecoveryRelationshipServiceError),
     #[error("Mismatch between recovery relationships and inheritance claim")]
     MismatchingRecoveryRelationship,
+    #[error("Recovery relationship not found")]
+    RecoveryRelationshipNotFound,
+    #[error("Relationship is expected to be active and endorsed")]
+    RelationshipNotEndorsed,
     #[error("Pending claim exists between benefactor and beneficiary")]
     PendingClaimExists,
     #[error("Multiple pending claims found between benefactor and beneficiary")]
@@ -103,6 +107,8 @@ impl From<ServiceError> for ApiError {
             ServiceError::BlankTrustedContactAlias
             | ServiceError::MissingTrustedContactRoles
             | ServiceError::MismatchingRecoveryRelationship
+            | ServiceError::RecoveryRelationshipNotFound
+            | ServiceError::RelationshipNotEndorsed
             | ServiceError::PendingClaimExists
             | ServiceError::InvalidRelationship
             | ServiceError::LockedClaimNotFound

@@ -23,13 +23,13 @@ gradlePlugin {
       id = "build.wallet.android.lib"
       implementationClass = "build.wallet.gradle.logic.AndroidLibPlugin"
     }
-    create("buildScansPlugin") {
-      id = "build.wallet.scans"
-      implementationClass = "build.wallet.gradle.logic.GradleBuildScansPlugin"
-    }
     create("redactedPlugin") {
       id = "build.wallet.redacted"
       implementationClass = "build.wallet.gradle.logic.RedactedPlugin"
+    }
+    create("TestCodeEliminator") {
+      id = "build.wallet.test-code-eliminator"
+      implementationClass = "build.wallet.gradle.logic.TestCodeEliminatorPlugin"
     }
     create("sqldelightPlugin") {
       id = "build.wallet.sqldelight"
@@ -79,7 +79,6 @@ dependencies {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib")
   }
   compileOnly(libs.pluginClasspath.detekt)
-  compileOnly(libs.pluginClasspath.gradleEnterprise)
   compileOnly(libs.pluginClasspath.kmp)
   compileOnly(libs.pluginClasspath.kmp.sqldelight) {
     exclude("org.jetbrains.kotlin", "kotlin-stdlib")

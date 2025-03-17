@@ -14,7 +14,7 @@ buildLogic {
 
 dependencies {
   implementation(projects.android.uiCorePublic)
-  implementation(projects.shared.stateMachineUiPublic)
+  implementation(projects.ui.featuresPublic)
   implementation(projects.sample.shared)
 
   implementation(libs.android.activity.ktx)

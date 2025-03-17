@@ -10,11 +10,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.graphics.toColorInt
 import build.wallet.di.AndroidAppComponent
+import build.wallet.libs.platform.impl.R
 import build.wallet.notification.NotificationDismissBroadcastReceiver
 import build.wallet.platform.appVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.config.TouchpointPlatform.*
-import build.wallet.shared.platform.impl.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import kotlinx.coroutines.launch

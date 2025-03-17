@@ -1,12 +1,13 @@
 import Foundation
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class Secp256k1SharedSecretImplTests: XCTestCase {
+struct Secp256k1SharedSecretImplTests {
 
-    func test_deriveSharedSecret() throws {
+    @Test
+    func deriveSharedSecret() throws {
         let keyGenerator = Secp256k1KeyGeneratorImpl()
         let sharedSecret = Secp256k1SharedSecretImpl()
         let aliceKeypair = try keyGenerator.generateKeypair()
@@ -29,8 +30,7 @@ class Secp256k1SharedSecretImplTests: XCTestCase {
             publicKey: alicePublicKey
         )
 
-        XCTAssertEqual(aliceSharedSecretBytes, bobSharedSecretBytes)
-        XCTAssertNotEqual(aliceSharedSecretBytes, oddSharedSecretBytes)
+        #expect(aliceSharedSecretBytes == bobSharedSecretBytes)
+        #expect(aliceSharedSecretBytes != oddSharedSecretBytes)
     }
-
 }

@@ -128,6 +128,6 @@ impl Service {
             .customers
             .into_iter()
             .next()
-            .ok_or(ServiceError::MismatchingRecoveryRelationship)
+            .ok_or(ServiceError::RecoveryRelationshipNotFound)
     }
 }

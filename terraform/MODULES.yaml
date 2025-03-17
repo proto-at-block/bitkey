@@ -1,0 +1,18 @@
+# Keep this sorted by name please.
+---
+name: bitkey-cryptosec
+core_reviewers: [bitkey-cryptosec-eng, hwsec]
+message: "Someone working on Crypto/Security must approve this pull request."
+slack: "#bitkey-software"
+minimum_core_approvals: 2
+exclude_author_from_core_reviewers: true
+autounapprove: true
+---
+name: bitkey-server
+core_reviewers: [bitkey-server-eng]
+message: "Someone working on Bitkey Server (WSM, F8E & Infra) must approve this pull request."
+slack: "#bitkey-server"
+minimum_core_approvals: 1
+exclude_author_from_core_reviewers: true
+autounapprove: true
+---

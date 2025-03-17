@@ -3,6 +3,7 @@ pub mod command_interface;
 pub mod commands;
 pub mod errors;
 pub mod log_buffer;
+pub mod secure_channel;
 
 #[cfg(feature = "pcsc")]
 pub mod pcsc;

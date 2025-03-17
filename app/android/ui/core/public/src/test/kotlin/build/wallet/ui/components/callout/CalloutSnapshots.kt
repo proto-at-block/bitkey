@@ -14,7 +14,7 @@ class CalloutSnapshots : FunSpec({
 
   test("callouts") {
     paparazzi.snapshot {
-      CalloutPreviews()
+      CalloutList()
     }
   }
 })

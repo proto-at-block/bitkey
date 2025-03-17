@@ -1,8 +1,8 @@
 package build.wallet
 
 import android.app.Application
-import build.wallet.bugsnag.Bugsnag
-import build.wallet.datadog.AndroidDatadogInitializer
+import bitkey.bugsnag.Bugsnag
+import bitkey.datadog.AndroidDatadogInitializer
 import build.wallet.di.AndroidAppComponent
 import build.wallet.di.create
 import build.wallet.platform.appVariant

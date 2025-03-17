@@ -5,6 +5,7 @@
     <plugin id="detekt" />
     <plugin id="kotest-plugin-intellij" />
     <plugin id="org.squareup.cash.hermit.idea-plugin" />
+    <plugin id="androidx.compose.plugins.idea" />
 
     <!-- https://plugins.jetbrains.com/docs/intellij/android-studio-releases-list.html -->
     <!-- Android Studio Hedgehog 2023.1.1 -->

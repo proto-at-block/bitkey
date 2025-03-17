@@ -366,6 +366,7 @@ pub struct GetTokensRequest {
 pub struct GetTokensResponse {
     pub access_token: String,
     pub refresh_token: String,
+    pub expires_in: i32,
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -443,6 +444,7 @@ pub async fn get_tokens(
     Ok(Json(GetTokensResponse {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
+        expires_in: tokens.expires_in,
     }))
 }
 

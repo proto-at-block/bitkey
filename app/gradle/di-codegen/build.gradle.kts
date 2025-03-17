@@ -10,7 +10,7 @@ dependencies {
   implementation(libs.kmp.kotlin.inject.anvil.runtime)
   implementation(libs.kmp.kotlin.inject.runtime)
   implementation(projects.gradle.kspUtil)
-  implementation(projects.shared.diScopesPublic)
+  implementation(projects.libs.diScopesPublic)
 
   testImplementation(kotlin("test"))
   testImplementation(kotlin("test-junit"))

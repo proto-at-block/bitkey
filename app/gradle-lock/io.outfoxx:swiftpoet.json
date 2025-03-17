@@ -13,6 +13,19 @@
             "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
             ]
+        },
+        {
+            "version": "1.6.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "swiftpoet-1.6.6.jar": "509d1367ab9dc3dc7aa6823dc0c234383364f24aebb79042b0e9d3d5a810acab"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
         }
     ]
 }

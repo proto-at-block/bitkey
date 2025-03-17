@@ -6,6 +6,7 @@ import androidx.lifecycle.Lifecycle
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
+import build.wallet.ui.theme.ThemePreferenceService
 import me.tatarka.inject.annotations.Provides
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
 
@@ -24,6 +25,7 @@ interface AndroidActivityComponent {
   val appUiStateMachine: AppUiStateMachine
   val biometricPromptUiStateMachine: BiometricPromptUiStateMachine
   val inAppBrowserNavigator: InAppBrowserNavigator
+  val themePreferenceService: ThemePreferenceService
 
   @Provides
   fun activity(fragmentActivity: FragmentActivity): Activity = fragmentActivity

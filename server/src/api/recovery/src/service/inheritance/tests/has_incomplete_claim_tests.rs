@@ -1,7 +1,7 @@
 use rstest::rstest;
 
 use types::account::bitcoin::Network;
-use types::recovery::inheritance::claim::InheritanceClaimCanceledBy;
+use types::recovery::inheritance::claim::InheritanceRole;
 
 use crate::service::inheritance::has_incompleted_claim::HasIncompletedClaimInput;
 use crate::service::inheritance::tests::{
@@ -69,7 +69,7 @@ async fn test_has_incomplete_claim(
                 None,
             )
             .await;
-            create_canceled_claim(&pending_claim, InheritanceClaimCanceledBy::Beneficiary)
+            create_canceled_claim(&pending_claim, InheritanceRole::Beneficiary)
                 .await
                 .common_fields
                 .recovery_relationship_id

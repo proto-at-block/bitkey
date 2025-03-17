@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-tooling-android",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-tooling-release.aar": "b18b966794d4cbc86b64365118f6fb58535e3e64333f2d32a063b3ed6ebf321a"
+                        "ui-tooling-release.aar": "3bc474b8437171cfc529f673aa8d3c479360d11e4520e952dd56d5a46faf17cd"
                     }
                 }
             ],

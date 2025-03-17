@@ -8,6 +8,8 @@ import build.wallet.gradle.logic.gradle.sourceSets
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.dependencies
+import org.gradle.kotlin.dsl.getByType
+import com.google.devtools.ksp.gradle.KspExtension as GoogleKspExtension
 
 /**
  * Configures platform-specific KSP code generation. Adds generated KSP code directories to
@@ -55,6 +57,12 @@ internal class KspPlugin : Plugin<Project> {
         val processors = extension.processors.get()
         addProcessors(processors)
         addGeneratedDirs(processors)
+
+        val ksp = extensions.getByType<GoogleKspExtension>()
+        extension.args.get()
+          .forEach { (key, value) ->
+            ksp.arg(key, value)
+          }
       }
     }
   }
@@ -124,13 +132,13 @@ internal class KspPlugin : Plugin<Project> {
       kotlin {
         val kspTargets = buildList {
           sourceSets {
-            if (processor.targets.jvm) {
+            if (processor.targets.jvm && findByName("jvmMain") != null) {
               jvmMain {
                 add("kspJvm")
               }
             }
 
-            if (processor.targets.android) {
+            if (processor.targets.android && findByName("androidMain") != null) {
               androidMain {
                 if (configurations.findByName("kspAndroidRelease") != null) {
                   add("kspAndroidRelease")
@@ -142,6 +150,9 @@ internal class KspPlugin : Plugin<Project> {
             }
 
             if (processor.targets.ios) {
+              if (findByName("kspIos") != null) {
+                add("kspIos")
+              }
               if (findByName("iosArm64Main") != null) {
                 add("kspIosArm64")
               }

@@ -40,8 +40,8 @@ use types::account::entities::FullAccount;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
-    InheritanceClaimCanceledBy, InheritanceClaimCompleted, InheritanceClaimLocked,
-    InheritanceClaimPending, InheritanceCompletionMethod,
+    InheritanceClaimCompleted, InheritanceClaimLocked, InheritanceClaimPending,
+    InheritanceCompletionMethod, InheritanceRole,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::social::relationship::{
@@ -176,7 +176,7 @@ async fn update_claim_delay_end_time(
 pub async fn cancel_claim(
     claim: &InheritanceClaim,
     account: &FullAccount,
-) -> (InheritanceClaimCanceledBy, InheritanceClaim) {
+) -> (InheritanceRole, InheritanceClaim) {
     let inheritance_service = construct_test_inheritance_service().await;
     let input = CancelInheritanceClaimInput {
         account,
@@ -248,7 +248,7 @@ pub async fn create_completed_claim(
 
 pub async fn create_canceled_claim(
     pending_claim: &InheritanceClaimPending,
-    canceled_by: InheritanceClaimCanceledBy,
+    canceled_by: InheritanceRole,
 ) -> InheritanceClaimCanceled {
     let inheritance_repository = construct_inheritance_repository().await;
     let canceled_claim = InheritanceClaim::Canceled(InheritanceClaimCanceled {

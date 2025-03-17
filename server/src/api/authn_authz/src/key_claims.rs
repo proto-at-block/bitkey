@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
-use axum::http::{header, StatusCode};
+use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use jsonwebtoken::{DecodingKey, Validation};
 use secp256k1::ecdsa::Signature;
 use secp256k1::hashes::sha256;
@@ -34,10 +34,11 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let user_pool = UserPoolService::from_ref(state);
-        let app_sig_header = parts.headers.get(APP_SIG_HEADER).cloned();
-        let hw_sig_header = parts.headers.get(HW_SIG_HEADER).cloned();
+        let headers = parts.headers.clone();
+        let app_sig_header = headers.get(APP_SIG_HEADER).cloned();
+        let hw_sig_header = headers.get(HW_SIG_HEADER).cloned();
 
-        let jwt = get_jwt_from_request_parts(parts).ok_or(StatusCode::UNAUTHORIZED)?;
+        let jwt = get_jwt_from_headers(&headers).ok_or(StatusCode::UNAUTHORIZED)?;
 
         let username = get_user_name_from_jwt(&jwt).ok_or(StatusCode::UNAUTHORIZED)?;
         let cognito_user =
@@ -91,14 +92,11 @@ pub fn verify_signature(signature: &str, message: String, pubkey: String) -> boo
     secp.verify_ecdsa(&message, &signature, &pubkey).is_ok()
 }
 
-pub fn get_jwt_from_request_parts(parts: &mut Parts) -> Option<String> {
-    parts
-        .headers
-        .get(header::AUTHORIZATION)
-        .cloned()
-        .and_then(|value| value.to_str().ok().map(String::from))
-        // The contents of the `Authorization` header should be "Bearer [JWT token]" so strip out out the "Bearer " prefix
-        .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
+pub fn extract_account_id(headers: &HeaderMap<HeaderValue>) -> Option<String> {
+    get_jwt_from_headers(headers)
+        .and_then(|jwt| get_user_name_from_jwt(&jwt))
+        .and_then(|u| CognitoUser::from_str(u.as_ref()).ok())
+        .map(|cognito_user| cognito_user.get_account_id().to_string())
 }
 
 pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
@@ -116,6 +114,15 @@ pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
     } else {
         None
     }
+}
+
+fn get_jwt_from_headers(headers: &HeaderMap<HeaderValue>) -> Option<String> {
+    headers
+        .get(header::AUTHORIZATION)
+        .cloned()
+        .and_then(|value| value.to_str().ok().map(String::from))
+        // The contents of the `Authorization` header should be "Bearer [JWT token]" so strip out out the "Bearer " prefix
+        .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
 }
 
 async fn get_pubkeys_from_cognito(

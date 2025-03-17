@@ -44,7 +44,7 @@ internal class DiPlugin : Plugin<Project> {
             dependencies {
               implementation(libs.kmp.kotlin.inject.runtime)
               implementation(libs.kmp.kotlin.inject.anvil.runtime)
-              api(project(":shared:di-scopes-public"))
+              api(project(":libs:di-scopes-public"))
             }
           }
         }

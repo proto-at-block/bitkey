@@ -29,9 +29,9 @@ import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
-import bitkey.shared.ui_core_public.generated.resources.Res
-import bitkey.shared.ui_core_public.generated.resources.bitcoin_orange
-import bitkey.shared.ui_core_public.generated.resources.small_icon_arrow_up
+import bitkey.ui.framework_public.generated.resources.Res
+import bitkey.ui.framework_public.generated.resources.bitcoin_orange
+import bitkey.ui.framework_public.generated.resources.small_icon_arrow_up
 import build.wallet.pricechart.BitcoinPriceDetailsBodyModel
 import build.wallet.pricechart.ChartHistory
 import build.wallet.pricechart.ChartType
@@ -291,7 +291,7 @@ private fun ChartTypeSelector(
       .fillMaxWidth()
       .padding(horizontal = 6.dp, vertical = 4.dp)
       .border(
-        border = BorderStroke(1.dp, Color.Black.copy(alpha = 0.05f)),
+        border = BorderStroke(1.dp, WalletTheme.colors.chartElement),
         shape = RoundedCornerShape(50.dp)
       )
   ) {

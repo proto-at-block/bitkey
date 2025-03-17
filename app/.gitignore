@@ -5,6 +5,7 @@
 !/.idea/dictionaries/
 !/.idea/externalDependencies.xml
 !/.idea/detekt.xml
+!/.idea/ktlint-plugin.xml
 !/.idea/icon.png
 /captures
 
@@ -22,6 +23,9 @@ gradle-user-home
 .kotlin/
 **/build/classes/kotlin/commonizer/
 **/build/kotlin/sessions/**/*.salive
+
+# Generated Sources
+ios/Wallet/Tests/SnapshotTests/generated/*.swift
 
 # SqlDelight
 *.db

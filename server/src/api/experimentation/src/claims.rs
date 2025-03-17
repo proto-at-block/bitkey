@@ -1,16 +1,13 @@
-use std::str::FromStr;
-
 use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 
 use account::service::Service as AccountService;
-use authn_authz::key_claims::{get_jwt_from_request_parts, get_user_name_from_jwt};
+use authn_authz::key_claims::extract_account_id;
 use feature_flags::flag::ContextKey;
 use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
 use types::account::identifiers::AccountId;
-use types::authn_authz::cognito::CognitoUser;
 
 use crate::attributes::ToLaunchDarklyAttributes;
 use crate::error::ExperimentationError;
@@ -32,26 +29,22 @@ pub struct ExperimentationClaims {
 
 impl ExperimentationClaims {
     fn from_request_parts(parts: &mut Parts) -> ExperimentationClaims {
+        let headers = parts.headers.clone();
         ExperimentationClaims {
-            account_id: Self::extract_account_id(parts),
-            app_installation_id: Self::extract_header_value(parts, APP_INSTALLATION_ID_HEADER_NAME),
-            app_version: Self::extract_header_value(parts, APP_VERSION_HEADER_NAME),
-            os_type: Self::extract_header_value(parts, OS_TYPE_HEADER_NAME),
-            os_version: Self::extract_header_value(parts, OS_VERSION_HEADER_NAME),
-            device_region: Self::extract_header_value(parts, DEVICE_REGION_HEADER_NAME),
+            account_id: extract_account_id(&headers),
+            app_installation_id: Self::extract_header_value(
+                &headers,
+                APP_INSTALLATION_ID_HEADER_NAME,
+            ),
+            app_version: Self::extract_header_value(&headers, APP_VERSION_HEADER_NAME),
+            os_type: Self::extract_header_value(&headers, OS_TYPE_HEADER_NAME),
+            os_version: Self::extract_header_value(&headers, OS_VERSION_HEADER_NAME),
+            device_region: Self::extract_header_value(&headers, DEVICE_REGION_HEADER_NAME),
         }
     }
 
-    fn extract_account_id(parts: &mut Parts) -> Option<String> {
-        get_jwt_from_request_parts(parts)
-            .and_then(|jwt| get_user_name_from_jwt(&jwt))
-            .and_then(|u| CognitoUser::from_str(u.as_ref()).ok())
-            .map(|cognito_user| cognito_user.get_account_id().to_string())
-    }
-
-    fn extract_header_value(parts: &mut Parts, header_name: &str) -> Option<String> {
-        parts
-            .headers
+    fn extract_header_value(headers: &HeaderMap<HeaderValue>, header_name: &str) -> Option<String> {
+        headers
             .get(header_name)
             .and_then(|value| value.to_str().ok().map(String::from))
     }

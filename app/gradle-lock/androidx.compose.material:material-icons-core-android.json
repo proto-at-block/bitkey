@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.material:material-icons-core-android",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "material-icons-core-release.aar": "5c1237e54e53d90fbe9fd2c59fc50d168481712e8e15990320d69f12b3634d2a"
+                        "material-icons-core-release.aar": "e82eb70310b13e52beae566de3c1bd6c42e0f6cdf384d8573ea73a5d13f7c643"
                     }
                 }
             ],

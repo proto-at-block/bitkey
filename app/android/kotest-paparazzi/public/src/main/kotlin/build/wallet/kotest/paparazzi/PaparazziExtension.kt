@@ -4,8 +4,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.ComposeView
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
-import build.wallet.ui.theme.SystemColorMode
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.tooling.PreviewWalletTheme
+import com.android.internal.R.attr.theme
 import io.kotest.core.TestConfiguration
 import io.kotest.core.listeners.AfterTestListener
 import io.kotest.core.listeners.BeforeTestListener
@@ -30,42 +31,60 @@ import org.junit.runners.model.Statement
  */
 class PaparazziExtension(
   private val paparazzi: Paparazzi,
+  private val newStoragePath: Boolean,
 ) : BeforeTestListener, AfterTestListener {
   /**
    * Captures snapshot of a UI Composable using [PreviewWalletTheme].
    */
   fun snapshot(
-    systemColorMode: SystemColorMode = SystemColorMode.LIGHT,
+    onlyTheme: Theme? = null,
     deviceConfig: DeviceConfig? = null,
     content: @Composable () -> Unit,
   ) {
     deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
-    paparazzi.snapshot {
-      PreviewWalletTheme(systemColorMode = systemColorMode) {
-        content()
+    val themes = onlyTheme?.let { listOf(it) } ?: Theme.entries.toList()
+    themes.forEach { theme ->
+      val name = if (newStoragePath) {
+        "${theme.name}.Android"
+      } else {
+        theme.name
+      }
+      paparazzi.snapshot(name = name) {
+        PreviewWalletTheme(theme = theme) {
+          content()
+        }
       }
     }
   }
 
+  /**
+   * Captures gif of a UI Composable using [PreviewWalletTheme].
+   */
   fun gif(
-    systemColorMode: SystemColorMode = SystemColorMode.LIGHT,
     length: Long = 1000,
+    onlyTheme: Theme? = null,
+    deviceConfig: DeviceConfig? = null,
     content: @Composable () -> Unit,
   ) {
-    val hostView = ComposeView(paparazzi.context)
+    deviceConfig?.let { paparazzi.unsafeUpdateConfig(it) }
 
-    hostView.setContent {
-      PreviewWalletTheme(systemColorMode = systemColorMode) {
-        content()
+    val themes = onlyTheme?.let { listOf(it) } ?: Theme.entries.toList()
+    themes.forEach { theme ->
+      val hostView = ComposeView(paparazzi.context).apply {
+        setContent {
+          PreviewWalletTheme(theme = theme) {
+            content()
+          }
+        }
       }
+      paparazzi.gif(
+        view = hostView,
+        name = theme.name,
+        start = 0,
+        end = length,
+        fps = 60
+      )
     }
-    paparazzi.gif(
-      view = hostView,
-      name = null,
-      start = 0,
-      end = length,
-      fps = 60
-    )
   }
 
   override suspend fun beforeTest(testCase: TestCase) {

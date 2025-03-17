@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.10
-FROM rust:alpine as build
+FROM rust:alpine AS build
 RUN <<EOF
 set -e
 apk update

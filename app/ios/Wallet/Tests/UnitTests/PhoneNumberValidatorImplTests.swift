@@ -1,56 +1,61 @@
 import PhoneNumberKit
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class PhoneNumberValidatorImplTests: XCTestCase {
+struct PhoneNumberValidatorImplTests {
 
     private let countryCodeGuesser = CountryCodeGuesserFake()
     private let phoneNumberKit = PhoneNumberKit()
-    private lazy var validator = PhoneNumberValidatorImpl(
-        countryCodeGuesser: countryCodeGuesser,
-        phoneNumberLibBindings: PhoneNumberLibBindingsImpl()
-    )
+    private var validator: PhoneNumberValidatorImpl {
+        PhoneNumberValidatorImpl(
+            countryCodeGuesser: countryCodeGuesser,
+            phoneNumberLibBindings: PhoneNumberLibBindingsImpl()
+        )
+    }
 
-    func testExampleNationalNumber() {
+    @Test
+    func exampleNationalNumber() {
         countryCodeGuesser.fakeCountryCode = "US"
-        XCTAssertEqual(validator.exampleFormattedNumberForCurrentRegion(), "+1 201-555-0123")
+        #expect(validator.exampleFormattedNumberForCurrentRegion() == "+1 201-555-0123")
 
         for country in phoneNumberKit.allValidCountries() {
             countryCodeGuesser.fakeCountryCode = country
-            XCTAssertNotNil(validator.exampleFormattedNumberForCurrentRegion())
+            #expect(validator.exampleFormattedNumberForCurrentRegion() != nil)
         }
     }
 
-    func testValidatePhoneNumberWithRawNumber() {
+    @Test
+    func validatePhoneNumberWithRawNumber() {
         for country in phoneNumberKit.allCountries() {
             if let validNumber = phoneNumberKit.getExampleNumber(forCountry: country) {
-                XCTAssertNotNil(
+                #expect(
                     validator.validatePhoneNumber(number: phoneNumberKit.format(
                         validNumber,
                         toType: .international
-                    ))
+                    )) != nil
                 )
             }
         }
     }
 
-    func testValidatePhoneNumberWithRawNumberInvalidString() {
-        XCTAssertNil(validator.validatePhoneNumber(number: "foo-bar"))
+    @Test
+    func validatePhoneNumberWithRawNumberInvalidString() {
+        #expect(validator.validatePhoneNumber(number: "foo-bar") == nil)
     }
 
-    func testValidatePhoneNumberWithE164Format() {
+    @Test
+    func validatePhoneNumberWithE164Format() {
         phoneNumberKit.allCountries()
             .compactMap { phoneNumberKit.getExampleNumber(forCountry: $0) }
             .map { phoneNumberKit.format($0, toType: .e164) }
             .forEach { formattedE164Value in
-                XCTAssertNotNil(
-                    validator.validatePhoneNumber(number: formattedE164Value)
+                #expect(
+                    validator.validatePhoneNumber(number: formattedE164Value) != nil
                 )
             }
     }
-
 }
 
 // MARK: -

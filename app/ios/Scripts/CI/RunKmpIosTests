@@ -5,4 +5,4 @@ set -euo pipefail
 source bin/activate-hermit
 
 echo "Run KMP iOS Tests... "
-gradle --project-dir=app/shared iosTest detektIosArm64Main detektIosArm64Test
+gradle --project-dir=app detektIosArm64Main detektIosArm64Test

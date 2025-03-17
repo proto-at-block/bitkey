@@ -19,7 +19,7 @@ use types::account::bitcoin::Network;
 use types::account::entities::{Account, FullAccount};
 use types::account::identifiers::AccountId;
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy,
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceRole,
 };
 
 // Helper function to rotate auth keys and get updated beneficiary account
@@ -446,7 +446,7 @@ async fn test_recreate_with_canceled_claim() {
         Some(delay_end_time),
     )
     .await;
-    create_canceled_claim(&pending_claim, InheritanceClaimCanceledBy::Beneficiary).await;
+    create_canceled_claim(&pending_claim, InheritanceRole::Beneficiary).await;
 
     // Rotate beneficiary auth keys
     let updated_beneficiary = rotate_auth_keys(&account_service, &beneficiary_account).await;

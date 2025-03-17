@@ -1,9 +1,9 @@
 package build.wallet.di
 
+import build.wallet.ComposeIosAppUIController
 import build.wallet.feature.FeatureFlagService
 import build.wallet.nfc.NfcTransactor
 import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
-import build.wallet.statemachine.root.AppUiStateMachine
 import software.amazon.lastmile.kotlin.inject.anvil.ContributesSubcomponent
 
 /**
@@ -19,7 +19,7 @@ interface IosActivityComponent {
   /**
    * Dependencies that are used by iOS Swift code.
    */
-  val appUiStateMachine: AppUiStateMachine
+  val composeAppUIController: ComposeIosAppUIController
   val biometricPromptUiStateMachine: BiometricPromptUiStateMachine
   val nfcTransactor: NfcTransactor
   val featureFlagService: FeatureFlagService

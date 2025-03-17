@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2025,
-      version = 1,
-      patch = 1,
-      build = 1
+      version = 2,
+      patch = 0,
+      build = 4
     )
   }
   compose {
@@ -139,7 +139,7 @@ dependencies {
   implementation(projects.android.uiAppPublic)
   implementation(projects.android.uiCorePublic)
   implementation(projects.shared.appComponentImpl)
-  implementation(projects.shared.bugsnagPublic)
+  implementation(projects.libs.bugsnagPublic)
   implementation(libs.android.lifecycle.common)
   implementation(libs.android.firebase.messaging)
   implementation(libs.kmp.kotlin.coroutines)

@@ -12,6 +12,40 @@ extension XCTestCase {
         UserDefaults.standard.bool(forKey: "is-recording")
     }
 
+    func assertBitkeySnapshots(
+        viewController: () -> UIViewController,
+        fileName: String,
+        precision: Float = 0.9992,
+        perceptualPrecision: Float = 0.98
+    ) {
+        // From app root, sourceFileUrl = "ios/Wallet/Tests/SnapshotTests/SnapshotTestHelpers.swift"
+        let sourceFileUrl = URL(fileURLWithPath: "\(#file)", isDirectory: false)
+        let snapshotDirectory = sourceFileUrl
+            .deletingLastPathComponent() // SnapshotTestHelpers.swift
+            .appendingPathComponent(
+                "../../../../ui/features/public/snapshots/images",
+                isDirectory: true
+            )
+            .absoluteString
+            .dropFirst("file://".count)
+        let iPhoneSEResult = verifySnapshot(
+            of: viewController(),
+            as: .image(
+                drawHierarchyInKeyWindow: true, // Required for CMP rendering
+                precision: precision,
+                perceptualPrecision: perceptualPrecision,
+                size: ViewImageConfig.iPhoneSe.size,
+                traits: ViewImageConfig.iPhoneSe.traits
+            ),
+            named: "iPhoneSe",
+            record: isRecording,
+            snapshotDirectory: String(snapshotDirectory),
+            testName: fileName
+        )
+
+        XCTAssertNil(iPhoneSEResult)
+    }
+
     func assertBitkeySnapshot(
         image: UIImage,
         fileName: String = #function,

@@ -1,11 +1,9 @@
-use futures::future::try_join_all;
+use tokio::try_join;
 use tracing::instrument;
 use types::{
     account::identifiers::AccountId,
-    recovery::{inheritance::claim::InheritanceClaim, trusted_contacts::TrustedContactRole},
+    recovery::inheritance::claim::{InheritanceClaim, InheritanceRole},
 };
-
-use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
 
 use super::{error::ServiceError, Service};
 
@@ -35,40 +33,16 @@ impl Service {
         &self,
         input: GetInheritanceClaimsInput<'_>,
     ) -> Result<GetInheritanceClaimsOutput, ServiceError> {
-        let relationships = self
-            .recovery_relationship_service
-            .get_recovery_relationships(GetRecoveryRelationshipsInput {
-                account_id: input.account_id,
-                trusted_contact_role_filter: Some(TrustedContactRole::Beneficiary),
-            })
-            .await?;
-
-        // TODO: Investigate if we can/should use ddb batches instead of joining
-
-        let claims_as_beneficiary =
-            try_join_all(relationships.customers.iter().map(|benefactor| {
-                self.repository
-                    .fetch_claims_for_recovery_relationship_id(&benefactor.common_fields().id)
-            }))
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        let claims_as_benefactor = try_join_all(
-            relationships
-                .endorsed_trusted_contacts
-                .iter()
-                .map(|beneficiary| {
-                    self.repository
-                        .fetch_claims_for_recovery_relationship_id(&beneficiary.common_fields().id)
-                }),
-        )
-        .await?
-        .into_iter()
-        .flatten()
-        .collect();
-
+        let (claims_as_benefactor, claims_as_beneficiary) = try_join!(
+            self.repository.fetch_claims_for_account_id_and_role(
+                input.account_id,
+                InheritanceRole::Benefactor
+            ),
+            self.repository.fetch_claims_for_account_id_and_role(
+                input.account_id,
+                InheritanceRole::Beneficiary
+            ),
+        )?;
         Ok(GetInheritanceClaimsOutput {
             claims_as_benefactor,
             claims_as_beneficiary,

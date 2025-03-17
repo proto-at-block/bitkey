@@ -2,6 +2,8 @@ package build.wallet.ui.components.icon
 
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.theme.WalletTheme
 import io.kotest.core.spec.style.FunSpec
 
 class IconSnapshots : FunSpec({
@@ -14,31 +16,34 @@ class IconSnapshots : FunSpec({
 
   test("small icons") {
     paparazzi.snapshot {
-      IconsSmallPreview()
+      IconGrid(size = IconSize.Small)
     }
   }
 
   test("regular icons") {
     paparazzi.snapshot {
-      IconsRegularPreview()
+      IconGrid(size = IconSize.Medium)
     }
   }
 
   test("large icons") {
     paparazzi.snapshot {
-      IconsLargePreview()
+      IconGrid(size = IconSize.Large)
     }
   }
 
   test("avatar icons") {
     paparazzi.snapshot {
-      IconsAvatarPreview()
+      IconGrid(size = IconSize.Avatar)
     }
   }
 
   test("tinted icons") {
     paparazzi.snapshot {
-      IconsTintedPreview()
+      IconGrid(
+        size = IconSize.Regular,
+        color = WalletTheme.colors.warningForeground
+      )
     }
   }
 })

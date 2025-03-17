@@ -191,7 +191,7 @@ class AppTester(
       val blockchainControl = createBlockchainControl(bitcoinNetworkType)
       val activityComponent = appComponent.activityComponent()
 
-      appComponent.debugOptionsService.apply {
+      appComponent.defaultAccountConfigService.apply {
         setBitcoinNetworkType(bitcoinNetworkType)
         setIsHardwareFake(true)
         setF8eEnvironment(f8eEnvironment)

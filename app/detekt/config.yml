@@ -611,7 +611,6 @@ style:
     excludes:
       - '**/*Test/**'
       - '**/*testing/**'
-      - '**/shared/serialization/**'
   ForbiddenSuppress:
     active: false
     rules: [ ]

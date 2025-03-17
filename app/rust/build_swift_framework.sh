@@ -49,6 +49,32 @@ build() {
 	(
 		cd "$RUST_ROOT"
 		rustup target add $target
+		
+		# Set platform-specific environment variables
+		if [[ $target == *apple-ios* ]]; then
+			IOS_VERSION="15.2"
+			export IPHONEOS_DEPLOYMENT_TARGET=$IOS_VERSION
+			
+			# Clear any existing flags
+			unset CFLAGS CXXFLAGS RUSTFLAGS ASMFLAGS
+			
+			# Determine build type and set appropriate flags
+			if [[ $target == *simulator* ]] || [[ $target == *sim ]]; then
+				SDK_TYPE="iphonesimulator"
+				VERSION_FLAG="-mios-simulator-version-min=$IOS_VERSION"
+			else
+				SDK_TYPE="iphoneos"
+				VERSION_FLAG="-miphoneos-version-min=$IOS_VERSION"
+			fi
+			
+			export CFLAGS="$VERSION_FLAG"
+			export CXXFLAGS="$VERSION_FLAG"
+			export RUSTFLAGS="-C link-arg=$VERSION_FLAG"
+			
+			# Ensure we're using the right SDK
+			export SDKROOT="$(xcrun --sdk $SDK_TYPE --show-sdk-path)"
+		fi
+		
 		cargo build \
 			--lib \
 			--package=$PACKAGE \

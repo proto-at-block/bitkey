@@ -46,7 +46,8 @@ class MainActivity : FragmentActivity() {
       App(
         model = activityComponent.appUiStateMachine.model(Unit),
         deviceInfo = appComponent.deviceInfoProvider.getDeviceInfo(),
-        accelerometer = appComponent.accelerometer
+        accelerometer = appComponent.accelerometer,
+        themePreferenceService = activityComponent.themePreferenceService
       )
     }
     createNotificationChannel()

@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use types::recovery::{
-    social::relationship::RecoveryRelationshipRole, trusted_contacts::TrustedContactRole,
+    social::relationship::{RecoveryRelationshipId, RecoveryRelationshipRole},
+    trusted_contacts::TrustedContactRole,
 };
 
 use crate::{
@@ -19,10 +20,11 @@ const TRUSTED_CONTACT_ALIAS_FIELD: &str = "trustedContactAlias";
 const BENEFACTOR_ALIAS_FIELD: &str = "benefactorAlias";
 const BENEFICIARY_ALIAS_FIELD: &str = "beneficiaryAlias";
 
-#[derive(Deserialize, Serialize, Clone, Debug, Default)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct RecoveryRelationshipInvitationAcceptedPayload {
     pub trusted_contact_alias: String,
     pub protected_customer_alias: String,
+    pub recovery_relationship_id: RecoveryRelationshipId,
     pub trusted_contact_roles: Vec<TrustedContactRole>,
     #[serde(default)]
     pub recipient_account_role: RecoveryRelationshipRole,
@@ -51,12 +53,14 @@ impl
         {
             payloads_for_inheritance(
                 payload.recipient_account_role,
+                payload.recovery_relationship_id,
                 payload.protected_customer_alias,
                 payload.trusted_contact_alias,
             )
         } else {
             payloads_for_social_recovery(
                 payload.recipient_account_role,
+                payload.recovery_relationship_id,
                 payload.trusted_contact_alias,
             )
         };
@@ -73,6 +77,7 @@ impl
 
 fn payloads_for_social_recovery(
     recipient_account_role: RecoveryRelationshipRole,
+    recovery_relationship_id: RecoveryRelationshipId,
     trusted_contact_alias: String,
 ) -> (
     Option<EmailPayload>,
@@ -84,9 +89,16 @@ fn payloads_for_social_recovery(
     }
 
     let message = format!(
-        "{} is now set up as a trusted contact for your Bitkey. They can assist if you ever need help recovering a part of your Bitkey wallet.",
+        "{} is now a Trusted Contact for your Bitkey. Open the Bitkey app to confirm they've been added to your list.",
         trusted_contact_alias
     );
+    let extras = SNSPushPayloadExtras {
+        navigate_to_screen_id: Some(
+            (NavigationScreenId::SocialRecoveryProtectedCustomerInviteAccepted as i32).to_string(),
+        ),
+        recovery_relationship_id: Some(recovery_relationship_id.to_string()),
+        ..Default::default()
+    };
 
     let email_payload = Some(EmailPayload::Iterable {
         campaign_type:
@@ -100,6 +112,7 @@ fn payloads_for_social_recovery(
     let push_payload = Some(SNSPushPayload {
         message: message.clone(),
         android_channel_id: AndroidChannelId::RecoveryAccountSecurity,
+        extras,
         ..Default::default()
     });
 
@@ -113,6 +126,7 @@ fn payloads_for_social_recovery(
 
 fn payloads_for_inheritance(
     recipient_account_role: RecoveryRelationshipRole,
+    recovery_relationship_id: RecoveryRelationshipId,
     benefactor_alias: String,
     beneficiary_alias: String,
 ) -> (
@@ -128,6 +142,7 @@ fn payloads_for_inheritance(
                 navigate_to_screen_id: Some(
                     (NavigationScreenId::InheritanceBenefactorInviteAccepted as i32).to_string(),
                 ),
+                recovery_relationship_id: Some(recovery_relationship_id.to_string()),
                 ..Default::default()
             },
         ),

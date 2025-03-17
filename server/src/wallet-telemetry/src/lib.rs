@@ -16,7 +16,12 @@ use tracing_subscriber::{prelude::__tracing_subscriber_SubscriberExt, EnvFilter}
 mod datadog;
 mod json;
 
-pub const APP_INSTALLATION_ID_BAGGAGE_KEY: &str = "app_installation_id";
+pub mod baggage_keys {
+    pub const APP_INSTALLATION_ID: &str = "app_installation_id";
+    pub const ACCOUNT_ID: &str = "account_id";
+    pub const HARDWARE_SERIAL_NUMBER: &str = "hardware_serial_number";
+}
+
 pub const METRICS_REPORTING_PERIOD_SECS: u64 = 15;
 
 // TODO:[W-1236] Remove changes to Config and Mode (switch back to pub(crate))

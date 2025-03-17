@@ -1,7 +1,7 @@
 package build.wallet.testing.ext
 
 import app.cash.turbine.test
-import build.wallet.auth.AuthTokenScope
+import bitkey.auth.AuthTokenScope
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.MobilePayData
@@ -30,7 +30,6 @@ suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
     }.getOrThrow()
   val spendingLimit = SpendingLimit(true, limit, TimeZone.UTC)
   mobilePayService.setLimit(
-    account = account,
     spendingLimit = spendingLimit,
     hwFactorProofOfPossession = HwFactorProofOfPossession(signResponse)
   ).getOrThrow()

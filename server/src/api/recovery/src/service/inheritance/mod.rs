@@ -12,7 +12,7 @@ use repository::recovery::inheritance::InheritanceRepository;
 use screener::service::Service as ScreenerService;
 use types::account::entities::Account;
 use types::account::identifiers::{AccountId, KeysetId};
-use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId};
+use types::recovery::inheritance::claim::{InheritanceClaim, InheritanceClaimId, InheritanceRole};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 use types::recovery::trusted_contacts::TrustedContactRole::Beneficiary;
 
@@ -110,7 +110,7 @@ impl Service {
             .await
             .map_err(|err| {
                 event!(Level::ERROR, "Could not fetch account: {:?}", err);
-                ServiceError::MismatchingRecoveryRelationship
+                ServiceError::from(err)
             })?;
         Ok(customer_account)
     }
@@ -155,24 +155,19 @@ async fn fetch_pending_claims_as_beneficiary(
     service: &Service,
     beneficiary_account_id: &AccountId,
 ) -> Result<Vec<InheritanceClaim>, ServiceError> {
-    let endorsed_relationship_ids = service
-        .recovery_relationship_service
-        .get_recovery_relationships(GetRecoveryRelationshipsInput {
-            account_id: beneficiary_account_id,
-            trusted_contact_role_filter: Some(Beneficiary),
-        })
+    let claims: Vec<InheritanceClaim> = service
+        .repository
+        .fetch_claims_for_account_id_and_role(beneficiary_account_id, InheritanceRole::Beneficiary)
         .await?
-        .customers
         .into_iter()
-        .filter_map(|r| match r {
-            RecoveryRelationship::Endorsed(r) => Some(r.common_fields.id.clone()),
-            _ => None,
+        .filter_map(|c| {
+            if matches!(c, InheritanceClaim::Pending(_)) {
+                Some(c)
+            } else {
+                None
+            }
         })
         .collect();
-    let claims = service
-        .repository
-        .fetch_pending_claims_for_recovery_relationship_ids(endorsed_relationship_ids)
-        .await?;
     Ok(claims)
 }
 
@@ -184,11 +179,11 @@ fn filter_endorsed_relationship(
     let relationship = customers
         .into_iter()
         .find(|r| &r.common_fields().id == recovery_relationship_id)
-        .ok_or(ServiceError::MismatchingRecoveryRelationship)?;
+        .ok_or(ServiceError::RecoveryRelationshipNotFound)?;
 
     // Ensure the relationship is endorsed by the customer
     if !matches!(relationship, RecoveryRelationship::Endorsed(_)) {
-        return Err(ServiceError::MismatchingRecoveryRelationship);
+        return Err(ServiceError::RelationshipNotEndorsed);
     }
     Ok(relationship)
 }

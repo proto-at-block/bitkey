@@ -8,7 +8,7 @@ class SettingsScreenSnapshots : FunSpec({
 
   test("settings screen") {
     paparazzi.snapshot {
-      SettingsScreenPreview()
+      SettingsScreen()
     }
   }
 })

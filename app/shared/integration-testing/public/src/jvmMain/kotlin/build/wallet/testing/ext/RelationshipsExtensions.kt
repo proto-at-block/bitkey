@@ -1,10 +1,10 @@
 package build.wallet.testing.ext
 
+import bitkey.relationships.Relationships
 import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.f8e.relationships.Relationships
 import build.wallet.realDelay
 import build.wallet.statemachine.core.test
 import build.wallet.testing.AppTester

@@ -20,11 +20,10 @@ use notification::service::Service as NotificationService;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tracing::instrument;
-use types::account::entities::Account;
 use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceledBy, InheritanceClaimId,
+    InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimId,
 };
 use types::recovery::inheritance::package::Package;
 use types::recovery::inheritance::router::{
@@ -35,6 +34,7 @@ use types::recovery::inheritance::router::{
     InheritanceClaimViewCommonFields, InheritanceClaimViewPendingCommonFields,
 };
 use types::recovery::social::relationship::RecoveryRelationshipId;
+use types::{account::entities::Account, recovery::inheritance::claim::InheritanceRole};
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::WsmClient;
 
@@ -95,7 +95,7 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/inheritance/claims/:inheritance_claim_id/shorten",
                 put(shorten_delay_for_test_beneficiary_account),
             )
-            .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
+            .route_layer(metrics::FACTORY.route_layer("inheritance".to_owned()))
             .with_state(self.to_owned())
     }
 
@@ -105,7 +105,7 @@ impl RouterBuilder for RouteState {
                 "/api/accounts/:account_id/recovery/inheritance/claims",
                 get(get_inheritance_claims),
             )
-            .route_layer(metrics::FACTORY.route_layer("recovery".to_owned()))
+            .route_layer(metrics::FACTORY.route_layer("inheritance".to_owned()))
             .with_state(self.to_owned())
     }
 }
@@ -389,12 +389,12 @@ pub async fn cancel_inheritance_claim(
         .await?;
 
     match canceled_by {
-        InheritanceClaimCanceledBy::Benefactor => {
+        InheritanceRole::Benefactor => {
             return Ok(Json(CancelInheritanceClaimResponse::Benefactor {
                 claim: claim.into(),
             }));
         }
-        InheritanceClaimCanceledBy::Beneficiary => {
+        InheritanceRole::Beneficiary => {
             return Ok(Json(CancelInheritanceClaimResponse::Beneficiary {
                 claim: claim.into(),
             }));

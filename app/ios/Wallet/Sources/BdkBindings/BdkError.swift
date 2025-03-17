@@ -27,7 +27,9 @@ extension Shared.BdkError {
         case let .OutputBelowDustLimit(message):
             return OutputBelowDustLimit(cause: throwable, message: message)
         case let .InsufficientFunds(message):
-            return InsufficientFunds(cause: throwable, message: message)
+            // replace message with our own to avoid leaking sensitive information
+            // don't pass the cause for the same reason
+            return InsufficientFunds(cause: nil, message: "insufficient funds to create tx")
         case let .BnBTotalTriesExceeded(message):
             return BnBTotalTriesExceeded(cause: throwable, message: message)
         case let .BnBNoExactMatch(message):

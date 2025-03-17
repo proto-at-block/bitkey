@@ -7,7 +7,7 @@ use tracing::instrument;
 use types::account::entities::FullAccount;
 
 use types::recovery::inheritance::claim::{
-    InheritanceClaim, InheritanceClaimCanceled, InheritanceClaimCanceledBy, InheritanceClaimId,
+    InheritanceClaim, InheritanceClaimCanceled, InheritanceClaimId, InheritanceRole,
 };
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipRole};
 
@@ -31,13 +31,14 @@ impl Service {
     ///
     /// # Returns
     ///
+    /// * The role of the account that canceled the claim
     /// * The canceled inheritance claim
     ///     
     #[instrument(skip(self, input))]
     pub async fn cancel_claim(
         &self,
         input: CancelInheritanceClaimInput<'_>,
-    ) -> Result<(InheritanceClaimCanceledBy, InheritanceClaim), ServiceError> {
+    ) -> Result<(InheritanceRole, InheritanceClaim), ServiceError> {
         // Check to see if the given Recovery Relationships are valid
         let (relationships, claim) =
             fetch_relationships_and_claim(self, &input.account.id, &input.inheritance_claim_id)
@@ -57,22 +58,16 @@ impl Service {
                 .iter()
                 .find(|r| r.common_fields().id == recovery_relationship_id)
             {
-                (
-                    endorsed_relationship,
-                    InheritanceClaimCanceledBy::Benefactor,
-                )
+                (endorsed_relationship, InheritanceRole::Benefactor)
             } else if let Some(RecoveryRelationship::Endorsed(endorsed_relationship)) =
                 relationships
                     .customers
                     .iter()
                     .find(|r| r.common_fields().id == recovery_relationship_id)
             {
-                (
-                    endorsed_relationship,
-                    InheritanceClaimCanceledBy::Beneficiary,
-                )
+                (endorsed_relationship, InheritanceRole::Beneficiary)
             } else {
-                return Err(ServiceError::MismatchingRecoveryRelationship);
+                return Err(ServiceError::RecoveryRelationshipNotFound);
             };
 
         let pending_claim = match claim {

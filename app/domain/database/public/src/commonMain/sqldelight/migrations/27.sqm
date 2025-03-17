@@ -1,0 +1,22 @@
+-- Renames `debugOptionsEntity` table to `defaultAppConfigEntity`.
+
+-- Create new table.
+CREATE TABLE defaultAccountConfigEntity(
+  rowId                         INTEGER NOT NULL PRIMARY KEY,
+  bitcoinNetworkType            TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware                  INTEGER AS Boolean NOT NULL,
+  f8eEnvironment                TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount                 INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes            INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration           TEXT AS Duration,
+  skipCloudBackupOnboarding     INTEGER AS Boolean NOT NULL,
+  skipNotificationsOnboarding   INTEGER AS Boolean NOT NULL
+);
+
+-- Move values from old table to new table.
+INSERT INTO defaultAccountConfigEntity SELECT * FROM debugOptionsEntity;
+
+-- Drop old table.
+DROP TABLE debugOptionsEntity;
+
+PRAGMA foreign_key_check;

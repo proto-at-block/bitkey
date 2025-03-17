@@ -1,0 +1,30 @@
+import kotlinx.datetime.Instant;
+
+-- Table for storing real time metrics that are actively in flight
+-- It may be polled for metrics that have timed out, e.g. due to user inactivity
+-- or process death.
+CREATE TABLE mobileMetricEntity (
+    metricName TEXT NOT NULL PRIMARY KEY,
+    variant TEXT,
+    lastUpdated TEXT AS Instant NOT NULL
+);
+
+expiredMetrics:
+SELECT * FROM mobileMetricEntity WHERE lastUpdated < :timeout;
+
+getMetrics:
+SELECT * FROM mobileMetricEntity;
+
+insertOrUpdate:
+INSERT OR REPLACE INTO mobileMetricEntity(metricName, variant, lastUpdated)
+VALUES(:metricName, :variant, :lastUpdated);
+
+getByMetricName:
+SELECT * FROM mobileMetricEntity WHERE metricName = :metricName;
+
+removeByMetricName:
+DELETE FROM mobileMetricEntity WHERE metricName = :metricName;
+
+clear:
+DELETE FROM mobileMetricEntity;
+

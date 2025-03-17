@@ -20,6 +20,9 @@ pub struct SNSPushPayloadExtras {
     #[builder(default)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inheritance_claim_id: Option<String>,
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recovery_relationship_id: Option<String>,
 }
 
 impl SNSPushPayloadExtras {
@@ -190,6 +193,7 @@ mod tests {
         let extras = SNSPushPayloadExtrasBuilder::default()
             .navigate_to_screen_id(Some((NavigationScreenId::MoneyHome as i32).to_string()))
             .inheritance_claim_id(Some("foo".to_owned()))
+            .recovery_relationship_id(Some("bar".to_owned()))
             .build()
             .expect("Valid extras payload");
         let payload = SNSPushPayload {
@@ -201,7 +205,7 @@ mod tests {
         };
         assert_eq!(
             payload.to_sns_message(),
-            "{\"APNS\":\"{\\\"aps\\\":{\\\"alert\\\":{\\\"body\\\":\\\"This is a notification message\\\",\\\"title\\\":\\\"This is a notification title\\\"},\\\"badge\\\":1},\\\"inheritance_claim_id\\\":\\\"foo\\\",\\\"navigate_to_screen_id\\\":\\\"1\\\"}\",\"GCM\":\"{\\\"data\\\":{\\\"inheritance_claim_id\\\":\\\"foo\\\",\\\"navigate_to_screen_id\\\":\\\"1\\\"},\\\"notification\\\":{\\\"android_channel_id\\\":\\\"transactions\\\",\\\"body\\\":\\\"This is a notification message\\\",\\\"color\\\":\\\"#ffffff\\\",\\\"title\\\":\\\"This is a notification title\\\"}}\",\"default\":\"This is a notification message\"}",
+            "{\"APNS\":\"{\\\"aps\\\":{\\\"alert\\\":{\\\"body\\\":\\\"This is a notification message\\\",\\\"title\\\":\\\"This is a notification title\\\"},\\\"badge\\\":1},\\\"inheritance_claim_id\\\":\\\"foo\\\",\\\"navigate_to_screen_id\\\":\\\"1\\\",\\\"recovery_relationship_id\\\":\\\"bar\\\"}\",\"GCM\":\"{\\\"data\\\":{\\\"inheritance_claim_id\\\":\\\"foo\\\",\\\"navigate_to_screen_id\\\":\\\"1\\\",\\\"recovery_relationship_id\\\":\\\"bar\\\"},\\\"notification\\\":{\\\"android_channel_id\\\":\\\"transactions\\\",\\\"body\\\":\\\"This is a notification message\\\",\\\"color\\\":\\\"#ffffff\\\",\\\"title\\\":\\\"This is a notification title\\\"}}\",\"default\":\"This is a notification message\"}",
         );
     }
 }

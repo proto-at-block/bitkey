@@ -14,7 +14,7 @@ use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::{LookupSpan, SpanRef};
 
-use crate::APP_INSTALLATION_ID_BAGGAGE_KEY;
+use crate::baggage_keys::{ACCOUNT_ID, APP_INSTALLATION_ID, HARDWARE_SERIAL_NUMBER};
 
 /// Custom Json formatter written based off of discussion in
 /// https://github.com/tokio-rs/tracing/issues/1531
@@ -92,9 +92,17 @@ where
                 if let Some(trace_info) = lookup_trace_info(span_ref) {
                     serializer.serialize_entry("span_id", &trace_info.span_id)?;
                     serializer.serialize_entry("trace_id", &trace_info.trace_id)?;
-                    if let Some(app_installation_id) = trace_info.app_installation_id {
-                        serializer
-                            .serialize_entry("usr.app_installation_id", &app_installation_id)?;
+                    for (key, value) in [
+                        ("usr.app_installation_id", trace_info.app_installation_id),
+                        ("usr.account_id", trace_info.account_id),
+                        (
+                            "usr.hardware_serial_number",
+                            trace_info.hardware_serial_number,
+                        ),
+                    ] {
+                        if let Some(value) = value {
+                            serializer.serialize_entry(key, &value)?;
+                        }
                     }
                     // Duplicate trace_id to dd.trace_id as that is Datadog's canonical field name.
                     let mut map = Map::new();
@@ -115,6 +123,8 @@ struct TraceInfo {
     pub trace_id: String,
     pub span_id: String,
     pub app_installation_id: Option<String>,
+    pub account_id: Option<String>,
+    pub hardware_serial_number: Option<String>,
 }
 
 fn lookup_trace_info<S>(span_ref: &SpanRef<S>) -> Option<TraceInfo>
@@ -129,11 +139,10 @@ where
             .trace_id
             .unwrap_or_else(|| o.parent_cx.span().span_context().trace_id());
         let span_id = o.builder.span_id.unwrap_or(SpanId::INVALID);
-        let app_installation_id = o
-            .parent_cx
-            .baggage()
-            .get(APP_INSTALLATION_ID_BAGGAGE_KEY)
-            .map(|a| a.to_string());
+        let baggage = o.parent_cx.baggage();
+        let app_installation_id = baggage.get(APP_INSTALLATION_ID).map(ToString::to_string);
+        let account_id = baggage.get(ACCOUNT_ID).map(ToString::to_string);
+        let hardware_serial_number = baggage.get(HARDWARE_SERIAL_NUMBER).map(ToString::to_string);
 
         TraceInfo {
             // OpenTelemetry TraceId and SpanId properties differ from Datadog conventions.
@@ -146,6 +155,8 @@ where
             trace_id: (u128::from_be_bytes(trace_id.to_bytes()) as u64).to_string(),
             span_id: u64::from_be_bytes(span_id.to_bytes()).to_string(),
             app_installation_id,
+            account_id,
+            hardware_serial_number,
         }
     })
 }
@@ -239,7 +250,7 @@ mod test {
 
     fn test_json<T>(
         expected: &str,
-        builder: tracing_subscriber::fmt::SubscriberBuilder<JsonFields, JsonTraceIdFormat>,
+        builder: SubscriberBuilder<JsonFields, JsonTraceIdFormat>,
         producer: impl FnOnce() -> T,
     ) {
         let make_writer = MockMakeWriter::default();
@@ -258,7 +269,6 @@ mod test {
 
         let buf = make_writer.buf();
         let actual = std::str::from_utf8(&buf[..]).unwrap();
-        println!("{}", actual);
         let mut expected =
             serde_json::from_str::<std::collections::BTreeMap<&str, serde_json::Value>>(expected)
                 .unwrap();

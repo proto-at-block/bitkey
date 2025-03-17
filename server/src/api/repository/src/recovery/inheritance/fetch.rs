@@ -10,16 +10,21 @@ use database::{
 };
 use serde::Serialize;
 use tracing::{event, instrument, Level};
-use types::recovery::{
-    inheritance::{
-        claim::{InheritanceClaim, InheritanceClaimId},
-        package::{Package, ToPackagePk},
+use types::{
+    account::identifiers::AccountId,
+    recovery::{
+        inheritance::{
+            claim::{InheritanceClaim, InheritanceClaimId, InheritanceRole},
+            package::{Package, ToPackagePk},
+        },
+        social::relationship::RecoveryRelationshipId,
     },
-    social::relationship::RecoveryRelationshipId,
 };
 
 use super::{
-    InheritanceRepository, InheritanceRow, PARTITION_KEY, RECOVERY_RELATIONSHIP_ID_IDX,
+    InheritanceRepository, InheritanceRow, BENEFACTOR_ACCOUNT_ID_IDX,
+    BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY, BENEFICIARY_ACCOUNT_ID_IDX,
+    BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY, PARTITION_KEY, RECOVERY_RELATIONSHIP_ID_IDX,
     RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY,
 };
 
@@ -246,5 +251,70 @@ impl InheritanceRepository {
         }
 
         Ok(payload_rows)
+    }
+
+    pub async fn fetch_claims_for_account_id_and_role(
+        &self,
+        account_id: &AccountId,
+        role: InheritanceRole,
+    ) -> Result<Vec<InheritanceClaim>, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let (index_name, partition_key) = match role {
+            InheritanceRole::Beneficiary => (
+                BENEFICIARY_ACCOUNT_ID_IDX,
+                BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY,
+            ),
+            InheritanceRole::Benefactor => (
+                BENEFACTOR_ACCOUNT_ID_IDX,
+                BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY,
+            ),
+        };
+        let account_id_attr: AttributeValue =
+            try_to_attribute_val(account_id.to_string(), self.get_database_object())?;
+
+        let mut exclusive_start_key = None;
+        let mut results = Vec::new();
+
+        loop {
+            let item_output = self
+                .connection
+                .client
+                .query()
+                .table_name(table_name.clone())
+                .index_name(index_name)
+                .set_exclusive_start_key(exclusive_start_key)
+                .key_condition_expression(
+                    format!("{} = :{}", partition_key, partition_key)
+                )
+                .expression_attribute_values(format!(":{}", partition_key), account_id_attr.clone())
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not fetch inheritance claims for account id: {} and role: {:?} with err: {service_err:?} and message: {:?}",
+                        account_id,
+                        role,
+                        service_err.message(),
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            results.append(&mut try_from_items(
+                item_output.items().to_owned(),
+                database_object,
+            )?);
+
+            if let Some(last_evaluated_key) = item_output.last_evaluated_key() {
+                exclusive_start_key = Some(last_evaluated_key.to_owned());
+            } else {
+                break;
+            }
+        }
+
+        Ok(results)
     }
 }

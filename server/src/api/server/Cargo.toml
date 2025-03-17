@@ -18,6 +18,7 @@ axum-tracing-opentelemetry = { workspace = true }
 clap = { version = "4.5.2", features = ["derive", "env"] }
 hex = { workspace = true }
 http = { workspace = true }
+http-body-util = "0.1.0"
 isocountry = { workspace = true }
 jwt-authorizer = { workspace = true }
 prost = { workspace = true }
@@ -56,6 +57,7 @@ migration = { workspace = true }
 mobile_pay = { workspace = true }
 notification = { workspace = true }
 onboarding = { workspace = true }
+opentelemetry = { workspace = true }
 partnerships = { workspace = true, optional = true }
 privileged_action = { workspace = true }
 promotion_code = { workspace = true }
@@ -80,13 +82,13 @@ base64 = { workspace = true }
 bdk_utils = { workspace = true }
 crypto = { workspace = true, features = ["noise", "ssb"] }
 env_logger = "0.11.3"
-http-body-util = "0.1.0"
 httpmock = "0.7"
 launchdarkly-server-sdk = { workspace = true }
 mockall = { workspace = true }
 once_cell = { workspace = true }
 regex = { version = "1.10.6", features = [] }
 rstest = { workspace = true }
+tower = { workspace = true, features = ["util"] }
 
 [features]
 partnerships = ["dep:partnerships"]

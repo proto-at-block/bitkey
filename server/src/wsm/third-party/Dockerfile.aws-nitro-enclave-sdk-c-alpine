@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.10
-FROM rust:1.80.1-alpine@sha256:1f5aff501e02c1384ec61bb47f89e3eebf60e287e6ed5d1c598077afc82e83d5 as builder
+FROM rust:1.80.1-alpine@sha256:1f5aff501e02c1384ec61bb47f89e3eebf60e287e6ed5d1c598077afc82e83d5 AS builder
 
 RUN apk add --no-cache \
     cmake \
@@ -109,13 +109,13 @@ RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B b
 RUN cmake --build build --target install
 
 # Test
-FROM builder as test
+FROM builder AS test
 RUN cmake --build build --target test
 
 WORKDIR ${REALWORKDIR}
 
 # kmstool-enclave
-FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5 as kmstool-enclave
+FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5 AS kmstool-enclave
 COPY --from=builder /usr/bin/kmstool_enclave /kmstool_enclave
 ARG REGION
 ARG ENDPOINT
@@ -124,10 +124,10 @@ ENV ENDPOINT=${ENDPOINT}
 CMD ["/kmstool_enclave"]
 
 # kmstool-instance
-FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5  as kmstool-instance
+FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5  AS kmstool-instance
 COPY --from=builder /usr/bin/kmstool_instance /kmstool_instance
 CMD ["/kmstool_instance"]
 
 # kmstool-enclave-cli
-FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5  as kmstool-enclave-cli
+FROM alpine:3.20.2@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5  AS kmstool-enclave-cli
 COPY --from=builder /usr/bin/kmstool_enclave_cli /kmstool_enclave_cli

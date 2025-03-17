@@ -1,12 +1,13 @@
 import Foundation
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class HkdfImplTests: XCTestCase {
+struct HkdfImplTests {
 
-    func test_rfc_vector_1() throws {
+    @Test
+    func rfc_vector_1() throws {
         let hkdf = HkdfImpl()
         let ikm = OkioByteString.Companion.shared
             .decodeHex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b")
@@ -21,10 +22,11 @@ class HkdfImplTests: XCTestCase {
                 "34007208d5b887185865"
         )
 
-        XCTAssertEqual(expected, okm.raw)
+        #expect(expected == okm.raw)
     }
 
-    func test_rfc_vector_2() throws {
+    @Test
+    func rfc_vector_2() throws {
         let hkdf = HkdfImpl()
         let ikm = OkioByteString.Companion.shared.decodeHex(
             "000102030405060708090a0b0c0d0e0f" +
@@ -59,10 +61,11 @@ class HkdfImplTests: XCTestCase {
                 "1d87"
         )
 
-        XCTAssertEqual(expected, okm.raw)
+        #expect(expected == okm.raw)
     }
 
-    func test_rfc_vector_3() throws {
+    @Test
+    func rfc_vector_3() throws {
         let hkdf = HkdfImpl()
         let ikm = OkioByteString.Companion.shared
             .decodeHex("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b")
@@ -76,6 +79,6 @@ class HkdfImplTests: XCTestCase {
                 "9d201395faa4b61a96c8"
         )
 
-        XCTAssertEqual(expected, okm.raw)
+        #expect(expected == okm.raw)
     }
 }

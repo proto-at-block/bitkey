@@ -1,20 +1,16 @@
 use axum::extract::Request;
-use axum::http::{HeaderMap, StatusCode};
-use axum::middleware::Next;
 use axum::{body::Body, extract::MatchedPath, response::Response};
 use futures_util::future::BoxFuture;
-use opentelemetry::baggage::BaggageExt;
-use opentelemetry::trace::FutureExt;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Instant;
 use tower::{Layer, Service};
-use wallet_telemetry::APP_INSTALLATION_ID_BAGGAGE_KEY;
 
 use crate::metrics::factory::{Counter, Histogram, UpDownCounter};
 use crate::metrics::KeyValue;
 
 pub const APP_INSTALLATION_ID_HEADER_NAME: &str = "Bitkey-App-Installation-ID";
+pub const HARDWARE_SERIAL_HEADER_NAME: &str = "Bitkey-Hardware-Serial";
 
 const METHOD_KEY: &str = "method";
 const PATH_KEY: &str = "path";
@@ -191,27 +187,4 @@ where
             Ok(response)
         })
     }
-}
-
-pub async fn request_baggage(
-    headers: HeaderMap,
-    request: Request,
-    next: Next,
-) -> Result<Response, StatusCode> {
-    if let Some(app_installation_id) = headers.get(APP_INSTALLATION_ID_HEADER_NAME) {
-        if let Ok(app_installation_id) = app_installation_id.to_str() {
-            let context = opentelemetry::Context::current_with_baggage(vec![KeyValue::new(
-                APP_INSTALLATION_ID_BAGGAGE_KEY,
-                app_installation_id.to_string(),
-            )]);
-            return Ok(next.run(request).with_context(context).await);
-        } else {
-            tracing::warn!(
-                "Failed to decode app installation id header {:?}",
-                app_installation_id
-            );
-        }
-    }
-
-    Ok(next.run(request).await)
 }

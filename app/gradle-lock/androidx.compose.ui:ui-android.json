@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-android",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.7.5",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-release.aar": "eeac31d7b43451eeb8fba4872c36eeadc7ba1067a3ad527b7ce19fe2c3fde2db"
+                        "ui-release.aar": "e426c90ac12878cce1d1d21591cd07e91c4697955a87cea9d72ba3f13703fd39"
                     }
                 }
             ],

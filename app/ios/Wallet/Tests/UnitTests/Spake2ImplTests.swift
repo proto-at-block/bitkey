@@ -1,13 +1,14 @@
 import Foundation
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class Spake2ImplTests: XCTestCase {
+struct Spake2ImplTests {
     let spake2 = Spake2Impl()
 
-    func test_goodRoundTripNoConfirmation() throws {
+    @Test
+    func goodRoundTripNoConfirmation() throws {
         let (aliceKeys, bobKeys) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("password"),
             bobPassword: OkioByteString.companion.encodeUtf8("password")
@@ -16,7 +17,8 @@ class Spake2ImplTests: XCTestCase {
         assertKeysMatch(aliceKeys: aliceKeys, bobKeys: bobKeys, shouldMatch: true)
     }
 
-    func test_bobWrongPasswordNoConfirmation() throws {
+    @Test
+    func bobWrongPasswordNoConfirmation() throws {
         let (aliceKeys, bobKeys) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("password"),
             bobPassword: OkioByteString.companion.encodeUtf8("passworf")
@@ -25,7 +27,8 @@ class Spake2ImplTests: XCTestCase {
         assertKeysMatch(aliceKeys: aliceKeys, bobKeys: bobKeys, shouldMatch: false)
     }
 
-    func test_aliceWrongPasswordNoConfirmation() throws {
+    @Test
+    func aliceWrongPasswordNoConfirmation() throws {
         let (aliceKeys, bobKeys) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("passworf"),
             bobPassword: OkioByteString.companion.encodeUtf8("password")
@@ -34,7 +37,8 @@ class Spake2ImplTests: XCTestCase {
         assertKeysMatch(aliceKeys: aliceKeys, bobKeys: bobKeys, shouldMatch: false)
     }
 
-    func test_goodRoundTripWithConfirmation() throws {
+    @Test
+    func goodRoundTripWithConfirmation() throws {
         let (aliceKeys, bobKeys) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("password"),
             bobPassword: OkioByteString.companion.encodeUtf8("password")
@@ -57,7 +61,8 @@ class Spake2ImplTests: XCTestCase {
         )
     }
 
-    func test_wrongPasswordWithConfirmation() throws {
+    @Test
+    func wrongPasswordWithConfirmation() throws {
         let (aliceKeys, bobKeys) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("password"),
             bobPassword: OkioByteString.companion.encodeUtf8("passworf")
@@ -68,19 +73,24 @@ class Spake2ImplTests: XCTestCase {
         let aliceKeyConfMsg = try spake2.generateKeyConfMsg(role: Spake2Role.alice, keys: aliceKeys)
         let bobKeyConfMsg = try spake2.generateKeyConfMsg(role: Spake2Role.bob, keys: bobKeys)
 
-        XCTAssertThrowsError(try spake2.processKeyConfMsg(
-            role: Spake2Role.alice,
-            receivedKeyConfMsg: bobKeyConfMsg,
-            keys: aliceKeys
-        ))
-        XCTAssertThrowsError(try spake2.processKeyConfMsg(
-            role: Spake2Role.bob,
-            receivedKeyConfMsg: aliceKeyConfMsg,
-            keys: bobKeys
-        ))
+        #expect(throws: (any Error).self) {
+            try spake2.processKeyConfMsg(
+                role: Spake2Role.alice,
+                receivedKeyConfMsg: bobKeyConfMsg,
+                keys: aliceKeys
+            )
+        }
+        #expect(throws: (any Error).self) {
+            try spake2.processKeyConfMsg(
+                role: Spake2Role.bob,
+                receivedKeyConfMsg: aliceKeyConfMsg,
+                keys: bobKeys
+            )
+        }
     }
 
-    func test_samePasswordDifferentKeys() throws {
+    @Test
+    func samePasswordDifferentKeys() throws {
         let (aliceKeysFirst, bobKeysFirst) = try performKeyExchange(
             alicePassword: OkioByteString.companion.encodeUtf8("password"),
             bobPassword: OkioByteString.companion.encodeUtf8("password")
@@ -97,22 +107,22 @@ class Spake2ImplTests: XCTestCase {
         var result: Bool
 
         result = aliceKeysFirst.aliceEncryptionKey != aliceKeysSecond.aliceEncryptionKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = aliceKeysFirst.bobEncryptionKey != aliceKeysSecond.bobEncryptionKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = aliceKeysFirst.aliceConfKey != aliceKeysSecond.aliceConfKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = aliceKeysFirst.bobConfKey != aliceKeysSecond.bobConfKey
-        XCTAssertTrue(result)
+        #expect(result)
 
         result = bobKeysFirst.aliceEncryptionKey != bobKeysSecond.aliceEncryptionKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = bobKeysFirst.bobEncryptionKey != bobKeysSecond.bobEncryptionKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = bobKeysFirst.aliceConfKey != bobKeysSecond.aliceConfKey
-        XCTAssertTrue(result)
+        #expect(result)
         result = bobKeysFirst.bobConfKey != bobKeysSecond.bobConfKey
-        XCTAssertTrue(result)
+        #expect(result)
     }
 
     func performKeyExchange(
@@ -159,12 +169,12 @@ class Spake2ImplTests: XCTestCase {
         var result: Bool
 
         result = aliceKeys.aliceEncryptionKey == bobKeys.aliceEncryptionKey
-        XCTAssertEqual(shouldMatch, result)
+        #expect(result == shouldMatch)
         result = aliceKeys.bobEncryptionKey == bobKeys.bobEncryptionKey
-        XCTAssertEqual(shouldMatch, result)
+        #expect(result == shouldMatch)
         result = aliceKeys.aliceConfKey == bobKeys.aliceConfKey
-        XCTAssertEqual(shouldMatch, result)
+        #expect(result == shouldMatch)
         result = aliceKeys.bobConfKey == bobKeys.bobConfKey
-        XCTAssertEqual(shouldMatch, result)
+        #expect(result == shouldMatch)
     }
 }

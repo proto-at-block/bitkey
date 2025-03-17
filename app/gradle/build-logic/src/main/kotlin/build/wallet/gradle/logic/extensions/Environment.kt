@@ -28,3 +28,18 @@ internal fun ProviderFactory.exec(vararg command: String): Provider<String> {
     commandLine(*command)
   }.standardOutput.asText.map { it.trim() }
 }
+
+/**
+ * Checks if this Gradle run is producing Release artifacts.
+ */
+fun Project.isBuildingReleaseArtifact(): Boolean {
+  // Android Release builds are defined as Customer and Team
+  // and this is the only way to actually build them.
+  val targetBuildTasks = setOf("assemblecustomer", "assembleteam")
+  val isCustomerOrTeamBuild = gradle.startParameter.taskNames.any {
+    targetBuildTasks.contains(it.lowercase())
+  }
+  // For iOS, Xcode will set the Configuration variable to match the build type
+  val isXcodeRelease = System.getenv("CONFIGURATION") == "Release"
+  return isCustomerOrTeamBuild || isXcodeRelease
+}

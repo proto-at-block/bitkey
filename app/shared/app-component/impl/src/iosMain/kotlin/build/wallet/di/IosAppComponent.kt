@@ -1,16 +1,16 @@
 package build.wallet.di
 
+import bitkey.bugsnag.BugsnagContext
+import bitkey.datadog.DatadogRumMonitor
+import bitkey.datadog.DatadogTracer
 import build.wallet.analytics.events.EventTracker
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.descriptor.FrostWalletDescriptorFactory
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
-import build.wallet.bugsnag.BugsnagContext
 import build.wallet.cloud.store.CloudFileStore
 import build.wallet.crypto.NoiseInitiator
 import build.wallet.crypto.Spake2
 import build.wallet.crypto.WsmVerifier
-import build.wallet.datadog.DatadogRumMonitor
-import build.wallet.datadog.DatadogTracer
 import build.wallet.encrypt.*
 import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation

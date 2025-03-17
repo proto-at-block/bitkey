@@ -19,7 +19,8 @@ class SampleActivity : ComponentActivity() {
       App(
         model = screenModel,
         deviceInfo = sampleAppComponent.deviceInfoProvider.getDeviceInfo(),
-        accelerometer = null
+        accelerometer = null,
+        themePreferenceService = null
       )
     }
   }

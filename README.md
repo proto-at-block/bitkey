@@ -6,21 +6,21 @@ For more information about our release of Bitkey's code, read [our blog post on 
 
 ## Repository Structure
 
-Each directory in our repository is a seperate project— each with its own build and often in its own language(s) / platform(s).
+Each directory in our repository is a separate project— each with its own build and often in its own language(s) / platform(s).
 
-| Directory                                      | Description                                                           |
-| ---------------------------------------------- | --------------------------------------------------------------------- |
-| [`app/android`](app/android)                   | Android mobile app                                                    |
-| [`app/rust`](app/core)                         | Key and wallet management                                             |
-| [`app/ios`](app/ios)                           | iOS mobile app                                                        |
-| [`app/shared`](app/shared)                     | Kotlin Multiplatform code shared between Android and iOS              |
-| [`app/style`](app/style)                       | Style Dictionary (shared)                                             |
-| [`app`](app)                                   | Our mobile application's project root                                 |
-| [`core`](core)                                 | Shared rust libraries                                                 |
-| [`firmware`](firmware)                         | Code that powers the Bitkey hardware device                           |
-| [`nodes`](nodes)                               | Nodes (bitcoind / electrum) and service                               |
-| [`server`](server)                             | API Server and Wallet Security Module (WSM)                           |
-| [`terraform`](terraform)                       | Our Infrastructure as Code                                            |
+| Directory                    | Description                                                           |
+|------------------------------| --------------------------------------------------------------------- |
+| [`app/android`](app/android) | Android mobile app                                                    |
+| [`app/rust`](app/rust)       | Key and wallet management                                             |
+| [`app/ios`](app/ios)         | iOS mobile app                                                        |
+| [`app/shared`](app/shared)   | Kotlin Multiplatform code shared between Android and iOS              |
+| [`app/style`](app/style)     | Style Dictionary (shared)                                             |
+| [`app`](app)                 | Our mobile application's project root                                 |
+| [`core`](core)               | Shared rust libraries                                                 |
+| [`firmware`](firmware)       | Code that powers the Bitkey hardware device                           |
+| [`nodes`](nodes)             | Nodes (bitcoind / electrum) and service                               |
+| [`server`](server)           | API Server and Wallet Security Module (WSM)                           |
+| [`terraform`](terraform)     | Our Infrastructure as Code                                            |
 
 ## Building
 

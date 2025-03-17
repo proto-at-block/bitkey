@@ -195,16 +195,16 @@ pub struct InheritanceClaimLocked {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum InheritanceClaimCanceledBy {
+pub enum InheritanceRole {
     Benefactor,
     Beneficiary,
 }
 
-impl From<InheritanceClaimCanceledBy> for RecoveryRelationshipRole {
-    fn from(canceled_by: InheritanceClaimCanceledBy) -> Self {
+impl From<InheritanceRole> for RecoveryRelationshipRole {
+    fn from(canceled_by: InheritanceRole) -> Self {
         match canceled_by {
-            InheritanceClaimCanceledBy::Benefactor => RecoveryRelationshipRole::ProtectedCustomer,
-            InheritanceClaimCanceledBy::Beneficiary => RecoveryRelationshipRole::TrustedContact,
+            InheritanceRole::Benefactor => RecoveryRelationshipRole::ProtectedCustomer,
+            InheritanceRole::Beneficiary => RecoveryRelationshipRole::TrustedContact,
         }
     }
 }
@@ -213,7 +213,7 @@ impl From<InheritanceClaimCanceledBy> for RecoveryRelationshipRole {
 pub struct InheritanceClaimCanceled {
     #[serde(flatten)]
     pub common_fields: InheritanceClaimCommonFields,
-    pub canceled_by: InheritanceClaimCanceledBy,
+    pub canceled_by: InheritanceRole,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]

@@ -5,7 +5,11 @@ import { DatadogProvider } from "@cdktf/provider-datadog/lib/provider";
 import { FromagerieMonitors } from "./monitors/server";
 import { WsmApiMonitors } from "./monitors/wsm";
 import { AnalyticsMonitors } from "./monitors/analytics";
+import { CustomerFeedbackMonitors } from "./monitors/customerFeedback";
 import { Environment } from "./monitors/common/environments";
+import { InheritanceMonitors } from "./monitors/inheritance";
+import { RecoveryRelationshipMonitors } from "./monitors/recoveryRelationship";
+import { PromotionCodeMonitors } from "./monitors/promotionCode";
 import { PartnershipsMonitors } from "./monitors/partnerships";
 import { ShopApiMonitors } from "./monitors/web/shop-api";
 import { ShopApiOrderUpdateJobMonitors } from "./monitors/web/shop-api-order-update-job";
@@ -41,6 +45,15 @@ class MonitorsStack extends TerraformStack {
     new RecoveryMonitors(this, Environment.STAGING)
     new RecoveryMonitors(this, Environment.PRODUCTION)
 
+    new RecoveryRelationshipMonitors(this, Environment.STAGING)
+    new RecoveryRelationshipMonitors(this, Environment.PRODUCTION)
+
+    new PromotionCodeMonitors(this, Environment.STAGING)
+    new PromotionCodeMonitors(this, Environment.PRODUCTION)
+
+    new InheritanceMonitors(this, Environment.STAGING)
+    new InheritanceMonitors(this, Environment.PRODUCTION)
+
     new MoneyMovementMonitors(this, Environment.STAGING)
     new MoneyMovementMonitors(this, Environment.PRODUCTION)
 
@@ -64,6 +77,9 @@ class MonitorsStack extends TerraformStack {
 
     new WorkerMonitors(this, Environment.STAGING)
     new WorkerMonitors(this, Environment.PRODUCTION)
+
+    new CustomerFeedbackMonitors(this, Environment.STAGING)
+    new CustomerFeedbackMonitors(this, Environment.PRODUCTION)
   }
 }
 

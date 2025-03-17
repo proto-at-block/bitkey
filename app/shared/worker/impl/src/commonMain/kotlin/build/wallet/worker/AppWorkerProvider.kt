@@ -1,5 +1,6 @@
 package build.wallet.worker
 
+import bitkey.metrics.MetricTrackerTimeoutPoller
 import build.wallet.activity.TransactionsActivitySyncWorker
 import build.wallet.analytics.events.AnalyticsEventPeriodicProcessor
 import build.wallet.analytics.events.EventTracker
@@ -63,6 +64,7 @@ class AppWorkerProviderImpl(
   private val electrumConfigSyncWorker: ElectrumServerConfigSyncWorker,
   private val partnershipTransactionsSyncWorker: PartnershipTransactionsSyncWorker,
   private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
+  private val metricTrackerTimeoutPoller: MetricTrackerTimeoutPoller,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -88,7 +90,8 @@ class AppWorkerProviderImpl(
       transactionsActivitySyncWorker,
       electrumConfigSyncWorker,
       partnershipTransactionsSyncWorker,
-      socRecCloudBackupSyncWorker
+      socRecCloudBackupSyncWorker,
+      metricTrackerTimeoutPoller
     )
   }
 }

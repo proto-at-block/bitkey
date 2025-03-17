@@ -1,20 +1,20 @@
 import core
 import CryptoKit
 import Shared
-import XCTest
+import Testing
 
 @testable import Wallet
 
-class NoiseIosTests: XCTestCase {
+struct NoiseIosTests {
 
-    var se: SecureEnclaveImpl!
+    var se: SecureEnclaveImpl
 
-    override func setUp() {
-        super.setUp()
+    init() {
         se = SecureEnclaveImpl()
     }
 
-    func testNoise() throws {
+    @Test
+    func noise() throws {
         // Generate the client key pair
         let clientKeyPair = try se.generateP256KeyPair(
             spec: SeKeySpec(
@@ -58,7 +58,7 @@ class NoiseIosTests: XCTestCase {
         // Perform Noise handshake
         let c2s = try clientNoiseContext.initiateHandshake()
         let s2c = try serverNoiseContext.advanceHandshake(peerHandshakeMessage: c2s)
-        let _ = try clientNoiseContext.advanceHandshake(peerHandshakeMessage: s2c!)
+        _ = try clientNoiseContext.advanceHandshake(peerHandshakeMessage: s2c!)
 
         // Finalize the handshake
         try clientNoiseContext.finalizeHandshake()
@@ -71,11 +71,11 @@ class NoiseIosTests: XCTestCase {
         let encryptedClientMessage = try clientNoiseContext.encryptMessage(message: clientMessage)
         let decryptedClientMessage = try serverNoiseContext
             .decryptMessage(ciphertext: encryptedClientMessage)
-        XCTAssertEqual(clientMessage, decryptedClientMessage)
+        #expect(clientMessage == decryptedClientMessage)
 
         let encryptedServerMessage = try serverNoiseContext.encryptMessage(message: serverMessage)
         let decryptedServerMessage = try clientNoiseContext
             .decryptMessage(ciphertext: encryptedServerMessage)
-        XCTAssertEqual(serverMessage, decryptedServerMessage)
+        #expect(serverMessage == decryptedServerMessage)
     }
 }

@@ -44,28 +44,34 @@ fun TestConfiguration.paparazziExtension(
   showSystemUi: Boolean = false,
   maxPercentDifference: Double = defaultMaxPercentDifference,
   rtl: Boolean = false,
+  newStoragePath: Boolean = false,
 ): PaparazziExtension {
   // Name of the spec without "Snapshots" postfix.
   val componentName = requireNotNull(this::class.simpleName).removeSuffix("Snapshots")
+  val baseStoragePath = if (newStoragePath) {
+    // cwd = app/android/app/ui/public
+    "../../../../ui/features/public/snapshots"
+  } else {
+    "src/test/snapshots/$componentName"
+  }
   val paparazzi = Paparazzi(
     deviceConfig = deviceConfig.copy(
       layoutDirection = if (rtl) LayoutDirection.RTL else LayoutDirection.LTR
     ),
     renderingMode = renderingMode,
     showSystemUi = showSystemUi,
-    snapshotHandler = determineHandler(componentName, maxPercentDifference),
+    snapshotHandler = determineHandler(maxPercentDifference, File(baseStoragePath)),
     environment = detectEnvironment().copy(compileSdkVersion = 34),
     supportsRtl = rtl
   )
-  return extension(PaparazziExtension(paparazzi = paparazzi))
+  return extension(PaparazziExtension(paparazzi = paparazzi, newStoragePath = newStoragePath))
 }
 
 // Copied from Paparazzi's internals, except for custom directory path.
 private fun determineHandler(
-  componentName: String,
   maxPercentDifference: Double,
+  rootDirectory: File,
 ): SnapshotHandler {
-  val rootDirectory = File("src/test/snapshots/$componentName")
   return if (isVerifying) {
     SnapshotVerifier(maxPercentDifference, rootDirectory = rootDirectory)
   } else {

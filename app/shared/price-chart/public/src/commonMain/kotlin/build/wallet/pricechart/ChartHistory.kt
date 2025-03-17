@@ -1,6 +1,6 @@
 package build.wallet.pricechart
 
-import bitkey.shared.ui_core_public.generated.resources.*
+import bitkey.ui.framework_public.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days

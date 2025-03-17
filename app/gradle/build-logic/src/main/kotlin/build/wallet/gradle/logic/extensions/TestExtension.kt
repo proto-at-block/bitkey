@@ -49,7 +49,6 @@ open class TestExtension
           testImplementation(libs.jvm.test.kotest.junit)
           testImplementation(libs.kmp.kotlin.reflection)
           testImplementation(libs.kmp.test.kotest.assertions)
-          testImplementation(libs.kmp.test.kotest.framework.api)
           testImplementation(libs.kmp.test.kotest.framework.engine)
         }
       }

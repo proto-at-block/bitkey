@@ -1,6 +1,6 @@
 package build.wallet.testing.ext
 
-import build.wallet.auth.AuthTokenScope
+import bitkey.auth.AuthTokenScope
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.crypto.PublicKey
@@ -53,11 +53,9 @@ suspend fun AppTester.startAndCompleteFingerprintEnrolment(
 ): FingerprintEnrolled {
   // Start fingerprint enrollment, which is just a pairing attempt before fingerprint enrollment
   pairingTransactionProvider(
-    networkType = initialBitcoinNetworkType,
     appGlobalAuthPublicKey = appAuthKey,
     onSuccess = {},
-    onCancel = {},
-    isHardwareFake = true
+    onCancel = {}
   ).let { transaction ->
     nfcTransactor.fakeTransact(
       transaction = transaction::session
@@ -66,11 +64,9 @@ suspend fun AppTester.startAndCompleteFingerprintEnrolment(
 
   // Generate hardware keys
   return pairingTransactionProvider(
-    networkType = initialBitcoinNetworkType,
     appGlobalAuthPublicKey = appAuthKey,
     onSuccess = {},
-    onCancel = {},
-    isHardwareFake = true
+    onCancel = {}
   ).let { transaction ->
     nfcTransactor.fakeTransact(
       transaction = transaction::session

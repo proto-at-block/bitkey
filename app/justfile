@@ -1,6 +1,5 @@
 gradle := "../bin/gradle"
 gradle_android := "../bin/gradle --project-dir android"
-gradle_shared := "../bin/gradle --project-dir shared"
 gradle_sample_app := "../bin/gradle --project-dir sample"
 xcode_clt_path := "/Library/Developer/CommandLineTools"
 
@@ -31,19 +30,6 @@ create-beta-branch version-number:
   git tag --annotate {{version-number}} --message {{version-number}}
   git checkout -b release/{{version-number}}
 
-# Build and run CLI app
-cli:
-  just cli-build
-  just cli-run
-
-# Build CLI app
-cli-build:
-  {{gradle}} jar -p shared/cli
-
-# Run CLI app
-cli-run:
-  java -jar shared/cli/_build/libs/cli-jvm.jar
-
 # Builds and installs debug flavor of the Android app
 android-app-install:
   {{gradle}} installDebug -p android/app
@@ -58,11 +44,11 @@ android-app-uninstall:
 
 # Verify SqlDelight schemas and migrations
 test-unit-database:
-  {{gradle_shared}} verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck
+  {{gradle}} verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck
 
 # Run unit tests targeting JVM
 test-unit-jvm:
-  {{gradle_shared}} jvmTest
+  {{gradle}} jvmTest
   {{gradle_sample_app}} jvmTest
 
 # Run unit tests on host machine targeting Android (with platform stubs)
@@ -71,15 +57,15 @@ test-unit-android-host:
 
 # Run unit tests on iOS simulator
 test-unit-ios-simulator:
-  {{gradle_shared}} iosTest
+  {{gradle}} iosTest
 
 # Run integration tests targeting JVM
 test-integration-jvm:
-  {{gradle_shared}} cleanJvmIntegrationTest jvmIntegrationTest
+  {{gradle}} cleanJvmIntegrationTest jvmIntegrationTest
 
 # Run integration tests targeting all platforms - currently only JVM is supported
 test-integration-all:
-  {{gradle_shared}} cleanJvmIntegrationTest jvmIntegrationTest
+  {{gradle}} cleanJvmIntegrationTest jvmIntegrationTest
 
 # Run unit tests targeting all platforms
 test-unit-all:
@@ -105,7 +91,7 @@ ios-snapshots-verify:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.2'
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -114,25 +100,27 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.5'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.2'
 
 [private]
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
   # Check for the specific iOS simulator runtime
-  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-17-2' && echo true || echo false)
+  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-2' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 17.5 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS 18.2 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 17.5 --/{flag=1;next}/--/{flag=0}flag')
-  device=$(echo "$devices" | grep -E 'iPhone 15 Pro Max \(.*\)' && echo true || echo false)
+  devices=$(xcrun simctl list devices | awk '/-- iOS 18.2 --/{flag=1;next}/--/{flag=0}flag')
+  device=$(echo "$devices" | grep -E 'iPhone 16 Pro Max \(.*\)' && echo true || echo false)
   if [ "$device" == "false" ]; then
-    echo "You must install the iPhone 15 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iPhone 16 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
+  # Generate Swift Snapshot test cases before generating xcode project
+  {{gradle}} :ui:features:kspKotlinIosSimulatorArm64 --rerun
   just xcodegen
 
 # Configure and onboard local environment:
@@ -213,7 +201,7 @@ detekt-android:
 
 # Run Detekt code analysis on all KMP code
 detekt-kmp:
-  {{gradle_shared}} detektAll --continue
+  {{gradle}} detektAll --continue
 
 # Run Ktlint, reformat code when possible, fail on violations.
 ktlint-format:

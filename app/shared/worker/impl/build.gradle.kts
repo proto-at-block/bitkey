@@ -11,21 +11,22 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.shared.bitcoinPublic)
-        api(projects.shared.f8eClientPublic)
-        api(projects.shared.fwupPublic)
-        api(projects.shared.queueProcessorPublic)
-        api(projects.shared.recoveryPublic)
-        api(projects.shared.inheritancePublic)
-        api(projects.shared.relationshipsPublic)
+        api(projects.domain.bitcoinPublic)
+        api(projects.domain.fwupPublic)
+        api(projects.domain.inheritancePublic)
+        api(projects.domain.notificationsPublic)
+        api(projects.domain.metricsPublic)
+        api(projects.libs.queueProcessorPublic)
+        api(projects.domain.recoveryPublic)
+        api(projects.domain.relationshipsPublic)
 
-        implementation(projects.shared.loggingPublic)
+        implementation(projects.libs.loggingPublic)
       }
     }
 
     commonTest {
       dependencies {
-        implementation(projects.shared.testingPublic)
+        implementation(projects.libs.testingPublic)
         implementation(projects.shared.workerFake)
       }
     }

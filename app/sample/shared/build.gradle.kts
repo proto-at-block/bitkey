@@ -13,13 +13,13 @@ kotlin {
     commonMain {
       dependencies {
         api(compose.runtime)
-        api(projects.shared.stateMachineFrameworkPublic)
-        api(projects.shared.uiCorePublic)
+        api(projects.libs.stateMachinePublic)
+        api(projects.ui.frameworkPublic)
 
-        implementation(projects.shared.platformPublic)
-        implementation(projects.shared.timePublic)
-        implementation(projects.shared.uiCoreImpl)
-        implementation(projects.shared.platformImpl)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.libs.timePublic)
+        implementation(projects.ui.frameworkImpl)
+        implementation(projects.libs.platformImpl)
       }
     }
   }
