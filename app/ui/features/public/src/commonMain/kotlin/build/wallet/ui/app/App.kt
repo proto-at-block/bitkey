@@ -21,11 +21,9 @@ import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.ui.components.screen.*
 import build.wallet.ui.model.UiModelContentScreen
 import build.wallet.ui.theme.*
-import build.wallet.ui.theme.WalletTheme
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
-import kotlinx.coroutines.flow.emptyFlow
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
 
 /**
@@ -46,19 +44,16 @@ fun App(
     mutableStateOf(model.presentationStyle)
   }
 
-  val systemTheme = systemTheme()
-  val themePreference by remember {
-    themePreferenceService?.theme() ?: emptyFlow()
-  }.collectAsState(ThemePreference.System)
+  val currentSystemTheme = systemTheme()
 
-  val theme: Theme by remember(systemTheme) {
-    derivedStateOf {
-      when (val preference = (model.themePreference ?: themePreference)) {
-        is ThemePreference.Manual -> preference.value
-        is ThemePreference.System -> systemTheme
-      }
-    }
+  // Whenever the system theme changes, update our themePreferenceService
+  LaunchedEffect(currentSystemTheme) {
+    themePreferenceService?.setSystemTheme(currentSystemTheme)
   }
+
+  // Collect the theme from the service, defaulting to the system theme
+  val theme by themePreferenceService?.theme()?.collectAsState(initial = currentSystemTheme)
+    ?: remember { mutableStateOf(currentSystemTheme) }
 
   CompositionLocalProvider(
     LocalDeviceInfo provides deviceInfo,

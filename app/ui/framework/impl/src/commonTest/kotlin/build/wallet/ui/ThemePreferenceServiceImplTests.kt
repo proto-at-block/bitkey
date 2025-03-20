@@ -15,27 +15,31 @@ import io.kotest.matchers.shouldBe
 class ThemePreferenceServiceImplTests : FunSpec({
   lateinit var themePreferenceDao: ThemePreferenceDaoFake
   lateinit var darkModeFeatureFlag: DarkModeFeatureFlag
-  lateinit var service: ThemePreferenceServiceImpl
+
+  fun service() =
+    ThemePreferenceServiceImpl(
+      themePreferenceDao = themePreferenceDao,
+      darkModeFeatureFlag = darkModeFeatureFlag
+    )
 
   beforeTest {
     darkModeFeatureFlag = DarkModeFeatureFlag(
       featureFlagDao = FeatureFlagDaoMock()
     )
     themePreferenceDao = ThemePreferenceDaoFake()
-    service = ThemePreferenceServiceImpl(themePreferenceDao, darkModeFeatureFlag)
   }
 
   test("isThemePreferenceEnabled reflects the dark mode flag") {
     darkModeFeatureFlag.setFlagValue(true)
-    service.isThemePreferenceEnabled shouldBe true
+    service().isThemePreferenceEnabled shouldBe true
 
     darkModeFeatureFlag.setFlagValue(false)
-    service.isThemePreferenceEnabled shouldBe false
+    service().isThemePreferenceEnabled shouldBe false
   }
 
   test("theme() returns System when dark mode flag is enabled and DAO returns null") {
     darkModeFeatureFlag.setFlagValue(true)
-    service.theme().test {
+    service().themePreference().test {
       awaitItem() shouldBe ThemePreference.System
       cancelAndIgnoreRemainingEvents()
     }
@@ -45,7 +49,7 @@ class ThemePreferenceServiceImplTests : FunSpec({
     darkModeFeatureFlag.setFlagValue(true)
     themePreferenceDao.setThemePreference(ThemePreference.Manual(Theme.DARK))
 
-    service.theme().test {
+    service().themePreference().test {
       awaitItem() shouldBe ThemePreference.Manual(Theme.DARK)
       cancelAndIgnoreRemainingEvents()
     }
@@ -56,14 +60,14 @@ class ThemePreferenceServiceImplTests : FunSpec({
     // Even if the DAO has a dark theme, the service should return a light theme.
     themePreferenceDao.setThemePreference(ThemePreference.Manual(Theme.DARK))
 
-    service.theme().test {
+    service().themePreference().test {
       awaitItem() shouldBe ThemePreference.Manual(Theme.LIGHT)
       cancelAndIgnoreRemainingEvents()
     }
   }
 
   test("setThemePreference calls DAO.setThemePreference for Manual themes") {
-    val result = service.setThemePreference(ThemePreference.Manual(Theme.DARK))
+    val result = service().setThemePreference(ThemePreference.Manual(Theme.DARK))
     result shouldBe Ok(Unit)
 
     themePreferenceDao.themePreference().test {
@@ -73,7 +77,7 @@ class ThemePreferenceServiceImplTests : FunSpec({
   }
 
   test("setThemePreference calls DAO.setThemePreference for System themes") {
-    val result = service.setThemePreference(ThemePreference.System)
+    val result = service().setThemePreference(ThemePreference.System)
     result shouldBe Ok(Unit)
 
     themePreferenceDao.themePreference().test {
@@ -84,12 +88,79 @@ class ThemePreferenceServiceImplTests : FunSpec({
 
   test("clearThemePreference calls DAO.clearThemePreference") {
     themePreferenceDao.setThemePreference(ThemePreference.Manual(Theme.DARK))
-    val result = service.clearThemePreference()
+    val result = service().clearThemePreference()
     result shouldBe Ok(Unit)
 
     themePreferenceDao.themePreference().test {
       awaitItem().shouldBeNull()
       cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("theme is appropriately updated when system updates") {
+    darkModeFeatureFlag.setFlagValue(true)
+    val service = service()
+
+    service.theme().test {
+      // defaults to light
+      awaitItem() shouldBe Theme.LIGHT
+
+      service.setSystemTheme(Theme.DARK)
+
+      awaitItem() shouldBe Theme.DARK
+
+      service.setSystemTheme(Theme.LIGHT)
+
+      awaitItem() shouldBe Theme.LIGHT
+    }
+  }
+
+  test("theme() returns light theme when dark mode flag is disabled regardless of system theme") {
+    darkModeFeatureFlag.setFlagValue(false)
+
+    // Set up system theme as dark
+    service().setSystemTheme(Theme.DARK)
+
+    // Even with dark system theme, the service should return light theme when flag is disabled
+    service().theme().test {
+      awaitItem() shouldBe Theme.LIGHT
+    }
+  }
+
+  test("theme() respects system theme when dark mode flag is enabled and preference is System") {
+    darkModeFeatureFlag.setFlagValue(true)
+    themePreferenceDao.setThemePreference(ThemePreference.System)
+
+    // Set system theme to dark
+    val service = service()
+    service.setSystemTheme(Theme.DARK)
+
+    service.theme().test {
+      awaitItem() shouldBe Theme.DARK
+
+      // Change system theme to light
+      service.setSystemTheme(Theme.LIGHT)
+
+      // Theme should follow system change
+      awaitItem() shouldBe Theme.LIGHT
+    }
+  }
+
+  test("theme() ignores system theme changes when dark mode flag is disabled") {
+    darkModeFeatureFlag.setFlagValue(false)
+
+    val service = service()
+    service.setSystemTheme(Theme.DARK)
+
+    service.theme().test {
+      // Should be light regardless of system theme being dark
+      awaitItem() shouldBe Theme.LIGHT
+
+      // Change system theme
+      service.setSystemTheme(Theme.LIGHT)
+
+      // No new emission should occur as we're ignoring system theme changes
+      expectNoEvents()
     }
   }
 })

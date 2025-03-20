@@ -21,9 +21,7 @@ import build.wallet.pricechart.BitcoinPriceCardPreference
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.ShowingCurrencyFiatSelectionUiState
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.ShowingCurrencyPreferenceUiState
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.ShowingThemeSelectionUiState
+import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.*
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -52,7 +50,7 @@ class AppearancePreferenceUiStateMachineImpl(
     }
 
     val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    val selectedThemePreference by themePreferenceService.theme().collectAsState(ThemePreference.System)
+    val selectedThemePreference by themePreferenceService.themePreference().collectAsState(ThemePreference.System)
 
     val isHideBalanceEnabled by remember {
       hideBalancePreference.isEnabled

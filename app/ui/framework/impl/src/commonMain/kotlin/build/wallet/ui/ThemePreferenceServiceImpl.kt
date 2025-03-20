@@ -9,10 +9,7 @@ import build.wallet.ui.theme.ThemePreference
 import build.wallet.ui.theme.ThemePreferenceDao
 import build.wallet.ui.theme.ThemePreferenceService
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 
 @BitkeyInject(ActivityScope::class)
 class ThemePreferenceServiceImpl(
@@ -22,7 +19,9 @@ class ThemePreferenceServiceImpl(
   override val isThemePreferenceEnabled: Boolean
     get() = darkModeFeatureFlag.isEnabled()
 
-  override fun theme(): Flow<ThemePreference> =
+  private val systemTheme = MutableStateFlow(Theme.LIGHT)
+
+  override fun themePreference(): Flow<ThemePreference> =
     darkModeFeatureFlag.flagValue().flatMapLatest { flag ->
       if (flag.value) {
         themePreferenceDao.themePreference().map { it ?: ThemePreference.System }
@@ -31,11 +30,32 @@ class ThemePreferenceServiceImpl(
       }
     }
 
+  override fun theme(): Flow<Theme> {
+    return darkModeFeatureFlag.flagValue().flatMapLatest { flag ->
+      if (!flag.value) {
+        // If dark mode feature flag is disabled, always use light theme
+        // regardless of system theme or user preference
+        flowOf(Theme.LIGHT)
+      } else {
+        combine(themePreference(), systemTheme) { themePreference, systemTheme ->
+          when (themePreference) {
+            is ThemePreference.System -> systemTheme
+            is ThemePreference.Manual -> themePreference.value
+          }
+        }
+      }
+    }
+  }
+
   override suspend fun setThemePreference(themePreference: ThemePreference): Result<Unit, Error> {
     return themePreferenceDao.setThemePreference(themePreference)
   }
 
   override suspend fun clearThemePreference(): Result<Unit, Error> {
     return themePreferenceDao.clearThemePreference()
+  }
+
+  override fun setSystemTheme(systemTheme: Theme) {
+    this.systemTheme.value = systemTheme
   }
 }
