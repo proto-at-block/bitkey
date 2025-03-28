@@ -17,6 +17,8 @@ import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.*
+import build.wallet.time.MinimumLoadingDuration
+import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
@@ -26,6 +28,7 @@ class SweepDataStateMachineImpl(
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : SweepDataStateMachine {
   private sealed interface State {
     data object GeneratingPsbtsState : State
@@ -89,7 +92,9 @@ class SweepDataStateMachineImpl(
       /** Initial state */
       GeneratingPsbtsState -> {
         LaunchedEffect("generate-psbts") {
-          sweepService.prepareSweep(props.keybox)
+          withMinimumDelay(minimumLoadingDuration.value) {
+            sweepService.prepareSweep(props.keybox)
+          }
             .onSuccess { sweep ->
               sweepState = when (sweep) {
                 null -> NoFundsFoundState

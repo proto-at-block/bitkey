@@ -18,7 +18,7 @@ import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardProps
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachine
 import build.wallet.statemachine.core.input.SheetModelMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.export.ExportToolsUiProps
 import build.wallet.statemachine.export.ExportToolsUiStateMachine
@@ -125,7 +125,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls props onBack") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         onBack()
       }
@@ -134,7 +134,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("settings list") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows
           .map { it::class }.toSet()
@@ -162,7 +162,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
 
   test("settings list with inheritance enabled") {
     inheritanceFeatureFlag.setFlagValue(true)
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows
           .map { it::class }.toSet()
@@ -197,7 +197,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ManagingInheritanceTab.Beneficiaries
       )
     )
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<InheritanceManagementUiProps> {
         onBack()
       }
@@ -206,7 +206,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close mobile pay") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.MobilePay }.onClick()
       }
@@ -218,7 +218,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close notifications") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.NotificationPreferences }
           .onClick()
@@ -233,7 +233,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close custom electrum server") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.CustomElectrumServer }
           .onClick()
@@ -246,7 +246,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close currency preference") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.AppearancePreference }
           .onClick()
@@ -259,7 +259,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close trusted contacts settings") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()
       }
@@ -271,7 +271,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close bitkey device settings") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.BitkeyDevice }.onClick()
       }
@@ -283,7 +283,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close help center") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.HelpCenter }.onClick()
       }
@@ -295,7 +295,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close mobile devices") {
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.RotateAuthKey }.onClick()
       }
@@ -318,7 +318,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     // Prepare an update
     firmwareDataService.pendingUpdate = firstUpdate
 
-    stateMachine().testWithVirtualTime(props) {
+    stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         firmwareDataService.firmwareData.value.shouldBe(firstUpdate)
 
@@ -337,20 +337,20 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("shows bottom sheet from props") {
-    stateMachine().testWithVirtualTime(props.copy(homeBottomSheetModel = SheetModelMock {})) {
+    stateMachine().test(props.copy(homeBottomSheetModel = SheetModelMock {})) {
       awaitItem().bottomSheetModel.shouldNotBeNull()
     }
   }
 
   test("shows status bar from props") {
-    stateMachine().testWithVirtualTime(props.copy(homeStatusBannerModel = StatusBannerModelMock)) {
+    stateMachine().test(props.copy(homeStatusBannerModel = StatusBannerModelMock)) {
       awaitItem().statusBannerModel.shouldNotBeNull()
     }
   }
 
   context("debug menu") {
     test("enabled in AppVariant.Team") {
-      stateMachine(AppVariant.Team).testWithVirtualTime(props) {
+      stateMachine(AppVariant.Team).test(props) {
         awaitBodyMock<SettingsListUiProps> {
           supportedRows.single { it is DebugMenu }
         }
@@ -358,7 +358,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
 
     test("enabled in AppVariant.Development") {
-      stateMachine(AppVariant.Development).testWithVirtualTime(props) {
+      stateMachine(AppVariant.Development).test(props) {
         awaitBodyMock<SettingsListUiProps> {
           supportedRows.single { it is DebugMenu }
         }
@@ -366,7 +366,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
 
     test("disabled in AppVariant.Customer") {
-      stateMachine(AppVariant.Customer).testWithVirtualTime(props) {
+      stateMachine(AppVariant.Customer).test(props) {
         awaitBodyMock<SettingsListUiProps> {
           supportedRows.none { it is DebugMenu }
         }
@@ -374,7 +374,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
 
     test("disabled in AppVariant.Beta") {
-      stateMachine(AppVariant.Beta).testWithVirtualTime(props) {
+      stateMachine(AppVariant.Beta).test(props) {
         awaitBodyMock<SettingsListUiProps> {
           supportedRows.none { it is DebugMenu }
         }
@@ -382,7 +382,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
 
     test("disabled in AppVariant.Emergency") {
-      stateMachine(AppVariant.Emergency).testWithVirtualTime(props) {
+      stateMachine(AppVariant.Emergency).test(props) {
         awaitBodyMock<SettingsListUiProps> {
           supportedRows.none { it is DebugMenu }
         }

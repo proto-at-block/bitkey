@@ -18,7 +18,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Err
@@ -62,7 +62,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -90,7 +90,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -117,7 +117,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult =
       Err(HttpError.NetworkError(Throwable()))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -151,7 +151,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     val email = NotificationTouchpoint.EmailTouchpoint(touchpointId = "email", EmailFake)
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -170,7 +170,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.sendVerificationCodeToTouchpointResult =
       Err(HttpError.NetworkError(Throwable()))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -227,7 +227,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.ConnectivityError(HttpError.NetworkError(Throwable())))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -268,7 +268,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -310,7 +310,7 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
     notificationTouchpointService.syncNotificationTouchpointsResult = Ok(listOf(sms, email))
     notificationTouchpointService.verifyCodeResult =
       Err(F8eError.UnhandledError(HttpError.NetworkError(Throwable())))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }

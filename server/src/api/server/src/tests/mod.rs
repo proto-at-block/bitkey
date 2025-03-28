@@ -16,6 +16,7 @@ mod exchange_rate_integration_tests;
 mod experimentation_integration_tests;
 mod export_tools_integration_tests;
 mod lib;
+mod linear_webhook_integration_tests;
 mod mempool_polling_integration_tests;
 mod mobile_pay_tests;
 mod notification_integration_tests;

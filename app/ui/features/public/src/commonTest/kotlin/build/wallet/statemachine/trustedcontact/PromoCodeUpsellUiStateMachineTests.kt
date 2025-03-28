@@ -8,7 +8,7 @@ import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.sharing.SharingManagerMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.ui.model.callout.CalloutModel
 import io.kotest.core.spec.style.FunSpec
@@ -47,7 +47,7 @@ class PromoCodeUpsellUiStateMachineTests : FunSpec({
   )
 
   test("model functions") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitSheet<PromoCodeUpsellBodyModel> {
         mainContentList[0].shouldBeTypeOf<CalloutModel>().apply {
           title.shouldBe("fake-promo-code")

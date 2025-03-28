@@ -1,3 +1,4 @@
+use core::str;
 use std::collections::HashMap;
 use std::str::FromStr;
 
@@ -15,9 +16,11 @@ use experimentation::routes::{
     GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest, GetFeatureFlagsResponse,
 };
 use export_tools::routes::GetAccountDescriptorResponse;
+use hmac::{Hmac, Mac};
 use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
+use linear::routes::WebhookResponse;
 use mobile_pay::routes::{
     GetMobilePayResponse, MobilePaySetupRequest, MobilePaySetupResponse, SignTransactionData,
     SignTransactionResponse,
@@ -76,6 +79,7 @@ use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
 use recovery::state_machine::rotated_keyset::RotatedKeysetResponse;
 use recovery::state_machine::RecoveryResponse;
 use serde::{de::DeserializeOwned, Serialize};
+use sha2::Sha256;
 use tokio::sync::Mutex;
 use tower::Service;
 use types::account::identifiers::{AccountId, KeysetId};
@@ -1612,5 +1616,33 @@ impl TestClient {
             .post(&request)
             .call(&self.router)
             .await
+    }
+
+    pub(crate) async fn linear_webhook(
+        &self,
+        body_bytes: String,
+        webhook_secret: Option<String>,
+    ) -> Response<WebhookResponse> {
+        let mut builder = Request::builder()
+            .uri("/api/linear/webhook".to_string())
+            .method(Method::POST)
+            .body(Body::from(body_bytes.clone()))
+            .unwrap();
+
+        let headers = builder.headers_mut();
+        headers.insert("content-type", HeaderValue::from_static("application/json"));
+
+        if let Some(webhook_secret) = webhook_secret {
+            let mut mac = Hmac::<Sha256>::new_from_slice(webhook_secret.as_bytes()).unwrap();
+            mac.update(body_bytes.as_bytes());
+            let signature = hex::encode(mac.finalize().into_bytes());
+
+            headers.insert(
+                "linear-signature",
+                HeaderValue::from_str(&signature).unwrap(),
+            );
+        }
+
+        builder.call(&self.router).await
     }
 }

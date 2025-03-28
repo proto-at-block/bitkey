@@ -2,11 +2,11 @@
     "module-identifier": "org.gradle.kotlin:gradle-kotlin-dsl-plugins",
     "components": [
         {
-            "version": "4.4.0",
+            "version": "5.1.1",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-kotlin-dsl-plugins-4.4.0.jar": "918fea73b249301cbf0c030d70acc023759fce377ad30b6c203d53870a61689c"
+                        "gradle-kotlin-dsl-plugins-5.1.1.jar": "1f7e211c4372dec94727bd82270a39438778b9049fa165baf80bb8ffe6878f23"
                     }
                 }
             ],

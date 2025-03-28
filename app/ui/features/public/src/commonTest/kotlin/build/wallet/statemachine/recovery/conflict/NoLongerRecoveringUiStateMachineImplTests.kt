@@ -5,7 +5,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
 import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.matchers.shouldBeLoading
 import build.wallet.statemachine.ui.matchers.shouldHaveText
@@ -31,7 +31,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel local recovery") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
 
@@ -61,7 +61,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
   test("fail to cancel local recovery and successfully retry") {
     recoveryDao.clearCallResult = Err(DbQueryError(cause = null))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitUntilScreenWithBody<FormBodyModel> {
         bottomSheetModel.shouldBeNull()
         val formBody = body as FormBodyModel

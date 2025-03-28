@@ -65,9 +65,9 @@ def main():
         ("Blockstream Tokyo, Japan", "34.131.144.107", 50001, False),
         
         # Mempool.space nodes
-        ("Mempool.space Virginia, USA", "node201.va1.mempool.space", 50002, True),
-        ("Mempool.space Frankfurt, Germany", "node201.fra.mempool.space", 50002, True),
-        ("Mempool.space Tokyo, Japan", "node201.tk7.mempool.space", 50002, True),
+        ("Mempool.space Virginia, USA", "bitkey.va1.mempool.space", 50002, True),
+        ("Mempool.space Frankfurt, Germany", "bitkey.fra.mempool.space", 50002, True),
+        ("Mempool.space Tokyo, Japan", "bitkey.tk7.mempool.space", 50002, True),
     ]
     
     for name, host, port, use_ssl in nodes:

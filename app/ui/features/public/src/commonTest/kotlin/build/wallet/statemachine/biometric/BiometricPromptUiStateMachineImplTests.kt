@@ -5,6 +5,7 @@ import build.wallet.platform.biometrics.BiometricError
 import build.wallet.platform.biometrics.BiometricPrompterMock
 import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.core.SplashLockModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -51,7 +52,7 @@ class BiometricPromptUiStateMachineImplTests : FunSpec({
   test("lock screen is shown once auth has failed") {
     biometricPrompter.promptError = BiometricError.AuthenticationFailed()
 
-    biometricPromptUiStateMachine.testWithVirtualTime(BiometricPromptProps(shouldPromptForAuth = true)) {
+    biometricPromptUiStateMachine.test(BiometricPromptProps(shouldPromptForAuth = true)) {
       // showing the splash screen and failing to auth
       awaitItem().shouldNotBeNull()
         .body
@@ -65,7 +66,7 @@ class BiometricPromptUiStateMachineImplTests : FunSpec({
   }
 
   test("proceeds to null value when biometric preference is disabled") {
-    biometricPromptUiStateMachine.testWithVirtualTime(BiometricPromptProps(shouldPromptForAuth = false)) {
+    biometricPromptUiStateMachine.test(BiometricPromptProps(shouldPromptForAuth = false)) {
       // null model once auth has been skipped
       awaitItem().shouldBeNull()
     }

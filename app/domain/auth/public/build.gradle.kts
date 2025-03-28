@@ -15,8 +15,8 @@ kotlin {
       dependencies {
         api(compose.runtime)
         api(projects.libs.encryptionPublic)
+        api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.domain.f8eClientPublic)
-        api(projects.domain.keyboxPublic)
         api(projects.libs.loggingPublic)
       }
     }

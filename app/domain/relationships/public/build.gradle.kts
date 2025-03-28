@@ -17,15 +17,15 @@ kotlin {
 
     val commonTest by getting {
       dependencies {
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.domain.walletFake)
       }
     }
 
     val commonJvmIntegrationTest by getting {
       dependencies {
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.libs.encryptionImpl)
+        implementation(projects.domain.walletFake)
       }
     }
   }

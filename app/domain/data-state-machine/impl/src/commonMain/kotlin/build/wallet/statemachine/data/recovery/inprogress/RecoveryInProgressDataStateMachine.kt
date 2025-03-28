@@ -7,6 +7,7 @@ import bitkey.account.*
 import bitkey.auth.AuthTokenScope
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthProtocolError
 import build.wallet.auth.logAuthFailure
@@ -114,7 +115,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private val recoveryAuthCompleter: RecoveryAuthCompleter,
   private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
   private val uuidGenerator: UuidGenerator,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val accountAuthenticator: AccountAuthenticator,
   private val recoveryDao: RecoveryDao,
   private val deviceTokenManager: DeviceTokenManager,
@@ -553,7 +554,7 @@ class RecoveryInProgressDataStateMachineImpl(
           LaunchedEffect("set-recovery-progress-ddk-backed-up") {
             // If we're not doing a hardware recovery, we don't need
             // to reseal+upload the DDK, so we can mark as complete
-            recoverySyncer.setLocalRecoveryProgress(LocalRecoveryAttemptProgress.DdkBackedUp)
+            recoveryStatusService.setLocalRecoveryProgress(LocalRecoveryAttemptProgress.DdkBackedUp)
           }
 
           RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
@@ -580,7 +581,7 @@ class RecoveryInProgressDataStateMachineImpl(
                   props.recovery.fullAccountId,
                   sealedDataResult.sealedData
                 ).onSuccess {
-                  recoverySyncer.setLocalRecoveryProgress(LocalRecoveryAttemptProgress.DdkBackedUp)
+                  recoveryStatusService.setLocalRecoveryProgress(LocalRecoveryAttemptProgress.DdkBackedUp)
                 }.onFailure {
                   state = FailedPerformingDdkBackupState(
                     cause = it,
@@ -616,7 +617,7 @@ class RecoveryInProgressDataStateMachineImpl(
           keybox = dataState.keybox,
           onBackupFinished = {
             scope.launch {
-              recoverySyncer
+              recoveryStatusService
                 .setLocalRecoveryProgress(LocalRecoveryAttemptProgress.BackedUpToCloud)
             }
           },
@@ -882,9 +883,7 @@ class RecoveryInProgressDataStateMachineImpl(
   ): Result<Unit, CancelDelayNotifyRecoveryError> {
     return when (request) {
       CancelLostHardwareRecovery ->
-        lostHardwareRecoveryService.cancelRecovery(
-          props.recovery.fullAccountId
-        )
+        lostHardwareRecoveryService.cancelRecovery()
       is CancelLostAppAndCloudRecovery ->
         lostAppAndCloudRecoveryService
           .cancelRecovery(
@@ -952,7 +951,7 @@ class RecoveryInProgressDataStateMachineImpl(
         "Failed to add device token for account during Social Recovery"
       }
 
-      recoverySyncer
+      recoveryStatusService
         .setLocalRecoveryProgress(
           LocalRecoveryAttemptProgress.RotatedSpendingKeys(f8eSpendingKeyset)
         )

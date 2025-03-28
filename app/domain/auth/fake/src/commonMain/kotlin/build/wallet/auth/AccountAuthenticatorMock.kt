@@ -13,6 +13,7 @@ import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.datetime.Instant
 
 class AccountAuthenticatorMock(
   turbine: (String) -> Turbine<Any>,
@@ -24,7 +25,8 @@ class AccountAuthenticatorMock(
         authTokens =
           AccountAuthTokens(
             accessToken = AccessToken("access-token-fake"),
-            refreshToken = RefreshToken("refresh-token-fake")
+            refreshToken = RefreshToken("refresh-token-fake"),
+            accessTokenExpiresAt = Instant.DISTANT_FUTURE
           )
       )
     )
@@ -51,7 +53,8 @@ class AccountAuthenticatorMock(
     return Ok(
       AccountAuthTokens(
         accessToken = AccessToken("access-token-fake"),
-        refreshToken = RefreshToken("refresh-token-fake")
+        refreshToken = RefreshToken("refresh-token-fake"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
   }

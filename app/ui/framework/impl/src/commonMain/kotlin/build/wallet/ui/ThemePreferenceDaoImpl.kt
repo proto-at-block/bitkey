@@ -14,6 +14,7 @@ import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
@@ -38,7 +39,8 @@ class ThemePreferenceDaoImpl(
     coroutineScope.launch {
       val store = getStore()
       val storedTheme = store.getString(THEME_PREFERENCE_KEY, THEME_SYSTEM)
-      themePreferenceFlow.value = parseThemePreference(storedTheme)
+      val parsedTheme = parseThemePreference(storedTheme)
+      themePreferenceFlow.update { parsedTheme }
     }
   }
 
@@ -49,7 +51,8 @@ class ThemePreferenceDaoImpl(
     }
     val store = getStore()
     store.putString(THEME_PREFERENCE_KEY, themePreferenceString)
-    themePreferenceFlow.value = parseThemePreference(themePreferenceString)
+    val parsedTheme = parseThemePreference(themePreferenceString)
+    themePreferenceFlow.update { parsedTheme }
     return Ok(Unit)
   }
 
@@ -64,7 +67,7 @@ class ThemePreferenceDaoImpl(
   override suspend fun clearThemePreference(): Result<Unit, Error> {
     val store = getStore()
     store.remove(THEME_PREFERENCE_KEY)
-    themePreferenceFlow.value = ThemePreference.System
+    themePreferenceFlow.update { ThemePreference.System }
     return Ok(Unit)
   }
 

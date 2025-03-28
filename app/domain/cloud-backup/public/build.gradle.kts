@@ -14,7 +14,6 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.libs.bitcoinPrimitivesPublic)
-        api(projects.domain.keyboxPublic)
         api(projects.libs.cloudStorePublic)
         api(projects.libs.encryptionPublic)
         implementation(projects.libs.stdlibPublic)

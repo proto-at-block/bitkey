@@ -4,6 +4,7 @@ import bitkey.account.AccountConfigService
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.onboarding.LiteAccountCreationError.LiteAccountCreationDatabaseError.FailedToSaveAuthTokens
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.getAccountOrNull
 import build.wallet.auth.AccountAuthenticator
@@ -35,7 +36,7 @@ class RecoveryAuthCompleterImpl(
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
   private val completeDelayNotifyF8eClient: CompleteDelayNotifyF8eClient,
   private val accountAuthenticator: AccountAuthenticator,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val authTokensService: AuthTokensService,
   private val accountService: AccountService,
   private val keyboxDao: KeyboxDao,
@@ -57,7 +58,7 @@ class RecoveryAuthCompleterImpl(
             Error("Expected $hardwareSignedChallenge to be signed with Hardware factor.")
           }
 
-          recoverySyncer
+          recoveryStatusService
             .setLocalRecoveryProgress(
               LocalRecoveryAttemptProgress.AttemptingCompletion(sealedCsek = sealedCsek)
             ).bind()
@@ -98,7 +99,7 @@ class RecoveryAuthCompleterImpl(
           newAuthKeys = destinationAppAuthPubKeys
         ).bind()
 
-        recoverySyncer
+        recoveryStatusService
           .setLocalRecoveryProgress(
             LocalRecoveryAttemptProgress.RotatedAuthKeys
           ).bind()

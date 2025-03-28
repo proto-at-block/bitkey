@@ -3,7 +3,7 @@ use std::env;
 use axum::body::Bytes;
 use reqwest::{
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
-    Client,
+    Client, Response,
 };
 use rust_embed::RustEmbed;
 use serde::{Deserialize, Serialize};
@@ -11,13 +11,13 @@ use tracing::instrument;
 
 use strum_macros::EnumString;
 
-use crate::clients::entities::CreateRequestResponse;
-
 use super::entities::{
     CreateRequestPayload, TicketFormAndFieldsResponse, TicketRequestPayload,
     UploadAttachmentResponse,
 };
 use super::error::{CustomerFeedbackClientError, GetTicketFormError, UploadAttachmentError};
+use crate::clients::entities::CreateRequestResponse;
+use crate::clients::error::GetTicketFormError::ZendeskGetFormResponseError;
 
 const ZENDESK_API_URL: &str = "https://bitkeysupport.zendesk.com/api/";
 const ZENDESK_FORM_ID: &str = "24564153085204";
@@ -89,10 +89,15 @@ impl ZendeskClient {
                     .json(&request)
                     .send()
                     .await
-                    .map_err(|_| CustomerFeedbackClientError::ZendeskCreateTicketError)?;
+                    .map_err(CustomerFeedbackClientError::ZendeskCreateTicketError)?;
 
                 if !response.status().is_success() {
-                    Err(CustomerFeedbackClientError::ZendeskCreateTicketError)
+                    Err(
+                        CustomerFeedbackClientError::ZendeskCreateTicketResponseError(
+                            response.status(),
+                            Self::extract_error_text(response).await,
+                        ),
+                    )
                 } else {
                     let create_ticket_response: CreateRequestResponse = response.json().await?;
                     Ok(create_ticket_response)
@@ -124,10 +129,13 @@ impl ZendeskClient {
                     .body(bytes)
                     .send()
                     .await
-                    .map_err(|_| UploadAttachmentError::ZendeskUploadAttachmentError)?;
+                    .map_err(UploadAttachmentError::ZendeskUploadAttachmentError)?;
 
                 if !response.status().is_success() {
-                    Err(UploadAttachmentError::ZendeskUploadAttachmentError)
+                    Err(UploadAttachmentError::ZendeskUploadAttachmentResponseError(
+                        response.status(),
+                        Self::extract_error_text(response).await,
+                    ))
                 } else {
                     let upload_attachment_response: UploadAttachmentResponseEnvelope =
                         response.json().await?;
@@ -160,10 +168,13 @@ impl ZendeskClient {
                     .header(AUTHORIZATION, format!("Basic {authorization}"))
                     .send()
                     .await
-                    .map_err(|_| GetTicketFormError::ZendeskGetFormStructureError)?;
+                    .map_err(GetTicketFormError::ZendeskGetFormStructureError)?;
 
                 if !response.status().is_success() {
-                    Err(GetTicketFormError::ZendeskGetFormStructureError)
+                    Err(ZendeskGetFormResponseError(
+                        response.status(),
+                        Self::extract_error_text(response).await,
+                    ))
                 } else {
                     let form_structure_response: TicketFormAndFieldsResponse =
                         response.json().await?;
@@ -172,13 +183,25 @@ impl ZendeskClient {
             }
             Self::Test => {
                 let json = Asset::get("test.json")
-                    .ok_or_else(|| GetTicketFormError::ZendeskGetFormStructureError)?
+                    .ok_or_else(|| {
+                        GetTicketFormError::ZendeskDeserializeResponseError(
+                            "Invalid test json".to_string(),
+                        )
+                    })?
                     .data;
                 let test_form_structure: TicketFormAndFieldsResponse =
-                    serde_json::from_slice(json.as_ref())
-                        .map_err(|_| GetTicketFormError::ZendeskGetFormStructureError)?;
+                    serde_json::from_slice(json.as_ref()).map_err(|e| {
+                        GetTicketFormError::ZendeskDeserializeResponseError(e.to_string())
+                    })?;
                 Ok(test_form_structure)
             }
         }
+    }
+
+    async fn extract_error_text(response: Response) -> String {
+        response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string())
     }
 }

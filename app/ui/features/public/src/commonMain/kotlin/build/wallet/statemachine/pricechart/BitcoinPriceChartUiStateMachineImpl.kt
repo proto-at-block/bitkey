@@ -7,6 +7,7 @@ import build.wallet.analytics.events.screen.id.BitcoinPriceChartScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -26,11 +27,15 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Duration.Companion.milliseconds
 
 @BitkeyInject(ActivityScope::class)
@@ -44,78 +49,175 @@ class BitcoinPriceChartUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val chartDataFetcherService: ChartDataFetcherService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val balanceTracker: BalanceHistoryService,
+  private val balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
+  private val timeScalePreference: ChartRangePreference,
 ) : BitcoinPriceChartUiStateMachine {
   @Composable
   override fun model(props: BitcoinPriceChartUiProps): ScreenModel {
+    val balanceHistoryEnabled by remember {
+      balanceHistoryFeatureFlag.flagValue()
+        .map { it.value }
+    }.collectAsState(initial = false)
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     var data by remember { mutableStateOf<ImmutableList<DataPoint>>(emptyImmutableList()) }
     var isLoading by remember { mutableStateOf(true) }
     var failedToLoad by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf(props.initialType) }
-    var selectedHistory by remember { mutableStateOf(ChartHistory.DAY) }
+    val timeScalePreference by remember { timeScalePreference.selectedRange }.collectAsState()
+    var selectedRange by remember { mutableStateOf(timeScalePreference) }
     var selectedPoint by remember { mutableStateOf<DataPoint?>(null) }
+    var selectedPointData by remember { mutableStateOf<SelectedPointData?>(null) }
     var selectedPointPeriodText by remember { mutableStateOf<String?>(null) }
-    var placeholderPointText by remember { mutableStateOf<String?>(null) }
-    var placeholderPointDiffText by remember { mutableStateOf<String?>(null) }
+    var placeholderPointData by remember { mutableStateOf<SelectedPointData?>(null) }
     val priceDirection = remember { mutableStateOf(PriceDirection.STABLE) }
-    val latestExchangeRate by remember {
+    val latestExchangeRateFlow = remember {
       currencyConverter.convert(BitcoinMoney.btc(1.0), fiatCurrency, atTime = null)
-    }.collectAsState(null)
+    }
+    val latestExchangeRate by latestExchangeRateFlow.collectAsState(null)
     val selectedPointTimeText by remember {
       derivedStateOf {
-        selectedPoint?.first?.let { timestamp ->
-          formatSelectedTimestamp(clock, timeZoneProvider, timestamp, selectedHistory)
+        selectedPoint?.x?.let { timestamp ->
+          formatSelectedTimestamp(timestamp, selectedRange)
         }
       }
     }
-    val selectedPointText by remember {
-      derivedStateOf {
-        // format the selected point or the latest value when not selected
-        placeholderPointText ?: run {
-          val pointValue = selectedPoint?.second?.toBigDecimal() ?: latestExchangeRate?.value
-          pointValue?.let { value ->
-            moneyDisplayFormatter.format(FiatMoney(fiatCurrency, value))
-          }
-        }
-      }
-    }
-    val selectedPointDiffText by remember {
-      derivedStateOf {
-        placeholderPointDiffText ?: run {
-          val diffMin = data.firstOrNull()?.second
-          val diffMax = selectedPoint?.second ?: latestExchangeRate?.value?.doubleValue(false)
-          formatSelectedDiffText(diffMin, diffMax, priceDirection)
-        }
-      }
-    }
-    LaunchedEffect(selectedHistory) {
+    GenerateHapticFeedback(selectedPoint)
+    TrackTypeChangeEvent(selectedType)
+    LaunchedEffect(selectedRange) {
       // clear data and reset state for new data range
       failedToLoad = false
       data = emptyImmutableList()
-      placeholderPointText = selectedPointText
-      placeholderPointDiffText = selectedPointDiffText
     }
-    LaunchedEffect(selectedHistory, fiatCurrency, latestExchangeRate) {
-      if (placeholderPointText != null) {
+    LaunchedEffect(selectedType, selectedRange, fiatCurrency) {
+      if (placeholderPointData != null) {
         // debounce data loading when changing selected history
         delay(250.milliseconds)
       }
 
-      chartDataFetcherService.getChartData(
-        accountId = props.accountId,
-        chartHistory = selectedHistory
-      ).onSuccess { chartData ->
+      when (selectedType) {
+        ChartType.BTC_PRICE ->
+          latestExchangeRateFlow
+            .map { chartDataFetcherService.getChartData(selectedRange) }
+        ChartType.BALANCE -> balanceTracker.observe(selectedRange)
+      }.onEach { result ->
+        result
+          .onSuccess { chartData ->
+            selectedPointPeriodText = getString(selectedRange.diffLabel)
+            data = chartData.toImmutableList()
+          }
+          .onFailure {
+            failedToLoad = true
+          }
         isLoading = false
-        selectedPointPeriodText = getString(selectedHistory.diffLabel)
-        data = chartData.toImmutableList()
-      }.onFailure {
-        failedToLoad = true
-      }
-      // clear data change placeholders
-      placeholderPointText = null
-      placeholderPointDiffText = null
+        placeholderPointData = null
+      }.launchIn(this)
     }
-    // track the current and previous selection provide haptics when selecting/deselecting
+    val selectedRangeLabel = stringResource(selectedRange.diffLabel)
+    LaunchedEffect(data, selectedType, selectedRange, selectedPoint) {
+      val selectedYValue = selectedPoint?.y?.toBigDecimal()
+      if (isLoading) return@LaunchedEffect
+      selectedPointData = when (selectedType) {
+        ChartType.BTC_PRICE -> {
+          val pointValue = selectedYValue ?: latestExchangeRate?.value
+          SelectedPointData.BtcPrice(
+            isUserSelected = selectedPoint != null,
+            primaryText = pointValue?.let { value ->
+              moneyDisplayFormatter.format(FiatMoney(fiatCurrency, value))
+            }.orEmpty(),
+            secondaryText = formatSelectedDiffText(
+              data.firstOrNull()?.y,
+              pointValue?.doubleValue(false),
+              priceDirection
+            ).orEmpty(),
+            secondaryTimePeriodText = selectedPointPeriodText.orEmpty(),
+            direction = priceDirection.value
+          )
+        }
+        ChartType.BALANCE -> {
+          val startPoint = data.firstOrNull { it.y > 0.0 } as? BalanceAt
+          val endPoint = (selectedPoint ?: data.lastOrNull()) as? BalanceAt
+          val lastPoint = data.lastOrNull() as? BalanceAt
+          SelectedPointData.Balance(
+            isUserSelected = selectedPoint != null,
+            primaryFiatText = lastPoint?.run {
+              moneyDisplayFormatter.format(FiatMoney(fiatCurrency, fiatBalance.toBigDecimal()))
+            }.orEmpty(),
+            secondaryFiatText = formatSelectedDiffText(
+              startPoint?.fiatBalance,
+              lastPoint?.fiatBalance
+            )?.run { "$this $selectedRangeLabel" }
+              .orEmpty(),
+            primaryBtcText = endPoint
+              ?.run { moneyDisplayFormatter.format(BitcoinMoney.btc(balance)) }
+              .orEmpty(),
+            secondaryBtcText = formatSelectedDiffText(
+              startPoint?.balance,
+              lastPoint?.balance
+            )?.run { "$this $selectedRangeLabel" }
+              .orEmpty()
+          )
+        }
+      }
+    }
+    return ScreenModel(
+      body = BitcoinPriceDetailsBodyModel(
+        data = data,
+        range = selectedRange,
+        type = selectedType,
+        isLoading = isLoading,
+        isBalanceHistoryEnabled = balanceHistoryEnabled,
+        selectedPoint = selectedPoint,
+        selectedPointData = selectedPointData,
+        selectedPointTimestamp = selectedPointTimeText,
+        failedToLoad = failedToLoad,
+        fiatCurrencyCode = fiatCurrency.textCode.code,
+        onBuy = props.onBuy,
+        onTransfer = props.onTransfer,
+        formatFiatValue = {
+          moneyDisplayFormatter.formatCompact(
+            FiatMoney(fiatCurrency, it.toBigDecimal().scale(0))
+          )
+        },
+        onChartTypeSelected = {
+          if (selectedType != it) {
+            placeholderPointData = selectedPointData
+            isLoading = true
+            selectedType = it
+          }
+        },
+        onChartRangeSelected = {
+          if (selectedRange != it) {
+            placeholderPointData = selectedPointData
+            isLoading = true
+            selectedRange = it
+          }
+        },
+        onPointSelected = { selectedPoint = it },
+        onBack = props.onBack
+      )
+    )
+  }
+
+  @Composable
+  private fun TrackTypeChangeEvent(selectedType: ChartType) {
+    LaunchedEffect(selectedType) {
+      eventTracker.track(
+        EventTrackerScreenInfo(
+          eventTrackerScreenId = when (selectedType) {
+            ChartType.BTC_PRICE -> BitcoinPriceChartScreenId.BITCOIN_PRICE_HISTORY
+            ChartType.BALANCE -> BitcoinPriceChartScreenId.BALANCE_HISTORY
+          }
+        )
+      )
+    }
+  }
+
+  /**
+   * Track the current and previous selection provide haptics when selecting/deselecting
+   */
+  @Composable
+  private fun GenerateHapticFeedback(selectedPoint: DataPoint?) {
     var previouslySelectedPoint by remember { mutableStateOf<DataPoint?>(null) }
     LaunchedEffect(selectedPoint) {
       val selectionStartedOrStopped =
@@ -129,90 +231,56 @@ class BitcoinPriceChartUiStateMachineImpl(
 
       previouslySelectedPoint = selectedPoint
     }
-    LaunchedEffect(selectedType) {
-      eventTracker.track(
-        EventTrackerScreenInfo(
-          eventTrackerScreenId = when (selectedType) {
-            ChartType.BTC_PRICE -> BitcoinPriceChartScreenId.BITCOIN_PRICE_HISTORY
-            ChartType.BALANCE -> BitcoinPriceChartScreenId.BALANCE_HISTORY
-          }
-        )
-      )
-    }
-    return ScreenModel(
-      body = BitcoinPriceDetailsBodyModel(
-        data = data,
-        history = selectedHistory,
-        type = selectedType,
-        isLoading = isLoading,
-        selectedPoint = selectedPoint,
-        selectedPointPrimaryText = selectedPointText,
-        selectedPointSecondaryText = selectedPointDiffText,
-        selectedPointPeriodText = selectedPointPeriodText,
-        selectedPointChartText = selectedPointTimeText,
-        selectedPriceDirection = priceDirection.value,
-        failedToLoad = failedToLoad,
-        formatFiatValue = {
-          moneyDisplayFormatter.formatCompact(
-            FiatMoney(fiatCurrency, it.toBigDecimal().scale(0))
-          )
-        },
-        onChartTypeSelected = { selectedType = it },
-        onChartHistorySelected = {
-          if (selectedHistory != it) {
-            isLoading = true
-            selectedHistory = it
-          }
-        },
-        onPointSelected = { selectedPoint = it },
-        onBack = props.onBack
-      )
-    )
   }
 
   private fun formatSelectedDiffText(
     start: Double?,
     end: Double?,
-    priceDirection: MutableState<PriceDirection>,
+    priceDirection: MutableState<PriceDirection>? = null,
   ): String? {
-    if (end == null || start == null) return null
-    val diffPercent = (end - start) / start * 100
-    val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
-    priceDirection.value = PriceDirection.from(diffDecimal)
-    return "${diffDecimal.abs().toPlainString()}%"
+    val diffDecimal = when {
+      end == null -> return null
+      start == null || start == 0.0 -> end
+      else -> (end - start) / start * 100
+    }.let { BigDecimal.fromDouble(it, DecimalMode.US_CURRENCY) }
+    val prefix = when {
+      priceDirection != null -> {
+        priceDirection.value = PriceDirection.from(diffDecimal)
+        ""
+      }
+      diffDecimal.isZero() -> ""
+      else -> if (diffDecimal.isPositive) "+" else "-"
+    }
+    return "$prefix${diffDecimal.abs().toPlainString()}%"
   }
 
   /**
    * Format the [timestamp] to local format with a format based on the [selectedHistory].
    */
   private fun formatSelectedTimestamp(
-    clock: Clock,
-    timeZoneProvider: TimeZoneProvider,
     timestamp: Long,
-    selectedHistory: ChartHistory,
+    selectedHistory: ChartRange,
   ): String {
     val timeZone = timeZoneProvider.current()
     val currentDateTime = clock.now().toLocalDateTime(timeZone)
     val datetime = Instant.fromEpochSeconds(timestamp).toLocalDateTime(timeZone)
     return when (selectedHistory) {
-      ChartHistory.DAY -> {
+      ChartRange.DAY -> {
         if (datetime.dayOfYear == currentDateTime.dayOfYear) {
           "Today ${dateTimeFormatter.localTime(datetime)}"
         } else {
           "Yesterday ${dateTimeFormatter.localTime(datetime)}"
         }
       }
-      ChartHistory.WEEK -> {
+      ChartRange.WEEK -> {
         val weekDayName = datetime.dayOfWeek.name
           .lowercase()
           .replaceFirstChar { it.uppercaseChar() }
         "$weekDayName ${dateTimeFormatter.localTime(datetime)}"
       }
-      ChartHistory.MONTH -> {
-        dateTimeFormatter.shortDateWithTime(datetime)
-      }
-      ChartHistory.YEAR,
-      ChartHistory.ALL,
+      ChartRange.MONTH -> dateTimeFormatter.shortDateWithTime(datetime)
+      ChartRange.YEAR,
+      ChartRange.ALL,
       -> dateTimeFormatter.longLocalDate(datetime.date)
     }
   }

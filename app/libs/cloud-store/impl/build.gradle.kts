@@ -14,6 +14,7 @@ kotlin {
         api(libs.kmp.okio)
         api(projects.libs.platformPublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 

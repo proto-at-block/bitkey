@@ -419,6 +419,8 @@ fun AppearancePreferencePreview() {
         onFiatCurrencyPreferenceClick = {},
         bitcoinDisplayPreferenceString = "Sats",
         bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
+        defaultTimeScalePreferenceString = "1D",
+        onDefaultTimeScalePreferenceClick = {},
         onBitcoinDisplayPreferenceClick = {},
         onEnableHideBalanceChanged = {},
         themePreferenceString = "Light",

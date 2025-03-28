@@ -12,7 +12,7 @@ kotlin {
       dependencies {
         api(projects.domain.cloudBackupPublic)
         api(projects.domain.f8eClientPublic)
-        api(projects.domain.nfcPublic)
+        api(projects.domain.hardwarePublic)
       }
     }
   }

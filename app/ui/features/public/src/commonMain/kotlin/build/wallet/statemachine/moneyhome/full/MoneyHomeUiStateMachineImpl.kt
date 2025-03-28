@@ -200,7 +200,8 @@ class MoneyHomeUiStateMachineImpl(
           onPartnershipsWebFlowCompleted = props.onPartnershipsWebFlowCompleted,
           onStartSweepFlow = {
             uiState = PerformingSweep
-          }
+          },
+          tabs = props.tabs
         )
       )
 
@@ -228,7 +229,6 @@ class MoneyHomeUiStateMachineImpl(
       )
 
       is SendFlowUiState -> SendBitcoinModel(
-        props,
         validPaymentDataInClipboard =
           clipboard.getPlainTextItem()?.let {
             paymentDataParser.decode(
@@ -362,7 +362,14 @@ class MoneyHomeUiStateMachineImpl(
       is ShowingPriceChartUiState -> bitcoinPriceChartUiStateMachine.model(
         BitcoinPriceChartUiProps(
           initialType = state.type,
-          accountId = props.account.accountId,
+          onBuy = {
+            uiState = ViewingBalanceUiState(
+              bottomSheetDisplayState = Partners(
+                AddBitcoinBottomSheetDisplayState.PurchasingUiState(selectedAmount = null)
+              )
+            )
+          },
+          onTransfer = { uiState = ReceiveFlowUiState },
           onBack = { uiState = ViewingBalanceUiState() }
         )
       )
@@ -429,13 +436,11 @@ class MoneyHomeUiStateMachineImpl(
 
   @Composable
   private fun SendBitcoinModel(
-    props: MoneyHomeUiProps,
     validPaymentDataInClipboard: ParsedPaymentData?,
     onExit: () -> Unit,
     onGoToUtxoConsolidation: () -> Unit,
   ) = sendUiStateMachine.model(
     props = SendUiProps(
-      account = props.account as FullAccount,
       validInvoiceInClipboard = validPaymentDataInClipboard,
       onExit = onExit,
       // Since hitting "Done" is the same as exiting out of the send flow.

@@ -3,9 +3,7 @@ package build.wallet.ui.components.screen
 import androidx.compose.runtime.Composable
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
-import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
-import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel

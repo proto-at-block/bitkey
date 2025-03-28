@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment.Companion.Start
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import bitkey.ui.framework_public.generated.resources.Res
@@ -19,40 +18,44 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.label.Label
-import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.LocalIsPreviewTheme
 import io.github.alexzhirkevich.compottie.*
-import io.github.alexzhirkevich.compottie.dynamic.rememberLottieDynamicProperties
 import org.jetbrains.compose.resources.vectorResource
 
-@OptIn(ExperimentalCompottieApi::class)
 @Composable
 fun LoadingSuccessScreen(
   modifier: Modifier = Modifier,
   model: LoadingSuccessBodyModel,
 ) {
+  val currentTheme = LocalTheme.current
   val loadingAnimationComposition by rememberLottieComposition {
     LottieCompositionSpec.JsonString(
-      Res.readBytes("files/loading_and_success.json").decodeToString()
+      when (currentTheme) {
+        Theme.LIGHT ->
+          Res.readBytes("files/loading_and_success.json").decodeToString()
+        Theme.DARK ->
+          Res.readBytes("files/loading_and_success_dark.json").decodeToString()
+      }
     )
   }
 
-  val foregroundColor = WalletTheme.colors.foreground
   val painter = rememberLottiePainter(
     composition = loadingAnimationComposition,
-    dynamicProperties = rememberLottieDynamicProperties {
-      shapeLayer("Shape Layer 1") {
-        stroke("Polystar 4", "Gradient Stroke 1") {
-          colorFilter { ColorFilter.tint(foregroundColor) }
-        }
-      }
-    },
     iterations = if (model.state is Success) 1 else Compottie.IterateForever,
     speed = if (model.state is Success) 1.5f else 1f,
     clipSpec = LottieClipSpec.Progress(
       min = 0f,
-      max = if (model.state is Success) 1f else 0.3f
+      max = if (model.state is Success) {
+        1f
+      } else {
+        when (currentTheme) {
+          Theme.LIGHT -> 0.3f
+          Theme.DARK -> 0.5f
+        }
+      }
     )
   )
 

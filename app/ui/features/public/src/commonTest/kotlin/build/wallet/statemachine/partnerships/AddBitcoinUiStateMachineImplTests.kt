@@ -14,7 +14,7 @@ import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipPurchaseServiceFake
 import build.wallet.partnerships.PartnershipTransactionsServiceMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.LoadingBodyModel
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.statemachine.partnerships.purchase.SelectPartnerQuoteBodyModel
@@ -79,7 +79,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   // tests
 
   test("show purchase or transfer") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // Show purchase or transfer flow
       awaitSheet<BuyOrTransferBodyModel> {
         listGroupModel.items.count().shouldBe(2)
@@ -91,7 +91,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
 
   test("resume purchase flow") {
     val purchaseAmount = FiatMoney.Companion.usd(123.0)
-    stateMachine.testWithVirtualTime(props(purchaseAmount = purchaseAmount)) {
+    stateMachine.test(props(purchaseAmount = purchaseAmount)) {
       // load purchase amounts
       awaitSheet<LoadingBodyModel>()
 

@@ -32,6 +32,8 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.refresh.PullRefreshIndicator
 import build.wallet.ui.components.refresh.pullRefresh
+import build.wallet.ui.components.tabbar.Tab
+import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.theme.WalletTheme
@@ -45,8 +47,10 @@ fun MoneyHomeScreen(
   var coachmarkOffset by remember { mutableStateOf(Offset(0f, 0f)) }
 
   Box(
-    modifier = modifier
-      .background(WalletTheme.colors.background)
+    modifier = modifier.pullRefresh(
+      refreshing = model.isRefreshing,
+      onRefresh = model.onRefresh
+    ).background(WalletTheme.colors.background)
   ) {
     // Display a coachmark if needed
     model.coachmark?.let { coachmarkModel ->
@@ -55,113 +59,109 @@ fun MoneyHomeScreen(
         model = coachmarkModel
       )
     }
-    Column {
-      Box(
-        modifier =
-          Modifier
-            .pullRefresh(
-              refreshing = model.isRefreshing,
-              onRefresh = model.onRefresh
-            )
-      ) {
-        LazyColumn(
-          modifier =
-            Modifier
-              .fillMaxSize(),
-          horizontalAlignment = Alignment.CenterHorizontally,
-          state = listState
+
+    LazyColumn(
+      modifier = Modifier.fillMaxSize(),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      state = listState
+    ) {
+      // Header
+      item {
+        Row(
+          modifier = Modifier.padding(horizontal = 20.dp),
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          // Header
-          item {
-            Row(
-              modifier = Modifier.padding(horizontal = 20.dp),
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Header(
-                headline = "Bitkey",
-                headlineTopSpacing = 8.dp,
-                fillsMaxWidth = false
-              )
-              Spacer(Modifier.weight(1F))
-              ToolbarAccessory(model.trailingToolbarAccessoryModel)
-            }
-            Spacer(Modifier.height(48.dp))
-          }
-
-          // Balance + buttons
-          item {
-            with(model.balanceModel) {
-              HeroAmount(
-                modifier = Modifier
-                  .clickable(
-                    interactionSource = MutableInteractionSource(),
-                    indication = null,
-                    onClick = {
-                      model.onHideBalance()
-                      // dismiss the HiddenBalanceCoachmark coachmark if it's showing since you've interacted with the feature
-                      if (model.coachmark?.identifier ==
-                        CoachmarkIdentifier.HiddenBalanceCoachmark
-                      ) {
-                        model.coachmark?.dismiss?.invoke()
-                      }
-                    }
-                  ).onGloballyPositioned { layoutCoordinates ->
-                    if (model.coachmark?.identifier == CoachmarkIdentifier.HiddenBalanceCoachmark) {
-                      val positionInParent = layoutCoordinates.positionInParent()
-                      val size = layoutCoordinates.size
-                      coachmarkOffset = Offset(
-                        0f,
-                        positionInParent.y + size.height
-                      )
-                    }
-                  },
-                primaryAmount = AnnotatedString(primaryAmount),
-                secondaryAmountWithCurrency = secondaryAmount,
-                hideBalance = model.hideBalance
-              )
-            }
-            Spacer(Modifier.height(4.dp))
-            MoneyHomeButtons(model = model.buttonsModel)
-            Spacer(Modifier.height(40.dp))
-          }
-
-          // No UI between the action buttons and the tx list so show a divider
-          if (model.cardsModel.cards.isEmpty() && model.transactionsModel != null) {
-            item {
-              Divider(
-                modifier =
-                  Modifier
-                    .padding(horizontal = 20.dp)
-                    .padding(top = 16.dp)
-              )
-            }
-          }
-
-          // Cards
-          items(model.cardsModel.cards) { cardModel ->
-            MoneyHomeCard(
-              modifier = Modifier.padding(horizontal = 20.dp),
-              model = cardModel
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-          }
-
-          model.transactionsModel?.let { transactionsModel ->
-            item {
-              Transactions(
-                model = transactionsModel,
-                seeAllButtonModel = model.seeAllButtonModel,
-                hideValue = model.hideBalance
-              )
-            }
-          }
+          Header(
+            headline = "Bitkey",
+            headlineTopSpacing = 8.dp,
+            fillsMaxWidth = false
+          )
+          Spacer(Modifier.weight(1F))
+          ToolbarAccessory(model.trailingToolbarAccessoryModel)
         }
+        Spacer(Modifier.height(48.dp))
+      }
 
-        PullRefreshIndicator(
-          modifier = Modifier.align(Alignment.TopCenter),
-          refreshing = model.isRefreshing,
-          onRefresh = model.onRefresh
+      // Balance + buttons
+      item {
+        with(model.balanceModel) {
+          HeroAmount(
+            modifier = Modifier.clickable(
+              interactionSource = MutableInteractionSource(),
+              indication = null,
+              onClick = {
+                model.onHideBalance()
+                // dismiss the HiddenBalanceCoachmark coachmark if it's showing since you've interacted with the feature
+                if (model.coachmark?.identifier ==
+                  CoachmarkIdentifier.HiddenBalanceCoachmark
+                ) {
+                  model.coachmark.dismiss()
+                }
+              }
+            ).onGloballyPositioned { layoutCoordinates ->
+              if (model.coachmark?.identifier == CoachmarkIdentifier.HiddenBalanceCoachmark) {
+                val positionInParent = layoutCoordinates.positionInParent()
+                val size = layoutCoordinates.size
+                coachmarkOffset = Offset(
+                  0f,
+                  positionInParent.y + size.height
+                )
+              }
+            },
+            primaryAmount = AnnotatedString(primaryAmount),
+            secondaryAmountWithCurrency = secondaryAmount,
+            hideBalance = model.hideBalance
+          )
+        }
+        Spacer(Modifier.height(4.dp))
+        MoneyHomeButtons(model = model.buttonsModel)
+        Spacer(Modifier.height(40.dp))
+      }
+
+      // No UI between the action buttons and the tx list so show a divider
+      if (model.cardsModel.cards.isEmpty() && model.transactionsModel != null) {
+        item {
+          Divider(
+            modifier = Modifier
+              .padding(horizontal = 20.dp)
+              .padding(top = 16.dp)
+          )
+        }
+      }
+
+      // Cards
+      items(model.cardsModel.cards) { cardModel ->
+        MoneyHomeCard(
+          modifier = Modifier.padding(horizontal = 20.dp),
+          model = cardModel
         )
+        Spacer(modifier = Modifier.height(24.dp))
+      }
+
+      model.transactionsModel?.let { transactionsModel ->
+        item {
+          Transactions(
+            model = transactionsModel,
+            seeAllButtonModel = model.seeAllButtonModel,
+            hideValue = model.hideBalance
+          )
+        }
+      }
+    }
+
+    PullRefreshIndicator(
+      modifier = Modifier.align(Alignment.TopCenter),
+      refreshing = model.isRefreshing,
+      onRefresh = model.onRefresh
+    )
+
+    if (model.tabs.isNotEmpty()) {
+      TabBar(
+        modifier = Modifier.align(Alignment.BottomCenter)
+      ) {
+        model.tabs.map {
+          Tab(selected = it.selected, onClick = it.onSelected)
+        }
       }
     }
   }

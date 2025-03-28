@@ -39,7 +39,9 @@ data class ScreenModel(
     if (statusBannerModel != null) {
       // We only expect use the status banner in Root style screens currently.
       // Update this if that changes.
-      require(presentationStyle == Root)
+      require(presentationStyle == Root || presentationStyle == ScreenPresentationStyle.RootFullScreen) {
+        "Status banner is only expected in Root presentation styles, got $presentationStyle"
+      }
     }
   }
 

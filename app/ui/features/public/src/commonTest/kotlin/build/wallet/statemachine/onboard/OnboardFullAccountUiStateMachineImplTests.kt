@@ -24,6 +24,7 @@ import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
 import build.wallet.statemachine.ui.awaitBody
@@ -77,7 +78,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("complete all onboarding steps") {
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -112,7 +113,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete cloud backup step only") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -136,7 +137,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete notifications step only") {
     onboardAccountService.setPendingSteps(NotificationPreferences)
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -161,7 +162,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("complete cloud backup step - skip cloud backup instructions") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -185,7 +186,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("no pending steps") {
     onboardAccountService.setPendingSteps()
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
@@ -198,7 +199,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - overwrite existing account if for the same account ID") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -228,7 +229,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing lite account cloud backup") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -254,7 +255,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing full account backup different account ID, show warning") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -280,7 +281,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - found existing full account backup different account ID, skip showing warning") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -312,7 +313,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - failed to save backup") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
@@ -353,7 +354,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
   test("cloud backup step - error completing") {
     onboardAccountService.setPendingSteps(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = false)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = false)) {
 
       // Loading initial onboarding state
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)

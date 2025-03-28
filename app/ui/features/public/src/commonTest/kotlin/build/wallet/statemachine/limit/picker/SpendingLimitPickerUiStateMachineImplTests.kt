@@ -15,7 +15,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle.Close
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
@@ -85,7 +85,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   )
 
   test("initial state - zero limit") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
         with(entryMode.shouldBeTypeOf<EntryMode.Keypad>().amountModel) {
           primaryAmount.shouldBe("$0")
@@ -99,7 +99,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   test("initial state - nonzero limit") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
         entryMode.shouldBeTypeOf<EntryMode.Keypad>()
         setLimitButtonModel.isEnabled.shouldBeTrue()
@@ -108,7 +108,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose prop is called for onBack") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
         onBack()
       }
@@ -117,7 +117,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose prop is called for toolbar") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<SpendingLimitPickerModel> {
         toolbarModel.leadingAccessory.shouldBeTypeOf<IconAccessory>()
           .model.onClick.invoke()
@@ -128,7 +128,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
   test("onTokenRefresh returns SpendingLimitPickerModel with loading button") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // initial state
       awaitBody<SpendingLimitPickerModel> {
         setLimitButtonModel.isLoading.shouldBeFalse()
@@ -146,7 +146,7 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
 
   test("onTokenRefreshError returns SpendingLimitPickerModel with error sheet") {
     moneyCalculatorUiStateMachine.emitModel(moneyCalculatorModelWithAmount)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // initial state
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()

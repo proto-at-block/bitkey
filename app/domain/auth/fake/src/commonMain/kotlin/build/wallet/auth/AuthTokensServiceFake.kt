@@ -6,20 +6,24 @@ import bitkey.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.random.uuid
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * Fake implementation of [AuthTokensService] that manages auth tokens in-memory map.
  */
 class AuthTokensServiceFake : AuthTokensService {
+  private val clock = ClockFake()
   private val lock = Mutex()
   private val allTokens = mutableMapOf<Pair<AccountId, AuthTokenScope>, AccountAuthTokens>()
 
   var refreshAccessTokenError: Error? = null
+  var refreshTokens: AccountAuthTokens? = null
 
   override suspend fun refreshAccessTokenWithApp(
     f8eEnvironment: F8eEnvironment,
@@ -32,9 +36,11 @@ class AuthTokensServiceFake : AuthTokensService {
       val currentTokens = allTokens[accountId to scope]
         ?: return Err(Error("No $scope tokens found for $accountId"))
 
-      val newTokens = currentTokens.copy(
-        accessToken = AccessToken("${currentTokens.accessToken.raw}-${uuid()}")
+      val newTokens = refreshTokens ?: currentTokens.copy(
+        accessToken = AccessToken("${currentTokens.accessToken.raw}-${uuid()}"),
+        accessTokenExpiresAt = clock.now().plus(5.minutes)
       )
+
       allTokens[accountId to scope] = newTokens
       Ok(newTokens)
     }
@@ -75,6 +81,7 @@ class AuthTokensServiceFake : AuthTokensService {
       allTokens.clear()
       setTokensError = null
       refreshAccessTokenError = null
+      refreshTokens = null
     }
   }
 }

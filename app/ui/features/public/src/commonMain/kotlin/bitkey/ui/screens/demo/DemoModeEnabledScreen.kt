@@ -1,7 +1,7 @@
 package bitkey.ui.screens.demo
 
 import androidx.compose.runtime.*
-import bitkey.account.AccountConfigService
+import bitkey.demo.DemoModeService
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
@@ -10,17 +10,15 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.model.alert.DisableAlertModel
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
 data object DemoModeEnabledScreen : Screen
 
-@BitkeyInject(ActivityScope::class, boundTypes = [DemoModeEnabledScreenPresenter::class])
+@BitkeyInject(ActivityScope::class)
 class DemoModeEnabledScreenPresenter(
-  private val accountConfigService: AccountConfigService,
+  private val demoModeService: DemoModeService,
 ) : ScreenPresenter<DemoModeEnabledScreen> {
   @Composable
   override fun model(
@@ -42,7 +40,7 @@ class DemoModeEnabledScreenPresenter(
             subline = "You will be returned to the default settings once you hit “Disable”",
             onConfirm = {
               scope.launch {
-                disableDemoMode()
+                demoModeService.disable()
                   .onSuccess {
                     navigator.goTo(DemoModeDisabledScreen)
                   }
@@ -63,11 +61,4 @@ class DemoModeEnabledScreenPresenter(
       }
     ).asRootFullScreen()
   }
-
-  // TODO: extract into service
-  private suspend fun disableDemoMode(): Result<Unit, Error> =
-    coroutineBinding {
-      accountConfigService.setIsHardwareFake(value = false).bind()
-      accountConfigService.setIsTestAccount(value = false).bind()
-    }
 }

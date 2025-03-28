@@ -17,3 +17,8 @@ val KSType.isInterface: Boolean get() = (declaration as? KSClassDeclaration)?.cl
 val KSType.isAbstractClass: Boolean
   get() = (declaration as? KSClassDeclaration)?.classKind == CLASS &&
     declaration.modifiers.contains(ABSTRACT)
+
+/**
+ * Returns this if this type has parameters (ie uses generics).
+ */
+val KSType.hasTypeParameters: Boolean get() = declaration.typeParameters.isNotEmpty()

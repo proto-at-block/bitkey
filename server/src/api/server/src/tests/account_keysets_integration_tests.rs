@@ -380,13 +380,13 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
         "wsh(sortedmulti(2,{},{},{}))",
         spend_app.clone(),
         spend_hw.clone(),
-        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/0/*").to_string()
+        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/0/*")
     );
     let wallet_change_descriptor = format!(
         "wsh(sortedmulti(2,{},{},{}))",
         spend_app,
         spend_hw,
-        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/1/*").to_string()
+        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/1/*")
     );
 
     let _ = wsm_service

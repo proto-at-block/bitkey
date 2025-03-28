@@ -15,6 +15,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
@@ -103,7 +104,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("initial balance amount and balance update") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
         moneyCalculatorUiStateMachine.props.inputAmountCurrency.shouldBe(USD)
@@ -123,7 +124,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("initial amount in btc") {
-    stateMachine.testWithVirtualTime(props.copy(initialAmount = BitcoinMoney.btc(1.0))) {
+    stateMachine.test(props.copy(initialAmount = BitcoinMoney.btc(1.0))) {
       awaitBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle
           .shouldBe("500,000,000 sats available")
@@ -135,7 +136,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("entered amount at exactly balance") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
       }
@@ -152,7 +153,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("entered amount above balance in fiat") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
       }
@@ -193,7 +194,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         )
       )
 
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeTrue()
           primaryButton.shouldBeDisabled()
@@ -202,7 +203,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     }
 
     test("Should show approval required") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
           toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
         }
@@ -223,7 +224,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         )
       )
 
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeFalse()
         }
@@ -293,7 +294,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(props.copy(allowSendAll = false)) {
+    stateMachine.test(props.copy(allowSendAll = false)) {
       awaitBody<TransferAmountBodyModel> {
         amountDisabled.shouldBeTrue()
         primaryButton.shouldBeDisabled()
@@ -303,7 +304,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("given exchange rates are null, should not show fiat amount") {
-    stateMachine.testWithVirtualTime(props.copy(exchangeRates = null, initialAmount = BitcoinMoney.btc(1.0))) {
+    stateMachine.test(props.copy(exchangeRates = null, initialAmount = BitcoinMoney.btc(1.0))) {
       awaitBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("500,000,000 sats available")
       }
@@ -325,7 +326,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Amount entered should be zero right now, so requiresHardware should be false
       awaitBody<TransferAmountBodyModel>()
 
@@ -349,14 +350,14 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
     moneyCalculatorUiStateMachine.emitModel(amountAboveBalance)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel>()
     }
   }
 
   // TODO(W-1789): fix and enable test - it currently fails when targeting iOS.
   xtest("currency values swap in moneyCalculatorStateMachine onSwapCurrencyClick") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferAmountBodyModel> {
         moneyCalculatorUiStateMachine.props.inputAmountCurrency.shouldBe(USD)
         moneyCalculatorUiStateMachine.props.secondaryDisplayAmountCurrency

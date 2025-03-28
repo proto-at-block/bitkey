@@ -16,7 +16,7 @@ import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransactionsServiceMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
@@ -78,7 +78,7 @@ class PartnershipsSellOptionsUiStateMachineImplTests : FunSpec({
   }
 
   test("load sell quotes") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       getSaleQuoteListF8eClient.getSaleQuotesListCall.awaitItem()
 
       awaitBody<LoadingSuccessBodyModel> {

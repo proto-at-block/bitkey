@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-build-statistics",
+    "components": [
+        {
+            "version": "2.0.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-build-statistics-2.0.20.jar": "73a7d71513755b317d2b1b6da766d6e6b7a25dc99dcefe4313325336422ece11"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

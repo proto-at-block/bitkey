@@ -1,6 +1,7 @@
 package build.wallet.statemachine.data.keybox
 
 import androidx.compose.runtime.*
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus
 import build.wallet.auth.FullAccountAuthKeyRotationService
@@ -8,10 +9,8 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.SoftwareAccount
-import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.Keybox
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -19,9 +18,6 @@ import build.wallet.logging.logError
 import build.wallet.mapResult
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.*
-import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
-import build.wallet.recovery.RecoverySyncFrequency
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
@@ -43,9 +39,8 @@ class AccountDataStateMachineImpl(
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
   private val accountService: AccountService,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val someoneElseIsRecoveringDataStateMachine: SomeoneElseIsRecoveringDataStateMachine,
-  private val recoverySyncFrequency: RecoverySyncFrequency,
 ) : AccountDataStateMachine {
   @Composable
   override fun model(props: AccountDataProps): AccountData {
@@ -64,11 +59,6 @@ class AccountDataStateMachineImpl(
                 // now get the active recovery from the DB
                 activeAccountResult.mapBoth(
                   success = {
-                    maybePollRecoveryStatus(
-                      activeKeybox = account?.keybox,
-                      activeRecovery = activeRecoveryResult.value
-                    )
-
                     // We have results from DB for both keybox and recovery.
                     // First, try to create [KeyboxData] based on recovery state.
                     fullAccountDataBasedOnRecovery(
@@ -78,10 +68,6 @@ class AccountDataStateMachineImpl(
                     )
                   },
                   failure = {
-                    maybePollRecoveryStatus(
-                      activeKeybox = account?.keybox,
-                      activeRecovery = NoActiveRecovery
-                    )
                     NoActiveAccountData(
                       activeRecovery = null,
                       onLiteAccountCreated = props.onLiteAccountCreated
@@ -241,7 +227,7 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun rememberActiveRecovery(): Result<Recovery, Error> {
-    return remember { recoverySyncer.recoveryStatus() }
+    return remember { recoveryStatusService.status() }
       .collectAsState(Ok(Loading)).value
   }
 
@@ -264,36 +250,5 @@ class AccountDataStateMachineImpl(
         }
       )
     )
-  }
-
-  @Composable
-  private fun maybePollRecoveryStatus(
-    activeKeybox: Keybox?,
-    activeRecovery: Recovery,
-  ) {
-    // We always poll for recovery status when there's an active keybox, in case someone else stole
-    // your Bitkey.
-    if (activeKeybox != null) {
-      pollRecoveryStatus(activeKeybox.fullAccountId)
-      return
-    }
-
-    // We also poll for recovery status if there's an active recovery, and it hasn't progressed
-    // into ServerIndependentRecovery yet, in case there's a contest.
-    when (activeRecovery) {
-      is ServerDependentRecovery -> pollRecoveryStatus(activeRecovery.serverRecovery.fullAccountId)
-      else -> {}
-    }
-  }
-
-  @Composable
-  private fun pollRecoveryStatus(fullAccountId: FullAccountId) {
-    LaunchedEffect("recovery-syncer-sync", fullAccountId) {
-      recoverySyncer.launchSync(
-        scope = this,
-        syncFrequency = recoverySyncFrequency.value,
-        fullAccountId = fullAccountId
-      )
-    }
   }
 }

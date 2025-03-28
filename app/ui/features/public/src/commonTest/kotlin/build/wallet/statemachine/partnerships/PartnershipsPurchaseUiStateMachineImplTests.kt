@@ -16,7 +16,7 @@ import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitSheet
@@ -83,7 +83,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("no partnerships purchase options") {
     partnershipPurchaseService.suggestedPurchaseAmounts = Err(NoPurchaseOptionsError("card"))
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 
@@ -95,7 +95,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase options") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 
@@ -138,7 +138,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase quotes") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 
@@ -173,7 +173,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("Previously used partner at top of list") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       partnershipTransactionsService.previouslyUsedPartnerIds.value =
         listOf(PartnerId("used-partner"))
@@ -236,7 +236,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("Sorted by crypto amount") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       partnershipTransactionsService.previouslyUsedPartnerIds.value = listOf(
         PartnerId("used-1"),
@@ -321,7 +321,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("partnerships purchase redirect") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 
@@ -363,7 +363,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("resume partnerships purchase flow with selected amount") {
     val selectedAmount = FiatMoney.usd(123.0)
-    stateMachine.testWithVirtualTime(props(selectedAmount = selectedAmount)) {
+    stateMachine.test(props(selectedAmount = selectedAmount)) {
       // load purchase amounts
       awaitLoader()
 
@@ -393,7 +393,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   }
 
   test("select custom amount") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 
@@ -410,7 +410,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   test("purchase quotes with no fiat currency conversion") {
     currencyConverter.conversionRate = null
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       // load purchase amounts
       awaitLoader()
 

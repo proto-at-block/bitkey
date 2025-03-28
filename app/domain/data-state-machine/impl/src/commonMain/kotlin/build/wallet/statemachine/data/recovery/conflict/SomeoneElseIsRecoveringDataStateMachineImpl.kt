@@ -5,13 +5,13 @@ import bitkey.account.AccountConfigService
 import bitkey.f8e.error.F8eError.SpecificClientError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.*
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl.State.*
 import com.github.michaelbull.result.onFailure
@@ -20,7 +20,7 @@ import com.github.michaelbull.result.onSuccess
 @BitkeyInject(AppScope::class)
 class SomeoneElseIsRecoveringDataStateMachineImpl(
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val accountConfigService: AccountConfigService,
 ) : SomeoneElseIsRecoveringDataStateMachine {
   @Composable
@@ -64,7 +64,7 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
             fullAccountId = props.fullAccountId,
             hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
           ).onSuccess {
-            recoverySyncer.clear()
+            recoveryStatusService.clear()
           }.onFailure {
             val f8eError = it as? SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
             state = when {

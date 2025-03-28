@@ -13,6 +13,11 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.libs.composeRuntimePublic)
+        api(libs.kmp.test.turbine)
+
+        implementation(projects.libs.stdlibPublic)
+        implementation(libs.kmp.molecule.runtime)
+        implementation(libs.kmp.test.kotest.assertions)
       }
     }
   }

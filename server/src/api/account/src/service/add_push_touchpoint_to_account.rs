@@ -44,7 +44,7 @@ impl Service {
             input.device_token,
         )
         .await
-        .map_err(|e| {
+        .inspect_err(|e| {
             event!(
                 Level::INFO,
                 "Failed to generate device ARN with error: {} and device token: {} and platform: {}",
@@ -52,7 +52,6 @@ impl Service {
                 &device_token,
                 &input.platform
             );
-            e
         })?;
         let new_touchpoint = Touchpoint::Push {
             platform: input.platform,

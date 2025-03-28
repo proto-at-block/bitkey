@@ -9,7 +9,8 @@ import bitkey.datadog.DatadogTracer
 import bitkey.datadog.TracerHeaders
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
-import build.wallet.auth.*
+import build.wallet.auth.AppAuthKeyMessageSignerMock
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachability
 import build.wallet.availability.NetworkReachabilityProviderMock
@@ -36,6 +37,7 @@ import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.settings.CountryCodeGuesserMock
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getErrorOr
 import io.kotest.core.spec.style.FunSpec
@@ -142,7 +144,8 @@ class F8eHttpClientImplTests : FunSpec({
           countryCodeGuesser = CountryCodeGuesserMock(),
           networkReachabilityProvider = authedNetworkReachabilityProvider,
           networkingDebugService = networkingDebugService,
-          engine = overrideEngine
+          engine = overrideEngine,
+          clock = ClockFake()
         )
       ),
       unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
@@ -249,8 +252,9 @@ class F8eHttpClientImplTests : FunSpec({
 
   test("hw-factor proof of possession adds proper headers") {
     val tokens = AccountAuthTokens(
-      AccessToken("access-token"),
-      RefreshToken("refresh-token")
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = null
     )
     authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
 
@@ -293,8 +297,9 @@ class F8eHttpClientImplTests : FunSpec({
 
   test("app-factor proof of possession adds proper headers") {
     val tokens = AccountAuthTokens(
-      AccessToken("access-token"),
-      RefreshToken("refresh-token")
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = null
     )
     authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
 
@@ -338,8 +343,9 @@ class F8eHttpClientImplTests : FunSpec({
 
   test("two-factor proof of possession adds proper headers") {
     val tokens = AccountAuthTokens(
-      AccessToken("access-token"),
-      RefreshToken("refresh-token")
+      accessToken = AccessToken("access-token"),
+      refreshToken = RefreshToken("refresh-token"),
+      accessTokenExpiresAt = null
     )
     authTokensService.setTokens(FullAccountId("1234"), tokens, AuthTokenScope.Global)
 

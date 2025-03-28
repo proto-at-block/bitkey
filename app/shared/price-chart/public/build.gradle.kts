@@ -16,6 +16,7 @@ kotlin {
         api(compose.runtime)
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.ui.frameworkPublic)
+        implementation(projects.libs.timePublic)
         implementation(compose.components.resources)
         implementation(compose.foundation)
         implementation(compose.material)

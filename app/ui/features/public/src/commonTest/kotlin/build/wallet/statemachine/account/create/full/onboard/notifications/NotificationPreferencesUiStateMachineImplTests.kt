@@ -11,6 +11,7 @@ import build.wallet.statemachine.account.notifications.NotificationPermissionReq
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
 import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachineImpl
@@ -78,7 +79,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   }
 
   test("calls onComplete when done") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         // Simulate tapping the ToS button
         val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()

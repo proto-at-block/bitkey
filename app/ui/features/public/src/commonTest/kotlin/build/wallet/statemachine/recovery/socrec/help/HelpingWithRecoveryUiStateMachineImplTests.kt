@@ -14,7 +14,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.onValueChange
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.time.MinimumLoadingDuration
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -53,7 +53,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("successful completion of the flow") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
@@ -92,7 +92,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("Code Verification Failure") {
     verifierMock.error = SocialChallengeError.UnableToVerifyChallengeError(RuntimeException())
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
@@ -134,7 +134,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("version mismatch") {
     verifierMock.error = SocialChallengeError.ChallengeCodeVersionMismatch(RuntimeException())
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickVideoChat()
       }
@@ -175,7 +175,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("selecting I'm not sure returns to get in touch screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickVideoChat()
 
@@ -191,7 +191,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("security notice screen is shown when text message is selected") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickTextMessage()
       }
@@ -209,7 +209,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("security notice screen is shown when email is selected") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickEmail()
       }
@@ -227,7 +227,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("security notice screen is shown when phone call is selected") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         shouldClickPhoneCall()
       }
@@ -245,7 +245,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("onExit prop is called by state machine") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         toolbar
           .shouldNotBeNull()

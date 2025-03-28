@@ -13,8 +13,8 @@ kotlin {
       dependencies {
         api(projects.domain.debugPublic)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.testingPublic)
-        api(projects.domain.bitcoinFake)
       }
     }
   }

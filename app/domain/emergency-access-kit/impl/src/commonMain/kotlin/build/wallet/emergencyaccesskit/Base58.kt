@@ -25,7 +25,10 @@ SOFTWARE.
  */
 package build.wallet.emergencyaccesskit
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okio.ByteString.Companion.toByteString
+import kotlin.coroutines.cancellation.CancellationException
 
 private const val ENCODED_ZERO = '1'
 private const val CHECKSUM_SIZE = 4
@@ -40,53 +43,59 @@ private val alphabetIndices by lazy {
  *
  * @return the base58-encoded string
  */
-internal fun ByteArray.encodeToBase58String(): String {
-  val input = copyOf(size) // since we modify it in-place
-  if (input.isEmpty()) {
-    return ""
-  }
-  // Count leading zeros.
-  var zeros = 0
-  while (zeros < input.size && input[zeros].toInt() == 0) {
-    ++zeros
-  }
-  // Convert base-256 digits to base-58 digits (plus conversion to ASCII characters)
-  val encoded = CharArray(input.size * 2) // upper bound
-  var outputStart = encoded.size
-  var inputStart = zeros
-  while (inputStart < input.size) {
-    encoded[--outputStart] = ALPHABET[divmod(input, inputStart.toUInt(), 256.toUInt(), 58.toUInt()).toInt()]
-    if (input[inputStart].toInt() == 0) {
-      ++inputStart // optimization - skip leading zeros
+internal suspend fun ByteArray.encodeToBase58String(): String {
+  return withContext(Dispatchers.Default) {
+    val input = copyOf(size) // since we modify it in-place
+    if (input.isEmpty()) {
+      ""
+    } else {
+      // Count leading zeros.
+      var zeros = 0
+      while (zeros < input.size && input[zeros].toInt() == 0) {
+        ++zeros
+      }
+      // Convert base-256 digits to base-58 digits (plus conversion to ASCII characters)
+      val encoded = CharArray(input.size * 2) // upper bound
+      var outputStart = encoded.size
+      var inputStart = zeros
+      while (inputStart < input.size) {
+        encoded[--outputStart] =
+          ALPHABET[divmod(input, inputStart.toUInt(), 256.toUInt(), 58.toUInt()).toInt()]
+        if (input[inputStart].toInt() == 0) {
+          ++inputStart // optimization - skip leading zeros
+        }
+      }
+      // Preserve exactly as many leading encoded zeros in output as there were leading zeros in data.
+      while (outputStart < encoded.size && encoded[outputStart] == ENCODED_ZERO) {
+        ++outputStart
+      }
+      while (--zeros >= 0) {
+        encoded[--outputStart] = ENCODED_ZERO
+      }
+      // Return encoded string (including encoded leading zeros).
+      encoded.concatToString(outputStart, encoded.size)
     }
   }
-  // Preserve exactly as many leading encoded zeros in output as there were leading zeros in data.
-  while (outputStart < encoded.size && encoded[outputStart] == ENCODED_ZERO) {
-    ++outputStart
-  }
-  while (--zeros >= 0) {
-    encoded[--outputStart] = ENCODED_ZERO
-  }
-  // Return encoded string (including encoded leading zeros).
-  return encoded.concatToString(outputStart, encoded.size)
 }
 
-internal fun String.decodeBase58WithChecksum(): ByteArray {
-  val rawBytes = decodeBase58()
-  require(rawBytes.size >= CHECKSUM_SIZE) {
-    "Too short for checksum: $this l:  ${rawBytes.size}"
+internal suspend fun String.decodeBase58WithChecksum(): ByteArray {
+  return withContext(Dispatchers.Default) {
+    val rawBytes = decodeBase58()
+    require(rawBytes.size >= CHECKSUM_SIZE) {
+      "Too short for checksum: $this l:  ${rawBytes.size}"
+    }
+    val checksum = rawBytes.copyOfRange(rawBytes.size - CHECKSUM_SIZE, rawBytes.size)
+
+    val payload = rawBytes.copyOfRange(0, rawBytes.size - CHECKSUM_SIZE)
+
+    val hash = payload.toByteString().sha256().sha256().toByteArray()
+    val computedChecksum = hash.copyOfRange(0, CHECKSUM_SIZE)
+
+    require(checksum.contentEquals(computedChecksum)) {
+      "Checksum mismatch: $checksum is not computed checksum $computedChecksum"
+    }
+    payload
   }
-  val checksum = rawBytes.copyOfRange(rawBytes.size - CHECKSUM_SIZE, rawBytes.size)
-
-  val payload = rawBytes.copyOfRange(0, rawBytes.size - CHECKSUM_SIZE)
-
-  val hash = payload.toByteString().sha256().sha256().toByteArray()
-  val computedChecksum = hash.copyOfRange(0, CHECKSUM_SIZE)
-
-  require(checksum.contentEquals(computedChecksum)) {
-    "Checksum mismatch: $checksum is not computed checksum $computedChecksum"
-  }
-  return payload
 }
 
 /**
@@ -95,43 +104,46 @@ internal fun String.decodeBase58WithChecksum(): ByteArray {
  * @return the decoded data bytes
  * @throws NumberFormatException if the string is not a valid base58 string
  */
-@Throws(NumberFormatException::class)
-internal fun String.decodeBase58(): ByteArray {
-  if (isEmpty()) {
-    return ByteArray(0)
-  }
-  // Convert the base58-encoded ASCII chars to a base58 byte sequence (base58 digits).
-  val input58 = ByteArray(length)
-  for (i in indices) {
-    val c = this[i]
-    val digit = if (c.code < 128) alphabetIndices[c.code] else -1
-    if (digit < 0) {
-      throw NumberFormatException("Illegal character $c at position $i")
+@Throws(NumberFormatException::class, CancellationException::class)
+internal suspend fun String.decodeBase58(): ByteArray {
+  return withContext(Dispatchers.Default) {
+    if (isEmpty()) {
+      ByteArray(0)
+    } else {
+      // Convert the base58-encoded ASCII chars to a base58 byte sequence (base58 digits).
+      val input58 = ByteArray(length)
+      for (i in indices) {
+        val c = this@decodeBase58[i]
+        val digit = if (c.code < 128) alphabetIndices[c.code] else -1
+        if (digit < 0) {
+          throw NumberFormatException("Illegal character $c at position $i")
+        }
+        input58[i] = digit.toByte()
+      }
+      // Count leading zeros.
+      var zeros = 0
+      while (zeros < input58.size && input58[zeros].toInt() == 0) {
+        ++zeros
+      }
+      // Convert base-58 digits to base-256 digits.
+      val decoded = ByteArray(length)
+      var outputStart = decoded.size
+      var inputStart = zeros
+      while (inputStart < input58.size) {
+        decoded[--outputStart] =
+          divmod(input58, inputStart.toUInt(), 58.toUInt(), 256.toUInt()).toByte()
+        if (input58[inputStart].toInt() == 0) {
+          ++inputStart // optimization - skip leading zeros
+        }
+      }
+      // Ignore extra leading zeroes that were added during the calculation.
+      while (outputStart < decoded.size && decoded[outputStart].toInt() == 0) {
+        ++outputStart
+      }
+      // Return decoded data (including original number of leading zeros).
+      decoded.copyOfRange(outputStart - zeros, decoded.size)
     }
-    input58[i] = digit.toByte()
   }
-  // Count leading zeros.
-  var zeros = 0
-  while (zeros < input58.size && input58[zeros].toInt() == 0) {
-    ++zeros
-  }
-  // Convert base-58 digits to base-256 digits.
-  val decoded = ByteArray(length)
-  var outputStart = decoded.size
-  var inputStart = zeros
-  while (inputStart < input58.size) {
-    decoded[--outputStart] =
-      divmod(input58, inputStart.toUInt(), 58.toUInt(), 256.toUInt()).toByte()
-    if (input58[inputStart].toInt() == 0) {
-      ++inputStart // optimization - skip leading zeros
-    }
-  }
-  // Ignore extra leading zeroes that were added during the calculation.
-  while (outputStart < decoded.size && decoded[outputStart].toInt() == 0) {
-    ++outputStart
-  }
-  // Return decoded data (including original number of leading zeros).
-  return decoded.copyOfRange(outputStart - zeros, decoded.size)
 }
 
 /**

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.money.currency
 
-import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.AppearanceEventTrackerScreenId
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -23,12 +23,14 @@ data class AppearancePreferenceFormModel(
   val bitcoinDisplayPreferenceString: String,
   val bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
   val isBitcoinPriceCardEnabled: Boolean = false,
+  val defaultTimeScalePreferenceString: String,
+  val onDefaultTimeScalePreferenceClick: () -> Unit,
   val isHideBalanceEnabled: Boolean = false,
   val onEnableHideBalanceChanged: (Boolean) -> Unit,
   val onBitcoinDisplayPreferenceClick: () -> Unit,
   val onBitcoinPriceCardPreferenceClick: (Boolean) -> Unit = {},
 ) : FormBodyModel(
-    id = CurrencyEventTrackerScreenId.CURRENCY_PREFERENCE,
+    id = AppearanceEventTrackerScreenId.CURRENCY_PREFERENCE,
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = BackAccessory(onClick = onBack)
@@ -94,6 +96,13 @@ data class AppearancePreferenceFormModel(
                   onCheckedChange = onBitcoinPriceCardPreferenceClick
                 )
               )
+            ),
+            ListItemModel(
+              title = "Default time scale",
+              sideText = defaultTimeScalePreferenceString,
+              sideTextTint = ListItemSideTextTint.SECONDARY,
+              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+              onClick = onDefaultTimeScalePreferenceClick
             )
           )
         )

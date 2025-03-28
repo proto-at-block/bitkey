@@ -5,7 +5,7 @@ import build.wallet.bitcoin.sync.OffElectrumServerPreferenceValueMock
 import build.wallet.bitcoin.sync.OffElectrumServerWithPreviousPreferenceValueMock
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -33,7 +33,7 @@ class CustomElectrumServerSettingUiStateMachineImplTests : FunSpec({
   }
 
   test("no initial custom server -> setting electrum server") {
-    stateMachine.testWithVirtualTime(defaultProps) {
+    stateMachine.test(defaultProps) {
       awaitItem() // default item
 
       awaitBodyMock<CustomElectrumServerUiProps> {
@@ -52,7 +52,7 @@ class CustomElectrumServerSettingUiStateMachineImplTests : FunSpec({
     electrumConfigService.electrumServerPreference.value =
       OffElectrumServerWithPreviousPreferenceValueMock
 
-    stateMachine.testWithVirtualTime(defaultProps) {
+    stateMachine.test(defaultProps) {
       awaitItem() // default item
 
       awaitBodyMock<CustomElectrumServerUiProps> {

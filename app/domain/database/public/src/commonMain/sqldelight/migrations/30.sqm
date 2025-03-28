@@ -1,0 +1,14 @@
+import build.wallet.firmware.UnlockMethod;
+import kotlinx.datetime.Instant;
+
+-- Table for storing registered hardware unlock methods
+-- Used in the security hub to surface security recommendations
+CREATE TABLE hardwareUnlockMethods (
+    id                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    unlockMethod      TEXT AS UnlockMethod NOT NULL,
+    unlockMethodIdx   INTEGER,
+    createdAt         TEXT AS Instant NOT NULL,
+    UNIQUE (unlockMethod, unlockMethodIdx)
+);
+
+PRAGMA foreign_key_check;

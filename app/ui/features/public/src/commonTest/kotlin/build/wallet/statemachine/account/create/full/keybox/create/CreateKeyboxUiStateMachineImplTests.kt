@@ -11,7 +11,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -45,7 +45,7 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // creating app keys
       awaitBodyMock<PairNewHardwareProps> {
         request.shouldBeTypeOf<PairNewHardwareProps.Request.Preparing>()

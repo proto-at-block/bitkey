@@ -1,0 +1,19 @@
+import build.wallet.pricechart.ChartRange;
+-- Table for storing the user's preferred time scale for rendering charts.
+-- This is a simple key-value store with a single row to store the value
+CREATE TABLE chartRangePreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    timeScale TEXT AS ChartRange NOT NULL
+);
+
+setChartRangePreference:
+INSERT OR REPLACE INTO chartRangePreferenceEntity(rowId, timeScale)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getChartRangePreference:
+SELECT * FROM chartRangePreferenceEntity
+WHERE rowId = 0;
+
+clear:
+DELETE FROM chartRangePreferenceEntity;

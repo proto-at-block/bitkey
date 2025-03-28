@@ -14,7 +14,7 @@ kotlin {
       dependencies {
         implementation(projects.domain.f8eClientPublic)
         implementation(projects.domain.accountPublic)
-        implementation(projects.domain.firmwarePublic)
+        implementation(projects.domain.hardwarePublic)
       }
     }
 

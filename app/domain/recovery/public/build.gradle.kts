@@ -12,10 +12,10 @@ kotlin {
       dependencies {
         api(projects.domain.accountPublic)
         api(projects.domain.authPublic)
-        api(projects.domain.bitcoinPublic)
         api(projects.domain.cloudBackupPublic)
         api(projects.domain.f8eClientPublic)
         api(projects.domain.featureFlagPublic)
+        api(projects.domain.walletPublic)
         api(projects.libs.ktorClientPublic)
         api(projects.libs.timePublic)
         implementation(projects.libs.stdlibPublic)
@@ -24,8 +24,8 @@ kotlin {
 
     val commonTest by getting {
       dependencies {
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.domain.walletFake)
       }
     }
   }

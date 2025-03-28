@@ -19,7 +19,7 @@ import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.*
@@ -87,7 +87,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("fee bump happy path") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<TransferConfirmationScreenModel> {
         onConfirmClick()
       }
@@ -110,7 +110,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("fee bump for utxo consolidation happy path") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(
         speedUpTransactionDetails = props.speedUpTransactionDetails.copy(
           transactionType = UtxoConsolidation

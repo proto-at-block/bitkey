@@ -18,9 +18,16 @@ import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.statemachine.root.RestoreCopyAddressStateDelay
+import build.wallet.ui.theme.Theme
+import build.wallet.ui.theme.ThemePreferenceService
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
+
+const val FOREGROUND_LIGHT_COLOR = "000000"
+const val FOREGROUND_DARK_COLOR = "e2e2e2"
+const val BACKGROUND_LIGHT_COLOR = "ffffff"
+const val BACKGROUND_DARK_COLOR = "000000"
 
 @BitkeyInject(ActivityScope::class)
 class AddressQrCodeUiStateMachineImpl(
@@ -29,10 +36,36 @@ class AddressQrCodeUiStateMachineImpl(
   private val sharingManager: SharingManager,
   private val bitcoinInvoiceUrlEncoder: BitcoinInvoiceUrlEncoder,
   private val bitcoinAddressService: BitcoinAddressService,
+  private val themePreferenceService: ThemePreferenceService,
 ) : AddressQrCodeUiStateMachine {
   @Composable
   override fun model(props: AddressQrCodeUiProps): BodyModel {
     var state: State by remember { mutableStateOf(State.LoadingAddressUiState) }
+
+    val theme by remember {
+      themePreferenceService.theme()
+    }.collectAsState(Theme.LIGHT)
+
+    val qrCodeColor by remember(theme) {
+      when (theme) {
+        Theme.LIGHT -> mutableStateOf(FOREGROUND_LIGHT_COLOR)
+        Theme.DARK -> mutableStateOf(FOREGROUND_DARK_COLOR)
+      }
+    }
+
+    val qrCodeBackgroundColor by remember(theme) {
+      when (theme) {
+        Theme.LIGHT -> mutableStateOf(BACKGROUND_LIGHT_COLOR)
+        Theme.DARK -> mutableStateOf(BACKGROUND_DARK_COLOR)
+      }
+    }
+
+    val qrCodeUrlString by remember(qrCodeColor, qrCodeBackgroundColor, state) {
+      when (val address = state.address) {
+        null -> mutableStateOf(null)
+        else -> mutableStateOf("https://api.cash.app/qr/btc/${address.address}?currency=btc&logoColor=$qrCodeColor&bg=$qrCodeBackgroundColor&fg=$qrCodeColor&rounded=true&size=2000&errorCorrection=2")
+      }
+    }
 
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
@@ -75,9 +108,7 @@ class AddressQrCodeUiStateMachineImpl(
           content =
             QrCode(
               address = state.address?.address,
-              addressQrImageUrl = state.address?.let {
-                "https://api.cash.app/qr/btc/${it.address}?currency=btc&logoColor=000000&rounded=true&size=2000&errorCorrection=2"
-              },
+              addressQrImageUrl = qrCodeUrlString,
               fallbackAddressQrCodeModel =
                 state.addressInvoice?.let {
                   QrCodeModel(data = it)

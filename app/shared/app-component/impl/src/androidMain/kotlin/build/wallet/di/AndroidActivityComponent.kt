@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
 import build.wallet.ui.theme.ThemePreferenceService
 import me.tatarka.inject.annotations.Provides
@@ -23,7 +22,6 @@ interface AndroidActivityComponent {
    * Dependencies that are used by the Android app code.
    */
   val appUiStateMachine: AppUiStateMachine
-  val biometricPromptUiStateMachine: BiometricPromptUiStateMachine
   val inAppBrowserNavigator: InAppBrowserNavigator
   val themePreferenceService: ThemePreferenceService
 

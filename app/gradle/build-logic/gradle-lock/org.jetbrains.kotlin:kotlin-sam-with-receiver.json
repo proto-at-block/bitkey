@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-sam-with-receiver",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-sam-with-receiver-1.9.23-gradle82.jar": "2f9c86fd45f94f84eb16bacedded2d1c2a71a66fa8b7fead6f4fd48fbedb174f"
+                        "kotlin-sam-with-receiver-2.0.20-gradle85.jar": "447bd1f7f11ac6fd9d11dc58ab394740760efb139bd23ff544cca952c51dd58e"
                     }
                 }
             ],

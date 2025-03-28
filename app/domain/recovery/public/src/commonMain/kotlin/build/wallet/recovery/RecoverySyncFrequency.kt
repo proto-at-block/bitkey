@@ -4,7 +4,7 @@ import kotlin.jvm.JvmInline
 import kotlin.time.Duration
 
 /**
- * Determine show frequency recovery should be synced by [RecoverySyncer].
+ * Determine show frequency recovery should be synced by [bitkey.recovery.RecoveryStatusService].
  */
 @JvmInline
 value class RecoverySyncFrequency(val value: Duration)

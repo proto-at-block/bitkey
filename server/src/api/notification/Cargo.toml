@@ -14,7 +14,7 @@ bimap = "0.6.3"
 derive_builder = { workspace = true }
 dyn-clone = { workspace = true }
 futures = { workspace = true }
-hmac = "0.12.1"
+hmac = { workspace = true }
 http = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }

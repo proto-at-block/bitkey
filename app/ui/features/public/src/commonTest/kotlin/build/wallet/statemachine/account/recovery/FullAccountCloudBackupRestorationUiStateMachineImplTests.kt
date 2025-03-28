@@ -30,7 +30,7 @@ import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.Recovery.NoActiveRecovery
-import build.wallet.recovery.RecoverySyncerMock
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.SocRecChallengeRepositoryMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
@@ -54,6 +54,7 @@ import com.github.michaelbull.result.get
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Instant
 
 class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val cloudBackupDao = CloudBackupDaoFake()
@@ -77,8 +78,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val recoveryChallengeUiStateMachineMock =
     object : RecoveryChallengeUiStateMachine,
       ScreenStateMachineMock<RecoveryChallengeUiProps>("recovery-challenge-fake") {}
-  val recoverySyncer =
-    RecoverySyncerMock(
+  val recoveryStatusService =
+    RecoveryStatusServiceMock(
       recovery = NoActiveRecovery,
       turbines::create
     )
@@ -111,7 +112,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       appPrivateKeyDao = appPrivateKeyDao,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
       keyboxDao = keyboxDao,
-      recoverySyncer = recoverySyncer,
+      recoveryStatusService = recoveryStatusService,
       deviceInfoProvider = deviceInfoProvider,
       uuidGenerator = UuidGeneratorFake(),
       cloudBackupDao = cloudBackupDao,
@@ -132,7 +133,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
     authTokensService.reset()
     appAuthKeyMessageSigner.reset()
     keyboxDao.reset()
-    recoverySyncer.reset()
+    recoveryStatusService.reset()
     cloudBackupDao.reset()
   }
 
@@ -171,7 +172,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       authTokensService.getTokens(FullAccountId("account-id"), Global).shouldBeOk(
         AccountAuthTokens(
           accessToken = AccessToken("access-token-fake"),
-          refreshToken = RefreshToken("refresh-token-fake")
+          refreshToken = RefreshToken("refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
         )
       )
 
@@ -181,12 +183,13 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       authTokensService.getTokens(FullAccountId("account-id"), Recovery).shouldBeOk(
         AccountAuthTokens(
           accessToken = AccessToken("access-token-fake"),
-          refreshToken = RefreshToken("refresh-token-fake")
+          refreshToken = RefreshToken("refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
         )
       )
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-      recoverySyncer.clearCalls.awaitItem()
+      recoveryStatusService.clearCalls.awaitItem()
       relationshipsService.syncCalls.awaitItem()
       spendingWallet.syncCalls.awaitItem()
 

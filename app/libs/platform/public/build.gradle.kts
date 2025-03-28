@@ -13,7 +13,7 @@ kotlin {
     }
     commonMain {
       dependencies {
-        api(projects.libs.resultPublic)
+        api(libs.kmp.kotlin.result)
         api(libs.kmp.okio)
         implementation(projects.libs.stdlibPublic)
       }

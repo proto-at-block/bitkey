@@ -10,7 +10,6 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionsDataMock
-import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -22,7 +21,7 @@ import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
@@ -80,7 +79,6 @@ class SendUiStateMachineImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val props = SendUiProps(
-    account = FullAccountMock,
     validInvoiceInClipboard = null,
     onExit = {},
     onDone = {},
@@ -109,7 +107,7 @@ class SendUiStateMachineImplTests : FunSpec({
     val amountToSend = 60_000UL
 
     test("Golden path from send button") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         // Step 1: User enters some address
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
@@ -154,7 +152,7 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("going back to amount entry initializes with btc currency") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
@@ -178,7 +176,7 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("going back from transfer confirmation rehydrates the right data for previous steps") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         val moneyToSend = BitcoinMoney.sats(amountToSend.toBigInteger())
         // Step 1: User enters some address
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
@@ -220,7 +218,7 @@ class SendUiStateMachineImplTests : FunSpec({
 
   context("User is sending all") {
     test("Golden path") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         // Step 1: User enters some address
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
@@ -266,7 +264,7 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("going back from transfer confirmation rehydrates the right data for previous steps") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         // Step 1: User enters some address
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
@@ -315,7 +313,7 @@ class SendUiStateMachineImplTests : FunSpec({
             clock.now - 5.minutes
           )
         )
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }
@@ -328,7 +326,7 @@ class SendUiStateMachineImplTests : FunSpec({
 
     test("going back to amount entry without exchange rates initializes with btc currency") {
       rateSyncer.exchangeRates.value = listOf()
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBodyMock<BitcoinAddressRecipientUiProps> {
           onRecipientEntered(someBitcoinAddress)
         }

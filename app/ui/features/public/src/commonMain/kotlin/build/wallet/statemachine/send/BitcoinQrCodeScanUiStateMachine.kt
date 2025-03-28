@@ -1,6 +1,5 @@
 package build.wallet.statemachine.send
 
-import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.ParsedPaymentData
@@ -21,7 +20,6 @@ interface BitcoinQrCodeUiScanStateMachine : StateMachine<BitcoinQrCodeScanUiProp
  * @property onRecipientScanned - Method invoked when a valid bitcoin address has been scanned
  */
 data class BitcoinQrCodeScanUiProps(
-  val networkType: BitcoinNetworkType,
   val validInvoiceInClipboard: ParsedPaymentData?,
   val onEnterAddressClick: () -> Unit,
   val onClose: () -> Unit,

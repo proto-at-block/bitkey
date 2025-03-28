@@ -14,7 +14,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.bitcoinPublic)
         api(projects.domain.emergencyAccessKitPublic)
         api(projects.libs.loggingPublic)
         api(projects.libs.keyValueStorePublic)
@@ -33,7 +32,6 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.analyticsFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.recoveryFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.cloudBackupFake) {
@@ -42,8 +40,8 @@ kotlin {
         implementation(projects.libs.cloudStoreFake)
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.encryptionFake)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.libs.testingPublic)

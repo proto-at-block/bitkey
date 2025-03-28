@@ -43,7 +43,7 @@ impl Service {
 
         let prev_common_fields = &invitation.common_fields;
 
-        if &prev_common_fields.customer_account_id != &input.customer_account.id {
+        if prev_common_fields.customer_account_id != input.customer_account.id {
             return Err(ServiceError::UnauthorizedRelationshipUpdate);
         }
 

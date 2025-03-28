@@ -126,10 +126,7 @@ impl Service {
         Ok(deserialize(
             &self
                 .http_client
-                .get(&format!(
-                    "{}/block/{block_hash}/raw",
-                    self.settings.base_url
-                ))
+                .get(format!("{}/block/{block_hash}/raw", self.settings.base_url))
                 .send()
                 .await?
                 .bytes()
@@ -141,7 +138,7 @@ impl Service {
     pub(crate) async fn get_tip_hash(&self) -> Result<BlockHash, ChainIndexerError> {
         Ok(self
             .http_client
-            .get(&format!("{}/blocks/tip/hash", self.settings.base_url))
+            .get(format!("{}/blocks/tip/hash", self.settings.base_url))
             .send()
             .await?
             .text()

@@ -8,7 +8,7 @@ import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.relationships.RelationshipsServiceMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -41,7 +41,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   }
 
   test("no invitations produces no cards") {
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().shouldBeEmpty()
     }
   }
@@ -50,7 +50,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     relationshipsService.relationships.value = relationships.copy(
       invitations = listOf(InvitationFake)
     )
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -66,7 +66,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
     relationshipsService.relationships.value = relationships.copy(
       invitations = listOf(InvitationFake.copy(expiresAt = DISTANT_FUTURE))
     )
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -81,7 +81,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       invitations = listOf(InvitationFake.copy(expiresAt = DISTANT_PAST))
     )
 
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().let {
         it.size.shouldBeEqual(1)
         it.first().let { cardModel ->
@@ -100,7 +100,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         )
     )
 
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().size.shouldBeEqual(2)
     }
   }
@@ -113,7 +113,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         )
       )
     )
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -133,7 +133,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -153,7 +153,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().should { cards ->
         cards.size.shouldBeEqual(1)
         cards.first().let { cardModel ->
@@ -176,7 +176,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().shouldBeEmpty()
     }
   }
@@ -188,7 +188,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         BeneficiaryInvitationFake.copy(expiresAt = DISTANT_PAST)
       )
     )
-    recoveryContactCardsUiStateMachine.testWithVirtualTime(recoveryContactCardsUiProps) {
+    recoveryContactCardsUiStateMachine.test(recoveryContactCardsUiProps) {
       awaitItem().size.shouldBeEqual(0)
     }
   }

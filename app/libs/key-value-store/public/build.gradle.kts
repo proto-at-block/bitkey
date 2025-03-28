@@ -10,9 +10,10 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.resultPublic)
+        api(libs.kmp.kotlin.result)
         api(libs.kmp.settings)
         api(libs.kmp.settings.coroutines)
+        implementation(projects.libs.stdlibPublic)
       }
     }
   }

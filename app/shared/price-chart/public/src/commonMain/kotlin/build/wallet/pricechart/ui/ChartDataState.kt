@@ -13,9 +13,10 @@ import kotlin.math.*
 internal data class ChartDataState(
   val data: ImmutableList<DataPoint>,
   val intervals: Int,
+  val pathSize: Float,
 ) {
-  private val yMin: Double = data.minOfOrNull { it.second } ?: 0.0
-  private val yMax: Double = data.maxOfOrNull { it.second } ?: 1.0
+  private val yMin: Double = data.minOfOrNull { it.y } ?: 0.0
+  private val yMax: Double = data.maxOfOrNull { it.y } ?: 1.0
   private val intervalValue: Double
   private var yFloor: Double
   private var yCeil: Double
@@ -54,12 +55,13 @@ internal data class ChartDataState(
     offset: Offset,
     canvasWidth: Float,
   ): DataPoint? {
+    if (offset == Offset.Unspecified) return null
+    val xOffset = offset.x - pathSize
     return when {
-      offset == Offset.Unspecified -> null
-      offset.x <= 0 -> data.firstOrNull()
-      offset.x >= canvasWidth -> data.lastOrNull()
+      xOffset <= 0 -> data.firstOrNull()
+      xOffset >= canvasWidth -> data.lastOrNull()
       else -> {
-        val pointIndex = (offset.x / (canvasWidth / data.size)).toInt()
+        val pointIndex = (xOffset / (canvasWidth / data.size)).toInt()
         data.getOrNull(pointIndex)
       }
     }
@@ -80,13 +82,15 @@ internal data class ChartDataState(
     stopAtDataPoint: DataPoint? = null,
   ): Path {
     path.rewind()
+    // Use the pathSize as the base offset to ensure drawing
+    // a Stroke with the path does not draw outside the parent
+    val baseOffset = pathSize
     val stopAtIndex = stopAtDataPoint?.let { data.indexOf(it) }
     val normalizedData = data.map {
-      canvasHeight - ((it.second - yFloor) / range * canvasHeight).toFloat()
+      canvasHeight - ((it.y - yFloor) / range * canvasHeight).toFloat()
     }
     val xInterval = canvasWidth / normalizedData.lastIndex
-
-    path.moveTo(0f, normalizedData[0])
+    path.moveTo(baseOffset, normalizedData[0])
 
     for (index in 1 until normalizedData.size) {
       val startIndex = index - 1
@@ -94,24 +98,22 @@ internal data class ChartDataState(
         if (stopAtIndex == 0) {
           // if we stop drawing before creating a line,
           // add a small line to allow UI anchoring.
-          path.lineTo(1f, normalizedData[0])
+          path.lineTo(baseOffset + 1, normalizedData[0])
         }
         return path
       }
 
-      val startPointX = startIndex * xInterval
+      val startPointX = (startIndex * xInterval) + baseOffset
       val startPointY = normalizedData[startIndex]
-      val targetPointX = index * xInterval
+      val targetPointX = (index * xInterval) + baseOffset
       val targetPointY = normalizedData[index]
-      path.quadraticBezierTo(
+      path.quadraticTo(
         x1 = startPointX,
         y1 = startPointY,
-        x2 = (startPointX + targetPointX) / 2,
-        y2 = (startPointY + targetPointY) / 2
+        x2 = targetPointX,
+        y2 = targetPointY
       )
     }
-
-    path.lineTo(canvasWidth, normalizedData[normalizedData.lastIndex])
 
     return path
   }

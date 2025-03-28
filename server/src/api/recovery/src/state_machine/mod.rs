@@ -45,7 +45,7 @@ pub struct RecoveryServices<'a> {
 
 pub type BoxedRecoveryState = Box<dyn RecoveryState>;
 
-#[derive(Clone)]
+#[derive(Clone, strum_macros::Display)]
 pub enum RecoveryEvent {
     CheckAccountRecoveryState,
     CreateRecovery {

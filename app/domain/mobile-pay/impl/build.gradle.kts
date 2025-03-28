@@ -19,6 +19,7 @@ kotlin {
         api(projects.libs.moneyPublic)
         api(projects.libs.ktorClientPublic)
         api(projects.domain.databasePublic)
+        api(projects.domain.walletPublic)
       }
     }
 
@@ -26,12 +27,11 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.analyticsFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.debugFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.f8eClientFake)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.domain.mobilePayFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.timeFake)

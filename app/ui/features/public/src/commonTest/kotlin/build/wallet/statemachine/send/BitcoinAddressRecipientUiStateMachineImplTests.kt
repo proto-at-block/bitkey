@@ -10,10 +10,11 @@ import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.*
 import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
 import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
-import build.wallet.bitkey.spending.SpendingKeysetMock
+import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
+import build.wallet.bitcoin.wallet.SpendingWalletFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.keybox.wallet.KeysetWalletProviderMock
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
@@ -42,12 +43,13 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       validBOLT11Invoices = mutableSetOf()
     )
   val accountConfigService = AccountConfigServiceFake()
+  val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val stateMachine =
     BitcoinAddressRecipientUiStateMachineImpl(
       paymentDataParser = paymentParser,
-      keysetWalletProvider = KeysetWalletProviderMock(),
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      bitcoinWalletService = bitcoinWalletService
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -58,8 +60,6 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   val props =
     BitcoinAddressRecipientUiProps(
       address = null,
-      // Since our fixtures use mainnet addresses.
-      spendingKeyset = SpendingKeysetMock.copy(networkType = BITCOIN),
       validInvoiceInClipboard = null,
       onBack = {
         onBackCalls += Unit
@@ -78,10 +78,12 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   beforeTest {
     accountConfigService.reset()
     accountConfigService.setBitcoinNetworkType(BITCOIN)
+    bitcoinWalletService.reset()
+    bitcoinWalletService.spendingWallet.value = SpendingWalletFake()
   }
 
   test("initial state without default address") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         enteredText.shouldBeEmpty()
         onContinueClick.shouldBeNull()
@@ -90,13 +92,13 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("initial state with default address") {
-    stateMachine.testWithVirtualTime(props.copy(address = validAddress)) {
+    stateMachine.test(props.copy(address = validAddress)) {
       awaitOnContinueNotNull(validAddress.address)
     }
   }
 
   test("click scan qr code") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onScanQrCodeClick()
       }
@@ -107,7 +109,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("enter valid address") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validAddress.address)
       }
@@ -117,7 +119,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("enter valid invoice url") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validInvoiceUrl)
       }
@@ -127,7 +129,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("enter valid address and continue") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validAddress.address)
       }
@@ -138,7 +140,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("enter valid invoice and continue") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validInvoice.address.address)
       }
@@ -150,7 +152,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("enter valid address and remove character to make entry invalid") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validAddress.address)
       }
@@ -176,7 +178,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("fix invalid address") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(invalidAddressText)
       }
@@ -214,7 +216,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("cannot continue when address from a different bitcoin network is entered") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validSignetAddress)
 
@@ -229,7 +231,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("cannot continue when bip21 uri from a different bitcoin network is entered") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validSignetBIP21URI)
 
@@ -244,7 +246,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("cannot continue when self address is entered") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(selfAddress.address)
       }
@@ -262,7 +264,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button fills text field") {
-    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
+    stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
         onPasteButtonClick()
@@ -283,7 +285,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button does not show with contents in address field") {
-    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = Onchain(validAddress))) {
+    stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(validAddress))) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
         // Now, user manually enters some text
@@ -302,10 +304,10 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     val invalidAddressInClipboardStateMachine =
       BitcoinAddressRecipientUiStateMachineImpl(
         paymentDataParser = paymentParser,
-        keysetWalletProvider = KeysetWalletProviderMock(),
-        accountConfigService = accountConfigService
+        accountConfigService = accountConfigService,
+        bitcoinWalletService = bitcoinWalletService
       )
-    invalidAddressInClipboardStateMachine.testWithVirtualTime(props) {
+    invalidAddressInClipboardStateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeFalse()
       }
@@ -313,7 +315,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   }
 
   test("paste button does not show with Lightning address in clipboard") {
-    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
+    stateMachine.test(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeFalse()
       }
@@ -326,7 +328,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         validInvoiceInClipboard = Onchain(validAddress)
       )
 
-    stateMachine.testWithVirtualTime(validAddressProps) {
+    stateMachine.test(validAddressProps) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
       }
@@ -346,7 +348,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
           )
       )
 
-    stateMachine.testWithVirtualTime(validBIP21URIProps) {
+    stateMachine.test(validBIP21URIProps) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         showPasteButton.shouldBeTrue()
       }

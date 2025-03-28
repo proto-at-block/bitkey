@@ -1,6 +1,6 @@
 package build.wallet.codegen
 
-import bitkey.ui.Snapshots
+import bitkey.ui.SnapshotHost
 import com.squareup.kotlinpoet.*
 import io.outfoxx.swiftpoet.DeclaredTypeName
 import io.outfoxx.swiftpoet.CodeBlock as SwiftCodeBlock
@@ -107,7 +107,7 @@ class SnapshotCodegen(
    *
    *   test("testModel") {
    *     paparazzi.snapshot {
-   *       SpendingLimitCard(model = Snapshots.testModel)
+   *       SpendingLimitCard(model = SnapshotHost.testModel)
    *     }
    *   }
    * })
@@ -205,12 +205,12 @@ class SnapshotCodegen(
   ) {
     withIndent {
       if (composableMemberName.simpleName == "render") {
-        add("%T.%M.%M()\n", Snapshots::class, propertyMemberName, RENDER_EXTENSION)
+        add("%T.%M.%M()\n", SnapshotHost::class, propertyMemberName, RENDER_EXTENSION)
       } else {
         add(
           "%M(model = %T.%M)\n",
           composableMemberName,
-          Snapshots::class,
+          SnapshotHost::class,
           propertyMemberName
         )
       }

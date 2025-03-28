@@ -1,7 +1,7 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
 import bitkey.ui.Snapshot
-import bitkey.ui.Snapshots
+import bitkey.ui.SnapshotHost
 
 data class SpendingLimitCardModel(
   val titleText: String = "Today’s limit",
@@ -13,7 +13,7 @@ data class SpendingLimitCardModel(
 )
 
 @Snapshot
-val Snapshots.defaultModel
+val SnapshotHost.defaultModel
   get() = SpendingLimitCardModel(
     dailyResetTimezoneText = "Resets at 3:00am PDT",
     spentAmountText = "$50.00 spent",

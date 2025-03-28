@@ -1,0 +1,27 @@
+import build.wallet.firmware.UnlockMethod;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE hardwareUnlockMethods (
+    id                INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    unlockMethod      TEXT AS UnlockMethod NOT NULL,
+    unlockMethodIdx   INTEGER,
+    createdAt         TEXT AS Instant NOT NULL,
+    UNIQUE (unlockMethod, unlockMethodIdx)
+);
+
+insertHardwareUnlockMethod:
+INSERT OR REPLACE INTO hardwareUnlockMethods (
+    unlockMethod, unlockMethodIdx, createdAt
+) VALUES (
+    ?, ?, ?
+);
+
+deleteHardwareUnlockMethod:
+DELETE FROM hardwareUnlockMethods
+WHERE unlockMethod = ? AND (unlockMethodIdx = ? OR unlockMethodIdx IS NULL);
+
+selectAll:
+SELECT * FROM hardwareUnlockMethods;
+
+clearHardwareUnlockMethods:
+DELETE FROM hardwareUnlockMethods;

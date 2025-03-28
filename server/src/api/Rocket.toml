@@ -19,6 +19,7 @@ webhook = { mode = "test" }
 web_shop = { mode = "test" }
 zendesk = { mode = "test" }
 screener = { mode = "test" }
+linear = "test"
 allow_test_accounts_with_mainnet_keysets = true
 known_fields.18558334323604 = "Country"
 known_fields.17171619135892 = "HardwareSerialNumber"
@@ -85,6 +86,7 @@ cognito = "environment"
 sqs = "environment"
 ses = "environment"
 sns = "environment"
+linear = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
 # Iterable
@@ -131,9 +133,9 @@ web_shop.base_url = "https://web-shop-api.bitkeystaging.com"
 webhook.mode = "environment"
 screener = { mode = "s3" }
 monitored_electrum_nodes = [
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.tk7.mempool.space:50002" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
@@ -150,6 +152,7 @@ cognito = "environment"
 sqs = "environment"
 ses = "environment"
 sns = "environment"
+linear = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
 # Iterable
@@ -197,9 +200,9 @@ webhook.mode = "environment"
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 monitored_electrum_nodes = [
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.tk7.mempool.space:50002" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
@@ -216,6 +219,7 @@ cognito = "environment"
 sqs = "environment"
 ses = "environment"
 sns = "environment"
+linear = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
 # Iterable
@@ -265,9 +269,9 @@ zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 allow_test_accounts_with_mainnet_keysets = true
 monitored_electrum_nodes = [
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
-    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://bitkey.tk7.mempool.space:50002" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
     { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },

@@ -3,9 +3,7 @@ package build.wallet.statemachine.data.recovery.losthardware.initiate
 import androidx.compose.runtime.*
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
-import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
-import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICATION_REQUIRED
-import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS
+import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -16,8 +14,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.keybox.keys.AppKeysGenerator
-import build.wallet.recovery.LostHardwareRecoveryStarter
-import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError
+import build.wallet.recovery.LostHardwareRecoveryService
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData
@@ -41,7 +38,7 @@ data class InitiatingLostHardwareRecoveryProps(
 @BitkeyInject(AppScope::class)
 class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
-  private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,
+  private val lostHardwareRecoveryService: LostHardwareRecoveryService,
   private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val minimumLoadingDuration: MinimumLoadingDuration,
 ) : InitiatingLostHardwareRecoveryDataStateMachine {
@@ -60,14 +57,14 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
               state = OnboardingNewHardware(it)
             }
             .onFailure {
-              state = State.ErrorGeneratingNewAppKeysState(it)
+              state = ErrorGeneratingNewAppKeysState(it)
             }
         }
         GeneratingNewAppKeysData
       }
 
-      is State.ErrorGeneratingNewAppKeysState ->
-        InitiatingLostHardwareRecoveryData.ErrorGeneratingNewAppKeysData(
+      is ErrorGeneratingNewAppKeysState ->
+        ErrorGeneratingNewAppKeysData(
           retry = { state = GeneratingNewAppKeys },
           cause = s.cause
         )
@@ -87,34 +84,31 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
       is InitiatingServerRecoveryState -> {
         LaunchedEffect("initiating-lost-hardware-server-recovery") {
-          lostHardwareRecoveryStarter
+          lostHardwareRecoveryService
             .initiate(
               destinationAppKeyBundle = s.destinationAppKeyBundle,
               destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
               appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
             )
-            .onFailure { error ->
-              if (error.isServerInitiationError(COMMS_VERIFICATION_REQUIRED)) {
-                state =
+            .onFailure {
+              state = when (it) {
+                is CommsVerificationRequiredError ->
                   VerifyingNotificationCommsForInitiationState(
                     sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
                   )
-              } else if (error.isServerInitiationError(RECOVERY_ALREADY_EXISTS)) {
-                state =
+                is RecoveryAlreadyExistsError ->
                   DisplayingConflictingRecoveryState(
                     sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
                     appGlobalAuthKeyHwSignature = s.appGlobalAuthKeyHwSignature
                   )
-              } else {
-                state =
-                  // Otherwise, show a failure
+                is OtherError ->
                   FailedInitiatingServerRecoveryState(
-                    cause = error,
+                    cause = it,
                     sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
@@ -251,7 +245,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
         )
 
       is FailedToCancelConflictingRecoveryWithF8EState ->
-        InitiatingLostHardwareRecoveryData.FailedToCancelConflictingRecoveryData(
+        FailedToCancelConflictingRecoveryData(
           cause = s.cause,
           onAcknowledge = {
             state = GeneratingNewAppKeys
@@ -345,28 +339,4 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
       val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     ) : State
   }
-}
-
-private fun LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.isServerInitiationError(
-  type: InitiateAccountDelayNotifyErrorCode,
-): Boolean {
-  if (this !is F8eInitiateDelayNotifyError) {
-    return false
-  }
-
-  if (error !is F8eError.SpecificClientError) {
-    return false
-  }
-
-  val f8eError = error as F8eError.SpecificClientError<InitiateAccountDelayNotifyErrorCode>
-  return f8eError.errorCode == type
-}
-
-/**
- * Comms verification could be required for multiple actions, enumerated here.
- */
-private sealed interface CommsVerificationTargetAction {
-  data object CancelRecovery : CommsVerificationTargetAction
-
-  data object InitiateRecovery : CommsVerificationTargetAction
 }

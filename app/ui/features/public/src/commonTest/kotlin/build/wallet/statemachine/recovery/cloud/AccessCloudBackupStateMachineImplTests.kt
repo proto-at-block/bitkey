@@ -12,7 +12,7 @@ import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -63,7 +63,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("successfully find backup and restore it") {
     cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -77,7 +77,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account signed in but cloud backup not found") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -92,7 +92,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("cloud account signed in but failure when trying to access cloud backup") {
     cloudBackupRepository.returnReadError = UnrectifiableCloudBackupError(Exception("oops"))
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -105,7 +105,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account signed in but cloud backup not found - exit") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -125,7 +125,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   // The behavior on the two platforms is slightly different.
 
   test("cloud account signed in but cloud backup not found - cannot access cloud option") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -151,7 +151,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
    If cloud sign in succeeds should proceed as if a backup was found.
    */
   test("cloud account sign in failed from trusted contact flow - does not show recovery options") {
-    stateMachine.testWithVirtualTime(props.copy(showErrorOnBackupMissing = false)) {
+    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())
       }
@@ -161,7 +161,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account signed in but cloud backup not found from trusted contact flow - proceeds as if found") {
-    stateMachine.testWithVirtualTime(props.copy(showErrorOnBackupMissing = false)) {
+    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -175,7 +175,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account sign in failed - start emergency access recovery") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())
       }

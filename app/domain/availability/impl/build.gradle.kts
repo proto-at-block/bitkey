@@ -27,7 +27,7 @@ kotlin {
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.timeFake)
-        implementation(projects.shared.workerFake)
+        implementation(projects.domain.workerFake)
       }
     }
   }

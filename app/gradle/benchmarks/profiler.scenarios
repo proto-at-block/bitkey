@@ -40,12 +40,12 @@ base_clean {
 
 base_abi_change {
     # Make an ABI change in a dependency module
-    apply-abi-change-to = "shared/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
+    apply-abi-change-to = "domain/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
 }
 
 base_nonabi_change {
     # Make a non-ABI change in a dependency module
-    apply-non-abi-change-to = "shared/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
+    apply-non-abi-change-to = "domain/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
 }
 
 # SCENARIOS

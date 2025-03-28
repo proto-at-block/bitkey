@@ -2,7 +2,7 @@ import { Environment } from "./common/environments";
 
 const PROD_CRITICAL_RECIPIENTS = ["@slack-Block-bitkey-alerts", "@pagerduty-fromagerie"];
 const PROD_ERROR_RECIPIENTS = ["@slack-Block-bitkey-robots"];
-const PROD_WARNING_RECIPIENTS = ["@slack-Block-w1-noise"];
+const PROD_WARNING_RECIPIENTS = ["@slack-Block-bitkey-robots", "@pagerduty-fromagerie"];
 const STAGE_RECIPIENTS = ["@slack-Block-bitkey-alerts-staging"];
 
 // Critical: goes to alerts channel and pages (oncall should address at any hour)

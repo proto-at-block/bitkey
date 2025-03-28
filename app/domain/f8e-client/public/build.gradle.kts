@@ -17,7 +17,6 @@ kotlin {
         api(projects.domain.accountPublic)
         api(projects.domain.analyticsPublic)
         api(projects.domain.availabilityPublic)
-        api(projects.domain.bitcoinPublic)
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.libs.frostPublic)
         api(projects.libs.ktorClientPublic)

@@ -24,7 +24,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
@@ -139,7 +139,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     )
 
   test("initiating lost hardware recovery ui -- success through awaiting new hardware") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = awaitingProps
     ) {
       awaitBody<FormBodyModel> {
@@ -181,7 +181,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- close instructions") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = awaitingProps
     ) {
       awaitBody<FormBodyModel> {
@@ -197,7 +197,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- back from new device ready question") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = awaitingProps
     ) {
       awaitBody<FormBodyModel> {
@@ -226,7 +226,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- no from new device ready question") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = awaitingProps
     ) {
       awaitBody<FormBodyModel> {
@@ -259,7 +259,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   test(
     "initiating lost hardware recovery ui -- no from new device ready question and dismiss"
   ) {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = awaitingProps
     ) {
       awaitBody<FormBodyModel> {
@@ -304,7 +304,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- success through initiating with f8e") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = initiatingProps
     ) {
       awaitBody<LoadingSuccessBodyModel> {
@@ -317,7 +317,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- rollback while initiating with f8e") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = initiatingProps
     ) {
       awaitBody<LoadingSuccessBodyModel> {
@@ -332,7 +332,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = failedInitiatingF8eProps
     ) {
       awaitBody<FormBodyModel> {
@@ -343,7 +343,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure retry") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = failedInitiatingF8eProps
     ) {
       awaitBody<FormBodyModel> {
@@ -356,7 +356,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- f8e failure rollback") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = failedInitiatingF8eProps
     ) {
       awaitBody<FormBodyModel> {
@@ -369,7 +369,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost hardware recovery ui -- verifying comms") {
-    stateMachine.testWithVirtualTime(props = verifyingNotificationCommsProps) {
+    stateMachine.test(props = verifyingNotificationCommsProps) {
       awaitBodyMock<RecoveryNotificationVerificationUiProps> {
         fullAccountId.shouldBe(FullAccountIdMock)
         localLostFactor.shouldBe(Hardware)

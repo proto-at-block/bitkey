@@ -10,7 +10,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiProps
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -57,7 +57,7 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
   )
 
   test("start with existing full account") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<OnboardFullAccountUiProps> {
         onOnboardingComplete()
       }
@@ -69,7 +69,7 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("start with no account") {
-    stateMachine.testWithVirtualTime(props.copy(fullAccount = null)) {
+    stateMachine.test(props.copy(fullAccount = null)) {
       awaitBodyMock<CreateKeyboxUiProps> {
         onAccountCreated(FullAccountMock)
       }
@@ -85,7 +85,7 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("start with existing lite account backup") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<OnboardFullAccountUiProps> {
         onFoundLiteAccountWithDifferentId(CloudBackupV2WithLiteAccountMock)
       }
@@ -105,7 +105,7 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("start with existing full account backup") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<OnboardFullAccountUiProps> {
         onOverwriteFullAccountCloudBackupWarning()
       }

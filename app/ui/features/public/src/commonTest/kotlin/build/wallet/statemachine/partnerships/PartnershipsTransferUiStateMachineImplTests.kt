@@ -13,7 +13,7 @@ import build.wallet.partnerships.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
 import build.wallet.statemachine.ui.awaitSheet
@@ -80,7 +80,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   // tests
 
   test("redirect partner") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       awaitSheet<FormBodyModel> {
@@ -147,7 +147,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   }
 
   test("another exchange or wallet clicked") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
       awaitSheet<FormBodyModel>()
 
@@ -168,7 +168,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   test("unable to load partners renders error sheet with another exchange option") {
     getTransferPartnerListF8eClient.partnersResult =
       Err(HttpError.NetworkError(Error("Network error")))
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
       awaitSheet<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()

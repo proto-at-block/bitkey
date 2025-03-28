@@ -14,6 +14,7 @@ import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyA
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
+import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -82,5 +83,5 @@ class EmergencyAccessPayloadRestorerImpl(
           )
         }
       }
-    }
+    }.logFailure { "EAK payload failed to decrypt" }
 }

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.money.currency
 
-import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.AppearanceEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.Icon
@@ -24,7 +24,7 @@ data class FiatCurrencyListFormModel(
   val currencyList: List<FiatCurrency>,
   val onCurrencySelection: (FiatCurrency) -> Unit,
 ) : FormBodyModel(
-    id = CurrencyEventTrackerScreenId.CURRENCY_FIAT_LIST_SELECTION,
+    id = AppearanceEventTrackerScreenId.CURRENCY_FIAT_LIST_SELECTION,
     onBack = onClose,
     toolbar = ToolbarModel(
       leadingAccessory = CloseAccessory(onClick = onClose),

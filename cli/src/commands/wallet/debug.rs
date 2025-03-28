@@ -190,7 +190,7 @@ pub fn debug(
             .await
     })?;
 
-    if let Some(items) = recovery_query_result.items() {
+    if let Some(items) = recovery_query_result.items {
         if items.is_empty() {
             println!("******************************************************");
             println!("No recovery records found");
@@ -228,7 +228,7 @@ pub fn debug(
             .await
     })?;
 
-    if let Some(items) = social_recovery_relationship_query_result.items() {
+    if let Some(items) = social_recovery_relationship_query_result.items {
         if items.is_empty() {
             println!("******************************************************");
             println!("No recovery relationships found");
@@ -266,7 +266,7 @@ pub fn debug(
             .await
     })?;
 
-    if let Some(items) = social_recovery_challenge_query_result.items() {
+    if let Some(items) = social_recovery_challenge_query_result.items {
         if items.is_empty() {
             println!("******************************************************");
             println!("No challenges found");
@@ -304,7 +304,7 @@ pub fn debug(
             .await
     })?;
 
-    if let Some(items) = inheritance_claims_as_benefactor_results.items() {
+    if let Some(items) = inheritance_claims_as_benefactor_results.items {
         if items.is_empty() {
             println!("******************************************************");
             println!("No inheritance claims found as benefactor");
@@ -338,7 +338,7 @@ pub fn debug(
             .await
     })?;
 
-    if let Some(items) = inheritance_claims_as_beneficiary_results.items() {
+    if let Some(items) = inheritance_claims_as_beneficiary_results.items {
         if items.is_empty() {
             println!("******************************************************");
             println!("No inheritance claims found as beneficiary");

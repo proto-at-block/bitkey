@@ -50,7 +50,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   test("Cloud backup health dashboard is visible with warning icon")
     .withTags(CLOUD_ACCESS_FAILURE) {
       val app = launchAppAndOnboard()
-      app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+      app.appUiStateMachine.test(props = Unit) {
         awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }
@@ -68,7 +68,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health dashboard is visible") {
     val app = launchAppAndOnboard()
-    app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+    app.appUiStateMachine.test(props = Unit) {
       shouldNavigateToCloudBackupHealthDashboard()
       cancelAndIgnoreRemainingEvents()
     }
@@ -76,7 +76,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health dashboard with healthy cloud backup") {
     val app = launchAppAndOnboard()
-    app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+    app.appUiStateMachine.test(props = Unit) {
       shouldNavigateToCloudBackupHealthDashboard {
         mobileKeyBackupStatusCard.backupStatus.title.shouldBe("Fake Cloud Store backup")
         mobileKeyBackupStatusCard.backupStatusActionButton.shouldBeNull()
@@ -88,7 +88,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   test("Cloud backup health dashboard with cloud access failure")
     .withTags(CLOUD_ACCESS_FAILURE) {
       val app = launchAppAndOnboard()
-      app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+      app.appUiStateMachine.test(props = Unit) {
         shouldNavigateToCloudBackupHealthDashboard {
           mobileKeyBackupStatusCard.backupStatus.title
             .shouldBe("Problem with Fake Cloud Store\naccount access")
@@ -103,7 +103,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health dashboard repair mobile key backup") {
     val app = launchAppAndOnboard()
-    app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+    app.appUiStateMachine.test(props = Unit) {
       app.cloudBackupRepository.clear(CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
         mobileKeyBackupStatusCard.backupStatus.title
@@ -129,7 +129,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health automatically repairs eak backup") {
     val app = launchAppAndOnboard()
-    app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+    app.appUiStateMachine.test(props = Unit) {
       val cloudFileStoreFake = app.cloudFileStore as CloudFileStoreFake
       cloudFileStoreFake.clear()
       shouldNavigateToCloudBackupHealthDashboard {
@@ -148,7 +148,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   test("Cloud backup health card appears on money home screen")
     .withTags(CLOUD_ACCESS_FAILURE) {
       val app = launchAppAndOnboard()
-      app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+      app.appUiStateMachine.test(props = Unit) {
         awaitUntilBody<MoneyHomeBodyModel>(
           id = MONEY_HOME,
           matching = { body ->
@@ -169,7 +169,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
 
   test("Cloud backup health card does not appear on money home screen") {
     val app = launchAppAndOnboard()
-    app.appUiStateMachine.testWithVirtualTime(props = Unit) {
+    app.appUiStateMachine.test(props = Unit) {
       awaitUntilBody<MoneyHomeBodyModel>(
         MONEY_HOME,
         matching = { body ->

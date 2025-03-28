@@ -78,7 +78,6 @@ class SendUiStateMachineImpl(
           props =
             BitcoinAddressRecipientUiProps(
               address = state.recipientAddress,
-              spendingKeyset = props.account.keybox.activeSpendingKeyset,
               validInvoiceInClipboard = props.validInvoiceInClipboard,
               onBack = props.onExit,
               onRecipientEntered = { recipientAddress ->
@@ -117,7 +116,6 @@ class SendUiStateMachineImpl(
         bitcoinQrCodeUiScanStateMachine.model(
           props =
             BitcoinQrCodeScanUiProps(
-              networkType = props.account.config.bitcoinNetworkType,
               validInvoiceInClipboard = props.validInvoiceInClipboard,
               onEnterAddressClick = {
                 uiState = SelectingRecipientUiState(recipientAddress = null)

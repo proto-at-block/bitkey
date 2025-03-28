@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.ui.model.ComposeModel
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.status.StatusBannerModel
 import build.wallet.ui.model.toast.ToastModel
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -34,12 +35,14 @@ abstract class BodyModel : ComposeModel {
   fun asRootScreen(
     alertModel: ButtonAlertModel? = null,
     bottomSheetModel: SheetModel? = null,
+    statusBannerModel: StatusBannerModel? = null,
     toastModel: ToastModel? = null,
   ) = ScreenModel(
     body = this,
     presentationStyle = Root,
     alertModel = alertModel,
     bottomSheetModel = bottomSheetModel,
+    statusBannerModel = statusBannerModel,
     toastModel = toastModel
   )
 
@@ -89,10 +92,12 @@ abstract class BodyModel : ComposeModel {
   fun asRootFullScreen(
     theme: Theme? = null,
     alertModel: ButtonAlertModel? = null,
+    statusBannerModel: StatusBannerModel? = null,
   ) = ScreenModel(
     body = this,
     presentationStyle = RootFullScreen,
     alertModel = alertModel,
+    statusBannerModel = statusBannerModel,
     themePreference = theme?.let { ThemePreference.Manual(it) }
   )
 }

@@ -2,17 +2,17 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-compiler-embeddable-1.9.23.jar": "7b8039ff0b779d556ced00923035abd1334f0e5f2a88796182d02ba45f926d20"
+                        "kotlin-scripting-compiler-embeddable-2.0.20.jar": "21ef303ab4b9e0f9f397c14896253aae490257bfb0dd50089c1c1c04f0187171"
                     }
                 }
             ],
             "dependency-locking-groups": [
                 "build-classpath",
-                "gradle-plugins[build-logic]"
+                "kotlin-compiler"
             ]
         }
     ]

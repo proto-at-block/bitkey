@@ -6,7 +6,9 @@ import bitkey.auth.AuthTokenScope.Recovery
 import bitkey.auth.RefreshToken
 import build.wallet.account.AccountServiceFake
 import build.wallet.account.AccountStatus
-import build.wallet.auth.*
+import build.wallet.auth.AccountAuthenticatorMock
+import build.wallet.auth.AuthStorageError
+import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
@@ -23,6 +25,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Instant
 
 class LiteAccountCloudBackupRestorerImplTests : FunSpec({
 
@@ -60,7 +63,8 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       .shouldBeOk(
         AccountAuthTokens(
           accessToken = AccessToken(raw = "access-token-fake"),
-          refreshToken = RefreshToken(raw = "refresh-token-fake")
+          refreshToken = RefreshToken(raw = "refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
         )
       )
     appPrivateKeyDaoFake
@@ -113,7 +117,8 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       .shouldBeOk(
         AccountAuthTokens(
           accessToken = AccessToken(raw = "access-token-fake"),
-          refreshToken = RefreshToken(raw = "refresh-token-fake")
+          refreshToken = RefreshToken(raw = "refresh-token-fake"),
+          accessTokenExpiresAt = Instant.DISTANT_FUTURE
         )
       )
     appPrivateKeyDaoFake

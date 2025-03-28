@@ -14,7 +14,6 @@ import kotlin.jvm.JvmInline
  * data object MyMetricDefinition : MetricDefinition {
  *   override val name = MetricName("my_metric)"
  *
- *
  *   sealed class Variants(override val name: String) : Variant<MyMetricDefinition> {
  *     data object Variant1 : Variants("variant_1")
  *

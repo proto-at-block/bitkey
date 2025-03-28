@@ -11,6 +11,7 @@ import build.wallet.platform.biometrics.BiometricPrompterMock
 import build.wallet.platform.biometrics.BiometricTextProviderFake
 import build.wallet.platform.settings.SystemSettingsLauncherMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -116,7 +117,7 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   test("biometric hardware is not available") {
     biometricPrompter.availabilityError = BiometricError.NoHardware()
 
-    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+    biometricSettingsUiStateMachine.test(props) {
       awaitBody<BiometricSettingsScreenBodyModel> {
         isEnabled.shouldBeFalse()
         onEnableCheckedChange(true)
@@ -220,7 +221,7 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       CoachmarkIdentifier.BiometricUnlockCoachmark
     )
 
-    biometricSettingsUiStateMachine.testWithVirtualTime(props) {
+    biometricSettingsUiStateMachine.test(props) {
       // initial render, not checked
       awaitBody<BiometricSettingsScreenBodyModel> {
         coachmark.shouldBeNull()

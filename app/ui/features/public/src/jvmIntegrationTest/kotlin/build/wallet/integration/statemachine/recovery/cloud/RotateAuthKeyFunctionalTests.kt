@@ -10,7 +10,6 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
@@ -120,7 +119,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         }
       )
     )
-    app.rotateAuthUIStateMachine.testWithVirtualTime(props) {
+    app.rotateAuthUIStateMachine.test(props) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()

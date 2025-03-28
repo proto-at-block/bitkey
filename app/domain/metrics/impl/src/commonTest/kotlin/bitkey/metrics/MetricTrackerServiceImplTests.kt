@@ -28,7 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 @OptIn(DelicateCoroutinesApi::class)
 class MetricTrackerServiceImplTests : FunSpec({
   val clock = ClockFake()
-  lateinit var dao: MetricTrackerDaoImpl
+  lateinit var dao: MetricTrackerDao
 
   val datadogRumMonitor = DatadogRumMonitorFake(turbines::create)
   val mobileRealTimeMetricsFeatureFlag =
@@ -40,7 +40,7 @@ class MetricTrackerServiceImplTests : FunSpec({
     idleTimeout: Duration = 10.minutes,
   ): MetricTrackerServiceImpl {
     val sqlDriver = inMemorySqlDriver()
-    dao = MetricTrackerDaoImpl(
+    dao = MetricTrackerDao(
       databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory),
       clock = clock
     )
@@ -175,12 +175,20 @@ class MetricTrackerServiceImplTests : FunSpec({
     val metricTrackerService = service(scope, idleTimeout = (-1).seconds)
 
     metricTrackerService.startMetric(MetricDefinitionFake)
-    scope.launch {
-      metricTrackerService.executeWork()
-    }
 
     dao.metrics.test {
-      awaitUntil(emptyList())
+      awaitUntil(
+        listOf(
+          TrackedMetric(
+            name = MetricDefinitionFake.name,
+            variant = null
+          )
+        )
+      )
+    }
+
+    scope.launch {
+      metricTrackerService.executeWork()
     }
 
     datadogRumMonitor.addUserActionCalls.awaitItem().shouldBe(
@@ -188,10 +196,15 @@ class MetricTrackerServiceImplTests : FunSpec({
         ActionType.Custom,
         MetricDefinitionFake.name.name,
         mapOf(
-          "outcome" to "timeout"
+          "outcome" to "timeout",
+          "variant" to "null"
         )
       )
     )
+
+    dao.metrics.test {
+      awaitUntil(emptyList())
+    }
   }
 
   test("metrics are not processed when feature flag is disabled") {
@@ -202,5 +215,36 @@ class MetricTrackerServiceImplTests : FunSpec({
     metricTrackerService.completeMetric(MetricDefinitionFake, MetricOutcome.Succeeded)
 
     datadogRumMonitor.addUserActionCalls.awaitNoEvents(jobInterval)
+  }
+
+  test("variant is added as an 'null' attribute if null") {
+    val metricTrackerService = service()
+
+    metricTrackerService.startMetric(MetricDefinitionFake)
+    dao.metrics.test {
+      awaitUntil(
+        listOf(
+          TrackedMetric(
+            name = MetricDefinitionFake.name,
+            variant = null
+          )
+        )
+      )
+    }
+
+    metricTrackerService.completeMetric(MetricDefinitionFake, MetricOutcome.Succeeded)
+    datadogRumMonitor.addUserActionCalls.awaitItem().shouldBe(
+      Triple(
+        ActionType.Custom,
+        MetricDefinitionFake.name.name,
+        mapOf(
+          "outcome" to "succeeded",
+          "variant" to "null"
+        )
+      )
+    )
+    dao.metrics.test {
+      awaitUntil(emptyList())
+    }
   }
 })

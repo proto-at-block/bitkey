@@ -8,7 +8,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
@@ -75,7 +75,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
     )
 
   test("FailedToCancelRecoveryData model") {
-    stateMachine.testWithVirtualTime(failedCancelErrorProps) {
+    stateMachine.test(failedCancelErrorProps) {
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()
@@ -91,7 +91,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
   }
 
   test("FailedToCancelRecoveryData networkError model") {
-    stateMachine.testWithVirtualTime(failedCancelErrorPropsNetworkError) {
+    stateMachine.test(failedCancelErrorPropsNetworkError) {
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()

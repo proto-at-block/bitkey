@@ -1,7 +1,7 @@
 package build.wallet.statemachine.home.full.bottomsheet
 
 import androidx.compose.runtime.*
-import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY_SHEET
+import build.wallet.analytics.events.screen.id.AppearanceEventTrackerScreenId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY_SHEET
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject

@@ -16,9 +16,9 @@ kotlin {
         api(projects.domain.databasePublic)
         api(projects.domain.debugPublic)
         api(projects.domain.notificationsPublic)
+        api(projects.domain.walletPublic)
         implementation(projects.libs.frostPublic)
         implementation(projects.libs.loggingPublic)
-        implementation(projects.domain.nfcFake)
         implementation(projects.libs.stdlibPublic)
         implementation(libs.kmp.settings)
       }
@@ -30,7 +30,7 @@ kotlin {
         implementation(projects.domain.authFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.f8eClientFake)
-        implementation(projects.domain.keyboxFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)
@@ -39,7 +39,6 @@ kotlin {
 
     val jvmIntegrationTest by getting {
       dependencies {
-        implementation(projects.domain.bitcoinPublic)
         implementation(projects.shared.integrationTestingPublic)
       }
     }

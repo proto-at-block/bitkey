@@ -1,34 +1,43 @@
 package build.wallet.ui.components.screen
 
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.graphics.Color
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.ui.platform.LocalContext
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 
 @Composable
-actual fun ConfigureSystemUi(
-  style: ScreenStyle,
-  statusBannerBackgroundColor: Color?,
-) {
-  val systemUiController = rememberSystemUiController()
-  DisposableEffect(systemUiController, style, statusBannerBackgroundColor) {
-    // Update all of the system bar colors and use dark icons if we're in light theme
-    systemUiController.setStatusBarColor(
-      // If there's a status banner, use the color of the status banner
-      // so it seamlessly blends into the status bar. Otherwise, transparent.
-      //
-      // Note: it would be better to handle this with optionally applying
-      // status bar padding modifier or not to the screen, so if more cases
-      // emerge that need to bleed into the status bar, update to that.
-      color = Color.Transparent,
-      darkIcons = style.useDarkSystemBarIcons
-    )
-    systemUiController.setNavigationBarColor(
-      color = Color.Transparent,
-      darkIcons = style.useDarkSystemBarIcons,
-      navigationBarContrastEnforced = false
+actual fun ConfigureSystemUi(style: ScreenStyle) {
+  val activity = LocalContext.current as? ComponentActivity
+  val theme = LocalTheme.current
+
+  DisposableEffect(style) {
+    activity?.enableEdgeToEdge(
+      statusBarStyle = SystemBarStyle.auto(
+        android.graphics.Color.TRANSPARENT,
+        android.graphics.Color.TRANSPARENT
+      ) { theme == Theme.DARK },
+      navigationBarStyle = SystemBarStyle.auto(
+        lightScrim,
+        darkScrim
+      ) { theme == Theme.DARK }
     )
 
     onDispose {}
   }
 }
+
+/**
+ * The default light scrim, as defined by androidx and the platform:
+ * https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:activity/activity/src/main/java/androidx/activity/EdgeToEdge.kt;l=35-38;drc=27e7d52e8604a080133e8b842db10c89b4482598
+ */
+private val lightScrim = android.graphics.Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
+
+/**
+ * The default dark scrim, as defined by androidx and the platform:
+ * https://cs.android.com/androidx/platform/frameworks/support/+/androidx-main:activity/activity/src/main/java/androidx/activity/EdgeToEdge.kt;l=40-44;drc=27e7d52e8604a080133e8b842db10c89b4482598
+ */
+private val darkScrim = android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b)

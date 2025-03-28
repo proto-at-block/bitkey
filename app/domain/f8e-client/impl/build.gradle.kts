@@ -26,6 +26,7 @@ kotlin {
         api(projects.domain.authPublic)
         api(projects.domain.databasePublic)
         api(projects.domain.notificationsPublic)
+        api(projects.domain.walletPublic)
         api(projects.libs.platformPublic)
         implementation(libs.kmp.ktor.client.content.negotiation)
         implementation(libs.kmp.ktor.client.auth)
@@ -46,12 +47,12 @@ kotlin {
         implementation(projects.domain.authFake)
         implementation(projects.libs.encryptionFake)
         implementation(projects.domain.f8eClientFake)
-        implementation(projects.domain.firmwareFake)
-        implementation(projects.domain.keyboxFake)
+        implementation(projects.domain.hardwareFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.testingPublic)
         implementation(libs.kmp.test.ktor.client.mock)
         implementation(projects.domain.accountFake)
+        implementation(projects.domain.walletFake)
       }
     }
 

@@ -1,27 +1,21 @@
 package build.wallet.ktor.test
 
-import io.ktor.client.HttpClient
+import io.ktor.client.*
 import io.ktor.client.call.HttpClientCall
-import io.ktor.client.request.HttpRequestData
-import io.ktor.client.request.HttpResponseData
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.utils.EmptyContent
-import io.ktor.http.Headers
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpProtocolVersion
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.Url
-import io.ktor.util.Attributes
-import io.ktor.util.InternalAPI
-import io.ktor.util.date.GMTDate
-import io.ktor.utils.io.ByteChannel
-import io.ktor.utils.io.ByteReadChannel
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.client.utils.*
+import io.ktor.http.*
+import io.ktor.util.*
+import io.ktor.util.date.*
+import io.ktor.utils.io.*
 import kotlinx.coroutines.Job
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 class HttpResponseMock(
   override val status: HttpStatusCode,
+  private val callAttributes: Attributes = Attributes(),
 ) : HttpResponse() {
   override val call: HttpClientCall
     @OptIn(InternalAPI::class)
@@ -35,7 +29,7 @@ class HttpResponseMock(
             headers = Headers.Empty,
             body = EmptyContent,
             executionContext = Job(),
-            attributes = Attributes()
+            attributes = callAttributes
           ),
         responseData =
           HttpResponseData(

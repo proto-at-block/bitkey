@@ -19,7 +19,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 data object DemoModeCodeEntryScreen : Screen
 
-@BitkeyInject(ActivityScope::class, boundTypes = [DemoModeCodeEntryScreenPresenter::class])
+@BitkeyInject(ActivityScope::class)
 class DemoModeCodeEntryScreenPresenter : ScreenPresenter<DemoModeCodeEntryScreen> {
   @Composable
   override fun model(

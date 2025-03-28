@@ -13,7 +13,6 @@ kotlin {
       dependencies {
         implementation(projects.libs.stdlibPublic)
         api(libs.kmp.kotlin.result)
-        api(projects.libs.resultPublic)
         api(projects.libs.secureEnclavePublic)
       }
     }

@@ -86,7 +86,6 @@ projects:
         - '*.hcl'
         - '*.tf*'
         - ../../../terragrunt.hcl
-        - ../../../../../modules/models/mobile-release-verification/*.tf*
     dir: aws/bitkey/dev/shared/mobile-release-verification
     name: aws_bitkey_dev_shared_mobile-release-verification
     workflow: terragrunt

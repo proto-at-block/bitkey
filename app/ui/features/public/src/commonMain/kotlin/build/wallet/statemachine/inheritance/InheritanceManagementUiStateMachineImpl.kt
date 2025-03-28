@@ -372,7 +372,6 @@ class InheritanceManagementUiStateMachineImpl(
       )
       UiState.SendingFundsOutOfWallet -> sendUiStateMachine.model(
         SendUiProps(
-          account = props.account,
           validInvoiceInClipboard = null,
           onExit = {
             uiState = UiState.ManagingInheritance()

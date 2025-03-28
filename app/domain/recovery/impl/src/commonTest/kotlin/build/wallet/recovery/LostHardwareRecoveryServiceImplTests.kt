@@ -1,17 +1,20 @@
 package build.wallet.recovery
 
-import bitkey.account.AccountConfigServiceFake
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS
-import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.account.AccountServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
+import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClientFake
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
+import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
@@ -22,31 +25,36 @@ import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 class LostHardwareRecoveryServiceImplTests : FunSpec({
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
-  val recoverySyncer = RecoverySyncerMock(
+  val recoveryStatusService = RecoveryStatusServiceMock(
     StillRecoveringInitiatedRecoveryMock,
     turbines::create
   )
-  val accountConfigService = AccountConfigServiceFake()
+  val accountService = AccountServiceFake()
+  val initiateAccountDelayNotifyF8eClient = InitiateAccountDelayNotifyF8eClientFake()
+  val sqlDriver = inMemorySqlDriver()
+  val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+  val recoveryDao = RecoveryDaoImpl(databaseProvider)
   val service = LostHardwareRecoveryServiceImpl(
     cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
-    recoverySyncer = recoverySyncer,
-    recoveryLock = RecoveryLock(),
-    accountConfigService = accountConfigService
+    recoveryStatusService = recoveryStatusService,
+    recoveryLock = RecoveryLockImpl(),
+    initiateAccountDelayNotifyF8eClient = initiateAccountDelayNotifyF8eClient,
+    recoveryDao = recoveryDao,
+    accountService = accountService
   )
-
-  suspend fun LostHardwareRecoveryServiceImpl.cancel() =
-    cancelRecovery(accountId = FullAccountIdMock)
 
   beforeTest {
     cancelDelayNotifyRecoveryF8eClient.reset()
-    recoverySyncer.reset()
-    accountConfigService.reset()
+    recoveryStatusService.reset()
+    accountService.reset()
+    accountService.setActiveAccount(FullAccountMock)
+    recoveryDao.clear()
   }
 
   test("success") {
-    service.cancel().shouldBeOkOfType<Unit>()
+    service.cancelRecovery().shouldBeOkOfType<Unit>()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -54,9 +62,9 @@ class LostHardwareRecoveryServiceImplTests : FunSpec({
     cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(SpecificClientErrorMock(NO_RECOVERY_EXISTS))
 
-    service.cancel().shouldBeOk()
+    service.cancelRecovery().shouldBeOk()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -64,17 +72,17 @@ class LostHardwareRecoveryServiceImplTests : FunSpec({
     cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(F8eError.ServerError(ServerError(HttpResponseMock(InternalServerError))))
 
-    service.cancel().shouldBeErrOfType<F8eCancelDelayNotifyError>()
+    service.cancelRecovery().shouldBeErrOfType<F8eCancelDelayNotifyError>()
 
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
   test("failure - dao") {
-    recoverySyncer.clearCallResult = Err(DbQueryError(IllegalStateException()))
+    recoveryStatusService.clearCallResult = Err(DbQueryError(IllegalStateException()))
 
-    service.cancel().shouldBeErrOfType<LocalCancelDelayNotifyError>()
+    service.cancelRecovery().shouldBeErrOfType<LocalCancelDelayNotifyError>()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 })

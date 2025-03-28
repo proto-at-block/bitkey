@@ -9,7 +9,7 @@ import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
@@ -78,7 +78,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     )
 
   test("lost hardware recovery ui -- initiating") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = initiatingProps
     ) {
       awaitBodyMock<InitiatingLostHardwareRecoveryProps>(
@@ -88,7 +88,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("lost hardware recovery ui -- undergoing") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = undergoingProps
     ) {
       awaitBodyMock<RecoveryInProgressUiProps>(
@@ -98,7 +98,7 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("lost hardware recovery ui -- leaving undergoing") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = undergoingProps
     ) {
       awaitBodyMock<RecoveryInProgressUiProps>(

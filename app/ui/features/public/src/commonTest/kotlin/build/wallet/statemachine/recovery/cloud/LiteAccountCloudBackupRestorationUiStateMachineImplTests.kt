@@ -11,7 +11,7 @@ import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestoration
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
@@ -41,7 +41,7 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   }
 
   test("success") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -56,7 +56,7 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   test("failure") {
     val throwable = Throwable("foo")
     liteAccountCloudBackupRestorer.returnError = Err(AccountBackupRestorationError(throwable))
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }

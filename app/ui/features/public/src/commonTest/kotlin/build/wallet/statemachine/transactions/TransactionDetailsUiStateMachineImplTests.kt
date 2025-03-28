@@ -30,7 +30,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickSecondaryButton
@@ -200,7 +200,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending receive transaction returns correct model") {
-    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+    stateMachine.test(pendingReceiveProps) {
       awaitBody<TransactionDetailModel> {
         // before currency conversion
 
@@ -243,7 +243,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("received transactions returns correct model") {
-    stateMachine.testWithVirtualTime(receivedProps) {
+    stateMachine.test(receivedProps) {
       awaitBody<TransactionDetailModel> {
         // before currency conversion
 
@@ -291,7 +291,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending sent transaction returns correct model") {
-    stateMachine.testWithVirtualTime(pendingSentProps) {
+    stateMachine.test(pendingSentProps) {
       awaitBody<TransactionDetailModel> {
         // before currency conversion
 
@@ -357,7 +357,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("pending send transaction without estimate does not show confirmation row") {
-    stateMachine.testWithVirtualTime(pendingSentPropsNoEstimatedConfirmationTime) {
+    stateMachine.test(pendingSentPropsNoEstimatedConfirmationTime) {
       awaitBody<TransactionDetailModel> {
         // before currency conversion
 
@@ -383,7 +383,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("sent transactions returns correct model") {
-    stateMachine.testWithVirtualTime(sentProps) {
+    stateMachine.test(sentProps) {
       awaitBody<TransactionDetailModel> {
         // before currency conversion
 
@@ -449,7 +449,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose is called") {
-    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+    stateMachine.test(pendingReceiveProps) {
       awaitBody<FormBodyModel> {
         onBack?.invoke()
       }
@@ -460,7 +460,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("browser navigation opens on primary button click") {
-    stateMachine.testWithVirtualTime(pendingReceiveProps) {
+    stateMachine.test(pendingReceiveProps) {
       awaitBody<TransactionDetailModel>()
 
       awaitBody<TransactionDetailModel> {
@@ -477,7 +477,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   }
 
   test("transaction updates trigger screen updates") {
-    stateMachine.testWithVirtualTime(pendingSentProps) {
+    stateMachine.test(pendingSentProps) {
       awaitBody<TransactionDetailModel> {
         // Time Details
         with(content[2].shouldBeInstanceOf<DataList>()) {
@@ -510,7 +510,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("pending sent transaction returns correct model") {
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -578,7 +578,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock.now =
         pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
 
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
@@ -617,7 +617,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock.now =
         pendingSentProps.transaction.onChainDetails()!!.estimatedConfirmationTime!!.plus(10.minutes)
 
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
@@ -667,7 +667,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("tapping speed up should open the fee bump flow") {
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
@@ -696,7 +696,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
     test("tapping speed up with insufficient balance to bump fee should show error screen") {
       spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
@@ -731,7 +731,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
     test("tapping speed up when fee rates are too low should show error screen") {
       spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
-      stateMachine.testWithVirtualTime(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
         awaitBody<TransactionDetailModel> {
           testButtonsAndHeader(
             transaction = pendingSentProps.transaction,
@@ -773,7 +773,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   context("utxo consolidation") {
     test("pending utxo consolidation transaction returns correct model") {
-      stateMachine.testWithVirtualTime(pendingUtxoConsolidationProps) {
+      stateMachine.test(pendingUtxoConsolidationProps) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -814,7 +814,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("utxo consolidation transaction returns correct model") {
-      stateMachine.testWithVirtualTime(utxoConsolidationProps) {
+      stateMachine.test(utxoConsolidationProps) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -863,7 +863,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   context("partner transaction") {
     test("purchase") {
-      stateMachine.testWithVirtualTime(partnershipPurchaseProps) {
+      stateMachine.test(partnershipPurchaseProps) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -915,7 +915,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           bitcoinTransaction = BitcoinTransactionSend
         )
       )
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -992,7 +992,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<TransactionDetailModel> {
           // before currency conversion
 
@@ -1044,7 +1044,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
 
     test("browser navigation opens browser url if available") {
-      stateMachine.testWithVirtualTime(
+      stateMachine.test(
         partnershipPurchaseProps.copy(
           transaction = Transaction.PartnershipTransaction(
             details = FakePartnershipTransaction.copy(

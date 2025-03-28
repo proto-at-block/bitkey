@@ -16,7 +16,7 @@ import build.wallet.nfc.transaction.PairingTransactionResponse.*
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
@@ -79,7 +79,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   )
 
   test("pairing new wallet ui -- success") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -124,7 +124,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint already enrolled") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -154,7 +154,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint not enrolled overlay closed") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -217,7 +217,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint not enrolled button clicked") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -280,7 +280,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint enrollment restarted overlay closed") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -343,7 +343,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- fingerprint enrollment restarted button clicked") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -406,7 +406,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back on save fingerprint instructions") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -445,7 +445,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- cancel start fingerprint enrollment") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -477,7 +477,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back from showing fingerprint enrollment instructions") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId
@@ -501,7 +501,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
   }
 
   test("pairing new wallet ui -- back from showing activation instructions") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<PairNewHardwareBodyModel> {
         eventTrackerScreenInfo.shouldNotBeNull()
           .eventTrackerScreenId

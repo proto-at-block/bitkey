@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.*
 import bitkey.auth.AuthTokenScope
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.UNSEAL_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
@@ -33,7 +34,6 @@ import build.wallet.logging.logFailure
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.random.UuidGenerator
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecChallengeRepository
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
@@ -73,7 +73,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val keyboxDao: KeyboxDao,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val recoveryChallengeStateMachine: RecoveryChallengeUiStateMachine,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val socRecChallengeRepository: SocRecChallengeRepository,
   private val relationshipsService: RelationshipsService,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
@@ -403,7 +403,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         .bind()
 
       // Clear out ongoing Lost Hardware DN recovery, if any.
-      recoverySyncer
+      recoveryStatusService
         .clear()
         .bind()
 

@@ -5,7 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.pricechart.ui.BitcoinPriceChartScreen
+import build.wallet.pricechart.ui.ChartScreen
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -15,20 +15,21 @@ import kotlinx.collections.immutable.ImmutableList
 @Immutable
 data class BitcoinPriceDetailsBodyModel(
   val data: ImmutableList<DataPoint> = immutableListOf(),
-  val history: ChartHistory = ChartHistory.YEAR,
+  val range: ChartRange = ChartRange.YEAR,
   val type: ChartType = ChartType.BTC_PRICE,
+  val isBalanceHistoryEnabled: Boolean = false,
   val isLoading: Boolean = true,
-  val selectedPoint: DataPoint? = null,
-  val selectedPointPrimaryText: String? = null,
-  val selectedPointSecondaryText: String? = null,
-  val selectedPointPeriodText: String? = null,
-  val selectedPointChartText: String? = null,
-  val selectedPriceDirection: PriceDirection = PriceDirection.STABLE,
   val failedToLoad: Boolean = false,
+  val fiatCurrencyCode: String? = null,
+  val selectedPoint: DataPoint? = null,
+  val selectedPointData: SelectedPointData? = null,
+  val selectedPointTimestamp: String? = null,
   val formatFiatValue: (value: Double) -> String = { it.toString() },
   val onPointSelected: (DataPoint?) -> Unit = {},
   val onChartTypeSelected: (ChartType) -> Unit = {},
-  val onChartHistorySelected: (ChartHistory) -> Unit = {},
+  val onChartRangeSelected: (ChartRange) -> Unit = {},
+  val onBuy: () -> Unit = {},
+  val onTransfer: () -> Unit = {},
   override val onBack: () -> Unit = { },
   val toolbarModel: ToolbarModel = ToolbarModel(
     leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
@@ -37,7 +38,7 @@ data class BitcoinPriceDetailsBodyModel(
 ) : BodyModel() {
   @Composable
   override fun render(modifier: Modifier) {
-    BitcoinPriceChartScreen(modifier, model = this)
+    ChartScreen(modifier, model = this)
   }
 }
 

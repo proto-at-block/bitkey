@@ -11,6 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.domain.bitkeyPrimitivesPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
   }

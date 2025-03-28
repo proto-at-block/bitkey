@@ -1,7 +1,7 @@
 package build.wallet.statemachine.send
 
 import app.cash.turbine.plusAssign
-import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
+import build.wallet.account.AccountServiceFake
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.bitcoinAddressP2PKH
 import build.wallet.bitcoin.address.signetAddressP2SH
@@ -12,11 +12,12 @@ import build.wallet.bitcoin.invoice.PaymentDataParserMock
 import build.wallet.bitcoin.invoice.validLightningInvoice
 import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.LabelModel.LinkSubstringModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
@@ -43,10 +44,12 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
     )
 
   val bitcoinWalletService = BitcoinWalletServiceFake()
+  val accountService = AccountServiceFake()
 
   val stateMachine = BitcoinQrCodeScanUiStateMachineImpl(
     paymentDataParser = paymentParserMock,
-    bitcoinWalletService = bitcoinWalletService
+    bitcoinWalletService = bitcoinWalletService,
+    accountService = accountService
   )
 
   val onEnterAddressClickCalls = turbines.create<Unit>("enter address click calls")
@@ -70,7 +73,6 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       onInvoiceScanned = { invoice ->
         onInvoiceScannedCalls += invoice
       },
-      networkType = BITCOIN,
       onGoToUtxoConsolidation = {
         onGoToUtxoConsolidationCalls += Unit
       }
@@ -79,10 +81,12 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   beforeTest {
     bitcoinWalletService.reset()
     bitcoinWalletService.spendingWallet.value = SpendingWalletFake()
+    accountService.reset()
+    accountService.setActiveAccount(FullAccountMock)
   }
 
   test("Valid Address in QR code should call onRecipientScanned") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validAddress.address)
       }
@@ -92,7 +96,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Valid Address with Amount in QR code should call onInvoiceScanned") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(bitcoinAddressP2PKH.address)
       }
@@ -107,7 +111,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Invalid Address in QR code should lead to error screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(invalidAddressText)
       }
@@ -118,7 +122,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Address from different bitcoin network should lead to error screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetAddress)
       }
@@ -129,7 +133,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("BIP21 URI from different bitcoin network should lead to error screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(validSignetBIP21URI)
       }
@@ -140,7 +144,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose prop is called onClose of the model") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         onClose()
       }
@@ -150,7 +154,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("onEnterAddressClick prop is called onEnterAddressClick of the model") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         primaryButton.shouldNotBeNull().onClick()
       }
@@ -160,7 +164,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("valid ParsedPaymentData in clipboard should show paste button") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldNotBeNull()
       }
@@ -168,7 +172,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("invalid ParsedPaymentData in clipboard should not show paste button") {
-    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = null)) {
+    stateMachine.test(props.copy(validInvoiceInClipboard = null)) {
       awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldBeNull()
       }
@@ -176,7 +180,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Lightning ParsedPaymentData in clipboard should not show paste button") {
-    stateMachine.testWithVirtualTime(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
+    stateMachine.test(props.copy(validInvoiceInClipboard = validLightningInvoice)) {
       awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldBeNull()
       }
@@ -189,7 +193,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
       props.copy(
         validInvoiceInClipboard = Onchain(BitcoinAddress(selfSendAddress))
       )
-    stateMachine.testWithVirtualTime(selfSendProps) {
+    stateMachine.test(selfSendProps) {
       awaitBody<QrCodeScanBodyModel> {
         secondaryButton.shouldNotBeNull().onClick()
       }
@@ -207,7 +211,7 @@ class BitcoinQrCodeScanUiStateMachineImplTests : FunSpec({
   }
 
   test("Scanning a self address leads to error screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // scanning QR code from SpendingWalletFake
       awaitBody<QrCodeScanBodyModel> {
         onQrCodeScanned(selfSendAddress)

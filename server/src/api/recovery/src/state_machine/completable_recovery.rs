@@ -58,10 +58,16 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
         event: RecoveryEvent,
         services: &RecoveryServices,
     ) -> Result<Transition, RecoveryError> {
+        tracing::info!(
+            recovery_state = std::any::type_name_of_val(&self),
+            recovery_event = event.to_string(),
+            "Processing recovery event"
+        );
+
         if let RecoveryEvent::RotateKeyset {
             user_pool_service,
             experimentation_claims,
-        } = event
+        } = &event
         {
             let recovery = &self.recovery;
             let account = self.account.clone();
@@ -70,8 +76,20 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 .recovery_action
                 .delay_notify_action
                 .as_ref()
-                .ok_or(RecoveryError::NoPendingRecoveryDestination)?;
+                .ok_or_else(|| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "No pending recovery destination"
+                    );
+                    RecoveryError::NoPendingRecoveryDestination
+                })?;
             if account.common_fields.active_auth_keys_id != action.destination.source_auth_keys_id {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid recovery destination"
+                );
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
@@ -164,6 +182,11 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 },
             ))
         } else {
+            tracing::error!(
+                recovery_state = std::any::type_name_of_val(&self),
+                recovery_event = event.to_string(),
+                "Invalid transition"
+            );
             Err(RecoveryError::InvalidTransition)
         }
     }

@@ -12,7 +12,7 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import io.kotest.core.spec.style.FunSpec
@@ -61,7 +61,7 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
   }
 
   test("android - cloud account signed in but cloud backup not found - check cloud again and fail") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
@@ -91,7 +91,7 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
   }
 
   test("android - cloud account signed in but cloud backup not found - check cloud again and find backup") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }

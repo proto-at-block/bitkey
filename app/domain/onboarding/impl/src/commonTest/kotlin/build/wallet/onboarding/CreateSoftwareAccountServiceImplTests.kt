@@ -28,6 +28,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Instant
 
 class CreateSoftwareAccountServiceImplTests : FunSpec({
 
@@ -48,7 +49,8 @@ class CreateSoftwareAccountServiceImplTests : FunSpec({
       accountId = OnboardingSoftwareAccountMock.accountId.serverId,
       authTokens = AccountAuthTokens(
         accessToken = AccessToken("access-token-app"),
-        refreshToken = RefreshToken("refresh-token-app")
+        refreshToken = RefreshToken("refresh-token-app"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
   )
@@ -57,7 +59,8 @@ class CreateSoftwareAccountServiceImplTests : FunSpec({
       accountId = OnboardingSoftwareAccountMock.accountId.serverId,
       authTokens = AccountAuthTokens(
         accessToken = AccessToken("access-token-recovery"),
-        refreshToken = RefreshToken("refresh-token-recovery")
+        refreshToken = RefreshToken("refresh-token-recovery"),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
   )

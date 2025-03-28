@@ -100,7 +100,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path - recovery contact") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
@@ -133,7 +133,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   test("happy path - beneficiary") {
     relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
@@ -195,7 +195,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   test("happy path - beneficiary no hardware") {
     relationshipsService.retrieveInvitationResult = Ok(IncomingBeneficiaryInvitationFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel
           .onValueChange("code", 0..0)
@@ -240,7 +240,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   }
 
   test("back on enter invite screen calls props.onRetreat") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         toolbar.shouldNotBeNull().leadingAccessory.shouldNotBeNull()
           .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
@@ -253,7 +253,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   }
 
   test("initial screen should be enter invite code") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE)
     }
   }
@@ -275,7 +275,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("invalid code") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
@@ -288,7 +288,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("version mismatch") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           header?.headline?.shouldBe("Bitkey app out of date")
@@ -302,7 +302,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("specific client error") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(NOT_FOUND)))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
@@ -315,7 +315,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("connectivity") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ConnectivityError()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldNotBeNull() // Back button
@@ -335,7 +335,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("unknown") {
       relationshipsService.retrieveInvitationResult =
         Err(RetrieveInvitationCodeError.F8ePropagatedError(ServerError()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
@@ -376,7 +376,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("invalid code") {
       relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.InvalidInvitationCode)
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
@@ -392,7 +392,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
           SpecificClientErrorMock(RELATIONSHIP_ALREADY_ESTABLISHED)
         )
       )
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries
@@ -405,7 +405,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("connectivity") {
       relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ConnectivityError()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldNotBeNull() // Back button
@@ -425,7 +425,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     test("unknown") {
       relationshipsService.acceptInvitationResult =
         Err(AcceptInvitationCodeError.F8ePropagatedError(ServerError()))
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
           secondaryButton.shouldBeNull() // No retries

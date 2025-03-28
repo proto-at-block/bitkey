@@ -20,7 +20,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.RelationshipsFake
-import build.wallet.recovery.RecoverySyncerMock
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
@@ -34,7 +34,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
   val cloudInstanceId = "fake"
   val fullAccount = FullAccountMock
   val accountService = AccountServiceFake()
-  val recoverySyncer = RecoverySyncerMock(turbine = turbines::create)
+  val recoveryStatusService = RecoveryStatusServiceMock(turbine = turbines::create)
   val relationshipsService = RelationshipsServiceMock(turbines::create)
   val cloudBackupDao = CloudBackupDaoFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
@@ -52,7 +52,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
 
   val socRecCloudBackupSyncWorker = SocRecCloudBackupSyncWorkerImpl(
     accountService = accountService,
-    recoverySyncer = recoverySyncer,
+    recoveryStatusService = recoveryStatusService,
     relationshipsService = relationshipsService,
     cloudBackupDao = cloudBackupDao,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
@@ -70,7 +70,7 @@ class SocRecCloudBackupSyncWorkerImplTests : FunSpec({
     cloudBackupRepository.reset()
     accountService.reset()
     accountService.setActiveAccount(fullAccount)
-    recoverySyncer.reset()
+    recoveryStatusService.reset()
   }
 
   afterTest {

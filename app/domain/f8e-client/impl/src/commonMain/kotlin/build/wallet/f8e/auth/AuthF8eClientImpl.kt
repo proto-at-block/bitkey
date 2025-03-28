@@ -14,20 +14,19 @@ import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.AuthF8eClient.InitiateHardwareAuthenticationSuccess
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
 import build.wallet.f8e.client.plugins.withEnvironment
-import build.wallet.ktor.result.NetworkingError
-import build.wallet.ktor.result.RedactedRequestBody
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
-import build.wallet.ktor.result.setRedactedBody
+import build.wallet.ktor.result.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import io.ktor.client.request.post
+import io.ktor.client.request.*
+import kotlinx.datetime.Clock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration.Companion.seconds
 
 @BitkeyInject(AppScope::class)
 class AuthF8eClientImpl(
   private val f8eHttpClient: UnauthenticatedF8eHttpClient, // only require unauthenticated calls
+  private val clock: Clock,
 ) : AuthF8eClient {
   override suspend fun initiateAuthentication(
     f8eEnvironment: F8eEnvironment,
@@ -106,7 +105,7 @@ class AuthF8eClientImpl(
           withEnvironment(f8eEnvironment)
           setRedactedBody(tokenRequest)
         }
-      }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }
+      }.map { it.toAccountAuthTokens() }
   }
 
   override suspend fun refreshToken(
@@ -120,7 +119,7 @@ class AuthF8eClientImpl(
           withEnvironment(f8eEnvironment)
           setRedactedBody(tokenRequest)
         }
-      }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }
+      }.map { it.toAccountAuthTokens() }
   }
 
   @Serializable
@@ -145,5 +144,15 @@ class AuthF8eClientImpl(
     val accessToken: String,
     @SerialName("refresh_token")
     val refreshToken: String,
+    // Seconds until the accessToken expires
+    @SerialName("expires_in")
+    val expiresIn: Int,
   ) : RedactedResponseBody
+
+  private fun AuthTokensSuccess.toAccountAuthTokens() =
+    AccountAuthTokens(
+      accessToken = AccessToken(accessToken),
+      refreshToken = RefreshToken(refreshToken),
+      accessTokenExpiresAt = clock.now().plus(expiresIn.seconds)
+    )
 }

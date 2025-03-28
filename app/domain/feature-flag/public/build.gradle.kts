@@ -11,7 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.domain.bitkeyPrimitivesPublic)
-        api(projects.shared.workerPublic)
+        api(projects.domain.workerPublic)
       }
     }
   }

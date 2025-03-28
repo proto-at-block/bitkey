@@ -9,6 +9,11 @@ kotlin {
   allTargets()
 
   sourceSets {
+    commonMain {
+      dependencies {
+        implementation(projects.libs.stdlibPublic)
+      }
+    }
     val commonJvmMain by getting {
       dependencies {
         implementation(projects.rust.coreFfi)

@@ -7,7 +7,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.confirmation.WipingDeviceConfirmationProps
@@ -45,7 +45,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   )
 
   test("onBack calls") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         val icon = toolbar.shouldNotBeNull()
           .leadingAccessory
@@ -60,7 +60,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("test content and unchecked checkboxes") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<FormMainContentModel.ListGroup>()
@@ -96,7 +96,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("CTA warning is shown when not all messages are checked and hidden when all messages are checked") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         checkBoxAtIndex(0)
       }
@@ -141,7 +141,7 @@ class WipingDeviceConfirmationUiStateMachineImplTests : FunSpec({
   }
 
   test("show and dismiss ScanAndWipeConfirmationSheet") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         checkBoxAtIndex(0)
       }

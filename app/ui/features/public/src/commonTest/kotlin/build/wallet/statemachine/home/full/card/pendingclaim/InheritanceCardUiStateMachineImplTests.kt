@@ -6,7 +6,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.inheritance.InheritanceCardServiceFake
 import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.*
 import build.wallet.statemachine.moneyhome.card.inheritance.*
@@ -60,7 +59,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays single beneficiary pending claim card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -92,7 +91,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -130,7 +129,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays locked beneficiary claim card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryLockedClaimFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().shouldBe(
         equalIgnoringOnClick(
@@ -157,7 +156,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -187,7 +186,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays both beneficiary locked and beneficiary pending claim cards") {
     inheritanceCardService.cardsToDisplay.value = listOf(BeneficiaryPendingClaimFake, BeneficiaryLockedClaimFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(
@@ -221,7 +220,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
   test("displays benefactor pending claim warning") {
     inheritanceCardService.cardsToDisplay.value = listOf(BenefactorPendingClaimFake)
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBe(emptyList())
       awaitItem().should(
         equalIgnoringOnClick(

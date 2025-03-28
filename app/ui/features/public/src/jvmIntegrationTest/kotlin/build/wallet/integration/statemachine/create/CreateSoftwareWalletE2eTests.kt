@@ -6,7 +6,7 @@ import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
@@ -33,7 +33,7 @@ class CreateSoftwareWalletE2eTests : FunSpec({
 
   test("create software wallet") {
     val app = launchAndPrepareApp()
-    app.appUiStateMachine.testWithVirtualTime(
+    app.appUiStateMachine.test(
       Unit,
       testTimeout = 60.seconds,
       turbineTimeout = 20.seconds

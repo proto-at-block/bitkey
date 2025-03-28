@@ -2,7 +2,7 @@ package bitkey.notifications
 
 import bitkey.account.AccountConfigService
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.di.ActivityScope
+import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
@@ -10,6 +10,7 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.store.KeyValueStoreFactory
 import com.github.michaelbull.result.*
+import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -20,7 +21,8 @@ internal const val MONEY_MOVEMENT_CHANNELS = "moneyMovement-channels"
 internal const val PRODUCT_MARKETING_CHANNELS = "productMarketing-channels"
 internal const val ACCOUNT_SECURITY_CHANNELS = "accountSecurity-channels"
 
-@BitkeyInject(ActivityScope::class)
+@BitkeyInject(AppScope::class)
+@OptIn(ExperimentalSettingsApi::class)
 class NotificationsPreferencesCachedProviderImpl(
   private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val keyValueStoreFactory: KeyValueStoreFactory,

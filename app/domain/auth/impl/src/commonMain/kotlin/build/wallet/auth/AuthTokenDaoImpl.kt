@@ -8,13 +8,14 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.catchingResult
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.logging.*
 import build.wallet.logging.logFailure
+import build.wallet.logging.logWarn
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
+import kotlinx.datetime.Instant
 
 @BitkeyInject(AppScope::class)
 class AuthTokenDaoImpl(
@@ -35,22 +36,31 @@ class AuthTokenDaoImpl(
           .getStringOrNull(accessTokenKey(accountId, scope))
           ?.let { AccessToken(it) }
 
+      val accessTokenExpiresAt = secureStore
+        .getStringOrNull(accessTokenExpiresAtKey(accountId, scope))
+        ?.let { expiresAt ->
+          try {
+            Instant.parse(expiresAt)
+          } catch (e: IllegalArgumentException) {
+            // In case of a parsing error, simply fall back to no expiry being available.
+            logWarn { "Failed to parse accessTokenExpiresAt $e" }
+            null
+          }
+        }
+
       val refreshToken =
         secureStore
           .getStringOrNull(refreshTokenKey(accountId, scope))
           ?.let { RefreshToken(it) }
 
       if (accessToken != null && refreshToken != null) {
-        AccountAuthTokens(accessToken = accessToken, refreshToken = refreshToken)
+        AccountAuthTokens(
+          accessToken = accessToken,
+          refreshToken = refreshToken,
+          accessTokenExpiresAt = accessTokenExpiresAt
+        )
       } else {
-        // If we couldn't find the tokens for the Global scope, fall back to the legacy keys
-        // for the Global tokens, which didn't include a scope. Since these tokens expire
-        // after 30 days, we should be able to remove this fallback after a similar amount of time.
-        if (scope == AuthTokenScope.Global) {
-          getLegacyGlobalTokens(accountId)
-        } else {
-          null
-        }
+        null
       }
     }
       .logFailure { "Error loading auth tokens for $accountId" }
@@ -68,6 +78,16 @@ class AuthTokenDaoImpl(
       secureStore
         .putStringWithResult(key = accessTokenKey(accountId, scope), value = tokens.accessToken.raw)
         .bind()
+
+      tokens.accessTokenExpiresAt?.let {
+        secureStore
+          .putStringWithResult(
+            key = accessTokenExpiresAtKey(accountId, scope),
+            value = it.toString()
+          )
+          .bind()
+      }
+
       secureStore
         .putStringWithResult(
           key = refreshTokenKey(accountId, scope),
@@ -82,42 +102,32 @@ class AuthTokenDaoImpl(
 
   private fun accessTokenKey(
     accountId: AccountId,
-    scope: AuthTokenScope?,
+    scope: AuthTokenScope,
   ): String {
     return when (scope) {
-      null -> "accessToken_${accountId.serverId}"
       AuthTokenScope.Global -> "accessToken_global_${accountId.serverId}"
       AuthTokenScope.Recovery -> "accessToken_recovery_${accountId.serverId}"
     }
   }
 
-  private fun refreshTokenKey(
+  private fun accessTokenExpiresAtKey(
     accountId: AccountId,
-    scope: AuthTokenScope?,
+    scope: AuthTokenScope,
   ): String {
     return when (scope) {
-      null -> "refreshToken_${accountId.serverId}"
-      AuthTokenScope.Global -> "refreshToken_global_${accountId.serverId}"
-      AuthTokenScope.Recovery -> "refreshToken_recovery_${accountId.serverId}"
+      AuthTokenScope.Global -> "accessToken_expiresAt_global_${accountId.serverId}"
+      AuthTokenScope.Recovery -> "accessToken_expiresAt_recovery_${accountId.serverId}"
     }
   }
 
-  private suspend fun getLegacyGlobalTokens(accountId: AccountId): AccountAuthTokens? {
-    val secureStore = secureStore()
-    val legacyAccessToken =
-      secureStore
-        .getStringOrNull(accessTokenKey(accountId, null))
-        ?.let { AccessToken(it) }
-        ?: return null
-
-    val legacyRefreshToken =
-      secureStore
-        .getStringOrNull(refreshTokenKey(accountId, null))
-        ?.let { RefreshToken(it) }
-        ?: return null
-
-    logWarn { "Falling back to legacy auth token keys in AuthTokenDao" }
-    return AccountAuthTokens(accessToken = legacyAccessToken, refreshToken = legacyRefreshToken)
+  private fun refreshTokenKey(
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ): String {
+    return when (scope) {
+      AuthTokenScope.Global -> "refreshToken_global_${accountId.serverId}"
+      AuthTokenScope.Recovery -> "refreshToken_recovery_${accountId.serverId}"
+    }
   }
 
   companion object {

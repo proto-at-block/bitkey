@@ -12,7 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "SQLDelight-DialectClasspath",
-                "SQLDelight-InternalClasspath",
+                "SQLDelight-InternalClasspath"
+            ]
+        },
+        {
+            "version": "2.0.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-2.0.20.jar": "fb169596659a518357c4b2c16f43dc75ab1c4980565ed4b4a317a050e5e39006"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "gradle-plugins[app]",
                 "gradle-plugins[bitkey]"
             ]

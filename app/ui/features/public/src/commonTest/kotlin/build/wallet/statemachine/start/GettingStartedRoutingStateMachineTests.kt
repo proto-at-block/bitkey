@@ -3,7 +3,7 @@ package build.wallet.statemachine.start
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachine
@@ -30,7 +30,7 @@ class GettingStartedRoutingStateMachineTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("Exit")
 
   test("Load backup") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = GettingStartedRoutingProps(
         startIntent = AccountData.StartIntent.RestoreBitkey,
         onStartLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },

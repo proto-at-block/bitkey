@@ -611,6 +611,8 @@ impl BootstrapBuilder {
         let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
         let health_checks_state = healthcheck::Service;
 
+        let linear_state = linear::routes::RouteState::new(config::extract(profile)?);
+
         let request_logger_state = RequestLoggerState::new(&self.services.feature_flags_service);
 
         let authorizer =
@@ -663,7 +665,8 @@ impl BootstrapBuilder {
             .merge(exchange_rate_state.unauthed_router())
             .merge(experimentation_state.unauthed_router())
             .merge(inheritance_state.unauthed_router())
-            .merge(promotion_state.unauthed_router());
+            .merge(promotion_state.unauthed_router())
+            .merge(linear_state.unauthed_router());
 
         // Routes requiring basic validation
         let mut basic_validation_router = Router::new()

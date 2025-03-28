@@ -13,7 +13,6 @@ import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingCloudBackupData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -61,7 +60,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
     )
 
   test("no recovery in progress") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       eventTracker.shouldLogAppKeyMissingEvent()
 
       awaitItem().shouldBeTypeOf<GettingStartedData>()
@@ -69,7 +68,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
   }
 
   test("lost app recovery in progress") {
-    stateMachine.testWithVirtualTime(props(existingRecovery = StillRecoveringInitiatedRecoveryMock)) {
+    stateMachine.test(props(existingRecovery = StillRecoveringInitiatedRecoveryMock)) {
       awaitItem().shouldBeTypeOf<AccountData.NoActiveAccountData.RecoveringAccountData>()
 
       eventTracker.shouldLogAppKeyMissingEvent()
@@ -77,7 +76,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
   }
 
   test("no onboarding or recovery, transition to emergency access kit recovery") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       eventTracker.shouldLogAppKeyMissingEvent()
 
       awaitItem().shouldBeTypeOf<GettingStartedData>()

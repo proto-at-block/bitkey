@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
 import androidx.compose.runtime.*
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
@@ -12,7 +13,6 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.getEventId
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -42,7 +42,7 @@ class CompletingRecoveryUiStateMachineImpl(
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
 ) : CompletingRecoveryUiStateMachine {
   @Composable
   override fun model(props: CompletingRecoveryUiProps): ScreenModel {
@@ -279,7 +279,7 @@ class CompletingRecoveryUiStateMachineImpl(
                 // this flag is used by the MoneyHomeCardsUiStateMachine
                 // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
                 postSocRecTaskRepository.setHardwareReplacementNeeded(false)
-                recoverySyncer
+                recoveryStatusService
                   .setLocalRecoveryProgress(
                     SweptFunds(props.completingRecoveryData.keybox)
                   )

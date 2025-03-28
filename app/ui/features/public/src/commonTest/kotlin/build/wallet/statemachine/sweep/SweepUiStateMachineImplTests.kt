@@ -24,7 +24,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
@@ -97,7 +97,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("no funds found") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -109,7 +109,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("generate psbts failed - user chooses to cancel") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -124,7 +124,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("sweep and sign without hardware") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -169,7 +169,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("sweep and sign with hardware") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -248,7 +248,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("broadcast failed - user chooses to cancel") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -295,7 +295,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("broadcast failed - user chooses to retry") {
-    sweepStateMachine.testWithVirtualTime(props) {
+    sweepStateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
@@ -349,7 +349,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("Sweep Funds on Inactive Wallet") {
-    sweepStateMachine.testWithVirtualTime(
+    sweepStateMachine.test(
       props.copy(
         recoveredFactor = null
       )
@@ -408,7 +408,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   }
 
   test("Learn more button opens in-app browser") {
-    sweepStateMachine.testWithVirtualTime(
+    sweepStateMachine.test(
       props.copy(
         recoveredFactor = null
       )

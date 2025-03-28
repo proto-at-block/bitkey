@@ -1,6 +1,8 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.*
+import build.wallet.account.AccountService
+import build.wallet.account.getAccount
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.ParsedPaymentData
@@ -8,12 +10,14 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -22,6 +26,7 @@ import com.github.michaelbull.result.onSuccess
 class BitcoinQrCodeScanUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
   private val bitcoinWalletService: BitcoinWalletService,
+  private val accountService: AccountService,
 ) : BitcoinQrCodeUiScanStateMachine {
   @Composable
   override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
@@ -56,13 +61,12 @@ class BitcoinQrCodeScanUiStateMachineImpl(
     var qrCodeDataToHandle: String? by remember { mutableStateOf(null) }
     qrCodeDataToHandle?.let { qrCodeData ->
       LaunchedEffect("handling-qr-code-data", qrCodeData) {
-        paymentDataParser.decode(qrCodeData, props.networkType)
-          .onSuccess {
-            paymentDataToHandle = it
-          }
-          .onFailure {
-            state = UnrecognizedErrorUiState
-          }
+        coroutineBinding {
+          val account = accountService.getAccount<FullAccount>().bind()
+          paymentDataParser.decode(qrCodeData, account.config.bitcoinNetworkType).bind()
+        }
+          .onSuccess { paymentDataToHandle = it }
+          .onFailure { state = UnrecognizedErrorUiState }
       }
     }
 

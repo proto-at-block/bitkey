@@ -1,10 +1,13 @@
 package build.wallet.codegen
 
 import bitkey.ui.Snapshot
+import bitkey.ui.SnapshotHost
 import com.google.devtools.ksp.getAllSuperTypes
 import com.google.devtools.ksp.getDeclaredFunctions
 import com.google.devtools.ksp.processing.*
 import com.google.devtools.ksp.symbol.*
+import com.squareup.kotlinpoet.asTypeName
+import com.squareup.kotlinpoet.ksp.toTypeName
 import java.io.File
 
 private const val COMPOSABLE_ANNOTATION = "androidx.compose.runtime.Composable"
@@ -66,6 +69,16 @@ class SnapshotGenerator(
       .mapNotNull { model ->
         mapSnapshotPropertyToData(model, composables)
       }
+
+    val snapshotHostTypeName = SnapshotHost::class.asTypeName()
+    snapshotModels.forEach { declaration ->
+      val declarationReceiverName = declaration.extensionReceiver?.toTypeName()
+      check(declarationReceiverName == snapshotHostTypeName) {
+        val typeDef = "$declarationReceiverName.${declaration.simpleName.asString()}"
+        val filePath = declaration.containingFile?.filePath
+        "`@Snapshot` must be applied to extension properties of `SnapshotHost` but found '$typeDef' in:\n$filePath"
+      }
+    }
 
     val snapshotModelMap = snapshotModelData.groupBy {
       it.modelType.declaration.simpleName.asString()

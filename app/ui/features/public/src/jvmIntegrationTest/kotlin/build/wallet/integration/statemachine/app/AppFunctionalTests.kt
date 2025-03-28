@@ -4,7 +4,6 @@ import build.wallet.bdk.BdkBlockchainFactoryImpl
 import build.wallet.bdk.bindings.*
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -28,7 +27,7 @@ class AppFunctionalTests : FunSpec({
         f8eEnvironment = F8eEnvironment.Custom("unreachable")
       )
 
-    relaunchedApp.appUiStateMachine.testWithVirtualTime(Unit) {
+    relaunchedApp.appUiStateMachine.test(Unit) {
       awaitUntilBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }

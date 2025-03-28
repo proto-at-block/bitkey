@@ -158,7 +158,7 @@ fun sweepFundsPrompt(
   )
 )
 
-private data class SweepFundsPromptBodyModel(
+data class SweepFundsPromptBodyModel(
   override val id: EventTrackerScreenId?,
   val recoveredFactor: PhysicalFactor?,
   val transferAmount: MoneyAmountModel,
@@ -321,7 +321,7 @@ fun sweepSuccessScreenModel(
   )
 )
 
-private data class SweepSuccessScreenBodyModel(
+data class SweepSuccessScreenBodyModel(
   override val id: EventTrackerScreenId?,
   val recoveredFactor: PhysicalFactor?,
   val onDone: () -> Unit,

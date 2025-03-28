@@ -8,7 +8,7 @@ import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachineImpl
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -46,7 +46,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   test("sheet model contents") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       with(awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()) {
@@ -62,7 +62,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   test("sheet model onLoaded disables transfer settings") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>().onLoaded?.invoke()
@@ -73,7 +73,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   test("primary button calls onShowSetSpendingLimitFlow") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       val formModel = awaitItem().shouldNotBeNull().body.shouldBeInstanceOf<FormBodyModel>()

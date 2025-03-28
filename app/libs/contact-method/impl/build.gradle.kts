@@ -12,6 +12,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.libs.platformPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 

@@ -33,6 +33,7 @@ import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.sweep.SweepService
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
@@ -75,6 +76,10 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.mapLatest
@@ -167,110 +172,121 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     val viewingBalanceModel =
       ScreenModel(
         alertModel = alertModel,
-        body =
-          MoneyHomeBodyModel(
-            hideBalance = hideBalance,
-            onHideBalance = {
-              scope.launch {
-                moneyHomeHiddenStatusProvider.toggleStatus()
-                haptics.vibrate(HapticsEffect.MediumClick)
-                coachmarkService.markCoachmarkAsDisplayed(
-                  coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark
-                )
-                coachmarkDisplayed = true
-              }
-            },
-            onSettings = props.onSettings,
-            balanceModel =
-              // if fiat balance is null because currency conversion hasn't happened yet, we will show
-              // the sats value as the primary until the fiat balance isn't null
-              MoneyAmountModel(
-                primaryAmount =
-                  when (transactionsData) {
-                    null -> ""
-                    else -> when (val balance = transactionsData.fiatBalance) {
-                      null -> moneyDisplayFormatter.format(transactionsData.balance.total)
-                      else -> moneyDisplayFormatter.format(balance)
-                    }
-                  },
-                secondaryAmount = when (transactionsData) {
-                  null -> ""
-                  else -> when (transactionsData.fiatBalance) {
-                    null -> ""
-                    else ->
-                      moneyDisplayFormatter.format(transactionsData.balance.total)
-                  }
-                }
-              ),
-            cardsModel =
-              MoneyHomeCardsModel(
-                props = props,
-                onShowAlert = { alertModel = it },
-                onDismissAlert = { alertModel = null }
-              ),
-            buttonsModel =
-              MoneyHomeButtonsModel(
-                props = props,
-                appFunctionalityStatus = appFunctionalityStatus,
-                onShowAlert = { alertModel = it },
-                onDismissAlert = { alertModel = null }
-              ),
-            transactionsModel = transactionsModel?.let {
-              ListModel(
-                headerText = "Recent activity",
-                sections = immutableListOf(it.listModel)
+        body = MoneyHomeBodyModel(
+          hideBalance = hideBalance,
+          onHideBalance = {
+            scope.launch {
+              moneyHomeHiddenStatusProvider.toggleStatus()
+              haptics.vibrate(HapticsEffect.MediumClick)
+              coachmarkService.markCoachmarkAsDisplayed(
+                coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark
               )
-            },
-            seeAllButtonModel = run {
-              val showSeeAllButton = transactionsModel?.hasMoreTransactions ?: false
-              if (showSeeAllButton) {
-                ButtonModel(
-                  text = "See All",
-                  treatment = ButtonModel.Treatment.Secondary,
-                  size = ButtonModel.Size.Footer,
-                  onClick = StandardClick {
-                    props.setState(ViewingAllTransactionActivityUiState)
+              coachmarkDisplayed = true
+            }
+          },
+          onSettings = props.onSettings,
+          balanceModel =
+            // if fiat balance is null because currency conversion hasn't happened yet, we will show
+            // the sats value as the primary until the fiat balance isn't null
+            MoneyAmountModel(
+              primaryAmount =
+                when (transactionsData) {
+                  null -> ""
+                  else -> when (val balance = transactionsData.fiatBalance) {
+                    null -> moneyDisplayFormatter.format(transactionsData.balance.total)
+                    else -> moneyDisplayFormatter.format(balance)
                   }
-                )
-              } else {
-                null
+                },
+              secondaryAmount = when (transactionsData) {
+                null -> ""
+                else -> when (transactionsData.fiatBalance) {
+                  null -> ""
+                  else ->
+                    moneyDisplayFormatter.format(transactionsData.balance.total)
+                }
               }
-            },
-            coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.HiddenBalanceCoachmark)) {
-              CoachmarkModel(
-                identifier = CoachmarkIdentifier.HiddenBalanceCoachmark,
-                title = "Tap to hide balance",
-                description = "Now you can easily conceal your balance by tapping to hide.",
-                arrowPosition = CoachmarkModel.ArrowPosition(
-                  vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
-                ),
-                button = null,
-                image = null,
-                dismiss = {
-                  scope.launch {
-                    coachmarkService.markCoachmarkAsDisplayed(coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark)
-                    coachmarkDisplayed = true
-                  }
+            ),
+          cardsModel =
+            MoneyHomeCardsModel(
+              props = props,
+              onShowAlert = { alertModel = it },
+              onDismissAlert = { alertModel = null }
+            ),
+          buttonsModel =
+            MoneyHomeButtonsModel(
+              props = props,
+              appFunctionalityStatus = appFunctionalityStatus,
+              onShowAlert = { alertModel = it },
+              onDismissAlert = { alertModel = null }
+            ),
+          transactionsModel = transactionsModel?.let {
+            ListModel(
+              headerText = "Recent activity",
+              sections = immutableListOf(it.listModel)
+            )
+          },
+          seeAllButtonModel = run {
+            val showSeeAllButton = transactionsModel?.hasMoreTransactions ?: false
+            if (showSeeAllButton) {
+              ButtonModel(
+                text = "See All",
+                treatment = ButtonModel.Treatment.Secondary,
+                size = ButtonModel.Size.Footer,
+                onClick = StandardClick {
+                  props.setState(ViewingAllTransactionActivityUiState)
                 }
               )
             } else {
               null
-            },
-            refresh = { transactionsActivityService.sync() },
-            onRefresh = {
-              props.setState(props.state.copy(isRefreshing = true))
-            },
-            isRefreshing = props.state.isRefreshing,
-            badgedSettingsIcon =
-              coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark) ||
-                coachmarksToDisplay.contains(
-                  CoachmarkIdentifier.MultipleFingerprintsCoachmark
-                ),
-            onOpenPriceDetails = {
-              props.setState(ShowingPriceChartUiState())
             }
+          },
+          coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.HiddenBalanceCoachmark)) {
+            CoachmarkModel(
+              identifier = CoachmarkIdentifier.HiddenBalanceCoachmark,
+              title = "Tap to hide balance",
+              description = "Now you can easily conceal your balance by tapping to hide.",
+              arrowPosition = CoachmarkModel.ArrowPosition(
+                vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
+                horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
+              ),
+              button = null,
+              image = null,
+              dismiss = {
+                scope.launch {
+                  coachmarkService.markCoachmarkAsDisplayed(coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark)
+                  coachmarkDisplayed = true
+                }
+              }
+            )
+          } else {
+            null
+          },
+          onRefresh = {
+            props.setState(props.state.copy(isRefreshing = true))
+          },
+          isRefreshing = props.state.isRefreshing,
+          onOpenPriceDetails = {
+            props.setState(ShowingPriceChartUiState())
+          },
+          trailingToolbarAccessoryModel = ToolbarAccessoryModel.IconAccessory(
+            model = IconButtonModel(
+              iconModel = IconModel(
+                icon = if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark) ||
+                  coachmarksToDisplay.contains(
+                    CoachmarkIdentifier.MultipleFingerprintsCoachmark
+                  )
+                ) {
+                  Icon.SmallIconSettingsBadged
+                } else {
+                  Icon.SmallIconSettings
+                },
+                iconSize = IconSize.HeaderToolbar
+              ),
+              onClick = StandardClick({ props.onSettings() })
+            )
           ),
+          tabs = props.tabs
+        ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(
             props = props,

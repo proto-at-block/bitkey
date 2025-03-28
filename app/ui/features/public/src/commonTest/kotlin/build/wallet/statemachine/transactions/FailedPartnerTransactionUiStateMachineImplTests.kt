@@ -8,7 +8,7 @@ import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipTransactionFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.ui.model.icon.IconImage
 import io.kotest.core.spec.style.FunSpec
@@ -45,7 +45,7 @@ class FailedPartnerTransactionUiStateMachineImplTests : FunSpec({
 
   test("failed partner transaction with no partner transaction url") {
     val props = props.copy(transaction = partnershipTransaction.copy(details = partnershipTransaction.details.copy(partnerTransactionUrl = null)))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FailedPartnerTransactionBodyModel> {
         headerIcon.iconImage.shouldBeTypeOf<IconImage.UrlImage>()
         headline.shouldBe("There was an issue with your ${props.transaction.details.partnerInfo.name} transaction")
@@ -62,7 +62,7 @@ class FailedPartnerTransactionUiStateMachineImplTests : FunSpec({
   }
 
   test("failed partner transaction with partner transaction url") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FailedPartnerTransactionBodyModel> {
         headerIcon.iconImage.shouldBeTypeOf<IconImage.UrlImage>()
         headline.shouldBe("There was an issue with your ${props.transaction.details.partnerInfo.name} transaction")

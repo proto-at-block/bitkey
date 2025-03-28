@@ -11,8 +11,8 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.kotlin.datetime)
-        api(projects.libs.resultPublic)
-        api(projects.shared.workerPublic)
+        api(libs.kmp.kotlin.result)
+        api(projects.domain.workerPublic)
       }
     }
   }

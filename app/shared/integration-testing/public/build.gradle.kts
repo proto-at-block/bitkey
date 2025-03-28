@@ -14,12 +14,10 @@ kotlin {
         api(projects.libs.datadogPublic)
         api(projects.shared.appComponentImpl)
         api(projects.libs.devTreasuryPublic)
-        api(projects.domain.nfcFake)
         api(projects.libs.testingPublic)
         api(projects.libs.timeFake)
         implementation(projects.libs.cloudStoreFake)
         implementation(projects.libs.moneyTesting)
-        implementation(projects.libs.resultPublic)
         implementation(projects.libs.stdlibPublic)
         implementation(projects.libs.moneyFake)
       }

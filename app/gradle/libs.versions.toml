@@ -142,7 +142,6 @@ kmp-test-ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref =
 kmp-benchmark = { module = "org.jetbrains.kotlinx:kotlinx-benchmark-runtime", version.ref = "kmp-benchmark" }
 
 # Android libraries
-android-accompanist-system-ui-controller = { module = "com.google.accompanist:accompanist-systemuicontroller", version = "0.34.0" }
 android-activity = { module = "androidx.activity:activity", version.ref = "android-activity" }
 android-activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "android-activity" }
 android-annotations = { module = "androidx.annotation:annotation", version = "1.8.2" }

@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 @BitkeyInject(AppScope::class)
 class MetricTrackerServiceImpl(
   private val datadogRumMonitor: DatadogRumMonitor,
-  private val dao: MetricTrackerDaoImpl,
+  private val dao: MetricTrackerDao,
   private val appCoroutineScope: CoroutineScope,
   private val metricTrackerTimeoutJobInterval: MetricTrackerTimeoutJobInterval,
   private val metricTrackerIdleTimeout: MetricTrackerIdleTimeout,
@@ -98,7 +98,9 @@ class MetricTrackerServiceImpl(
         name = trackedMetric.name.name,
         attributes = listOfNotNull(
           "outcome" to outcome.toString().lowercase(),
-          trackedMetric.variant?.let { "variant" to it }
+          // Always emit a variant attribute even if there is none, otherwise datadog will not allow
+          // us to group by variant for flows where a variant is only sometimes available.
+          "variant" to (trackedMetric.variant ?: "null")
         ).toMap()
       )
   }

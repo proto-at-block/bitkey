@@ -43,7 +43,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 data object DebugMenuScreen : Screen
 
-@BitkeyInject(ActivityScope::class, boundTypes = [DebugMenuScreenPresenter::class])
+@BitkeyInject(ActivityScope::class)
 class DebugMenuScreenPresenter(
   private val analyticsUiStateMachine: AnalyticsUiStateMachine,
   private val debugMenuListStateMachine: DebugMenuListStateMachine,

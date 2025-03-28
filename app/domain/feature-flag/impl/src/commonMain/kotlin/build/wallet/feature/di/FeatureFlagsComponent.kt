@@ -68,6 +68,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun securityHubFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    SecurityHubFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun sellBitcoinMaxAmountFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SellBitcoinMaxAmountFeatureFlag(featureFlagDao)
 
@@ -88,6 +93,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
+  fun provideWipeHardwareLoggedOutFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
   fun utxoMaxConsolidationCountFeatureFlag(featureFlagDao: FeatureFlagDao) =
     UtxoMaxConsolidationCountFeatureFlag(featureFlagDao)
 
@@ -95,6 +105,11 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun mobileRealTimeMetricsFeatureFlag(featureFlagDao: FeatureFlagDao) =
     MobileRealTimeMetricsFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun provideBalanceHistoryFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    BalanceHistoryFeatureFlag(featureFlagDao)
 
   @Provides
   fun featureFlags(
@@ -113,9 +128,13 @@ interface FeatureFlagsComponent {
     softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
     utxoMaxConsolidationCountFeatureFlag: UtxoMaxConsolidationCountFeatureFlag,
     mobileRealTimeMetricsFeatureFlag: MobileRealTimeMetricsFeatureFlag,
+    securityHubFeatureFlag: SecurityHubFeatureFlag,
+    balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
+    wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       darkModeFeatureFlag,
+      balanceHistoryFeatureFlag,
       promptSweepFeatureFlag,
       inheritanceFeatureFlag,
       inheritanceMarketingFeatureFlag,
@@ -129,7 +148,9 @@ interface FeatureFlagsComponent {
       expectedTransactionsPhase2FeatureFlag,
       sellBitcoinMinAmountFeatureFlag,
       sellBitcoinMaxAmountFeatureFlag,
-      mobileRealTimeMetricsFeatureFlag
+      mobileRealTimeMetricsFeatureFlag,
+      securityHubFeatureFlag,
+      wipeHardwareLoggedOutFeatureFlag
     )
   }
 }

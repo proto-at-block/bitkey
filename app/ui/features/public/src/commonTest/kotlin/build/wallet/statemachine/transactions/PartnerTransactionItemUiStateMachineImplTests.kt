@@ -13,7 +13,7 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.*
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
@@ -88,7 +88,7 @@ class PartnerTransactionItemUiStateMachineImplTests : FunSpec({
   )
 
   test("Completed partner transaction") {
-    stateMachine.testWithVirtualTime(baseProps) {
+    stateMachine.test(baseProps) {
       awaitItem().apply {
         title.shouldBe("Purchase")
         secondaryText.shouldBe("date-time")

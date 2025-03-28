@@ -26,7 +26,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
@@ -148,7 +148,7 @@ class TransferConfirmationUiStateMachineImplSellTests : FunSpec({
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
 
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       sellProps.copy(
         selectedPriority = transactionPriority
       )

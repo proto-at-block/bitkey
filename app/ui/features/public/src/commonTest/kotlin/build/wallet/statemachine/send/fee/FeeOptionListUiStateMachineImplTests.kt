@@ -10,7 +10,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
@@ -44,7 +44,7 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
   }
 
   test("list is created with all fees") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitItem().apply {
         options.size.shouldBe(3)
         options[1].selected.shouldBeTrue()

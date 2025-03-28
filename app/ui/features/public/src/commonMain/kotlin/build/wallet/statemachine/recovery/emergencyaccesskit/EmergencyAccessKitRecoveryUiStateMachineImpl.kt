@@ -13,7 +13,6 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.random.UuidGenerator
@@ -25,11 +24,15 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineImpl.State.*
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineImpl.State.EntrySource.ManualEntry
+import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineImpl.State.EntrySource.QrEntry
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.mapBoth
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class EmergencyAccessKitRecoveryUiStateMachineImpl(
@@ -46,19 +49,19 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
   override fun model(props: EmergencyAccessKitRecoveryUiStateMachineProps): ScreenModel {
     var state: State by remember {
       mutableStateOf(
-        State.SelectInputMethod
+        SelectInputMethod
       )
     }
 
     return when (val currentState = state) {
-      is State.SelectInputMethod -> {
+      is SelectInputMethod -> {
         val onBack = remember { { state = currentState.onBack(props) } }
         val onEnterManually =
           remember(currentState) { { state = currentState.onSelectManualEntry() } }
         val onScanQrCode = remember(currentState) {
           {
             state = when {
-              permissionUiStateMachine.isImplemented -> State.RequestingCameraPermission
+              permissionUiStateMachine.isImplemented -> RequestingCameraPermission
               else -> State.QrEntry
             }
           }
@@ -70,7 +73,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
       }
 
-      is State.RequestingCameraPermission ->
+      is RequestingCameraPermission ->
         permissionUiStateMachine.model(
           PermissionUiProps(
             permission = Permission.Camera,
@@ -79,7 +82,23 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
           )
         ).asRootScreen()
 
-      is State.ManualEntry ->
+      is State.ManualEntry -> {
+        var payloadToProcess: String? by remember { mutableStateOf(null) }
+        payloadToProcess?.let { payload ->
+          LaunchedEffect("process-payload", payload) {
+            payloadDecoder.decode(payload)
+              .onSuccess {
+                state = RestoreWallet(
+                  payload = it,
+                  entrySource = ManualEntry(payload)
+                )
+              }
+              .onFailure {
+                state = CodeNotRecognized(entrySource = ManualEntry(payload))
+              }
+            payloadToProcess = null
+          }
+        }
         EmergencyAccessKitImportPasteMobileKeyBodyModel(
           enteredText = currentState.enteredText,
           onEnterTextChanged = { newText ->
@@ -87,7 +106,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
           },
           onBack = { state = currentState.onBack(props) },
           onContinue = {
-            state = currentState.onContinue(payloadDecoder)
+            payloadToProcess = currentState.enteredText
           },
           onPasteButtonClick = {
             clipboard.getPlainTextItem()?.let {
@@ -95,26 +114,37 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
             }
           }
         ).asRootScreen()
+      }
 
-      is State.QrEntry ->
+      is State.QrEntry -> {
+        var qrCodeDataToProcess: String? by remember { mutableStateOf(null) }
+        qrCodeDataToProcess?.let { qrCodeData ->
+          LaunchedEffect("process-qr-code-data", qrCodeData) {
+            payloadDecoder.decode(qrCodeData)
+              .onSuccess {
+                state = RestoreWallet(payload = it, entrySource = QrEntry)
+              }
+              .onFailure {
+                state = CodeNotRecognized(entrySource = QrEntry)
+              }
+            qrCodeDataToProcess = null
+          }
+        }
         QrCodeScanBodyModel(
           headline = "Import your wallet",
           reticleLabel = "Scan the QR code in section 4 of the PDF",
           onClose = { state = currentState.onBack(props) },
           onQrCodeScanned = { rawData ->
-            state =
-              currentState.onQrScanComplete(
-                rawInput = rawData,
-                payloadDecoder = payloadDecoder
-              )
+            qrCodeDataToProcess = rawData
           },
           eventTrackerScreenInfo =
             EventTrackerScreenInfo(
               eventTrackerScreenId = EmergencyAccessKitTrackerScreenId.SCAN_QR_CODE
             )
         ).asFullScreen()
+      }
 
-      is State.CodeNotRecognized -> {
+      is CodeNotRecognized -> {
         EmergencyAccessKitCodeNotRecognizedBodyModel(
           arrivedFromManualEntry = currentState.arrivedFromManualEntry(),
           onBack = { state = currentState.onBack(props) },
@@ -123,7 +153,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
       }
 
-      is State.RestoreWallet -> {
+      is RestoreWallet -> {
         val onRestore: (() -> Unit)? = remember(currentState) {
           { state = currentState.onStartRestore() }
         }
@@ -133,7 +163,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
       }
 
-      is State.StartNFCRestore -> {
+      is StartNFCRestore -> {
         val sealedCsek =
           when (currentState.payload) {
             is EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1 ->
@@ -163,28 +193,28 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         )
       }
 
-      is State.RestoreCompleting -> {
+      is RestoreCompleting -> {
         LaunchedEffect("restoring-from-backup") {
-          state =
-            emergencyAccessPayloadRestorer.restoreFromPayload(currentState.payload)
-              .logFailure { "EAK payload failed to decrypt" }
-              .mapBoth(
-                success = { currentState.onSuccess(it) },
-                failure = { currentState.onFailure() }
-              )
+          emergencyAccessPayloadRestorer.restoreFromPayload(currentState.payload)
+            .onSuccess {
+              state = RestoreCompleted(it)
+            }
+            .onFailure {
+              state = RestoreFailed
+            }
         }
 
         importingBackupScreen().asRootScreen()
       }
 
-      is State.RestoreCompleted -> {
+      is RestoreCompleted -> {
         LaunchedEffect("applying-backup") {
           currentState.completeRestore(keyboxDao = keyboxDao, uuidGenerator = uuidGenerator)
         }
         importingBackupScreen().asRootScreen()
       }
 
-      is State.RestoreFailed ->
+      is RestoreFailed ->
         EmergencyAccessKitCodeNotRecognizedBodyModel(
           arrivedFromManualEntry = false,
           onBack = { state = currentState.onBack(props) },
@@ -211,17 +241,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     data object RequestingCameraPermission : State
 
     /** Showing the QR scanning screen to load the emergency access payload */
-    data object QrEntry : State {
-      fun onQrScanComplete(
-        rawInput: String,
-        payloadDecoder: EmergencyAccessKitPayloadDecoder,
-      ): State =
-        attemptDecode(
-          rawInput = rawInput,
-          entrySource = EntrySource.QrEntry,
-          payloadDecoder = payloadDecoder
-        )
-    }
+    data object QrEntry : State
 
     /** Importing via pasting or manually typing in the emergency access payload */
     data class ManualEntry(val enteredText: String) : State {
@@ -232,13 +252,6 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
           this
         }
       }
-
-      fun onContinue(payloadDecoder: EmergencyAccessKitPayloadDecoder): State =
-        attemptDecode(
-          rawInput = this.enteredText,
-          entrySource = EntrySource.ManualEntry(enteredText = this.enteredText),
-          payloadDecoder = payloadDecoder
-        )
     }
 
     /**
@@ -299,12 +312,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
 
     data class RestoreCompleting(
       val payload: EmergencyAccessKitPayload,
-    ) : State {
-      fun onFailure(): State = RestoreFailed
-
-      fun onSuccess(accountRestoration: EmergencyAccessPayloadRestorer.AccountRestoration): State =
-        RestoreCompleted(accountRestoration = accountRestoration)
-    }
+    ) : State
 
     data object RestoreFailed : State {
       fun onScanQRCode() = QrEntry
@@ -361,19 +369,6 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         RestoreFailed ->
           SelectInputMethod
       }
-    }
-
-    fun attemptDecode(
-      rawInput: String,
-      entrySource: EntrySource,
-      payloadDecoder: EmergencyAccessKitPayloadDecoder,
-    ): State {
-      return payloadDecoder.decode(rawInput)
-        .logFailure { "Emergency Access Kit decrypted payload failed to decode" }
-        .mapBoth(
-          success = { RestoreWallet(payload = it, entrySource = entrySource) },
-          failure = { CodeNotRecognized(entrySource = entrySource) }
-        )
     }
   }
 }

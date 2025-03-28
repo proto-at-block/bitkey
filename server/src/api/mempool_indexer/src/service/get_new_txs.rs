@@ -117,7 +117,7 @@ impl Service {
         tx_id: &Txid,
     ) -> Result<TransactionResponse, MempoolIndexerError> {
         self.http_client
-            .get(&format!("{}/tx/{tx_id}", self.settings.base_url))
+            .get(format!("{}/tx/{tx_id}", self.settings.base_url))
             .send()
             .await?
             .json()
@@ -129,7 +129,7 @@ impl Service {
         &self,
     ) -> Result<HashSet<Txid>, MempoolIndexerError> {
         self.http_client
-            .get(&format!("{}/mempool/txids", self.settings.base_url))
+            .get(format!("{}/mempool/txids", self.settings.base_url))
             .send()
             .await?
             .json()

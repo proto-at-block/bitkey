@@ -23,7 +23,7 @@ import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.Rectif
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachineMock
 import build.wallet.statemachine.recovery.cloud.RectifiableErrorHandlingUiStateMachineMock
@@ -72,7 +72,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Uploads backup") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()
@@ -87,7 +87,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Encounters unrectifiable error") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = UnrectifiableCloudBackupError(Throwable("bar"))
       awaitBodyMock<CloudSignInUiProps> {
@@ -106,7 +106,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Handles rectifiable error") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
       awaitBodyMock<CloudSignInUiProps> {
@@ -133,7 +133,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Cannot handle rectifiable error") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = ::Ok
       cloudBackupRepository.returnWriteError = RectifiableCloudBackupError(Throwable("bar"), "bar")
       awaitBodyMock<CloudSignInUiProps> {
@@ -155,7 +155,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("Cannot create backup") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       liteAccountCloudBackupCreator.createResultCreator = {
         Err(SocRecKeysRetrievalError(Throwable("bar")))
       }

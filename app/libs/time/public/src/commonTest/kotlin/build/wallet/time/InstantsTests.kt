@@ -7,11 +7,13 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.UtcOffset
 import kotlinx.datetime.toInstant
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 class InstantsTests : FunSpec({
   test("result ok") {
@@ -99,12 +101,32 @@ class InstantsTests : FunSpec({
 
     test("does not modify instant without fractional milliseconds") {
       val instantWithoutFractionalMilliseconds = "2023-01-10T08:22:25Z".toInstant()
-      instantWithoutFractionalMilliseconds.truncateToMilliseconds().shouldBe(instantWithoutFractionalMilliseconds)
+      instantWithoutFractionalMilliseconds.truncateToMilliseconds()
+        .shouldBe(instantWithoutFractionalMilliseconds)
     }
 
     test("handles full second rounding") {
       val instantWithFullSecond = "2023-01-10T08:22:26.000Z".toInstant()
       instantWithFullSecond.truncateToMilliseconds().shouldBe(instantWithFullSecond)
+    }
+  }
+
+  context("truncateTo") {
+    val instant = Instant.parse("2025-02-15T12:46:44Z")
+    test("10.minutes") {
+      instant.truncateTo(10.minutes)
+        .toString()
+        .shouldBe("2025-02-15T12:40:00Z")
+    }
+    test("1.hours") {
+      instant.truncateTo(1.hours)
+        .toString()
+        .shouldBe("2025-02-15T12:00:00Z")
+    }
+    test("1.days") {
+      instant.truncateTo(1.days)
+        .toString()
+        .shouldBe("2025-02-15T00:00:00Z")
     }
   }
 })

@@ -7,7 +7,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_TAP_FWUP_CARD
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -38,7 +38,7 @@ class DeviceUpdateCardUiStateMachineImplTests : FunSpec({
   }
 
   test("null is returned when fw is up to date") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
     }
   }
@@ -46,7 +46,7 @@ class DeviceUpdateCardUiStateMachineImplTests : FunSpec({
   test("card is returned") {
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldNotBeNull()
     }
   }
@@ -54,7 +54,7 @@ class DeviceUpdateCardUiStateMachineImplTests : FunSpec({
   test("event is logged when click handler is invoked") {
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldNotBeNull().onClick?.invoke()
 
       onUpdateCalls.awaitItem().shouldBe(Unit)

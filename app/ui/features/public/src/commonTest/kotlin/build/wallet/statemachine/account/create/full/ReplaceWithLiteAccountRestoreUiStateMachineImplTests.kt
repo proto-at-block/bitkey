@@ -17,7 +17,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import com.github.michaelbull.result.Err
@@ -53,7 +53,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
   )
 
   test("happy path") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
@@ -72,7 +72,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
   }
 
   test("upgrade failure and retry") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       liteAccountBackupToFullAccountUpgrader.result =
         Err(LiteAccountBackupToFullAccountUpgrader.UpgradeError("boom"))
       awaitBodyMock<ProofOfPossessionNfcProps> {

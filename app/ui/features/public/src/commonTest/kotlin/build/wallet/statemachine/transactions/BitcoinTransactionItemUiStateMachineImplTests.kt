@@ -10,7 +10,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionUtxoConsolidation
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.TimeZoneProviderMock
@@ -57,7 +57,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("pending receive transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionReceive.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionReceive.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
@@ -78,7 +78,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("confirmed receive transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionReceive)) {
+    stateMachine.test(makeProps(BitcoinTransactionReceive)) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
@@ -95,7 +95,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("pending send transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")
@@ -112,7 +112,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("confirmed send transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionSend)) {
+    stateMachine.test(makeProps(BitcoinTransactionSend)) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("confirmed-time")
@@ -133,7 +133,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("pending utxo consolidation transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("Pending")
@@ -150,7 +150,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   }
 
   test("confirmed utxo consolidation transaction model") {
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionUtxoConsolidation)) {
+    stateMachine.test(makeProps(BitcoinTransactionUtxoConsolidation)) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("Consolidation")
         it.secondaryText.shouldBe("confirmed-time")
@@ -169,7 +169,7 @@ class BitcoinTransactionItemUiStateMachineImplTests : FunSpec({
   test("late transaction model") {
     clock.advanceBy(15.minutes)
 
-    stateMachine.testWithVirtualTime(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
+    stateMachine.test(makeProps(BitcoinTransactionSend.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
         it.secondaryText.shouldBe("Pending")

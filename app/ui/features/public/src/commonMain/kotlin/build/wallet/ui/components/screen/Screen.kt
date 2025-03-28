@@ -21,7 +21,6 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SystemUIModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.sheet.Sheet
-import build.wallet.ui.components.status.backgroundColor
 import build.wallet.ui.components.system.SystemUI
 import build.wallet.ui.components.toast.Toast
 import build.wallet.ui.compose.gestures.onTwoFingerDoubleTap
@@ -44,8 +43,7 @@ fun Screen(
 ) {
   ScreenTheme(
     model.body,
-    model.presentationStyle,
-    model.statusBannerModel?.backgroundColor
+    model.presentationStyle
   ) { style ->
     Column(
       modifier = modifier.background(color = WalletTheme.colors.background),

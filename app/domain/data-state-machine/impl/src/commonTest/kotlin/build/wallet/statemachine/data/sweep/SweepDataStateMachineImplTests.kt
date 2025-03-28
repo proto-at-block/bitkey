@@ -24,10 +24,12 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepServiceMock
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
+import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -39,6 +41,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlin.time.Duration
 
 class SweepDataStateMachineImplTests : FunSpec({
   val sweepService = SweepServiceMock()
@@ -68,7 +71,8 @@ class SweepDataStateMachineImplTests : FunSpec({
       sweepService,
       serverSigner,
       appSpendingWalletProvider,
-      bitcoinWalletService
+      bitcoinWalletService,
+      MinimumLoadingDuration(Duration.ZERO)
     )
 
   afterTest {
@@ -91,7 +95,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   test("failed to generate sweep") {
     sweepService.prepareSweepResult = Err(Error())
 
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
       awaitItem().shouldBeTypeOf<GeneratePsbtsFailedData>()
     }
@@ -100,7 +104,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   test("no funds found") {
     sweepService.prepareSweepResult = Ok(null)
 
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
       awaitItem().shouldBeTypeOf<NoFundsFoundData>()
@@ -126,7 +130,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
     )
 
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
       val psbtsGenerated = awaitItem().shouldBeTypeOf<PsbtsGeneratedData>()

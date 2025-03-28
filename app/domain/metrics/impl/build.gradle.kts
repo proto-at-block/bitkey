@@ -13,7 +13,7 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.kotlin.datetime)
-        api(projects.shared.workerPublic)
+        api(projects.domain.workerPublic)
         implementation(projects.domain.databasePublic)
         implementation(projects.libs.datadogPublic)
       }

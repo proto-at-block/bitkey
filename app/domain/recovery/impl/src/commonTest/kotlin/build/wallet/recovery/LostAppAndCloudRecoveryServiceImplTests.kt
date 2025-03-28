@@ -8,10 +8,12 @@ import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AuthTokensServiceFake
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
+import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClientFake
 import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError.ServerError
@@ -19,6 +21,7 @@ import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.LocalCancelDelayNotifyError
+import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.shouldBeOkOfType
@@ -30,7 +33,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
   val authF8eClient = AuthF8eClientMock()
-  val recoverySyncer = RecoverySyncerMock(
+  val recoveryStatusService = RecoveryStatusServiceMock(
     StillRecoveringInitiatedRecoveryMock,
     turbines::create
   )
@@ -40,17 +43,23 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   val appKeysGenerator = AppKeysGeneratorMock()
   val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val accountConfigService = AccountConfigServiceFake()
+  val initiateAccountDelayNotifyF8eClient = InitiateAccountDelayNotifyF8eClientFake()
+  val sqlDriver = inMemorySqlDriver()
+  val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+  val recoveryDao = RecoveryDaoImpl(databaseProvider)
   val service = LostAppAndCloudRecoveryServiceImpl(
     authF8eClient = authF8eClient,
     cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
-    recoverySyncer = recoverySyncer,
-    recoveryLock = RecoveryLock(),
+    recoveryStatusService = recoveryStatusService,
+    recoveryLock = RecoveryLockImpl(),
     accountConfigService = accountConfigService,
     accountAuthenticator = accountAuthenticator,
     authTokensService = authTokensService,
     deviceTokenManager = deviceTokenManager,
     appKeysGenerator = appKeysGenerator,
-    listKeysetsF8eClient = listKeysetsF8eClient
+    listKeysetsF8eClient = listKeysetsF8eClient,
+    initiateAccountDelayNotifyF8eClient = initiateAccountDelayNotifyF8eClient,
+    recoveryDao = recoveryDao
   )
 
   suspend fun LostAppAndCloudRecoveryService.cancel() =
@@ -61,7 +70,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
   beforeTest {
     cancelDelayNotifyRecoveryF8eClient.reset()
-    recoverySyncer.reset()
+    recoveryStatusService.reset()
     accountConfigService.reset()
     authF8eClient.reset()
     accountAuthenticator.reset()
@@ -69,12 +78,13 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
     deviceTokenManager.reset()
     listKeysetsF8eClient.reset()
     appKeysGenerator.reset()
+    recoveryDao.clear()
   }
 
   test("success") {
     service.cancel().shouldBeOkOfType<Unit>()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -84,7 +94,7 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
 
     service.cancel().shouldBeOk()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
@@ -98,11 +108,11 @@ class LostAppAndCloudRecoveryServiceImplTests : FunSpec({
   }
 
   test("failure - dao") {
-    recoverySyncer.clearCallResult = Err(DbQueryError(IllegalStateException()))
+    recoveryStatusService.clearCallResult = Err(DbQueryError(IllegalStateException()))
 
     service.cancel().shouldBeErrOfType<LocalCancelDelayNotifyError>()
 
-    recoverySyncer.clearCalls.awaitItem()
+    recoveryStatusService.clearCalls.awaitItem()
     cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 })

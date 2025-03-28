@@ -28,6 +28,12 @@ impl TransitioningRecoveryState for StartRecoveryState {
         event: RecoveryEvent,
         services: &RecoveryServices,
     ) -> Result<Transition, RecoveryError> {
+        tracing::info!(
+            recovery_state = std::any::type_name_of_val(&self),
+            recovery_event = event.to_string(),
+            "Processing recovery event"
+        );
+
         let full_account = services
             .account
             .fetch_full_account(FetchAccountInput {
@@ -69,6 +75,11 @@ impl TransitioningRecoveryState for StartRecoveryState {
                 },
             ))
         } else {
+            tracing::error!(
+                recovery_state = std::any::type_name_of_val(&self),
+                recovery_event = event.to_string(),
+                "Invalid transition"
+            );
             Err(RecoveryError::InvalidTransition)
         }
     }

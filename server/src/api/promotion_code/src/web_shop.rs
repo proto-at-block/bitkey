@@ -58,7 +58,7 @@ impl WebShopClient {
                 base_url,
                 api_key,
             } => client
-                .post(&format!("{}/v1/internal/fromagerie/promotion", base_url))
+                .post(format!("{}/v1/internal/fromagerie/promotion", base_url))
                 .header(AUTHORIZATION, format!("Bearer {}", api_key))
                 .json(request)
                 .send()

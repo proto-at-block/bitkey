@@ -182,5 +182,5 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
   PROTECTED_CUSTOMER_INVITE_ACCEPTED,
 
   /** Protected customer invite accepted, tapped notification but the relationship is no longer active leading to an error screen */
-  PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_NOT_ACTIVE
+  PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_NOT_ACTIVE,
 }

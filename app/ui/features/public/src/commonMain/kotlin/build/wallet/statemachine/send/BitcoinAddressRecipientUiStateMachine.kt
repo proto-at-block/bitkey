@@ -2,7 +2,6 @@ package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.invoice.ParsedPaymentData
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -23,7 +22,6 @@ interface BitcoinAddressRecipientUiStateMachine : StateMachine<BitcoinAddressRec
  */
 data class BitcoinAddressRecipientUiProps(
   val address: BitcoinAddress?,
-  val spendingKeyset: SpendingKeyset,
   val validInvoiceInClipboard: ParsedPaymentData?,
   val onBack: () -> Unit,
   val onRecipientEntered: (address: BitcoinAddress) -> Unit,

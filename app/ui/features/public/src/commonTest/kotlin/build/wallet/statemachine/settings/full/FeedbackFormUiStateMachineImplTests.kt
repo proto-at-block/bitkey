@@ -3,7 +3,7 @@ package build.wallet.statemachine.settings.full
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiStateMachineImpl
@@ -41,7 +41,7 @@ class FeedbackFormUiStateMachineImplTests : FunSpec({
   )
 
   test("smoke test") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // A silly smoke test to make sure the state machine doesn't crash. INC-3635.
       awaitBody<FillingFormBodyModel>()
     }

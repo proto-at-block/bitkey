@@ -147,7 +147,7 @@ sealed class Route {
   data class RecoveryRelationshipNavigationDeepLink(
     val screen: NavigationScreenId,
     val recoveryRelationshipId: String,
-  ): Route()
+  ) : Route()
 
   /**
    * Navigate to a specified screen to perform an action based on the claim ID

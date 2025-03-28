@@ -16,7 +16,7 @@ import io.ktor.util.*
  * configuring plugins, and simplified methods for direct configuration.
  */
 
-val F8eEnvironmentAttribute = AttributeKey<F8eEnvironment>("f8-environment")
+val F8eEnvironmentAttribute = AttributeKey<F8eEnvironment>("f8e-environment")
 val AccountIdAttribute = AttributeKey<AccountId>("account-id")
 val AuthTokenScopeAttribute = AttributeKey<AuthTokenScope>("auth-token-scope")
 val AppAuthKeyAttribute = AttributeKey<PublicKey<out AppAuthKey>>("app-auth-key")

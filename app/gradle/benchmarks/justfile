@@ -5,26 +5,30 @@ default:
 app_dir := "../.."
 gradle-profiler := app_dir / "bin/gradle-profiler --benchmark --project-dir " + app_dir + " --scenario-file profiler.scenarios --output-dir _build/profile-out --gradle-user-home _build/gradle-user-home"
 
-studio_version := "2023.2.1.15"
-studio_download_url := "https://redirector.gvt1.com/edgedl/android/studio/ide-zips/" + studio_version + "/android-studio-" + studio_version + "-" + if os() == "macos" {
-	if arch() == "aarch64" {
-		"mac_arm.zip"
-	} else if arch() == "x86_64" {
-		"mac.zip"
-	} else {
-		error("Unsupported macOS architecture: " + arch())
-	}
+studio_version := "2024.2.2.14"
+# https://developer.android.com/studio/archive
+studio_download_url := if os() == "macos" {
+    "https://redirector.gvt1.com/edgedl/android/studio/install/" + studio_version + "/android-studio-" + studio_version + "-" + if arch() == "aarch64" {
+        "mac_arm.dmg"
+    } else if arch() == "x86_64" {
+        "mac.dmg"
+    } else {
+        error("Unsupported macOS architecture: " + arch())
+    }
 } else if os() == "linux" {
-	if arch() == "x86_64" {
-		"linux.tar.gz"
-	} else {
-		error("Unsupported Linux architecture: " + arch())
-	}
+    "https://redirector.gvt1.com/edgedl/android/studio/ide-zips/" + studio_version + "/android-studio-" + studio_version + "-" + if arch() == "aarch64" {
+        "linux.tar.gz"
+    } else if arch() == "x86_64" {
+        "linux.tar.gz"
+    } else {
+        error("Unsupported Linux architecture: " + arch())
+    }
 } else {
 	error("Unsupported OS: " + os())
 }
+
 studio_install_path := "_build" + if os() == "macos" {
-	"/Android Studio Preview.app"
+    "/Android Studio.app"
 } else if os() == "linux" {
 	"/android-studio"
 } else {
@@ -49,22 +53,39 @@ upload-results testName commitSha csvFile="_build/profile-out/benchmark.csv":
 append_scenario_names +scenarios:
 	printf "name,{{replace(scenarios, ' ', ',')}}" >> _build/profile-out/benchmark.csv
 
+# Downloads Android Studio .dmg and unpacks it into _build/Android Studio.app
 [macos]
 download-studio url=studio_download_url:
-	#!/usr/bin/env bash
-	set -euxo pipefail
-	mkdir -p _build
-	if [ ! -f _build/android-studio.zip ]; then
-		curl -o _build/android-studio.zip -L {{url}}
-	fi
-	unzip -q _build/android-studio.zip -d _build
+    #!/usr/bin/env bash
+    set -euxo pipefail
+    mkdir -p _build
 
+    # Download .dmg
+    if [ ! -f _build/android-studio.dmg ]; then
+        curl -o _build/android-studio.dmg -L "{{url}}"
+    fi
+
+    # Extract
+    if [ ! -d "_build/Android Studio.app" ]; then
+        MOUNT_POINT=$(hdiutil attach _build/android-studio.dmg | grep -o '/Volumes/.*' | head -n1)
+        cp -R "$MOUNT_POINT/Android Studio.app" _build/
+        hdiutil detach "$MOUNT_POINT"
+
+        # macOS gatekeeper fix
+        xattr -d com.apple.quarantine _build/Android\ Studio.app 2>/dev/null || true
+    fi
+
+# Downloads Android Studio .tar.gz and unpacks it into _build/android-studio
 [linux]
 download-studio url=studio_download_url:
 	#!/usr/bin/env bash
 	set -euxo pipefail
 	mkdir -p _build
+
+	# Download .tar.gz
 	if [ ! -f _build/android-studio.tar.gz ]; then
 		curl -o _build/android-studio.tar.gz -L {{url}}
 	fi
+
+	# Unpack
 	tar -xzf _build/android-studio.tar.gz -C _build

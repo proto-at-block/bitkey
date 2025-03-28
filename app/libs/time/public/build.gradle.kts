@@ -11,7 +11,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.resultPublic)
         api(projects.libs.stdlibPublic)
         api(libs.kmp.kotlin.datetime)
         implementation(projects.libs.loggingPublic)

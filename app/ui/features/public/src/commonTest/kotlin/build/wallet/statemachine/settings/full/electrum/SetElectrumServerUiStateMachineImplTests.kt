@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.onValueChange
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.root.ActionSuccessDuration
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -54,7 +54,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
   }
 
   test("save reachable electrum server") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 
@@ -104,7 +104,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         actionSuccessDuration = actionSuccessDuration
       )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 
@@ -161,7 +161,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
         actionSuccessDuration = actionSuccessDuration
       )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       val newHost = "chicken.info"
       val newPort = "6789"
 

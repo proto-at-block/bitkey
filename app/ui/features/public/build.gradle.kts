@@ -38,14 +38,12 @@ kotlin {
         implementation(libs.kmp.compottie.resources)
 
         api(projects.libs.datadogPublic)
-        api(projects.domain.fwupPublic)
         api(projects.libs.amountPublic)
         // TODO: remove dependency on :impl.
         implementation(projects.libs.amountImpl) {
           because("Depends on AmountCalculatorImpl, DecimalNumberCalculatorImpl, and WholeNumberCalculatorImpl.")
         }
         api(projects.domain.authPublic)
-        api(projects.domain.bitcoinPublic)
         api(projects.domain.bootstrapPublic)
         api(projects.domain.accountPublic)
         api(projects.domain.analyticsPublic)
@@ -54,16 +52,12 @@ kotlin {
         api(projects.domain.coachmarkPublic)
         api(projects.domain.emergencyAccessKitPublic)
         api(projects.domain.featureFlagPublic)
-        api(projects.domain.fwupPublic)
-        api(projects.domain.homePublic)
         api(projects.libs.keyValueStoreImpl)
         api(projects.libs.ktorClientPublic)
         api(projects.libs.loggingPublic)
         api(projects.domain.metricsPublic)
-        api(projects.domain.nfcPublic)
         api(projects.domain.notificationsPublic)
         api(projects.domain.onboardingPublic)
-        api(projects.libs.resultPublic)
         api(projects.libs.timePublic)
         api(projects.libs.contactMethodPublic)
         api(projects.libs.platformPublic)
@@ -72,8 +66,9 @@ kotlin {
         api(projects.domain.dataStateMachinePublic)
         api(projects.libs.stateMachinePublic)
         api(projects.ui.frameworkPublic)
-        api(projects.domain.firmwarePublic)
-        api(projects.shared.workerPublic)
+        api(projects.domain.hardwarePublic)
+        api(projects.domain.walletPublic)
+        api(projects.domain.workerPublic)
         api(projects.shared.priceChartPublic)
         implementation(projects.domain.supportPublic)
         implementation(projects.libs.loggingPublic)
@@ -82,6 +77,7 @@ kotlin {
         implementation(projects.domain.inheritancePublic)
         implementation(projects.domain.relationshipsPublic)
         implementation(projects.ui.snapshotGeneratorApiPublic)
+        implementation(projects.domain.securityCenterPublic)
       }
     }
 
@@ -93,7 +89,6 @@ kotlin {
         implementation(libs.android.camera.camera2)
         implementation(libs.android.compose.ui.activity)
         implementation(libs.android.compose.ui.core)
-        implementation(libs.android.accompanist.system.ui.controller)
         implementation(libs.android.compose.ui.tooling)
         implementation(libs.android.compose.ui.tooling.preview)
       }
@@ -107,7 +102,6 @@ kotlin {
         implementation(projects.domain.authFake)
         implementation(projects.domain.availabilityFake)
         implementation(projects.libs.bdkBindingsFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.libs.bitcoinPrimitivesFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.bootstrapFake)
@@ -118,16 +112,12 @@ kotlin {
         implementation(projects.domain.emergencyAccessKitImpl)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
-        implementation(projects.domain.firmwareFake)
-        implementation(projects.domain.fwupFake)
-        implementation(projects.domain.homeFake)
-        implementation(projects.domain.keyboxFake)
+        implementation(projects.domain.hardwareFake)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.domain.metricsFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.domain.notificationsFake)
         implementation(projects.domain.onboardingFake)
-        implementation(projects.domain.nfcFake)
         implementation(projects.domain.partnershipsFake)
         implementation(projects.libs.contactMethodFake)
         implementation(projects.domain.mobilePayFake)
@@ -143,7 +133,7 @@ kotlin {
         implementation(projects.domain.supportFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.ui.frameworkTesting)
-        implementation(projects.shared.workerFake)
+        implementation(projects.domain.workerFake)
         implementation(libs.kmp.okio)
         implementation(projects.domain.inAppSecurityFake)
         implementation(projects.libs.platformFake)
@@ -153,6 +143,7 @@ kotlin {
         implementation(projects.libs.amountImpl) {
           because("Depends on DoubleFormatterImpl")
         }
+        implementation(projects.domain.walletFake)
       }
     }
 
@@ -167,6 +158,7 @@ kotlin {
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.bootstrapFake)
         implementation(projects.domain.cloudBackupFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.libs.moneyTesting)
         implementation(projects.libs.stateMachineTesting)

@@ -7,7 +7,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Callout
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.export.view.ExportSheetBodyModel
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitSheet
@@ -44,7 +44,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("test resting state") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitUntilScreenWithBody<ExportToolsSelectionModel> {
         bottomSheetModel.shouldBeNull()
 
@@ -68,7 +68,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("onClose is called when close button is pressed.") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         onBack?.invoke()
       }
@@ -78,7 +78,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("should show ExportTransactionHistorySheet when exporting transaction history") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[0].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull()
@@ -107,7 +107,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
   test("should show error export sheet when exporting transaction history fails") {
     exportTransactionsService.result = Err(Error("oops"))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[0].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull()
@@ -142,7 +142,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
   }
 
   test("should show ExportDescriptorSheet when exporting wallet descriptor") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[1].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>()
@@ -176,7 +176,7 @@ class ExportToolsUiStateMachineImplTests : FunSpec({
 
   test("should show error export sheet when wallet descriptor export fails") {
     exportWatchingDescriptorService.result = Err(Error("oops"))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ExportToolsSelectionModel> {
         mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup> {
           it.listGroupModel.items[1].trailingAccessory.shouldBeTypeOf<ListItemAccessory.IconAccessory>().onClick?.shouldNotBeNull()

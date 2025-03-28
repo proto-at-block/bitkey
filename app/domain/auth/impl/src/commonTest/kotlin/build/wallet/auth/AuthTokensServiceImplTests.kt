@@ -25,6 +25,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.*
+import kotlinx.datetime.Instant
 
 class AuthTokensServiceImplTests : FunSpec({
   val authTokenDao = AuthTokenDaoMock(turbines::create)
@@ -63,20 +64,23 @@ class AuthTokensServiceImplTests : FunSpec({
     authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
     authenticationF8eClient.refreshResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(newAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
 
     val newTokens =
       AccountAuthTokens(
         accessToken = AccessToken(newAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     service.refreshAccessTokenWithApp(
       f8eEnvironment,
@@ -107,7 +111,8 @@ class AuthTokensServiceImplTests : FunSpec({
     authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
     authenticationF8eClient.refreshResult =
@@ -115,7 +120,8 @@ class AuthTokensServiceImplTests : FunSpec({
     val newTokens =
       AccountAuthTokens(
         accessToken = AccessToken(newAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
 
     val authData =
@@ -150,7 +156,8 @@ class AuthTokensServiceImplTests : FunSpec({
     authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken)
+        refreshToken = RefreshToken(originalRefreshToken),
+        accessTokenExpiresAt = Instant.DISTANT_FUTURE
       )
     )
 

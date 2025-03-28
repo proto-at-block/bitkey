@@ -21,6 +21,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
 
 private const val SPARKLINE_MAX_POINTS = 50
 
@@ -34,6 +35,7 @@ class BitcoinPriceCardUiStateMachineImpl(
   private val chartDataFetcherService: ChartDataFetcherService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
+  private val chartRangePreference: ChartRangePreference,
 ) : BitcoinPriceCardUiStateMachine {
   private val isLoadingFlow = MutableStateFlow(true)
   private val dataFlow = MutableStateFlow<ImmutableList<DataPoint>>(emptyImmutableList())
@@ -58,14 +60,14 @@ class BitcoinPriceCardUiStateMachineImpl(
       }
       .stateIn(appScope, SharingStarted.WhileSubscribed(), null)
   private val priceChangeFlow =
-    combine(priceMoneyFlow, dataFlow) { priceMoney, data ->
+    combine(priceMoneyFlow, dataFlow, chartRangePreference.selectedRange) { priceMoney, data, timeScale ->
       val end = priceMoney?.value?.doubleValue(exactRequired = false) ?: return@combine null
-      val start = data.firstOrNull()?.second ?: return@combine null
+      val start = data.firstOrNull()?.y ?: return@combine null
       val diffPercent = (end - start) / start * 100
       val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
       priceDirection.value = PriceDirection.from(diffDecimal)
       isLoadingFlow.update { false }
-      "${diffDecimal.abs().toPlainString()}% today"
+      "${diffDecimal.abs().toPlainString()}% ${timeScale.getPriceChangeLabel().lowercase()}"
     }
       .filterNotNull()
       .stateIn(appScope, SharingStarted.WhileSubscribed(), "0% today")
@@ -86,12 +88,12 @@ class BitcoinPriceCardUiStateMachineImpl(
         priceMoney?.let(moneyDisplayFormatter::format).orEmpty()
       }
     }
+    val chartHistory by chartRangePreference.selectedRange.collectAsState()
     val priceChange by priceChangeFlow.collectAsState()
-    LaunchedEffect(priceMoney, fiatCurrency) {
+    LaunchedEffect(priceMoney, fiatCurrency, chartHistory, chartRangePreference.selectedRange.value) {
       if (priceMoney != null) {
         chartDataFetcherService.getChartData(
-          accountId = props.accountId,
-          chartHistory = ChartHistory.DAY,
+          range = chartRangePreference.selectedRange.value,
           maxPricePoints = SPARKLINE_MAX_POINTS
         ).onSuccess { chartData ->
           val list = chartData.toImmutableList()
@@ -113,5 +115,12 @@ class BitcoinPriceCardUiStateMachineImpl(
       onClick = props.onOpenPriceChart,
       style = CardModel.CardStyle.Outline
     )
+  }
+
+  private suspend fun ChartRange.getPriceChangeLabel(): String {
+    return when (this) {
+      ChartRange.DAY -> "today"
+      ChartRange.WEEK, ChartRange.MONTH, ChartRange.YEAR, ChartRange.ALL -> getString(this.diffLabel)
+    }
   }
 }

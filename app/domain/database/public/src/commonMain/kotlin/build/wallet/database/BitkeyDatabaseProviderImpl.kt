@@ -358,6 +358,21 @@ class BitkeyDatabaseProviderImpl(
       ),
       mobileMetricEntityAdapter = MobileMetricEntity.Adapter(
         lastUpdatedAdapter = InstantAsIso8601ColumnAdapter
+      ),
+      walletBalanceEntityAdapter = WalletBalanceEntity.Adapter(
+        dateAdapter = InstantAsIso8601ColumnAdapter,
+        fiatCurrencyCodeAdapter = DelegatedColumnAdapter(
+          ::IsoCurrencyTextCode,
+          IsoCurrencyTextCode::code
+        ),
+        rangeAdapter = EnumColumnAdapter()
+      ),
+      hardwareUnlockMethodsAdapter = HardwareUnlockMethods.Adapter(
+        unlockMethodAdapter = EnumColumnAdapter(),
+        createdAtAdapter = InstantAsIso8601ColumnAdapter
+      ),
+      chartRangePreferenceEntityAdapter = ChartRangePreferenceEntity.Adapter(
+        timeScaleAdapter = EnumColumnAdapter()
       )
     )
   }

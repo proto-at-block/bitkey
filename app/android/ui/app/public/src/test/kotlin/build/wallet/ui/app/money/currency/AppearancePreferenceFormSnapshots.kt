@@ -13,20 +13,21 @@ class AppearancePreferenceFormSnapshots : FunSpec({
   test("appearance preference with back button") {
     paparazzi.snapshot {
       FormScreen(
-        model =
-          AppearancePreferenceFormModel(
-            onBack = {},
-            moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
-            fiatCurrencyPreferenceString = "USD",
-            onFiatCurrencyPreferenceClick = {},
-            bitcoinDisplayPreferenceString = "Sats",
-            bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
-            onBitcoinDisplayPreferenceClick = {},
-            onEnableHideBalanceChanged = {},
-            isThemePreferenceEnabled = true,
-            onThemePreferenceClick = {},
-            themePreferenceString = "System"
-          )
+        model = AppearancePreferenceFormModel(
+          onBack = {},
+          moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+          fiatCurrencyPreferenceString = "USD",
+          onFiatCurrencyPreferenceClick = {},
+          bitcoinDisplayPreferenceString = "Sats",
+          bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
+          onBitcoinDisplayPreferenceClick = {},
+          onEnableHideBalanceChanged = {},
+          isThemePreferenceEnabled = true,
+          onThemePreferenceClick = {},
+          themePreferenceString = "System",
+          defaultTimeScalePreferenceString = "1D",
+          onDefaultTimeScalePreferenceClick = {}
+        )
       )
     }
   }

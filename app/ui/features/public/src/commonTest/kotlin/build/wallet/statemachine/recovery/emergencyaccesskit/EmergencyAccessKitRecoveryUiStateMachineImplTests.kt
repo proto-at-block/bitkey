@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.emergencyaccesskit
 
-import bitkey.account.AccountConfigServiceFake
+import app.cash.turbine.test
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
@@ -9,6 +9,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.SymmetricKey
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup
@@ -23,6 +24,7 @@ import build.wallet.platform.clipboard.ClipboardMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -33,7 +35,6 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.get
-import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.equals.shouldBeEqual
@@ -94,7 +95,6 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     onExit = { onExitCalls.add(Unit) }
   )
   val permissionMock = PermissionUiStateMachineMock()
-  val appConfigService = AccountConfigServiceFake()
   val stateMachine = EmergencyAccessKitRecoveryUiStateMachineImpl(
     clipboard = clipboard,
     payloadDecoder = EmergencyAccessKitPayloadDecoderImpl(),
@@ -110,21 +110,25 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     uuidGenerator = UuidGeneratorFake()
   )
-  val validData = EmergencyAccessKitPayloadDecoderImpl().encode(
-    EmergencyAccessKitPayloadV1(
-      sealedHwEncryptionKey = CsekFake.key.raw,
-      sealedActiveSpendingKeys = SealedData(
-        ciphertext = EmergencyAccessKitPayloadDecoderImpl().encodeBackup(
-          EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
-            spendingKeyset = SpendingKeysetMock,
-            appSpendingKeyXprv = AppSpendingPrivateKeyMock
-          )
-        ),
-        nonce = "nonce".toByteArray().toByteString(),
-        tag = EMPTY
+
+  lateinit var validData: String
+  beforeSpec {
+    validData = EmergencyAccessKitPayloadDecoderImpl().encode(
+      EmergencyAccessKitPayloadV1(
+        sealedHwEncryptionKey = CsekFake.key.raw,
+        sealedActiveSpendingKeys = SealedData(
+          ciphertext = EmergencyAccessKitPayloadDecoderImpl().encodeBackup(
+            EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
+              spendingKeyset = SpendingKeysetMock,
+              appSpendingKeyXprv = AppSpendingPrivateKeyMock
+            )
+          ),
+          nonce = "nonce".toByteArray().toByteString(),
+          tag = EMPTY
+        )
       )
     )
-  )
+  }
 
   beforeTest {
     permissionMock.isImplemented = true
@@ -135,7 +139,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("UI select input method - back exits flow") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onBack()
       }
@@ -145,7 +149,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("UI manual entry - Decoding failure - preserves entered text") {
     val invalidData = "Invalid payload!"
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
@@ -175,7 +179,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("UI manual entry - Successful Decoding") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
@@ -191,7 +195,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("UI manual entry - Back until exit") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
@@ -217,7 +221,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   test("UI Manual Entry - Paste") {
     clipboard.setItem(ClipItem.PlainText(validData))
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
@@ -231,7 +235,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   }
 
   test("UI QR Code - Successful Decoding") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       permissionMock.isImplemented = false
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onScanQRCode()
@@ -246,7 +250,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI QR Code - Error Decoding") {
     permissionMock.isImplemented = false
     val invalidData = "Invalid payload!"
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onScanQRCode()
       }
@@ -288,6 +292,11 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
 
+        // There should be an active keybox.
+        keyboxDao.activeKeybox.test {
+          awaitUntil { it.get() != null }
+        }
+
         val restoredPrivateKey = appPrivateKeyDao.getAppSpendingPrivateKey(AppSpendingPublicKeyMock)
           .get()
           .shouldNotBeNull()
@@ -295,9 +304,6 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
         // App spending private key should be set.
         restoredPrivateKey.key.xprv
           .shouldBeEqual(AppSpendingPrivateKeyMock.key.xprv)
-
-        // There should be an active keybox.
-        keyboxDao.activeKeybox.value.unwrap().shouldNotBeNull()
       }
     }
   }
@@ -307,7 +313,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     // This is the same real behavior of the encryptor when provided with an invalid ciphertext.
     symmetricKeyEncryptor.shouldFail = true
 
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         onEnterManually()
       }
@@ -350,7 +356,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
             )
         )
       )
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<EmergencyAccessKitImportWalletBodyModel> {
         clickPrimaryButton()
       }

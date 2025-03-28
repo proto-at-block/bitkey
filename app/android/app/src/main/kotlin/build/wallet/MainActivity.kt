@@ -7,8 +7,8 @@ import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
@@ -122,7 +122,7 @@ class MainActivity : FragmentActivity() {
   }
 
   private fun drawContentBehindSystemBars() {
-    WindowCompat.setDecorFitsSystemWindows(window, false)
+    enableEdgeToEdge()
   }
 
   @SuppressLint("SourceLockedOrientationActivity")

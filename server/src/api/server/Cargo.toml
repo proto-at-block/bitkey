@@ -52,6 +52,7 @@ external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
 instrumentation = { workspace = true }
+linear = { workspace = true }
 mempool_indexer = { workspace = true }
 migration = { workspace = true }
 mobile_pay = { workspace = true }
@@ -82,12 +83,15 @@ base64 = { workspace = true }
 bdk_utils = { workspace = true }
 crypto = { workspace = true, features = ["noise", "ssb"] }
 env_logger = "0.11.3"
+hex = { workspace = true }
+hmac = { workspace = true }
 httpmock = "0.7"
 launchdarkly-server-sdk = { workspace = true }
 mockall = { workspace = true }
 once_cell = { workspace = true }
 regex = { version = "1.10.6", features = [] }
 rstest = { workspace = true }
+sha2 = { workspace = true }
 tower = { workspace = true, features = ["util"] }
 
 [features]

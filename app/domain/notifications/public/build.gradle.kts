@@ -12,7 +12,6 @@ kotlin {
       dependencies {
         implementation(libs.kmp.kotlin.datetime)
         api(projects.domain.authPublic)
-        api(projects.domain.bitcoinPublic)
         api(projects.domain.featureFlagPublic)
         api(projects.libs.contactMethodPublic)
         api(projects.domain.f8eClientPublic)

@@ -17,8 +17,7 @@ submodules:
 
 # Run Gradle profiler to measure build times
 gradle-profiler:
- # GRADLE_PROFILER environment variable is used as a tag in Build Scans.
- GRADLE_PROFILER=true gradle-profiler --benchmark --scenario-file gradle/profiler.scenarios --gradle-version $(bin/hermit info gradle | awk '/^Root/ { print $2 }')
+ gradle-profiler --benchmark --scenario-file gradle/profiler.scenarios --gradle-version $(bin/hermit info gradle | awk '/^Root/ { print $2 }')
 
 # Create git tag and branch for Team App release
 create-team-branch version-number:

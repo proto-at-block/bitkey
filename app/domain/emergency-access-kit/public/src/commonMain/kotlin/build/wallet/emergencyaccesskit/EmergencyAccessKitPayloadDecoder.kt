@@ -11,7 +11,7 @@ interface EmergencyAccessKitPayloadDecoder {
    * Encode an [EmergencyAccessKitPayload] to the serialized representation
    * and then store it in base58.
    */
-  fun encode(payload: EmergencyAccessKitPayload): String
+  suspend fun encode(payload: EmergencyAccessKitPayload): String
 
   /**
    * Decode a base58 serialized [EmergencyAccessKitPayload]
@@ -21,20 +21,22 @@ interface EmergencyAccessKitPayloadDecoder {
    * - [DecodeError.InvalidBackupVersion] If the serialized payload does not include the
    * supported backup version.
    */
-  fun decode(encodedString: String): Result<EmergencyAccessKitPayload, DecodeError>
+  suspend fun decode(encodedString: String): Result<EmergencyAccessKitPayload, DecodeError>
 
   /**
    * Encode the [EmergencyAccessKitBackupV1] to the protobuf representation.
    * The resulting [ByteString] should be encrypted by the CSEK before being
    * added to the [EmergencyAccessKitPayload]
    */
-  fun encodeBackup(backupV1: EmergencyAccessKitBackup): ByteString
+  suspend fun encodeBackup(backupV1: EmergencyAccessKitBackup): ByteString
 
   /**
    * Decode the decrypted active spending keys from an [EmergencyAccessKitPayload]
    * @return a [DecodeError.InvalidProtoData] if any fields are missing
    */
-  fun decodeDecryptedBackup(keysetData: ByteString): Result<EmergencyAccessKitBackup, DecodeError>
+  suspend fun decodeDecryptedBackup(
+    keysetData: ByteString,
+  ): Result<EmergencyAccessKitBackup, DecodeError>
 
   sealed class DecodeError : Error() {
     /** The data was not a valid base58 string */

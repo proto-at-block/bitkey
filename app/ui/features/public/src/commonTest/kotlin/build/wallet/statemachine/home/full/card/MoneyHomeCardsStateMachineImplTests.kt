@@ -6,7 +6,7 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
@@ -154,28 +154,28 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
   }
 
   test("card list should be empty") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards.shouldBeEmpty()
     }
   }
 
   test("card list should have length 1 when there is a getting started card") {
     gettingStartedCardStateMachine.emitModel(TEST_CARD_MODEL)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards.shouldBeSingleton()
     }
   }
 
   test("card list should have length 1 when there is a device update card") {
     deviceUpdateCardUiStateMachine.emitModel(TEST_CARD_MODEL)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards.shouldBeSingleton()
     }
   }
 
   test("card list should have length 1 when there is a hw status card") {
     hardwareRecoveryStatusCardUiStateMachine.emitModel(TEST_CARD_MODEL)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards.shouldBeSingleton()
     }
   }
@@ -190,7 +190,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       )
     )
     gettingStartedCardStateMachine.emitModel(TEST_CARD_MODEL)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards.let {
         it.size.shouldBe(5)
         it[0].shouldNotHaveSubtitle()
@@ -224,7 +224,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
           )
       )
     )
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().cards
         .single()
         .shouldHaveTitle("HW CARD")

@@ -25,63 +25,48 @@ import kotlin.time.Duration
  * https://www.figma.com/file/XH6G74MVgS7x0WGvomq80f/Lost-Mobile-Key?node-id=354%3A19029&t=8ZQiMO2gZLaoROx7-0
  */
 data class AppDelayNotifyInProgressBodyModel(
-  val toolbar: ToolbarModel,
-  val header: FormHeaderModel,
-  val timerModel: Timer,
+  val onStopRecovery: () -> Unit,
+  val durationTitle: String,
+  val progress: Progress,
+  val remainingDelayPeriod: Duration,
   val onExit: (() -> Unit)?,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
     ),
 ) : BodyModel() {
-  constructor(
-    onStopRecovery: () -> Unit,
-    durationTitle: String,
-    progress: Progress,
-    remainingDelayPeriod: Duration,
-    onExit: (() -> Unit)?,
-  ) : this(
-    toolbar =
-      ToolbarModel(
-        leadingAccessory =
-          onExit?.let {
-            IconAccessory.CloseAccessory(onClick = onExit)
-          },
-        trailingAccessory =
-          ButtonAccessory(
-            model =
-              ButtonModel(
-                text = "Cancel recovery",
-                treatment = TertiaryDestructive,
-                size = Compact,
-                onClick = StandardClick { onStopRecovery() }
-              )
-          )
-      ),
-    header =
-      FormHeaderModel(
-        headline = "Recovery in progress...",
-        subline =
-          buildString {
-            append(
-              "Your new mobile key will be ready for creation on this phone after our security delay."
-            )
-            appendLine()
-            appendLine()
-            appendLine(
-              "If you didn’t authorize this replacement, press “Cancel recovery” above."
-            )
-          }
-      ),
-    timerModel =
-      Timer(
-        title = durationTitle,
-        subtitle = "remaining",
-        timerProgress = progress,
-        direction = CounterClockwise,
-        timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds
-      ),
-    onExit = onExit
+  val toolbar = ToolbarModel(
+    leadingAccessory = onExit?.let {
+      IconAccessory.CloseAccessory(onClick = onExit)
+    },
+    trailingAccessory = ButtonAccessory(
+      model = ButtonModel(
+        text = "Cancel recovery",
+        treatment = TertiaryDestructive,
+        size = Compact,
+        onClick = StandardClick { onStopRecovery() }
+      )
+    )
+  )
+  val header = FormHeaderModel(
+    headline = "Recovery in progress...",
+    subline = buildString {
+      append(
+        "Your new mobile key will be ready for creation on this phone after our security delay."
+      )
+      appendLine()
+      appendLine()
+      appendLine(
+        "If you didn’t authorize this replacement, press “Cancel recovery” above."
+      )
+    }
+  )
+  val timerModel = Timer(
+    title = durationTitle,
+    subtitle = "remaining",
+    timerProgress = progress,
+    direction = CounterClockwise,
+    timerRemainingSeconds = remainingDelayPeriod.inWholeSeconds
   )
 
   @Composable

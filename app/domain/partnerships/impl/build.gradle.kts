@@ -12,7 +12,7 @@ kotlin {
     commonMain {
       dependencies {
         implementation(projects.domain.databasePublic)
-        implementation(projects.libs.resultPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 
@@ -31,7 +31,6 @@ kotlin {
     val commonIntegrationTest by getting {
       dependencies {
         implementation(projects.domain.accountFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.shared.integrationTestingPublic)

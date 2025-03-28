@@ -94,14 +94,14 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
         ErrorFormBodyModel(
           title = "Recovery relationship is no longer active.",
           toolbar =
-          ToolbarModel(
-            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onBack)
-          ),
+            ToolbarModel(
+              leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onBack)
+            ),
           primaryButton =
             ButtonDataModel(
               text = "Close",
               onClick = props.onBack
-          ),
+            ),
           errorData = state.errorData,
           eventTrackerScreenId = state.eventTrackerScreenId
         ).asModalScreen()
@@ -112,7 +112,7 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
   private fun createRelationshipNotExistState(
     screenId: SocialRecoveryEventTrackerScreenId,
     segment: AppSegment,
-    message: String
+    message: String,
   ): UiState {
     return RecoveryRelationshipDoesNotExist(
       screenId,

@@ -4,9 +4,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 
 class MetricTrackerServiceFake : MetricTrackerService {
-  private val metrics = MutableStateFlow<List<TrackedMetric>>(emptyList())
+  val metrics = MutableStateFlow<List<TrackedMetric>>(emptyList())
 
-  private val completedMetrics = mutableListOf<CompletedMetric>()
+  val completedMetrics = mutableListOf<CompletedMetric>()
 
   override fun <T : MetricDefinition> startMetric(
     metricDefinition: T,
@@ -64,11 +64,6 @@ class MetricTrackerServiceFake : MetricTrackerService {
   override suspend fun clearMetrics() {
     reset()
   }
-
-  /**
-   * Test helper to get all completed metrics with their outcomes
-   */
-  fun getCompletedMetrics(): List<CompletedMetric> = completedMetrics.toList()
 
   fun reset() {
     metrics.value = emptyList()

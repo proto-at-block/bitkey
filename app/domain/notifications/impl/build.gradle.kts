@@ -21,17 +21,17 @@ kotlin {
         implementation(projects.libs.queueProcessorImpl) {
           because("Depends on PeriodicProcessorImpl")
         }
+        api(projects.domain.walletPublic)
       }
     }
 
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.f8eClientFake)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.domain.notificationsFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.contactMethodFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)

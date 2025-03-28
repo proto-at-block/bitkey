@@ -12,9 +12,9 @@ kotlin {
   sourceSets {
     val androidMain by getting {
       dependencies {
-        api(projects.libs.resultPublic)
         api(compose.runtime)
         api(libs.android.google.auth)
+        api(libs.kmp.kotlin.result)
       }
     }
   }

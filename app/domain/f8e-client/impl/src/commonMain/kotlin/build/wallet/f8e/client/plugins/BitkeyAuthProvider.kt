@@ -1,20 +1,19 @@
 package build.wallet.f8e.client.plugins
 
+import bitkey.auth.AccountAuthTokens
 import build.wallet.auth.AuthTokensService
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logDev
 import com.github.michaelbull.result.get
-import io.ktor.client.plugins.auth.AuthProvider
-import io.ktor.client.plugins.auth.providers.BearerTokens
-import io.ktor.client.plugins.auth.providers.RefreshTokensParams
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.headers
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.request
-import io.ktor.http.HttpHeaders
-import io.ktor.http.auth.AuthScheme
-import io.ktor.http.auth.HttpAuthHeader
-import io.ktor.util.Attributes
+import io.ktor.client.plugins.auth.*
+import io.ktor.client.plugins.auth.providers.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.http.auth.*
+import io.ktor.util.*
+import kotlinx.datetime.Clock
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * A simplified implementation of [io.ktor.client.plugins.auth.providers.BearerAuthProvider]
@@ -22,6 +21,7 @@ import io.ktor.util.Attributes
  */
 internal class BitkeyAuthProvider(
   private val authTokensService: AuthTokensService,
+  private val clock: Clock,
 ) : AuthProvider {
   private val loadTokens: suspend (Attributes) -> BearerTokens? =
     loadTokens@{ attributes: Attributes ->
@@ -34,19 +34,25 @@ internal class BitkeyAuthProvider(
         .getTokens(accountId, authTokenScope)
         .get()
         ?.let { tokens ->
-          BearerTokens(
-            accessToken = tokens.accessToken.raw,
-            refreshToken = tokens.refreshToken.raw
-          )
+          if (tokens.isAccessTokenExpired()) {
+            // If the access token is expired (or soon to be), preemptively refresh it. By doing this
+            // proactively instead of relying on ktor to invoke refreshToken after a 401, we can
+            // reduce 401 noise so it is easier to spot real refresh issues.
+            refreshTokens(attributes)
+          } else {
+            BearerTokens(
+              accessToken = tokens.accessToken.raw,
+              refreshToken = tokens.refreshToken.raw
+            )
+          }
         }
     }
 
-  private val refreshTokens: suspend RefreshTokensParams.() -> BearerTokens? =
+  private val refreshTokens: suspend Attributes.() -> BearerTokens? =
     refreshTokens@{
-      val attributes = response.call.attributes
-      val f8eEnvironment = attributes[F8eEnvironmentAttribute]
-      val accountId = attributes.getOrNull(AccountIdAttribute) ?: return@refreshTokens null
-      val authTokenScope = requireNotNull(attributes.getOrNull(AuthTokenScopeAttribute)) {
+      val f8eEnvironment = this[F8eEnvironmentAttribute]
+      val accountId = this.getOrNull(AccountIdAttribute) ?: return@refreshTokens null
+      val authTokenScope = requireNotNull(this.getOrNull(AuthTokenScopeAttribute)) {
         "Missing default `AuthTokenScopeAttribute` or `withAccountId(.., authTokenScope)`"
       }
       // Note: this only works for tokens generated via [AppAuthPublicKey].
@@ -109,12 +115,19 @@ internal class BitkeyAuthProvider(
 
   override suspend fun refreshToken(response: HttpResponse): Boolean {
     val newToken = refreshTokens(
-      RefreshTokensParams(
-        client = response.call.client,
-        response = response,
-        oldTokens = loadTokens(response.request.attributes)
-      )
+      response.call.attributes
     )
+
     return newToken != null
   }
+
+  /**
+   * Whether the access token should be considered expired.
+   *
+   * We add a 10-second jitter to help account for minor clock skew, latency, etc.
+   */
+  private fun AccountAuthTokens.isAccessTokenExpired(): Boolean =
+    accessTokenExpiresAt?.let { expiresAt ->
+      expiresAt <= clock.now().plus(10.seconds)
+    } ?: false
 }

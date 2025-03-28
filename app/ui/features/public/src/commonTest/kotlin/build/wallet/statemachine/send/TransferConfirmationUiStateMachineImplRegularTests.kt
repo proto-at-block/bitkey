@@ -25,7 +25,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
@@ -150,7 +150,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
     val transactionPriority = FASTEST
     spendingWallet.createSignedPsbtResult = Ok(appSignedPsbt)
 
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(
         selectedPriority = transactionPriority
       )
@@ -212,7 +212,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
   }
 
   test("Transaction details update after selecting a new fee from sheet") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // CreatingAppSignedPsbt
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)

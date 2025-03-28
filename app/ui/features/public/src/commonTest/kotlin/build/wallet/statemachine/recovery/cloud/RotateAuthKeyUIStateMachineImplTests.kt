@@ -17,7 +17,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -58,7 +58,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   }
 
   test("deactivate other devices -- success") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Initial loading state
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
@@ -97,7 +97,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   }
 
   test("deactivate other devices -- failure") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
         Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
       }
@@ -142,7 +142,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   }
 
   test("don't deactivate other devices") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Initial loading state
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()

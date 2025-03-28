@@ -15,6 +15,7 @@ kotlin {
         api(projects.domain.debugPublic)
         api(projects.domain.f8eClientPublic)
         api(projects.domain.notificationsPublic)
+        api(projects.domain.walletPublic)
         api(projects.libs.stdlibPublic)
         implementation(projects.libs.queueProcessorPublic)
         implementation(projects.domain.relationshipsPublic)
@@ -25,12 +26,10 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.domain.accountFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.debugFake)
         implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.f8eClientImpl)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.libs.ktorClientFake)
         implementation(projects.libs.platformFake)
         implementation(projects.domain.recoveryFake)
@@ -42,13 +41,13 @@ kotlin {
         implementation(projects.libs.encryptionFake)
         implementation(projects.domain.analyticsFake)
         implementation(projects.domain.relationshipsFake)
+        implementation(projects.domain.walletFake)
       }
     }
 
     val jvmIntegrationTest by getting {
       dependencies {
         implementation(projects.domain.accountFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.shared.integrationTestingPublic)

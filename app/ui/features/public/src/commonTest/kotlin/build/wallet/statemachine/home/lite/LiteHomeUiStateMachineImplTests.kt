@@ -12,7 +12,6 @@ import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiStateMachine
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiProps
@@ -70,7 +69,7 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("money home onSettings shows settings, settings onBack shows money home") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<LiteMoneyHomeUiProps> {
         onSettings()
       }

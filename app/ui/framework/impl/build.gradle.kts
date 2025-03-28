@@ -16,6 +16,7 @@ kotlin {
         api(projects.libs.composeRuntimePublic)
         api(projects.libs.keyValueStorePublic)
         api(projects.libs.loggingPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 
@@ -26,6 +27,8 @@ kotlin {
         implementation(projects.ui.frameworkTesting)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.domain.featureFlagFake)
+        implementation(projects.libs.testingPublic)
+        implementation(projects.libs.platformFake)
       }
     }
   }

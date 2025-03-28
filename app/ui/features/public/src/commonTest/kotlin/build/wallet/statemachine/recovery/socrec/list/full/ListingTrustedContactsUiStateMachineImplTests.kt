@@ -9,7 +9,7 @@ import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.*
@@ -67,7 +67,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls onExit") {
-    listingTrustedContactsUiStateMachine.testWithVirtualTime(props) {
+    listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         onBack?.invoke()
         onExitCalls.awaitItem()
@@ -76,7 +76,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
   }
 
   test("no trusted contacts") {
-    listingTrustedContactsUiStateMachine.testWithVirtualTime(props) {
+    listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
@@ -106,7 +106,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
       )
     )
 
-    listingTrustedContactsUiStateMachine.testWithVirtualTime(props) {
+    listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
@@ -134,7 +134,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     socRecService.socRecRelationships.value =
       Relationships.EMPTY.copy(invitations = listOf(testInvitation))
 
-    listingTrustedContactsUiStateMachine.testWithVirtualTime(props) {
+    listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
@@ -150,7 +150,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
   }
 
   test("start add new trusted contact flow") {
-    listingTrustedContactsUiStateMachine.testWithVirtualTime(props) {
+    listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         mainContentList.first()
           .shouldBeInstanceOf<ListGroup>()

@@ -1,5 +1,6 @@
 package build.wallet.debug
 
+import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricTrackerService
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthKeyRotationAttemptDao
@@ -72,6 +73,7 @@ class AppDataDeleterImpl(
   private val biometricPreference: BiometricPreference,
   private val inheritanceClaimsDao: InheritanceClaimsDao,
   private val metricTrackerService: MetricTrackerService,
+  private val hardwareUnlockInfoService: HardwareUnlockInfoService,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     coroutineBinding {
@@ -107,6 +109,7 @@ class AppDataDeleterImpl(
       hideBalancePreference.clear()
       inheritanceClaimsDao.clear()
       metricTrackerService.clearMetrics()
+      hardwareUnlockInfoService.clear()
 
       // Make sure we clear Account data last because this will transition the UI
       accountService.clear().bind()

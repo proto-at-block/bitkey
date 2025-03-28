@@ -12,6 +12,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.UnlockMethod
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -26,7 +28,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult
@@ -52,6 +54,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
   val eventTracker = EventTrackerMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
 
@@ -70,7 +73,8 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       ) {},
     gettingStartedTaskDao = gettingStartedTaskDao,
     eventTracker = eventTracker,
-    metricTrackerService = metricTrackerService
+    metricTrackerService = metricTrackerService,
+    hardwareUnlockInfoService = hardwareUnlockInfoService
   )
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onFwUpRequiredCalls = turbines.create<Unit>("onFwUpRequired calls")
@@ -94,10 +98,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
   beforeTest {
     nfcCommandsMock.reset()
     metricTrackerService.reset()
+    hardwareUnlockInfoService.clear()
   }
 
   test("MONEY_HOME entry point opens enrollment modal after retrieving fingerprints") {
-    stateMachine.testWithVirtualTime(props.copy(entryPoint = EntryPoint.MONEY_HOME)) {
+    stateMachine.test(props.copy(entryPoint = EntryPoint.MONEY_HOME)) {
       // Retrieving enrolled fingerprints
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
@@ -119,7 +124,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
     // Disable fw feature flags
     nfcCommandsMock.setFirmwareFeatureFlags(emptyList())
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBodyMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
         session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(EnrolledFingerprintResult.FwUpRequired)
@@ -132,7 +137,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
   }
 
   test("fingerprints are retrieved and listed") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -146,11 +151,12 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           listGroupModel.items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
         }
       }
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 
   test("onBack calls") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -165,12 +171,14 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .invoke()
       }
 
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+
       onBackCalls.awaitItem().shouldBe(Unit)
     }
   }
 
   test("tap on add fingerprint and cancel") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -183,6 +191,8 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .clickAddFingerprint(1)
       }
 
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+
       with(awaitItem()) {
         bottomSheetModel.shouldNotBeNull()
           .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
@@ -193,11 +203,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<FormBodyModel>()
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 
   test("going back from enrollment takes you to fingerprint editing") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -231,7 +243,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on add fingerprint and save") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       gettingStartedTaskDao.addTasks(
         listOf(GettingStartedTask(id = AddAdditionalFingerprint, state = Incomplete))
       )
@@ -282,7 +294,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      metricTrackerService.getCompletedMetrics().shouldContainExactly(
+      metricTrackerService.completedMetrics.shouldContainExactly(
         MetricTrackerServiceFake.CompletedMetric(
           metric = TrackedMetric(
             name = FingerprintAddMetricDefinition.name,
@@ -311,11 +323,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           id = AddAdditionalFingerprint, state = Complete
         )
       )
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 3
     }
   }
 
   test("tap on existing fingerprint and go back") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -335,11 +349,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       }
 
       awaitBody<FormBodyModel>()
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 
   test("tap on existing fingerprint and edit label") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -391,12 +407,14 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
         // No toast is shown for editing
         toastModel.shouldBeNull()
+
+        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
       }
     }
   }
 
   test("tap on existing fingerprint and cancel during nfc keeps original label title") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -430,11 +448,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
             fingerprintToEdit.shouldBe(FingerprintHandle(index = 0, label = "New Finger"))
           }
       }
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 
   test("tap on existing fingerprint and delete it") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -474,7 +494,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      metricTrackerService.getCompletedMetrics().shouldContainExactly(
+      metricTrackerService.completedMetrics.shouldContainExactly(
         MetricTrackerServiceFake.CompletedMetric(
           metric = TrackedMetric(
             name = FingerprintDeleteMetricDefinition.name,
@@ -503,12 +523,14 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
         // Delete fingerprint toast is shown
         toastModel.shouldNotBeNull().title.shouldBe("Fingerprint deleted")
+
+        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 1
       }
     }
   }
 
   test("canceling fingerprint enrollment") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -538,7 +560,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
       }
 
-      metricTrackerService.getCompletedMetrics().shouldContainExactly(
+      metricTrackerService.completedMetrics.shouldContainExactly(
         MetricTrackerServiceFake.CompletedMetric(
           metric = TrackedMetric(
             name = FingerprintAddMetricDefinition.name,
@@ -547,11 +569,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           outcome = MetricOutcome.UserCanceled
         )
       )
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 
   test("canceling fingerprint deletion") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitRetrievingFingerprints(
         nfcCommandsMock = nfcCommandsMock,
         fingerprints = enrolledFingerprints
@@ -580,7 +604,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
       }
 
-      metricTrackerService.getCompletedMetrics().shouldContainExactly(
+      metricTrackerService.completedMetrics.shouldContainExactly(
         MetricTrackerServiceFake.CompletedMetric(
           metric = TrackedMetric(
             name = FingerprintDeleteMetricDefinition.name,
@@ -589,6 +613,8 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           outcome = MetricOutcome.UserCanceled
         )
       )
+
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
     }
   }
 })

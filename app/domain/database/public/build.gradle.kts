@@ -38,25 +38,26 @@ kotlin {
         api(projects.domain.cloudBackupPublic)
         api(projects.libs.platformPublic)
         api(projects.domain.analyticsPublic)
-        api(projects.domain.homePublic)
         api(projects.libs.sqldelightPublic)
         api(projects.libs.moneyPublic)
         api(projects.domain.onboardingPublic)
         api(projects.domain.partnershipsPublic)
         api(projects.libs.contactMethodPublic)
-        api(projects.domain.fwupPublic)
         api(projects.domain.recoveryPublic)
         api(projects.domain.coachmarkPublic)
+        api(projects.domain.walletPublic)
+        api(projects.shared.priceChartPublic)
         api(libs.kmp.kotlin.datetime)
         implementation(projects.libs.loggingPublic)
-        implementation(projects.domain.firmwarePublic)
+        implementation(projects.domain.hardwarePublic)
         implementation(projects.libs.stdlibPublic)
+        implementation(projects.shared.priceChartPublic)
       }
     }
 
     commonTest {
       dependencies {
-        implementation(projects.domain.bitcoinFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
         implementation(projects.libs.bitcoinPrimitivesFake)
       }

@@ -20,13 +20,18 @@ import build.wallet.emergencyaccesskit.v1.*
 import build.wallet.emergencyaccesskit.v1.BitcoinNetworkType.*
 import build.wallet.emergencyaccesskit.v1.Wildcard.*
 import build.wallet.encrypt.SealedData
+import build.wallet.ensureNotNull
+import build.wallet.logging.logFailure
 import com.github.michaelbull.result.*
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
 @BitkeyInject(AppScope::class)
 class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
-  override fun encode(payload: EmergencyAccessKitPayload): String {
+  override suspend fun encode(payload: EmergencyAccessKitPayload): String {
     when (payload) {
       is EmergencyAccessKitPayloadV1 ->
         return payload
@@ -36,8 +41,10 @@ class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
     }
   }
 
-  override fun decode(encodedString: String): Result<EmergencyAccessKitPayload, DecodeError> {
-    return binding {
+  override suspend fun decode(
+    encodedString: String,
+  ): Result<EmergencyAccessKitPayload, DecodeError> {
+    return coroutineBinding {
       val data = catchingResult {
         // The EAK payload in the PDF has line breaks to allow it to wrap appropriately.
         // Filter for only valid base58 characters to ensure that it can be parsed.
@@ -56,24 +63,30 @@ class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
         .toResultOr { InvalidBackupVersion }
         .flatMap { it.toEmergencyAccessKitPayload() }
         .bind()
+    }.logFailure { "Emergency Access Kit decrypted payload failed to decode" }
+  }
+
+  override suspend fun encodeBackup(backupV1: EmergencyAccessKitBackup): ByteString {
+    return withContext(Dispatchers.Default) {
+      when (backupV1) {
+        is EmergencyAccessKitBackupV1 -> backupV1.toProto().encode().toByteString()
+      }
     }
   }
 
-  override fun encodeBackup(backupV1: EmergencyAccessKitBackup): ByteString {
-    return when (backupV1) {
-      is EmergencyAccessKitBackupV1 -> backupV1.toProto().encode().toByteString()
-    }
-  }
-
-  override fun decodeDecryptedBackup(
+  override suspend fun decodeDecryptedBackup(
     keysetData: ByteString,
   ): Result<EmergencyAccessKitBackupV1, DecodeError> {
-    return binding {
-      catchingResult { ActiveSpendingKeysetV1.ADAPTER.decode(keysetData) }
-        .mapError { InvalidProtoData(cause = it) }
-        .toErrorIfNull { InvalidProtoData() }
-        .flatMap { it.toEmergencyAccessKitBackupV1() }
-        .bind()
+    return withContext(Dispatchers.Default) {
+      coroutineBinding {
+        val keyset = catchingResult { ActiveSpendingKeysetV1.ADAPTER.decode(keysetData) }
+          .mapError { InvalidProtoData(it) }
+          .bind()
+
+        ensureNotNull(keyset) { InvalidProtoData() }
+
+        keyset.toEmergencyAccessKitBackupV1().bind()
+      }
     }
   }
 }

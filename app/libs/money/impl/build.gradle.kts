@@ -32,13 +32,12 @@ kotlin {
         implementation(projects.domain.debugFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.domain.analyticsFake)
-        implementation(projects.shared.workerFake)
+        implementation(projects.domain.workerFake)
         // TODO: remove dependency on :impl.
         implementation(projects.libs.amountImpl) {
           because("Depends on DoubleFormatterImpl")

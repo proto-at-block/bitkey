@@ -16,7 +16,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroProps
@@ -67,7 +67,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         val icon = toolbar.shouldNotBeNull()
           .leadingAccessory
@@ -82,7 +82,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   }
 
   test("tap to confirm sheet can be shown and dismissed") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
 
@@ -104,7 +104,7 @@ class WipingDeviceIntroUiStateMachineImplTests : FunSpec({
   }
 
   test("tap to confirm sheet can be shown and confirmed") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
         primaryButton.shouldBeInstanceOf<ButtonModel>().apply {

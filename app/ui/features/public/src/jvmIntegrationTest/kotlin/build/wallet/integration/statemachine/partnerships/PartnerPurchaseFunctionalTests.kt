@@ -10,7 +10,7 @@ import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -48,7 +48,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     val expectedPartners = getExpectedPartners(f8eEnvironment)
 
     test("displays the expected purchase options") {
-      app.partnershipsPurchaseUiStateMachine.testWithVirtualTime(props = purchaseUiProps) {
+      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
         val sheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
@@ -69,7 +69,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("displays the expected quotes") {
-      app.partnershipsPurchaseUiStateMachine.testWithVirtualTime(props = purchaseUiProps) {
+      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
         val amountsSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }
@@ -100,7 +100,7 @@ class PartnerPurchaseFunctionalTests : FunSpec({
     }
 
     test("redirects correctly") {
-      app.partnershipsPurchaseUiStateMachine.testWithVirtualTime(props = purchaseUiProps) {
+      app.partnershipsPurchaseUiStateMachine.test(props = purchaseUiProps) {
         val amountsSheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS
         }

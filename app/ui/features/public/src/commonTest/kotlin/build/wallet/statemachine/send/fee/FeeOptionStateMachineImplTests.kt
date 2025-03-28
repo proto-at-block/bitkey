@@ -9,7 +9,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -41,7 +41,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
     )
 
   test("State machine is initialized and currency is converted") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       with(awaitItem()) {
         optionName.shouldBe("Priority")
         transactionTime.shouldBe("~10 mins")
@@ -56,7 +56,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
   }
 
   test("onclick is null for an disabled option") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(feeAmount = BitcoinMoney.btc(3.0))
     ) {
       awaitItem().onClick.shouldBeNull()
@@ -64,7 +64,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
   }
 
   test("option is enabled when balance is exactly amount + fee") {
-    stateMachine.testWithVirtualTime(props.copy(transactionAmount = BitcoinMoney.btc(1.0))) {
+    stateMachine.test(props.copy(transactionAmount = BitcoinMoney.btc(1.0))) {
       with(awaitItem()) {
         enabled.shouldBeTrue()
       }
@@ -72,7 +72,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
   }
 
   test("option is disabled when balance is below amount + fee") {
-    stateMachine.testWithVirtualTime(props.copy(transactionAmount = BitcoinMoney.btc(1.01))) {
+    stateMachine.test(props.copy(transactionAmount = BitcoinMoney.btc(1.01))) {
       with(awaitItem()) {
         enabled.shouldBeFalse()
         infoText.shouldBe("Not enough balance")
@@ -81,7 +81,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
   }
 
   test("option is not selected when it is not enabled") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(
         selected = true,
         transactionAmount = BitcoinMoney.btc(1.01)
@@ -95,7 +95,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
   }
 
   test("all fees equal text is shown when option is prop is true") {
-    stateMachine.testWithVirtualTime(props.copy(showAllFeesEqualText = true)) {
+    stateMachine.test(props.copy(showAllFeesEqualText = true)) {
       with(awaitItem()) {
         infoText.shouldBe("All network fees are the same—\nwe selected the fastest for you.")
       }

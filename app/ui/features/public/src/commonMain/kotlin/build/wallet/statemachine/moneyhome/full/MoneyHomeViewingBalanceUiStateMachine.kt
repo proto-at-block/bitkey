@@ -7,6 +7,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
+import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -30,4 +31,5 @@ data class MoneyHomeViewingBalanceUiProps(
   val state: MoneyHomeUiState.ViewingBalanceUiState,
   val setState: (MoneyHomeUiState) -> Unit,
   val onStartSweepFlow: () -> Unit,
+  val tabs: List<HomeTab>,
 )

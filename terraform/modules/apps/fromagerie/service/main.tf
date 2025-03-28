@@ -48,25 +48,19 @@ locals {
   ################################################
   # Push notification endpoints
   ################################################
-  // TODO: remove after old apps are gone [W-4150]
-  apns_platform_arn            = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/APNS/bitkey-ios"
   apns_customer_platform_arn   = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/APNS/bitkey-customer-ios"
   apns_team_platform_arn       = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/APNS/bitkey-team-ios"
   apns_team_alpha_platform_arn = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/APNS/bitkey-team-alpha-ios"
-  // TODO: remove after old apps are gone [W-4150]
-  fcm_platform_arn          = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/GCM/bitkey-android"
-  fcm_customer_platform_arn = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/GCM/bitkey-customer-android"
-  fcm_team_platform_arn     = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/GCM/bitkey-team-android"
+  fcm_customer_platform_arn    = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/GCM/bitkey-customer-android"
+  fcm_team_platform_arn        = "arn:aws:sns:${data.aws_region.this.name}:${data.aws_caller_identity.this.account_id}:app/GCM/bitkey-team-android"
 
   ###############################################
   # Environment variables shared by fromagerie ECS tasks
   ###############################################
   common_env_vars = {
-    APNS_PLATFORM_ARN            = local.apns_platform_arn # TODO: remove after old apps are gone [W-4150]
     APNS_CUSTOMER_PLATFORM_ARN   = local.apns_customer_platform_arn
     APNS_TEAM_PLATFORM_ARN       = local.apns_team_platform_arn
     APNS_TEAM_ALPHA_PLATFORM_ARN = local.apns_team_alpha_platform_arn
-    FCM_PLATFORM_ARN             = local.fcm_platform_arn # TODO: remove after old apps are gone [W-4150]
     FCM_CUSTOMER_PLATFORM_ARN    = local.fcm_customer_platform_arn
     FCM_TEAM_PLATFORM_ARN        = local.fcm_team_platform_arn
     DD_ENV                       = var.environment
@@ -137,6 +131,10 @@ data "aws_secretsmanager_secret" "fromagerie_coinmarketcap_api_key" {
 
 data "aws_secretsmanager_secret" "fromagerie_coingecko_api_key" {
   name = "fromagerie/coingecko/api_key"
+}
+
+data "aws_secretsmanager_secret" "fromagerie_linear_webhook_secret" {
+  name = "fromagerie/linear/webhook_secret"
 }
 
 data "aws_secretsmanager_secret" "fromagerie_sq_sdn_s3_uri" {
@@ -231,6 +229,7 @@ module "ecs_api" {
     TWILIO_KEY_SID                 = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
     TWILIO_KEY_SECRET              = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
     ZENDESK_AUTHORIZATION          = data.aws_secretsmanager_secret.fromagerie_zendesk_credentials.arn,
+    LINEAR_WEBHOOK_SECRET          = data.aws_secretsmanager_secret.fromagerie_linear_webhook_secret.arn,
   })
   image_name       = var.image_name
   image_tag        = var.image_tag
@@ -256,6 +255,7 @@ module "api_migration" {
     COGNITO_CLIENT_ID       = var.cognito_user_pool_client_id
     MIGRATION_TABLE         = local.tables.migration_record_table_name
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   environment = var.environment
   secrets = merge(local.common_secrets, {
@@ -319,6 +319,7 @@ module "api_user_balance_histogram" {
     COGNITO_USER_POOL       = var.cognito_user_pool_id
     COGNITO_CLIENT_ID       = var.cognito_user_pool_client_id
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   environment = var.environment
   secrets = merge(local.common_secrets, {
@@ -392,6 +393,7 @@ module "ecs_job_push" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   secrets          = merge(local.common_secrets, {})
   image_name       = var.image_name
@@ -420,6 +422,7 @@ module "ecs_job_email" {
     SERVER_COGNITO          = "test"        //TODO: Pick apart bootstrap dependence on Cognito,
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   secrets = merge(local.common_secrets, {
     ITERABLE_API_KEY = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn
@@ -450,6 +453,7 @@ module "ecs_job_sms" {
     SERVER_COGNITO          = "test"        //TODO: Pick apart bootstrap dependence on Cognito,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   secrets = merge(local.common_secrets, {
     TWILIO_ACCOUNT_SID = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
@@ -487,6 +491,7 @@ module "ecs_job_scheduled_notification_task" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
   })
   secrets          = merge(local.common_secrets, {})
   cpu_architecture = "ARM64"
@@ -515,6 +520,7 @@ module "ecs_job_blockchain_polling_task_signet" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
     CHAIN_INDEXER_BASE_URL  = "https://bitkey.mempool.space/signet/api"
     CHAIN_INDEXER_NETWORK   = "signet"
   })
@@ -545,6 +551,7 @@ module "ecs_job_blockchain_polling_task_mainnet" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
     CHAIN_INDEXER_BASE_URL  = "https://bitkey.mempool.space/api"
     CHAIN_INDEXER_NETWORK   = "bitcoin"
   })
@@ -576,6 +583,7 @@ module "ecs_job_mempool_polling_task_signet" {
     SERVER_TWILIO            = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR            = "test"        //TODO: Pick apart bootstrap dependence on Linear,
     MEMPOOL_INDEXER_BASE_URL = "https://bitkey.mempool.space/signet/api"
     MEMPOOL_INDEXER_NETWORK  = "signet"
   })
@@ -606,6 +614,7 @@ module "ecs_job_mempool_polling_task_mainnet" {
     SERVER_TWILIO            = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR            = "test"        //TODO: Pick apart bootstrap dependence on Linear,
     MEMPOOL_INDEXER_BASE_URL = "https://bitkey.mempool.space/api"
     MEMPOOL_INDEXER_NETWORK  = "bitcoin"
   })
@@ -638,6 +647,7 @@ module "ecs_job_metrics" {
     SERVER_TWILIO           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
     SERVER_ITERABLE         = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
     SERVER_ZENDESK          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    SERVER_LINEAR           = "test"        //TODO: Pick apart bootstrap dependence on Linear,
     CHAIN_INDEXER_BASE_URL  = "https://bitkey.mempool.space/api"
     CHAIN_INDEXER_NETWORK   = "bitcoin"
   })
@@ -693,11 +703,9 @@ data "aws_iam_policy_document" "api_iam_policy" {
       "sns:CreatePlatformEndpoint",
     ]
     resources = [
-      local.apns_platform_arn, // TODO: remove after old apps are gone [W-4150]
       local.apns_customer_platform_arn,
       local.apns_team_platform_arn,
       local.apns_team_alpha_platform_arn,
-      local.fcm_platform_arn, // TODO: remove after old apps are gone [W-4150]
       local.fcm_customer_platform_arn,
       local.fcm_team_platform_arn
     ]

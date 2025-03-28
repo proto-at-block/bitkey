@@ -47,6 +47,7 @@ class RecoveryDaoMock(
   }
 
   fun reset() {
+    recovery = NoActiveRecovery
     clearCallResult = Ok(Unit)
   }
 }

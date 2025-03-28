@@ -1,7 +1,6 @@
 package build.wallet.ui.components.screen
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 
@@ -18,17 +17,13 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 fun ScreenTheme(
   bodyModel: BodyModel,
   presentationStyle: ScreenPresentationStyle,
-  statusBannerBackgroundColor: Color?,
   content: @Composable (ScreenStyle) -> Unit,
 ) {
   val style = screenStyle(bodyModel, presentationStyle)
-  ConfigureSystemUi(style, statusBannerBackgroundColor)
+  ConfigureSystemUi(style)
 
   content(style)
 }
 
 @Composable
-expect fun ConfigureSystemUi(
-  style: ScreenStyle,
-  statusBannerBackgroundColor: Color?,
-)
+expect fun ConfigureSystemUi(style: ScreenStyle)

@@ -10,6 +10,10 @@ fun SettingsBodyModel.clickExportTools() {
   clickRow("Exports")
 }
 
+fun SettingsBodyModel.clickBitkeyDevice() {
+  clickRow("Bitkey Device")
+}
+
 private fun SettingsBodyModel.clickRow(title: String) {
   sectionModels
     .flatMap { it.rowModels }

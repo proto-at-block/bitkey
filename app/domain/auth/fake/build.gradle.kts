@@ -13,7 +13,6 @@ kotlin {
     commonMain {
       dependencies {
         api(compose.runtime)
-        api(projects.domain.bitcoinFake)
         api(projects.domain.bitkeyPrimitivesFake)
       }
     }

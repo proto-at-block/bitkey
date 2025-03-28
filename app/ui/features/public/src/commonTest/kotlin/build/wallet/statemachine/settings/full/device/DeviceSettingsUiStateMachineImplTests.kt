@@ -20,7 +20,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
@@ -115,7 +115,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         firmwareUpdateState = PendingUpdate(FwupDataMock)
       )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
@@ -135,7 +135,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("metadata is appropriately formatted with no update") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
@@ -156,7 +156,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   test("sync device info") {
     firmwareDeviceInfoDao.getDeviceInfo().get().shouldBeNull()
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Device settings
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
@@ -178,7 +178,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("lost or stolen device") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
@@ -192,7 +192,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         val icon =
           toolbar.shouldNotBeNull()
@@ -215,7 +215,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
           fwupData = FwupDataMock.copy(version = version)
         )
     )
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Device settings
       awaitBody<FormBodyModel> {
         mainContentList[0].apply {
@@ -237,7 +237,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("Replace device button should be disabled given limited functionality") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
@@ -263,7 +263,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on manage fingerprints") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Tap the Fingerprint button
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
@@ -285,7 +285,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   test("tap on manage fingerprints but need fwup") {
     firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Tap the Fingerprint button
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {
@@ -324,7 +324,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on reset device") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Tap the Reset Device button
       awaitBody<FormBodyModel> {
         mainContentList[1].apply {

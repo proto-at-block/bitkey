@@ -9,6 +9,9 @@ interface StyleDictionaryColors {
   // Accent color for dark backgrounds
   val accentDarkBackground: Color
 
+  // Subtle/Tertiary background color
+  val subtleBackground: Color
+
   // The background when the view has containers
   val groupedBackground: Color
 
@@ -132,9 +135,6 @@ interface StyleDictionaryColors {
   // Default callout subtitle color
   val calloutDefaultSubtitle: Color
 
-  // Default callout background color
-  val calloutDefaultBackground: Color
-
   // Default callout title color
   val calloutDefaultTrailingIcon: Color
 
@@ -248,12 +248,16 @@ interface StyleDictionaryColors {
 
   // Text color for new coachmark in Settings
   val newCoachmarkLightText: Color
+
+  // Color used for the background of the tabBar
+  val tabBarBackground: Color
 }
 
 val lightStyleDictionaryColors =
   object : StyleDictionaryColors {
     override val background: Color = Color(0xffffffff)
     override val accentDarkBackground: Color = Color(0xff333442)
+    override val subtleBackground: Color = Color(0xf2f2f2ff)
     override val groupedBackground: Color = Color(0xffffffff)
     override val containerBackground: Color = Color(0xffffffff)
     override val containerBackgroundHighlight: Color = Color(0xfff5f8fe)
@@ -265,7 +269,7 @@ val lightStyleDictionaryColors =
     override val bitkeyPrimary: Color = Color(0xff008096)
     override val primaryForeground: Color = Color(0xffffffff)
     override val primaryForeground30: Color = Color(0xffc6c6c6)
-    override val secondary: Color = Color(0x0a000000)
+    override val secondary: Color = Color(0xfff0f0f0)
     override val secondaryForeground: Color = Color(0xff111111)
     override val secondaryForeground30: Color = Color(0xffc6c6c6)
     override val primaryIcon: Color = Color(0xff111111)
@@ -295,7 +299,6 @@ val lightStyleDictionaryColors =
     override val outOfDate: Color = Color(0xffeca900)
     override val calloutDefaultTitle: Color = Color(0xe5000000)
     override val calloutDefaultSubtitle: Color = Color(0xb2000000)
-    override val calloutDefaultBackground: Color = Color(0xfff2f2f2)
     override val calloutDefaultTrailingIcon: Color = Color(0xffffffff)
     override val calloutDefaultTrailingIconBackground: Color = Color(0xff000000)
     override val calloutInformationTitle: Color = Color(0xff004b73)
@@ -334,12 +337,14 @@ val lightStyleDictionaryColors =
     override val primaryIconBackground: Color = Color(0x33008096)
     override val newCoachmarkLightBackground: Color = Color(0x1A008096)
     override val newCoachmarkLightText: Color = Color(0xFF008096)
+    override val tabBarBackground: Color = Color(0xffffffff)
   }
 
 val darkStyleDictionaryColors =
   object : StyleDictionaryColors {
     override val background: Color = Color(0xFF000000)
     override val accentDarkBackground: Color = Color(0xFF333442)
+    override val subtleBackground: Color = Color(0xFF1A1A1A)
     override val groupedBackground: Color = Color(0xFF000000)
     override val containerBackground: Color = Color(0xFF000000)
     override val containerBackgroundHighlight: Color = Color(0xFFF5F8FE)
@@ -381,7 +386,6 @@ val darkStyleDictionaryColors =
     override val outOfDate: Color = Color(0xFFECA900)
     override val calloutDefaultTitle: Color = Color(0xFFE5E5E5)
     override val calloutDefaultSubtitle: Color = Color(0xFF999999)
-    override val calloutDefaultBackground: Color = Color(0xFF1A1A1A)
     override val calloutDefaultTrailingIcon: Color = Color(0xFF595959)
     override val calloutDefaultTrailingIconBackground: Color = Color(0xFF1A1A1A)
     override val calloutInformationTitle: Color = Color(0xFFE5E5E5)
@@ -420,4 +424,5 @@ val darkStyleDictionaryColors =
     override val primaryIconBackground: Color = Color(0xFF1A1A1A)
     override val newCoachmarkLightBackground: Color = Color(0xFF008096)
     override val newCoachmarkLightText: Color = Color(0xFFE5E5E5)
+    override val tabBarBackground: Color = Color(0xFF262626)
   }

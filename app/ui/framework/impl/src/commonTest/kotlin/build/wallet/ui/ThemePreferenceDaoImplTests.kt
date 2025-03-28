@@ -1,7 +1,6 @@
 package build.wallet.ui
 
 import app.cash.turbine.test
-import build.wallet.coroutines.createBackgroundScope
 import build.wallet.store.KeyValueStoreFactoryFake
 import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.ThemePreference
@@ -13,7 +12,7 @@ import io.kotest.matchers.shouldBe
 class ThemePreferenceDaoImplTests : FunSpec({
 
   fun TestScope.dao(): ThemePreferenceDaoImpl {
-    return ThemePreferenceDaoImpl(KeyValueStoreFactoryFake(), createBackgroundScope())
+    return ThemePreferenceDaoImpl(KeyValueStoreFactoryFake(), this)
   }
 
   test("get returns System theme when no entry exists") {

@@ -81,15 +81,26 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
         event: RecoveryEvent,
         services: &RecoveryServices,
     ) -> Result<Transition, RecoveryError> {
+        tracing::info!(
+            recovery_state = std::any::type_name_of_val(&self),
+            recovery_event = event.to_string(),
+            "Processing recovery event"
+        );
+
         if let RecoveryEvent::CreateRecovery {
             account,
             lost_factor,
             destination,
             key_proof,
-        } = event
+        } = &event
         {
             let actor = key_proof.to_actor(ToActorStrategy::ExclusiveOr)?;
-            if actor == lost_factor {
+            if actor == *lost_factor {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Unexpected key proof"
+                );
                 return Err(RecoveryError::UnexpectedKeyProof);
             }
 
@@ -100,10 +111,15 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     .delay_notify_action
                     .as_ref()
                 else {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Conflicting recovery exists"
+                    );
                     return Err(RecoveryError::StartRecoveryForAccount);
                 };
 
-                if action.destination == destination {
+                if action.destination == *destination {
                     return Ok(Transition::next(
                         self,
                         PendingRecoveryState {
@@ -111,31 +127,56 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                         },
                     ));
                 } else {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Conflicting recovery exists"
+                    );
                     return Err(RecoveryError::StartRecoveryForAccount);
                 }
             }
 
             // Source needs to match account's active auth keys
             if account.common_fields.active_auth_keys_id != destination.source_auth_keys_id {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid recovery source"
+                );
                 return Err(RecoveryError::InvalidRecoverySource);
             }
 
             // Validate destination
-            let account_auth_keys = account
-                .active_auth_keys()
-                .ok_or(RecoveryError::NoActiveAuthKeysError)?;
+            let account_auth_keys = account.active_auth_keys().ok_or_else(|| {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "No active auth keys"
+                );
+                RecoveryError::NoActiveAuthKeysError
+            })?;
 
             // Ensure we aren't going from having a recovery authkey to having none
             let has_existing_recovery_key = account_auth_keys.recovery_pubkey.is_some();
             let has_new_recovery_key = destination.recovery_auth_pubkey.is_some();
             if has_existing_recovery_key && !has_new_recovery_key {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "No destination recovery auth pubkey"
+                );
                 return Err(RecoveryError::NoDestinationRecoveryAuthPubkey);
             }
 
             // Hardware key shouldn't change for lost App
-            if lost_factor == Factor::App
+            if *lost_factor == Factor::App
                 && account_auth_keys.hardware_pubkey != destination.hardware_auth_pubkey
             {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid recovery destination"
+                );
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
@@ -143,7 +184,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 services.account,
                 services.recovery,
                 Some(destination.app_auth_pubkey),
-                if lost_factor == Factor::Hw {
+                if *lost_factor == Factor::Hw {
                     Some(destination.hardware_auth_pubkey)
                 } else {
                     None
@@ -171,7 +212,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
             let delay_period = account.recovery_delay_period();
             let requirements = RecoveryRequirements {
                 delay_notify_requirements: Some(DelayNotifyRequirements {
-                    lost_factor,
+                    lost_factor: *lost_factor,
                     delay_end_time: now + delay_period,
                 }),
             };
@@ -204,7 +245,7 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     .account
                     .fetch_and_update_spend_limit(FetchAndUpdateSpendingLimitInput {
                         account_id: &account_id,
-                        new_spending_limit: account.spending_limit.map_or_else(
+                        new_spending_limit: account.spending_limit.clone().map_or_else(
                             || None,
                             |old_limit| {
                                 Some(SpendingLimit {
@@ -221,16 +262,23 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 .recovery_pending_delay_period_payload(Some(RecoveryPendingDelayPeriodPayload {
                     initiation_time: now,
                     delay_end_time: now + delay_period,
-                    lost_factor,
+                    lost_factor: *lost_factor,
                 }))
                 .recovery_completed_delay_period_payload(Some(
                     RecoveryCompletedDelayPeriodPayload {
                         initiation_time: now,
-                        lost_factor,
+                        lost_factor: *lost_factor,
                     },
                 ))
                 .build()
-                .map_err(|_| RecoveryError::GenerateNotificationPayloadError)?;
+                .map_err(|_| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Error generating notification payload"
+                    );
+                    RecoveryError::GenerateNotificationPayloadError
+                })?;
 
             services
                 .notification
@@ -242,7 +290,14 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     payload,
                 })
                 .await
-                .map_err(|_| RecoveryError::ScheduleNotificationPersistanceError)?;
+                .map_err(|_| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Error persisting scheduled notification"
+                    );
+                    RecoveryError::ScheduleNotificationPersistanceError
+                })?;
 
             metrics::DELAY_NOTIFY_CREATED.add(
                 1,
@@ -266,13 +321,18 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
             challenge,
             app_signature,
             hardware_signature,
-        } = event
+        } = &event
         {
             let account = self.account.clone();
             let Some(recovery) = self.recovery.clone() else {
-                let active_auth = account
-                    .active_auth_keys()
-                    .ok_or(RecoveryError::NoActiveAuthKeysError)?;
+                let active_auth = account.active_auth_keys().ok_or_else(|| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "No active auth keys"
+                    );
+                    RecoveryError::NoActiveAuthKeysError
+                })?;
 
                 // For Idempotency:
                 // If the signatures match up with active keys, we'll return a success
@@ -282,11 +342,18 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     active_auth.app_pubkey,
                     active_auth.hardware_pubkey,
                     active_auth.recovery_pubkey,
-                    &challenge,
-                    &app_signature,
-                    Some(&hardware_signature),
+                    challenge,
+                    app_signature,
+                    Some(hardware_signature),
                 )
-                .map_err(|_| RecoveryError::NoExistingRecovery)?;
+                .map_err(|_| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "No existing recovery"
+                    );
+                    RecoveryError::NoExistingRecovery
+                })?;
                 return Ok(Transition::next(
                     self,
                     RotatedKeysetState {
@@ -299,6 +366,11 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 recovery.requirements.delay_notify_requirements.as_ref(),
                 recovery.recovery_action.delay_notify_action.as_ref(),
             ) else {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid recovery destination"
+                );
                 return Err(RecoveryError::InvalidRecoveryDestination);
             };
 
@@ -312,14 +384,26 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 app_auth_pubkey,
                 hardware_auth_pubkey,
                 recovery_auth_pubkey,
-                &challenge,
-                &app_signature,
-                Some(&hardware_signature),
+                challenge,
+                app_signature,
+                Some(hardware_signature),
             )
-            .map_err(|_| RecoveryError::InvalidInputForCompletion)?;
+            .map_err(|_| {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid input for completion"
+                );
+                RecoveryError::InvalidInputForCompletion
+            })?;
 
             let delay_end = requirements.delay_end_time;
             if services.recovery.cur_time() < delay_end {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Delay period not finished"
+                );
                 return Err(RecoveryError::DelayPeriodNotFinished);
             }
 
@@ -332,11 +416,15 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     active_contest,
                 },
             ))
-        } else if let RecoveryEvent::CancelRecovery { key_proof } = event {
-            let recovery = self
-                .recovery
-                .as_ref()
-                .ok_or(RecoveryError::NoExistingRecovery)?;
+        } else if let RecoveryEvent::CancelRecovery { key_proof } = &event {
+            let recovery = self.recovery.as_ref().ok_or_else(|| {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "No existing recovery"
+                );
+                RecoveryError::NoExistingRecovery
+            })?;
 
             let requirements = recovery
                 .requirements
@@ -399,7 +487,14 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     lost_factor: requirements.lost_factor,
                 }))
                 .build()
-                .map_err(|_| RecoveryError::GenerateNotificationPayloadError)?;
+                .map_err(|_| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Error generating notification payload"
+                    );
+                    RecoveryError::GenerateNotificationPayloadError
+                })?;
 
             services
                 .notification
@@ -410,7 +505,14 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                     only_touchpoints: None,
                 })
                 .await
-                .map_err(|_| RecoveryError::SendNotificationError)?;
+                .map_err(|_| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Error sending notification"
+                    );
+                    RecoveryError::SendNotificationError
+                })?;
 
             let attributes = &[
                 KeyValue::new(
@@ -432,19 +534,35 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
         } = event
         {
             if !self.account.common_fields.properties.is_test_account {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "Invalid update for non-test account"
+                );
                 return Err(RecoveryError::InvalidUpdateForNonTestAccount);
             }
 
-            let recovery = self
-                .recovery
-                .as_ref()
-                .ok_or(RecoveryError::NoExistingRecovery)?;
+            let recovery = self.recovery.as_ref().ok_or_else(|| {
+                tracing::error!(
+                    recovery_state = std::any::type_name_of_val(&self),
+                    recovery_event = event.to_string(),
+                    "No existing recovery"
+                );
+                RecoveryError::NoExistingRecovery
+            })?;
 
             let requirements = recovery
                 .requirements
                 .delay_notify_requirements
                 .to_owned()
-                .ok_or(RecoveryError::MalformedRecoveryRequirements)?;
+                .ok_or_else(|| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "Malformed recovery requirements"
+                    );
+                    RecoveryError::MalformedRecoveryRequirements
+                })?;
 
             let delay_end_time = if let Some(delay_period) = delay_period_num_sec {
                 recovery.created_at + Duration::seconds(delay_period)
@@ -471,7 +589,14 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 .recovery
                 .fetch_pending(&self.account.id, RecoveryType::DelayAndNotify)
                 .await?
-                .ok_or(RecoveryError::NoExistingRecovery)?;
+                .ok_or_else(|| {
+                    tracing::error!(
+                        recovery_state = std::any::type_name_of_val(&self),
+                        recovery_event = event.to_string(),
+                        "No existing recovery"
+                    );
+                    RecoveryError::NoExistingRecovery
+                })?;
             return Ok(Transition::next(
                 self,
                 PendingRecoveryState {
@@ -479,6 +604,11 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
                 },
             ));
         } else {
+            tracing::error!(
+                recovery_state = std::any::type_name_of_val(&self),
+                recovery_event = event.to_string(),
+                "Invalid transition"
+            );
             Err(RecoveryError::InvalidTransition)
         }
     }

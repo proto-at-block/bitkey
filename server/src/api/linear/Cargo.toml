@@ -1,0 +1,29 @@
+[package]
+edition = { workspace = true }
+name = "linear"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+axum-extra = { workspace = true }
+axum-macros = { workspace = true }
+hex = { workspace = true }
+hmac = { workspace = true }
+once_cell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }
+http_server = { workspace = true }
+instrumentation = { workspace = true }
+
+[lints]
+workspace = true

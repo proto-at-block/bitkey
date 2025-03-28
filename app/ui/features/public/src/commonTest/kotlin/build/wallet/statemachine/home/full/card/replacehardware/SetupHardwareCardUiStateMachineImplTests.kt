@@ -6,7 +6,7 @@ import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementNotification
 import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.None
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -34,7 +34,7 @@ class SetupHardwareCardUiStateMachineImplTests : FunSpec({
         onReplaceDevice = {}
       )
     postSocRecTaskRepository.mutableState.value = HardwareReplacementNotification
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // initial state is null
       awaitItem().shouldBeNull()
       // card is loaded
@@ -53,7 +53,7 @@ class SetupHardwareCardUiStateMachineImplTests : FunSpec({
         onReplaceDevice = {}
       )
     postSocRecTaskRepository.mutableState.value = None
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // card is loaded
       awaitItem().shouldNotBeNull()
     }
@@ -65,7 +65,7 @@ class SetupHardwareCardUiStateMachineImplTests : FunSpec({
         onReplaceDevice = {}
       )
     postSocRecTaskRepository.mutableState.value = None
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
     }
   }

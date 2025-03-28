@@ -19,6 +19,7 @@ kotlin {
         api(libs.kmp.test.turbine)
         api(libs.kmp.test.ktor.client.mock)
         api(projects.libs.loggingTesting)
+        api(projects.libs.stdlibPublic)
       }
     }
   }

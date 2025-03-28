@@ -14,7 +14,7 @@ kotlin {
         api(libs.kmp.kermit)
         api(projects.domain.accountPublic)
         api(projects.libs.platformPublic)
-        api(projects.domain.firmwarePublic)
+        api(projects.domain.hardwarePublic)
       }
     }
     val androidMain by getting {

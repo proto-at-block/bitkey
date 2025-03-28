@@ -12,13 +12,11 @@ kotlin {
       dependencies {
         implementation(projects.domain.accountFake)
         implementation(projects.domain.authFake)
-        implementation(projects.domain.bitcoinFake)
         implementation(projects.libs.bdkBindingsFake)
         implementation(projects.domain.debugFake)
         implementation(projects.libs.moneyFake)
         implementation(projects.domain.mobilePayFake)
-        implementation(projects.domain.firmwareFake)
-        implementation(projects.domain.fwupFake)
+        implementation(projects.domain.hardwareFake)
       }
     }
   }

@@ -3827,6 +3827,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "linear"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "axum-extra",
+ "axum-macros",
+ "errors",
+ "hex",
+ "hmac",
+ "http_server",
+ "instrumentation",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "sha2",
+ "strum",
+ "strum_macros",
+ "time",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5284,6 +5307,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 3.9.0",
+ "strum_macros",
  "thiserror 1.0.57",
  "time",
  "tokio",
@@ -6163,6 +6187,7 @@ dependencies = [
  "external_identifier",
  "feature_flags",
  "hex",
+ "hmac",
  "http 1.1.0",
  "http-body-util",
  "http_server",
@@ -6171,6 +6196,7 @@ dependencies = [
  "isocountry",
  "jwt-authorizer",
  "launchdarkly-server-sdk",
+ "linear",
  "mempool_indexer",
  "migration",
  "mobile_pay",
@@ -6193,6 +6219,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "sha2",
  "thiserror 1.0.57",
  "time",
  "tokio",

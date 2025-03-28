@@ -27,11 +27,8 @@ import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachineImpl
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
@@ -114,7 +111,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("show backup instructions by default") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel>()
     }
@@ -147,7 +144,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
   test("initiate backup - failed to create backup") {
     cloudBackupCreator.backupResult = Err(FullAccountFieldsCreationError())
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -174,7 +171,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   test("initiate backup - failed to upload backup") {
     cloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
     cloudBackupRepository.returnWriteError = UnrectifiableCloudBackupError(Exception("foo"))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -199,7 +196,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud sign in failure - go back") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -219,7 +216,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cloud sign in failure - try again and fail") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -278,7 +275,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("when there is no csek available, a nfc prompt is shown and goes to cloud backup") {
-    stateMachine.testWithVirtualTime(props = props.copy(sealedCsek = null)) {
+    stateMachine.test(props = props.copy(sealedCsek = null)) {
       // generating csek, loading button on save backup instructions
       awaitBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().shouldBeLoading()
@@ -305,7 +302,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       CloudBackupV2WithFullAccountMock,
       requireAuthRefresh = true
     )
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -347,7 +344,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         proceed()
       })
 
-    stateMachine.testWithVirtualTime(adjustedProps) {
+    stateMachine.test(adjustedProps) {
       // save backup instructions
       awaitBody<FormBodyModel> {
         clickPrimaryButton()
@@ -373,7 +370,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("skip cloud backup instructions") {
-    stateMachine.testWithVirtualTime(props.copy(isSkipCloudBackupInstructions = true)) {
+    stateMachine.test(props.copy(isSkipCloudBackupInstructions = true)) {
       cloudBackupCreator.backupResult = Ok(CloudBackupV2WithFullAccountMock)
       awaitBodyMock<CloudSignInUiProps> {
         forceSignOut.shouldBeFalse()

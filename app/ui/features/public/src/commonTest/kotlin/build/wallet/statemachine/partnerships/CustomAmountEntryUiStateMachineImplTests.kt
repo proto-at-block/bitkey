@@ -6,7 +6,7 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
@@ -64,7 +64,7 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("custom amount entry not in range") {
-    stateMachine.testWithVirtualTime(props()) {
+    stateMachine.test(props()) {
       awaitBody<CustomAmountBodyModel> {
         this.amountModel.shouldBe(defaultMoneyCalculatorModel.amountModel)
         this.toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("From $20.00 to $100.00")
@@ -74,7 +74,7 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
   }
 
   test("custom amount entry within range") {
-    stateMachine.testWithVirtualTime(props(minimumAmount = FiatMoney.usd(10.0))) {
+    stateMachine.test(props(minimumAmount = FiatMoney.usd(10.0))) {
       awaitBody<CustomAmountBodyModel> {
         this.primaryButton.isEnabled.shouldBeTrue()
       }

@@ -1,6 +1,8 @@
 package build.wallet.statemachine.partnerships.sell
 
 import androidx.compose.runtime.*
+import bitkey.metrics.MetricOutcome
+import bitkey.metrics.MetricTrackerService
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
@@ -21,11 +23,15 @@ import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.partnerships.sell.SellState.*
+import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellConfirmationMetricDefinition
+import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellMetricDefinition
 import build.wallet.statemachine.send.TransferAmountEntryUiProps
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachine
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.time.Duration.Companion.minutes
+import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellConfirmationMetricDefinition.Variants.Partner as PartnershipSellConfirmationVariant
+import build.wallet.statemachine.partnerships.sell.metrics.PartnershipSellMetricDefinition.Variants.Partner as PartnershipSellVariant
 
 @BitkeyInject(ActivityScope::class)
 class PartnershipsSellUiStateMachineImpl(
@@ -39,6 +45,7 @@ class PartnershipsSellUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val exchangeRateService: ExchangeRateService,
   private val deepLinkHandler: DeepLinkHandler,
+  private val metricTrackerService: MetricTrackerService,
 ) : PartnershipsSellUiStateMachine {
   @Composable
   override fun model(props: PartnershipsSellUiProps): ScreenModel {
@@ -48,6 +55,8 @@ class PartnershipsSellUiStateMachineImpl(
         else -> mutableStateOf(EnteringSellAmount)
       }
     }
+
+    StartMetricEffect(props)
 
     val fiatCurrency by remember { fiatCurrencyPreferenceRepository.fiatCurrencyPreference }
       .collectAsState()
@@ -75,7 +84,13 @@ class PartnershipsSellUiStateMachineImpl(
     return when (val currentState = state) {
       is EnteringSellAmount -> transferAmountEntryUiStateMachine.model(
         props = TransferAmountEntryUiProps(
-          onBack = props.onBack,
+          onBack = {
+            metricTrackerService.completeMetric(
+              metricDefinition = PartnershipSellMetricDefinition,
+              outcome = MetricOutcome.UserCanceled
+            )
+            props.onBack()
+          },
           initialAmount = initialAmount,
           exchangeRates = exchangeRates,
           minAmount = sellBitcoinMinAmountFeatureFlag.flagValue().value.let { BitcoinMoney.btc(it.value) },
@@ -99,6 +114,15 @@ class PartnershipsSellUiStateMachineImpl(
               state = EnteringSellAmount
             },
             onPartnerRedirected = { method, transaction ->
+              metricTrackerService.setVariant(
+                metricDefinition = PartnershipSellMetricDefinition,
+                variant = PartnershipSellVariant(transaction.partnerInfo.partnerId)
+              )
+              metricTrackerService.completeMetric(
+                metricDefinition = PartnershipSellMetricDefinition,
+                outcome = MetricOutcome.Succeeded
+              )
+
               handlePartnerRedirected(
                 props = props,
                 method = method,
@@ -128,10 +152,18 @@ class PartnershipsSellUiStateMachineImpl(
           PartnershipsSellConfirmationProps(
             confirmedPartnerSale = currentState.confirmedPartnerSale,
             onBack = {
-              EnteringSellAmount
+              metricTrackerService.completeMetric(
+                metricDefinition = PartnershipSellConfirmationMetricDefinition,
+                outcome = MetricOutcome.UserCanceled
+              )
+              state = EnteringSellAmount
             },
             exchangeRates = emptyImmutableList(),
             onDone = { partnerInfo ->
+              metricTrackerService.completeMetric(
+                metricDefinition = PartnershipSellConfirmationMetricDefinition,
+                outcome = MetricOutcome.Succeeded
+              )
               state = ShowingSellSuccess(partnerInfo)
             }
           )
@@ -180,6 +212,31 @@ class PartnershipsSellUiStateMachineImpl(
           appRestrictions = null
         )
         props.onBack()
+      }
+    }
+  }
+
+  /**
+   * Starts the appropriate metric tracker for this session of the state machine via [MetricTrackerService].
+   *
+   * We distinguish between two possible metrics - either preparing a sell up to its redirect to a
+   * partnership, or after a sell showing the sell confirmation screen.
+   */
+  @Composable
+  private fun StartMetricEffect(props: PartnershipsSellUiProps) {
+    LaunchedEffect("start-partnership-sell-metric", props) {
+      when {
+        props.confirmedSale != null -> metricTrackerService.startMetric(
+          metricDefinition = PartnershipSellConfirmationMetricDefinition,
+          variant = props.confirmedSale.partner?.let {
+            PartnershipSellConfirmationVariant(props.confirmedSale.partner)
+          }
+        )
+        else -> {
+          metricTrackerService.startMetric(
+            metricDefinition = PartnershipSellMetricDefinition
+          )
+        }
       }
     }
   }

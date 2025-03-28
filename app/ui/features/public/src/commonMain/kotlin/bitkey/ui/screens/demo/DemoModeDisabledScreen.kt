@@ -23,7 +23,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 data object DemoModeDisabledScreen : Screen
 
-@BitkeyInject(ActivityScope::class, boundTypes = [DemoModeDisabledScreenPresenter::class])
+@BitkeyInject(ActivityScope::class)
 class DemoModeDisabledScreenPresenter : ScreenPresenter<DemoModeDisabledScreen> {
   @Composable
   override fun model(

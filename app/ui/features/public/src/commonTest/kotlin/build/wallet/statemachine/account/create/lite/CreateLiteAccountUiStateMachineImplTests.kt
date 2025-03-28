@@ -23,7 +23,7 @@ import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
@@ -89,7 +89,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("happy path") {
     val account = createLiteAccountService.createAccountResult.get()!!
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")
       }
@@ -113,7 +113,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("deep link, no introduction") {
     val account = createLiteAccountService.createAccountResult.get()!!
-    stateMachine.testWithVirtualTime(inviteProps.copy(showBeTrustedContactIntroduction = false)) {
+    stateMachine.test(inviteProps.copy(showBeTrustedContactIntroduction = false)) {
       awaitLoadingScreen(NEW_LITE_ACCOUNT_CREATION)
       createLiteAccountService.createAccountCalls.awaitItem()
       awaitBodyMock<LiteAccountCloudSignInAndBackupProps> {
@@ -128,7 +128,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("deep link with introduction screen") {
     val account = createLiteAccountService.createAccountResult.get()!!
-    stateMachine.testWithVirtualTime(inviteProps) {
+    stateMachine.test(inviteProps) {
       awaitBody<BeTrustedContactIntroductionModel> {
         onContinue()
       }
@@ -145,7 +145,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
   }
 
   test("TC enrollment on retreat calls props.onBack") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")
       }
@@ -171,7 +171,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("non-retryable failure on back calls props.onBack") {
     createLiteAccountService.createAccountResult = Err(NonRetryableError)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")
       }
@@ -197,7 +197,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("retryable failure returns to code input") {
     createLiteAccountService.createAccountResult = Err(RetryableError)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")
       }
@@ -219,7 +219,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   test("retryable failure on retry calls create account again") {
     createLiteAccountService.createAccountResult = Err(RetryableError)
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")
       }

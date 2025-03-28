@@ -63,7 +63,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
   val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock()
   val uuid = UuidGeneratorFake()
-  val recoverySyncer = RecoverySyncerMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
+  val recoveryStatusService = RecoveryStatusServiceMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
@@ -92,7 +92,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryAuthCompleter = recoveryAuthCompleter,
       f8eSpendingKeyRotator = f8eSpendingKeyRotator,
       uuidGenerator = uuid,
-      recoverySyncer = recoverySyncer,
+      recoveryStatusService = recoveryStatusService,
       accountAuthenticator = accountAuthorizer,
       recoveryDao = recoveryDao,
       deviceTokenManager = deviceTokenManager,
@@ -455,7 +455,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
           .shouldBeTypeOf<RotatedSpendingKeys>()
       }
 
@@ -477,7 +477,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -507,7 +507,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.onBackupFinished()
       }
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       updateProps(
@@ -591,7 +591,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
           .shouldBeTypeOf<RotatedSpendingKeys>()
       }
 
@@ -613,7 +613,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -643,7 +643,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.onBackupFinished()
       }
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
@@ -723,7 +723,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
           .shouldBeTypeOf<RotatedSpendingKeys>()
       }
 
@@ -754,7 +754,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
         delegatedDecryptionKeyService.uploadCalls!!.awaitItem()
       }
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -784,7 +784,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.onBackupFinished()
       }
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
       updateProps(
@@ -868,7 +868,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+        recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
       }
 
       updateProps(
@@ -889,7 +889,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -919,7 +919,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.onBackupFinished()
       }
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
@@ -1014,7 +1014,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
 
@@ -1036,7 +1036,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -1156,7 +1156,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldBe(RotatingAuthKeysWithF8eData(recovery.factorToRecover))
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
 
       updateProps(
         props(
@@ -1185,7 +1185,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.sealedCsek.shouldBe(SealedCsekFake)
       }
 
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+      recoveryStatusService.setLocalRecoveryProgressCalls.awaitItem()
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     }
   }

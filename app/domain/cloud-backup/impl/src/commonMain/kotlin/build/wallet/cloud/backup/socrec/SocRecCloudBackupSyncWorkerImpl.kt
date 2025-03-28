@@ -1,5 +1,6 @@
 package build.wallet.cloud.backup.socrec
 
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.count.id.InheritanceEventTrackerCounterId
@@ -26,7 +27,6 @@ import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.logDebug
 import build.wallet.logging.logFailure
 import build.wallet.recovery.Recovery.StillRecovering
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.relationships.RelationshipsService
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -38,7 +38,7 @@ import kotlinx.datetime.Instant
 @BitkeyInject(AppScope::class)
 class SocRecCloudBackupSyncWorkerImpl(
   private val accountService: AccountService,
-  private val recoverySyncer: RecoverySyncer,
+  private val recoveryStatusService: RecoveryStatusService,
   private val relationshipsService: RelationshipsService,
   private val cloudBackupDao: CloudBackupDao,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
@@ -52,7 +52,7 @@ class SocRecCloudBackupSyncWorkerImpl(
   override val lastCheck: StateFlow<Instant> = lastCheckState
 
   override suspend fun executeWork() {
-    val recovery = recoverySyncer.recoveryStatus().map { it.get() }
+    val recovery = recoveryStatusService.status().map { it.get() }
     val account = accountService.activeAccount()
 
     combine(recovery, account) { activeRecovery, account ->

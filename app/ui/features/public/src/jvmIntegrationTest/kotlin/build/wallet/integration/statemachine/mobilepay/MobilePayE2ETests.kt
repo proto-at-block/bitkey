@@ -8,7 +8,6 @@ import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.limit.picker.EntryMode.Keypad
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -91,7 +90,7 @@ class MobilePayE2ETests : FunSpec({
       app.onboardFullAccountWithFakeHardware()
       app.setupMobilePay(limit = FiatMoney.usd(100.0))
 
-      app.appUiStateMachine.testWithVirtualTime(Unit) {
+      app.appUiStateMachine.test(Unit) {
         awaitUntilBody<MoneyHomeBodyModel>(MONEY_HOME) {
           clickSettings()
         }

@@ -15,8 +15,8 @@ kotlin {
         api(libs.kmp.okio)
         api(projects.libs.keyValueStorePublic)
         api(projects.libs.loggingPublic)
-        api(projects.domain.nfcPublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 

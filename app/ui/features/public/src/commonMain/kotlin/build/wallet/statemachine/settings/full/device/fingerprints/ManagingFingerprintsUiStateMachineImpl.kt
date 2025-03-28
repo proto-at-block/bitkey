@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
 import androidx.compose.runtime.*
+import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricOutcome
 import bitkey.metrics.MetricTrackerService
 import build.wallet.analytics.events.EventTracker
@@ -8,9 +9,7 @@ import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareFeatureFlag
+import build.wallet.firmware.*
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.statemachine.core.Icon
@@ -34,6 +33,7 @@ class ManagingFingerprintsUiStateMachineImpl(
   private val editingFingerprintUiStateMachine: EditingFingerprintUiStateMachine,
   private val enrollingFingerprintUiStateMachine: EnrollingFingerprintUiStateMachine,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
+  private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
 ) : ManagingFingerprintsUiStateMachine {
@@ -182,6 +182,7 @@ class ManagingFingerprintsUiStateMachineImpl(
             commands.getEnrolledFingerprints(session)
           },
           onSuccess = {
+            hardwareUnlockInfoService.replaceAllUnlockInfo(it.toUnlockInfoList())
             uiState = ListingFingerprintsUiState(enrolledFingerprints = it)
           },
           onCancel = {
@@ -228,6 +229,7 @@ class ManagingFingerprintsUiStateMachineImpl(
               )
             )
 
+            hardwareUnlockInfoService.replaceAllUnlockInfo(it.toUnlockInfoList())
             uiState = ListingFingerprintsUiState(it, fingerprintAdded = true)
           },
           fingerprintHandle = FingerprintHandle(
@@ -257,6 +259,7 @@ class ManagingFingerprintsUiStateMachineImpl(
                 count = it.fingerprintHandles.size
               )
             )
+            hardwareUnlockInfoService.replaceAllUnlockInfo(it.toUnlockInfoList())
             uiState = ListingFingerprintsUiState(it, fingerprintDeleted = true)
           },
           onCancel = {
@@ -303,14 +306,18 @@ class ManagingFingerprintsUiStateMachineImpl(
                 EnrolledFingerprintResult.FwUpRequired -> RetrievingEnrolledFingerprintsUiState(
                   fwUpdateRequired = true
                 )
-                is EnrolledFingerprintResult.Success -> when (props.entryPoint) {
-                  EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
-                    enrolledFingerprints = it.enrolledFingerprints,
-                    isExistingFingerprint = false,
-                    fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
-                  )
+                is EnrolledFingerprintResult.Success -> {
+                  hardwareUnlockInfoService.replaceAllUnlockInfo(it.enrolledFingerprints.toUnlockInfoList())
 
-                  EntryPoint.DEVICE_SETTINGS -> ListingFingerprintsUiState(it.enrolledFingerprints)
+                  when (props.entryPoint) {
+                    EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
+                      enrolledFingerprints = it.enrolledFingerprints,
+                      isExistingFingerprint = false,
+                      fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
+                    )
+
+                    EntryPoint.DEVICE_SETTINGS -> ListingFingerprintsUiState(it.enrolledFingerprints)
+                  }
                 }
               }
             },

@@ -179,7 +179,7 @@ private fun CalloutModel.calloutStyle() =
     -> CalloutStyle(
       titleColor = WalletTheme.colors.calloutDefaultTitle,
       subtitleColor = WalletTheme.colors.calloutDefaultSubtitle,
-      backgroundColor = WalletTheme.colors.calloutDefaultBackground,
+      backgroundColor = WalletTheme.colors.subtleBackground,
       leadingIconColor = WalletTheme.colors.calloutDefaultTitle,
       trailingIconColor = WalletTheme.colors.calloutDefaultTrailingIcon,
       trailingIconBackgroundColor = WalletTheme.colors.calloutDefaultTrailingIconBackground

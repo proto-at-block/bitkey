@@ -21,8 +21,8 @@ kotlin {
         api(libs.kmp.ktor.client.logging)
         api(libs.kmp.okio)
         api(projects.libs.platformPublic)
-        api(projects.libs.resultPublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 

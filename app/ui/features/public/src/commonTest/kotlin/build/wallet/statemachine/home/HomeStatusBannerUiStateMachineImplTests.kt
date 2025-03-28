@@ -4,7 +4,7 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
 import build.wallet.availability.*
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachineImpl
 import build.wallet.time.ClockFake
@@ -38,13 +38,13 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   }
 
   test("Null when FullFunctionality") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
     }
   }
 
   test("Model when LimitedFunctionality - F8eUnreachable") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
@@ -62,7 +62,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   }
 
   test("Model when LimitedFunctionality - Inactive App") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(cause = InactiveApp)
@@ -81,7 +81,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   }
 
   test("Model when LimitedFunctionality - InternetUnreachable") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
@@ -103,7 +103,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   }
 
   test("Model when LimitedFunctionality - Emergency Access Kit") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
       appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(

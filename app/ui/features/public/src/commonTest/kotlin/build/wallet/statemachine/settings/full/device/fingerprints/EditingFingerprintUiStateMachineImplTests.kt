@@ -7,7 +7,7 @@ import build.wallet.firmware.FingerprintHandle
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitSheet
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
@@ -43,7 +43,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   )
 
   test("edit fingerprint label") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Change the fingerprint label
       awaitSheet<FormBodyModel> {
         mainContentList[0]
@@ -70,7 +70,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("delete fingerprint and confirm") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Click Delete fingerprint
       awaitSheet<FormBodyModel> {
         clickPrimaryButton()
@@ -88,7 +88,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("select delete fingerprint but cancel") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Click Delete fingerprint
       awaitSheet<FormBodyModel> {
         primaryButton.shouldNotBeNull()
@@ -115,7 +115,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("onBack calls") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitSheet<FormBodyModel> {
         toolbar.shouldNotBeNull()
           .leadingAccessory.shouldBeInstanceOf<IconAccessory>().model.apply {
@@ -130,7 +130,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("edit fingerprint label for a new fingerprint") {
-    stateMachine.testWithVirtualTime(props.copy(isExistingFingerprint = false)) {
+    stateMachine.test(props.copy(isExistingFingerprint = false)) {
       // Change the fingerprint label
       awaitSheet<FormBodyModel> {
         mainContentList[0]
@@ -156,7 +156,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
   }
 
   test("attempt to delete last fingerprint") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(
         EnrolledFingerprints(
           maxCount = 3,

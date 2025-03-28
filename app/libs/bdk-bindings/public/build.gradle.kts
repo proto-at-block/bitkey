@@ -10,9 +10,9 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.libs.resultPublic)
         api(libs.kmp.big.number)
         api(libs.kmp.kotlin.datetime)
+        api(libs.kmp.kotlin.result)
       }
     }
   }

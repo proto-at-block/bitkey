@@ -24,7 +24,6 @@ kotlin {
         implementation(projects.domain.debugFake)
         implementation(projects.domain.f8eClientFake)
         implementation(projects.domain.featureFlagFake)
-        implementation(projects.domain.keyboxFake)
         implementation(projects.libs.platformFake)
         implementation(projects.libs.sqldelightTesting)
         implementation(projects.libs.testingPublic)

@@ -18,6 +18,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCode
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Hidden
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput.SkipForNowContent.Showing
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.time.ClockFake
@@ -69,7 +70,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("initial state") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Resend code blocked
       awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe(props.title)
@@ -84,7 +85,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("onValueChange") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           // Change to less than expected length
@@ -113,7 +114,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("onValueChange with more than expected length") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeTypeOf<VerificationCodeInput>()) {
           // Change to less than expected length
@@ -133,7 +134,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("resend code resets content after success") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Resend code blocked
       awaitBody<FormBodyModel>()
 
@@ -254,7 +255,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("no skip showing after resend code when skip sheet not provided") {
-    stateMachine.testWithVirtualTime(props.copy(skipBottomSheetProvider = null)) {
+    stateMachine.test(props.copy(skipBottomSheetProvider = null)) {
       // Resend code blocked
       awaitBody<FormBodyModel> {
         mainContentList.first()
@@ -327,7 +328,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("email explainer is shown with email touchpoint") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props.copy(
         notificationTouchpoint = EmailTouchpoint(touchpointId = "", value = Email("asdf@block.xyz"))
       )

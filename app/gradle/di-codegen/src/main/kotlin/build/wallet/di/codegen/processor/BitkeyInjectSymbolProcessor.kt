@@ -17,6 +17,7 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.validate
 import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.ksp.addOriginatingKSFile
 import com.squareup.kotlinpoet.ksp.toClassName
@@ -80,14 +81,19 @@ internal class BitkeyInjectSymbolProcessor(
   override fun process(resolver: Resolver): List<KSAnnotated> {
     val isIosSources = resolver.getAllFiles()
       .any { it.filePath.contains("src/ios") }
-    resolver
+    return resolver
       .getSymbolsWithAnnotation(logger, BitkeyInject::class)
       .filterIsInstance<KSClassDeclaration>()
-      .forEach { clazz ->
-        generateComponentInterface(clazz, isIosSources)
-      }
-
-    return emptyList()
+      .mapNotNull { clazz ->
+        // If the class is ready to be resolved, generate its component and remove it;
+        // otherwise, keep it for later processing.
+        if (clazz.validate()) {
+          generateComponentInterface(clazz, isIosSources)
+          null
+        } else {
+          clazz
+        }
+      }.toList()
   }
 
   /**
@@ -164,6 +170,7 @@ internal class BitkeyInjectSymbolProcessor(
       // @Impl or @Fake, if any.
       val implementationQualifier = impl.getImplementationQualifier()
       val directSuperTypes = impl.getDirectSuperTypes()
+        .filter { !it.hasTypeParameters } // We don't support generics yet.
       val explicitBoundTypes = annotation.getBoundTypes()
       // If no explicit bound types are specified, use direct supertypes of the implementation.
       val boundTypesToUse = explicitBoundTypes.ifEmpty { directSuperTypes }

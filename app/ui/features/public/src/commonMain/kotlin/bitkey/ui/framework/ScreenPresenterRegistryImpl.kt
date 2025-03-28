@@ -1,6 +1,8 @@
 package bitkey.ui.framework
 
 import bitkey.ui.screens.demo.*
+import bitkey.ui.screens.securityhub.SecurityHubPresenter
+import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.dev.DebugMenuScreen
@@ -21,6 +23,7 @@ class ScreenPresenterRegistryImpl(
   private val demoCodeEntrySubmissionScreenPresenter: DemoCodeEntrySubmissionScreenPresenter,
   private val bitcoinWalletDebugScreenPresenter: BitcoinWalletDebugScreenPresenter,
   private val debugMenuScreenPresenter: DebugMenuScreenPresenter,
+  private val securityHubPresenter: SecurityHubPresenter,
 ) : ScreenPresenterRegistry {
   override fun <ScreenT : Screen> get(screen: ScreenT): ScreenPresenter<ScreenT> {
     @Suppress("UNCHECKED_CAST")
@@ -31,6 +34,7 @@ class ScreenPresenterRegistryImpl(
       is DemoCodeEntrySubmissionScreen -> demoCodeEntrySubmissionScreenPresenter
       is BitcoinWalletDebugScreen -> bitcoinWalletDebugScreenPresenter
       is DebugMenuScreen -> debugMenuScreenPresenter
+      is SecurityHubScreen -> securityHubPresenter
       else -> error("Did not find presenter for $screen")
     } as ScreenPresenter<ScreenT>
   }

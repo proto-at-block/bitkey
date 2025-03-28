@@ -52,9 +52,15 @@ impl RecoveryStateResponse for PendingRecoveryState {
 impl TransitioningRecoveryState for PendingRecoveryState {
     async fn next_transition_or_err(
         self: Box<Self>,
-        _event: RecoveryEvent,
+        event: RecoveryEvent,
         _services: &RecoveryServices,
     ) -> Result<Transition, RecoveryError> {
+        tracing::info!(
+            recovery_state = std::any::type_name_of_val(&self),
+            recovery_event = event.to_string(),
+            "Processing recovery event"
+        );
+
         Ok(Transition::Complete(Ok(self)))
     }
 }

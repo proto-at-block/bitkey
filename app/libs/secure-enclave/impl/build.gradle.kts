@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         api(libs.kmp.okio)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.libs.stdlibPublic)
       }
     }
 

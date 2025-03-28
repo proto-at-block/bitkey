@@ -1,18 +1,15 @@
 package build.wallet.statemachine.data.recovery.losthardware.initiate
 
-import bitkey.f8e.error.F8eError
-import bitkey.f8e.error.SpecificClientErrorMock
-import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
-import build.wallet.bitcoin.recovery.LostHardwareRecoveryStarterMock
+import bitkey.recovery.InitiateDelayNotifyRecoveryError.CommsVerificationRequiredError
+import bitkey.recovery.InitiateDelayNotifyRecoveryError.OtherError
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
-import build.wallet.ktor.result.HttpError
-import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.recovery.LostHardwareRecoveryServiceFake
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
 import build.wallet.time.MinimumLoadingDuration
 import com.github.michaelbull.result.Err
@@ -25,10 +22,7 @@ import kotlin.time.Duration.Companion.seconds
 class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
   val appKeysGenerator = AppKeysGeneratorMock()
-  val lostHardwareRecoveryStarter =
-    LostHardwareRecoveryStarterMock(
-      turbine = turbines::create
-    )
+  val lostHardwareRecoveryService = LostHardwareRecoveryServiceFake()
 
   val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
 
@@ -37,19 +31,19 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   val stateMachine =
     InitiatingLostHardwareRecoveryDataStateMachineImpl(
       appKeysGenerator = appKeysGenerator,
-      lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
+      lostHardwareRecoveryService = lostHardwareRecoveryService,
       cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
       minimumLoadingDuration = MinimumLoadingDuration(0.seconds)
     )
 
   beforeTest {
     appKeysGenerator.reset()
-    lostHardwareRecoveryStarter.reset()
+    lostHardwareRecoveryService.reset()
     cancelDelayNotifyRecoveryF8eClient.reset()
   }
 
   test("initiating lost hardware recovery -- success") {
-    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {
@@ -58,21 +52,13 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
-
-      lostHardwareRecoveryStarter.initiateCalls.awaitItem()
     }
   }
 
   test("initiating lost hardware recovery -- failure") {
+    lostHardwareRecoveryService.initiateResult = Err(OtherError(Error()))
 
-    lostHardwareRecoveryStarter.initiateResult =
-      Err(
-        InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError(
-          error = F8eError.UnhandledException(HttpError.UnhandledException(Throwable()))
-        )
-      )
-
-    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {
@@ -83,20 +69,13 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
       awaitItem().shouldBeTypeOf<FailedInitiatingRecoveryWithF8eData>()
-
-      lostHardwareRecoveryStarter.initiateCalls.awaitItem()
     }
   }
 
   test("initiating lost hardware recovery -- needs comms verification") {
-    lostHardwareRecoveryStarter.initiateResult =
-      Err(
-        InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError(
-          error = SpecificClientErrorMock(InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICATION_REQUIRED)
-        )
-      )
+    lostHardwareRecoveryService.initiateResult = Err(CommsVerificationRequiredError(Error()))
 
-    stateMachine.testWithVirtualTime(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+    stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
       awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
 
       awaitItem().let {
@@ -106,17 +85,13 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
-      lostHardwareRecoveryStarter.initiateCalls.awaitItem()
-
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsData>()
-        lostHardwareRecoveryStarter.initiateResult = Ok(Unit)
+        lostHardwareRecoveryService.initiateResult = Ok(Unit)
         onComplete()
       }
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
-
-      lostHardwareRecoveryStarter.initiateCalls.awaitItem()
     }
   }
 })

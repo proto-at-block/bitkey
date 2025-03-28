@@ -49,7 +49,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("back button on demo instructions calls props.onDone") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         onBack()
       }
@@ -59,7 +59,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         buttonModel.onClick()
       }
@@ -73,7 +73,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("fwup nfc session onBack") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         buttonModel.onClick()
       }
@@ -89,7 +89,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("release notes") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<FwupInstructionsBodyModel> {
         (headerModel.sublineModel as LabelModel.LinkSubstringModel).linkedSubstrings[0].onClick()
       }
@@ -163,7 +163,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("failure - unauthenticated") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       testBottomSheetContent(
         error = NfcException.CommandErrorUnauthenticated(),
         expectedTitle = "Device Locked",
@@ -175,7 +175,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("failure - no update in progress") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       testBottomSheetContent(
         expectedTitle = "Unable to update device",
         expectedSubline = "Make sure you hold your device to the back of your phone during the entire update.",
@@ -188,7 +188,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   test("failure - no update in progress - iPhone 14 model") {
     deviceInfoProvider.devicePlatformValue = DevicePlatform.IOS
     deviceInfoProvider.deviceModelValue = "iPhone15,2"
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       testBottomSheetContent(
         expectedTitle = "Unable to update device",
         expectedSubline =
@@ -201,7 +201,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   }
 
   test("failure - update in progress") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       testBottomSheetContent(
         expectedTitle = "Device update not complete",
         expectedSubline = "Make sure you hold your device to the back of your phone during the entire update.",

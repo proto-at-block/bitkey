@@ -10,6 +10,7 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.setFlagValue
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
@@ -17,11 +18,12 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.CreateAccountOptionsModel
 import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
 import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -32,6 +34,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val emergencyAccessKitDataProvider = EmergencyAccessKitDataProviderFake()
   val featureFlagDao = FeatureFlagDaoFake()
   val softwareWalletIsEnabledFeatureFlag = SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
+  val wipeHardwareFlag = WipeHardwareLoggedOutFeatureFlag(featureFlagDao)
   val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
     ScreenStateMachineMock<CreateSoftwareWalletProps>(
       id = "create-software-wallet"
@@ -46,7 +49,8 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
       softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
       createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine,
-      inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
+      inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake()),
+      wipeHardwareFlag = wipeHardwareFlag
     )
 
   val stateMachine = buildStateMachine(appVariant = AppVariant.Development)
@@ -71,16 +75,17 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     emergencyAccessKitDataProvider.reset()
+    featureFlagDao.reset()
   }
 
   test("initial state") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel>()
     }
   }
 
   test("create full account") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons.first().shouldNotBeNull().onClick()
       }
@@ -90,7 +95,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("create lite account") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
@@ -108,7 +113,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("recover wallet") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
@@ -125,7 +130,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
 
     test("create hardware and software wallet options are shown") {
-      stateMachine.testWithVirtualTime(props) {
+      stateMachine.test(props) {
         awaitBody<ChooseAccountAccessModel> {
           buttons[0].shouldNotBeNull().onClick()
         }
@@ -135,8 +140,21 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("Wipe device disabled by default") {
+    stateMachine.test(props) {
+      awaitBody<ChooseAccountAccessModel> {
+        buttons[1].shouldNotBeNull().onClick()
+      }
+
+      awaitBody<AccountAccessMoreOptionsFormBodyModel> {
+        onResetExistingDevice.shouldBeNull()
+      }
+    }
+  }
+
   test("wipe existing device") {
-    stateMachine.testWithVirtualTime(props) {
+    wipeHardwareFlag.setFlagValue(true)
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
@@ -152,7 +170,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   test("emergency access recovery button shows in eak builds") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
@@ -166,7 +184,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("shows debug menu in development build") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         onLogoClick()
       }
@@ -181,7 +199,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
   test("shows demo mode in customer build") {
     val customerStateMachine = buildStateMachine(AppVariant.Customer)
-    customerStateMachine.testWithVirtualTime(props) {
+    customerStateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         onLogoClick()
       }
@@ -196,7 +214,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   test("EAK disabled paths") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<ChooseAccountAccessModel> {
         buttons[0].shouldNotBeNull().onClick()
       }

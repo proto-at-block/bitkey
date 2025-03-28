@@ -12,6 +12,7 @@ kotlin {
       dependencies {
         api(projects.libs.platformPublic)
         api(projects.domain.featureFlagPublic)
+        api(libs.kmp.kotlin.result)
       }
     }
   }

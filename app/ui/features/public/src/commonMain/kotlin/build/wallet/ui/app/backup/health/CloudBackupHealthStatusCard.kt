@@ -57,14 +57,7 @@ fun CloudBackupHealthStatusCard(model: CloudBackupHealthStatusCardModel) {
       modifier = if (isProblemWithBackup) {
         Modifier
           .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-          .background(
-            when (model.type) {
-              CloudBackupHealthStatusCardType.MOBILE_KEY_BACKUP ->
-                WalletTheme.colors.secondary
-              CloudBackupHealthStatusCardType.EAK_BACKUP ->
-                WalletTheme.colors.foreground10
-            }
-          )
+          .background(WalletTheme.colors.secondary)
       } else {
         Modifier
       }.padding(horizontal = 20.dp)

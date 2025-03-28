@@ -203,7 +203,7 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("Loading while checking for account data") {
     accountDataStateMachine.emitModel(CheckingActiveAccountData)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       cancelAndIgnoreRemainingEvents()
@@ -212,7 +212,7 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("ActiveKeyboxLoadedData") {
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<HomeUiProps> {
@@ -226,7 +226,7 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
@@ -242,7 +242,7 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("ReadyToChooseAccountAccessKeyboxData") {
     accountDataStateMachine.emitModel(gettingStartedData)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<ChooseAccountAccessUiProps>()
@@ -264,7 +264,7 @@ class AppUiStateMachineImplTests : FunSpec({
         )
       )
     )
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<LostAppRecoveryUiProps>()
@@ -277,7 +277,7 @@ class AppUiStateMachineImplTests : FunSpec({
         onExit = {}
       )
     )
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<EmergencyAccessKitRecoveryUiStateMachineProps>()
@@ -286,7 +286,7 @@ class AppUiStateMachineImplTests : FunSpec({
 
   test("NoLongerRecoveringKeyboxData") {
     accountDataStateMachine.emitModel(AccountData.NoLongerRecoveringFullAccountData(App))
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<NoLongerRecoveringUiProps>()
@@ -300,7 +300,7 @@ class AppUiStateMachineImplTests : FunSpec({
         fullAccountId = FullAccountIdMock
       )
     )
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<SomeoneElseIsRecoveringUiProps>()
@@ -311,7 +311,7 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
@@ -328,7 +328,7 @@ class AppUiStateMachineImplTests : FunSpec({
     loadAppService.appState.value = null
 
     accountDataStateMachine.emitModel(gettingStartedData)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
@@ -353,7 +353,7 @@ class AppUiStateMachineImplTests : FunSpec({
     biometricAuthService.isBiometricAuthRequiredFlow.value = true
 
     accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       awaitBodyMock<BiometricPromptProps>()
@@ -363,7 +363,7 @@ class AppUiStateMachineImplTests : FunSpec({
   test("Launching from an onboarding account") {
     loadAppService.appState.value = AppState.OnboardingFullAccount(account = FullAccountMock)
 
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
 
@@ -397,7 +397,7 @@ class AppUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()
@@ -430,7 +430,7 @@ class AppUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(Unit) {
+    stateMachine.test(Unit) {
       awaitBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
       expectNoEvents()

@@ -11,7 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.kotlin.datetime)
-        api(projects.libs.resultPublic)
+        api(libs.kmp.kotlin.result)
         api(projects.domain.analyticsPublic)
       }
     }

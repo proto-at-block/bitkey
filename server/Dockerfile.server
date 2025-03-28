@@ -13,7 +13,7 @@ COPY --link .cargo .cargo
 FROM scratch AS vendor
 COPY --link vendor vendor
 
-FROM rust:1.80.1-alpine@sha256:1f5aff501e02c1384ec61bb47f89e3eebf60e287e6ed5d1c598077afc82e83d5 AS toolchain
+FROM rust:1.82.0-alpine@sha256:2f42ce0d00c0b14f7fd84453cdc93ff5efec5da7ce03ead6e0b41adb1fbe834e AS toolchain
 ARG ENABLE_SCCACHE
 COPY --link rust-toolchain.toml .
 RUN cargo version

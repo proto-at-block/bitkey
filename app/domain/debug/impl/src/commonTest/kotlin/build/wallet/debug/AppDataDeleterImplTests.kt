@@ -29,6 +29,8 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareMetadataDaoMock
+import build.wallet.firmware.HardwareUnlockInfoServiceFake
+import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupDataDaoMock
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.home.HomeUiBottomSheetDaoMock
@@ -88,6 +90,7 @@ class AppDataDeleterImplTests : FunSpec({
   val authKeyRotationAttemptMock = AuthKeyRotationAttemptDaoMock(turbines::create)
   val recoveryDaoMock = RecoveryDaoMock(turbines::create)
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderFake()
+  val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -122,7 +125,8 @@ class AppDataDeleterImplTests : FunSpec({
       hideBalancePreference = HideBalancePreferenceFake(),
       biometricPreference = BiometricPreferenceFake(),
       inheritanceClaimsDao = InheritanceClaimsDaoFake(),
-      metricTrackerService = MetricTrackerServiceFake()
+      metricTrackerService = MetricTrackerServiceFake(),
+      hardwareUnlockInfoService = hardwareUnlockInfoService
     )
 
   beforeTest {
@@ -189,6 +193,7 @@ class AppDataDeleterImplTests : FunSpec({
       socRecStartedChallengeDao.pendingChallengeId.shouldBeNull()
       recoveryDaoMock.clearCalls.awaitItem()
       authSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 0
 
       cloudBackupDao.shouldBeEmpty()
     }

@@ -12,7 +12,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        api(projects.domain.keyboxPublic)
         api(projects.libs.platformPublic)
         api(projects.domain.databasePublic)
         implementation(projects.libs.loggingPublic)

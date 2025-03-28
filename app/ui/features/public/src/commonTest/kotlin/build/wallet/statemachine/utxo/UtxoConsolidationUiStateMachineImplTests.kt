@@ -18,7 +18,7 @@ import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.ui.awaitBody
@@ -69,7 +69,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Loading the consolidation psbt
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
@@ -123,7 +123,7 @@ class UtxoConsolidationUiStateMachineImplTests : FunSpec({
       )
     )
 
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         // loading state
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)

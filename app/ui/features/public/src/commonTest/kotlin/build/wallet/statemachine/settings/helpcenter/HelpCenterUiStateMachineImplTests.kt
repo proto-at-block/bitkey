@@ -3,7 +3,7 @@ package build.wallet.statemachine.settings.helpcenter
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -28,7 +28,7 @@ class HelpCenterUiStateMachineImplTests : FunSpec({
   }
 
   test("should render FAQ in-app browser") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<InAppBrowserModel> {
         open()
       }

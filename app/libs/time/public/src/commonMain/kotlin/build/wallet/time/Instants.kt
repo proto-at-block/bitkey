@@ -7,6 +7,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration
 
 /**
  * Converts this string representing an instant in ISO-8601 format including date and time
@@ -68,3 +69,24 @@ fun Instant.isThisYear(
  */
 fun Instant.truncateToMilliseconds(): Instant =
   Instant.fromEpochMilliseconds(this.toEpochMilliseconds())
+
+/**
+ * Truncates this [Instant] to a multiple of the [duration].
+ *
+ * This is useful when aligning or grouping time ranges or
+ * a series of Instants on a consistently timed interval.
+ *
+ * ```
+ * val now = Instant.parse("2025-02-15T12:46:44Z")
+ *
+ * assertEquals("2025-02-15T12:40:00Z", now.truncateTo(10.minutes).toString())
+ * assertEquals("2025-02-15T12:00:00Z", now.truncateTo(1.hours).toString())
+ * assertEquals("2025-02-15T00:00:00Z", now.truncateTo(1.days).toString())
+ * ```
+ */
+fun Instant.truncateTo(duration: Duration): Instant {
+  val intervalSeconds = duration.inWholeSeconds
+  return Instant.fromEpochSeconds(
+    (epochSeconds / intervalSeconds) * intervalSeconds
+  )
+}

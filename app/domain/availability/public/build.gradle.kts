@@ -14,7 +14,7 @@ kotlin {
         api(libs.kmp.ktor.client.core)
         api(projects.domain.bitkeyPrimitivesPublic)
         api(projects.libs.ktorClientPublic)
-        api(projects.shared.workerPublic)
+        api(projects.domain.workerPublic)
       }
     }
   }

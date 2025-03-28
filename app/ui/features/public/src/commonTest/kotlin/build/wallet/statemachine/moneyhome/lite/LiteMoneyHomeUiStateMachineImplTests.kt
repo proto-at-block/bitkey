@@ -14,7 +14,6 @@ import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
@@ -70,13 +69,13 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("initially shows Money Home screen") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LiteMoneyHomeBodyModel>()
     }
   }
 
   test("settings tap invokes props") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       awaitBody<LiteMoneyHomeBodyModel> {
         trailingToolbarAccessoryModel
           .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
@@ -92,7 +91,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     socRecService.socRecRelationships.value = Relationships.EMPTY.copy(
       protectedCustomers = immutableListOf(protectedCustomer)
     )
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
       awaitBody<LiteMoneyHomeBodyModel> {
@@ -111,7 +110,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("Accept Invite button calls invokes props") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
       awaitBody<LiteMoneyHomeBodyModel> {
@@ -128,7 +127,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("buy bitkey card calls in-app browser") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Showing Money Home, tap on "Buy Your Own Bitkey" card
       // (which is the first card when there's no protected customers)
       awaitBody<LiteMoneyHomeBodyModel> {
@@ -148,7 +147,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("set up bitkey button invokes props") {
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Showing Money Home, tap on "Buy Your Own Bitkey" card
       // (which is the first card when there's no protected customers)
       awaitBody<LiteMoneyHomeBodyModel> {
@@ -162,7 +161,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("shows status bar from props") {
-    stateMachine.testWithVirtualTime(props.copy(homeStatusBannerModel = StatusBannerModelMock)) {
+    stateMachine.test(props.copy(homeStatusBannerModel = StatusBannerModelMock)) {
       awaitItem().statusBannerModel.shouldNotBeNull()
     }
   }

@@ -1,10 +1,12 @@
 package build.wallet.recovery
 
 import bitkey.auth.AccountAuthTokens
+import bitkey.recovery.InitiateDelayNotifyRecoveryError
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
@@ -43,6 +45,18 @@ interface LostAppAndCloudRecoveryService {
     hwAuthKey: HwAuthPublicKey,
     hwSignedChallenge: String,
   ): Result<CompletedAuth, Throwable>
+
+  /**
+   * Initiates delay + notify recovery for Lost App/Mobile key. Process is initiated
+   * through f8e, DN recovery is written into local state.
+   *
+   * @param completedAuth The auth tokens and keys we got from the hardware to begin recovery
+   * @param hardwareKeysForRecovery The auth/spending keys we got from the hardware to begin recovery
+   */
+  suspend fun initiateRecovery(
+    completedAuth: CompletedAuth,
+    hardwareKeysForRecovery: HardwareKeysForRecovery,
+  ): Result<Unit, InitiateDelayNotifyRecoveryError>
 
   /**
    * Represents successful response for [completeAuth]. Contains auth tokens for the account,

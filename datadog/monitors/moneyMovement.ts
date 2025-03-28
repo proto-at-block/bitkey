@@ -8,7 +8,7 @@ import {
     Comparator,
 } from "./common/queries";
 import { HttpStatusCompositeMonitor } from "./common/http";
-import { getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
+import { getCriticalRecipients, getErrorRecipients } from "./recipients";
 
 const SLACK_ALERT_CHANNEL = "@slack-Block--bitkey-money-movement-alerts";
 
@@ -16,7 +16,6 @@ export class MoneyMovementMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
         super(scope, `money-movement_${environment}`)
 
-        let warningRecipients = getWarningRecipients(environment)
         let errorRecipients = getErrorRecipients(environment)
         let criticalRecipients = getCriticalRecipients(environment)
         let tags = [`money-movement_${environment}`]

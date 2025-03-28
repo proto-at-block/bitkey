@@ -8,7 +8,7 @@ import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
@@ -46,7 +46,7 @@ class PartnerTransferFunctionalTests : FunSpec({
     val expectedPartners = getExpectedPartners(f8eEnvironment)
 
     test("displays the expected partners") {
-      app.partnershipsTransferUiStateMachine.testWithVirtualTime(props = transferUiProps) {
+      app.partnershipsTransferUiStateMachine.test(props = transferUiProps) {
         val sheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.TRANSFER_PARTNERS_LIST
         }
@@ -74,7 +74,7 @@ class PartnerTransferFunctionalTests : FunSpec({
     }
 
     test("redirects correctly") {
-      app.partnershipsTransferUiStateMachine.testWithVirtualTime(props = transferUiProps) {
+      app.partnershipsTransferUiStateMachine.test(props = transferUiProps) {
         val sheetModel = awaitUntil {
           it.body.eventTrackerScreenInfo?.eventTrackerScreenId == DepositEventTrackerScreenId.TRANSFER_PARTNERS_LIST
         }

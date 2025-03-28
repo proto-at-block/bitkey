@@ -14,7 +14,7 @@ import kotlin.time.Duration.Companion.minutes
 class MetricTrackerDaoImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
   val clock = ClockFake()
-  val dao = MetricTrackerDaoImpl(
+  val dao = MetricTrackerDao(
     databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory),
     clock = clock
   )

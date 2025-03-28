@@ -1,23 +1,19 @@
 package build.wallet.statemachine.data.recovery.lostapp
 
 import bitkey.account.AccountConfigServiceFake
-import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.SpecificClientErrorMock
 import bitkey.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
-import bitkey.f8e.error.code.InitiateAccountDelayNotifyErrorCode
+import bitkey.recovery.InitiateDelayNotifyRecoveryError.*
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.CancelDelayNotifyRecoveryError.F8eCancelDelayNotifyError
 import build.wallet.recovery.LostAppAndCloudRecoveryServiceFake
-import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError.F8eInitiateDelayNotifyError
-import build.wallet.recovery.LostAppRecoveryInitiatorMock
 import build.wallet.statemachine.core.StateMachineTester
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
@@ -33,14 +29,12 @@ import kotlin.time.Duration.Companion.seconds
 class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   val keyBundleMock = HwKeyBundleMock
-  val lostAppRecoveryInitiator = LostAppRecoveryInitiatorMock(turbines::create)
   val accountConfigService = AccountConfigServiceFake()
   val lostAppAndCloudRecoveryService = LostAppAndCloudRecoveryServiceFake()
   val uuid = UuidGeneratorFake()
 
   val stateMachine =
     InitiatingLostAppRecoveryDataStateMachineImpl(
-      lostAppRecoveryInitiator = lostAppRecoveryInitiator,
       uuidGenerator = uuid,
       minimumLoadingDuration = MinimumLoadingDuration(0.seconds),
       accountConfigService = accountConfigService,
@@ -48,26 +42,23 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     )
 
   beforeTest {
-    lostAppRecoveryInitiator.reset()
     accountConfigService.reset()
     lostAppAndCloudRecoveryService.reset()
   }
 
   test("initiating lost app recovery -- success") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = { })
     ) {
       getHardwareKeys(keyBundleMock)
       signChallenge()
       getProofOfPossession()
       enablePush()
-
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
     }
   }
 
   test("initiating lost app recovery -- auth initiation service initiation failure/retry") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = {})
     ) {
 
@@ -86,7 +77,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   test("initiating lost app recovery -- authenticator service failure") {
 
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = {})
     ) {
       lostAppAndCloudRecoveryService.completeAuthResult = Err(Error())
@@ -105,15 +96,10 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- initiate recovery failure/retry") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = {})
     ) {
-      lostAppRecoveryInitiator.recoveryResult =
-        Err(
-          F8eInitiateDelayNotifyError(
-            F8eError.UnhandledException(HttpError.UnhandledException(Throwable()))
-          )
-        )
+      lostAppAndCloudRecoveryService.initiateRecoveryResult = Err(OtherError(Error()))
 
       getHardwareKeys(keyBundleMock)
       signChallenge()
@@ -127,42 +113,32 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         awaitItem().shouldBeTypeOf<FailedToInitiateLostAppWithF8eData>()
       }
     }
-
-    lostAppRecoveryInitiator.initiateCalls.awaitItem()
-    lostAppRecoveryInitiator.initiateCalls.awaitItem()
   }
 
   test("initiating lost app recovery -- requires comms verification -- success") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = { })
     ) {
-      lostAppRecoveryInitiator.recoveryResult =
-        Err(
-          F8eInitiateDelayNotifyError(
-            SpecificClientErrorMock(InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICATION_REQUIRED)
-          )
-        )
+      lostAppAndCloudRecoveryService.initiateRecoveryResult =
+        Err(CommsVerificationRequiredError(Error()))
 
       getHardwareKeys(keyBundleMock)
       signChallenge()
       getProofOfPossession()
       enablePush()
 
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
-
       with(awaitItem()) {
         shouldBeTypeOf<VerifyingNotificationCommsData>()
-        lostAppRecoveryInitiator.recoveryResult = Ok(Unit)
+        lostAppAndCloudRecoveryService.initiateRecoveryResult = Ok(Unit)
         onComplete()
       }
 
       awaitItem().shouldBeTypeOf<InitiatingLostAppRecoveryWithF8eData>()
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
     }
   }
 
   test("test cancellation") {
-    stateMachine.testWithVirtualTime(
+    stateMachine.test(
       props = InitiatingLostAppRecoveryProps(onRollback = { })
     ) {
       getHardwareKeys(keyBundleMock)
@@ -182,21 +158,15 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       props = InitiatingLostAppRecoveryProps(onRollback = { })
     ) {
 
-      lostAppRecoveryInitiator.recoveryResult =
-        Err(
-          F8eInitiateDelayNotifyError(
-            SpecificClientErrorMock(InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS)
-          )
-        )
+      lostAppAndCloudRecoveryService.initiateRecoveryResult =
+        Err(RecoveryAlreadyExistsError(Error()))
 
       getHardwareKeys(keyBundleMock)
       signChallenge()
       getProofOfPossession()
       enablePush()
 
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
-
-      lostAppRecoveryInitiator.reset()
+      lostAppAndCloudRecoveryService.reset()
 
       awaitItem().let {
         it.shouldBeTypeOf<DisplayingConflictingRecoveryData>()
@@ -205,8 +175,6 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
       awaitItem().shouldBeTypeOf<CancellingConflictingRecoveryData>()
       awaitItem().shouldBeTypeOf<InitiatingLostAppRecoveryWithF8eData>()
-
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
     }
   }
 
@@ -215,12 +183,8 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       props = InitiatingLostAppRecoveryProps(onRollback = { })
     ) {
 
-      lostAppRecoveryInitiator.recoveryResult =
-        Err(
-          F8eInitiateDelayNotifyError(
-            SpecificClientErrorMock(InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS)
-          )
-        )
+      lostAppAndCloudRecoveryService.initiateRecoveryResult =
+        Err(RecoveryAlreadyExistsError(Error()))
 
       lostAppAndCloudRecoveryService.cancelResult =
         Err(
@@ -232,9 +196,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
       getProofOfPossession()
       enablePush()
 
-      lostAppRecoveryInitiator.initiateCalls.awaitItem()
-
-      lostAppRecoveryInitiator.recoveryResult = Ok(Unit)
+      lostAppAndCloudRecoveryService.initiateRecoveryResult = Ok(Unit)
 
       awaitItem().let {
         it.shouldBeTypeOf<DisplayingConflictingRecoveryData>()

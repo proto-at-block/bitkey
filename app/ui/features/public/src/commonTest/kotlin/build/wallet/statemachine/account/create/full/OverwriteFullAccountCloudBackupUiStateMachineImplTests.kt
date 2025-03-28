@@ -11,7 +11,7 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request.HwKeyProof
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -49,7 +49,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
@@ -63,7 +63,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel - pop on back") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
       }
@@ -75,7 +75,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel - delete account error - retry") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       deleteFullAccountService.returnError = Error("foo")
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
@@ -93,7 +93,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("cancel - delete account error - back") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       deleteFullAccountService.returnError = Error("foo")
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onCancel()
@@ -111,7 +111,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("overwrite") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onOverwriteExistingBackup()
       }
@@ -121,7 +121,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
   }
 
   test("overwrite - cancel dialog") {
-    overwriteFullAccountCloudBackupUiStateMachine.testWithVirtualTime(props = props) {
+    overwriteFullAccountCloudBackupUiStateMachine.test(props = props) {
       awaitBody<OverwriteFullAccountCloudBackupWarningModel> {
         onOverwriteExistingBackup()
       }

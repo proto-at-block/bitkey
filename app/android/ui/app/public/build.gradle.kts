@@ -33,7 +33,6 @@ dependencies {
   api(projects.ui.featuresPublic)
   api(projects.ui.frameworkPublic)
   api(projects.shared.priceChartPublic)
-  api(projects.domain.nfcPublic)
   implementation(projects.ui.snapshotGeneratorApiPublic)
 
   implementation(projects.libs.loggingPublic)

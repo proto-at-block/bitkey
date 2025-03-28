@@ -6,6 +6,7 @@ message: "Someone working on Bitkey Firmware must approve this pull request."
 slack: "#bitkey-firmware"
 minimum_core_approvals: 1
 autounapprove: true
+auto_assign: false
 ---
 name: bitkey-mobile
 core_reviewers: [bitkey-mobile]
@@ -14,6 +15,7 @@ slack: "#bitkey-mobile"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 autounapprove: true
+auto_assign: false
 ---
 name: bitkey-cryptosec
 core_reviewers: [bitkey-cryptosec-eng]
@@ -22,6 +24,7 @@ slack: "#bitkey-software"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 autounapprove: true
+auto_assign: false
 ---
 name: bitkey-server
 core_reviewers: [bitkey-server-eng]
@@ -30,12 +33,14 @@ slack: "#bitkey-server"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
 autounapprove: true
+auto_assign: false
 ---
 name: bitkey-software
 core_reviewers: [bitkey-software]
 slack: "#bitkey-software"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
+auto_assign: false
 ---
 name: bitkey-web
 core_reviewers: [bitkey-web-eng]
@@ -43,6 +48,7 @@ message: "Someone working on Bitkey Web (Web, Shop) must approve this pull reque
 slack: "#bitkey-web"
 minimum_core_approvals: 1
 exclude_author_from_core_reviewers: true
+auto_assign: false
 ---
 name: bitkey-software-require-review
 core_reviewers: [bitkey-software]
@@ -50,3 +56,12 @@ slack: "#bitkey-software"
 minimum_core_approvals: 1
 autounapprove: true
 exclude_author_from_core_reviewers: true
+auto_assign: false
+---
+name: hwsec-require-review
+core_reviewers: [hwsec]
+slack: "#hwsec-services"
+minimum_core_approvals: 1
+autounapprove: true
+exclude_author_from_core_reviewers: true
+auto_assign: false

@@ -13,8 +13,7 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.NoActiveRecovery
-import build.wallet.recovery.RecoverySyncFrequency
-import build.wallet.recovery.RecoverySyncerMock
+import build.wallet.recovery.RecoveryStatusServiceMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.*
@@ -34,12 +33,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlin.time.Duration.Companion.minutes
 
 class AccountDataStateMachineImplTests : FunSpec({
 
   val accountService = AccountServiceFake()
-  val recoverySyncerMock = RecoverySyncerMock(
+  val recoveryStatusServiceMock = RecoveryStatusServiceMock(
     recovery = NoActiveRecovery,
     turbines::create
   )
@@ -70,16 +68,15 @@ class AccountDataStateMachineImplTests : FunSpec({
     fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
     noActiveAccountDataStateMachine = noActiveKeyboxDataStateMachine,
     accountService = accountService,
-    recoverySyncer = recoverySyncerMock,
-    someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
-    recoverySyncFrequency = RecoverySyncFrequency(1.minutes)
+    recoveryStatusService = recoveryStatusServiceMock,
+    someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine
   )
 
   beforeTest {
     accountService.reset()
     noActiveKeyboxDataStateMachine.reset()
     fullAccountAuthKeyRotationService.reset()
-    recoverySyncerMock.reset()
+    recoveryStatusServiceMock.reset()
   }
 
   test("no active keybox") {
@@ -87,7 +84,7 @@ class AccountDataStateMachineImplTests : FunSpec({
 
     stateMachine.test(AccountDataProps {}) {
       awaitItem().shouldBe(CheckingActiveAccountData)
-      recoverySyncerMock.recoveryStatus.value = Ok(NoActiveRecovery)
+      recoveryStatusServiceMock.recoveryStatus.value = Ok(NoActiveRecovery)
       awaitItem().shouldBe(CheckingRecovery)
     }
   }
@@ -119,7 +116,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("NoLongerRecoveringData") {
-    recoverySyncerMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
+    recoveryStatusServiceMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
     accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(AccountDataProps {}) {
@@ -128,7 +125,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   }
 
   test("SomeoneElseIsRecoveringData") {
-    recoverySyncerMock.recoveryStatus.value = Ok(Recovery.SomeoneElseIsRecovering(App))
+    recoveryStatusServiceMock.recoveryStatus.value = Ok(Recovery.SomeoneElseIsRecovering(App))
     accountService.setActiveAccount(FullAccountMock)
 
     stateMachine.test(

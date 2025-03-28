@@ -17,8 +17,9 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.settings.CountryCodeGuesser
 import io.ktor.client.*
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.engine.*
+import io.ktor.client.plugins.auth.*
+import kotlinx.datetime.Clock
 
 @BitkeyInject(AppScope::class, boundTypes = [AuthenticatedF8eHttpClientFactory::class])
 class AuthenticatedF8eHttpClientFactory(
@@ -29,6 +30,7 @@ class AuthenticatedF8eHttpClientFactory(
   private val keyboxDao: KeyboxDao,
   private val authTokensService: AuthTokensService,
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
+  private val clock: Clock,
   appInstallationDao: AppInstallationDao,
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   countryCodeGuesser: CountryCodeGuesser,
@@ -58,7 +60,12 @@ class AuthenticatedF8eHttpClientFactory(
       }
 
       install(Auth) {
-        providers.add(BitkeyAuthProvider(factory.authTokensService))
+        providers.add(
+          BitkeyAuthProvider(
+            authTokensService = factory.authTokensService,
+            clock = clock
+          )
+        )
       }
     }
   }

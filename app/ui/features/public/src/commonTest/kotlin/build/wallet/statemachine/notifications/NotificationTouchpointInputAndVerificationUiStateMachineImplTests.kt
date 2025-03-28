@@ -31,7 +31,7 @@ import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.input.*
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
 import build.wallet.statemachine.root.ActionSuccessDuration
@@ -163,7 +163,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("happy path") {
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
+      stateMachine.test(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
         // Sending activation request to server
         awaitBody<LoadingSuccessBodyModel> {
@@ -189,7 +189,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     val hwProofOfPossession = HwFactorProofOfPossession("signed-token")
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(
+      stateMachine.test(
         props.copy(entryPoint = Settings, touchpointType = touchpointType)
       ) {
         progressToSendingVerificationCode(touchpointType)
@@ -241,7 +241,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     val onErrorCalls = turbines.create<Unit>("on error server failure calls")
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Entering phone number
       awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {
@@ -262,7 +262,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(F8eError.ConnectivityError(NetworkError(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
+      stateMachine.test(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
         // Error screen
         awaitBody<FormBodyModel> {
@@ -289,7 +289,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) { // Entering phone number
+      stateMachine.test(props.copy(touchpointType = touchpointType)) { // Entering phone number
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
@@ -326,7 +326,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_EXPIRED))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
+      stateMachine.test(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
@@ -363,7 +363,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_MISMATCH))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
-      stateMachine.testWithVirtualTime(props.copy(touchpointType = touchpointType)) {
+      stateMachine.test(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
 
         // Error screen
@@ -389,7 +389,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("verify code entry goes back to prefilled touchpoint entry") {
     val phoneNumber = PhoneNumberMock
     notificationTouchpointF8eClient.addTouchpointResult = Ok(phoneNumber.touchpoint())
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Entering phone number
       awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {}
@@ -412,7 +412,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("resend code on verify code input screen for sms") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(PhoneNumberMock.touchpoint())
-    stateMachine.testWithVirtualTime(props) {
+    stateMachine.test(props) {
       // Entering phone number
       awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {}
@@ -432,7 +432,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("going back from verifying email fills in the email input") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
-    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
+    stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
       awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
@@ -454,7 +454,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("properly recover from failure to send email to server") {
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
-    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
+    stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
       awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
@@ -466,7 +466,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("resend code on verify code input screen for email") {
     notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
-    stateMachine.testWithVirtualTime(props.copy(touchpointType = Email)) {
+    stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
       awaitBodyMock<EmailInputUiProps> {
         onEmailEntered(EmailFake) {}
@@ -487,7 +487,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   test("recover from invalid country code") {
     notificationTouchpointF8eClient.addTouchpointResult =
       Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
-    stateMachine.testWithVirtualTime(props.copy(touchpointType = PhoneNumber)) {
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
       // Entering phone number
       awaitBodyMock<PhoneNumberInputUiProps> {
         onSubmitPhoneNumber(PhoneNumberMock) {

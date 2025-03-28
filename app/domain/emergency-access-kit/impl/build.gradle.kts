@@ -28,11 +28,11 @@ kotlin {
       dependencies {
         api(libs.kmp.wire.runtime)
         api(projects.domain.accountPublic)
+        api(projects.domain.walletPublic)
         api(projects.libs.timePublic)
         implementation(projects.libs.cloudStorePublic)
         implementation(projects.libs.loggingPublic)
         implementation(projects.libs.stdlibPublic)
-        implementation(projects.libs.resultPublic)
       }
     }
 
@@ -40,6 +40,7 @@ kotlin {
       dependencies {
         implementation(projects.domain.emergencyAccessKitFake)
         implementation(projects.domain.bitkeyPrimitivesFake)
+        implementation(projects.domain.walletFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.libs.encryptionFake)

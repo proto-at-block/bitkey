@@ -69,4 +69,4 @@ annotation class Snapshot
  *
  * @see Snapshot for usage of the snapshot test generation system.
  */
-object Snapshots
+object SnapshotHost

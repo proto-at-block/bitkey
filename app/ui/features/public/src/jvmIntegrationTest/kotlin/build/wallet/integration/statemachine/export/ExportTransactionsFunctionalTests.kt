@@ -1,32 +1,33 @@
 package build.wallet.integration.statemachine.export
 
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
 import build.wallet.bitcoin.export.ExportTransactionRow.ExportTransactionType.*
 import build.wallet.bitcoin.export.ExportTransactionsAsCsvSerializerImpl
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.integration.statemachine.recovery.RecoveryTestingStateMachine
-import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.money.BitcoinMoney.Companion.btc
 import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.money.BitcoinMoney.Companion.zero
-import build.wallet.money.matchers.shouldBeGreaterThan
+import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
+import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.cloud.SaveBackupInstructionsBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.platform.permissions.EnableNotificationsBodyModel
+import build.wallet.statemachine.recovery.cloud.CloudWarningBodyModel
+import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
+import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
+import build.wallet.statemachine.recovery.sweep.SweepFundsPromptBodyModel
+import build.wallet.statemachine.recovery.sweep.SweepSuccessScreenBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.robots.awaitLoadingScreen
+import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.IsolatedTest
 import com.github.michaelbull.result.getOrThrow
-import io.kotest.assertions.nondeterministic.eventually
-import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.should
@@ -38,7 +39,7 @@ class ExportTransactionsFunctionalTests : FunSpec({
 
   test("e2e – export external, internal, and consolidation transactions") {
     val app = launchNewApp()
-    app.onboardFullAccountWithFakeHardware()
+    app.onboardFullAccountWithFakeHardware(delayNotifyDuration = 5.seconds)
 
     // Make two incoming transactions
     val initialFundingAmount = btc(0.0001)
@@ -113,73 +114,64 @@ class ExportTransactionsFunctionalTests : FunSpec({
     app.appDataDeleter.deleteAll().getOrThrow()
     app.cloudBackupDeleter.delete()
     app.deleteBackupsFromFakeCloud()
-    val recoveryStateMachine =
-      RecoveryTestingStateMachine(
-        app.accountDataStateMachine,
-        app.recoveringKeyboxUiStateMachine,
-        app.recoverySyncer,
-        app.accountService
-      )
 
-    recoveryStateMachine.test(
+    // Perform Lost App + Cloud recovery to produce inactive keyset
+    app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
       turbineTimeout = 10.seconds
     ) {
-      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<FormBodyModel>(ENABLE_PUSH_NOTIFICATIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
+      // Start recovery
+      awaitUntilBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilBody<AccountAccessMoreOptionsFormBodyModel>()
+        .onRestoreYourWalletClick()
+
+      // Attempt to sign in to cloud but no backup
+      awaitUntilBody<CloudSignInModelFake>()
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilBody<CloudWarningBodyModel>()
+        .onCannotAccessCloud()
+
+      // Start recovery
+      awaitUntilBody<RecoverYourMobileKeyBodyModel>()
+        .onStartRecovery()
+      awaitUntilBody<EnableNotificationsBodyModel>()
+        .onComplete()
+      awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
       app.completeRecoveryDelayPeriodOnF8e()
-      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
-        .clickPrimaryButton()
-      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-      awaitUntilBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
-        .clickPrimaryButton()
-      awaitUntilBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+
+      // Complete recovery
+      awaitUntilBody<DelayAndNotifyNewKeyReady>()
+        .onCompleteRecovery()
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitUntilBody<SaveBackupInstructionsBodyModel>()
+        .onBackupClick()
+      awaitUntilBody<CloudSignInModelFake>()
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
 
-      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
-        .clickPrimaryButton()
+      awaitUntilBody<SweepFundsPromptBodyModel>()
+        .onSubmit()
 
-      awaitUntilBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING) {
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
+      awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING)
 
-      awaitUntilBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS)
-        .clickPrimaryButton()
+      awaitUntilBody<SweepSuccessScreenBodyModel>()
+        .onDone()
 
-      awaitUntilBody<FormBodyModel>(RECOVERY_COMPLETED)
+      awaitUntilBody<MoneyHomeBodyModel>()
+      app.awaitNoActiveRecovery()
 
-      eventually(
-        eventuallyConfig {
-          duration = 20.seconds
-          interval = 1.seconds
-          initialDelay = 1.seconds
-        }
-      ) {
-        val activeWallet = app.getActiveWallet()
-        activeWallet.sync().shouldBeOk()
-        val balance = activeWallet.balance().first()
+      app.waitForFunds()
+      app.mineBlock()
 
-        // Let's mine a block if the sweep transaction is still unconfirmed.
-        if (balance.confirmed.isZero) {
-          val newWalletFundingTx = activeWallet.transactions().first().first()
-          app.mineBlock(newWalletFundingTx.id)
-        }
-
-        balance.confirmed.shouldBeGreaterThan(sats(0))
-      }
+      cancelAndIgnoreRemainingEvents()
     }
 
-    val sweepTransaction = app.getActiveWallet().transactions().first().first()
+    val wallet = app.getActiveWallet()
+    wallet.sync()
+    val sweepTransaction = wallet.transactions().first().first()
     val newWalletTransaction = app.addSomeFunds(amount = initialFundingAmount)
 
     val service = app.exportTransactionsService
@@ -234,6 +226,8 @@ class ExportTransactionsFunctionalTests : FunSpec({
       it.fees?.shouldBeEqual(fundingTransaction1.tx.fee)
       it.amount.shouldBeEqual(fundingTransaction1.tx.amountBtc)
     }
+
+    app.returnFundsToTreasury()
   }
 
   test("export with no transactions") {

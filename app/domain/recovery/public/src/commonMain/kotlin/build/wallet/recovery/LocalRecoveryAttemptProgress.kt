@@ -12,7 +12,7 @@ import build.wallet.cloud.backup.csek.SealedCsek
 /**
  * Represents progress made towards a recovery locally. Each member represents
  * a new phase of completed progress and the data captured along the way.
- * Used to update local recovery progress via [RecoverySyncer].
+ * Used to update local recovery progress via [bitkey.recovery.RecoveryStatusService].
  */
 sealed interface LocalRecoveryAttemptProgress {
   /**
@@ -68,7 +68,7 @@ sealed interface LocalRecoveryAttemptProgress {
   data object BackedUpToCloud : LocalRecoveryAttemptProgress
 
   /**
-   * Successfully swept funds. Updating the `RecoverySyncer` with this value
+   * Successfully swept funds. Updating the `RecoveryStatusService` with this value
    * will remove the local recovery attempt from the dao.
    */
   data class SweptFunds(

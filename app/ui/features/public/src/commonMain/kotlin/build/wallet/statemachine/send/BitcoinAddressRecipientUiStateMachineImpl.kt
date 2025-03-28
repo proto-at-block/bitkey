@@ -6,10 +6,9 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.invoice.PaymentDataParser.PaymentDataParserError
-import build.wallet.bitcoin.wallet.WatchingWallet
+import build.wallet.bitcoin.transactions.BitcoinWalletService
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.statemachine.core.BodyModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
@@ -18,9 +17,9 @@ import com.github.michaelbull.result.onSuccess
 
 @BitkeyInject(ActivityScope::class)
 class BitcoinAddressRecipientUiStateMachineImpl(
-  private val keysetWalletProvider: KeysetWalletProvider,
   private val paymentDataParser: PaymentDataParser,
   private val accountConfigService: AccountConfigService,
+  private val bitcoinWalletService: BitcoinWalletService,
 ) : BitcoinAddressRecipientUiStateMachine {
   @Composable
   override fun model(props: BitcoinAddressRecipientUiProps): BodyModel {
@@ -38,13 +37,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
       }
     }
 
-    var wallet: WatchingWallet? by remember {
-      mutableStateOf(null)
-    }
-
-    LaunchedEffect("load-wallet") {
-      wallet = keysetWalletProvider.getWatchingWallet(keyset = props.spendingKeyset).get()
-    }
+    val wallet by remember { bitcoinWalletService.spendingWallet() }.collectAsState()
 
     val paymentDataParserResult by remember(state.enteredText) {
       derivedStateOf {

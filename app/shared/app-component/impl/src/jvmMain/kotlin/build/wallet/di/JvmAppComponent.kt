@@ -3,6 +3,7 @@ package build.wallet.di
 import bitkey.account.AccountConfigService
 import bitkey.metrics.MetricTrackerService
 import bitkey.onboarding.CreateLiteAccountService
+import bitkey.recovery.RecoveryStatusService
 import build.wallet.account.AccountService
 import build.wallet.auth.AuthTokensService
 import build.wallet.auth.FullAccountAuthKeyRotationService
@@ -57,7 +58,6 @@ import build.wallet.platform.permissions.PushNotificationPermissionStatusProvide
 import build.wallet.platform.sharing.SharingManagerFake
 import build.wallet.recovery.LostAppAndCloudRecoveryService
 import build.wallet.recovery.RecoveryDao
-import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.*
 import build.wallet.relationships.*
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
@@ -131,7 +131,7 @@ interface JvmAppComponent {
   val partnershipTransactionsService: PartnershipTransactionsService
   val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
   val recoveryDao: RecoveryDao
-  val recoverySyncer: RecoverySyncer
+  val recoveryStatusService: RecoveryStatusService
   val relationshipsCodeBuilder: RelationshipsCodeBuilder
   val relationshipsCrypto: RelationshipsCrypto
   val relationshipsCryptoFake: RelationshipsCryptoFake

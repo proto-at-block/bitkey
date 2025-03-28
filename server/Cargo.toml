@@ -19,6 +19,7 @@ members = [
   "src/api/external_identifier",
   "src/api/http_server",
   "src/api/instrumentation",
+  "src/api/linear",
   "src/api/mempool_indexer",
   "src/api/migration",
   "src/api/mobile_pay",
@@ -80,6 +81,7 @@ derive_builder = "=0.20.1"
 dyn-clone = "1.0.17"
 futures = "0.3.30"
 hex = "0.4.3"
+hmac = "0.12.1"
 http = "=1.1.0"
 isocountry = "0.3.2"
 itertools = "0.13.0"
@@ -147,6 +149,7 @@ external_identifier = { path = "src/api/external_identifier" }
 feature_flags = { path = "src/feature_flags" }
 http_server = { path = "src/api/http_server" }
 instrumentation = { path = "src/api/instrumentation" }
+linear = { path = "src/api/linear" }
 mempool_indexer = { path = "src/api/mempool_indexer" }
 migration = { path = "src/api/migration" }
 mobile_pay = { path = "src/api/mobile_pay" }

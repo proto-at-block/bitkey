@@ -11,7 +11,7 @@ import build.wallet.statemachine.cloud.RectifiableErrorMessages
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.testWithVirtualTime
+import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
@@ -53,7 +53,7 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
     )
 
   test("Pressing Back calls onFailure") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<FormBodyModel>(props.screenId) {
         onBack.shouldNotBeNull().invoke()
         failureCalls.awaitItem()
@@ -62,7 +62,7 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Pressing Cancel calls onFailure") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<FormBodyModel>(props.screenId) {
         secondaryButton.shouldNotBeNull().onClick.invoke()
         failureCalls.awaitItem()
@@ -71,7 +71,7 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Has expected messaging") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<FormBodyModel>(props.screenId) {
         header.shouldNotBeNull().let { head ->
           head.headline.shouldNotBeNull().shouldBeEqual(props.messages.title)
@@ -82,7 +82,7 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   }
 
   test("Pressing Try Again shows loading screen and returns") {
-    stateMachine.testWithVirtualTime(props = props) {
+    stateMachine.test(props = props) {
       awaitBody<FormBodyModel>(props.screenId) {
         clickPrimaryButton()
       }

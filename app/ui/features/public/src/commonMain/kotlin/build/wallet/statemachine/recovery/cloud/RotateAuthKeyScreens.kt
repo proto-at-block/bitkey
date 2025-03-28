@@ -125,8 +125,8 @@ object RotateAuthKeyScreens {
       toolbar = ToolbarModel(),
       header = FormHeaderModel(
         headline = "Remove all other devices",
-        subline = "If you've restored a wallet, you might still be signed into Bitkey on another device. " +
-          "You can remove Bitkey from other devices now, or choose to do this later from settings."
+        subline = "Removing other devices will disable them from accessing your funds without your hardware. " +
+          "This is highly recommended to protect your funds."
       ),
       secondaryButton = ButtonModel.BitkeyInteractionButtonModel(
         "Remove all other devices",

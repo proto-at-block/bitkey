@@ -8,6 +8,7 @@ import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -18,9 +19,13 @@ import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemSideTextTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -152,11 +157,19 @@ fun MoneyHomeScreenFull(
                 onClick = {}
               )
           ),
-        refresh = {},
         onRefresh = {},
         isRefreshing = false,
-        badgedSettingsIcon = true,
-        onOpenPriceDetails = {}
+        onOpenPriceDetails = {},
+        trailingToolbarAccessoryModel = ToolbarAccessoryModel.IconAccessory(
+          model = IconButtonModel(
+            iconModel = IconModel(
+              icon = Icon.SmallIconSettingsBadged,
+              iconSize = IconSize.HeaderToolbar
+            ),
+            onClick = StandardClick {}
+          )
+        ),
+        tabs = emptyList()
       )
   )
 }

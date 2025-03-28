@@ -15,9 +15,9 @@ kotlin {
        * dependencies on other modules.
        */
       dependencies {
-        api(projects.libs.resultPublic)
         api(libs.kmp.kotlin.coroutines)
         api(libs.kmp.kotlin.result)
+        api(libs.kmp.kotlin.result.coroutines)
         api(libs.kmp.kotlin.serialization.core)
         api(libs.kmp.kotlin.serialization.json)
         api(libs.kmp.okio)
