@@ -6,7 +6,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconAlignmentInBackground
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconTint.On30
+import build.wallet.ui.model.icon.IconTint.On10
 import build.wallet.ui.model.list.ListItemAccessory.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.switch.SwitchModel
@@ -87,7 +87,7 @@ fun ListItemAccessory.disable(): ListItemAccessory {
             iconImage = model.iconImage,
             iconSize = model.iconSize,
             iconBackgroundType = model.iconBackgroundType,
-            iconTint = On30,
+            iconTint = On10,
             text = model.text,
             iconAlignmentInBackground = IconAlignmentInBackground.Center
           )

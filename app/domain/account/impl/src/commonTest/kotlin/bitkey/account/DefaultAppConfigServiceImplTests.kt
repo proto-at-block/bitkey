@@ -140,23 +140,6 @@ class DefaultAppConfigServiceImplTests : FunSpec({
     }
   }
 
-  test("defaultConfig - fallback config for Beta app variant") {
-    service(Beta).defaultConfig().test {
-      awaitItem().shouldBe(
-        DefaultAccountConfig(
-          bitcoinNetworkType = BITCOIN,
-          isHardwareFake = false,
-          f8eEnvironment = F8eEnvironment.Production,
-          isTestAccount = false,
-          isUsingSocRecFakes = false,
-          delayNotifyDuration = null,
-          skipNotificationsOnboarding = false,
-          skipCloudBackupOnboarding = false
-        )
-      )
-    }
-  }
-
   test("defaultConfig - set bitcoin network type") {
     val service = service(Team)
     service.defaultConfig().test {

@@ -86,16 +86,6 @@ projects:
         - '*.hcl'
         - '*.tf*'
         - ../../../terragrunt.hcl
-    dir: aws/bitkey/dev/shared/mobile-release-verification
-    name: aws_bitkey_dev_shared_mobile-release-verification
-    workflow: terragrunt
-    execution_order_group: 1
-  - autoplan:
-      enabled: true
-      when_modified:
-        - '*.hcl'
-        - '*.tf*'
-        - ../../../terragrunt.hcl
     dir: aws/bitkey/dev/shared/vpc
     name: aws_bitkey_dev_shared_vpc
     workflow: terragrunt

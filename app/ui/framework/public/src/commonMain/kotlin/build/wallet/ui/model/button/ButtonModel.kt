@@ -3,7 +3,7 @@ package build.wallet.ui.model.button
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.Click
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel.Treatment.Black
+import build.wallet.ui.model.button.ButtonModel.Treatment.BitkeyInteraction
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.icon.IconSize
 
@@ -61,8 +61,8 @@ data class ButtonModel(
 
     Grayscale20,
 
-    // Styled with an opaque black background and white text
-    Black,
+    // Styled for interacting with a Bitkey device
+    BitkeyInteraction,
 
     // Styled with an opaque white background and black text
     White,
@@ -113,7 +113,7 @@ data class ButtonModel(
     onClick: () -> Unit,
   ) : this(
     text = text,
-    treatment = if (requiresBitkeyInteraction) Black else treatment,
+    treatment = if (requiresBitkeyInteraction) BitkeyInteraction else treatment,
     size = size,
     leadingIcon = if (requiresBitkeyInteraction) Icon.SmallIconBitkey else leadingIcon,
     isEnabled = isEnabled,
@@ -134,7 +134,7 @@ data class ButtonModel(
       size: Size,
       testTag: String? = null,
       onClick: Click,
-      treatment: Treatment = Black,
+      treatment: Treatment = BitkeyInteraction,
     ) = ButtonModel(
       text = text,
       treatment = treatment,

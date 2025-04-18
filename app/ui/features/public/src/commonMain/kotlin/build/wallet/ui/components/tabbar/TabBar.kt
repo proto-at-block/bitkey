@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -13,7 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.Icon
+import build.wallet.ui.components.icon.Icon
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.theme.WalletTheme
 
 @Composable
@@ -33,13 +36,17 @@ fun TabBar(
     )
     Row(
       modifier = Modifier.align(Alignment.TopCenter)
-        .height(56.dp)
-        .width(120.dp)
+        .height(60.dp)
+        .width(130.dp)
+        .shadow(
+          elevation = 10.dp,
+          shape = RoundedCornerShape(30.dp),
+          ambientColor = Color.Black.copy(.1f)
+        )
         .padding(bottom = 8.dp)
-        .shadow(1.dp, shape = RoundedCornerShape(28.dp))
         .background(
           color = WalletTheme.colors.tabBarBackground,
-          shape = RoundedCornerShape(28.dp)
+          shape = RoundedCornerShape(30.dp)
         )
         .clickable(false) { },
       verticalAlignment = Alignment.CenterVertically,
@@ -52,14 +59,40 @@ fun TabBar(
 
 @Composable
 fun Tab(
+  icon: Icon,
   selected: Boolean,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
+  badged: Boolean = false,
 ) {
-  // TODO W-11047 : Add icons and selection states
-  val size = if (selected) 30.dp else 25.dp
-  Box(
-    modifier.size(size).background(Color.Red, shape = CircleShape)
-      .clickable(interactionSource = MutableInteractionSource(), indication = null, onClick = onClick)
-  )
+  Box {
+    Icon(
+      icon = icon,
+      size = IconSize.Small,
+      color = if (selected) WalletTheme.colors.foreground else WalletTheme.colors.foreground30,
+      modifier = modifier
+        .clickable(
+          interactionSource = MutableInteractionSource(),
+          indication = null,
+          onClick = onClick
+        )
+    )
+
+    if (badged) {
+      val badgeColor = WalletTheme.colors.bitkeyPrimary
+      val badgeBorder = WalletTheme.colors.tabBarBackground
+      Canvas(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+        drawCircle(
+          color = badgeColor,
+          radius = 4.dp.toPx()
+        )
+
+        drawCircle(
+          color = badgeBorder,
+          radius = 4.dp.toPx(),
+          style = Stroke(width = 1.5.dp.toPx())
+        )
+      }
+    }
+  }
 }

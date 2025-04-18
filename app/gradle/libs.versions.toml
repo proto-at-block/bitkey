@@ -79,7 +79,7 @@ kmp-crashkios-bugsnag-android = { module = "co.touchlab.crashkios:bugsnag-androi
 kmp-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "kmp-compose-runtime" }
 kmp-kermit = { module = "co.touchlab:kermit", version.ref = "kmp-kermit" }
 kmp-kotlin-annotations = { module = "org.jetbrains:annotations", version = "24.1.0" }
-kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.25.0" }
+kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.26.1" }
 kmp-kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kmp-kermit" }
 kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.7.0" }
 kmp-kotlin-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version =  "0.3.7" }
@@ -245,7 +245,7 @@ jvm-bdk = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk" }
 jvm-bitcoin-rpc-client = { module = "wf.bitcoin:bitcoin-rpc-client", version = "1.2.4" }
 jvm-di-inject = { module = "javax.inject:javax.inject", version = "1" }
 jvm-google-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20240123-2.0.0" }
-jvm-jna = { module = "net.java.dev.jna:jna", version = "5.14.0" }
+jvm-jna = { module = "net.java.dev.jna:jna", version = "5.16.0" }
 jvm-jna-platform = { module = "net.java.dev.jna:jna-platform", version = "5.14.0" }
 jvm-ksp-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 jvm-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kmp-ktor" }

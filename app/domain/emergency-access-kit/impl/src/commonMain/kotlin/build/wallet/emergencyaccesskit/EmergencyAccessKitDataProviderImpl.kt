@@ -17,7 +17,7 @@ class EmergencyAccessKitDataProviderImpl(
           url = "https://www.loremipsum.dolor/sit-amet-ut-quia-quaerat-sed",
           version = "1234567890"
         )
-      AppVariant.Team, AppVariant.Alpha, AppVariant.Customer, AppVariant.Beta ->
+      AppVariant.Team, AppVariant.Alpha, AppVariant.Customer ->
         EmergencyAccessKitAssociation.AssociatedData(
           hash = EmergencyAccessKitAppInformation.ApkHash,
           url = EmergencyAccessKitAppInformation.ApkUrl,

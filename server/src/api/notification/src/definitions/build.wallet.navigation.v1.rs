@@ -32,6 +32,18 @@ pub enum NavigationScreenId {
     InheritanceBenefactorInviteAccepted = 7,
     /// * The success screen shown to a protected customer when an invite is accepted upon tapping the notification. *
     SocialRecoveryProtectedCustomerInviteAccepted = 8,
+    /// * The screen shown to enable or disable the biometric app lock setting. *
+    ManageBiometric = 9,
+    /// * The screen shown to enable or disable critical alerts and the information associated with the alert *
+    ManageCriticalAlerts = 10,
+    /// * The screen shown to view the status of the EAK backup. *
+    EakBackupHealth = 11,
+    /// * The screen shown to manage the HW fingerprints. *
+    ManageFingerprints = 12,
+    /// * The screen shown to view the status of the mobile key backup. *
+    MobileKeyBackup = 13,
+    /// * The screen shown to manage recovery contacts. *
+    ManageRecoveryContacts = 14,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -61,6 +73,24 @@ impl NavigationScreenId {
             NavigationScreenId::SocialRecoveryProtectedCustomerInviteAccepted => {
                 "NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED"
             }
+            NavigationScreenId::ManageBiometric => {
+                "NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC"
+            }
+            NavigationScreenId::ManageCriticalAlerts => {
+                "NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS"
+            }
+            NavigationScreenId::EakBackupHealth => {
+                "NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH"
+            }
+            NavigationScreenId::ManageFingerprints => {
+                "NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS"
+            }
+            NavigationScreenId::MobileKeyBackup => {
+                "NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP"
+            }
+            NavigationScreenId::ManageRecoveryContacts => {
+                "NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -84,6 +114,16 @@ impl NavigationScreenId {
             }
             "NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED" => {
                 Some(Self::SocialRecoveryProtectedCustomerInviteAccepted)
+            }
+            "NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC" => Some(Self::ManageBiometric),
+            "NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS" => {
+                Some(Self::ManageCriticalAlerts)
+            }
+            "NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH" => Some(Self::EakBackupHealth),
+            "NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS" => Some(Self::ManageFingerprints),
+            "NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP" => Some(Self::MobileKeyBackup),
+            "NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS" => {
+                Some(Self::ManageRecoveryContacts)
             }
             _ => None,
         }

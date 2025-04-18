@@ -5,7 +5,6 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -16,13 +15,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.model.tab.CircularTabRowModel
 import build.wallet.ui.theme.WalletTheme
+import kotlinx.collections.immutable.ImmutableList
 
 private val EaseInOut = CubicBezierEasing(0.42f, 0.0f, 0.58f, 1.0f)
 
@@ -35,45 +35,52 @@ fun CircularTabRow(
   modifier: Modifier = Modifier,
   model: CircularTabRowModel,
 ) {
+  CircularTabRow(
+    modifier = modifier,
+    items = model.items,
+    selectedItemIndex = model.selectedItemIndex,
+    onClick = model.onClick
+  )
+}
+
+@Composable
+fun CircularTabRow(
+  items: ImmutableList<String>,
+  selectedItemIndex: Int,
+  modifier: Modifier = Modifier,
+  onClick: (Int) -> Unit,
+) {
   BoxWithConstraints(
     modifier = modifier
-      .height(height = 48.dp)
-      .border(
-        width = 2.dp,
-        color = WalletTheme.colors.foreground10,
-        shape = CircleShape
-      ).padding(all = 7.dp)
+      .wrapContentHeight()
+      .fillMaxWidth()
       .clip(shape = CircleShape)
-      .background(color = WalletTheme.colors.background)
+      .background(color = WalletTheme.colors.subtleBackground)
+      .padding(all = 4.dp)
   ) {
-    val tabWidth = remember(this.maxWidth, model.items.size) { this.maxWidth / model.items.size }
-    val indicatorOffset: Dp by animateDpAsState(
-      targetValue = tabWidth * model.selectedItemIndex,
+    val tabWidth = remember(maxWidth, items.size) { maxWidth / items.size }
+    val indicatorOffset by animateDpAsState(
+      targetValue = tabWidth * selectedItemIndex,
       animationSpec = tween(easing = EaseInOut, durationMillis = 200)
     )
 
-    CircularTabIndicator(
-      indicatorWidth = tabWidth,
-      indicatorHeight = this.maxHeight,
-      indicatorOffset = indicatorOffset,
-      indicatorColor = WalletTheme.colors.foreground10
-    )
+    Box(modifier = Modifier.matchParentSize()) {
+      CircularTabIndicator(
+        modifier = Modifier
+          .fillMaxHeight()
+          .requiredWidth(tabWidth)
+          .offset(indicatorOffset)
+      )
+    }
     Row(
-      horizontalArrangement = Arrangement.Center,
-      modifier = Modifier.clip(shape = CircleShape)
+      horizontalArrangement = Arrangement.Center
     ) {
-      model.items.forEachIndexed { index, text ->
+      items.forEachIndexed { index, text ->
         CircularTabItem(
-          isSelected = index == model.selectedItemIndex,
-          onClick = {
-            model.onClick(index)
-          },
-          tabWidth = tabWidth,
-          text = text,
-          textWeight = FontWeight.Normal,
-          textColor = WalletTheme.colors.foreground60,
-          selectedTextColor = WalletTheme.colors.foreground,
-          selectedTextWeight = FontWeight.Bold
+          modifier = Modifier.weight(1f),
+          isSelected = index == selectedItemIndex,
+          onClick = { onClick(index) },
+          text = text
         )
       }
     }
@@ -81,19 +88,12 @@ fun CircularTabRow(
 }
 
 @Composable
-private fun CircularTabIndicator(
-  indicatorWidth: Dp,
-  indicatorHeight: Dp,
-  indicatorOffset: Dp,
-  indicatorColor: Color,
-) {
+private fun CircularTabIndicator(modifier: Modifier = Modifier) {
   Box(
-    modifier = Modifier
-      .width(width = indicatorWidth)
-      .height(height = indicatorHeight)
-      .offset(x = indicatorOffset)
+    modifier = modifier
+      .shadow(1.dp, CircleShape)
       .clip(shape = CircleShape)
-      .background(color = indicatorColor)
+      .background(color = WalletTheme.colors.background)
   )
 }
 
@@ -101,32 +101,28 @@ private fun CircularTabIndicator(
 private fun CircularTabItem(
   isSelected: Boolean,
   onClick: () -> Unit,
-  tabWidth: Dp,
   text: String,
-  selectedTextColor: Color,
-  selectedTextWeight: FontWeight,
-  textColor: Color,
-  textWeight: FontWeight,
+  modifier: Modifier = Modifier,
 ) {
-  val targetTextColor = remember(isSelected) {
-    if (isSelected) selectedTextColor else textColor
+  val colors = WalletTheme.colors
+  val targetTextColor = remember(isSelected, colors) {
+    if (isSelected) colors.foreground else colors.foreground60
   }
   val tabTextColor: Color by animateColorAsState(
     targetValue = targetTextColor,
     animationSpec = tween(easing = EaseInOut)
   )
   val tabTextWeight = remember(isSelected) {
-    if (isSelected) selectedTextWeight else textWeight
+    if (isSelected) FontWeight.Bold else FontWeight.Normal
   }
 
   Text(
-    modifier = Modifier
-      .clip(shape = CircleShape)
+    modifier = modifier
       .clickable(
         onClick = onClick,
         interactionSource = remember { MutableInteractionSource() },
         indication = null
-      ).width(width = tabWidth)
+      )
       .padding(vertical = 8.dp, horizontal = 12.dp),
     text = text,
     color = tabTextColor,

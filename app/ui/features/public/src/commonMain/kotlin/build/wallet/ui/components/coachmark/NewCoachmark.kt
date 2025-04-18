@@ -7,7 +7,6 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -34,7 +33,7 @@ fun NewCoachmark(treatment: NewCoachmarkTreatment) {
         when (treatment) {
           NewCoachmarkTreatment.Light -> WalletTheme.colors.newCoachmarkLightBackground
           NewCoachmarkTreatment.Dark -> WalletTheme.colors.bitkeyPrimary
-          NewCoachmarkTreatment.Disabled -> WalletTheme.colors.foreground30
+          NewCoachmarkTreatment.Disabled -> WalletTheme.colors.subtleBackground
         }
       ).padding(horizontal = 8.dp, vertical = 3.dp)
   ) {
@@ -48,7 +47,7 @@ fun NewCoachmark(treatment: NewCoachmarkTreatment) {
         color = when (treatment) {
           NewCoachmarkTreatment.Light -> WalletTheme.colors.newCoachmarkLightText
           NewCoachmarkTreatment.Dark -> WalletTheme.colors.primaryForeground
-          NewCoachmarkTreatment.Disabled -> Color.Gray
+          NewCoachmarkTreatment.Disabled -> WalletTheme.colors.foreground10
         },
         textAlign = TextAlign.Center
       )

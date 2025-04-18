@@ -23,11 +23,6 @@ enum class AppVariant {
   Team,
 
   /**
-   * Beta variant with only release features enabled.
-   */
-  Beta,
-
-  /**
    * Public variant with only release features enabled.
    */
   Customer,

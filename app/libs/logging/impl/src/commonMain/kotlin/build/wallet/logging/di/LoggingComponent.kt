@@ -20,7 +20,6 @@ interface LoggingComponent {
       AppVariant.Development -> logStoreInMemory
       AppVariant.Alpha -> logStoreInMemory
       AppVariant.Team -> logStoreInMemory
-      AppVariant.Beta -> logStoreInMemory
       AppVariant.Customer -> boundedInMemoryLogStore
       AppVariant.Emergency -> boundedInMemoryLogStore
     }

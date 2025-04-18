@@ -113,18 +113,18 @@ private fun EmptyWalletMessage(
   ) {
     IconImage(
       model = IconModel(
-        Icon.SmallIconWallet,
+        Icon.Insights,
         IconSize.Medium,
         IconBackgroundType.Circle(IconSize.Avatar)
       )
     )
     Label(
-      model = StringModel("You don’t have a balance yet"),
+      model = StringModel("Add bitcoin to track performance"),
       type = Title2,
       treatment = LabelTreatment.Primary
     )
     Label(
-      model = StringModel("This graph displays the performance of your bitcoin holdings over time."),
+      model = StringModel("The value of your balance over time will be graphed and displayed here."),
       type = Body3Regular,
       alignment = TextAlign.Center,
       treatment = LabelTreatment.Secondary
@@ -153,6 +153,7 @@ private fun EmptyWalletMessage(
   }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SelectedPointDetails(
   isLoading: Boolean,
@@ -163,10 +164,12 @@ private fun SelectedPointDetails(
   val selectedAlpha by animateFloatAsState(
     targetValue = if (data?.isUserSelected == true) 0f else 1f
   )
-  Row(
+  FlowRow(
     modifier = modifier.fillMaxWidth(),
     horizontalArrangement = Arrangement.SpaceBetween,
-    verticalAlignment = Alignment.CenterVertically
+    verticalArrangement = Arrangement.spacedBy(8.dp),
+    maxItemsInEachRow = 2,
+    maxLines = 2
   ) {
     Column(
       verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.Top)
@@ -235,10 +238,10 @@ private fun SelectedPointDetails(
         Spacer(
           modifier = Modifier
             .size(14.dp)
-            .background(WalletTheme.colors.chartElement, CircleShape)
+            .background(WalletTheme.colors.chartElement, RoundedCornerShape(4.dp))
         )
         Label(
-          model = StringModel("Your Bitcoin holdings"),
+          model = StringModel("Bitcoin balance"),
           type = Body3Regular,
           treatment = LabelTreatment.Secondary
         )
@@ -250,8 +253,9 @@ private fun SelectedPointDetails(
         MeasureWithoutPlacement {
           // size the loader based on the expected value size, not displayed to user
           Label(
-            model = StringModel("0.00000000 BTC"),
-            type = LabelType.Title1
+            model = StringModel("000000 sats"),
+            type = LabelType.Title1,
+            treatment = LabelTreatment.Primary
           )
         }
         Label(

@@ -47,7 +47,6 @@ class WalletFirebaseMessagingService : FirebaseMessagingService() {
         deviceToken = token,
         touchpointPlatform = when (appVariant) {
           Customer, Emergency -> FcmCustomer
-          Beta -> Fcm
           Development -> FcmTeam
           Alpha -> FcmTeam // android doesn't use this config
           Team -> FcmTeam

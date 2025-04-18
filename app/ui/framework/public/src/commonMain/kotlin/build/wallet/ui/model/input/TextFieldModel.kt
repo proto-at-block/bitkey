@@ -15,6 +15,9 @@ package build.wallet.ui.model.input
  * @property capitalization - defines the capitalization behavior of entered text
  * @property onDone - action taken when keyboard done is invoked
  * @property focusByDefault - if keyboard should be active for input field by default
+ * @property maxLength - the maximum length of the input field
+ * @property customPaste - in the send flow, we have a custom paste address button. Toggle true on press.
+ * this is then used to trigger a recomposition of the TextField
  */
 data class TextFieldModel(
   val value: String = "",
@@ -28,6 +31,7 @@ data class TextFieldModel(
   val onDone: (() -> Unit)? = null,
   val focusByDefault: Boolean = true,
   val maxLength: Int? = null,
+  val customPaste: Boolean = false,
 ) {
   enum class KeyboardType {
     /** Default keyboard */

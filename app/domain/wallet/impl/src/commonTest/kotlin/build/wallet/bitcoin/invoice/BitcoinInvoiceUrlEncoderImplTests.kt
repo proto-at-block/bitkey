@@ -8,6 +8,7 @@ import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder.BitcoinInvoiceUrlEn
 import build.wallet.bitcoin.lightning.LightningInvoice
 import build.wallet.bitcoin.lightning.LightningInvoiceParserMock
 import build.wallet.money.BitcoinMoney
+import build.wallet.money.BitcoinMoney.Companion.sats
 import build.wallet.testing.shouldBeErr
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -56,6 +57,12 @@ class BitcoinInvoiceUrlEncoderImplTests : FunSpec({
       .shouldBe(
         "bitcoin:$testAddressString?amount=1.23&label=To%3A+Satoshi&message=for+pizza&customParam=from%3A+me"
       )
+  }
+
+  // We had a bug where small amounts were formatted with exponential notation, like 1.0E-8.
+  test("encode address with small sats amount") {
+    val invoice = BitcoinInvoice(testAddress, sats(1))
+    invoice.encode().shouldBe("bitcoin:$testAddressString?amount=0.00000001")
   }
 
   test("decode with invalid address") {

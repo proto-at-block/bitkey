@@ -286,7 +286,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         primaryButton
           .shouldNotBeNull()
           .shouldNotBeLoading()
-          .also { it.treatment.shouldBe(ButtonModel.Treatment.Black) }
+          .also { it.treatment.shouldBe(ButtonModel.Treatment.BitkeyInteraction) }
           .onClick()
       }
 

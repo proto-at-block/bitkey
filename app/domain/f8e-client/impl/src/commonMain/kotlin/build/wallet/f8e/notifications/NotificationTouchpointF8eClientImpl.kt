@@ -23,15 +23,14 @@ import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8eEmailTouchpoint
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8ePhoneNumberTouchpoint
 import build.wallet.ktor.result.*
-import build.wallet.logging.*
+import build.wallet.logging.logError
+import build.wallet.logging.logNetworkFailure
 import build.wallet.mapUnit
 import build.wallet.phonenumber.PhoneNumberValidator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.put
+import io.ktor.client.request.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -69,6 +68,7 @@ class NotificationTouchpointF8eClientImpl(
           )
         }
       }
+      .logNetworkFailure { "Failed to add touchpoint" }
       .mapError { it.toF8eError<AddTouchpointClientErrorCode>() }
       .map { response ->
         when (touchpoint) {
@@ -102,6 +102,7 @@ class NotificationTouchpointF8eClientImpl(
           setRedactedBody(VerifyTouchpointRequest(verificationCode = verificationCode))
         }
       }
+      .logNetworkFailure { "Failed to verify touchpoint" }
       .mapError { it.toF8eError<VerifyTouchpointClientErrorCode>() }
       .mapUnit()
   }
@@ -122,6 +123,7 @@ class NotificationTouchpointF8eClientImpl(
           setRedactedBody(EmptyRequestBody)
         }
       }
+      .logNetworkFailure { "Failed to activate touchpoint" }
       .mapUnit()
   }
 
@@ -137,6 +139,7 @@ class NotificationTouchpointF8eClientImpl(
           withAccountId(accountId)
         }
       }
+      .logNetworkFailure { "Failed to get touchpoints" }
       .map { response ->
         response.touchpoints.mapNotNull { f8eTouchpoint ->
           when (f8eTouchpoint) {
@@ -178,6 +181,7 @@ class NotificationTouchpointF8eClientImpl(
           withAccountId(accountId)
         }
       }
+      .logNetworkFailure { "Failed to get notification preferences" }
       .map { response ->
         NotificationPreferences(
           moneyMovement = response.moneyMovement
@@ -211,6 +215,7 @@ class NotificationTouchpointF8eClientImpl(
           hwFactorProofOfPossession?.run(::withHardwareFactor)
         }
       }
+      .logNetworkFailure { "Failed to update notification preferences" }
       .mapUnit()
   }
 }

@@ -54,6 +54,7 @@ import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
+import kotlin.collections.map
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
@@ -183,35 +184,25 @@ class BalanceHistoryServiceImpl(
 
     // Start the range from the latest stored point
     val latestPoint = queries.selectLatest(range).awaitAsOneOrNull()
-    val newStart = when {
+    val start = when {
       latestPoint == null -> alignedStart
       else -> latestPoint.date + range.interval
     }
 
     // Create a list of Instants for the remaining range intervals
-    val intervalCount = ceil((alignedEnd - newStart) / range.interval).roundToInt()
+    val intervalCount = ceil((alignedEnd - start) / range.interval).roundToInt()
     if (intervalCount == 0) {
       return // nothing to do
     }
-    val intervals = List(intervalCount + 1) { index ->
-      newStart + (range.interval * index)
+    val rangeIntervals = List(intervalCount + 1) { index ->
+      start + (range.interval * index)
     }
 
     // Fetch the price chart data which will have exchange rates aligned to our data points
-    val chartData = chartDataFetcherService.getChartData(range, intervals.size)
+    val allChartData = loadChartData(range, rangeIntervals.size, fiatCurrency.textCode)
       .getOrElse {
         logError(throwable = it) { "Failed to load rate data" }
         return@updateBalanceHistory
-      }
-      // Chart data is used by index, so trim/align the rates to match interval count
-      .takeLast(intervals.size)
-      .map {
-        ExchangeRate(
-          fromCurrency = IsoCurrencyTextCode("BTC"),
-          toCurrency = fiatCurrency.textCode,
-          rate = it.y,
-          timeRetrieved = Instant.fromEpochSeconds(it.x)
-        )
       }
 
     // load inactive wallets if we have not checked them before
@@ -230,10 +221,19 @@ class BalanceHistoryServiceImpl(
       return
     }
 
-    val txsBeforeStart = confirmedTxs.takeWhile { it.confirmationTime()!! < newStart }
+    val txsBeforeStart = confirmedTxs.takeWhile { it.confirmationTime()!! < start }
     val txsAfterStart = confirmedTxs.drop(txsBeforeStart.size).toMutableList()
 
     var balance = BigDecimal.ZERO.applyTransactions(txsBeforeStart)
+
+    val intervals = when {
+      txsBeforeStart.isEmpty() -> {
+        val firstTxTime = txsAfterStart.first().confirmationTime()!!
+        rangeIntervals.dropWhile { it < firstTxTime }
+      }
+      else -> rangeIntervals
+    }
+    val chartData = allChartData.drop(rangeIntervals.size - intervals.size)
 
     val walletBalancePoints = intervals.mapIndexed { index, timestamp ->
       // update the balance with transactions confirmed before this checkpoint
@@ -242,7 +242,7 @@ class BalanceHistoryServiceImpl(
       balance = balance.applyTransactions(pastTxs)
 
       val bitcoinBalance = BitcoinMoney.btc(balance)
-      val rates = listOf(chartData.getOrElse(index) { chartData.last() })
+      val rates = listOf(chartData.getOrElse(index) { allChartData.last() })
       val fiatBalance =
         checkNotNull(currencyConverter.convert(bitcoinBalance, fiatCurrency, rates))
       WalletBalanceEntity(
@@ -261,6 +261,24 @@ class BalanceHistoryServiceImpl(
       }
     }
   }
+
+  private suspend fun loadChartData(
+    range: ChartRange,
+    count: Int,
+    fiatCurrencyCode: IsoCurrencyTextCode,
+  ) = chartDataFetcherService.getChartData(range, count)
+    .map { chartData ->
+      chartData
+        .takeLast(count)
+        .map {
+          ExchangeRate(
+            fromCurrency = IsoCurrencyTextCode("BTC"),
+            toCurrency = fiatCurrencyCode,
+            rate = it.y,
+            timeRetrieved = Instant.fromEpochSeconds(it.x)
+          )
+        }
+    }
 
   /**
    * Calculate the new [BigDecimal] starting from the receiver value

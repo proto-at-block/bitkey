@@ -9,22 +9,17 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.plugins.withAccountId
 import build.wallet.f8e.client.plugins.withEnvironment
 import build.wallet.f8e.logging.withDescription
-import build.wallet.ktor.result.NetworkingError
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
-import build.wallet.ktor.result.setRedactedBody
-import build.wallet.ktor.result.setUnredactedBody
+import build.wallet.ktor.result.*
+import build.wallet.logging.logNetworkFailure
 import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.http.content.OutgoingContent
-import io.ktor.http.encodeURLQueryComponent
-import io.ktor.utils.io.ByteWriteChannel
-import io.ktor.utils.io.close
-import io.ktor.utils.io.core.ByteReadPacket
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.http.content.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.core.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okio.Buffer
@@ -50,6 +45,7 @@ class SupportTicketF8eClientImpl(
           withAccountId(accountId)
         }
       }
+      .logNetworkFailure { "Failed to create support ticket." }
       .mapUnit()
   }
 
@@ -66,6 +62,7 @@ class SupportTicketF8eClientImpl(
           withDescription("Fetch support ticket form.")
         }
       }
+      .logNetworkFailure { "Failed to get ticket form structure" }
   }
 
   override suspend fun uploadAttachment(
@@ -86,6 +83,7 @@ class SupportTicketF8eClientImpl(
           withAccountId(accountId)
         }
       }
+      .logNetworkFailure { "Failed to upload attachment" }
       .map { it.token }
   }
 

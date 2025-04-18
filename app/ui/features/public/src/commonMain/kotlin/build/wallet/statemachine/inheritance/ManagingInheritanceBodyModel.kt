@@ -59,7 +59,7 @@ data class ManagingInheritanceBodyModel(
                   ManagingInheritanceTab.Inheritance -> "Benefactors"
                   ManagingInheritanceTab.Beneficiaries -> "Beneficiaries"
                 }
-              },
+              }.toImmutableList(),
             selectedItemIndex = selectedTab.ordinal,
             onClick = { index -> onTabRowClick(ManagingInheritanceTab.entries[index]) },
             key = "InheritanceTabRow"

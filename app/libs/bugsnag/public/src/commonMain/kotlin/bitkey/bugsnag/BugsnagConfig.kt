@@ -23,7 +23,6 @@ private fun AppVariant.releaseStage(): String =
     Development -> "development"
     Alpha -> "alpha"
     Team -> "team"
-    Beta -> "beta"
     Customer -> "customer"
     Emergency -> "emergency"
   }

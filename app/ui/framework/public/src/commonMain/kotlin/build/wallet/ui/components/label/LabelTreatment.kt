@@ -5,6 +5,7 @@ enum class LabelTreatment {
   Primary,
   PrimaryDark,
   Secondary,
+  SecondaryDark,
   Tertiary,
   Quaternary,
   Disabled,

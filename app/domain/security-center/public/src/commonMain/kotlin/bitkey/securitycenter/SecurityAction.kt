@@ -13,6 +13,11 @@ interface SecurityAction {
    * Returns the category of the action.
    */
   fun category(): SecurityActionCategory
+
+  /**
+   * Returns the type of the action.
+   */
+  fun type(): SecurityActionType
 }
 
 enum class SecurityActionCategory {
@@ -32,4 +37,17 @@ enum class SecurityActionRecommendation {
   ENABLE_CRITICAL_ALERTS,
   ADD_BENEFICIARY,
   SETUP_BIOMETRICS,
+}
+
+/**
+ * Represents the type of security action. Maps 1:1 to classes that implement [SecurityAction].
+ */
+enum class SecurityActionType {
+  BIOMETRIC,
+  CRITICAL_ALERTS,
+  EAK_BACKUP,
+  FINGERPRINTS,
+  INHERITANCE,
+  MOBILE_KEY_BACKUP,
+  SOCIAL_RECOVERY,
 }

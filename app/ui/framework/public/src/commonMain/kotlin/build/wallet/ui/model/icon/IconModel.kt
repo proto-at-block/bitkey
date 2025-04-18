@@ -189,6 +189,7 @@ enum class IconTint {
   Foreground,
   On60,
   On30,
+  On10,
   Destructive,
   OutOfDate,
   OnTranslucent,

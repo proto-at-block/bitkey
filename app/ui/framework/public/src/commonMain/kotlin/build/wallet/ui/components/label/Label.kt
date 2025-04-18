@@ -10,6 +10,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -50,6 +51,7 @@ fun Label(
   type: LabelType = Title3,
   treatment: LabelTreatment = LabelTreatment.Primary,
   alignment: TextAlign = TextAlign.Start,
+  overflow: TextOverflow = TextOverflow.Clip,
   maxLines: Int = Int.MAX_VALUE,
   style: TextStyle = WalletTheme.labelStyle(type, treatment, alignment),
   onTextLayout: (TextLayoutResult) -> Unit = {},
@@ -59,6 +61,7 @@ fun Label(
     modifier = modifier,
     style = style,
     maxLines = maxLines,
+    overflow = overflow,
     onTextLayout = onTextLayout
   )
 }
@@ -68,6 +71,7 @@ private fun Label(
   model: LabelModel,
   modifier: Modifier = Modifier,
   style: TextStyle,
+  overflow: TextOverflow = TextOverflow.Clip,
   maxLines: Int = Int.MAX_VALUE,
   onTextLayout: (TextLayoutResult) -> Unit = {},
 ) {
@@ -75,6 +79,7 @@ private fun Label(
     modifier = modifier,
     text = model.buildAnnotatedString(),
     style = style,
+    overflow = overflow,
     onTextLayout = onTextLayout,
     maxLines = maxLines
   )
@@ -211,6 +216,7 @@ fun Label(
   style: TextStyle,
   softWrap: Boolean = true,
   maxLines: Int = Int.MAX_VALUE,
+  overflow: TextOverflow = TextOverflow.Clip,
   onClick: ((TextClickPosition) -> Unit)? = null,
   onTextLayout: ((TextLayoutResult) -> Unit) = {},
 ) {
@@ -219,6 +225,7 @@ fun Label(
       text = text,
       modifier = modifier,
       style = style,
+      overflow = overflow,
       onClick = onClick,
       onTextLayout = onTextLayout
     )
@@ -228,6 +235,7 @@ fun Label(
       modifier = modifier,
       style = style,
       softWrap = softWrap,
+      overflow = overflow,
       onTextLayout = onTextLayout,
       maxLines = maxLines
     )

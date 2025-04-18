@@ -33,7 +33,7 @@ class F8eEnvironmentPickerUiStateMachineImpl(
     // Only show this option in development and team builds.
     when (appVariant) {
       AppVariant.Development, AppVariant.Alpha, AppVariant.Team -> Unit
-      AppVariant.Beta, AppVariant.Customer, AppVariant.Emergency -> return null
+      AppVariant.Customer, AppVariant.Emergency -> return null
     }
 
     val defaultConfig = remember { accountConfigService.defaultConfig() }

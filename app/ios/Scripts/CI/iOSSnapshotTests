@@ -47,7 +47,7 @@ if ! find $result_bundle -type f -name '*.png' |
         # Copy new snapshots to the correct directory, ignoring the difference, failure, and reference images
         if [[ "$new_name" != *difference.png && "$new_name" != *failure.png && "$new_name" != *reference.png ]]; then
             # Copy the file to the current directory with the new name if it doesn't match the exclusion patterns
-            cp "$file" "app/ios/Wallet/Tests/SnapshotTests/__Snapshots__/SnapshotTestHelpers/$new_name"
+            cp "$file" "app/ui/features/public/snapshots/images/$new_name"
         fi
     done
 then
@@ -57,7 +57,7 @@ fi
 
 # Handle modified images
 find $result_bundle -type f -name '*.png' > temp_image_list.txt
-ruby $script_full_path/compareImages.rb 'app/ios/Wallet/Tests/SnapshotTests/__Snapshots__/SnapshotTestHelpers/' 'temp_image_list.txt'
+ruby $script_full_path/compareImages.rb 'app/ui/features/public/snapshots/images/' 'temp_image_list.txt'
 
 echo "🤖 Committing the new and updated snapshots"
 # Commit the updated screenshots and push them to the new branch

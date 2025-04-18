@@ -141,7 +141,7 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
     TertiaryPrimaryNoUnderline,
     -> colors.bitkeyPrimary
 
-    Black -> colors.background
+    BitkeyInteraction -> colors.background
     White -> Color.Black
     Warning -> colors.foreground10
     Accent -> colors.primaryForeground
@@ -170,7 +170,7 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
     TertiaryPrimaryNoUnderline,
     -> colors.bitkeyPrimary
 
-    Black -> colors.background
+    BitkeyInteraction -> colors.background
     White -> Color.Black
 
     Warning -> colors.warning
@@ -194,7 +194,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
     -> Color.Transparent
-    Black -> colors.inverseBackground
+    BitkeyInteraction -> colors.inverseBackground
     White -> Color.White
     Warning -> colors.warningForeground
     Accent,
@@ -223,7 +223,7 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
     TertiaryPrimaryNoUnderline,
     ->
       Color.Transparent
-    Black -> Color.Black.copy(alpha = 0.4F)
+    BitkeyInteraction -> colors.inverseBackground.copy(alpha = 0.2F)
     White -> Color.White.copy(alpha = 0.4F)
     Warning -> colors.warningForeground.copy(alpha = 0.4F)
     Accent -> colors.accentDarkBackground

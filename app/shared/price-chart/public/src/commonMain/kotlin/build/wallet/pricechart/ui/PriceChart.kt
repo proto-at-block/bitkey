@@ -34,6 +34,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -131,14 +133,14 @@ fun PriceChart(
     }
     // The canvas height as pixels for Canvas drawing
     val canvasWidth by remember {
-      derivedStateOf { with(density) { maxWidth.toPx() } }
+      derivedStateOf { with(density) { floor(maxWidth.toPx()) } }
     }
     val canvasHeight by remember {
-      derivedStateOf { with(density) { (maxHeight - secondaryYHeight).toPx() } }
+      derivedStateOf { with(density) { floor((maxHeight - secondaryYHeight).toPx()) } }
     }
     // canvas width trimmed by the label width + some padding
     val adjustedCanvasWidth by remember {
-      derivedStateOf { labelTextResults.offsetWidth(canvasWidth) }
+      derivedStateOf { floor(labelTextResults.offsetWidth(canvasWidth)) }
     }
 
     // retain the previous selection to provide line color animation during state change
@@ -411,39 +413,51 @@ fun PriceChart(
           if (extractSecondaryYValue == null) {
             return@drawWithCache onDrawBehind { }
           }
-          val rangeSize = (dataPoints.last().x - dataPoints.first().x).seconds.inWholeDays
+          val lastIndex = if (dataPoints.size > 2) {
+            dataPoints.lastIndex - 1
+          } else {
+            dataPoints.lastIndex
+          }
+          val duration = (dataPoints[lastIndex].x - dataPoints.first().x).seconds
           val rangeInterval = when {
-            rangeSize > 30 -> 30.days
-            rangeSize > 7L -> 7.days
-            rangeSize == 7L -> 1.days
-            else -> 2.hours
+            duration < 25.hours -> 1.hours
+            duration < 31.days -> 1.days
+            duration < 91.days -> (duration.inWholeDays / 7).days
+            duration < 366.days -> (duration.inWholeDays / 30).days
+            else -> (duration.inWholeDays / 90).days
           }
           val chunksMap = dataPoints
             .groupBy { Instant.fromEpochSeconds(it.x).truncateTo(rangeInterval) }
-            .mapValues { (_, points) -> points.maxOf(extractSecondaryYValue) }
-          val chunks = chunksMap.toList().dropLast(1)
-          val selectedIndex = selectedPoint?.run {
-            val key = Instant.fromEpochSeconds(x).truncateTo(rangeInterval)
-            chunksMap.keys.indexOf(key).coerceAtMost(chunks.size)
-          }
+            .mapValues { (_, points) -> extractSecondaryYValue(points.last()) }
+          val chunks = chunksMap.toList()
           val padding = 4f
-          val width = (adjustedCanvasWidth - (padding * chunks.size)) / chunks.size
+          val chunkPaddingTotal = padding * (chunks.size - 1)
+          val width = (adjustedCanvasWidth - chunkPaddingTotal) / chunks.size
           val maxY = dataPoints.maxOf(extractSecondaryYValue)
+          val selectionOffset = lineSplitOffset.takeUnless {
+            it == Offset.Unspecified || inputHoverOffset == Offset.Unspecified
+          }
           onDrawBehind {
             chunks.forEachIndexed { index, (_, value) ->
               val height = (value / maxY) * size.height
+              val offset = Offset(
+                x = (padding * 2) + (index * (width + padding)),
+                y = padding + (size.height - height).toFloat()
+              )
+              val isSelected = selectionOffset?.let { (x) ->
+                val safeX = x.coerceIn(0f, adjustedCanvasWidth)
+                val offsetX = offset.x - (padding / 2)
+                safeX >= floor(offsetX) && safeX <= ceil(offsetX + width)
+              }
               drawRoundRect(
-                color = if (index == selectedIndex) {
+                color = if (isSelected == true) {
                   activeSecondaryValueColor
                 } else {
                   inactiveSecondaryValueColor
                 },
                 cornerRadius = CornerRadius(10f, 10f),
                 size = Size(width, height.toFloat()),
-                topLeft = Offset(
-                  x = (padding * 2) + (index * (width + padding)),
-                  y = padding + (size.height - height).toFloat()
-                )
+                topLeft = offset
               )
             }
           }

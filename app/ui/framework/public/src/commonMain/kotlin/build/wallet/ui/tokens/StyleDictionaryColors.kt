@@ -251,6 +251,12 @@ interface StyleDictionaryColors {
 
   // Color used for the background of the tabBar
   val tabBarBackground: Color
+
+  // Color used for pull to refresh indicator content
+  val refreshIndicatorContent: Color
+
+  // Color used for pull to refresh indicator background
+  val refreshIndicatorBackground: Color
 }
 
 val lightStyleDictionaryColors =
@@ -279,7 +285,7 @@ val lightStyleDictionaryColors =
     override val translucentButton20: Color = Color(0x33ffffff)
     override val translucentButton10: Color = Color(0x1affffff)
     override val translucentForeground: Color = Color(0xffffffff)
-    override val mask: Color = Color(0x99111111)
+    override val mask: Color = Color(0x80111111)
     override val positive: Color = Color(0x0d009337)
     override val positiveForeground: Color = Color(0xff008000)
     override val destructive: Color = Color(0xffff0000)
@@ -338,6 +344,8 @@ val lightStyleDictionaryColors =
     override val newCoachmarkLightBackground: Color = Color(0x1A008096)
     override val newCoachmarkLightText: Color = Color(0xFF008096)
     override val tabBarBackground: Color = Color(0xffffffff)
+    override val refreshIndicatorContent: Color = Color(0xff000000)
+    override val refreshIndicatorBackground: Color = Color(0xffffffff)
   }
 
 val darkStyleDictionaryColors =
@@ -366,7 +374,7 @@ val darkStyleDictionaryColors =
     override val translucentButton20: Color = Color(0x33FFFFFF)
     override val translucentButton10: Color = Color(0x1AFFFFFF)
     override val translucentForeground: Color = Color(0xFFFFFFFF)
-    override val mask: Color = Color(0x99111111)
+    override val mask: Color = Color(0x99333333)
     override val positive: Color = Color(0x0D009337)
     override val positiveForeground: Color = Color(0xFF008000)
     override val destructive: Color = Color(0xFFF84752)
@@ -425,4 +433,6 @@ val darkStyleDictionaryColors =
     override val newCoachmarkLightBackground: Color = Color(0xFF008096)
     override val newCoachmarkLightText: Color = Color(0xFFE5E5E5)
     override val tabBarBackground: Color = Color(0xFF262626)
+    override val refreshIndicatorContent: Color = Color(0xFFE2E2E2)
+    override val refreshIndicatorBackground: Color = Color(0xFF262626)
   }

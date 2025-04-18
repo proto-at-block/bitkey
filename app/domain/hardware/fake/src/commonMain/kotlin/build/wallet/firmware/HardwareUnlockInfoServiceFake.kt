@@ -1,21 +1,24 @@
 package build.wallet.firmware
 
 import bitkey.firmware.HardwareUnlockInfoService
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 
 class HardwareUnlockInfoServiceFake : HardwareUnlockInfoService {
-  private var unlockInfo = emptyList<UnlockInfo>()
+  private var unlockInfo: MutableStateFlow<List<UnlockInfo>> = MutableStateFlow(emptyList())
 
   override suspend fun replaceAllUnlockInfo(unlockInfoList: List<UnlockInfo>) {
-    unlockInfo = unlockInfoList
+    unlockInfo.value = unlockInfoList
   }
 
-  override suspend fun countUnlockInfo(unlockMethod: UnlockMethod): Result<Int, Error> {
-    return Ok(unlockInfo.count { it.unlockMethod == unlockMethod })
+  override suspend fun countUnlockInfo(unlockMethod: UnlockMethod): Flow<Int> {
+    return unlockInfo.map {
+      it.count { it.unlockMethod == unlockMethod }
+    }
   }
 
   override suspend fun clear() {
-    unlockInfo = emptyList()
+    unlockInfo.value = emptyList()
   }
 }

@@ -24,11 +24,6 @@ create-team-branch version-number:
   git tag --annotate {{version-number}} --message {{version-number}}
   git checkout -b internal-release/{{version-number}}
 
-# Create git tag and branch for Beta App release
-create-beta-branch version-number:
-  git tag --annotate {{version-number}} --message {{version-number}}
-  git checkout -b release/{{version-number}}
-
 # Builds and installs debug flavor of the Android app
 android-app-install:
   {{gradle}} installDebug -p android/app
@@ -74,6 +69,16 @@ test-unit-all:
 test-all:
   just test-unit-all
   just test-integration-all
+
+# Record and update baseline UI snapshots for iOS and Android
+snapshots-record:
+    just android-snapshots-record
+    just ios-snapshots-record
+
+# Verify UI snapshots against the baseline for iOS and Android
+snapshots-verify:
+    just android-snapshots-verify
+    just ios-snapshots-verify
 
 # Record and update baseline UI snapshots for Android
 android-snapshots-record:

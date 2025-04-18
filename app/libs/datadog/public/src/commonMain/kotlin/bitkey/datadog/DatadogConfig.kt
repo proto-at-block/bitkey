@@ -2,7 +2,6 @@ package bitkey.datadog
 
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Alpha
-import build.wallet.platform.config.AppVariant.Beta
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Emergency
@@ -25,7 +24,6 @@ data class DatadogConfig(
             Development -> "development"
             Alpha -> "alpha"
             Team -> "team"
-            Beta -> "beta"
             Customer -> "customer"
             Emergency -> "emergency"
           },
@@ -34,7 +32,6 @@ data class DatadogConfig(
             "api.bitkey.world",
             "api.bitkeystaging.com",
             "api.dev.wallet.build",
-            "bitkey.build",
             "bitkey.world",
             "wallet.build"
           ),

@@ -89,7 +89,7 @@ data class AppearancePreferenceFormModel(
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
           items = immutableListOf(
             ListItemModel(
-              title = "Show Bitcoin Performance",
+              title = "Show price graph",
               trailingAccessory = ListItemAccessory.SwitchAccessory(
                 model = SwitchModel(
                   checked = isBitcoinPriceCardEnabled,
@@ -112,7 +112,7 @@ data class AppearancePreferenceFormModel(
           header = "Privacy",
           items = immutableListOf(
             ListItemModel(
-              title = "Hide Home Balance by default",
+              title = "Hide balance on home screen",
               trailingAccessory = ListItemAccessory.SwitchAccessory(
                 model = SwitchModel(
                   checked = isHideBalanceEnabled,
@@ -122,7 +122,7 @@ data class AppearancePreferenceFormModel(
             )
           ),
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
-          explainerSubtext = "You can always tap your Home Balance to quickly hide or reveal your holdings."
+          explainerSubtext = "You can always tap to hide or view your balance."
         )
       ).apply {
         add(this)

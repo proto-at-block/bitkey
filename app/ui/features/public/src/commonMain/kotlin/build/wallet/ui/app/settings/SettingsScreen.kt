@@ -65,7 +65,7 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
                 icon = rowModel.icon,
                 iconSize = Small,
                 iconBackgroundType = Transient,
-                iconTint = if (rowModel.isDisabled) IconTint.On30 else null
+                iconTint = if (rowModel.isDisabled) IconTint.On10 else null
               )
           ),
         trailingAccessory = ListItemAccessory.drillIcon().takeIf { !rowModel.isDisabled },

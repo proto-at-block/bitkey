@@ -60,7 +60,7 @@ fun TextField(
   }
 
   // State for managing TextField's text value and cursor position
-  var textState by remember(model.selectionOverride) {
+  var textState by remember(model.selectionOverride, model.customPaste) {
     val initialValue = when (model.transformation) {
       // Remove formatting from invite code to be applied via VisualTransformation
       INVITE_CODE -> model.value.replace("-", "")

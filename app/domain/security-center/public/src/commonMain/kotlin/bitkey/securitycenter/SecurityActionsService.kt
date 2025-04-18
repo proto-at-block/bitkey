@@ -1,5 +1,7 @@
 package bitkey.securitycenter
 
+import kotlinx.coroutines.flow.Flow
+
 interface SecurityActionsService {
   /**
    * Returns a list of security actions for the given category.
@@ -12,5 +14,5 @@ interface SecurityActionsService {
    * Returns a list of recommended security actions for the customer.
    *
    */
-  suspend fun getRecommendations(): List<SecurityActionRecommendation>
+  fun getRecommendations(): Flow<List<SecurityActionRecommendation>>
 }

@@ -333,7 +333,7 @@ internal data class NfcPromptSheetBodyModel(
       text = "Scan Bitkey Device",
       size = ButtonModel.Size.Footer,
       leadingIcon = Icon.SmallIconBitkey,
-      treatment = ButtonModel.Treatment.Black,
+      treatment = ButtonModel.Treatment.BitkeyInteraction,
       onClick = SheetClosingClick { onScanBitkeyDevice() }
     ),
     secondaryButton = ButtonModel(

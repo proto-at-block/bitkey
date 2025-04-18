@@ -144,6 +144,7 @@ kotlin {
           because("Depends on DoubleFormatterImpl")
         }
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.securityCenterFake)
       }
     }
 

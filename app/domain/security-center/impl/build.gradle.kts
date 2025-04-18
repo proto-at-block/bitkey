@@ -18,6 +18,7 @@ kotlin {
         implementation(projects.domain.recoveryPublic)
         implementation(projects.domain.notificationsPublic)
         implementation(projects.libs.loggingPublic)
+        implementation(projects.domain.metricsPublic)
       }
     }
     commonTest {
@@ -31,6 +32,9 @@ kotlin {
         implementation(projects.domain.cloudBackupFake)
         implementation(projects.domain.notificationsFake)
         implementation(projects.domain.onboardingFake)
+        implementation(projects.domain.securityCenterFake)
+        implementation(projects.domain.analyticsFake)
+        implementation(projects.domain.metricsFake)
       }
     }
   }

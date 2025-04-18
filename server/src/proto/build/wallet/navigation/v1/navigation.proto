@@ -34,5 +34,23 @@ enum NavigationScreenId {
     /** The success screen shown to a protected customer when an invite is accepted upon tapping the notification. **/
     NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED = 8;
 
-    /** The next tag is 9 **/
+    /** The screen shown to enable or disable the biometric app lock setting. **/
+    NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC = 9;
+
+    /** The screen shown to enable or disable critical alerts and the information associated with the alert **/
+    NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS = 10;
+
+    /** The screen shown to view the status of the EAK backup. **/
+    NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH = 11;
+
+    /** The screen shown to manage the HW fingerprints. **/
+    NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS = 12;
+
+    /** The screen shown to view the status of the mobile key backup. **/
+    NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP = 13;
+
+    /** The screen shown to manage recovery contacts. **/
+    NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS = 14;
+
+    /** The next tag is 15 **/
 }

@@ -5,9 +5,9 @@ notify:
 
 steps:
   - label: "build customer app"
-    timeout_in_minutes: 20
+    timeout_in_minutes: 30
     command: ".buildkite/build-customer-release-aab.sh"
 
   - label: "build emergency eak"
-    timeout_in_minutes: 20
+    timeout_in_minutes: 30
     command: ".buildkite/build-emergency-release-apk.sh"

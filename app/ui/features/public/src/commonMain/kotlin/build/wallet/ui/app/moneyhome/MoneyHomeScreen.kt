@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -43,8 +44,12 @@ fun MoneyHomeScreen(
   modifier: Modifier = Modifier,
   model: MoneyHomeBodyModel,
 ) {
+  val localDensity = LocalDensity.current
   val listState = rememberLazyListState()
   var coachmarkOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+  var tabBarHeightDp by remember {
+    mutableStateOf(0.dp)
+  }
 
   Box(
     modifier = modifier.pullRefresh(
@@ -147,6 +152,10 @@ fun MoneyHomeScreen(
           )
         }
       }
+
+      item {
+        Spacer(Modifier.height(tabBarHeightDp))
+      }
     }
 
     PullRefreshIndicator(
@@ -158,9 +167,17 @@ fun MoneyHomeScreen(
     if (model.tabs.isNotEmpty()) {
       TabBar(
         modifier = Modifier.align(Alignment.BottomCenter)
+          .onGloballyPositioned {
+            tabBarHeightDp = with(localDensity) { it.size.height.toDp() + 36.dp }
+          }
       ) {
         model.tabs.map {
-          Tab(selected = it.selected, onClick = it.onSelected)
+          Tab(
+            selected = it.selected,
+            onClick = it.onSelected,
+            icon = it.icon,
+            badged = it.badged
+          )
         }
       }
     }

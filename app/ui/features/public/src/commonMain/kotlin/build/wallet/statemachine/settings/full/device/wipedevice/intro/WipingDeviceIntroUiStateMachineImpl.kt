@@ -312,7 +312,6 @@ class WipingDeviceIntroUiStateMachineImpl(
         },
         onCancel = onCancel,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
-        shouldLock = false,
         eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
       )
     )

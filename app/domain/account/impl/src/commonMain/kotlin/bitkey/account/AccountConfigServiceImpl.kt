@@ -192,16 +192,6 @@ private fun fallbackAppConfig(appVariant: AppVariant) =
       skipNotificationsOnboarding = false,
       skipCloudBackupOnboarding = false
     )
-    AppVariant.Beta -> DefaultAccountConfig(
-      bitcoinNetworkType = BitcoinNetworkType.BITCOIN,
-      isHardwareFake = false,
-      f8eEnvironment = F8eEnvironment.Production,
-      isTestAccount = false,
-      isUsingSocRecFakes = false,
-      delayNotifyDuration = null,
-      skipNotificationsOnboarding = false,
-      skipCloudBackupOnboarding = false
-    )
     Customer -> DefaultAccountConfig(
       bitcoinNetworkType = BitcoinNetworkType.BITCOIN,
       isHardwareFake = false,

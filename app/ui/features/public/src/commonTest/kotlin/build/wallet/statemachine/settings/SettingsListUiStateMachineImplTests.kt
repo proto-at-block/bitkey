@@ -9,6 +9,9 @@ import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
@@ -29,13 +32,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityService = AppFunctionalityServiceFake()
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
+  val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
-  val stateMachine =
-    SettingsListUiStateMachineImpl(
-      appFunctionalityService = appFunctionalityService,
-      cloudBackupHealthRepository = cloudBackupHealthRepository,
-      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
-    )
+  val stateMachine = SettingsListUiStateMachineImpl(
+    appFunctionalityService = appFunctionalityService,
+    cloudBackupHealthRepository = cloudBackupHealthRepository,
+    coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
+    securityHubFeatureFlag = securityHubFeatureFlag
+  )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
   val propsOnClickCalls: Map<KClass<out SettingsListUiProps.SettingsListRow>, Turbine<Unit>> =
@@ -78,6 +82,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   afterEach {
     appFunctionalityService.reset()
     cloudBackupHealthRepository.reset()
+    securityHubFeatureFlag.reset()
   }
 
   test("onBack calls props onBack") {
@@ -101,6 +106,26 @@ class SettingsListUiStateMachineImplTests : FunSpec({
                 "Mobile Devices",
                 "Cloud Backup",
                 "Trusted Contacts"
+              ),
+              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
+              "Support" to listOf("Contact Us", "Help Center")
+            )
+          )
+      }
+    }
+  }
+
+  test("list w/ security hub enabled") {
+    securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    stateMachine.test(props) {
+      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+        sectionModels
+          .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
+          .shouldBe(
+            listOf(
+              "General" to listOf("Transfers", "Bitkey Device", "Appearance", "Notifications"),
+              "Security & Recovery" to listOf(
+                "Mobile Devices"
               ),
               "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
               "Support" to listOf("Contact Us", "Help Center")

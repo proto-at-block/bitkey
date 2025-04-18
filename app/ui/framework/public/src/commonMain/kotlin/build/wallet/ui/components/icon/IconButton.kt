@@ -9,6 +9,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -124,7 +125,8 @@ fun IconButton(
         FilledIconButton(
           modifier =
             modifier
-              .size(iconModel.totalSize.dp),
+              .size(iconModel.totalSize.dp)
+              .alpha(if (enabled) 1f else 0.5f),
           shape = RoundedCornerShape((iconModel.iconBackgroundType as IconBackgroundType.Square).cornerRadius.dp),
           onClick = onClick
         ) {
@@ -142,7 +144,8 @@ fun IconButton(
         MaterialIconButton(
           modifier =
             modifier
-              .size(iconModel.totalSize.dp),
+              .size(iconModel.totalSize.dp)
+              .alpha(if (enabled) 1f else 0.5f),
           onClick = onClick
         ) {
           IconImage(

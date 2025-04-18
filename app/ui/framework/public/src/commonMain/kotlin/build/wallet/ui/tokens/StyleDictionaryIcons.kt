@@ -2,8 +2,8 @@ package build.wallet.ui.tokens
 
 import androidx.compose.runtime.Composable
 import bitkey.ui.framework_public.generated.resources.*
-import bitkey.ui.framework_public.generated.resources.Res
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.BitcoinBadged
 import build.wallet.statemachine.core.Icon.BitcoinConsolidation
@@ -18,6 +18,7 @@ import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
 import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
 import build.wallet.statemachine.core.Icon.InheritancePlanHero
 import build.wallet.statemachine.core.Icon.InheritanceShowcase
+import build.wallet.statemachine.core.Icon.Insights
 import build.wallet.statemachine.core.Icon.LargeIconAdd
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
@@ -121,8 +122,6 @@ import build.wallet.statemachine.core.Icon.SmallIconWarningFilled
 import build.wallet.statemachine.core.Icon.SmallIconX
 import build.wallet.statemachine.core.Icon.SmallIconXFilled
 import build.wallet.statemachine.core.Icon.SmallIconXStroked
-import build.wallet.statemachine.core.Icon.TabIconHome
-import build.wallet.statemachine.core.Icon.TabIconProfile
 import build.wallet.statemachine.core.Icon.ThemeDark
 import build.wallet.statemachine.core.Icon.ThemeLight
 import build.wallet.statemachine.core.Icon.ThemeSystem
@@ -242,6 +241,7 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged
       SmallIconShare -> Res.drawable.small_icon_share
       SmallIconShield -> Res.drawable.small_icon_shield
+      SmallIconShieldFilled -> Res.drawable.small_icon_shield_filled
       SmallIconShieldCheck -> Res.drawable.small_icon_shield_check
       SmallIconShieldPerson -> Res.drawable.small_icon_shield_person
       SmallIconSpeed -> Res.drawable.small_icon_speed
@@ -251,18 +251,18 @@ private class LightStyleDictionaryIcons : StyleDictionaryIcons {
       SmallIconTicket -> Res.drawable.small_icon_ticket
       SmallIconVideo -> Res.drawable.small_icon_video
       SmallIconWallet -> Res.drawable.small_icon_wallet
+      SmallIconWalletFilled -> Res.drawable.small_icon_wallet_filled
       SmallIconWarning -> Res.drawable.small_icon_warning
       SmallIconWarningFilled -> Res.drawable.small_icon_warning_filled
       SmallIconX -> Res.drawable.small_icon_x
       SmallIconXFilled -> Res.drawable.small_icon_xfilled
       SmallIconXStroked -> Res.drawable.small_icon_xstroked
       CalloutArrow -> Res.drawable.callout_arrow
-      TabIconHome -> Res.drawable.tab_icon_home
-      TabIconProfile -> Res.drawable.tab_icon_profile
       ThemeLight -> Res.drawable.theme_light
       ThemeDark -> Res.drawable.theme_dark
       ThemeSystem -> Res.drawable.theme_system
       WarningBadge -> Res.drawable.warning_badge
+      Insights -> Res.drawable.insights
     }
 }
 
@@ -271,6 +271,7 @@ private class DarkStyleDictionaryIcons(
 ) : StyleDictionaryIcons {
   override fun getDrawableResource(icon: Icon): DrawableResource =
     when (icon) {
+      BitcoinBadged -> Res.drawable.bitcoin_badged_dark
       MoneyHomeHero -> Res.drawable.money_home_hero_dark
       LargeIconNetworkError -> Res.drawable.large_icon_network_error_dark
       SmallIconSettingsBadged -> Res.drawable.small_icon_settings_badged_dark

@@ -49,7 +49,7 @@ class BitcoinPriceChartUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val chartDataFetcherService: ChartDataFetcherService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val balanceTracker: BalanceHistoryService,
+  private val balanceHistoryService: BalanceHistoryService,
   private val balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
   private val timeScalePreference: ChartRangePreference,
 ) : BitcoinPriceChartUiStateMachine {
@@ -90,7 +90,7 @@ class BitcoinPriceChartUiStateMachineImpl(
       data = emptyImmutableList()
     }
     LaunchedEffect(selectedType, selectedRange, fiatCurrency) {
-      if (placeholderPointData != null) {
+      if (placeholderPointData != null && selectedType == ChartType.BTC_PRICE) {
         // debounce data loading when changing selected history
         delay(250.milliseconds)
       }
@@ -99,7 +99,7 @@ class BitcoinPriceChartUiStateMachineImpl(
         ChartType.BTC_PRICE ->
           latestExchangeRateFlow
             .map { chartDataFetcherService.getChartData(selectedRange) }
-        ChartType.BALANCE -> balanceTracker.observe(selectedRange)
+        ChartType.BALANCE -> balanceHistoryService.observe(selectedRange)
       }.onEach { result ->
         result
           .onSuccess { chartData ->
@@ -135,12 +135,13 @@ class BitcoinPriceChartUiStateMachineImpl(
           )
         }
         ChartType.BALANCE -> {
+          val selectedBalanceAt = selectedPoint as? BalanceAt
           val startPoint = data.firstOrNull { it.y > 0.0 } as? BalanceAt
           val endPoint = (selectedPoint ?: data.lastOrNull()) as? BalanceAt
           val lastPoint = data.lastOrNull() as? BalanceAt
           SelectedPointData.Balance(
             isUserSelected = selectedPoint != null,
-            primaryFiatText = lastPoint?.run {
+            primaryFiatText = (selectedBalanceAt ?: lastPoint)?.run {
               moneyDisplayFormatter.format(FiatMoney(fiatCurrency, fiatBalance.toBigDecimal()))
             }.orEmpty(),
             secondaryFiatText = formatSelectedDiffText(
@@ -175,9 +176,13 @@ class BitcoinPriceChartUiStateMachineImpl(
         onBuy = props.onBuy,
         onTransfer = props.onTransfer,
         formatFiatValue = {
-          moneyDisplayFormatter.formatCompact(
-            FiatMoney(fiatCurrency, it.toBigDecimal().scale(0))
-          )
+          if (it.isNaN()) {
+            ""
+          } else {
+            moneyDisplayFormatter.formatCompact(
+              FiatMoney(fiatCurrency, it.toBigDecimal().scale(0))
+            )
+          }
         },
         onChartTypeSelected = {
           if (selectedType != it) {

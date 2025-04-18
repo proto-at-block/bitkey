@@ -73,7 +73,7 @@ internal fun BitcoinPriceContent(model: BitcoinPrice) {
           Label(
             model = LabelModel.StringModel(model.lastUpdated),
             type = LabelType.Body4Regular,
-            treatment = LabelTreatment.Disabled,
+            treatment = LabelTreatment.SecondaryDark,
             alignment = TextAlign.End
           )
         }

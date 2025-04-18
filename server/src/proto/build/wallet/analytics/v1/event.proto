@@ -269,7 +269,10 @@ enum Action {
     /** [App] Customer sets theme preference to dark mode */
     ACTION_APP_THEME_PREFERENCE_DARK = 74;
 
-    // Next tag is 75
+    /** [App] Security center check evaluation */
+    ACTION_APP_SECURITY_CENTER_CHECK = 75;
+
+    // Next tag is 76
 }
 
 message PlatformInfo {

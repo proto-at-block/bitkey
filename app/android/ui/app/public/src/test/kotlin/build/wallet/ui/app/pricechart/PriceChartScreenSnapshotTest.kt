@@ -1,5 +1,6 @@
 package build.wallet.ui.app.pricechart
 
+import app.cash.paparazzi.DeviceConfig
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.kotest.paparazzi.paparazziExtension
@@ -54,6 +55,31 @@ class PriceChartScreenSnapshotTest : FunSpec({
                 primaryFiatText = "$80.00",
                 secondaryFiatText = "+10.00% Past day",
                 primaryBtcText = "500 sats",
+                secondaryBtcText = "+30.00% Past day"
+              )
+            )
+        )
+      )
+    }
+  }
+
+  test("Bitcoin Price chart - your balance large text") {
+    paparazzi.snapshot(deviceConfig = DeviceConfig.PIXEL_5.copy(fontScale = 1.4f)) {
+      Screen(
+        model = ScreenModel(
+          body =
+            BitcoinPriceDetailsBodyModel(
+              data = chartData.map {
+                BalanceAt(Instant.fromEpochMilliseconds(it.x), it.y, it.y)
+              }.toImmutableList(),
+              type = ChartType.BALANCE,
+              isLoading = false,
+              fiatCurrencyCode = "USD",
+              selectedPointData = SelectedPointData.Balance(
+                isUserSelected = false,
+                primaryFiatText = "$8000000.00",
+                secondaryFiatText = "+10.00% Past day",
+                primaryBtcText = "50000000 sats",
                 secondaryBtcText = "+30.00% Past day"
               )
             )

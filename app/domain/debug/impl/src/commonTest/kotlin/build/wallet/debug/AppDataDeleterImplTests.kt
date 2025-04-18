@@ -1,5 +1,6 @@
 package build.wallet.debug
 
+import app.cash.turbine.test
 import bitkey.auth.AuthTokenScope.Global
 import bitkey.metrics.MetricTrackerServiceFake
 import build.wallet.account.AccountServiceFake
@@ -193,7 +194,7 @@ class AppDataDeleterImplTests : FunSpec({
       socRecStartedChallengeDao.pendingChallengeId.shouldBeNull()
       recoveryDaoMock.clearCalls.awaitItem()
       authSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 0
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 0 }
 
       cloudBackupDao.shouldBeEmpty()
     }

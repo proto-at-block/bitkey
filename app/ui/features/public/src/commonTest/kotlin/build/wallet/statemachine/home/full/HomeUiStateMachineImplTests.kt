@@ -1,5 +1,6 @@
 package build.wallet.statemachine.home.full
 
+import bitkey.securitycenter.SecurityActionsServiceFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
@@ -141,15 +142,20 @@ class HomeUiStateMachineImplTests : FunSpec({
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePayService = mobilePayService,
       partnershipTransactionsService = partnershipsTransactionsService,
-      inheritanceClaimNotificationUiStateMachine = object : InheritanceClaimNotificationUiStateMachine, ScreenStateMachineMock<InheritanceClaimNotificationUiProps>(
-        "inheritance-claim-notifications"
-      ) {},
-      recoveryRelationshipNotificationUiStateMachine = object : RecoveryRelationshipNotificationUiStateMachine, ScreenStateMachineMock<RecoveryRelationshipNotificationUiProps>(
-        "recovery-relationship-notifications"
-      ) {},
+      inheritanceClaimNotificationUiStateMachine = object :
+        InheritanceClaimNotificationUiStateMachine,
+        ScreenStateMachineMock<InheritanceClaimNotificationUiProps>(
+          "inheritance-claim-notifications"
+        ) {},
+      recoveryRelationshipNotificationUiStateMachine = object :
+        RecoveryRelationshipNotificationUiStateMachine,
+        ScreenStateMachineMock<RecoveryRelationshipNotificationUiProps>(
+          "recovery-relationship-notifications"
+        ) {},
       appCoroutineScope = appScope,
       securityHubFeatureFlag = securityHubFeatureFlag,
-      navigatorPresenter = NavigatorPresenterFake()
+      navigatorPresenter = NavigatorPresenterFake(),
+      securityActionsService = SecurityActionsServiceFake()
     )
 
   val props =

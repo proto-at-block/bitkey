@@ -19,54 +19,7 @@ kotlin {
    */
   val runtimeDependencies =
     listOf(
-      projects.libs.bugsnagImpl,
-      projects.libs.bugsnagPublic,
-      projects.libs.datadogPublic,
-      projects.domain.accountImpl,
-      projects.domain.accountPublic,
-      projects.libs.amountImpl,
-      projects.libs.amountPublic,
-      projects.domain.analyticsImpl,
-      projects.domain.analyticsPublic,
-      projects.shared.appComponentImpl,
-      projects.shared.appComponentPublic,
-      projects.libs.bdkBindingsImpl,
-      projects.libs.bdkBindingsPublic,
-      projects.domain.walletImpl,
-      projects.domain.walletPublic,
-      projects.libs.bitcoinPrimitivesPublic,
-      projects.domain.bitkeyPrimitivesFake,
-      projects.domain.bitkeyPrimitivesPublic,
-      projects.domain.cloudBackupImpl,
-      projects.domain.cloudBackupPublic,
-      projects.libs.cloudStoreImpl,
-      projects.libs.cloudStorePublic,
-      projects.libs.encryptionPublic,
-      projects.libs.keyValueStoreImpl,
-      projects.libs.keyValueStorePublic,
-      projects.libs.loggingImpl,
-      projects.libs.loggingPublic,
-      projects.domain.f8eClientImpl,
-      projects.domain.f8eClientPublic,
-      projects.domain.hardwareImpl,
-      projects.domain.hardwarePublic,
-      projects.libs.frostImpl,
-      projects.libs.frostPublic,
-      projects.libs.memfaultImpl,
-      projects.libs.memfaultPublic,
-      projects.libs.contactMethodImpl,
-      projects.libs.contactMethodPublic,
-      projects.libs.platformImpl,
-      projects.libs.platformPublic,
-      projects.domain.recoveryImpl,
-      projects.domain.recoveryPublic,
-      projects.ui.routerPublic,
-      projects.libs.sqldelightImpl,
-      projects.libs.sqldelightPublic,
-      projects.domain.workerPublic,
-      projects.libs.secureEnclavePublic,
-      projects.libs.secureEnclaveImpl,
-      projects.ui.composeAppControllerPublic
+      projects.shared.appComponentImpl
     )
 
   val testDependencies = listOf(
@@ -108,14 +61,12 @@ kotlin {
       // ActivityComponentImpl is the top level DI component that provides the rest of the KMP
       // dependencies, so `impl` is expected here.
       projects.shared.appComponentImpl,
-      projects.shared.appComponentPublic,
       projects.libs.bdkBindingsPublic,
       projects.domain.walletPublic,
       projects.libs.bitcoinPrimitivesPublic,
       projects.domain.bitkeyPrimitivesPublic,
       projects.domain.cloudBackupPublic,
       projects.libs.cloudStorePublic,
-      projects.domain.databasePublic,
       projects.libs.encryptionPublic,
       projects.domain.hardwarePublic,
       projects.libs.frostPublic,
@@ -125,7 +76,6 @@ kotlin {
       projects.libs.contactMethodPublic,
       projects.ui.routerPublic,
       projects.libs.secureEnclavePublic,
-      projects.ui.composeAppControllerPublic,
       libs.native.nserror.kt
     )
 

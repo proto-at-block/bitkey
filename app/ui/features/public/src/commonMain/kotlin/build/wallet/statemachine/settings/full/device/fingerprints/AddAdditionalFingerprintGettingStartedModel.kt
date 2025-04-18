@@ -39,7 +39,7 @@ data class AddAdditionalFingerprintGettingStartedModel(
         text = "Add additional fingerprint",
         leadingIcon = Icon.SmallIconBitkey,
         onClick = SheetClosingClick(onContinue),
-        treatment = ButtonModel.Treatment.Black,
+        treatment = ButtonModel.Treatment.BitkeyInteraction,
         size = ButtonModel.Size.Footer
       ),
     secondaryButton = ButtonModel(

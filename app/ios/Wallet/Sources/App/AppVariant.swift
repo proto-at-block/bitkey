@@ -9,8 +9,6 @@ extension AppVariant {
             return AppVariant.team
         #elseif ALPHA
             return AppVariant.alpha
-        #elseif BETA
-            return AppVariant.beta
         #elseif RELEASE
             return AppVariant.customer
         #else

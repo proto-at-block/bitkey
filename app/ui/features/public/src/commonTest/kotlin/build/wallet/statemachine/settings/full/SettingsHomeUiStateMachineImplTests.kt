@@ -373,14 +373,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       }
     }
 
-    test("disabled in AppVariant.Beta") {
-      stateMachine(AppVariant.Beta).test(props) {
-        awaitBodyMock<SettingsListUiProps> {
-          supportedRows.none { it is DebugMenu }
-        }
-      }
-    }
-
     test("disabled in AppVariant.Emergency") {
       stateMachine(AppVariant.Emergency).test(props) {
         awaitBodyMock<SettingsListUiProps> {

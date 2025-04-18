@@ -173,12 +173,6 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               accountId = props.account.accountId,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint = NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings,
-              onSuccess = {
-                state = TogglingNotificationChannelUiState(
-                  notificationChannel = NotificationChannel.Email,
-                  hwFactorProofOfPossession = null
-                )
-              },
               onClose = {
                 state = ShowingNotificationsSettingsUiState()
               }

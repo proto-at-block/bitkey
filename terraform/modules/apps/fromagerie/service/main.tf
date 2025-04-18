@@ -1075,3 +1075,4 @@ resource "aws_sns_platform_application" "gcm_application_public_beta" {
   success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
   success_feedback_sample_rate = "100"
 }
+

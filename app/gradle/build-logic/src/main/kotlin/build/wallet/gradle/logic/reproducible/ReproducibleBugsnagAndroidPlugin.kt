@@ -1,12 +1,10 @@
 package build.wallet.gradle.logic.reproducible
 
 import build.wallet.gradle.logic.gradle.apply
-import com.bugsnag.android.gradle.BugsnagFileUploadTask
-import com.bugsnag.android.gradle.BugsnagManifestUuidTask
-import com.bugsnag.android.gradle.BugsnagPlugin
-import com.bugsnag.android.gradle.BugsnagReleasesTask
+import com.bugsnag.android.gradle.*
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 
 /**
@@ -23,6 +21,10 @@ internal class ReproducibleBugsnagAndroidPlugin : Plugin<Project> {
 
       val reproducibleBuildVariables = extensions.getByType(ReproducibleBuildVariablesExtension::class.java).variables.get()
       configureBugsnagUuid(reproducibleBuildVariables)
+
+      extensions.configure<BugsnagPluginExtension> {
+        requestTimeoutMs.set(360000L)
+      }
 
       if (!uploadBugsnagMapping) {
         disableBugsnagFileUploadTask()

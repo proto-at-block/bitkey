@@ -12,6 +12,8 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.SecurityHubFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
@@ -30,6 +32,7 @@ class SettingsListUiStateMachineImpl(
   private val appFunctionalityService: AppFunctionalityService,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val coachmarkService: CoachmarkService,
+  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
@@ -55,7 +58,11 @@ class SettingsListUiStateMachineImpl(
             props = props,
             appFunctionalityStatus = appFunctionalityStatus,
             title = "Security & Recovery",
-            rowTypes =
+            rowTypes = if (securityHubFeatureFlag.isEnabled()) {
+              immutableListOf(
+                RotateAuthKey::class
+              )
+            } else {
               immutableListOf(
                 Biometric::class,
                 InheritanceManagement::class,
@@ -64,6 +71,7 @@ class SettingsListUiStateMachineImpl(
                 CriticalAlerts::class,
                 TrustedContacts::class
               )
+            }
           ),
           SettingsSection(
             props = props,

@@ -23,11 +23,10 @@ services:
       - 18443:18443
 
   esplora:
-    image: blockstream/esplora:electrs-latest
+    image: mempool/electrs:latest
     # Esplora has no arm image. Setting it explicitly to x86 gets rid of a noisy warning.
     platform: linux/amd64
     command:
-      - ./electrs_bitcoin/bin/electrs
       - -vvv
       - --timestamp
       - --daemon-dir=/app/.bitcoin

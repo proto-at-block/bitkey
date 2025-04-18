@@ -65,26 +65,19 @@ pub struct KeyInfo {
     Hash,
 )]
 pub enum TouchpointPlatform {
-    Apns,
     ApnsCustomer,
-    #[serde(alias = "ApnsInternal")] // TODO: remove after old apps are gone #8754 [W-4150]
     ApnsTeam,
     ApnsTeamAlpha,
-    #[serde(alias = "Gcm")] // TODO: remove after old apps are gone #8754 [W-4150]
-    Fcm, // TODO: remove after old apps are gone #8754 [W-4150]
     FcmCustomer,
-    #[serde(alias = "GcmInternal")] // TODO: remove after old apps are gone #8754 [W-4150]
     FcmTeam,
 }
 
 impl TouchpointPlatform {
     pub fn get_platform_arn(self) -> Result<String, VarError> {
         match self {
-            TouchpointPlatform::Apns => env::var("APNS_PLATFORM_ARN"), // TODO: remove after old apps are gone [W-4150]
             TouchpointPlatform::ApnsCustomer => env::var("APNS_CUSTOMER_PLATFORM_ARN"),
             TouchpointPlatform::ApnsTeam => env::var("APNS_TEAM_PLATFORM_ARN"),
             TouchpointPlatform::ApnsTeamAlpha => env::var("APNS_TEAM_ALPHA_PLATFORM_ARN"),
-            TouchpointPlatform::Fcm => env::var("FCM_PLATFORM_ARN"), // TODO: remove after old apps are gone [W-4150]
             TouchpointPlatform::FcmCustomer => env::var("FCM_CUSTOMER_PLATFORM_ARN"),
             TouchpointPlatform::FcmTeam => env::var("FCM_TEAM_PLATFORM_ARN"),
         }
@@ -652,7 +645,7 @@ mod tests {
     };
     use crate::account::{
         bitcoin::Network,
-        entities::{CommonAccountFields, FullAccount, TouchpointPlatform},
+        entities::{CommonAccountFields, FullAccount},
         identifiers::{AccountId, AuthKeysId, KeysetId},
         spend_limit::SpendingLimit,
     };
@@ -678,31 +671,6 @@ mod tests {
         assert!(!unset_spending_limit_account.is_spending_limit_active());
         assert!(set_and_enabled_spending_limit_account.is_spending_limit_active());
         assert!(!set_but_disabled_spending_limit_account.is_spending_limit_active())
-    }
-
-    #[test]
-    // TODO: remove after old apps are gone #8754 [W-4150]
-    // In PR #8754 we renamed TouchpointPlatform enum discriminants
-    // The old ones may still be sent by old apps and be serialized
-    // in the accounts table, so we need to make sure these still deserialize
-    // properly until the old app is fully purged from use.
-    fn test_old_touchpoint_platforms() {
-        let apns_internal = "\"ApnsInternal\"";
-        let gcm = "\"Gcm\"";
-        let gcm_internal = "\"GcmInternal\"";
-
-        assert!(matches!(
-            serde_json::from_str(apns_internal).unwrap(),
-            TouchpointPlatform::ApnsTeam
-        ));
-        assert!(matches!(
-            serde_json::from_str(gcm).unwrap(),
-            TouchpointPlatform::Fcm
-        ));
-        assert!(matches!(
-            serde_json::from_str(gcm_internal).unwrap(),
-            TouchpointPlatform::FcmTeam
-        ));
     }
 
     #[test]

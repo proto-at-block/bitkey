@@ -2,6 +2,7 @@ package build.wallet.statemachine.settings.full.device.fingerprints
 
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
+import app.cash.turbine.test
 import bitkey.metrics.MetricOutcome
 import bitkey.metrics.MetricTrackerServiceFake
 import bitkey.metrics.TrackedMetric
@@ -151,7 +152,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           listGroupModel.items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
         }
       }
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 
@@ -171,7 +172,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .invoke()
       }
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
 
       onBackCalls.awaitItem().shouldBe(Unit)
     }
@@ -191,7 +192,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           .clickAddFingerprint(1)
       }
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
 
       with(awaitItem()) {
         bottomSheetModel.shouldNotBeNull()
@@ -204,7 +205,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel>()
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 
@@ -324,7 +325,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 3
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 3 }
     }
   }
 
@@ -350,7 +351,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel>()
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 
@@ -408,7 +409,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         // No toast is shown for editing
         toastModel.shouldBeNull()
 
-        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
       }
     }
   }
@@ -449,7 +450,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
           }
       }
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 
@@ -524,7 +525,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         // Delete fingerprint toast is shown
         toastModel.shouldNotBeNull().title.shouldBe("Fingerprint deleted")
 
-        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 1
+        hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 1 }
       }
     }
   }
@@ -570,7 +571,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 
@@ -614,7 +615,7 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         )
       )
 
-      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).value shouldBe 2
+      hardwareUnlockInfoService.countUnlockInfo(UnlockMethod.BIOMETRICS).test { awaitItem() shouldBe 2 }
     }
   }
 })

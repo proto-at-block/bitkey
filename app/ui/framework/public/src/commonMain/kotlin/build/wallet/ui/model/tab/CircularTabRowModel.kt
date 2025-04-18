@@ -5,10 +5,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import build.wallet.ui.components.tab.CircularTabRow
 import build.wallet.ui.model.ComposeModel
+import kotlinx.collections.immutable.ImmutableList
 
 @Immutable
 data class CircularTabRowModel(
-  val items: List<String>,
+  val items: ImmutableList<String>,
   val selectedItemIndex: Int = 0,
   val onClick: (index: Int) -> Unit = {},
   override val key: String,

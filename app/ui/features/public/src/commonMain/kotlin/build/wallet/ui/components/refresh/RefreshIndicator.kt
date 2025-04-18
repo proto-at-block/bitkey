@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import build.wallet.ui.theme.WalletTheme
 
 @Composable
 fun PullRefreshIndicator(
@@ -17,7 +18,9 @@ fun PullRefreshIndicator(
   PullRefreshIndicator(
     refreshing = refreshing,
     state = rememberPullRefreshState(refreshing, { onRefresh() }),
-    modifier = modifier
+    modifier = modifier,
+    backgroundColor = WalletTheme.colors.refreshIndicatorBackground,
+    contentColor = WalletTheme.colors.refreshIndicatorContent
   )
 }
 

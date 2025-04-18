@@ -6,7 +6,6 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Alpha
-import build.wallet.platform.config.AppVariant.Beta
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Emergency
@@ -24,7 +23,7 @@ class AnalyticsOptionsUiStateMachineImpl(
   override fun model(props: AnalyticsOptionsUiProps): ListGroupModel? {
     // Only show this option in development or team builds.
     return when (appVariant) {
-      Beta, Customer, Emergency -> null
+      Customer, Emergency -> null
       Development, Alpha, Team ->
         ListGroupModel(
           style = ListGroupStyle.DIVIDER,

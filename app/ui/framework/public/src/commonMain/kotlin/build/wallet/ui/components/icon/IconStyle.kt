@@ -40,6 +40,7 @@ fun WalletTheme.iconStyle(
                 IconTint.Foreground -> colors.foreground
                 IconTint.On60 -> colors.foreground60
                 IconTint.On30 -> colors.foreground30
+                IconTint.On10 -> colors.foreground10
                 IconTint.Destructive -> colors.destructiveForeground
                 IconTint.OutOfDate -> colors.outOfDate
                 IconTint.OnTranslucent -> colors.translucentForeground

@@ -51,7 +51,6 @@ class LoggerInitializer(
             Development -> Debug
             Alpha -> Debug
             Team -> Debug
-            Beta -> Info
             Customer -> Info
             Emergency -> Info
           }

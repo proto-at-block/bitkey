@@ -1,8 +1,12 @@
 package bitkey.securitycenter
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+
 data class FakeAction(
   private val recommendations: List<SecurityActionRecommendation>,
   private val category: SecurityActionCategory,
+  private val type: SecurityActionType,
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> {
     return recommendations
@@ -11,67 +15,89 @@ data class FakeAction(
   override fun category(): SecurityActionCategory {
     return category
   }
+
+  override fun type(): SecurityActionType = type
 }
 
-class MobileKeyCloudBackupHealthActionFactoryFake : MobileKeyBackupHealthActionFactory {
-  override suspend fun create(): SecurityAction {
+abstract class FakeActionFactory(
+  private val recommendations: List<SecurityActionRecommendation>,
+  private val category: SecurityActionCategory,
+  private val type: SecurityActionType,
+) {
+  var includeRecommendations: Boolean = true
+
+  private fun getRecommendations(): List<SecurityActionRecommendation> {
+    return if (includeRecommendations) recommendations else emptyList()
+  }
+
+  fun createAction(): SecurityAction {
     return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.BACKUP_MOBILE_KEY),
-      category = SecurityActionCategory.RECOVERY
+      recommendations = getRecommendations(),
+      category = category,
+      type = type
     )
   }
 }
 
-class EakCloudBackupHealthActionFactoryFake : EakBackupHealthActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.BACKUP_EAK),
-      category = SecurityActionCategory.RECOVERY
-    )
-  }
+class MobileKeyCloudBackupHealthActionFactoryFake : MobileKeyBackupHealthActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.BACKUP_MOBILE_KEY),
+    category = SecurityActionCategory.RECOVERY,
+    type = SecurityActionType.MOBILE_KEY_BACKUP
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class SocialRecoveryActionFactoryFake : SocialRecoveryActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.ADD_TRUSTED_CONTACTS),
-      category = SecurityActionCategory.RECOVERY
-    )
-  }
+class EakCloudBackupHealthActionFactoryFake : EakBackupHealthActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.BACKUP_EAK),
+    category = SecurityActionCategory.RECOVERY,
+    type = SecurityActionType.EAK_BACKUP
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class InheritanceActionFactoryFake : InheritanceActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.ADD_BENEFICIARY),
-      category = SecurityActionCategory.RECOVERY
-    )
-  }
+class SocialRecoveryActionFactoryFake : SocialRecoveryActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.ADD_TRUSTED_CONTACTS),
+    category = SecurityActionCategory.RECOVERY,
+    type = SecurityActionType.SOCIAL_RECOVERY
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class BiometricActionFactoryFake : BiometricActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.SETUP_BIOMETRICS),
-      category = SecurityActionCategory.SECURITY
-    )
-  }
+class InheritanceActionFactoryFake : InheritanceActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.ADD_BENEFICIARY),
+    category = SecurityActionCategory.RECOVERY,
+    type = SecurityActionType.INHERITANCE
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class CriticalAlertsActionFactoryFake : CriticalAlertsActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS),
-      category = SecurityActionCategory.RECOVERY
-    )
-  }
+class BiometricActionFactoryFake : BiometricActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.SETUP_BIOMETRICS),
+    category = SecurityActionCategory.SECURITY,
+    type = SecurityActionType.BIOMETRIC
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
 
-class FingerprintsActionFactoryFake : FingerprintsActionFactory {
-  override suspend fun create(): SecurityAction {
-    return FakeAction(
-      recommendations = listOf(SecurityActionRecommendation.ADD_FINGERPRINTS),
-      category = SecurityActionCategory.SECURITY
-    )
-  }
+class CriticalAlertsActionFactoryFake : CriticalAlertsActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS),
+    category = SecurityActionCategory.RECOVERY,
+    type = SecurityActionType.CRITICAL_ALERTS
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+}
+
+class FingerprintsActionFactoryFake : FingerprintsActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.ADD_FINGERPRINTS),
+    category = SecurityActionCategory.SECURITY,
+    type = SecurityActionType.FINGERPRINTS
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }

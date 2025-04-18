@@ -17,6 +17,7 @@ import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.LabelTreatment.PrimaryDark
 import build.wallet.ui.components.label.LabelTreatment.Quaternary
 import build.wallet.ui.components.label.LabelTreatment.Secondary
+import build.wallet.ui.components.label.LabelTreatment.SecondaryDark
 import build.wallet.ui.components.label.LabelTreatment.Strikethrough
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
 import build.wallet.ui.components.label.LabelTreatment.Unspecified
@@ -58,7 +59,8 @@ fun WalletTheme.textStyle(
       Primary, Tertiary, Quaternary, Jumbo -> colors.foreground
       PrimaryDark -> colors.accentDarkBackground
       Secondary, Strikethrough -> colors.foreground60
-      Disabled -> colors.foreground30
+      SecondaryDark -> colors.foreground30
+      Disabled -> colors.foreground10
       Warning -> colors.warningForeground
       Unspecified -> textColor
     }

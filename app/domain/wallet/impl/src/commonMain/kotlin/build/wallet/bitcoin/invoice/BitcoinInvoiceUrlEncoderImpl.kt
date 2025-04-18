@@ -93,7 +93,7 @@ class BitcoinInvoiceUrlEncoderImpl(
   override fun encode(invoice: BitcoinInvoice): String {
     val parameters =
       Parameters.build {
-        invoice.amount?.let { append("amount", it.value.toString()) }
+        invoice.amount?.let { append("amount", it.value.toPlainString()) }
         invoice.label?.let { append("label", it) }
         invoice.message?.let { append("message", it) }
         invoice.customParameters?.forEach { (name, value) ->

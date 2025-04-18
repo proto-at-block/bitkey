@@ -1,7 +1,7 @@
 services:
   esplora:
     extends:
-      file: docker-compose-bitcoin.yml
+      file: docker-compose-bitcoin.base.yml
       service: esplora
     ports:
       - 8100:8100
@@ -9,7 +9,7 @@ services:
 
   bitcoind:
     extends:
-      file: docker-compose-bitcoin.yml
+      file: docker-compose-bitcoin.base.yml
       service: bitcoind
 
 volumes:

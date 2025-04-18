@@ -87,4 +87,49 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
       awaitItem().shouldNotBeNull()
     }
   }
+
+  test("onClearSheet calls clearHomeUiBottomSheet") {
+    homeUiBottomSheetDao.homeUiBottomSheetFlow =
+      flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
+    stateMachine.test(props) {
+      // Initial state
+      awaitItem().shouldBeNull()
+      // Sheet is shown
+      val sheetModel = awaitItem().shouldNotBeNull()
+
+      // Simulate closing the sheet
+      sheetModel.onClosed()
+
+      // Verify DAO is cleared
+      homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
+      // Verify sheet model becomes null
+      awaitItem().shouldBeNull()
+
+      // Re-emits because the flow emission didn't change
+      awaitItem().shouldNotBeNull()
+    }
+  }
+
+  test("sheet is not shown if currency is the same") {
+    // Set both currencies to EUR
+    fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock.copy(
+      activeSpendingLimit = MobilePayEnabledDataMock.activeSpendingLimit.copy(
+        amount = MobilePayEnabledDataMock.activeSpendingLimit.amount.copy(currency = EUR)
+      )
+    )
+
+    homeUiBottomSheetDao.homeUiBottomSheetFlow =
+      flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
+
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+
+      // Verify the clear call happened via the LaunchedEffect during recomposition
+      homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
+
+      // Cancel as no further emissions are expected related to this specific logic
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 })

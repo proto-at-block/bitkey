@@ -87,6 +87,10 @@ class HomeUiBottomSheetStateMachineImpl(
     val newCurrencyCode = fiatCurrency.textCode.code
 
     val scope = rememberStableCoroutineScope()
+    if (oldCurrencyCode == newCurrencyCode) {
+      isClearingBottomSheet = true
+      return null
+    }
 
     return SheetModel(
       onClosed = { isClearingBottomSheet = true },

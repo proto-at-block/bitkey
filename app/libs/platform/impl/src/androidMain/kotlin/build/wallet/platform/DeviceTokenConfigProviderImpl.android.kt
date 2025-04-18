@@ -25,7 +25,6 @@ class DeviceTokenConfigProviderImpl(
         when (appVariant) {
           Emergency -> FcmCustomer
           Customer -> FcmCustomer
-          Beta -> Fcm
           Development -> FcmTeam
           Alpha -> FcmTeam // android doesn't use this config
           Team -> FcmTeam
