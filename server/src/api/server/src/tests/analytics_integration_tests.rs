@@ -11,8 +11,7 @@ async fn event_tracking_request_succeeds_with_valid_request_empty_events() {
     let client = TestClient::new(bootstrap.router).await;
 
     let events = EventBundle { events: Vec::new() };
-    let mut request = Vec::new();
-    request.reserve(events.encoded_len());
+    let mut request = Vec::with_capacity(events.encoded_len());
     let encode_result = events.encode(&mut request);
     assert!(encode_result.is_ok());
 
@@ -48,8 +47,7 @@ async fn event_tracking_request_succeeds_with_valid_request_non_empty_events() {
         }],
     };
 
-    let mut request = Vec::new();
-    request.reserve(events.encoded_len());
+    let mut request = Vec::with_capacity(events.encoded_len());
     let encode_result = events.encode(&mut request);
     assert!(encode_result.is_ok());
 

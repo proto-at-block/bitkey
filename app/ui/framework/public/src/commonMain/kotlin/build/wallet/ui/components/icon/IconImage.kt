@@ -212,6 +212,7 @@ private fun Modifier.background(
                 Circle.CircleColor.InheritanceSurface -> WalletTheme.colors.inheritanceSurface
                 Circle.CircleColor.Dark -> WalletTheme.colors.accentDarkBackground
                 Circle.CircleColor.Primary -> WalletTheme.colors.primaryIconBackground
+                Circle.CircleColor.BitkeyPrimary -> WalletTheme.colors.bitkeyPrimary
               },
             shape = CircleShape
           )

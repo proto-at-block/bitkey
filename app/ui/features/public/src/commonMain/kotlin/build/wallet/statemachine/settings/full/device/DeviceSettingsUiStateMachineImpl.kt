@@ -1,16 +1,13 @@
 package build.wallet.statemachine.settings.full.device
 
 import androidx.compose.runtime.*
+import bitkey.ui.framework.NavigatorPresenter
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.coachmark.CoachmarkIdentifier
-import build.wallet.coachmark.CoachmarkIdentifier.MultipleFingerprintsCoachmark
-import build.wallet.coachmark.CoachmarkService
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.firmware.EnrolledFingerprints
@@ -24,8 +21,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
-import build.wallet.statemachine.fwup.FwupNfcUiProps
-import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
+import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
@@ -35,8 +31,7 @@ import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.*
 import build.wallet.statemachine.settings.full.device.FirmwareDeviceAvailability.None
 import build.wallet.statemachine.settings.full.device.FirmwareDeviceAvailability.Present
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
@@ -45,12 +40,7 @@ import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.nonNegativeDurationBetween
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.coachmark.CoachmarkModel
-import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -60,16 +50,14 @@ class DeviceSettingsUiStateMachineImpl(
   private val lostHardwareRecoveryUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
-  private val fwupNfcUiStateMachine: FwupNfcUiStateMachine,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val durationFormatter: DurationFormatter,
   private val appFunctionalityService: AppFunctionalityService,
-  private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val wipingDeviceUiStateMachine: WipingDeviceUiStateMachine,
-  private val coachmarkService: CoachmarkService,
   private val firmwareDataService: FirmwareDataService,
   private val clock: Clock,
+  private val navigatorPresenter: NavigatorPresenter,
 ) : DeviceSettingsUiStateMachine {
   @Composable
   override fun model(props: DeviceSettingsProps): ScreenModel {
@@ -85,16 +73,6 @@ class DeviceSettingsUiStateMachineImpl(
       derivedStateOf {
         appFunctionalityStatus.featureStates.securityAndRecovery
       }
-    }
-
-    val scope = rememberStableCoroutineScope()
-
-    var coachmarkDisplayed by remember { mutableStateOf(false) }
-    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
-    LaunchedEffect("coachmarks", coachmarkDisplayed) {
-      coachmarkService
-        .coachmarksToDisplay(setOf(MultipleFingerprintsCoachmark))
-        .onSuccess { coachmarksToDisplay = it }
     }
 
     val firmwareData = remember {
@@ -123,37 +101,9 @@ class DeviceSettingsUiStateMachineImpl(
             }
           }
         }
-        val hasMultipleFingerprintsCoachmark by remember {
-          derivedStateOf { coachmarksToDisplay.contains(MultipleFingerprintsCoachmark) }
-        }
 
         ViewingDeviceScreenModel(
           props = props,
-          coachmark = if (hasMultipleFingerprintsCoachmark) {
-            CoachmarkModel(
-              identifier = MultipleFingerprintsCoachmark,
-              title = "Multiple fingerprints",
-              description = "Now you can add more fingerprints to your Bitkey device.",
-              arrowPosition = CoachmarkModel.ArrowPosition(
-                vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-                horizontal = CoachmarkModel.ArrowPosition.Horizontal.Leading
-              ),
-              button = ButtonModel(
-                text = "Add fingerprints",
-                size = ButtonModel.Size.Footer,
-                onClick = StandardClick {
-                  uiState = ManagingFingerprintsUiState
-                  coachmarkDisplayed = true
-                }
-              ),
-              image = null,
-              dismiss = {
-                coachmarkDisplayed = true
-              }
-            )
-          } else {
-            null
-          },
           firmwareDeviceAvailability = availability,
           goToFwup = { uiState = UpdatingFirmwareUiState(it) },
           goToNfcMetadata = { uiState = TappingForFirmwareMetadataUiState },
@@ -163,12 +113,6 @@ class DeviceSettingsUiStateMachineImpl(
           replaceDeviceEnabled = replaceDeviceEnabled,
           firmwareData = firmwareData,
           onManageFingerprints = {
-            if (hasMultipleFingerprintsCoachmark) {
-              scope.launch {
-                coachmarkService.markCoachmarkAsDisplayed(MultipleFingerprintsCoachmark)
-                coachmarkDisplayed = true
-              }
-            }
             uiState = ManagingFingerprintsUiState
           }
         ).copy(
@@ -176,11 +120,11 @@ class DeviceSettingsUiStateMachineImpl(
           bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
             onCancel = { uiState = ViewingDeviceDataUiState() },
             onUpdate = {
-              uiState = when (val fwupState = firmwareData?.firmwareUpdateState) {
+              uiState = when (val fwupState = firmwareData.firmwareUpdateState) {
                 is FirmwareData.FirmwareUpdateState.PendingUpdate -> UpdatingFirmwareUiState(
                   pendingFirmwareUpdate = fwupState
                 )
-                FirmwareData.FirmwareUpdateState.UpToDate, null -> {
+                FirmwareData.FirmwareUpdateState.UpToDate -> {
                   ViewingDeviceDataUiState()
                 }
               }
@@ -232,21 +176,26 @@ class DeviceSettingsUiStateMachineImpl(
         )
 
       is UpdatingFirmwareUiState ->
-        fwupNfcUiStateMachine.model(
-          props = FwupNfcUiProps(
-            firmwareData = state.pendingFirmwareUpdate,
-            onDone = { uiState = ViewingDeviceDataUiState() }
-          )
+        navigatorPresenter.model(
+          initialScreen = FwupScreen(
+            firmwareUpdateData = state.pendingFirmwareUpdate,
+            onExit = { uiState = ViewingDeviceDataUiState() }
+          ),
+          onExit = { uiState = ViewingDeviceDataUiState() }
         )
 
-      is ManagingFingerprintsUiState -> managingFingerprintsUiStateMachine.model(
-        props = ManagingFingerprintsProps(
-          onBack = { uiState = ViewingDeviceDataUiState() },
+      is ManagingFingerprintsUiState -> navigatorPresenter.model(
+        initialScreen = ManagingFingerprintsScreen(
+          account = props.account,
           onFwUpRequired = {
             uiState = ViewingDeviceDataUiState(showingPromptForFingerprintFwUpdate = true)
           },
-          entryPoint = EntryPoint.DEVICE_SETTINGS
-        )
+          entryPoint = EntryPoint.DEVICE_SETTINGS,
+          origin = null
+        ),
+        onExit = {
+          uiState = ViewingDeviceDataUiState()
+        }
       )
 
       is WipingDeviceState -> {
@@ -265,7 +214,6 @@ class DeviceSettingsUiStateMachineImpl(
   private fun ViewingDeviceScreenModel(
     props: DeviceSettingsProps,
     firmwareData: FirmwareData?,
-    coachmark: CoachmarkModel?,
     firmwareDeviceAvailability: FirmwareDeviceAvailability,
     goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
     goToNfcMetadata: () -> Unit,
@@ -354,8 +302,7 @@ class DeviceSettingsUiStateMachineImpl(
           onManageReplacement = onManageReplacement,
           onWipeDevice = onWipeDevice,
           onBack = props.onBack,
-          onManageFingerprints = onManageFingerprints,
-          coachmark = coachmark
+          onManageFingerprints = onManageFingerprints
         )
       },
       presentationStyle = Root

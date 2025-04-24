@@ -54,7 +54,8 @@ internal fun ChartScreen(
     CircularTabRow(
       items = ChartType.entries.map { stringResource(it.label) }.toImmutableList(),
       selectedItemIndex = model.type.ordinal,
-      onClick = { model.onChartTypeSelected(ChartType.entries[it]) }
+      onClick = { model.onChartTypeSelected(ChartType.entries[it]) },
+      backgroundColor = WalletTheme.colors.secondary
     )
 
     Spacer(modifier = Modifier.height(4.dp))
@@ -139,9 +140,9 @@ private fun ChartHistorySelector(
       }
       val circleColor by animateColorAsState(
         targetValue = if (isSelected) {
-          WalletTheme.colors.subtleBackground
+          WalletTheme.colors.secondary
         } else {
-          WalletTheme.colors.subtleBackground.copy(alpha = 0f)
+          WalletTheme.colors.secondary.copy(alpha = 0f)
         }
       )
       val circleRadius by animateDpAsState(

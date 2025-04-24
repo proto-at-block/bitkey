@@ -1,15 +1,11 @@
 use async_trait::async_trait;
 use database::{
-    aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata,
-        types::{
-            AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
-            Projection, ProjectionType::All, ScalarAttributeType,
-        },
+    aws_sdk_dynamodb::types::{KeyType, ScalarAttributeType},
+    ddb::{
+        create_dynamodb_table, BaseRepository, Connection, DatabaseError, DatabaseObject,
+        GlobalSecondaryIndexDef, Repository, TableKey,
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
-use tracing::{event, Level};
 
 pub mod fetch;
 pub mod persist;
@@ -25,31 +21,29 @@ const CANCELLATION_TOKEN_IDX_PARTITION_KEY: &str = "cancellation_token";
 
 #[derive(Clone)]
 pub struct PrivilegedActionRepository {
-    connection: Connection,
+    base: BaseRepository,
 }
 
 #[async_trait]
 impl Repository for PrivilegedActionRepository {
     fn new(connection: Connection) -> Self {
-        Self { connection }
+        Self {
+            base: BaseRepository::new(connection, DatabaseObject::PrivilegedAction),
+        }
     }
 
     fn get_database_object(&self) -> DatabaseObject {
-        DatabaseObject::PrivilegedAction
+        self.base.get_database_object()
     }
 
     fn get_connection(&self) -> &Connection {
-        &self.connection
-    }
-
-    async fn get_table_name(&self) -> Result<String, DatabaseError> {
-        self.connection.get_table_name(self.get_database_object())
+        self.base.get_connection()
     }
 
     async fn table_exists(&self) -> Result<bool, DatabaseError> {
         let table_name = self.get_table_name().await?;
         Ok(self
-            .connection
+            .get_connection()
             .client
             .describe_table()
             .table_name(table_name)
@@ -62,77 +56,47 @@ impl Repository for PrivilegedActionRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        let pk = AttributeDefinition::builder()
-            .attribute_name(PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let pk_ks = KeySchemaElement::builder()
-            .attribute_name(PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
+        let partition_key = TableKey {
+            name: PARTITION_KEY.to_string(),
+            key_type: KeyType::Hash,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        let account_index_pk = AttributeDefinition::builder()
-            .attribute_name(ACCOUNT_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let account_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(ACCOUNT_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let account_index_sk = AttributeDefinition::builder()
-            .attribute_name(ACCOUNT_IDX_SORT_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let account_index_sk_ks = KeySchemaElement::builder()
-            .attribute_name(ACCOUNT_IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
+        let gsis = vec![
+            // Account ID GSI
+            GlobalSecondaryIndexDef {
+                name: ACCOUNT_IDX.to_string(),
+                pk: TableKey {
+                    name: ACCOUNT_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: ACCOUNT_IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+            // Cancellation Token GSI
+            GlobalSecondaryIndexDef {
+                name: CANCELLATION_TOKEN_IDX.to_string(),
+                pk: TableKey {
+                    name: CANCELLATION_TOKEN_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: None, // No sort key for this GSI
+            },
+        ];
 
-        let cancellation_token_index_pk = AttributeDefinition::builder()
-            .attribute_name(CANCELLATION_TOKEN_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let cancellation_token_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(CANCELLATION_TOKEN_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-
-        self.connection
-            .client
-            .create_table()
-            .table_name(table_name)
-            .key_schema(pk_ks)
-            .attribute_definitions(pk)
-            .attribute_definitions(account_index_pk)
-            .attribute_definitions(account_index_sk)
-            .attribute_definitions(cancellation_token_index_pk)
-            .billing_mode(BillingMode::PayPerRequest)
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(ACCOUNT_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(account_index_pk_ks)
-                    .key_schema(account_index_sk_ks)
-                    .build()?,
-            )
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(CANCELLATION_TOKEN_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(cancellation_token_index_pk_ks)
-                    .build()?,
-            )
-            .send()
-            .await
-            .map_err(|err| {
-                let service_err = err.into_service_error();
-                event!(
-                    Level::ERROR,
-                    "Could not create PrivilegedAction table: {service_err:?} with message: {:?}",
-                    service_err.message()
-                );
-                DatabaseError::CreateTableError(database_object)
-            })?;
-        Ok(())
+        create_dynamodb_table(
+            &self.get_connection().client,
+            table_name,
+            database_object,
+            partition_key,
+            None,
+            gsis,
+        )
+        .await
     }
 }

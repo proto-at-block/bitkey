@@ -18,6 +18,7 @@ import build.wallet.statemachine.core.ScreenModel
 @BitkeyInject(ActivityScope::class)
 class NavigatorPresenterImpl(
   private val screenPresenterRegistry: ScreenPresenterRegistry,
+  private val sheetPresenterRegistry: SheetPresenterRegistry,
 ) : NavigatorPresenter {
   @Composable
   override fun model(
@@ -28,11 +29,11 @@ class NavigatorPresenterImpl(
       NavigatorImpl(initialScreen, onExit)
     }
 
-    val currentScreen by remember(navigator) {
-      navigator.currentScreen
+    val currentScreenState by remember(navigator) {
+      navigator.currentScreenState
     }.collectAsState()
 
-    return when (val screen = currentScreen) {
+    return when (val screen = currentScreenState.screen) {
       // SimpleScreen does not have a ScreenPresenter, we can directly call its model
       is SimpleScreen -> screen.model(navigator)
       else -> {
@@ -40,7 +41,20 @@ class NavigatorPresenterImpl(
         val screenPresenter = remember(screen.key) {
           screenPresenterRegistry.get(screen)
         }
-        screenPresenter.model(navigator, screen)
+
+        val screenModel = screenPresenter.model(navigator, screen)
+
+        // We fetch a sheet from the registry if the current screen has a sheet.
+        // If it does not, we use the screenModel's bottomSheetModel if one is shown without
+        // navigator
+        val sheetModel = currentScreenState.sheet?.let {
+          val sheetPresenter = remember(it.key) {
+            sheetPresenterRegistry.get(it)
+          }
+          sheetPresenter.model(navigator, it)
+        } ?: screenModel.bottomSheetModel
+
+        screenModel.copy(bottomSheetModel = sheetModel)
       }
     }
   }

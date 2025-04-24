@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.zIndex
 import build.wallet.ui.model.coachmark.CoachmarkModel
 
@@ -19,6 +21,7 @@ import build.wallet.ui.model.coachmark.CoachmarkModel
 fun CoachmarkPresenter(
   yOffset: Float,
   model: CoachmarkModel,
+  renderedSize: (IntSize) -> Unit = {},
 ) {
   Box(
     modifier =
@@ -28,6 +31,9 @@ fun CoachmarkPresenter(
         .background(Color.Transparent)
   ) {
     Coachmark(
+      modifier = Modifier.onGloballyPositioned { layoutCoordinates ->
+        renderedSize(layoutCoordinates.size)
+      },
       model = model,
       offset = Offset(0f, yOffset)
     )

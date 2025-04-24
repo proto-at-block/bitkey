@@ -34,6 +34,20 @@ workflows:
             # Omit data source and state refresh from output
             output: strip_refreshing
         - run: terragrunt show -json $PLANFILE > $SHOWFILE
+    import:
+      steps:
+        - env:
+            # Reduce Terraform suggestion output
+            name: TF_IN_AUTOMATION
+            value: 'true'
+        - run: terragrunt import -input=false --terragrunt-ignore-external-dependencies $(printf '%s' $COMMENT_ARGS | sed 's/,/ /' | tr -d '\\')
+    state_rm:
+      steps:
+        - env:
+            # Reduce Terraform suggestion output
+            name: TF_IN_AUTOMATION
+            value: 'true'
+        - run: terragrunt state rm --terragrunt-ignore-external-dependencies $(printf '%s' $COMMENT_ARGS | sed 's/,/ /' | tr -d '\\')
     policy_check:
       # override the default policy_check implementation; the default `show` step since it invokes terraform instead
       # of terragrunt.

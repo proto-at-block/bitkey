@@ -21,5 +21,17 @@ interface Navigator {
    */
   fun goTo(screen: Screen)
 
+  /**
+   * Shows a sheets on top of the current screen.
+   *
+   * @param sheet The sheet to be shown
+   */
+  fun showSheet(sheet: Sheet)
+
+  /**
+   * Closes the current [Sheet] displayed on the [Screen].
+   */
+  fun closeSheet()
+
   fun exit()
 }

@@ -15,8 +15,9 @@ use aws_sdk_dynamodb::{
         update_item::builders::UpdateItemFluentBuilder,
     },
     types::{
-        builders::UpdateBuilder, AttributeValue as AwsAttributeValue, KeysAndAttributes, Update,
-        WriteRequest,
+        builders::UpdateBuilder, AttributeDefinition, AttributeValue as AwsAttributeValue,
+        BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType, KeysAndAttributes,
+        Projection, ProjectionType, ScalarAttributeType, Update, WriteRequest,
     },
     Client,
 };
@@ -145,26 +146,217 @@ impl Connection {
     }
 }
 
+#[derive(Clone)]
+pub struct BaseRepository {
+    pub connection: Connection,
+    pub database_object: DatabaseObject,
+}
+
+/// TableKey represents a key for a DynamoDB table
+#[derive(Clone)]
+pub struct TableKey {
+    pub name: String,
+    pub key_type: KeyType,
+    pub attribute_type: ScalarAttributeType,
+}
+
+/// GlobalSecondaryIndexDef represents a GSI definition for a DynamoDB table
+pub struct GlobalSecondaryIndexDef {
+    pub name: String,
+    pub pk: TableKey,
+    pub sk: Option<TableKey>,
+}
+
+/// Create a DynamoDB table with common configuration
+pub async fn create_dynamodb_table(
+    client: &Client,
+    table_name: String,
+    database_object: DatabaseObject,
+    partition_key: TableKey,
+    sort_key: Option<TableKey>,
+    gsis: Vec<GlobalSecondaryIndexDef>,
+) -> Result<(), DatabaseError> {
+    // Partition key setup
+    let pk_attribute_def = AttributeDefinition::builder()
+        .attribute_name(&partition_key.name)
+        .attribute_type(partition_key.attribute_type)
+        .build()?;
+
+    let pk_key_schema = KeySchemaElement::builder()
+        .attribute_name(&partition_key.name)
+        .key_type(partition_key.key_type)
+        .build()?;
+
+    // Initialize the table builder
+    let mut table_builder = client
+        .create_table()
+        .table_name(table_name.clone())
+        .billing_mode(BillingMode::PayPerRequest)
+        .attribute_definitions(pk_attribute_def)
+        .key_schema(pk_key_schema);
+
+    // Add sort key if provided
+    if let Some(sk) = &sort_key {
+        let sk_attribute_def = AttributeDefinition::builder()
+            .attribute_name(&sk.name)
+            .attribute_type(sk.attribute_type.clone())
+            .build()?;
+
+        let sk_key_schema = KeySchemaElement::builder()
+            .attribute_name(&sk.name)
+            .key_type(sk.key_type.clone())
+            .build()?;
+
+        table_builder = table_builder
+            .attribute_definitions(sk_attribute_def)
+            .key_schema(sk_key_schema);
+    }
+
+    // Track attribute definitions that have already been added
+    let mut defined_attrs = vec![partition_key.name.clone()];
+    if let Some(sk) = &sort_key {
+        defined_attrs.push(sk.name.clone());
+    }
+
+    // Add GSIs if provided
+    for gsi in gsis {
+        // Only add attribute definition if not already added
+        if !defined_attrs.contains(&gsi.pk.name) {
+            let attr_def = AttributeDefinition::builder()
+                .attribute_name(&gsi.pk.name)
+                .attribute_type(gsi.pk.attribute_type)
+                .build()?;
+
+            table_builder = table_builder.attribute_definitions(attr_def);
+            defined_attrs.push(gsi.pk.name.clone());
+        }
+
+        let pk_key_schema = KeySchemaElement::builder()
+            .attribute_name(&gsi.pk.name)
+            .key_type(gsi.pk.key_type)
+            .build()?;
+
+        let mut gsi_builder = GlobalSecondaryIndex::builder()
+            .index_name(gsi.name)
+            .projection(
+                Projection::builder()
+                    .projection_type(ProjectionType::All)
+                    .build(),
+            )
+            .key_schema(pk_key_schema);
+
+        // Add sort key for GSI if provided
+        if let Some(sk) = gsi.sk {
+            if !defined_attrs.contains(&sk.name) {
+                let attr_def = AttributeDefinition::builder()
+                    .attribute_name(&sk.name)
+                    .attribute_type(sk.attribute_type.clone())
+                    .build()?;
+
+                table_builder = table_builder.attribute_definitions(attr_def);
+                defined_attrs.push(sk.name.clone());
+            }
+
+            let sk_key_schema = KeySchemaElement::builder()
+                .attribute_name(&sk.name)
+                .key_type(sk.key_type.clone())
+                .build()?;
+
+            gsi_builder = gsi_builder.key_schema(sk_key_schema);
+        }
+
+        table_builder = table_builder.global_secondary_indexes(gsi_builder.build()?);
+    }
+
+    // Send the request
+    table_builder.send().await.map_err(|err| {
+        let service_err = err.into_service_error();
+        event!(
+            Level::ERROR,
+            "Could not create {} table: {service_err:?} with message: {:?}",
+            database_object,
+            service_err.message()
+        );
+        DatabaseError::CreateTableError(database_object)
+    })?;
+
+    Ok(())
+}
+
 #[async_trait]
 pub trait Repository {
-    fn new(config: Connection) -> Self
+    fn new(connection: Connection) -> Self
     where
         Self: Sized;
+
     fn get_connection(&self) -> &Connection;
+
     fn get_database_object(&self) -> DatabaseObject;
-    async fn get_table_name(&self) -> Result<String, DatabaseError>;
-    async fn table_exists(&self) -> Result<bool, DatabaseError>;
+
+    async fn get_table_name(&self) -> Result<String, DatabaseError> {
+        self.get_connection()
+            .get_table_name(self.get_database_object())
+    }
+
+    async fn table_exists(&self) -> Result<bool, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        Ok(self
+            .get_connection()
+            .client
+            .describe_table()
+            .table_name(table_name)
+            .send()
+            .await
+            .is_ok())
+    }
+
     // ⚠️ DDB can only have 5 table creation or index creation calls in flight at any time.
     // ⚠️ If there are more than that, then local DDB will throw errors during tests.
     async fn create_table(&self) -> Result<(), DatabaseError>;
+
     async fn purge_table_if_necessary(&self) -> Result<(), DatabaseError> {
         Ok(())
     }
+
     async fn create_table_if_necessary(&self) -> Result<(), DatabaseError> {
         if !self.table_exists().await? {
             self.create_table().await?;
         }
         Ok(())
+    }
+}
+
+impl BaseRepository {
+    pub fn new(connection: Connection, database_object: DatabaseObject) -> Self {
+        Self {
+            connection,
+            database_object,
+        }
+    }
+}
+
+#[async_trait]
+impl Repository for BaseRepository {
+    fn new(connection: Connection) -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            connection,
+            database_object: DatabaseObject::default(),
+        }
+    }
+
+    fn get_connection(&self) -> &Connection {
+        &self.connection
+    }
+
+    fn get_database_object(&self) -> DatabaseObject {
+        self.database_object
+    }
+
+    async fn create_table(&self) -> Result<(), DatabaseError> {
+        Err(DatabaseError::CreateTableError(self.database_object))
     }
 }
 

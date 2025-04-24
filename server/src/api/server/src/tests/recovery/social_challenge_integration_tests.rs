@@ -328,7 +328,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     let other_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_relationship_body = try_create_recovery_relationship(
-        &mut context,
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {

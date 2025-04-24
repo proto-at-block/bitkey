@@ -446,6 +446,7 @@ impl SigningService for WsmClient {
     }
 
     #[instrument]
+    #[allow(clippy::print_stderr)]
     async fn initiate_secure_channel(
         &self,
         bundle: Vec<u8>,

@@ -74,8 +74,6 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
-const ADD_AUD_AND_CAD_CURRENCIES_FLAG_KEY: &str = "f8e-add-aud-and-cad-currencies";
-
 #[instrument(err)]
 #[utoipa::path(
     get,

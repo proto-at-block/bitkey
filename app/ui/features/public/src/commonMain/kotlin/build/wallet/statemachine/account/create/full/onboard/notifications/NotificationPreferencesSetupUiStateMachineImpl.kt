@@ -7,6 +7,7 @@ import build.wallet.analytics.v1.Action.*
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStep
@@ -50,6 +51,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
   private val pushItemModelProvider: RecoveryChannelsSetupPushItemModelProvider,
   private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
+  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : NotificationPreferencesSetupUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -106,6 +108,11 @@ class NotificationPreferencesSetupUiStateMachineImpl(
       }
     }
 
+    // Whether SMS features are enabled for US customers via feature flag
+    val usSmsEnabled by remember {
+      usSmsFeatureFlag.flagValue()
+    }.collectAsState()
+
     return when (val currentState = state) {
       is ConfigureRecoveryOptionsUiState -> {
         // Deal with some special states outside of the ScreenModel domain
@@ -115,9 +122,9 @@ class NotificationPreferencesSetupUiStateMachineImpl(
         )
 
         val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
+        val shouldShowSmsItem = !isCountryUS || usSmsEnabled.value
 
-        // SMS is not allowed in the USA. We are hiding this in the onboarding flow, but
-        // will be making it available in settings.
+        // SMS is not allowed in the USA unless the feature flag is enabled
         RecoveryChannelsSetupFormBodyModel(
           pushItem = pushItemModel,
           smsItem = RecoveryChannelsSetupFormItemModel(
@@ -131,7 +138,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
                   { state = EnteringAndVerifyingPhoneNumberUiState }
                 }
               }
-          ).takeIf { !isCountryUS },
+          ).takeIf { shouldShowSmsItem },
           emailItem =
             RecoveryChannelsSetupFormItemModel(
               state = emailState,
@@ -147,7 +154,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
             ),
           continueOnClick = {
             val allOptionsCompleted =
-              (isCountryUS || smsState == Completed || smsErrorHint.value != UiErrorHint.None) &&
+              (!shouldShowSmsItem || smsState == Completed || smsErrorHint.value != UiErrorHint.None) &&
                 emailState == Completed &&
                 pushItemModel.state == Completed
 

@@ -6,6 +6,7 @@
 #include "bitlog.h"
 #include "board_id.h"
 #include "canary.h"
+#include "captouch_task.h"
 #include "clock.h"
 #include "filesystem.h"
 #include "fwup_task.h"

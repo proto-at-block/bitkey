@@ -4,10 +4,9 @@ use std::str::FromStr;
 
 use async_trait::async_trait;
 use authn_authz::routes::{
-    AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
-    AuthenticateWithRecoveryAuthkeyRequest, AuthenticateWithRecoveryResponse,
-    AuthenticationRequest, AuthenticationResponse, GetTokensRequest, GetTokensResponse,
-    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
+    AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse, AuthenticationRequest,
+    AuthenticationResponse, GetTokensRequest, GetTokensResponse, NoiseInitiateBundleRequest,
+    NoiseInitiateBundleResponse,
 };
 use axum::body::Body;
 use axum::Router;
@@ -32,10 +31,9 @@ use notification::routes::{
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountActivateTouchpointResponse,
     AccountAddDeviceTokenRequest, AccountAddDeviceTokenResponse, AccountAddTouchpointRequest,
-    AccountAddTouchpointResponse, AccountGetTouchpointsResponse, AccountVerifyTouchpointRequest,
-    AccountVerifyTouchpointResponse, ActivateSpendingKeyDefinitionRequest,
-    ActivateSpendingKeyDefinitionResponse, BdkConfigResponse, CompleteOnboardingRequest,
-    CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
+    AccountAddTouchpointResponse, AccountVerifyTouchpointRequest, AccountVerifyTouchpointResponse,
+    ActivateSpendingKeyDefinitionRequest, ActivateSpendingKeyDefinitionResponse, BdkConfigResponse,
+    CompleteOnboardingRequest, CompleteOnboardingResponse, ContinueDistributedKeygenRequest,
     ContinueDistributedKeygenResponse, CreateAccountRequest, CreateAccountResponse,
     CreateKeysetRequest, CreateKeysetResponse, GetAccountKeysetsResponse, GetAccountStatusResponse,
     InititateDistributedKeygenRequest, InititateDistributedKeygenResponse,
@@ -353,22 +351,6 @@ impl TestClient {
                 },
             )
             .post(request)
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn get_touchpoints(
-        &self,
-        account_id: &str,
-    ) -> Response<AccountGetTouchpointsResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/touchpoints"))
-            .authenticated(
-                &AccountId::from_str(account_id).expect("Account id not valid"),
-                None,
-                None,
-            )
-            .get()
             .call(&self.router)
             .await
     }
@@ -699,19 +681,6 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn sign_transaction_with_active_keyset(
-        &self,
-        account_id: &AccountId,
-        request: &SignTransactionData,
-    ) -> Response<SignTransactionResponse> {
-        Request::builder()
-            .uri(format!("/api/accounts/{account_id}/sign-transaction"))
-            .authenticated(account_id, None, None)
-            .post(&request)
-            .call(&self.router)
-            .await
-    }
-
     pub(crate) async fn sign_transaction_with_keyset(
         &self,
         account_id: &AccountId,
@@ -749,17 +718,6 @@ impl TestClient {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/notifications/test"))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
-            .post(&request)
-            .call(&self.router)
-            .await
-    }
-
-    pub(crate) async fn authenticate_with_recovery_authkey(
-        &self,
-        request: &AuthenticateWithRecoveryAuthkeyRequest,
-    ) -> Response<AuthenticateWithRecoveryResponse> {
-        Request::builder()
-            .uri("/api/recovery-auth")
             .post(&request)
             .call(&self.router)
             .await

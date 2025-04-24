@@ -1,7 +1,6 @@
 package build.wallet.statemachine.home.full
 
 import androidx.compose.runtime.*
-import bitkey.securitycenter.SecurityActionsService
 import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.availability.AppFunctionalityService
@@ -11,8 +10,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.SecurityHubFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.limit.MobilePayService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.navigation.v1.NavigationScreenId
@@ -84,8 +81,6 @@ class HomeUiStateMachineImpl(
     RecoveryRelationshipNotificationUiStateMachine,
   private val appCoroutineScope: CoroutineScope,
   private val navigatorPresenter: NavigatorPresenter,
-  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
-  private val securityActionsService: SecurityActionsService,
 ) : HomeUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -101,8 +96,6 @@ class HomeUiStateMachineImpl(
 
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
     val mobilePayData by remember { mobilePayService.mobilePayData }.collectAsState()
-    val recommendations by remember { securityActionsService.getRecommendations() }
-      .collectAsState(emptyList())
 
     // Update bottom sheet for currency changes which affect Mobile Pay
     // Set up an effect to set or clear the bottom sheet alert when Mobile Pay is enabled
@@ -203,7 +196,9 @@ class HomeUiStateMachineImpl(
                 uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingCloudBackupHealthUiState))
                 true
               }
-              NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS -> {
+              NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS,
+              NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE,
+              -> {
                 uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingBitkeyDeviceSettingsUiState))
                 true
               }
@@ -213,6 +208,10 @@ class HomeUiStateMachineImpl(
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS -> {
                 uiState = uiState.copy(rootScreen = Settings(SettingsListState.ShowingTrustedContactsUiState))
+                true
+              }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE -> {
+                uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery))
                 true
               }
               else -> false
@@ -299,21 +298,8 @@ class HomeUiStateMachineImpl(
                   )
                 )
               },
-              tabs = if (securityHubFeatureFlag.isEnabled()) {
-                listOf(
-                  HomeTab.MoneyHome(selected = true, onSelected = {
-                    uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Launch))
-                  }),
-                  HomeTab.SecurityHub(
-                    selected = false,
-                    onSelected = {
-                      uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
-                    },
-                    badged = recommendations.isNotEmpty()
-                  )
-                )
-              } else {
-                emptyList()
+              onGoToSecurityHub = {
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
               }
             )
           )
@@ -327,28 +313,16 @@ class HomeUiStateMachineImpl(
               settingsListState = rootScreen.screen,
               lostHardwareRecoveryData = props.lostHardwareRecoveryData,
               homeBottomSheetModel = homeBottomSheetModel,
-              homeStatusBannerModel = homeStatusBannerModel
+              homeStatusBannerModel = homeStatusBannerModel,
+              goToSecurityHub = {
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+              }
             )
           )
           HomeScreen.SecurityHub -> navigatorPresenter.model(
             SecurityHubScreen(
-              homeStatusBannerModel = homeStatusBannerModel,
-              tabs = if (securityHubFeatureFlag.isEnabled()) {
-                listOf(
-                  HomeTab.MoneyHome(selected = false, onSelected = {
-                    uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Launch))
-                  }),
-                  HomeTab.SecurityHub(
-                    selected = true,
-                    onSelected = {
-                      uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
-                    },
-                    badged = false
-                  )
-                )
-              } else {
-                emptyList()
-              }
+              account = props.account as FullAccount,
+              hardwareRecoveryData = props.lostHardwareRecoveryData
             ),
             onExit = {
               uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Launch))

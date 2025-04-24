@@ -24,14 +24,14 @@ enum class ChartRange(
     diffLabel = Res.string.chart_history_label_day_diff,
     duration = 1.days,
     interval = 10.minutes,
-    maxPricePoints = 75
+    maxPricePoints = 100
   ),
   WEEK(
     label = Res.string.chart_history_label_week,
     diffLabel = Res.string.chart_history_label_week_diff,
     duration = 7.days,
     interval = 1.hours,
-    maxPricePoints = 75
+    maxPricePoints = 100
   ),
   MONTH(
     label = Res.string.chart_history_label_month,

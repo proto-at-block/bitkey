@@ -101,3 +101,12 @@ class FingerprintsActionFactoryFake : FingerprintsActionFactory,
   ) {
   override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
 }
+
+class HardwareDeviceActionFactoryFake : HardwareDeviceActionFactory,
+  FakeActionFactory(
+    recommendations = listOf(SecurityActionRecommendation.PAIR_HARDWARE_DEVICE, SecurityActionRecommendation.UPDATE_FIRMWARE),
+    category = SecurityActionCategory.SECURITY,
+    type = SecurityActionType.HARDWARE_DEVICE
+  ) {
+  override suspend fun create(): Flow<SecurityAction> = flowOf(createAction())
+}

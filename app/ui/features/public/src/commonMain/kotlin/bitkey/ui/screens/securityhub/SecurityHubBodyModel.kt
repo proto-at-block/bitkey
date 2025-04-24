@@ -33,16 +33,17 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.home.full.HomeTab
+import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.layout.Divider
-import build.wallet.ui.components.refresh.PullRefreshIndicator
-import build.wallet.ui.components.refresh.pullRefresh
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import kotlinx.collections.immutable.ImmutableList
@@ -57,11 +58,12 @@ data class SecurityHubBodyModel(
   val isRefreshing: Boolean,
   val onRefresh: () -> Unit,
   val recommendations: ImmutableList<SecurityActionRecommendation>,
+  val cardsModel: CardListModel,
   val securityActions: List<SecurityAction> = emptyList(),
   val recoveryActions: List<SecurityAction> = emptyList(),
   val onRecommendationClick: (SecurityActionRecommendation) -> Unit,
   val onSecurityActionClick: (SecurityAction) -> Unit,
-  val tabs: List<HomeTab>,
+  val onHomeTabClick: () -> Unit,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(
     eventTrackerScreenId = SecurityHubEventTrackerScreenId.SECURITY_HUB_SCREEN,
     eventTrackerShouldTrack = false
@@ -75,12 +77,7 @@ data class SecurityHubBodyModel(
     }
     Box(
       modifier = modifier
-        .pullRefresh(
-          refreshing = isRefreshing,
-          onRefresh = onRefresh
-        )
         .fillMaxSize()
-        .navigationBarsPadding()
         .background(WalletTheme.colors.background)
     ) {
       Column(
@@ -90,20 +87,31 @@ data class SecurityHubBodyModel(
           modifier = Modifier.fillMaxWidth()
             .background(color = WalletTheme.colors.secondary)
             .padding(horizontal = 20.dp)
-            .statusBarsPadding()
         ) {
+          Spacer(modifier = Modifier.height(8.dp))
           Label(
             model = LabelModel.StringModel("Security hub"),
             style = WalletTheme.labelStyle(LabelType.Title1, textColor = WalletTheme.colors.foreground)
           )
 
-          RecommendationList(
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            recommendations = recommendations,
-            onRecommendationClick = onRecommendationClick
-          )
+          if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
+            RecommendationList(
+              modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+              recommendations = recommendations,
+              onRecommendationClick = onRecommendationClick
+            )
+          }
 
-          Spacer(modifier = Modifier.height(32.dp))
+          if (cardsModel.cards.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(20.dp))
+          }
+
+          cardsModel.cards.map {
+            MoneyHomeCard(model = it)
+            Spacer(modifier = Modifier.height(8.dp))
+          }
+
+          Spacer(modifier = Modifier.height(24.dp))
         }
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -130,19 +138,23 @@ data class SecurityHubBodyModel(
         }
       }
 
-      PullRefreshIndicator(
-        modifier = Modifier.align(Alignment.TopCenter).padding(top = 20.dp),
-        refreshing = isRefreshing,
-        onRefresh = onRefresh
-      )
-
       TabBar(
         modifier = Modifier.align(Alignment.BottomCenter)
           .onGloballyPositioned {
             tabBarHeightDp = with(localDensity) { it.size.height.toDp() + 36.dp }
           }
       ) {
-        tabs.map {
+        listOf(
+          HomeTab.MoneyHome(
+            selected = false,
+            onSelected = onHomeTabClick
+          ),
+          HomeTab.SecurityHub(
+            selected = true,
+            onSelected = {},
+            badged = false
+          )
+        ).map {
           Tab(selected = it.selected, onClick = it.onSelected, icon = it.icon)
         }
       }
@@ -257,17 +269,17 @@ private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
       Icon(
         modifier = Modifier.align(Center),
         icon = Icon.LargeIconCheckFilled,
-        size = IconSize.Medium,
+        size = IconSize.Regular,
         color = Color(0xff3aba5a)
       )
     } else {
       Canvas(modifier = Modifier.fillMaxSize()) {
         // the spacing of the centers of each circle, in degrees
-        val recommendationCircleSpacingInDegrees = 5.dp.toPx().toInt()
+        val recommendationCircleSpacingInDegrees = 6.dp.toPx().toInt()
         // the start of the circle in degrees (12 o'clock position)
         val circleStartInDegrees = 270
         // the size of the recommendation circle radius in pixels
-        val recommendationCircleRadius = 2.dp.toPx()
+        val recommendationCircleRadius = 2.5.dp.toPx()
 
         // Draw a circle for each recommendation, translating its value in degrees into x,y coordinates
         // We start at 270 degrees (the top of the circle) and go clockwise for each recommendation
@@ -294,14 +306,14 @@ private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
           startAngle = circleStartInDegrees.toFloat(),
           sweepAngle = -(360f - ((numberOfRecommendations + 1) * recommendationCircleSpacingInDegrees)),
           useCenter = false,
-          style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
+          style = Stroke(5.dp.toPx(), cap = StrokeCap.Round)
         )
       }
 
       Icon(
         modifier = Modifier.align(Center),
         icon = Icon.LargeIconWarningFilled,
-        size = IconSize.Medium,
+        size = IconSize.Regular,
         color = Color(0xffbf46e38)
       )
     }
@@ -409,7 +421,8 @@ private fun ActionTile(
     ) {
       Icon(
         icon = action.icon(),
-        size = IconSize.Small
+        size = IconSize.Small,
+        tint = IconTint.On60
       )
 
       Box(
@@ -438,6 +451,7 @@ private fun SecurityAction.title(): StringResource =
     INHERITANCE -> Res.string.inheritance_action_title
     MOBILE_KEY_BACKUP -> Res.string.mobile_key_backup_action_title
     SOCIAL_RECOVERY -> Res.string.social_recovery_action_title
+    HARDWARE_DEVICE -> Res.string.hardware_device_action_title
   }
 
 private fun SecurityAction.icon(): Icon =
@@ -449,12 +463,13 @@ private fun SecurityAction.icon(): Icon =
     INHERITANCE -> Icon.SmallIconInheritance
     MOBILE_KEY_BACKUP -> Icon.SmallIconCloud
     SOCIAL_RECOVERY -> Icon.SmallIconShieldPerson
+    HARDWARE_DEVICE -> Icon.SmallIconBitkey
   }
 
 private fun SecurityAction.statusColor(): Color =
   when {
-    getRecommendations().isEmpty() -> Color(0xff3aba5a)
-    else -> Color(0xffbf46e38)
+    requiresAction() -> Color(0xffbf46e38)
+    else -> Color(0xff3aba5a)
   }
 
 private fun SecurityActionRecommendation.title(): StringResource =
@@ -466,6 +481,11 @@ private fun SecurityActionRecommendation.title(): StringResource =
     ENABLE_CRITICAL_ALERTS -> Res.string.enable_critical_alerts_recommendation_title
     ADD_BENEFICIARY -> Res.string.add_beneficiary_recommendation_title
     SETUP_BIOMETRICS -> Res.string.setup_biometric_recommendation_title
+    ENABLE_PUSH_NOTIFICATIONS -> Res.string.enable_push_recommendation_title
+    ENABLE_SMS_NOTIFICATIONS -> Res.string.enable_sms_recommendation_title
+    ENABLE_EMAIL_NOTIFICATIONS -> Res.string.enable_email_recommendation_title
+    UPDATE_FIRMWARE -> Res.string.update_firmware_recommendation_title
+    PAIR_HARDWARE_DEVICE -> Res.string.pair_device_recommendation_title
   }
 
 private fun SecurityActionRecommendation.icon(): Icon =
@@ -474,9 +494,12 @@ private fun SecurityActionRecommendation.icon(): Icon =
     BACKUP_EAK -> Icon.SmallIconRecovery
     ADD_FINGERPRINTS -> Icon.SmallIconFingerprint
     ADD_TRUSTED_CONTACTS -> Icon.SmallIconShieldPerson
-    ENABLE_CRITICAL_ALERTS -> Icon.SmallIconAnnouncement
+    ENABLE_CRITICAL_ALERTS, ENABLE_SMS_NOTIFICATIONS, ENABLE_EMAIL_NOTIFICATIONS,
+    ENABLE_PUSH_NOTIFICATIONS,
+    -> Icon.SmallIconAnnouncement
     ADD_BENEFICIARY -> Icon.SmallIconInheritance
     SETUP_BIOMETRICS -> Icon.SmallIconLock
+    UPDATE_FIRMWARE, PAIR_HARDWARE_DEVICE -> Icon.SmallIconBitkey
   }
 
 @Snapshot
@@ -534,17 +557,8 @@ val SnapshotHost.pendingRecommendations
     ),
     onRecommendationClick = {},
     onSecurityActionClick = {},
-    tabs = listOf(
-      HomeTab.MoneyHome(
-        selected = false,
-        onSelected = {}
-      ),
-      HomeTab.SecurityHub(
-        selected = true,
-        onSelected = {},
-        badged = false
-      )
-    )
+    onHomeTabClick = {},
+    cardsModel = CardListModel(cards = immutableListOf())
   )
 
 @Snapshot
@@ -553,6 +567,7 @@ val SnapshotHost.completedRecommendations
     isRefreshing = false,
     onRefresh = {},
     recommendations = immutableListOf(),
+    cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = listOf(
       previewSecurityAction(
         type = CRITICAL_ALERTS,
@@ -587,17 +602,7 @@ val SnapshotHost.completedRecommendations
     ),
     onRecommendationClick = {},
     onSecurityActionClick = {},
-    tabs = listOf(
-      HomeTab.MoneyHome(
-        selected = false,
-        onSelected = {}
-      ),
-      HomeTab.SecurityHub(
-        selected = true,
-        onSelected = {},
-        badged = false
-      )
-    )
+    onHomeTabClick = {}
   )
 
 @Snapshot
@@ -606,21 +611,12 @@ val SnapshotHost.loadingRecommendations
     isRefreshing = true,
     onRefresh = {},
     recommendations = immutableListOf(),
+    cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = emptyList(),
     recoveryActions = emptyList(),
     onRecommendationClick = {},
     onSecurityActionClick = {},
-    tabs = listOf(
-      HomeTab.MoneyHome(
-        selected = false,
-        onSelected = {}
-      ),
-      HomeTab.SecurityHub(
-        selected = true,
-        onSelected = {},
-        badged = false
-      )
-    )
+    onHomeTabClick = {}
   )
 
 private fun previewSecurityAction(

@@ -306,7 +306,7 @@ impl Service {
         T: HistoricalExchangeRateProvider,
     {
         let rate = rate_provider
-            .rate(&vec![currency], time)
+            .rate(&[currency], time)
             .await?
             .remove(&currency.to_string())
             .ok_or_else(|| ProviderResponseError::MissingData(T::rate_provider_type()))?;

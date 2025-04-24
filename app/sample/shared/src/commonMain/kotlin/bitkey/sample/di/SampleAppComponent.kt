@@ -6,6 +6,7 @@ import bitkey.sample.functional.CreateAccountF8eClientImpl
 import bitkey.sample.ui.SampleAppUiStateMachine
 import bitkey.sample.ui.SampleAppUiStateMachineImpl
 import bitkey.sample.ui.SampleScreenPresenterRegistry
+import bitkey.sample.ui.SampleSheetPresenterRegistry
 import bitkey.sample.ui.home.AccountHomeUiStateMachineImpl
 import bitkey.sample.ui.onboarding.CreateAccountUiStateMachineImpl
 import bitkey.sample.ui.settings.account.AccountSettingsScreenPresenter
@@ -37,8 +38,11 @@ internal class SampleAppComponentImpl : SampleAppComponent {
     accountSettingsScreenPresenter = accountSettingsScreenPresenter
   )
 
+  private val sheetPresenterRegistry = SampleSheetPresenterRegistry()
+
   private val navigatorPresenter = NavigatorPresenterImpl(
-    screenPresenterRegistry = screenPresenterRegistry
+    screenPresenterRegistry = screenPresenterRegistry,
+    sheetPresenterRegistry = sheetPresenterRegistry
   )
 
   private val accountHomeStateMachine = AccountHomeUiStateMachineImpl(

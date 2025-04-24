@@ -67,6 +67,8 @@ suspend fun <ScreenT : Screen> ScreenPresenter<ScreenT>.test(
   withClue("Unconsumed Navigator events") {
     navigator.goToCalls.expectNoEvents()
     navigator.exitCalls.expectNoEvents()
+    navigator.showSheetCalls.expectNoEvents()
+    navigator.closeSheetCalls.expectNoEvents()
   }
 }
 

@@ -213,7 +213,6 @@ mod tests {
                 },
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         let daily_limit_sats = sats_for(
@@ -227,7 +226,6 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
-            ..Default::default()
         };
 
         let spending_entries = Vec::new();
@@ -260,7 +258,6 @@ mod tests {
                 },
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         let daily_limit_sats = sats_for(
@@ -274,7 +271,6 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
-            ..Default::default()
         };
 
         let spending_entries = Vec::new();
@@ -308,7 +304,6 @@ mod tests {
                 },
                 ..Default::default()
             },
-            ..Default::default()
         };
 
         let daily_limit_sats = sats_for(
@@ -341,7 +336,6 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
-            ..Default::default()
         };
 
         let spending_entries = transaction_history.iter().collect();
@@ -372,9 +366,7 @@ mod tests {
                     currency_code: USD,
                 },
                 time_zone_offset: UtcOffset::from_hms(-5, 0, 0).unwrap(),
-                ..Default::default()
             },
-            ..Default::default()
         };
 
         let daily_limit_sats = sats_for(
@@ -407,7 +399,6 @@ mod tests {
         let features = Features {
             settings,
             daily_limit_sats,
-            ..Default::default()
         };
 
         let spending_entries = transaction_history.iter().collect();

@@ -34,6 +34,7 @@ import build.wallet.ui.tokens.painter
  */
 @Composable
 fun Coachmark(
+  modifier: Modifier = Modifier,
   model: CoachmarkModel,
   offset: Offset,
 ) {
@@ -41,7 +42,7 @@ fun Coachmark(
   val closeButtonColor = WalletTheme.colors.foreground30
 
   Column(
-    modifier = Modifier
+    modifier = modifier
       .padding(start = 16.dp, end = 16.dp)
       .fillMaxWidth()
       .offset(with(density) { offset.x.toDp() }, with(density) { offset.y.toDp() })

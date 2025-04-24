@@ -1,5 +1,6 @@
 package build.wallet.statemachine.settings.full
 
+import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -13,10 +14,6 @@ import build.wallet.fwup.FwupDataMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.biometric.BiometricSettingUiProps
-import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardProps
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachine
 import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
@@ -32,8 +29,7 @@ import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMac
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachine
+import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.DebugMenu
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
@@ -45,11 +41,10 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiProps
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachine
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.status.StatusBannerModelMock
+import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
 import build.wallet.statemachine.utxo.UtxoConsolidationUiStateMachine
@@ -70,7 +65,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
       homeBottomSheetModel = null,
       homeStatusBannerModel = null,
-      onBack = { propsOnBackCalls.add(Unit) }
+      onBack = { propsOnBackCalls.add(Unit) },
+      goToSecurityHub = {}
     )
 
   val featureFlagDao = FeatureFlagDaoFake()
@@ -84,8 +80,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<MobilePaySettingsUiProps>("mobile-txn") {},
       notificationPreferencesUiStateMachine = object : NotificationPreferencesUiStateMachine,
         ScreenStateMachineMock<NotificationPreferencesProps>("notifications-preferences") {},
-      recoveryChannelSettingsUiStateMachine = object : RecoveryChannelSettingsUiStateMachine,
-        ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {},
       appearancePreferenceUiStateMachine = object : AppearancePreferenceUiStateMachine,
         ScreenStateMachineMock<AppearancePreferenceProps>("currency-preference") {},
       customElectrumServerSettingUiStateMachine = object :
@@ -97,17 +91,11 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<FeedbackUiProps>("feedback") {},
       helpCenterUiStateMachine = object : HelpCenterUiStateMachine,
         ScreenStateMachineMock<HelpCenterUiProps>("help-center") {},
-      trustedContactManagementUiStateMachine = object : TrustedContactManagementUiStateMachine,
-        ScreenStateMachineMock<TrustedContactManagementProps>("trusted-contacts") {},
       settingsListUiStateMachine = object : SettingsListUiStateMachine,
         BodyStateMachineMock<SettingsListUiProps>("settings-list") {},
-      cloudBackupHealthDashboardUiStateMachine = object : CloudBackupHealthDashboardUiStateMachine,
-        ScreenStateMachineMock<CloudBackupHealthDashboardProps>("cloud-backup-health") {},
       rotateAuthKeyUIStateMachine = object : RotateAuthKeyUIStateMachine,
         ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>("rotate-auth-key") {},
       navigatorPresenter = navigatorPresenter,
-      biometricSettingUiStateMachine = object : BiometricSettingUiStateMachine,
-        ScreenStateMachineMock<BiometricSettingUiProps>("debug-menu") {},
       firmwareDataService = firmwareDataService,
       utxoConsolidationUiStateMachine = object : UtxoConsolidationUiStateMachine,
         ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
@@ -263,9 +251,12 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()
       }
-      awaitBodyMock<TrustedContactManagementProps> {
+
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<TrustedContactManagementScreen>()
         onExit()
       }
+
       awaitBodyMock<SettingsListUiProps>()
     }
   }

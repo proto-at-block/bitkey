@@ -3,7 +3,6 @@ use std::env;
 use std::sync::OnceLock;
 
 use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
-use bimap::BiMap;
 use hmac::{Hmac, Mac};
 use instrumentation::metrics::KeyValue;
 use instrumentation::metrics::ResultCounter;
@@ -23,64 +22,137 @@ use crate::metrics;
 
 const TWILIO_API_URL: &str = "https://api.twilio.com/2010-04-01/";
 
-static TWILIO_SUPPORTED_SMS_COUNTRIES: OnceLock<BiMap<CountryCode, &'static str>> = OnceLock::new();
+// The values of the map are the country codes we support for SMS notifications
+// and correspond with the countries enabled within Twilio console.
+// The keys of the map allow us to determine the country code of the phone number
+// for metrics reporting purposes only; in normal business logic, the country code
+// of the phone number is determined by Twilio lookup API. They do not report the
+// country code when they use our webhook to report success metrics, so we use this
+// map to attribute the metric to a specific country.
+static SUPPORTED_PREFIX_TO_COUNTRY_CODE: OnceLock<HashMap<&'static str, CountryCode>> =
+    OnceLock::new();
 
-fn init_twilio_supported_sms_countries() -> BiMap<CountryCode, &'static str> {
-    let mut map = BiMap::new();
-    // map.insert(CountryCode::ARE, "971"); # Disable pending W-8480
-    map.insert(CountryCode::ARG, "54");
-    map.insert(CountryCode::AUS, "61");
-    map.insert(CountryCode::AUT, "43");
-    map.insert(CountryCode::BRA, "55");
-    map.insert(CountryCode::CHE, "41");
-    map.insert(CountryCode::CHL, "56");
-    map.insert(CountryCode::CMR, "237");
-    map.insert(CountryCode::COL, "57");
-    map.insert(CountryCode::CRI, "506");
-    map.insert(CountryCode::CZE, "420");
-    map.insert(CountryCode::DEU, "49");
-    map.insert(CountryCode::DNK, "45");
-    map.insert(CountryCode::ECU, "593");
-    map.insert(CountryCode::ESP, "34");
-    map.insert(CountryCode::FRA, "33");
-    map.insert(CountryCode::GBR, "44");
-    map.insert(CountryCode::GHA, "233");
-    map.insert(CountryCode::HUN, "36");
-    map.insert(CountryCode::IDN, "62");
-    map.insert(CountryCode::IND, "91");
-    map.insert(CountryCode::IRL, "353");
-    map.insert(CountryCode::ISR, "972");
-    map.insert(CountryCode::ITA, "39");
-    map.insert(CountryCode::JPN, "81");
-    map.insert(CountryCode::KAZ, "7");
-    map.insert(CountryCode::KEN, "254");
-    map.insert(CountryCode::KOR, "82");
-    map.insert(CountryCode::LTU, "370");
-    map.insert(CountryCode::MEX, "52");
-    map.insert(CountryCode::MYS, "60");
-    map.insert(CountryCode::NGA, "234");
-    map.insert(CountryCode::NLD, "31");
-    map.insert(CountryCode::NOR, "47");
-    map.insert(CountryCode::NZL, "64");
-    map.insert(CountryCode::PHL, "63");
-    map.insert(CountryCode::POL, "48");
-    map.insert(CountryCode::PRT, "351");
-    map.insert(CountryCode::ROU, "40");
-    map.insert(CountryCode::SGP, "65");
-    map.insert(CountryCode::SLV, "503");
-    map.insert(CountryCode::SWE, "46");
-    map.insert(CountryCode::THA, "66");
-    map.insert(CountryCode::TUR, "90");
-    map.insert(CountryCode::TWN, "886");
-    map.insert(CountryCode::UGA, "256");
-    map.insert(CountryCode::URY, "598");
-    map.insert(CountryCode::VNM, "84");
-    map.insert(CountryCode::ZAF, "27");
+fn init_twilio_supported_sms_countries() -> HashMap<&'static str, CountryCode> {
+    let mut map = HashMap::new();
+    map.insert("54", CountryCode::ARG);
+    map.insert("61", CountryCode::AUS);
+    map.insert("43", CountryCode::AUT);
+    map.insert("55", CountryCode::BRA);
+
+    // Make an entry for each Canadian area code so we can differntiate between USA and CAN.
+    // Since USA and CAN share country code prefix, we need the Canadian area codes
+    // to recognize a Canadian phone number.
+    map.insert("1204", CountryCode::CAN);
+    map.insert("1226", CountryCode::CAN);
+    map.insert("1236", CountryCode::CAN);
+    map.insert("1249", CountryCode::CAN);
+    map.insert("1250", CountryCode::CAN);
+    map.insert("1257", CountryCode::CAN);
+    map.insert("1263", CountryCode::CAN);
+    map.insert("1289", CountryCode::CAN);
+    map.insert("1306", CountryCode::CAN);
+    map.insert("1343", CountryCode::CAN);
+    map.insert("1354", CountryCode::CAN);
+    map.insert("1365", CountryCode::CAN);
+    map.insert("1367", CountryCode::CAN);
+    map.insert("1368", CountryCode::CAN);
+    map.insert("1382", CountryCode::CAN);
+    map.insert("1387", CountryCode::CAN);
+    map.insert("1403", CountryCode::CAN);
+    map.insert("1416", CountryCode::CAN);
+    map.insert("1418", CountryCode::CAN);
+    map.insert("1428", CountryCode::CAN);
+    map.insert("1431", CountryCode::CAN);
+    map.insert("1437", CountryCode::CAN);
+    map.insert("1438", CountryCode::CAN);
+    map.insert("1450", CountryCode::CAN);
+    map.insert("1460", CountryCode::CAN);
+    map.insert("1468", CountryCode::CAN);
+    map.insert("1474", CountryCode::CAN);
+    map.insert("1506", CountryCode::CAN);
+    map.insert("1514", CountryCode::CAN);
+    map.insert("1519", CountryCode::CAN);
+    map.insert("1537", CountryCode::CAN);
+    map.insert("1548", CountryCode::CAN);
+    map.insert("1568", CountryCode::CAN);
+    map.insert("1579", CountryCode::CAN);
+    map.insert("1581", CountryCode::CAN);
+    map.insert("1584", CountryCode::CAN);
+    map.insert("1587", CountryCode::CAN);
+    map.insert("1604", CountryCode::CAN);
+    map.insert("1613", CountryCode::CAN);
+    map.insert("1639", CountryCode::CAN);
+    map.insert("1647", CountryCode::CAN);
+    map.insert("1672", CountryCode::CAN);
+    map.insert("1683", CountryCode::CAN);
+    map.insert("1705", CountryCode::CAN);
+    map.insert("1709", CountryCode::CAN);
+    map.insert("1742", CountryCode::CAN);
+    map.insert("1753", CountryCode::CAN);
+    map.insert("1778", CountryCode::CAN);
+    map.insert("1780", CountryCode::CAN);
+    map.insert("1782", CountryCode::CAN);
+    map.insert("1807", CountryCode::CAN);
+    map.insert("1819", CountryCode::CAN);
+    map.insert("1825", CountryCode::CAN);
+    map.insert("1851", CountryCode::CAN);
+    map.insert("1867", CountryCode::CAN);
+    map.insert("1873", CountryCode::CAN);
+    map.insert("1879", CountryCode::CAN);
+    map.insert("1902", CountryCode::CAN);
+    map.insert("1905", CountryCode::CAN);
+    map.insert("1942", CountryCode::CAN);
+
+    map.insert("41", CountryCode::CHE);
+    map.insert("56", CountryCode::CHL);
+    map.insert("237", CountryCode::CMR);
+    map.insert("57", CountryCode::COL);
+    map.insert("506", CountryCode::CRI);
+    map.insert("420", CountryCode::CZE);
+    map.insert("49", CountryCode::DEU);
+    map.insert("45", CountryCode::DNK);
+    map.insert("593", CountryCode::ECU);
+    map.insert("34", CountryCode::ESP);
+    map.insert("33", CountryCode::FRA);
+    map.insert("44", CountryCode::GBR);
+    map.insert("233", CountryCode::GHA);
+    map.insert("36", CountryCode::HUN);
+    map.insert("62", CountryCode::IDN);
+    map.insert("91", CountryCode::IND);
+    map.insert("353", CountryCode::IRL);
+    map.insert("972", CountryCode::ISR);
+    map.insert("39", CountryCode::ITA);
+    map.insert("81", CountryCode::JPN);
+    map.insert("7", CountryCode::KAZ);
+    map.insert("254", CountryCode::KEN);
+    map.insert("82", CountryCode::KOR);
+    map.insert("370", CountryCode::LTU);
+    map.insert("52", CountryCode::MEX);
+    map.insert("60", CountryCode::MYS);
+    map.insert("234", CountryCode::NGA);
+    map.insert("31", CountryCode::NLD);
+    map.insert("47", CountryCode::NOR);
+    map.insert("64", CountryCode::NZL);
+    map.insert("63", CountryCode::PHL);
+    map.insert("48", CountryCode::POL);
+    map.insert("351", CountryCode::PRT);
+    map.insert("40", CountryCode::ROU);
+    map.insert("65", CountryCode::SGP);
+    map.insert("503", CountryCode::SLV);
+    map.insert("46", CountryCode::SWE);
+    map.insert("66", CountryCode::THA);
+    map.insert("90", CountryCode::TUR);
+    map.insert("886", CountryCode::TWN);
+    map.insert("256", CountryCode::UGA);
+    map.insert("1", CountryCode::USA);
+    map.insert("598", CountryCode::URY);
+    map.insert("84", CountryCode::VNM);
+    map.insert("27", CountryCode::ZAF);
     map
 }
 
-fn get_twilio_supported_sms_countries() -> &'static BiMap<CountryCode, &'static str> {
-    TWILIO_SUPPORTED_SMS_COUNTRIES.get_or_init(init_twilio_supported_sms_countries)
+fn get_twilio_supported_sms_countries() -> &'static HashMap<&'static str, CountryCode> {
+    SUPPORTED_PREFIX_TO_COUNTRY_CODE.get_or_init(init_twilio_supported_sms_countries)
 }
 
 #[derive(Deserialize, EnumString, Clone)]
@@ -273,8 +345,8 @@ impl TwilioClient {
     pub fn is_supported_sms_country_code(&self, country_code: CountryCode) -> bool {
         match self {
             Self::Real { .. } => get_twilio_supported_sms_countries()
-                .get_by_left(&country_code)
-                .is_some(),
+                .values()
+                .any(|c| c == &country_code),
             Self::Test => country_code == *CountryCode::as_array().first().unwrap(),
         }
     }
@@ -326,7 +398,7 @@ pub fn find_supported_sms_country_code(phone_number: String) -> Option<CountryCo
     let mut result = None;
     while phone_number.len() >= end && end > start {
         let search = &phone_number[start..end];
-        result = get_twilio_supported_sms_countries().get_by_right(search);
+        result = get_twilio_supported_sms_countries().get(search);
         if result.is_some() {
             break;
         }
@@ -416,6 +488,14 @@ mod tests {
         assert_eq!(
             find_supported_sms_country_code("+5984555555555".to_string()),
             Some(CountryCode::URY)
+        );
+        assert_eq!(
+            find_supported_sms_country_code("+12065555555".to_string()),
+            Some(CountryCode::USA)
+        );
+        assert_eq!(
+            find_supported_sms_country_code("+12045555555".to_string()),
+            Some(CountryCode::CAN)
         );
     }
 }

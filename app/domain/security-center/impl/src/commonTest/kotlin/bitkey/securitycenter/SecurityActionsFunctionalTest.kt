@@ -9,7 +9,6 @@ import bitkey.relationships.Relationships
 import build.wallet.account.AccountServiceFake
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.relationships.EndorsedBeneficiaryFake
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.EakBackupStatus
@@ -19,9 +18,11 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockInfo
 import build.wallet.firmware.UnlockMethod
+import build.wallet.fwup.FirmwareDataPendingUpdateMock
+import build.wallet.fwup.FirmwareDataServiceFake
+import build.wallet.fwup.FwupDataMock
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.inappsecurity.BiometricAuthServiceFake
-import build.wallet.inheritance.InheritanceServiceMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import io.kotest.assertions.fail
 import io.kotest.core.spec.style.FunSpec
@@ -55,13 +56,6 @@ class SecurityActionsFunctionalTest :
     socRecService.socRecRelationships.value = emptyRelationships
     val socialRecoveryActionFactory = SocialRecoveryActionFactoryImpl(socRecService)
 
-    val inheritanceService = InheritanceServiceMock(
-      syncCalls = turbines.create("Sync Calls"),
-      cancelClaimCalls = turbines.create("Cancel Claim Calls")
-    )
-    inheritanceService.relationships.value = emptyRelationships
-    val inheritanceActionFactory = InheritanceActionFactoryImpl(inheritanceService)
-
     val biometricAuthService = BiometricAuthServiceFake()
     biometricAuthService.isBiometricAuthRequiredFlow.value = false
     val biometricActionFactory = BiometricActionFactoryImpl(biometricAuthService)
@@ -82,6 +76,12 @@ class SecurityActionsFunctionalTest :
       hardwareUnlockInfoService
     )
 
+    val firmwareDataService = FirmwareDataServiceFake()
+    firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
+    val hardwareDeviceActionFactory = HardwareDeviceActionFactoryImpl(
+      firmwareDataService
+    )
+
     val eventTracker = EventTrackerMock(turbines::create)
 
     val metricTrackerService = MetricTrackerServiceFake()
@@ -90,10 +90,10 @@ class SecurityActionsFunctionalTest :
       mobileKeyBackupHealthActionFactory,
       eakBackupHealthActionFactory,
       socialRecoveryActionFactory,
-      inheritanceActionFactory,
       biometricActionFactory,
       criticalAlertsActionFactory,
       fingerprintsActionFactory,
+      hardwareDeviceActionFactory,
       eventTracker,
       metricTrackerService
     )
@@ -103,6 +103,7 @@ class SecurityActionsFunctionalTest :
       hardwareUnlockInfoService.replaceAllUnlockInfo(
         listOf(UnlockInfo(unlockMethod = UnlockMethod.BIOMETRICS, fingerprintIdx = 1))
       )
+      firmwareDataService.syncLatestFwupData()
     }
 
     test("getRecommendations updates when individual action sources change") {
@@ -146,20 +147,7 @@ class SecurityActionsFunctionalTest :
           {
             notificationService.criticalNotificationsStatus.value = NotificationsService.NotificationStatus.Enabled
           },
-          SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS
-        ),
-        Triple(
-          "Inheritance setup completed",
-          {
-            val relationships = Relationships(
-              invitations = emptyList(),
-              endorsedTrustedContacts = listOf(EndorsedBeneficiaryFake),
-              unendorsedTrustedContacts = emptyList(),
-              protectedCustomers = emptyImmutableList()
-            )
-            inheritanceService.relationships.value = relationships
-          },
-          SecurityActionRecommendation.ADD_BENEFICIARY
+          SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS
         ),
         Triple(
           "Fingerprints added",
@@ -175,6 +163,15 @@ class SecurityActionsFunctionalTest :
             }
           },
           SecurityActionRecommendation.ADD_FINGERPRINTS
+        ),
+        Triple(
+          "Device updated",
+          {
+            runBlocking {
+              firmwareDataService.updateFirmwareVersion(FwupDataMock)
+            }
+          },
+          SecurityActionRecommendation.UPDATE_FIRMWARE
         )
       )
 
@@ -183,8 +180,8 @@ class SecurityActionsFunctionalTest :
         SecurityActionRecommendation.BACKUP_EAK,
         SecurityActionRecommendation.ADD_FINGERPRINTS,
         SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
-        SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS,
-        SecurityActionRecommendation.ADD_BENEFICIARY,
+        SecurityActionRecommendation.UPDATE_FIRMWARE,
+        SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS,
         SecurityActionRecommendation.SETUP_BIOMETRICS
       )
       recommendations.test {
@@ -210,9 +207,9 @@ class SecurityActionsFunctionalTest :
 
     test("getActions returns expected actions") {
       val recoveryActions = securityActionsService.getActions(SecurityActionCategory.RECOVERY)
-      recoveryActions.size shouldBe 5
+      recoveryActions.size shouldBe 4
 
       val accessActions = securityActionsService.getActions(SecurityActionCategory.SECURITY)
-      accessActions.size shouldBe 2
+      accessActions.size shouldBe 3
     }
   })

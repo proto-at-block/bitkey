@@ -1,16 +1,12 @@
 use async_trait::async_trait;
 use database::{
-    aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata,
-        types::{
-            AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
-            Projection, ProjectionType::All, ScalarAttributeType,
-        },
+    aws_sdk_dynamodb::types::{KeyType, ScalarAttributeType},
+    ddb::{
+        create_dynamodb_table, BaseRepository, Connection, DatabaseError, DatabaseObject,
+        GlobalSecondaryIndexDef, Repository, TableKey, Upsertable,
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository, Upsertable},
 };
 use serde::{Deserialize, Serialize};
-use tracing::{event, Level};
 use types::recovery::{
     backup::Backup,
     social::{challenge::SocialChallenge, relationship::RecoveryRelationship},
@@ -48,136 +44,84 @@ impl Upsertable for SocialRecoveryRow {
 
 #[derive(Clone)]
 pub struct SocialRecoveryRepository {
-    connection: Connection,
+    base: BaseRepository,
 }
 
 #[async_trait]
 impl Repository for SocialRecoveryRepository {
     fn new(connection: Connection) -> Self {
-        Self { connection }
+        Self {
+            base: BaseRepository::new(connection, DatabaseObject::SocialRecovery),
+        }
     }
 
     fn get_database_object(&self) -> DatabaseObject {
-        DatabaseObject::SocialRecovery
+        self.base.get_database_object()
     }
 
     fn get_connection(&self) -> &Connection {
-        &self.connection
-    }
-
-    async fn get_table_name(&self) -> Result<String, DatabaseError> {
-        self.connection.get_table_name(self.get_database_object())
-    }
-
-    async fn table_exists(&self) -> Result<bool, DatabaseError> {
-        let table_name = self.get_table_name().await?;
-        Ok(self
-            .connection
-            .client
-            .describe_table()
-            .table_name(table_name)
-            .send()
-            .await
-            .is_ok())
+        self.base.get_connection()
     }
 
     async fn create_table(&self) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        let pk = AttributeDefinition::builder()
-            .attribute_name(PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let partition_ks = KeySchemaElement::builder()
-            .attribute_name(PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
+        let partition_key = TableKey {
+            name: PARTITION_KEY.to_string(),
+            key_type: KeyType::Hash,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        let customer_index_pk = AttributeDefinition::builder()
-            .attribute_name(CUSTOMER_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let customer_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(CUSTOMER_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let customer_index_sk = AttributeDefinition::builder()
-            .attribute_name(CUSTOMER_IDX_SORT_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let customer_index_sk_ks = KeySchemaElement::builder()
-            .attribute_name(CUSTOMER_IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
+        let gsis = vec![
+            // Customer Index GSI
+            GlobalSecondaryIndexDef {
+                name: CUSTOMER_IDX.to_string(),
+                pk: TableKey {
+                    name: CUSTOMER_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: CUSTOMER_IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+            // Trusted Contact Index GSI
+            GlobalSecondaryIndexDef {
+                name: TRUSTED_CONTACT_IDX.to_string(),
+                pk: TableKey {
+                    name: TRUSTED_CONTACT_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: TRUSTED_CONTACT_IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+            // Code Index GSI
+            GlobalSecondaryIndexDef {
+                name: CODE_IDX.to_string(),
+                pk: TableKey {
+                    name: CODE_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: None, // No sort key for this GSI
+            },
+        ];
 
-        let trusted_contact_index_pk = AttributeDefinition::builder()
-            .attribute_name(TRUSTED_CONTACT_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let trusted_contact_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(TRUSTED_CONTACT_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let trusted_contact_index_sk_ks = KeySchemaElement::builder()
-            .attribute_name(TRUSTED_CONTACT_IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
-
-        let code_index_pk = AttributeDefinition::builder()
-            .attribute_name(CODE_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let code_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(CODE_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-
-        self.connection
-            .client
-            .create_table()
-            .table_name(table_name)
-            .key_schema(partition_ks)
-            .attribute_definitions(pk)
-            .attribute_definitions(customer_index_pk)
-            .attribute_definitions(customer_index_sk)
-            .attribute_definitions(trusted_contact_index_pk)
-            .attribute_definitions(code_index_pk)
-            .billing_mode(BillingMode::PayPerRequest)
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(CUSTOMER_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(customer_index_pk_ks)
-                    .key_schema(customer_index_sk_ks)
-                    .build()?,
-            )
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(TRUSTED_CONTACT_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(trusted_contact_index_pk_ks)
-                    .key_schema(trusted_contact_index_sk_ks)
-                    .build()?,
-            )
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(CODE_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(code_index_pk_ks)
-                    .build()?,
-            )
-            .send()
-            .await
-            .map_err(|err| {
-                let service_err = err.into_service_error();
-                event!(
-                    Level::ERROR,
-                    "Could not create SocialRecovery table: {service_err:?} with message: {:?}",
-                    service_err.message()
-                );
-                DatabaseError::CreateTableError(database_object)
-            })?;
-        Ok(())
+        create_dynamodb_table(
+            &self.get_connection().client,
+            table_name,
+            database_object,
+            partition_key,
+            None,
+            gsis,
+        )
+        .await
     }
 }

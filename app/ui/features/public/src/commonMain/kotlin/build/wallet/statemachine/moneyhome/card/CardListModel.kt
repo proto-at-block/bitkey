@@ -23,7 +23,7 @@ import kotlin.time.Duration
  * @property cards - A list of [CardModel] objects that will render in Money Home. When this list is
  * empty, there are no cards to show
  */
-data class MoneyHomeCardsModel(
+data class CardListModel(
   val cards: ImmutableList<CardModel>,
 ) : Model
 

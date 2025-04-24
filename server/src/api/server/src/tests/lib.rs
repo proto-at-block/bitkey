@@ -54,9 +54,6 @@ use super::requests::axum::TestClient;
 use crate::tests::TestContext;
 use crate::Services;
 
-const RECEIVE_DERIVATION_PATH: &str = "m/0";
-const CHANGE_DERIVATION_PATH: &str = "m/1";
-
 pub(crate) fn gen_external_wallet_address() -> AddressInfo {
     let external_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
     external_wallet.get_address(AddressIndex::New).unwrap()

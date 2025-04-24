@@ -3,11 +3,13 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 use http::{HeaderMap, StatusCode};
-use instrumentation::middleware::{APP_INSTALLATION_ID_HEADER_NAME, HARDWARE_SERIAL_HEADER_NAME};
+use instrumentation::middleware::CLIENT_REQUEST_CONTEXT;
 use opentelemetry::baggage::BaggageExt;
 use opentelemetry::trace::FutureExt;
 use opentelemetry::KeyValue;
-use wallet_telemetry::baggage_keys::{ACCOUNT_ID, APP_INSTALLATION_ID, HARDWARE_SERIAL_NUMBER};
+use wallet_telemetry::baggage_keys::{
+    ACCOUNT_ID, APP_ID, APP_INSTALLATION_ID, HARDWARE_SERIAL_NUMBER,
+};
 
 pub async fn request_baggage(
     headers: HeaderMap,
@@ -16,14 +18,30 @@ pub async fn request_baggage(
 ) -> Result<Response, StatusCode> {
     let baggage: Vec<KeyValue> = [
         extract_account_id(&headers).map(|id| KeyValue::new(ACCOUNT_ID, id)),
-        headers
-            .get(APP_INSTALLATION_ID_HEADER_NAME)
-            .and_then(|v| v.to_str().ok())
-            .map(|v| KeyValue::new(APP_INSTALLATION_ID, v.to_owned())),
-        headers
-            .get(HARDWARE_SERIAL_HEADER_NAME)
-            .and_then(|v| v.to_str().ok())
-            .map(|v| KeyValue::new(HARDWARE_SERIAL_NUMBER, v.to_owned())),
+        CLIENT_REQUEST_CONTEXT
+            .try_with(|c| {
+                c.app_id
+                    .as_deref()
+                    .map(|v| KeyValue::new(APP_ID, v.to_string()))
+            })
+            .ok()
+            .flatten(),
+        CLIENT_REQUEST_CONTEXT
+            .try_with(|c| {
+                c.app_installation_id
+                    .as_deref()
+                    .map(|v| KeyValue::new(APP_INSTALLATION_ID, v.to_string()))
+            })
+            .ok()
+            .flatten(),
+        CLIENT_REQUEST_CONTEXT
+            .try_with(|c| {
+                c.hardware_serial
+                    .as_deref()
+                    .map(|v| KeyValue::new(HARDWARE_SERIAL_NUMBER, v.to_string()))
+            })
+            .ok()
+            .flatten(),
     ]
     .into_iter()
     .flatten()
@@ -45,6 +63,9 @@ mod tests {
     use axum::middleware::from_fn;
     use axum::routing::get;
     use axum::Router;
+    use instrumentation::middleware::{
+        client_request_context, APP_INSTALLATION_ID_HEADER_NAME, HARDWARE_SERIAL_HEADER_NAME,
+    };
     use tower::ServiceExt;
 
     #[tokio::test]
@@ -71,7 +92,8 @@ mod tests {
 
         let app = Router::new()
             .route("/", get(assert_request_baggage))
-            .layer(from_fn(request_baggage));
+            .layer(from_fn(request_baggage))
+            .layer(from_fn(client_request_context));
 
         let request = Request::builder()
             .uri("/")

@@ -1,4 +1,6 @@
 use axum::extract::Request;
+use axum::http::header::USER_AGENT;
+use axum::middleware::Next;
 use axum::{body::Body, extract::MatchedPath, response::Response};
 use futures_util::future::BoxFuture;
 use std::sync::Arc;
@@ -7,7 +9,7 @@ use std::time::Instant;
 use tower::{Layer, Service};
 
 use crate::metrics::factory::{Counter, Histogram, UpDownCounter};
-use crate::metrics::KeyValue;
+use crate::metrics::{KeyValue, APP_ID_KEY};
 
 pub const APP_INSTALLATION_ID_HEADER_NAME: &str = "Bitkey-App-Installation-ID";
 pub const HARDWARE_SERIAL_HEADER_NAME: &str = "Bitkey-Hardware-Serial";
@@ -22,6 +24,10 @@ const STATUS_2XX: &str = "2xx";
 const STATUS_3XX: &str = "3xx";
 const STATUS_4XX: &str = "4xx";
 const STATUS_5XX: &str = "5xx";
+
+tokio::task_local! {
+    pub static CLIENT_REQUEST_CONTEXT: ClientRequestContext;
+}
 
 #[derive(Clone)]
 pub struct RouterName(pub(crate) String);
@@ -179,6 +185,10 @@ where
                 attributes.push(KeyValue::new(ROUTER_NAME_KEY, router_name.to_owned()));
             }
 
+            if let Ok(Some(app_id)) = CLIENT_REQUEST_CONTEXT.try_with(|c| c.app_id.clone()) {
+                attributes.push(KeyValue::new(APP_ID_KEY, app_id));
+            }
+
             metrics.http_response.add(1, &attributes);
             metrics
                 .http_response_latency
@@ -186,5 +196,89 @@ where
 
             Ok(response)
         })
+    }
+}
+
+pub struct ClientRequestContext {
+    pub app_id: Option<String>,
+    pub app_installation_id: Option<String>,
+    pub hardware_serial: Option<String>,
+}
+
+pub async fn client_request_context(request: Request, next: Next) -> Response {
+    let app_id = request
+        .headers()
+        .get(USER_AGENT)
+        .and_then(|h| h.to_str().ok())
+        .and_then(|v| v.split('/').next().filter(|s| s.contains("bitkey")))
+        .map(|s| s.to_string());
+
+    let app_installation_id = request
+        .headers()
+        .get(APP_INSTALLATION_ID_HEADER_NAME)
+        .and_then(|h| h.to_str().ok())
+        .map(|v| v.to_string());
+
+    let hardware_serial = request
+        .headers()
+        .get(HARDWARE_SERIAL_HEADER_NAME)
+        .and_then(|h| h.to_str().ok())
+        .map(|v| v.to_string());
+
+    CLIENT_REQUEST_CONTEXT
+        .scope(
+            ClientRequestContext {
+                app_id,
+                app_installation_id,
+                hardware_serial,
+            },
+            next.run(request),
+        )
+        .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::body::Body;
+    use axum::http::StatusCode;
+    use axum::middleware::from_fn;
+    use axum::routing::get;
+    use axum::Router;
+    use tower::ServiceExt;
+
+    use crate::middleware::CLIENT_REQUEST_CONTEXT;
+
+    #[tokio::test]
+    async fn client_request_context_with_headers() {
+        let app_id = "world.bitkey.test";
+        let app_install_id = "test_app_installation_id";
+        let hw_serial = "test_hw_serial";
+
+        let assert_client_request_context = move || async move {
+            CLIENT_REQUEST_CONTEXT
+                .try_with(|c| {
+                    assert_eq!(c.app_id.as_deref(), Some(app_id));
+                    assert_eq!(c.app_installation_id.as_deref(), Some(app_install_id));
+                    assert_eq!(c.hardware_serial.as_deref(), Some(hw_serial));
+                })
+                .unwrap();
+        };
+
+        let app = Router::new()
+            .route("/", get(assert_client_request_context))
+            .layer(from_fn(client_request_context));
+
+        let request = Request::builder()
+            .uri("/")
+            .header(USER_AGENT, format!("{}/whatever", app_id))
+            .header(APP_INSTALLATION_ID_HEADER_NAME, app_install_id)
+            .header(HARDWARE_SERIAL_HEADER_NAME, hw_serial)
+            .body(Body::empty())
+            .unwrap();
+
+        let res = app.oneshot(request).await.unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
     }
 }

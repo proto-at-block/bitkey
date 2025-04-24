@@ -50,7 +50,7 @@ class FwupNfcSessionUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcReaderCapability: NfcReaderCapability,
   private val nfcTransactor: NfcTransactor,
-  private val fwupDataDao: FwupDataDao,
+  private val fwupDataDaoProvider: FwupDataDaoProvider,
   private val firmwareDataService: FirmwareDataService,
   private val accountConfigService: AccountConfigService,
 ) : FwupNfcSessionUiStateMachine {
@@ -331,12 +331,12 @@ class FwupNfcSessionUiStateMachineImpl(
   }
 
   private suspend fun getSequenceId(): UInt =
-    fwupDataDao.getSequenceId()
+    fwupDataDaoProvider.get().getSequenceId()
       .logFailure { "Failed to get fwup sequence ID, using 0 as default." }
       .getOrElse { 0u }
 
   private suspend fun setSequenceId(sequenceId: UInt) {
-    fwupDataDao.setSequenceId(sequenceId)
+    fwupDataDaoProvider.get().setSequenceId(sequenceId)
   }
 }
 

@@ -32,7 +32,7 @@ import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareMetadataDaoMock
 import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
-import build.wallet.fwup.FwupDataDaoMock
+import build.wallet.fwup.FwupDataDaoProviderMock
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
@@ -73,7 +73,6 @@ class AppDataDeleterImplTests : FunSpec({
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val mobilePayService = MobilePayServiceMock(turbines::create)
   val transactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
-  val fwupDataDao = FwupDataDaoMock(turbines::create)
   val firmwareDeviceIdentifiersDao =
     FirmwareDeviceInfoDaoMock(turbines::create)
   val firmwareMetadataDao = FirmwareMetadataDaoMock(turbines::create)
@@ -92,6 +91,7 @@ class AppDataDeleterImplTests : FunSpec({
   val recoveryDaoMock = RecoveryDaoMock(turbines::create)
   val authSignatureStatusProvider = F8eAuthSignatureStatusProviderFake()
   val hardwareUnlockInfoService = HardwareUnlockInfoServiceFake()
+  val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -106,7 +106,7 @@ class AppDataDeleterImplTests : FunSpec({
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       mobilePayService = mobilePayService,
       outgoingTransactionDetailDao = transactionDetailDao,
-      fwupDataDao = fwupDataDao,
+      fwupDataDaoProvider = fwupDataDaoProvider,
       firmwareDeviceInfoDao = firmwareDeviceIdentifiersDao,
       firmwareMetadataDao = firmwareMetadataDao,
       transactionPriorityPreference = transactionPriorityPreference,
@@ -181,7 +181,7 @@ class AppDataDeleterImplTests : FunSpec({
       notificationTouchpointDao.clearCalls.awaitItem()
       onboardingKeyboxStepStateDao.clearCalls.awaitItem()
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldBeNull()
-      fwupDataDao.clearCalls.awaitItem()
+      fwupDataDaoProvider.fwupDataDaoMock.clearCalls.awaitItem()
       firmwareDeviceIdentifiersDao.clearCalls.awaitItem()
       firmwareMetadataDao.clearCalls.awaitItem()
       transactionPriorityPreference.preference.shouldBeNull()

@@ -3,8 +3,6 @@ package build.wallet.ui.app.moneyhome.card
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +24,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.card.CardContent
 import build.wallet.ui.components.card.GradientCard
+import build.wallet.ui.compose.scalingClickable
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -75,15 +74,9 @@ fun MoneyHomeCard(
   }
 
   // Only add the height modifier if we are in the middle of an animation
-  var cardModifier =
-    modifier.clickable(
-      interactionSource = MutableInteractionSource(),
-      indication = null,
-      enabled = model.onClick != null,
-      onClick = {
-        model.onClick?.invoke()
-      }
-    )
+  var cardModifier = modifier.scalingClickable(enabled = model.onClick != null) {
+    model.onClick?.invoke()
+  }
   if (model.animation != null) {
     cardModifier =
       cardModifier

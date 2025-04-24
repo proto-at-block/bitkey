@@ -1,6 +1,9 @@
 package bitkey.notifications
 
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.UsSmsFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.permissions.PermissionCheckerMock
 import build.wallet.platform.settings.TelephonyCountryCodeProviderMock
@@ -15,10 +18,14 @@ class NotificationsServiceImplTests : FunSpec({
   val notificationsPreferencesProvider = NotificationsPreferencesCachedProviderMock()
   val telephonyCountryCodeProvider = TelephonyCountryCodeProviderMock()
 
+  val featureFlagDao = FeatureFlagDaoFake()
+  val featureFlag = UsSmsFeatureFlag(featureFlagDao)
+
   val notificationService = NotificationsServiceImpl(
     permissionChecker = permissionsChecker,
     notificationsPreferencesProvider = notificationsPreferencesProvider,
-    telephonyCountryCodeProvider = telephonyCountryCodeProvider
+    telephonyCountryCodeProvider = telephonyCountryCodeProvider,
+    usSmsFeatureFlag = featureFlag
   )
 
   test("Notifications Enabled") {
@@ -93,11 +100,62 @@ class NotificationsServiceImplTests : FunSpec({
     )
     permissionsChecker.permissionsOn = true
     telephonyCountryCodeProvider.mockCountryCode = "us"
+    // Feature flag is false by default
     val result = notificationService.getCriticalNotificationStatus(
       accountId = FullAccountIdMock
     ).first()
 
+    // When in US with flag disabled, SMS should not be required
     result.shouldBe(NotificationsService.NotificationStatus.Enabled)
+  }
+
+  test("SMS required for US when feature flag enabled") {
+    notificationsPreferencesProvider.notificationPreferences.value = Ok(
+      NotificationPreferences(
+        accountSecurity = setOf(
+          NotificationChannel.Push,
+          NotificationChannel.Email
+        ),
+        moneyMovement = emptySet(),
+        productMarketing = emptySet()
+      )
+    )
+    permissionsChecker.permissionsOn = true
+    telephonyCountryCodeProvider.mockCountryCode = "us"
+
+    // Enable US SMS feature flag
+    featureFlag.setFlagValue(true)
+
+    val result = notificationService.getCriticalNotificationStatus(
+      accountId = FullAccountIdMock
+    ).first()
+
+    // With feature flag enabled, SMS should now be required for US users
+    result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Sms)))
+  }
+
+  test("SMS required for non-US regardless of feature flag") {
+    notificationsPreferencesProvider.notificationPreferences.value = Ok(
+      NotificationPreferences(
+        accountSecurity = setOf(
+          NotificationChannel.Push,
+          NotificationChannel.Email
+        ),
+        moneyMovement = emptySet(),
+        productMarketing = emptySet()
+      )
+    )
+    permissionsChecker.permissionsOn = true
+    telephonyCountryCodeProvider.mockCountryCode = "ca"
+    // Feature flag doesn't matter for non-US users, but set to false to be sure
+    featureFlag.setFlagValue(false)
+
+    val result = notificationService.getCriticalNotificationStatus(
+      accountId = FullAccountIdMock
+    ).first()
+
+    // SMS should be required for non-US users regardless of feature flag
+    result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Sms)))
   }
 
   test("Preference Error") {

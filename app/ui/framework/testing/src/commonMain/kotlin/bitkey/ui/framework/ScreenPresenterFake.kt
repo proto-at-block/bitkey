@@ -9,6 +9,11 @@ class ScreenPresenterFake : ScreenPresenter<ScreenFake> {
     navigator: Navigator,
     screen: ScreenFake,
   ): ScreenModel {
-    return NavigatingBodyModelFake(id = screen.id, goTo = navigator::goTo).asRootScreen()
+    return NavigatingBodyModelFake(
+      id = screen.id,
+      goTo = navigator::goTo,
+      showSheet = navigator::showSheet,
+      closeSheet = navigator::closeSheet
+    ).asRootScreen()
   }
 }

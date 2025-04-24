@@ -14,7 +14,7 @@ import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 /**
  * State Machine which composes card state machines to be rendered in [MoneyHomeStateMachine]
  */
-interface MoneyHomeCardsUiStateMachine : StateMachine<MoneyHomeCardsProps, MoneyHomeCardsModel>
+interface MoneyHomeCardsUiStateMachine : StateMachine<MoneyHomeCardsProps, CardListModel>
 
 data class MoneyHomeCardsProps(
   val cloudBackupHealthCardUiProps: CloudBackupHealthCardUiProps,

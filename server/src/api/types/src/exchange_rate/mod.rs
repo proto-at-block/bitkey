@@ -1,8 +1,9 @@
+use std::time::{Duration, Instant};
+
 use crate::currencies::CurrencyCode;
 use serde::{Deserialize, Serialize};
-use std::ops::Sub;
 use time::serde::rfc3339;
-use time::{Duration, Instant, OffsetDateTime};
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 pub mod bitstamp;
@@ -37,7 +38,7 @@ impl TimeWindow {
     }
 
     pub fn within(&self, time: Instant) -> bool {
-        time.0.sub(self.mark.0) < self.duration
+        time.duration_since(self.mark) < self.duration
     }
 }
 
@@ -58,18 +59,18 @@ pub struct ExchangeRateChartData {
 #[cfg(test)]
 mod tests {
     use crate::exchange_rate::TimeWindow;
-    use time::ext::NumericalDuration;
-    use time::Instant;
+    use std::time::{Duration, Instant};
 
     #[test]
     fn test_within() {
         let mark = Instant::now();
         let window = TimeWindow {
             mark,
-            duration: 5.minutes(),
+            duration: Duration::from_secs(5 * 60),
         };
 
         assert!(window.within(Instant::now()));
-        assert!(!window.within(Instant::now() + 5.minutes()));
+        let future = mark + Duration::from_secs(5 * 60 + 1); // 5 minutes + 1 second
+        assert!(!window.within(future));
     }
 }

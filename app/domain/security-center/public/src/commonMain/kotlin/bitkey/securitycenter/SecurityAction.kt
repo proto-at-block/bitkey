@@ -18,6 +18,10 @@ interface SecurityAction {
    * Returns the type of the action.
    */
   fun type(): SecurityActionType
+
+  fun requiresAction(): Boolean {
+    return getRecommendations().isNotEmpty()
+  }
 }
 
 enum class SecurityActionCategory {
@@ -30,11 +34,16 @@ enum class SecurityActionCategory {
  * In priority order.
  */
 enum class SecurityActionRecommendation {
+  PAIR_HARDWARE_DEVICE,
   BACKUP_MOBILE_KEY,
   BACKUP_EAK,
   ADD_FINGERPRINTS,
   ADD_TRUSTED_CONTACTS,
+  UPDATE_FIRMWARE,
   ENABLE_CRITICAL_ALERTS,
+  ENABLE_PUSH_NOTIFICATIONS,
+  ENABLE_SMS_NOTIFICATIONS,
+  ENABLE_EMAIL_NOTIFICATIONS,
   ADD_BENEFICIARY,
   SETUP_BIOMETRICS,
 }
@@ -43,6 +52,7 @@ enum class SecurityActionRecommendation {
  * Represents the type of security action. Maps 1:1 to classes that implement [SecurityAction].
  */
 enum class SecurityActionType {
+  HARDWARE_DEVICE,
   BIOMETRIC,
   CRITICAL_ALERTS,
   EAK_BACKUP,

@@ -11,7 +11,10 @@ import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.notifications.*
+import build.wallet.feature.flags.UsSmsFeatureFlag
+import build.wallet.notifications.NotificationTouchpointData
+import build.wallet.notifications.NotificationTouchpointService
+import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus.*
@@ -27,7 +30,10 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.notifications.*
+import build.wallet.statemachine.notifications.NotificationOperationApprovalInstructionsFormScreenModel
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.*
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.ShowingNotificationsSettingsUiState.*
@@ -38,6 +44,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * TODO: Remove this class once child state machines have been migrated to [ScreenPresenter]
+ */
 @BitkeyInject(ActivityScope::class)
 class RecoveryChannelSettingsUiStateMachineImpl(
   private val permissionChecker: PermissionChecker,
@@ -52,6 +61,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
   private val notificationTouchpointService: NotificationTouchpointService,
+  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : RecoveryChannelSettingsUiStateMachine {
   @Composable
   override fun model(props: RecoveryChannelSettingsProps): ScreenModel {
@@ -343,6 +353,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     val smsNumber = notificationTouchpointData?.phoneNumber?.formattedDisplayValue
     val emailAddress = notificationTouchpointData?.email?.value
     val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
+    val usSmsEnabled = usSmsFeatureFlag.flagValue().value.value
     val smsRecoveryEnabled =
       smsNumber != null && notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
     val pushRecoveryEnabled =
@@ -351,18 +362,15 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     val smsRegisteredRecoveryDisabled =
       smsNumber != null && !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
 
-    // Either the phone sim says it's a US number, or the user entered a US number and got an error
-    val usSimOrWarned = isCountryUS || phoneErrorHint != UiErrorHint.None
-
     val missingRecoveryMethods = listOfNotNull(
       NotificationChannel.Sms.takeIf {
         /*
         1. We're not loading
-        2. Either not a US sim card, or the user entered a US number and got NotAvailableInYourCountry
+        2. Either not a US sim card, or US SMS is enabled via feature flag, or the user entered a US number and got NotAvailableInYourCountry
         3. Sms is not in the list of enabled recovery options
          */
         !isLoading &&
-          (!usSimOrWarned || smsNumber != null) &&
+          (!isCountryUS || usSmsEnabled || smsNumber != null) &&
           !notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
       },
       NotificationChannel.Push.takeIf {
@@ -488,7 +496,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               )
             )
           } else {
-            if (isCountryUS) {
+            if (isCountryUS && !usSmsEnabled) {
               updateState(
                 ShowingNotificationsSettingsUiState(
                   overlayState = BottomSheetOverlayState(

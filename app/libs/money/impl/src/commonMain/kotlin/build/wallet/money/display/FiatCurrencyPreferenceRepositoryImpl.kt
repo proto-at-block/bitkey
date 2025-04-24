@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class FiatCurrencyPreferenceRepositoryImpl(
-  appScope: CoroutineScope,
+  private val appScope: CoroutineScope,
   private val fiatCurrencyPreferenceDao: FiatCurrencyPreferenceDao,
   private val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider,
   private val fiatCurrencyDao: FiatCurrencyDao,
@@ -22,35 +22,27 @@ class FiatCurrencyPreferenceRepositoryImpl(
   override val fiatCurrencyPreference: StateFlow<FiatCurrency> =
     fiatCurrencyPreferenceDao
       .fiatCurrencyPreference()
-      .onStart {
-        appScope.launch {
-          initializeDefaultCurrency()
-        }
-      }
-      .map { it ?: USD }
+      .map { currentPreference -> currentPreference ?: setDefaultLocale() }
       .stateIn(appScope, started = SharingStarted.Lazily, initialValue = USD)
 
   /**
-   * A worker that initializes default currency preference based on the customer's locale,
-   * unless customer has already picked their preferred currency from the list of supported
-   * fiat currencies in Settings.
+   * Creates a default locale setting for the user when no manual setting
+   * has been made.
+   *
+   * This uses the device's locale to determine a currency code, and if
+   * that code is supported by our system, will set the currency preference
+   * to that locale.
+   * If the user has no locale, or is in an unsupported locale, this will
+   * default to USD as the currency, and also save this as a preference.
+   * Saving this default locale is important so that the user does not
+   * experience currency changes, which can be confusing for the UI and
+   * break features like mobile pay.
    */
-  private suspend fun initializeDefaultCurrency() {
-    // Check if the customer does not have a fiat currency preference set.
-    val fiatCurrencyPreference = fiatCurrencyPreferenceDao.fiatCurrencyPreference().firstOrNull()
-    if (fiatCurrencyPreference == null) {
-      // If the customer does not have a fiat currency preference set,
-      // use device's locale to determine appropriate fiat currency to use as default.
-      val localeCurrencyCode = localeCurrencyCodeProvider.localeCurrencyCode()
-      if (localeCurrencyCode != null) {
-        val fiatCurrency =
-          fiatCurrencyDao.fiatCurrency(IsoCurrencyTextCode(localeCurrencyCode)).firstOrNull()
-        if (fiatCurrency != null) {
-          // Set the fiat currency preference to the fiat currency determined by the device's locale.
-          fiatCurrencyPreferenceDao.setFiatCurrencyPreference(fiatCurrency)
-        }
-      }
-    }
+  private suspend fun setDefaultLocale(): FiatCurrency {
+    return localeCurrencyCodeProvider.localeCurrencyCode()
+      ?.let { fiatCurrencyDao.fiatCurrency(IsoCurrencyTextCode(it)).firstOrNull() }
+      .let { it ?: USD }
+      .also { appScope.launch { fiatCurrencyPreferenceDao.setFiatCurrencyPreference(it) } }
   }
 
   override suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, Error> {

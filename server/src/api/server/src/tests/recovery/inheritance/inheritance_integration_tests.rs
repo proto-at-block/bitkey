@@ -252,6 +252,7 @@ async fn start_inheritance_claim_test(
                 // The initiated schedule gets split into 1 that gets sent immediately
                 // and a schedule that starts in 7 days
                 NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
+                NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
                 NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
@@ -297,7 +298,7 @@ pub(super) async fn try_package_upload(
     context: &TestContext,
     client: &TestClient,
     beneficiary_account_id: &AccountId,
-    recovery_relationships: &Vec<RecoveryRelationshipId>,
+    recovery_relationships: &[RecoveryRelationshipId],
     expected_status_code: StatusCode,
 ) -> Option<UploadInheritancePackagesResponse> {
     let keys = context
@@ -501,7 +502,7 @@ async fn cancel_inheritance_claim(
     let rotate_to_inheritance_keys = if let Account::Full(f) = &beneficiary {
         f.active_auth_keys().unwrap().to_owned()
     } else {
-        unimplemented!()
+        panic!("This test only supports Full accounts")
     };
     let BeneficiaryInheritanceClaimView::Pending(pending_claim) = try_start_inheritance_claim(
         &context,
@@ -604,6 +605,7 @@ async fn cancel_inheritance_claim(
                 // The initiated schedule gets split into 1 that gets sent immediately
                 // and a schedule that starts in 7 days
                 NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
+                NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
                 NotificationPayloadType::InheritanceClaimPeriodInitiated,
                 NotificationPayloadType::InheritanceClaimPeriodAlmostOver,
                 NotificationPayloadType::InheritanceClaimPeriodCompleted,
@@ -1357,7 +1359,7 @@ async fn create_lockable_claim(
         context,
         client,
         benefactor.get_id(),
-        &vec![recovery_relationship_id.clone()],
+        &[recovery_relationship_id.clone()],
         StatusCode::OK,
     )
     .await;

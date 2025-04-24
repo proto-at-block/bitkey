@@ -48,6 +48,7 @@ fun WalletTheme.iconStyle(
                 IconTint.Warning -> colors.warningForeground
                 IconTint.Success -> colors.calloutSuccessTrailingIconBackground
                 IconTint.Information -> colors.calloutInformationTrailingIconBackground
+                IconTint.White -> Color.White
                 null -> when (color) {
                   Color.Unspecified -> colors.primaryIcon
                   else -> color

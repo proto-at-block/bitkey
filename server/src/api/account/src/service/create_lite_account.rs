@@ -14,10 +14,7 @@ impl Service {
             account_id,
             input.clone().auth_key_id,
             input.clone().auth,
-            AccountProperties {
-                is_test_account,
-                ..AccountProperties::default()
-            },
+            AccountProperties { is_test_account },
         );
         self.account_repo
             .persist(&lite_account.clone().into())

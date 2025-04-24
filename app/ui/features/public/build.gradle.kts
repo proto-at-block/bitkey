@@ -166,6 +166,7 @@ kotlin {
         implementation(projects.ui.featuresTesting)
         implementation(projects.libs.encryptionFake)
         implementation(projects.libs.cloudStoreFake)
+        implementation(projects.ui.frameworkTesting)
       }
     }
   }

@@ -8,6 +8,7 @@ use crate::routes::definitions::EventBundle;
 pub struct StdoutTracker {}
 
 impl Destination for StdoutTracker {
+    #[allow(clippy::print_stdout)]
     async fn track(&self, events: EventBundle) -> Result<(), AnalyticsError> {
         for event in events.events {
             let str_event = serde_json::to_string(&event).map_err(|_| {

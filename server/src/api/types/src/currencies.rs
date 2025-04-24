@@ -31,12 +31,6 @@ impl Currency {
 
 pub struct BitcoinCurrency {
     pub currency: CurrencyData,
-    fractional_unit_configuration: BitcoinFractionalUnitConfiguration,
-}
-
-struct BitcoinFractionalUnitConfiguration {
-    name: String,
-    name_plural: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, ToSchema)]
@@ -145,10 +139,6 @@ impl From<CurrencyCode> for Currency {
                     text_code: "BTC".to_string(),
                     unit_symbol: "₿".to_string(),
                     fractional_digits: 8,
-                },
-                fractional_unit_configuration: BitcoinFractionalUnitConfiguration {
-                    name: "sat".to_string(),
-                    name_plural: "sats".to_string(),
                 },
             }),
             XXX => Fiat(FiatCurrency {

@@ -13,7 +13,6 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.*
-import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.XLarge
@@ -55,7 +54,6 @@ data class DeviceSettingsFormBodyModel(
   val onWipeDevice: (() -> Unit)?,
   override val onBack: () -> Unit,
   val onManageFingerprints: () -> Unit,
-  val coachmark: CoachmarkModel?,
 ) : FormBodyModel(
     id = trackerScreenId,
     onBack = onBack,
@@ -162,7 +160,6 @@ data class DeviceSettingsFormBodyModel(
               title = "Fingerprints",
               treatment = ListItemTreatment.SECONDARY,
               trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-              showNewCoachmark = coachmark != null,
               onClick = onManageFingerprints
             ),
             ListItemModel(

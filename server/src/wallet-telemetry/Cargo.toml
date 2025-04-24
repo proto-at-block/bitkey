@@ -26,7 +26,6 @@ tracing-subscriber = { version = "0.3.17", features = ["env-filter", "json"] }
 async-trait = "0.1"
 bytes = "1"
 futures-util = { version = "0.3", default-features = false, features = ["io"] }
-isahc = "1.4"
 opentelemetry-stdout = { version = "0.5.0", features = ["trace"] }
 opentelemetry_sdk = { version = "0.24.0", features = ["testing", "trace"] }
 

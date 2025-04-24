@@ -27,8 +27,8 @@ export class FromagerieMonitors extends Construct {
     new Monitor(this, 'fromagerie_breached_4xx_rate_by_path', {
       query:
         `sum(last_24h): (
-              sum:bitkey.http.response{${[`status:4xx`, `env:${environment}`, `!status_exact:401`, `!path:/`].join(",")}} by {path}.as_count()
-              / sum:bitkey.http.response{${[`env:${environment}`, `!status_exact:401`, `!path:/`].join(",")}} by {path}.as_count()
+              sum:bitkey.http.response{${[`status:4xx`, `env:${environment}`, `!status_exact:401`, `!path:/`, `app_id:world.bitkey.app`].join(",")}} by {path}.as_count()
+              / sum:bitkey.http.response{${[`env:${environment}`, `!status_exact:401`, `!path:/`, `app_id:world.bitkey.app`].join(",")}} by {path}.as_count()
       ) > 1.01`,
       name: `Breached 4xx http status rate on env:${environment} by path {{ path.name }}`,
       message: `Breached 4xx http status rate on env:${environment} by path {{ path.name }}`,
@@ -45,7 +45,7 @@ export class FromagerieMonitors extends Construct {
     new Monitor(this, 'fromagerie_breached_5xx_count_by_path', {
       query:
         `sum(last_24h):
-              sum:bitkey.http.response{${[`status:5xx`, `env:${environment}`, `!path:/`].join(",")}} by {path}.as_count()
+              sum:bitkey.http.response{${[`status:5xx`, `env:${environment}`, `!path:/`, `app_id:world.bitkey.app`].join(",")}} by {path}.as_count()
           > 1000000`,
       name: `Breached 5xx http status count on env:${environment} by path {{ path.name }}`,
       message: `Breached 5xx http status count on env:${environment} by path {{ path.name }}`,

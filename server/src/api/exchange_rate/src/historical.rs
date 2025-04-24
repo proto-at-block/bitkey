@@ -23,7 +23,7 @@ pub trait HistoricalExchangeRateProvider: ExchangeRateProvider {
     /// is not supported by the provider.
     async fn rate(
         &self,
-        currencies: &Vec<CurrencyCode>,
+        currencies: &[CurrencyCode],
         at_time: OffsetDateTime,
     ) -> Result<HashMap<String, f64>, ExchangeRateError> {
         let response = self.request(currencies, at_time).await?;
@@ -40,7 +40,7 @@ pub trait HistoricalExchangeRateProvider: ExchangeRateProvider {
 
     async fn request(
         &self,
-        currencies: &Vec<CurrencyCode>,
+        currencies: &[CurrencyCode],
         at_time: OffsetDateTime,
     ) -> Result<Self::ResponseType, ExchangeRateError>;
 }
@@ -61,7 +61,7 @@ impl HistoricalExchangeRateProvider for CoinmarketcapRateProvider {
 
     async fn request(
         &self,
-        currencies: &Vec<CurrencyCode>,
+        currencies: &[CurrencyCode],
         at_time: OffsetDateTime,
     ) -> Result<Self::ResponseType, ExchangeRateError> {
         let response = self
@@ -129,7 +129,7 @@ impl HistoricalExchangeRateProvider for CoingeckoRateProvider {
 
     async fn request(
         &self,
-        currencies: &Vec<CurrencyCode>,
+        currencies: &[CurrencyCode],
         at_time: OffsetDateTime,
     ) -> Result<Self::ResponseType, ExchangeRateError> {
         let request_futures = currencies.iter().map(|currency_code| async move {

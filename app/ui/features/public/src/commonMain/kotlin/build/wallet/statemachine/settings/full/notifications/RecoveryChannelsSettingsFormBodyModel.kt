@@ -68,11 +68,11 @@ data class RecoveryChannelsSettingsFormBodyModel(
     header =
       FormHeaderModel(
         headline = when (source) {
-          Source.Settings -> "Critical Alerts"
+          Source.Settings, Source.SecurityHub -> "Critical Alerts"
           Source.Onboarding, Source.InheritanceStartClaim -> "Enable critical alerts"
         },
         subline = when (source) {
-          Source.Settings -> "This is how we communicate critical recovery, inheritance, and privacy updates."
+          Source.Settings, Source.SecurityHub -> "This is how we communicate critical recovery, inheritance, and privacy updates."
           Source.Onboarding, Source.InheritanceStartClaim -> "You will only receive alerts about recovery attempts, inheritance, and privacy updates."
         }
       ),
@@ -85,7 +85,7 @@ data class RecoveryChannelsSettingsFormBodyModel(
               ListItemModel(
                 title = "Missing ${
                   when (source) {
-                    Source.Onboarding, Source.Settings -> "recovery"
+                    Source.Onboarding, Source.Settings, Source.SecurityHub -> "recovery"
                     Source.InheritanceStartClaim -> "alert"
                   }
                 } ${
@@ -195,6 +195,7 @@ enum class Source {
   Onboarding,
   Settings,
   InheritanceStartClaim,
+  SecurityHub,
 }
 
 private fun createSheetFormHeader(

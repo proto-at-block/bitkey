@@ -3,15 +3,12 @@ use std::collections::VecDeque;
 use bdk_utils::bdk::bitcoin::{
     consensus::encode::deserialize, Block as BdkBlock, BlockHash, Network,
 };
-use once_cell::sync::Lazy;
 use tracing::{event, Level};
 
 use super::Service;
 use crate::ChainIndexerError;
 
 const MAX_BLOCKS: usize = 2000;
-
-const BITCOIN_MAINNET_BLOCK_HASHES: Lazy<Vec<BlockHash>> = Lazy::new(std::vec::Vec::new);
 
 impl Service {
     pub async fn get_new_blocks(&self) -> Result<Vec<BdkBlock>, ChainIndexerError> {
@@ -22,20 +19,7 @@ impl Service {
             self.settings.base_url,
         );
 
-        let tip_hash_from_mempool = self.get_tip_hash().await?;
-        let tip_hash = if self.settings.network == Network::Bitcoin {
-            let mut ret_block_hash = tip_hash_from_mempool;
-            for block_hash in BITCOIN_MAINNET_BLOCK_HASHES.iter() {
-                if self.repo.fetch(block_hash.to_owned()).await?.is_none() {
-                    ret_block_hash = *block_hash;
-                    break;
-                }
-            }
-            Ok::<BlockHash, ChainIndexerError>(ret_block_hash)
-        } else {
-            Ok(tip_hash_from_mempool)
-        }?;
-
+        let tip_hash = self.get_tip_hash().await?;
         event!(Level::INFO, "Retrieved tip hash {tip_hash} from network");
         let mut new_blocks = VecDeque::with_capacity(MAX_BLOCKS);
 

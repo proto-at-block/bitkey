@@ -159,6 +159,8 @@ sealed interface IconBackgroundType {
       Dark,
 
       Primary,
+
+      BitkeyPrimary,
     }
   }
 
@@ -197,6 +199,7 @@ enum class IconTint {
   Warning,
   Success,
   Information,
+  White,
 }
 
 enum class IconAlignmentInBackground {

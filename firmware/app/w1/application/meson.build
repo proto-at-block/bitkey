@@ -37,6 +37,7 @@ base_deps = [
   sysinfo_task_dep,
   fwup_task_dep,
   led_task_dep,
+  captouch_task_dep,
 
   # Libraries
   animation_dep,

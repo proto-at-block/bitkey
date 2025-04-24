@@ -17,8 +17,19 @@ class CriticalAlertsActionTest :
 
     test("Test CriticalAlertsAction with missing channels") {
       val noitificationStatus = NotificationsService.NotificationStatus.Missing(
-        setOf(NotificationChannel.Push)
+        setOf(NotificationChannel.Push, NotificationChannel.Email, NotificationChannel.Sms)
       )
+      val action = CriticalAlertsAction(noitificationStatus)
+      action.getRecommendations() shouldBe listOf(
+        SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS,
+        SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS,
+        SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS
+      )
+      action.category() shouldBe SecurityActionCategory.RECOVERY
+    }
+
+    test("Test CriticalAlertsAction with error") {
+      val noitificationStatus = NotificationsService.NotificationStatus.Error(Throwable())
       val action = CriticalAlertsAction(noitificationStatus)
       action.getRecommendations() shouldBe listOf(SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS)
       action.category() shouldBe SecurityActionCategory.RECOVERY

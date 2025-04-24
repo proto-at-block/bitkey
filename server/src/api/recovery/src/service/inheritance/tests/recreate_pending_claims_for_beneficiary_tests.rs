@@ -95,6 +95,11 @@ async fn validate_notifications_were_scheduled(
             NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending;
             is_checking_benefactor_account as usize
         ],
+        // Benefactor accounts should have the scheduled RecoveryRelationshipInvitationAccepted notifications
+        vec![
+            NotificationPayloadType::RecoveryRelationshipInvitationAccepted;
+            if is_checking_benefactor_account { 1 } else { 0 }
+        ],
         // Only Benefactor accounts should have the scheduled InheritanceClaimPeriodInitiated notifications
         vec![
             NotificationPayloadType::InheritanceClaimPeriodInitiated;

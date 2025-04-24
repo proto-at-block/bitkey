@@ -4,6 +4,8 @@ pub mod error;
 pub mod factory;
 pub mod system;
 
+pub const APP_ID_KEY: &str = "app_id";
+
 pub trait ResultCounter<T, E> {
     fn count_result(
         self,
@@ -21,7 +23,7 @@ impl<T, E> ResultCounter<T, E> for Result<T, E> {
         attributes: &[KeyValue],
     ) -> Result<T, E> {
         all_counter.add(1, attributes);
-        if let Err(_) = self {
+        if self.is_err() {
             err_counter.add(1, attributes);
         }
 

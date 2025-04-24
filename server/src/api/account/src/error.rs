@@ -70,13 +70,10 @@ impl From<AccountError> for ApiError {
                 ApiError::GenericBadRequest(err_msg)
             }
             AccountError::DDBError(err) => match err {
-                DatabaseError::ObjectNotFound(o) => match o {
-                    DatabaseObject::Account => ApiError::Specific {
-                        code: ErrorCode::AccountNotFound,
-                        detail: Some(err_msg),
-                        field: None,
-                    },
-                    _ => ApiError::GenericInternalApplicationError(err_msg),
+                DatabaseError::ObjectNotFound(DatabaseObject::Account) => ApiError::Specific {
+                    code: ErrorCode::AccountNotFound,
+                    detail: Some(err_msg),
+                    field: None,
                 },
                 _ => ApiError::GenericInternalApplicationError(err_msg),
             },

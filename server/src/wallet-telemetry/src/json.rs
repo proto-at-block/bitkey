@@ -14,7 +14,7 @@ use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::{LookupSpan, SpanRef};
 
-use crate::baggage_keys::{ACCOUNT_ID, APP_INSTALLATION_ID, HARDWARE_SERIAL_NUMBER};
+use crate::baggage_keys::{ACCOUNT_ID, APP_ID, APP_INSTALLATION_ID, HARDWARE_SERIAL_NUMBER};
 
 /// Custom Json formatter written based off of discussion in
 /// https://github.com/tokio-rs/tracing/issues/1531
@@ -93,6 +93,7 @@ where
                     serializer.serialize_entry("span_id", &trace_info.span_id)?;
                     serializer.serialize_entry("trace_id", &trace_info.trace_id)?;
                     for (key, value) in [
+                        ("usr.app_id", trace_info.app_id),
                         ("usr.app_installation_id", trace_info.app_installation_id),
                         ("usr.account_id", trace_info.account_id),
                         (
@@ -122,6 +123,7 @@ where
 struct TraceInfo {
     pub trace_id: String,
     pub span_id: String,
+    pub app_id: Option<String>,
     pub app_installation_id: Option<String>,
     pub account_id: Option<String>,
     pub hardware_serial_number: Option<String>,
@@ -140,6 +142,7 @@ where
             .unwrap_or_else(|| o.parent_cx.span().span_context().trace_id());
         let span_id = o.builder.span_id.unwrap_or(SpanId::INVALID);
         let baggage = o.parent_cx.baggage();
+        let app_id = baggage.get(APP_ID).map(ToString::to_string);
         let app_installation_id = baggage.get(APP_INSTALLATION_ID).map(ToString::to_string);
         let account_id = baggage.get(ACCOUNT_ID).map(ToString::to_string);
         let hardware_serial_number = baggage.get(HARDWARE_SERIAL_NUMBER).map(ToString::to_string);
@@ -154,6 +157,7 @@ where
             // https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-datadog/src/exporter/model/v05.rs#L169-L176
             trace_id: (u128::from_be_bytes(trace_id.to_bytes()) as u64).to_string(),
             span_id: u64::from_be_bytes(span_id.to_bytes()).to_string(),
+            app_id,
             app_installation_id,
             account_id,
             hardware_serial_number,

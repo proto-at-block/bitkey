@@ -36,7 +36,7 @@ impl SocialRecoveryRepository {
                 DatabaseError::PersistenceError(database_object)
             })?;
 
-        self.connection
+        self.get_connection()
             .client
             .delete_item()
             .table_name(self.get_table_name().await?)
@@ -75,7 +75,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())
@@ -134,7 +134,7 @@ impl SocialRecoveryRepository {
             .format(&Rfc3339)
             .map_err(|_| DatabaseError::DatetimeFormatError(database_object))?;
 
-        self.connection
+        self.get_connection()
             .client
             .delete_item()
             .table_name(table_name)
@@ -168,7 +168,7 @@ impl SocialRecoveryRepository {
         let database_object = self.get_database_object();
 
         if !challenges.is_empty() {
-            self.connection
+            self.get_connection()
                 .client
                 .batch_write_item()
                 .request_items(

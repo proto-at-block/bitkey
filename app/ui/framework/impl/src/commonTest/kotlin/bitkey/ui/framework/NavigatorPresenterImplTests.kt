@@ -5,7 +5,9 @@ import app.cash.molecule.moleculeFlow
 import app.cash.turbine.TurbineTestContext
 import app.cash.turbine.test
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SheetModel
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +21,8 @@ class NavigatorPresenterImplTests : FunSpec({
   val screenA = ScreenFake(id = "A")
   val screenB = ScreenFake(id = "B")
 
+  val sheetPresenter = SheetPresenterFake()
+
   val screenPresenterRegistry = object : ScreenPresenterRegistry {
     override fun <ScreenT : Screen> get(screen: ScreenT): ScreenPresenter<ScreenT> {
       @Suppress("UNCHECKED_CAST")
@@ -29,7 +33,20 @@ class NavigatorPresenterImplTests : FunSpec({
       error("Unknown screen: ${screen::class.simpleName}")
     }
   }
-  val navigatorPresenter = NavigatorPresenterImpl(screenPresenterRegistry)
+
+  val sheetPresenterRegistry = object : SheetPresenterRegistry {
+    override fun <SheetT : Sheet> get(sheet: SheetT): SheetPresenter<SheetT> {
+      when (sheet) {
+        is SheetFake -> return sheetPresenter as SheetPresenter<SheetT>
+      }
+
+      error("Unknown sheet: ${sheet::class.simpleName}")
+    }
+  }
+  val navigatorPresenter = NavigatorPresenterImpl(
+    screenPresenterRegistry,
+    sheetPresenterRegistry
+  )
 
   test("model for initial screen is produced") {
     navigatorPresenter.test(
@@ -80,6 +97,47 @@ class NavigatorPresenterImplTests : FunSpec({
       awaitItem().body.shouldBeTypeOf<NavigatingBodyModelFake>().run {
         id.shouldBe("A")
       }
+    }
+  }
+
+  test("model for sheet is produced and removed") {
+    navigatorPresenter.test(initialScreen = screenA) {
+      awaitItem().body.shouldBeTypeOf<NavigatingBodyModelFake>().run {
+        id.shouldBe("A")
+        showSheet(SheetFake(id = "Sheet A", origin = screenA))
+      }
+
+      awaitItem().bottomSheetModel
+        .shouldBeTypeOf<SheetModel>()
+        .body
+        .shouldBeTypeOf<NavigatingBodyModelFake>()
+        .run {
+          id.shouldBe("Sheet A")
+          closeSheet()
+        }
+
+      awaitItem().bottomSheetModel.shouldBeNull()
+    }
+  }
+
+  test("model for sheet is removed when new screen is produced") {
+    navigatorPresenter.test(initialScreen = screenA) {
+
+      awaitItem().body.shouldBeTypeOf<NavigatingBodyModelFake>().run {
+        id.shouldBe("A")
+        showSheet(SheetFake(id = "Sheet A", origin = screenA))
+      }
+
+      awaitItem().bottomSheetModel
+        .shouldBeTypeOf<SheetModel>()
+        .body
+        .shouldBeTypeOf<NavigatingBodyModelFake>()
+        .run {
+          id.shouldBe("Sheet A")
+          goTo(screenB)
+        }
+
+      awaitItem().bottomSheetModel.shouldBeNull()
     }
   }
 })

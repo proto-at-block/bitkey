@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
+import bitkey.ui.framework.NavigatorPresenter
 import build.wallet.activity.Transaction
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_ALL_TRANSACTIONS
 import build.wallet.bitcoin.invoice.ParsedPaymentData
@@ -40,8 +41,7 @@ import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
-import build.wallet.statemachine.fwup.FwupNfcUiProps
-import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
+import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.inheritance.*
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachine
 import build.wallet.statemachine.inheritance.claims.complete.CompleteInheritanceClaimUiStateMachineProps
@@ -71,8 +71,7 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.transactions.*
 import build.wallet.statemachine.transactions.TransactionsActivityProps.TransactionVisibility.All
 import build.wallet.statemachine.utxo.UtxoConsolidationProps
@@ -87,7 +86,6 @@ class MoneyHomeUiStateMachineImpl(
   private val sendUiStateMachine: SendUiStateMachine,
   private val transactionDetailsUiStateMachine: TransactionDetailsUiStateMachine,
   private val transactionsActivityUiStateMachine: TransactionsActivityUiStateMachine,
-  private val fwupNfcUiStateMachine: FwupNfcUiStateMachine,
   private val lostHardwareUiStateMachine: LostHardwareRecoveryUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
   private val inviteTrustedContactFlowUiStateMachine: InviteTrustedContactFlowUiStateMachine,
@@ -99,7 +97,6 @@ class MoneyHomeUiStateMachineImpl(
   private val customAmountEntryUiStateMachine: CustomAmountEntryUiStateMachine,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
   private val socRecService: SocRecService,
@@ -112,6 +109,7 @@ class MoneyHomeUiStateMachineImpl(
   private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
   private val declineInheritanceClaimUiStateMachine: DeclineInheritanceClaimUiStateMachine,
   private val onboardingCompletionService: OnboardingCompletionService,
+  private val navigatorPresenter: NavigatorPresenter,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -170,6 +168,11 @@ class MoneyHomeUiStateMachineImpl(
             origin.partnerTransactionId
           )
         }
+        is MoneyHomeUiProps.Origin.LostHardwareRecovery -> {
+          ViewHardwareRecoveryStatusUiState(
+            instructionsStyle = InstructionsStyle.Independent
+          )
+        }
         else -> ViewingBalanceUiState()
       }
       mutableStateOf(initialState)
@@ -201,7 +204,7 @@ class MoneyHomeUiStateMachineImpl(
           onStartSweepFlow = {
             uiState = PerformingSweep
           },
-          tabs = props.tabs
+          onGoToSecurityHub = props.onGoToSecurityHub
         )
       )
 
@@ -260,14 +263,12 @@ class MoneyHomeUiStateMachineImpl(
         }
       )
 
-      is FwupFlowUiState -> fwupNfcUiStateMachine.model(
-        props =
-          FwupNfcUiProps(
-            firmwareData = state.firmwareData,
-            onDone = {
-              uiState = ViewingBalanceUiState()
-            }
-          )
+      is FwupFlowUiState -> navigatorPresenter.model(
+        initialScreen = FwupScreen(
+          firmwareUpdateData = state.firmwareData,
+          onExit = { uiState = ViewingBalanceUiState() }
+        ),
+        onExit = { uiState = ViewingBalanceUiState() }
       )
 
       ViewingAllTransactionActivityUiState -> {
@@ -350,14 +351,18 @@ class MoneyHomeUiStateMachineImpl(
         )
       )
 
-      AddAdditionalFingerprintUiState -> managingFingerprintsUiStateMachine.model(
-        ManagingFingerprintsProps(
-          onBack = { uiState = ViewingBalanceUiState() },
+      AddAdditionalFingerprintUiState -> navigatorPresenter.model(
+        ManagingFingerprintsScreen(
+          account = props.account as FullAccount,
           onFwUpRequired = {
             uiState = ViewingBalanceUiState(bottomSheetDisplayState = PromptingForFwUpUiState)
           },
-          entryPoint = FingerprintManagementEntryPoint.MONEY_HOME
-        )
+          entryPoint = FingerprintManagementEntryPoint.MONEY_HOME,
+          origin = null
+        ),
+        onExit = {
+          uiState = ViewingBalanceUiState()
+        }
       )
       is ShowingPriceChartUiState -> bitcoinPriceChartUiStateMachine.model(
         BitcoinPriceChartUiProps(

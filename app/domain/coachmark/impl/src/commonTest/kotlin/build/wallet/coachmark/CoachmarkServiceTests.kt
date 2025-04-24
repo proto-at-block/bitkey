@@ -9,7 +9,9 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
+import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
@@ -24,38 +26,42 @@ class CoachmarkServiceTests :
     lateinit var service: CoachmarkService
     val featureFlagDao = FeatureFlagDaoMock()
     val accountService = AccountServiceFake()
+    val balanceHistoryFeatureFlag = BalanceHistoryFeatureFlag(featureFlagDao)
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val eventTracker = EventTrackerMock(turbines::create)
+    val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao)
 
     beforeTest {
       accountService.setActiveAccount(FullAccountMock)
+      balanceHistoryFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountService,
         CoachmarkVisibilityDecider(
-          ClockFake()
+          ClockFake(),
+          balanceHistoryFeatureFlag,
+          securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,
         eventTracker,
         ClockFake()
       )
       service.resetCoachmarks()
+      securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     }
 
     test("coachmarksToDisplay") {
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.InheritanceCoachmark,
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.HiddenBalanceCoachmark,
-              CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-              CoachmarkIdentifier.BiometricUnlockCoachmark
+              CoachmarkIdentifier.InheritanceCoachmark,
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
@@ -63,15 +69,15 @@ class CoachmarkServiceTests :
 
     test("didDisplayCoachmark") {
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.HiddenBalanceCoachmark))
-        .shouldBe(Ok(listOf(CoachmarkIdentifier.HiddenBalanceCoachmark)))
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.HiddenBalanceCoachmark)
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.InheritanceCoachmark))
+        .shouldBe(Ok(listOf(CoachmarkIdentifier.InheritanceCoachmark)))
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.InheritanceCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_HIDE_BALANCE)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_INHERITANCE)
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.HiddenBalanceCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.InheritanceCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
@@ -79,48 +85,39 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.InheritanceCoachmark,
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.HiddenBalanceCoachmark,
-              CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-              CoachmarkIdentifier.BiometricUnlockCoachmark
+              CoachmarkIdentifier.InheritanceCoachmark,
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.HiddenBalanceCoachmark)
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.InheritanceCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_HIDE_BALANCE)
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.MultipleFingerprintsCoachmark)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_INHERITANCE)
+      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
       eventTracker.eventCalls
         .awaitItem()
         .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_MULTIPLE_FINGERPRINTS)
-      service.markCoachmarkAsDisplayed(CoachmarkIdentifier.BiometricUnlockCoachmark)
-      eventTracker.eventCalls
-        .awaitItem()
-        .action
-        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWIED_BIOMETRIC_UNLOCK)
+        .shouldBe(Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS)
       service.resetCoachmarks()
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.InheritanceCoachmark,
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(
             listOf(
-              CoachmarkIdentifier.HiddenBalanceCoachmark,
-              CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-              CoachmarkIdentifier.BiometricUnlockCoachmark
+              CoachmarkIdentifier.InheritanceCoachmark,
+              CoachmarkIdentifier.SecurityHubSettingsCoachmark
             )
           )
         )
@@ -131,9 +128,8 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.InheritanceCoachmark,
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(emptyList())
@@ -142,39 +138,43 @@ class CoachmarkServiceTests :
 
     test("don't return expired coachmarks") {
       val coachmarkDao = CoachmarkDaoFake()
-      coachmarkDao.insertCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark, Instant.DISTANT_PAST)
+      coachmarkDao.insertCoachmark(CoachmarkIdentifier.InheritanceCoachmark, Instant.DISTANT_PAST)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
         CoachmarkVisibilityDecider(
-          ClockFake()
+          ClockFake(),
+          balanceHistoryFeatureFlag,
+          securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,
         eventTracker,
         ClockFake()
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.HiddenBalanceCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.InheritanceCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
     test("don't return viewed coachmarks") {
       val coachmarkDao = CoachmarkDaoFake()
       coachmarkDao
-        .insertCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark, Instant.DISTANT_FUTURE)
-      coachmarkDao.setViewed(CoachmarkIdentifier.HiddenBalanceCoachmark)
+        .insertCoachmark(CoachmarkIdentifier.InheritanceCoachmark, Instant.DISTANT_FUTURE)
+      coachmarkDao.setViewed(CoachmarkIdentifier.InheritanceCoachmark)
       service = CoachmarkServiceImpl(
         coachmarkDao,
         accountService,
         CoachmarkVisibilityDecider(
-          ClockFake()
+          ClockFake(),
+          balanceHistoryFeatureFlag,
+          securityHubFeatureFlag
         ),
         coachmarksGlobalFlag,
         eventTracker,
         ClockFake()
       )
       service
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.HiddenBalanceCoachmark))
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.InheritanceCoachmark))
         .shouldBe(Ok(emptyList()))
     }
 
@@ -183,9 +183,8 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
+            CoachmarkIdentifier.InheritanceCoachmark,
+            CoachmarkIdentifier.SecurityHubSettingsCoachmark
           )
         ).shouldBe(
           Ok(emptyList())

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, time::Duration};
 
 use launchdarkly_server_sdk::{Client, ConfigBuilder};
 use rust_embed::RustEmbed;
@@ -56,7 +56,11 @@ impl Config {
 
         let client = Client::build(config)?;
         client.start_with_default_executor();
-        if !client.initialized_async().await {
+        if !client
+            .wait_for_initialization(Duration::from_secs(20))
+            .await
+            .unwrap_or_default()
+        {
             return Err(Error::Initialize("see logs for details".to_string()));
         }
 

@@ -110,7 +110,7 @@ private fun HeroAmountBottom(
           size = Small,
           color =
             if (disabled) {
-              WalletTheme.colors.foreground30
+              WalletTheme.colors.foreground10
             } else {
               WalletTheme.colors.foreground60
             }

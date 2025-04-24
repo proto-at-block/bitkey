@@ -4,6 +4,8 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
@@ -95,7 +97,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine,
       startSweepCardUiStateMachine = startSweepCardUiStateMachine,
       bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine,
-      inheritanceCardUiStateMachine = inheritanceCardUiStateMachine
+      inheritanceCardUiStateMachine = inheritanceCardUiStateMachine,
+      securityHubFeatureFlag = SecurityHubFeatureFlag(FeatureFlagDaoFake())
     )
 
   val props =

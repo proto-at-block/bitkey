@@ -13,10 +13,7 @@ impl Service {
             input.account_id.to_owned(),
             input.auth_key_id,
             input.auth,
-            AccountProperties {
-                is_test_account,
-                ..AccountProperties::default()
-            },
+            AccountProperties { is_test_account },
         );
         self.account_repo
             .persist(&software_account.clone().into())

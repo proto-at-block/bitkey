@@ -6,7 +6,6 @@ use std::future::Future;
 use time::OffsetDateTime;
 
 pub(crate) const FACTORY_NAME: &str = "mobile_pay";
-pub(crate) const IS_MOBILE_PAY: &str = "is_mobile_pay";
 
 pub(crate) static FACTORY: Lazy<MetricsFactory> = Lazy::new(|| MetricsFactory::new(FACTORY_NAME));
 

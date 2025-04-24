@@ -32,7 +32,7 @@ impl From<BitcoinNetwork> for Network {
             BitcoinNetwork::Testnet => Network::BitcoinTest,
             BitcoinNetwork::Signet => Network::BitcoinSignet,
             BitcoinNetwork::Regtest => Network::BitcoinRegtest,
-            _ => unimplemented!(),
+            _ => panic!("network not supported"),
         }
     }
 }

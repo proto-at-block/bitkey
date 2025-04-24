@@ -8,8 +8,6 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.app.settings.SettingsScreen
 import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
@@ -21,6 +19,7 @@ data class SettingsBodyModel(
     EventTrackerScreenInfo(
       eventTrackerScreenId = SettingsEventTrackerScreenId.SETTINGS
     ),
+  val onSecurityHubCoachmarkClick: (() -> Unit)?,
 ) : BodyModel() {
   data class SectionModel(
     val sectionHeaderTitle: String,
@@ -34,18 +33,6 @@ data class SettingsBodyModel(
     val specialTrailingIconModel: IconModel? = null,
     val showNewCoachmark: Boolean = false,
     val onClick: () -> Unit,
-  )
-
-  constructor(
-    onBack: () -> Unit,
-    sectionModels: ImmutableList<SectionModel>,
-  ) : this(
-    onBack = onBack,
-    toolbarModel = ToolbarModel(
-      leadingAccessory = BackAccessory(onClick = onBack),
-      middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
-    ),
-    sectionModels = sectionModels
   )
 
   @Composable

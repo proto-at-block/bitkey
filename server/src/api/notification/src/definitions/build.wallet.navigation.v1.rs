@@ -44,6 +44,12 @@ pub enum NavigationScreenId {
     MobileKeyBackup = 13,
     /// * The screen shown to manage recovery contacts. *
     ManageRecoveryContacts = 14,
+    /// * The screen shown to update firmware. *
+    UpdateFirmware = 15,
+    /// * The screen shown to pair a bitkey device. *
+    PairDevice = 16,
+    /// * The screen shown to manage Bitkey device. *
+    ManageBitkeyDevice = 17,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -91,6 +97,11 @@ impl NavigationScreenId {
             NavigationScreenId::ManageRecoveryContacts => {
                 "NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS"
             }
+            NavigationScreenId::UpdateFirmware => "NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE",
+            NavigationScreenId::PairDevice => "NAVIGATION_SCREEN_ID_PAIR_DEVICE",
+            NavigationScreenId::ManageBitkeyDevice => {
+                "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE"
+            }
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -125,6 +136,9 @@ impl NavigationScreenId {
             "NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS" => {
                 Some(Self::ManageRecoveryContacts)
             }
+            "NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE" => Some(Self::UpdateFirmware),
+            "NAVIGATION_SCREEN_ID_PAIR_DEVICE" => Some(Self::PairDevice),
+            "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE" => Some(Self::ManageBitkeyDevice),
             _ => None,
         }
     }

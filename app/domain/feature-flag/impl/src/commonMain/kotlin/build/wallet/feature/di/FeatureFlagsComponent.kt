@@ -112,6 +112,10 @@ interface FeatureFlagsComponent {
     BalanceHistoryFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun usSmsFeatureFlag(featureFlagDao: FeatureFlagDao) = UsSmsFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     darkModeFeatureFlag: DarkModeFeatureFlag,
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
@@ -131,6 +135,7 @@ interface FeatureFlagsComponent {
     securityHubFeatureFlag: SecurityHubFeatureFlag,
     balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
+    usSmsFeatureFlag: UsSmsFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       darkModeFeatureFlag,
@@ -150,7 +155,8 @@ interface FeatureFlagsComponent {
       sellBitcoinMaxAmountFeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
       securityHubFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag
+      wipeHardwareLoggedOutFeatureFlag,
+      usSmsFeatureFlag
     )
   }
 }

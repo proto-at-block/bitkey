@@ -32,7 +32,7 @@ impl SocialRecoveryRepository {
             DatabaseError::PersistenceError(database_object)
         })?;
 
-        self.connection
+        self.get_connection()
             .client
             .put_item()
             .table_name(self.get_table_name().await?)
@@ -105,7 +105,7 @@ impl SocialRecoveryRepository {
         let table_name = self.get_table_name().await?;
 
         let upsert_output = self
-            .connection
+            .get_connection()
             .client
             .try_upsert(SocialRecoveryRow::Backup(backup.clone()), database_object)?
             .set_return_values(Some(ReturnValue::AllNew))

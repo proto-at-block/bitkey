@@ -258,7 +258,7 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("after delay period benefactor sees transfer funds card") {
+  test("after delay period benefactor still sees pending card") {
     inheritanceCardService.cardsToDisplay.value = listOf(BenefactorPendingClaimFake.copy(delayEndTime = someInstant.minus(1.days)))
 
     stateMachine.test(props) {
@@ -266,10 +266,10 @@ class InheritanceCardUiStateMachineImplTests : FunSpec({
       awaitItem().should(
         equalIgnoringOnClick(
           listOf(
-            BenefactorLockedCompleteClaimCardModel(
-              title = "Inheritance approved",
-              subtitle = "To retain control of your funds, transfer them to a new wallet.",
-              onClick = StandardClick {}
+            BenefactorPendingClaimCardModel(
+              title = "Inheritance claim initiated",
+              subtitle = "Decline claim by date-time to retain control of your funds.",
+              onClick = null
             )
           )
         )

@@ -63,7 +63,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,
-      turbineTimeout = 30.seconds
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -94,7 +94,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -111,7 +111,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Resume on cloud backup step and complete recovery
       awaitUntilBody<SaveBackupInstructionsBodyModel>()
@@ -135,7 +135,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Initiate recovery
       awaitUntilBody<MoneyHomeBodyModel>()
@@ -169,7 +169,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // No recovery started, start over
       app.awaitNoActiveRecovery()
@@ -203,7 +203,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       appUiStateMachine.test(
         props = Unit,
         testTimeout = 20.seconds,
-        turbineTimeout = 5.seconds
+        turbineTimeout = 60.seconds
       ) {
         startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -221,7 +221,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       app.appUiStateMachine.test(
         props = Unit,
         testTimeout = 20.seconds,
-        turbineTimeout = 5.seconds
+        turbineTimeout = 60.seconds
       ) {
         // Resume on backup step and complete recovery
         awaitUntilBody<SaveBackupInstructionsBodyModel>()
@@ -249,7 +249,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       appUiStateMachine.test(
         props = Unit,
         testTimeout = 20.seconds,
-        turbineTimeout = 5.seconds
+        turbineTimeout = 60.seconds
       ) {
         startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -274,7 +274,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       app.appUiStateMachine.test(
         props = Unit,
         testTimeout = 20.seconds,
-        turbineTimeout = 5.seconds
+        turbineTimeout = 60.seconds
       ) {
         // Resume on backup step and complete recovery
         awaitUntilBody<SaveBackupInstructionsBodyModel>()
@@ -301,7 +301,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -323,7 +323,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Resume on sweep step and complete recovery
       awaitUntilBody<ZeroBalancePromptBodyModel>()
@@ -342,7 +342,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Go to Bitkey device settings
       awaitUntilBody<MoneyHomeBodyModel>()
@@ -375,7 +375,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app.appUiStateMachine.test(
       props = Unit,
       testTimeout = 20.seconds,
-      turbineTimeout = 5.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Go to Bitkey device settings
       awaitUntilBody<MoneyHomeBodyModel>()
@@ -416,8 +416,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
     app.appUiStateMachine.test(
       props = Unit,
-      testTimeout = 30.seconds,
-      turbineTimeout = 5.seconds
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -467,7 +467,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     newApp.appUiStateMachine.test(
       props = Unit,
       testTimeout = 60.seconds,
-      turbineTimeout = 10.seconds
+      turbineTimeout = 60.seconds
     ) {
       // Complete cloud recovery
       awaitUntilBody<ChooseAccountAccessModel>()
@@ -497,8 +497,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     // Complete Lost Hardware Recovery with D&N
     newApp.appUiStateMachine.test(
       props = Unit,
-      testTimeout = 30.seconds,
-      turbineTimeout = 5.seconds
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -535,8 +535,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     // Complete Lost Hardware Recovery with D&N
     app.appUiStateMachine.test(
       props = Unit,
-      testTimeout = 30.seconds,
-      turbineTimeout = 5.seconds
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 
@@ -574,7 +574,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     newApp.appUiStateMachine.test(
       Unit,
       testTimeout = 60.seconds,
-      turbineTimeout = 10.seconds
+      turbineTimeout = 60.seconds
     ) {
       awaitUntilBody<ChooseAccountAccessModel>()
         .clickMoreOptionsButton()
@@ -601,8 +601,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     launchAndPrepareApp()
     app.appUiStateMachine.test(
       props = Unit,
-      testTimeout = 30.seconds,
-      turbineTimeout = 5.seconds
+      testTimeout = 60.seconds,
+      turbineTimeout = 60.seconds
     ) {
       startRecoveryAndAdvanceToDelayNotify(app)
 

@@ -15,7 +15,7 @@ typedef struct {
   exti_config_t usb_detect_irq;
 } power_config_t;
 
-void power_init(void);
+void power_init(bool cap_touch_detect_both_edges);
 void power_set_retain(const bool enabled);
 void power_restart_timer(void);
 bool power_validate_fuel_gauge(void);

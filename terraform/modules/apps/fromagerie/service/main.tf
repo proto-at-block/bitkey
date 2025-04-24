@@ -99,6 +99,13 @@ locals {
     WEB_SHOP_API_KEY     = data.aws_secretsmanager_secret.interop_web_shop_api_key.arn
     WEBHOOK_API_KEY      = data.aws_secretsmanager_secret.interop_webhook_api_key.arn
   }
+
+  ###############################################
+  # APNS Certificates
+  ###############################################
+  team_alpha_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_team_alpha.secret_string)
+  team_alpha_principal  = local.team_alpha_apns_json.certificate
+  team_alpha_credential = local.team_alpha_apns_json.key
 }
 
 data "aws_secretsmanager_secret" "fromagerie_onboarding_demo_mode_credentials" {
@@ -155,6 +162,14 @@ data "aws_secretsmanager_secret" "gcm_firebase_admin_key" {
 
 data "aws_secretsmanager_secret_version" "gcm_firebase_admin_key" {
   secret_id = data.aws_secretsmanager_secret.gcm_firebase_admin_key.id
+}
+
+data "aws_secretsmanager_secret" "apns_team_alpha" {
+  name = "fromagerie/apns/team-alpha"
+}
+
+data "aws_secretsmanager_secret_version" "apns_team_alpha" {
+  secret_id = data.aws_secretsmanager_secret.apns_team_alpha.id
 }
 
 data "aws_secretsmanager_secret" "fromagerie_histogram_output_encryption_key" {
@@ -1045,6 +1060,17 @@ module "sms_notification_queue" {
 ################################################
 # SNS Platform Applications (Push Notifications)
 ################################################
+
+resource "aws_sns_platform_application" "apns_application_team_alpha" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-team-alpha-ios"
+  platform                     = "APNS"
+  platform_principal           = local.team_alpha_principal
+  platform_credential          = local.team_alpha_credential
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
+}
 
 resource "aws_sns_platform_application" "gcm_application_customer" {
   count                        = var.sns_platform_applications ? 1 : 0

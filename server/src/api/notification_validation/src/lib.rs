@@ -269,10 +269,17 @@ impl ValidateNotificationDelivery for PendingPaymentPayload {
 impl ValidateNotificationDelivery for RecoveryRelationshipInvitationAcceptedPayload {
     async fn validate_delivery(
         &self,
-        _state: &NotificationValidationState,
+        state: &NotificationValidationState,
         _composite_key: &NotificationCompositeKey,
     ) -> bool {
-        true
+        let recovery_relationship_result = state
+            .social_recovery_repository
+            .fetch_recovery_relationship(&self.recovery_relationship_id)
+            .await;
+        matches!(
+            recovery_relationship_result,
+            Ok(RecoveryRelationship::Unendorsed(_))
+        )
     }
 }
 
@@ -384,10 +391,8 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodInitiatedPayload {
             .fetch_inheritance_claim(&self.inheritance_claim_id)
             .await;
 
-        if let Ok(claim) = claim_result {
-            if let InheritanceClaim::Pending(pending_claim) = claim {
-                return OffsetDateTime::now_utc() < pending_claim.delay_end_time;
-            }
+        if let Ok(InheritanceClaim::Pending(pending_claim)) = claim_result {
+            return OffsetDateTime::now_utc() < pending_claim.delay_end_time;
         }
         false
     }
@@ -405,11 +410,8 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodAlmostOverPayload {
             .fetch_inheritance_claim(&self.inheritance_claim_id)
             .await;
 
-        if let Ok(claim) = claim_result {
-            if let InheritanceClaim::Pending(pending_claim) = claim {
-                return OffsetDateTime::now_utc()
-                    >= (pending_claim.delay_end_time - Duration::days(3));
-            }
+        if let Ok(InheritanceClaim::Pending(pending_claim)) = claim_result {
+            return OffsetDateTime::now_utc() >= (pending_claim.delay_end_time - Duration::days(3));
         }
         false
     }
@@ -438,10 +440,8 @@ impl ValidateNotificationDelivery for InheritanceClaimPeriodCompletedPayload {
             .fetch_inheritance_claim(&self.inheritance_claim_id)
             .await;
 
-        if let Ok(claim) = claim_result {
-            if let InheritanceClaim::Pending(pending_claim) = claim {
-                return OffsetDateTime::now_utc() >= pending_claim.delay_end_time;
-            }
+        if let Ok(InheritanceClaim::Pending(pending_claim)) = claim_result {
+            return OffsetDateTime::now_utc() >= pending_claim.delay_end_time;
         }
         false
     }

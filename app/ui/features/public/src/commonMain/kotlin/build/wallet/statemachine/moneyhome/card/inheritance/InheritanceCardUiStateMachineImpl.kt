@@ -53,7 +53,7 @@ class InheritanceCardUiStateMachineImpl(
       .filter(props.claimFilter)
       .mapNotNull { claim ->
         when {
-          claim is BenefactorClaim.PendingClaim && !claim.isApproved(clock.now()) ->
+          claim is BenefactorClaim.PendingClaim ->
             BenefactorPendingClaimCardModel(
               title = "Inheritance claim initiated",
               subtitle = benefactorPendingClaimSubtitle(claim),

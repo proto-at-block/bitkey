@@ -24,7 +24,16 @@ import build.wallet.statemachine.core.ScreenModel
  * have [Screen]. Eventually navigation between screens will be done using [Navigator],
  * without the use of callbacks.
  */
-interface Screen
+interface Screen {
+  /**
+   * The screen from which this Screen was navigated.
+   *
+   * This value is optional and is used for navigating back to the origin screen.
+   * If no originating screen exists, this property returns null.
+   */
+  val origin: Screen?
+    get() = null
+}
 
 /**
  * A [Screen] that does not have its own [ScreenPresenter].

@@ -25,7 +25,7 @@ impl ConsentRepository {
             DatabaseError::PersistenceError(self.get_database_object())
         })?;
 
-        self.connection
+        self.get_connection()
             .client
             .put_item()
             .table_name(table_name)

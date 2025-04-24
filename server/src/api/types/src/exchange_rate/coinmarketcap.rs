@@ -59,7 +59,7 @@ impl RateProvider {
 
     pub fn historical_rate_request(
         &self,
-        currencies: &Vec<CurrencyCode>,
+        currencies: &[CurrencyCode],
         at_time: &OffsetDateTime,
     ) -> RequestBuilder {
         // Create a copy of currencies vec and convert each value into string

@@ -2,11 +2,11 @@
     "module-identifier": "com.datadoghq:dd-sdk-android-trace",
     "components": [
         {
-            "version": "2.14.0",
+            "version": "2.16.0",
             "variants": [
                 {
                     "artifacts": {
-                        "dd-sdk-android-trace-2.14.0.aar": "b1eaf9684d5c8391e2c112abbf4630eb02cb6f6036607abcdfb335503310c90c"
+                        "dd-sdk-android-trace-2.16.0.aar": "39a90bf72bc1624356b7295f0db9638b496f6e8f966a776a9e18a33387a9ce52"
                     }
                 }
             ],

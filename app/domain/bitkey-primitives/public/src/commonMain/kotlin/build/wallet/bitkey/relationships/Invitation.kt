@@ -32,3 +32,7 @@ data class Invitation(
 
   fun isExpired(now: Long) = expiresAt.toEpochMilliseconds() < now
 }
+
+fun List<Invitation>.socialRecoveryInvitations(): List<Invitation> {
+  return this.filter { it.roles.contains(TrustedContactRole.SocialRecoveryContact) }
+}

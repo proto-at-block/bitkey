@@ -7,7 +7,7 @@ jvmTarget = "11"
 # JDK version for builds
 jvmToolchain = "17"
 bdk = "0.32.1"
-datadog = "2.14.0"
+datadog = "2.16.0"
 detekt = "1.23.6"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.26"
@@ -41,7 +41,7 @@ android-bugsnag-plugin = "8.1.0"
 # Before upgrading the following, please make sure this runs successfully on a physical device.
 # Please also the locked (min + max) Android Studio version in `app/.idea/externalDependencies.xml`.
 android-gradle-plugin = "8.5.2"
-android-compose-ui = "1.7.5"
+android-compose-ui = "1.7.6"
 android-datastore = "1.1.1"
 android-lib-phone-number = "8.13.36"
 android-lifecycle = "2.8.5"
@@ -78,7 +78,7 @@ kmp-crashkios-bugsnag = { module = "co.touchlab.crashkios:bugsnag", version.ref 
 kmp-crashkios-bugsnag-android = { module = "co.touchlab.crashkios:bugsnag-android", version.ref = "kmp-crashkios" }
 kmp-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "kmp-compose-runtime" }
 kmp-kermit = { module = "co.touchlab:kermit", version.ref = "kmp-kermit" }
-kmp-kotlin-annotations = { module = "org.jetbrains:annotations", version = "24.1.0" }
+kmp-kotlin-annotations = { module = "org.jetbrains:annotations", version = "26.0.1" }
 kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.26.1" }
 kmp-kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kmp-kermit" }
 kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.7.0" }

@@ -2,11 +2,11 @@
     "module-identifier": "com.datadoghq:dd-sdk-android-rum",
     "components": [
         {
-            "version": "2.14.0",
+            "version": "2.16.0",
             "variants": [
                 {
                     "artifacts": {
-                        "dd-sdk-android-rum-2.14.0.aar": "aa23c12825136b48cb0957f2281d8975448b811ea70c1ffb3f4148f28ed2cc18"
+                        "dd-sdk-android-rum-2.16.0.aar": "137eda43171bb59d4150e4ac8f6533c7a01f67e919ca2729dc1b9179ace90b4f"
                     }
                 }
             ],

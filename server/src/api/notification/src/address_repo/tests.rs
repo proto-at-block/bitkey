@@ -136,12 +136,13 @@ async fn test_get_without_insert_returns_none(
     #[values(testnet_address(), mainnet_address())] addr1: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait,
 ) {
-    assert!(repo
-        .get(&[addr1.address.clone()])
-        .await
-        .unwrap()
-        .get(&addr1.address)
-        .is_none());
+    assert_eq!(
+        repo.get(&[addr1.address.clone()])
+            .await
+            .unwrap()
+            .get(&addr1.address),
+        None
+    );
 }
 
 #[rstest]

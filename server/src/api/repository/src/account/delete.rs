@@ -20,7 +20,7 @@ impl AccountRepository {
                 DatabaseError::PersistenceError(database_object)
             })?;
 
-        self.connection
+        self.get_connection()
             .client
             .delete_item()
             .table_name(self.get_table_name().await?)

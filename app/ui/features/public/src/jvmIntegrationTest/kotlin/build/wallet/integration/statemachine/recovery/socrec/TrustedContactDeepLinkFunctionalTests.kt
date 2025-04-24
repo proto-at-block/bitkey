@@ -1,5 +1,6 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
+import bitkey.ui.framework.test
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
@@ -30,8 +31,8 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
-    inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
+    inviteApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -63,8 +64,8 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // generate another invite from another, different full account
     val secondInviter = launchNewApp()
     secondInviter.onboardFullAccountWithFakeHardware()
-    secondInviter.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(secondInviter)
+    secondInviter.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(secondInviter)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -85,8 +86,8 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
-    inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
+    inviteApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()
@@ -116,8 +117,8 @@ class TrustedContactDeepLinkFunctionalTests : FunSpec({
     // full account creates invite
     val inviteApp = launchNewApp()
     inviteApp.onboardFullAccountWithFakeHardware()
-    inviteApp.trustedContactManagementUiStateMachine.test(
-      props = buildTrustedContactManagementUiStateMachineProps(inviteApp)
+    inviteApp.trustedContactManagementScreenPresenter.test(
+      screen = buildTrustedContactManagementUiStateMachineProps(inviteApp)
     ) {
       advanceThroughTrustedContactInviteScreens("Bob")
       cancelAndIgnoreRemainingEvents()

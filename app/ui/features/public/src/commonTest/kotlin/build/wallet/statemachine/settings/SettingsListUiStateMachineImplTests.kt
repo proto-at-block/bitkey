@@ -76,7 +76,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           UtxoConsolidation { propsOnClickCalls[UtxoConsolidation::class]?.add(Unit) }
         ),
       onShowAlert = {},
-      onDismissAlert = {}
+      onDismissAlert = {},
+      goToSecurityHub = {}
     )
 
   afterEach {

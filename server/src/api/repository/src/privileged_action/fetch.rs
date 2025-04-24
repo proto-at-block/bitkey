@@ -35,7 +35,7 @@ impl PrivilegedActionRepository {
         let database_object = self.get_database_object();
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .get_item()
             .table_name(table_name)
@@ -75,7 +75,7 @@ impl PrivilegedActionRepository {
         let database_object = self.get_database_object();
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .query()
             .table_name(table_name)
@@ -138,7 +138,7 @@ impl PrivilegedActionRepository {
         loop {
             let mut filter_expression = AUTHORIZATION_STRATEGY_TYPE_EXPRESSION.to_owned();
             let mut query = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())

@@ -1,6 +1,5 @@
 package build.wallet.statemachine.home.full
 
-import bitkey.securitycenter.SecurityActionsServiceFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
@@ -55,7 +54,6 @@ import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.datetime.Instant
@@ -153,9 +151,7 @@ class HomeUiStateMachineImplTests : FunSpec({
           "recovery-relationship-notifications"
         ) {},
       appCoroutineScope = appScope,
-      securityHubFeatureFlag = securityHubFeatureFlag,
-      navigatorPresenter = NavigatorPresenterFake(),
-      securityActionsService = SecurityActionsServiceFake()
+      navigatorPresenter = NavigatorPresenterFake()
     )
 
   val props =
@@ -362,22 +358,6 @@ class HomeUiStateMachineImplTests : FunSpec({
 
       awaitBodyMock<TrustedContactEnrollmentUiProps>("trusted-contact-enrollment") {
         inviteCode.shouldBe("inviteCode")
-      }
-    }
-  }
-
-  test("tabs should show with feature flag enabled") {
-    securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    stateMachine.test(props) {
-      awaitSyncLoopCall()
-      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
-
-      awaitBodyMock<MoneyHomeUiProps> {
-        tabs.apply {
-          size.shouldBe(2)
-          get(0).shouldBeInstanceOf<HomeTab.MoneyHome>()
-          get(1).shouldBeInstanceOf<HomeTab.SecurityHub>()
-        }
       }
     }
   }

@@ -17,7 +17,7 @@ use super::entities::{
 };
 use super::error::{CustomerFeedbackClientError, GetTicketFormError, UploadAttachmentError};
 use crate::clients::entities::CreateRequestResponse;
-use crate::clients::error::GetTicketFormError::ZendeskGetFormResponseError;
+use crate::clients::error::GetTicketFormError::GetFormResponse;
 
 const ZENDESK_API_URL: &str = "https://bitkeysupport.zendesk.com/api/";
 const ZENDESK_FORM_ID: &str = "24564153085204";
@@ -168,10 +168,10 @@ impl ZendeskClient {
                     .header(AUTHORIZATION, format!("Basic {authorization}"))
                     .send()
                     .await
-                    .map_err(GetTicketFormError::ZendeskGetFormStructureError)?;
+                    .map_err(GetTicketFormError::GetFormStructure)?;
 
                 if !response.status().is_success() {
-                    Err(ZendeskGetFormResponseError(
+                    Err(GetFormResponse(
                         response.status(),
                         Self::extract_error_text(response).await,
                     ))
@@ -184,15 +184,12 @@ impl ZendeskClient {
             Self::Test => {
                 let json = Asset::get("test.json")
                     .ok_or_else(|| {
-                        GetTicketFormError::ZendeskDeserializeResponseError(
-                            "Invalid test json".to_string(),
-                        )
+                        GetTicketFormError::DeserializeResponse("Invalid test json".to_string())
                     })?
                     .data;
                 let test_form_structure: TicketFormAndFieldsResponse =
-                    serde_json::from_slice(json.as_ref()).map_err(|e| {
-                        GetTicketFormError::ZendeskDeserializeResponseError(e.to_string())
-                    })?;
+                    serde_json::from_slice(json.as_ref())
+                        .map_err(|e| GetTicketFormError::DeserializeResponse(e.to_string()))?;
                 Ok(test_form_structure)
             }
         }

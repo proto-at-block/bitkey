@@ -11,7 +11,7 @@ data class ErrorScreen(
   /**
    * The screen to navigate to when the user exits the error screen.
    */
-  val origin: Screen,
+  override val origin: Screen,
 ) : SimpleScreen {
   @Composable
   override fun model(navigator: Navigator): ScreenModel {

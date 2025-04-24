@@ -115,7 +115,8 @@ class LiteSettingsHomeUiStateMachineImpl(
                 }.takeIf { appVariant.showDebugMenu }
               ),
               onShowAlert = { alertModel = it },
-              onDismissAlert = { alertModel = null }
+              onDismissAlert = { alertModel = null },
+              goToSecurityHub = {}
             )
         ),
       statusBannerModel = props.homeStatusBannerModel,

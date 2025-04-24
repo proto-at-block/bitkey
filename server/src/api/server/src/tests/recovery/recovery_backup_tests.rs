@@ -39,7 +39,9 @@ async fn recovery_backup_upload_and_fetch_test(
         AccountType::Lite => {
             Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
         }
-        AccountType::Software => unimplemented!(),
+        AccountType::Software => {
+            panic!("Software account type not implemented in tests");
+        }
     };
 
     let keys = context

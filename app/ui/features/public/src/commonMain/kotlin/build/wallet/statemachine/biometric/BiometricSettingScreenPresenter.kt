@@ -1,16 +1,18 @@
 package build.wallet.statemachine.biometric
 
 import androidx.compose.runtime.*
+import bitkey.ui.framework.Navigator
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
-import build.wallet.coachmark.CoachmarkIdentifier
-import build.wallet.coachmark.CoachmarkService
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.nfc.platform.signChallenge
 import build.wallet.platform.biometrics.BiometricError
@@ -29,7 +31,6 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -40,23 +41,32 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.launch
 import okio.ByteString.Companion.encodeUtf8
 
 const val BIOMETRIC_AUTH_CHALLENGE = "biometric-auth-challenge"
 
+/**
+ * The Props for launching [BiometricSettingUiStateMachine]
+ */
+data class BiometricSettingScreen(
+  val fullAccount: FullAccount,
+  override val origin: Screen?,
+) : Screen
+
 @BitkeyInject(ActivityScope::class)
-class BiometricSettingUiStateMachineImpl(
+class BiometricSettingScreenPresenter(
   private val biometricPreference: BiometricPreference,
   private val biometricTextProvider: BiometricTextProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val biometricPrompter: BiometricPrompter,
   private val signatureVerifier: SignatureVerifier,
   private val settingsLauncher: SystemSettingsLauncher,
-  private val coachmarkService: CoachmarkService,
-) : BiometricSettingUiStateMachine {
+) : ScreenPresenter<BiometricSettingScreen> {
   @Composable
-  override fun model(props: BiometricSettingUiProps): ScreenModel {
+  override fun model(
+    navigator: Navigator,
+    screen: BiometricSettingScreen,
+  ): ScreenModel {
     var uiState: State by remember {
       mutableStateOf(
         State.EnablingBiometricSetting(
@@ -69,56 +79,21 @@ class BiometricSettingUiStateMachineImpl(
       biometricPreference.isEnabled()
     }.collectAsState(false)
 
-    val scope = rememberStableCoroutineScope()
-
-    var coachmarkDisplayed by remember { mutableStateOf(false) }
-    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
-    LaunchedEffect("coachmarks", coachmarkDisplayed) {
-      coachmarkService
-        .coachmarksToDisplay(setOf(CoachmarkIdentifier.BiometricUnlockCoachmark))
-        .onSuccess { coachmarksToDisplay = it }
-    }
-
     var sheetModel: SheetModel? by remember { mutableStateOf(null) }
     val biometricTitle = biometricTextProvider.getSettingsTitleText()
     return when (uiState) {
       is State.EnablingBiometricSetting -> BiometricSettingsScreenBodyModel(
-        onBack = props.onBack,
+        onBack = {
+          if (screen.origin != null) {
+            navigator.goTo(screen.origin)
+          } else {
+            navigator.exit()
+          }
+        },
         isEnabled = isEnabled,
         biometricSettingTitleText = biometricTitle,
         biometricSettingSecondaryText = biometricTextProvider.getSettingsSecondaryText(),
-        coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
-          CoachmarkModel(
-            identifier = CoachmarkIdentifier.BiometricUnlockCoachmark,
-            title = "Set up $biometricTitle",
-            description = "We recommend you secure your app by setting up $biometricTitle to enhance app security.",
-            arrowPosition = CoachmarkModel.ArrowPosition(
-              vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-              horizontal = CoachmarkModel.ArrowPosition.Horizontal.Trailing
-            ),
-            button = null,
-            image = null,
-            dismiss = {
-              if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
-                scope.launch {
-                  coachmarkService
-                    .markCoachmarkAsDisplayed(CoachmarkIdentifier.BiometricUnlockCoachmark)
-                  coachmarkDisplayed = true
-                }
-              }
-            }
-          )
-        } else {
-          null
-        },
         onEnableCheckedChange = {
-          if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
-            scope.launch {
-              coachmarkService
-                .markCoachmarkAsDisplayed(CoachmarkIdentifier.BiometricUnlockCoachmark)
-              coachmarkDisplayed = true
-            }
-          }
           if (!isEnabled) {
             val biometricsAvailability = biometricPrompter.biometricsAvailability().result
             biometricsAvailability
@@ -201,7 +176,7 @@ class BiometricSettingUiStateMachineImpl(
             val verification = signatureVerifier.verifyEcdsaResult(
               message = BIOMETRIC_AUTH_CHALLENGE.encodeUtf8(),
               signature = signature,
-              publicKey = props.keybox.activeHwKeyBundle.authKey.pubKey
+              publicKey = screen.fullAccount.keybox.activeHwKeyBundle.authKey.pubKey
             )
             if (verification.get() == true) {
               if (!isEnabled) {
@@ -262,7 +237,6 @@ internal data class BiometricSettingsScreenBodyModel(
   override val onBack: () -> Unit,
   val biometricSettingTitleText: String,
   val biometricSettingSecondaryText: String,
-  val coachmark: CoachmarkModel?,
   val isEnabled: Boolean,
   val onEnableCheckedChange: (Boolean) -> Unit,
 ) : FormBodyModel(
@@ -285,8 +259,7 @@ internal data class BiometricSettingsScreenBodyModel(
                   checked = isEnabled,
                   onCheckedChange = onEnableCheckedChange
                 )
-              ),
-              coachmark = coachmark
+              )
             )
           ),
           style = ListGroupStyle.DIVIDER

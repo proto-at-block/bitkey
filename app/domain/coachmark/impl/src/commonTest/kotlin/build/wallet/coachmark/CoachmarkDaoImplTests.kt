@@ -20,19 +20,19 @@ class CoachmarkDaoImplTests :
     }
 
     suspend fun createCoachmark() {
-      dao.insertCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark, Instant.DISTANT_FUTURE)
+      dao.insertCoachmark(CoachmarkIdentifier.InheritanceCoachmark, Instant.DISTANT_FUTURE)
     }
 
     test("setViewed") {
       createCoachmark()
       dao
-        .getCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark)
+        .getCoachmark(CoachmarkIdentifier.InheritanceCoachmark)
         .value
         ?.viewed
         .shouldBe(false)
-      dao.setViewed(CoachmarkIdentifier.HiddenBalanceCoachmark)
+      dao.setViewed(CoachmarkIdentifier.InheritanceCoachmark)
       dao
-        .getCoachmark(CoachmarkIdentifier.HiddenBalanceCoachmark)
+        .getCoachmark(CoachmarkIdentifier.InheritanceCoachmark)
         .value
         ?.viewed
         .shouldBe(true)
@@ -47,10 +47,10 @@ class CoachmarkDaoImplTests :
       createCoachmark()
       val list = dao.getAllCoachmarks()
       list.value.isNotEmpty().shouldBe(true)
-      val hiddenBalance = list.value[0]
-      hiddenBalance.id.shouldBe(CoachmarkIdentifier.HiddenBalanceCoachmark)
-      hiddenBalance.viewed.shouldBe(false)
-      hiddenBalance.expiration.shouldBe(Instant.DISTANT_FUTURE)
+      val inheritance = list.value[0]
+      inheritance.id.shouldBe(CoachmarkIdentifier.InheritanceCoachmark)
+      inheritance.viewed.shouldBe(false)
+      inheritance.expiration.shouldBe(Instant.DISTANT_FUTURE)
     }
 
     test("resetCoachmarks") {

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-graphics",
     "components": [
         {
-            "version": "1.7.5",
+            "version": "1.7.6",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-graphics-metadata-1.7.5.jar": "5ba9ece097ba31fea936095e1c34b1f517645a1af55e4a641e707c583e61d94b"
+                        "ui-graphics-metadata-1.7.6.jar": "5ba9ece097ba31fea936095e1c34b1f517645a1af55e4a641e707c583e61d94b"
                     }
                 }
             ],

@@ -164,7 +164,6 @@ impl Service {
                 None,
             )
             .map_err(|_| ServiceError::InvalidChallengeSignature),
-            _ => Err(ServiceError::IncompatibleAccountType),
         }
     }
 }

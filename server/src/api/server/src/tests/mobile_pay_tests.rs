@@ -113,7 +113,6 @@ async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneT
             currency_code: USD,
         },
         time_zone_offset: vector.time_zone_offset,
-        ..Default::default()
     });
     let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(
@@ -304,11 +303,11 @@ mod get_mobile_pay_tests {
     }
     impl AttributableWallet for DummyWallet {
         fn is_addressed_to_self(&self, _psbt: &Psbt) -> Result<bool, BdkUtilError> {
-            todo!()
+            panic!("not implemented for dummy wallet in tests");
         }
 
         fn all_inputs_are_from_self(&self, _psbt: &Psbt) -> Result<bool, BdkUtilError> {
-            todo!()
+            panic!("not implemented for dummy wallet in tests");
         }
 
         fn is_my_psbt_address(&self, spk: &SpkWithDerivationPaths) -> Result<bool, BdkUtilError> {
@@ -379,8 +378,8 @@ mod get_mobile_pay_tests {
         // We don't want to use a real wallet here, so we mock it out with DummyWallet
         let mut spending_record =
             DailySpendingRecord::try_new(&account.id, OffsetDateTime::now_utc().date()).unwrap();
-        let PAYEE_AMOUNT_SATS: u64 = 860_000;
-        let CHANGE_AMOUNT_SATS: u64 = 306_249;
+        let payee_amount_sats: u64 = 860_000;
+        let change_amount_sats: u64 = 306_249;
 
         let psbt = Psbt::from_unsigned_tx(Transaction {
             version: 0,
@@ -389,12 +388,12 @@ mod get_mobile_pay_tests {
             output: vec![
                 // payee output
                 TxOut {
-                    value: PAYEE_AMOUNT_SATS,
+                    value: payee_amount_sats,
                     script_pubkey: payee_script_pubkey,
                 },
                 // change output
                 TxOut {
-                    value: CHANGE_AMOUNT_SATS,
+                    value: change_amount_sats,
                     script_pubkey: change_script_pubkey.clone(),
                 },
             ],
@@ -415,9 +414,9 @@ mod get_mobile_pay_tests {
         assert!(mobile_pay_config.limit.active);
         assert_eq!(
             mobile_pay_config.available.amount,
-            SPENDING_LIMIT_SATS - PAYEE_AMOUNT_SATS
+            SPENDING_LIMIT_SATS - payee_amount_sats
         );
-        assert_eq!(mobile_pay_config.spent.amount, PAYEE_AMOUNT_SATS);
+        assert_eq!(mobile_pay_config.spent.amount, payee_amount_sats);
         assert_eq!(mobile_pay_config.limit, vector.spending_limit);
     }
 

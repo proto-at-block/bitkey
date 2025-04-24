@@ -21,7 +21,7 @@ impl AccountRepository {
         let database_object = self.get_database_object();
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .get_item()
             .table_name(table_name)
@@ -64,7 +64,7 @@ impl AccountRepository {
         };
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .query()
             .table_name(table_name)
@@ -116,7 +116,7 @@ impl AccountRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .scan()
                 .set_exclusive_start_key(exclusive_start_key)
@@ -188,7 +188,7 @@ impl AccountRepository {
             })
             .collect::<Result<Vec<ReadRequest>, DatabaseError>>()?;
         let accounts: Vec<Account> = read_requests
-            .fetch(&self.connection.client, &table_name, database_object)
+            .fetch(&self.get_connection().client, &table_name, database_object)
             .await?;
         Ok(accounts)
     }

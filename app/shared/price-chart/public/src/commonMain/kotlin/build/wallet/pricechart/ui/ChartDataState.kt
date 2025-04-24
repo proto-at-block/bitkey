@@ -15,15 +15,31 @@ internal data class ChartDataState(
   val intervals: Int,
   val pathSize: Float,
 ) {
-  private val yMin: Double = data.minOfOrNull { it.y } ?: 0.0
-  private val yMax: Double = data.maxOfOrNull { it.y } ?: 1.0
+  private val yMin: Double
+  private val yMax: Double
   private val intervalValue: Double
   private var yFloor: Double
   private var yCeil: Double
   private val range: Double
+  val precise: Boolean
 
   init {
-    val rawRange = yMax - yMin
+    val dataYMin = data.minOfOrNull { it.y } ?: 0.0
+    val dataYMax = data.maxOfOrNull { it.y } ?: 1.0
+
+    if (dataYMax == dataYMin) {
+      // If data contains only one or the same repeated y value
+      // create a minimal range around it and enable precise labels.
+      yMin = (dataYMin - 1).coerceAtLeast(0.0)
+      yMax = dataYMax + 1
+      precise = true
+    } else {
+      yMin = dataYMin
+      yMax = dataYMax
+      precise = false
+    }
+
+    var rawRange = yMax - yMin
     val rawInterval = (rawRange / intervals.toFloat())
     val step = 10.0.pow(floor(log10(rawInterval)))
     val error = step * intervals / rawRange

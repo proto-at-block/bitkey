@@ -2,11 +2,11 @@
     "module-identifier": "com.datadoghq:dd-sdk-android-internal",
     "components": [
         {
-            "version": "2.14.0",
+            "version": "2.16.0",
             "variants": [
                 {
                     "artifacts": {
-                        "dd-sdk-android-internal-2.14.0.aar": "ca4ab365d3e04f51a0aa81c38a16af25d51d3f2ab376f86a8ccd7b52580a2d8d"
+                        "dd-sdk-android-internal-2.16.0.aar": "0b5c93e3b8904aa5f340735487325ad2e7798c2924472021f760d33c0dd0cfbf"
                     }
                 }
             ],

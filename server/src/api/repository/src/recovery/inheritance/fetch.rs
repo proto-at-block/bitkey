@@ -35,7 +35,7 @@ impl InheritanceRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        self.connection
+        self.get_connection()
             .client
             .get_item()
             .table_name(table_name)
@@ -85,7 +85,7 @@ impl InheritanceRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
         let base_query = self
-            .connection
+            .get_connection()
             .client
             .query()
             .table_name(table_name)
@@ -140,7 +140,7 @@ impl InheritanceRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())
@@ -213,7 +213,7 @@ impl InheritanceRepository {
         }
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .batch_get_item()
             .request_items(
@@ -279,7 +279,7 @@ impl InheritanceRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())

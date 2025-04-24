@@ -1,11 +1,10 @@
 package build.wallet.statemachine.cloud.health
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import bitkey.ui.framework.Navigator
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -16,14 +15,12 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.logging.*
+import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.sharing.SharingManager
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachineImpl.State.LoadingState
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachineImpl.State.RepairingMobileKeyBackupState
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachineImpl.State.ViewingDashboardState
+import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreenPresenter.State.*
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -35,11 +32,7 @@ import build.wallet.ui.model.Click
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.icon.*
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
@@ -53,8 +46,13 @@ import kotlinx.datetime.toLocalDateTime
 
 // TODO(796): add integration tests
 
+data class CloudBackupHealthDashboardScreen(
+  val account: FullAccount,
+  override val origin: Screen?,
+) : Screen
+
 @BitkeyInject(ActivityScope::class)
-class CloudBackupHealthDashboardUiStateMachineImpl(
+class CloudBackupHealthDashboardScreenPresenter(
   private val uuidGenerator: UuidGenerator,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val dateTimeFormatter: DateTimeFormatter,
@@ -63,12 +61,13 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
   private val sharingManager: SharingManager,
-) : CloudBackupHealthDashboardUiStateMachine {
+) : ScreenPresenter<CloudBackupHealthDashboardScreen> {
   @Composable
-  override fun model(props: CloudBackupHealthDashboardProps): ScreenModel {
-    var state: State by remember {
-      mutableStateOf(LoadingState)
-    }
+  override fun model(
+    navigator: Navigator,
+    screen: CloudBackupHealthDashboardScreen,
+  ): ScreenModel {
+    var state: State by remember { mutableStateOf(LoadingState) }
     val cloudStoreName = remember { cloudServiceProvider().name }
     val timeZone = remember { timeZoneProvider.current() }
 
@@ -76,7 +75,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
       is LoadingState -> {
         LaunchedEffect("load-status") {
           // perform sync first
-          cloudBackupHealthRepository.performSync(props.account)
+          cloudBackupHealthRepository.performSync(screen.account)
           state = determineState()
         }
         LoadingBodyModel(id = null).asRootScreen()
@@ -89,12 +88,18 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
           // This is because we can't reliably tell if the Sharing sheet from previous click
           // is still open or not, so we need to trigger a new, unique one on click.
           LaunchedEffect("share-eak-pdf", shareEakUuid) {
-            shareEak(props)
+            shareEak(screen)
           }
         }
 
         CloudBackupHealthDashboardBodyModel(
-          onBack = props.onExit,
+          onBack = {
+            if (screen.origin != null) {
+              navigator.goTo(screen.origin)
+            } else {
+              navigator.exit()
+            }
+          },
           mobileKeyBackupStatusCard = mobileKeyBackupStatusCard(
             timeZone = timeZone,
             cloudStoreName = cloudStoreName,
@@ -132,7 +137,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
       is RepairingMobileKeyBackupState ->
         repairCloudBackupStateMachine.model(
           RepairMobileKeyBackupProps(
-            account = props.account,
+            account = screen.account,
             mobileKeyBackupStatus = currentState.mobileKeyBackupStatus,
             presentationStyle = Root,
             onExit = {
@@ -148,7 +153,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
         repairCloudBackupStateMachine
           .model(
             RepairMobileKeyBackupProps(
-              account = props.account,
+              account = screen.account,
               mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.BackupMissing,
               presentationStyle = Root,
               onExit = {
@@ -167,7 +172,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
    *
    * Allows customer to download or share the PDF.
    */
-  private suspend fun shareEak(props: CloudBackupHealthDashboardProps) {
+  private suspend fun shareEak(props: CloudBackupHealthDashboardScreen) {
     // Retrieve sealed CSEK from last uploaded Mobile Key backup in order to generate
     // EAK PDF.
     val mobileKeyBackup = cloudBackupDao

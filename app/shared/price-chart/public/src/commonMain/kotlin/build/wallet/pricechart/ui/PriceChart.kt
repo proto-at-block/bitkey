@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -63,7 +64,7 @@ fun PriceChart(
   onPointSelected: (DataPoint?) -> Unit = {},
   colorPrimary: Color = WalletTheme.colors.bitcoinPrimary,
   colorSparkLine: Color = WalletTheme.colors.primaryForeground30,
-  formatYLabel: (Double) -> String = { it.toString() },
+  formatYLabel: (Double, Boolean) -> String = { v, _ -> v.toString() },
   extractSecondaryYValue: ((DataPoint) -> Double)? = null,
   yAxisIntervals: Int = 10,
   initialSelectedPoint: DataPoint? = null,
@@ -101,7 +102,7 @@ fun PriceChart(
         if (i % 2 == 1) {
           val labelValue = chartDataState.valueAtInterval(i)
           textMeasurer.measure(
-            updatedFormatYLabel(labelValue),
+            updatedFormatYLabel(labelValue, chartDataState.precise),
             style = textStyle
           )
         } else {
@@ -289,6 +290,69 @@ fun PriceChart(
       )
     }
 
+    val activeSecondaryValueColor = WalletTheme.colors.chartElement
+    val inactiveSecondaryValueColor = WalletTheme.colors.stepperIncomplete
+    Spacer(
+      modifier = Modifier
+        .align(Alignment.BottomStart)
+        .fillMaxWidth()
+        .height(secondaryYHeight)
+        .padding(top = 4.dp)
+        .drawWithCache {
+          if (extractSecondaryYValue == null) {
+            return@drawWithCache onDrawBehind { }
+          }
+          val lastIndex = if (dataPoints.size > 2) {
+            dataPoints.lastIndex - 1
+          } else {
+            dataPoints.lastIndex
+          }
+          val duration = (dataPoints[lastIndex].x - dataPoints.first().x).seconds
+          val rangeInterval = when {
+            duration < 25.hours -> 1.hours
+            duration < 31.days -> 1.days
+            duration < 91.days -> (duration.inWholeDays / 7).days
+            duration < 366.days -> (duration.inWholeDays / 30).days
+            else -> (duration.inWholeDays / 90).days
+          }
+          val chunksMap = dataPoints
+            .groupBy { Instant.fromEpochSeconds(it.x).truncateTo(rangeInterval) }
+            .mapValues { (_, points) -> extractSecondaryYValue(points.last()) }
+          val chunks = chunksMap.toList()
+          val padding = 4f
+          val chunkPaddingTotal = padding * (chunks.size - 1)
+          val width = (adjustedCanvasWidth - chunkPaddingTotal) / chunks.size
+          val maxY = dataPoints.maxOf(extractSecondaryYValue)
+          val selectionOffset = lineSplitOffset.takeUnless {
+            it == Offset.Unspecified || inputHoverOffset == Offset.Unspecified
+          }
+          onDrawBehind {
+            chunks.forEachIndexed { index, (_, value) ->
+              val height = (value / maxY) * size.height
+              val offset = Offset(
+                x = (padding * 2) + (index * (width + padding)),
+                y = padding + (size.height - height).toFloat()
+              )
+              val isSelected = selectionOffset?.let { (x) ->
+                val safeX = x.coerceIn(0f, adjustedCanvasWidth)
+                val offsetX = offset.x - (padding / 2)
+                safeX >= floor(offsetX) && safeX <= ceil(offsetX + width)
+              }
+              drawRoundRect(
+                color = if (isSelected == true) {
+                  activeSecondaryValueColor
+                } else {
+                  inactiveSecondaryValueColor
+                },
+                cornerRadius = CornerRadius(10f, 10f),
+                size = Size(width, height.toFloat()),
+                topLeft = offset
+              )
+            }
+          }
+        }
+    )
+
     Spacer(
       modifier = Modifier
         .then(
@@ -398,68 +462,6 @@ fun PriceChart(
               alpha = animatedSelectedStateAlpha,
               radius = thumbScale * (6.dp.toPx())
             )
-          }
-        }
-    )
-
-    val activeSecondaryValueColor = WalletTheme.colors.chartElement
-    val inactiveSecondaryValueColor = WalletTheme.colors.stepperIncomplete
-    Spacer(
-      modifier = Modifier
-        .align(Alignment.BottomStart)
-        .fillMaxWidth()
-        .height(secondaryYHeight)
-        .drawWithCache {
-          if (extractSecondaryYValue == null) {
-            return@drawWithCache onDrawBehind { }
-          }
-          val lastIndex = if (dataPoints.size > 2) {
-            dataPoints.lastIndex - 1
-          } else {
-            dataPoints.lastIndex
-          }
-          val duration = (dataPoints[lastIndex].x - dataPoints.first().x).seconds
-          val rangeInterval = when {
-            duration < 25.hours -> 1.hours
-            duration < 31.days -> 1.days
-            duration < 91.days -> (duration.inWholeDays / 7).days
-            duration < 366.days -> (duration.inWholeDays / 30).days
-            else -> (duration.inWholeDays / 90).days
-          }
-          val chunksMap = dataPoints
-            .groupBy { Instant.fromEpochSeconds(it.x).truncateTo(rangeInterval) }
-            .mapValues { (_, points) -> extractSecondaryYValue(points.last()) }
-          val chunks = chunksMap.toList()
-          val padding = 4f
-          val chunkPaddingTotal = padding * (chunks.size - 1)
-          val width = (adjustedCanvasWidth - chunkPaddingTotal) / chunks.size
-          val maxY = dataPoints.maxOf(extractSecondaryYValue)
-          val selectionOffset = lineSplitOffset.takeUnless {
-            it == Offset.Unspecified || inputHoverOffset == Offset.Unspecified
-          }
-          onDrawBehind {
-            chunks.forEachIndexed { index, (_, value) ->
-              val height = (value / maxY) * size.height
-              val offset = Offset(
-                x = (padding * 2) + (index * (width + padding)),
-                y = padding + (size.height - height).toFloat()
-              )
-              val isSelected = selectionOffset?.let { (x) ->
-                val safeX = x.coerceIn(0f, adjustedCanvasWidth)
-                val offsetX = offset.x - (padding / 2)
-                safeX >= floor(offsetX) && safeX <= ceil(offsetX + width)
-              }
-              drawRoundRect(
-                color = if (isSelected == true) {
-                  activeSecondaryValueColor
-                } else {
-                  inactiveSecondaryValueColor
-                },
-                cornerRadius = CornerRadius(10f, 10f),
-                size = Size(width, height.toFloat()),
-                topLeft = offset
-              )
-            }
           }
         }
     )

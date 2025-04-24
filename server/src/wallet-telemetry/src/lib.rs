@@ -20,6 +20,7 @@ pub mod baggage_keys {
     pub const APP_INSTALLATION_ID: &str = "app_installation_id";
     pub const ACCOUNT_ID: &str = "account_id";
     pub const HARDWARE_SERIAL_NUMBER: &str = "hardware_serial_number";
+    pub const APP_ID: &str = "app_id";
 }
 
 pub const METRICS_REPORTING_PERIOD_SECS: u64 = 15;

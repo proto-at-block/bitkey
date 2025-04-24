@@ -33,7 +33,6 @@ async fn ddb_repo() -> impl AddressWatchlistTrait + Clone {
 
 struct TestContext<A: AddressWatchlistTrait + Clone + 'static> {
     address_repo: A,
-    ctx: super::TestContext,
     known_account_id_1: AccountId,
     known_account_id_2: AccountId,
     client: TestClient,
@@ -51,7 +50,6 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
 
         Self {
             address_repo,
-            ctx,
             client,
             known_account_id_1: account_1.id,
             known_account_id_2: account_2.id,

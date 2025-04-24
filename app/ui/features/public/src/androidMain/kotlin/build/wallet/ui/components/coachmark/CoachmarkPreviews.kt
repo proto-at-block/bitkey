@@ -15,7 +15,7 @@ internal fun CoachmarkPreviews() {
   PreviewWalletTheme {
     Coachmark(
       model = CoachmarkModel(
-        identifier = CoachmarkIdentifier.MultipleFingerprintsCoachmark,
+        identifier = CoachmarkIdentifier.SecurityHubSettingsCoachmark,
         title = "Multiple fingerprints",
         description = "Now you can add more fingerprints to your Bitkey device.",
         arrowPosition = CoachmarkModel.ArrowPosition(

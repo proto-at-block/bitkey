@@ -190,23 +190,18 @@ async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
             })
             .await
             .unwrap();
-        assert!(account
-            .common_fields
-            .touchpoints
-            .iter()
-            .find(|t| {
-                if let Touchpoint::Push {
-                    platform: _,
-                    arn: _,
-                    device_token,
-                } = t
-                {
-                    *device_token == vector.request.device_token
-                } else {
-                    false
-                }
-            })
-            .is_some());
+        assert!(account.common_fields.touchpoints.iter().any(|t| {
+            if let Touchpoint::Push {
+                platform: _,
+                arn: _,
+                device_token,
+            } = t
+            {
+                *device_token == vector.request.device_token
+            } else {
+                false
+            }
+        }));
         assert_eq!(account.common_fields.touchpoints.len(), 1);
     }
 }

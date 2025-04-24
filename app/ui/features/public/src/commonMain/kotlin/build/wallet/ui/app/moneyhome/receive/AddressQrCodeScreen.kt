@@ -40,6 +40,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.system.BackHandler
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tooling.LocalIsPreviewTheme
 
 @Composable
 fun AddressQrCodeScreen(
@@ -164,7 +165,7 @@ private fun QrCodeWithAddressCard(
         modifier = Modifier.fillMaxWidth().aspectRatio(1f),
         contentAlignment = Alignment.Center
       ) {
-        if (qrCodeUrl != null) {
+        if (qrCodeUrl != null && !LocalIsPreviewTheme.current) {
           UrlImage(
             imageUrl = qrCodeUrl,
             loadingSize = IconSize.Avatar,

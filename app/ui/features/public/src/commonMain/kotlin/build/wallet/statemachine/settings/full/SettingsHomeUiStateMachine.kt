@@ -25,4 +25,5 @@ data class SettingsHomeUiProps(
   val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
+  val goToSecurityHub: () -> Unit,
 )

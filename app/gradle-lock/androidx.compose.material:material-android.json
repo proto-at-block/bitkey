@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.material:material-android",
     "components": [
         {
-            "version": "1.7.5",
+            "version": "1.7.6",
             "variants": [
                 {
                     "artifacts": {
-                        "material-release.aar": "4f5d81d48aa01d615d2eeb48c22ef40efa33cd9ae23320eeba7d30ec10b95f97"
+                        "material-release.aar": "739b4547e028a47c391d80e731f7b82dae3f083ca912b1d3612745cb4c288297"
                     }
                 }
             ],

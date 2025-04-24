@@ -19,7 +19,12 @@ NO_OPTIMIZE int main(void) {
 
   mcu_i2c_init();  // Must come after MPU init but before power init
 
-  power_init();
+#ifdef MFGTEST
+  power_init(false);
+#else
+  power_init(true);
+#endif
+
   led_init();
   serial_init();
   sysevent_init();
@@ -69,6 +74,7 @@ NO_OPTIMIZE int main(void) {
   });
   auth_task_create(true);
 #else
+  captouch_task_create();
   key_manager_task_create();
   auth_task_create(false);
   fwup_task_create((fwup_task_options_t){

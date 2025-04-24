@@ -1,5 +1,6 @@
 package bitkey.securitycenter
 
+import bitkey.notifications.NotificationChannel
 import bitkey.notifications.NotificationsService
 
 class CriticalAlertsAction(
@@ -10,6 +11,9 @@ class CriticalAlertsAction(
       is NotificationsService.NotificationStatus.Enabled -> {
         emptyList()
       }
+      is NotificationsService.NotificationStatus.Missing -> {
+        notificationStatus.missingChannels.map { it.toSecurityActionRecommendation() }
+      }
       else -> {
         listOf(SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS)
       }
@@ -19,3 +23,10 @@ class CriticalAlertsAction(
 
   override fun type(): SecurityActionType = SecurityActionType.CRITICAL_ALERTS
 }
+
+private fun NotificationChannel.toSecurityActionRecommendation(): SecurityActionRecommendation =
+  when (this) {
+    NotificationChannel.Email -> SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS
+    NotificationChannel.Push -> SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS
+    NotificationChannel.Sms -> SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS
+  }

@@ -13,7 +13,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.promotions.PromotionCode
 import build.wallet.bitkey.relationships.*
-import build.wallet.coroutines.flow.launchTicker
+import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -25,10 +25,9 @@ import build.wallet.mapResult
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.emptyFlow
 import kotlin.random.Random
 
 @BitkeyInject(AppScope::class)
@@ -67,24 +66,23 @@ class RelationshipsServiceImpl(
   }
 
   override suspend fun executeWork() {
-    coroutineScope {
-      // Sync relationships with f8e
-      launch {
-        accountService.accountStatus()
-          .mapResult { it as? AccountStatus.ActiveAccount }
-          .mapNotNull { it.get()?.account }
-          .distinctUntilChanged()
-          .collectLatest { account ->
-            f8eSyncSequencer.run(account) {
-              launchTicker(relationshipsSyncFrequency.value) {
-                if (appSessionManager.isAppForegrounded()) {
-                  syncAndVerifyRelationships(account)
-                }
-              }
-            }
-          }
+    // Sync relationships with f8e
+    accountService.accountStatus()
+      .mapResult { it as? AccountStatus.ActiveAccount }
+      .map { it.get()?.account }
+      .distinctUntilChanged()
+      .flatMapLatest { account ->
+        account?.let {
+          tickerFlow(relationshipsSyncFrequency.value)
+            .map { account }
+            .filter { appSessionManager.isAppForegrounded() }
+        } ?: emptyFlow()
       }
-    }
+      .collectLatest { account ->
+        f8eSyncSequencer.run(account) {
+          syncAndVerifyRelationships(account)
+        }
+      }
   }
 
   override suspend fun removeRelationshipWithoutSyncing(

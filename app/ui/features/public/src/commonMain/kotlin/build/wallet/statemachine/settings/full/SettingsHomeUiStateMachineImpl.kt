@@ -2,6 +2,7 @@ package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
+import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -9,10 +10,8 @@ import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
-import build.wallet.statemachine.biometric.BiometricSettingUiProps
-import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardProps
-import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachine
+import build.wallet.statemachine.biometric.BiometricSettingScreen
+import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuScreen
 import build.wallet.statemachine.export.ExportToolsUiProps
@@ -28,8 +27,7 @@ import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMac
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachine
+import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.*
@@ -41,8 +39,6 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiProps
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachine
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
-import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
@@ -55,18 +51,14 @@ class SettingsHomeUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val mobilePaySettingsUiStateMachine: MobilePaySettingsUiStateMachine,
   private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
-  private val recoveryChannelSettingsUiStateMachine: RecoveryChannelSettingsUiStateMachine,
   private val appearancePreferenceUiStateMachine: AppearancePreferenceUiStateMachine,
   private val customElectrumServerSettingUiStateMachine: CustomElectrumServerSettingUiStateMachine,
   private val deviceSettingsUiStateMachine: DeviceSettingsUiStateMachine,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
-  private val trustedContactManagementUiStateMachine: TrustedContactManagementUiStateMachine,
   private val settingsListUiStateMachine: SettingsListUiStateMachine,
-  private val cloudBackupHealthDashboardUiStateMachine: CloudBackupHealthDashboardUiStateMachine,
   private val rotateAuthKeyUIStateMachine: RotateAuthKeyUIStateMachine,
   private val navigatorPresenter: NavigatorPresenter,
-  private val biometricSettingUiStateMachine: BiometricSettingUiStateMachine,
   private val firmwareDataService: FirmwareDataService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
@@ -146,7 +138,8 @@ class SettingsHomeUiStateMachineImpl(
                       }
                     ),
                   onShowAlert = { alertModel = it },
-                  onDismissAlert = { alertModel = null }
+                  onDismissAlert = { alertModel = null },
+                  goToSecurityHub = props.goToSecurityHub
                 )
             ),
           bottomSheetModel = props.homeBottomSheetModel,
@@ -174,11 +167,14 @@ class SettingsHomeUiStateMachineImpl(
         )
 
       is ShowingRecoveryChannelsUiState ->
-        recoveryChannelSettingsUiStateMachine.model(
-          RecoveryChannelSettingsProps(
+        navigatorPresenter.model(
+          RecoveryChannelSettingsScreen(
             account = (props.account as FullAccount),
-            onBack = { state = ShowingAllSettingsUiState }
-          )
+            origin = null
+          ),
+          onExit = {
+            state = ShowingAllSettingsUiState
+          }
         )
 
       is ShowingCustomElectrumServerSettingsUiState ->
@@ -225,22 +221,24 @@ class SettingsHomeUiStateMachineImpl(
         )
 
       is ShowingTrustedContactsUiState ->
-        trustedContactManagementUiStateMachine.model(
-          TrustedContactManagementProps(
+        navigatorPresenter.model(
+          initialScreen = TrustedContactManagementScreen(
             account = props.account as FullAccount,
             inviteCode = null,
             onExit = { state = ShowingAllSettingsUiState }
-          )
+          ),
+          onExit = { state = ShowingAllSettingsUiState }
         )
 
-      is ShowingCloudBackupHealthUiState -> {
-        cloudBackupHealthDashboardUiStateMachine.model(
-          CloudBackupHealthDashboardProps(
-            account = props.account as FullAccount,
-            onExit = { state = ShowingAllSettingsUiState }
-          )
-        )
-      }
+      is ShowingCloudBackupHealthUiState -> navigatorPresenter.model(
+        CloudBackupHealthDashboardScreen(
+          account = props.account as FullAccount,
+          origin = null
+        ),
+        onExit = {
+          state = ShowingAllSettingsUiState
+        }
+      )
 
       is ShowingRotateAuthKeyUiState ->
         rotateAuthKeyUIStateMachine.model(
@@ -256,11 +254,14 @@ class SettingsHomeUiStateMachineImpl(
         initialScreen = DebugMenuScreen,
         onExit = { state = ShowingAllSettingsUiState }
       )
-      ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
-        BiometricSettingUiProps(
-          keybox = (props.account as FullAccount).keybox,
-          onBack = { state = ShowingAllSettingsUiState }
-        )
+      ShowingBiometricSettingUiState -> navigatorPresenter.model(
+        initialScreen = BiometricSettingScreen(
+          fullAccount = (props.account as FullAccount),
+          origin = null
+        ),
+        onExit = {
+          state = ShowingAllSettingsUiState
+        }
       )
       is ShowingUtxoConsolidationUiState -> utxoConsolidationUiStateMachine.model(
         UtxoConsolidationProps(

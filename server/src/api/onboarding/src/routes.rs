@@ -1882,7 +1882,7 @@ pub async fn initiate_demo_mode(
     }
 }
 
-async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &String) -> Option<String> {
+async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &str) -> Option<String> {
     wsm_client
         .get_key_integrity_sig(keyset_id)
         .await

@@ -1,15 +1,11 @@
 use async_trait::async_trait;
 use database::{
-    aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata,
-        types::{
-            AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
-            Projection, ProjectionType::All, ScalarAttributeType,
-        },
+    aws_sdk_dynamodb::types::{KeyType, ScalarAttributeType},
+    ddb::{
+        create_dynamodb_table, BaseRepository, Connection, DatabaseError, DatabaseObject,
+        GlobalSecondaryIndexDef, Repository, TableKey,
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository},
 };
-use tracing::{event, Level};
 
 pub mod fetch;
 pub mod persist;
@@ -23,31 +19,29 @@ const EMAIL_IDX_SORT_KEY: &str = "created_at";
 
 #[derive(Clone)]
 pub struct ConsentRepository {
-    connection: Connection,
+    base: BaseRepository,
 }
 
 #[async_trait]
 impl Repository for ConsentRepository {
     fn new(connection: Connection) -> Self {
-        Self { connection }
+        Self {
+            base: BaseRepository::new(connection, DatabaseObject::Consent),
+        }
     }
 
     fn get_database_object(&self) -> DatabaseObject {
-        DatabaseObject::Consent
+        self.base.get_database_object()
     }
 
     fn get_connection(&self) -> &Connection {
-        &self.connection
-    }
-
-    async fn get_table_name(&self) -> Result<String, DatabaseError> {
-        self.connection.get_table_name(self.get_database_object())
+        self.base.get_connection()
     }
 
     async fn table_exists(&self) -> Result<bool, DatabaseError> {
         let table_name = self.get_table_name().await?;
         Ok(self
-            .connection
+            .get_connection()
             .client
             .describe_table()
             .table_name(table_name)
@@ -60,70 +54,43 @@ impl Repository for ConsentRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        let pk = AttributeDefinition::builder()
-            .attribute_name(PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let pk_ks = KeySchemaElement::builder()
-            .attribute_name(PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let sk = AttributeDefinition::builder()
-            .attribute_name(SORT_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let sk_ks = KeySchemaElement::builder()
-            .attribute_name(SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
+        let partition_key = TableKey {
+            name: PARTITION_KEY.to_string(),
+            key_type: KeyType::Hash,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        let email_index_pk = AttributeDefinition::builder()
-            .attribute_name(EMAIL_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let email_index_pk_ks = KeySchemaElement::builder()
-            .attribute_name(EMAIL_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let email_index_sk = AttributeDefinition::builder()
-            .attribute_name(EMAIL_IDX_SORT_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let email_index_sk_ks = KeySchemaElement::builder()
-            .attribute_name(EMAIL_IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
+        let sort_key = TableKey {
+            name: SORT_KEY.to_string(),
+            key_type: KeyType::Range,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        self.connection
-            .client
-            .create_table()
-            .table_name(table_name)
-            .key_schema(pk_ks)
-            .key_schema(sk_ks)
-            .attribute_definitions(pk)
-            .attribute_definitions(sk)
-            .attribute_definitions(email_index_pk)
-            .attribute_definitions(email_index_sk)
-            .billing_mode(BillingMode::PayPerRequest)
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(EMAIL_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(email_index_pk_ks)
-                    .key_schema(email_index_sk_ks)
-                    .build()?,
-            )
-            .send()
-            .await
-            .map_err(|err| {
-                let service_err = err.into_service_error();
-                event!(
-                    Level::ERROR,
-                    "Could not create Consent table: {service_err:?} with message: {:?}",
-                    service_err.message()
-                );
-                DatabaseError::CreateTableError(database_object)
-            })?;
-        Ok(())
+        let gsis: Vec<GlobalSecondaryIndexDef> = vec![
+            // Email GSI
+            GlobalSecondaryIndexDef {
+                name: EMAIL_IDX.to_string(),
+                pk: TableKey {
+                    name: EMAIL_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: EMAIL_IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+        ];
+
+        create_dynamodb_table(
+            &self.get_connection().client,
+            table_name,
+            database_object,
+            partition_key,
+            Some(sort_key),
+            gsis,
+        )
+        .await
     }
 }

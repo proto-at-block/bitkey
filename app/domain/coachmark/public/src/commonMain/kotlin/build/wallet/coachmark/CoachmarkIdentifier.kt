@@ -12,9 +12,9 @@ enum class CoachmarkIdentifier(
   /** Add new coachmark identifiers here. These string values need to be stable or else coachmarks
    * will reappear for users who have already seen them. Do not change them!
    */
-  HiddenBalanceCoachmark("hidden_balance_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_HIDE_BALANCE),
-  MultipleFingerprintsCoachmark("multiple_fingerprints_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_MULTIPLE_FINGERPRINTS),
-  BiometricUnlockCoachmark("biometric_unlock_coachmark", Action.ACTION_APP_COACHMARK_VIEWIED_BIOMETRIC_UNLOCK),
   BitcoinPriceChartCoachmark("bitcoin_price_chart_coachmark", Action.ACTION_APP_COACHMARK_VIEWIED_BITCOIN_PRICE_CARD),
   InheritanceCoachmark("inheritance_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_INHERITANCE),
+  SecurityHubSettingsCoachmark("security_hub_settings_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS),
+  BalanceGraphCoachmark("balance_graph_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_BALANCE_GRAPH),
+  SecurityHubHomeCoachmark("security_hub_coachmark", Action.ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_HOME),
 }

@@ -11,4 +11,10 @@ class SettingsScreenSnapshots : FunSpec({
       SettingsScreen()
     }
   }
+
+  test("settings screen with security hub screen coachmark") {
+    paparazzi.snapshot {
+      SettingsScreen {}
+    }
+  }
 })

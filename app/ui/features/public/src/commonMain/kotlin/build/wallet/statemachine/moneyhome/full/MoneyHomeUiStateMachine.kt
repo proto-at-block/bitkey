@@ -6,7 +6,6 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
-import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.ui.model.status.StatusBannerModel
 
 /**
@@ -30,12 +29,14 @@ data class MoneyHomeUiProps(
   val onSettings: () -> Unit,
   val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,
   val origin: Origin,
-  val tabs: List<HomeTab>,
+  val onGoToSecurityHub: () -> Unit,
 ) {
   sealed class Origin {
     data object Launch : Origin()
 
     data object Settings : Origin()
+
+    data object LostHardwareRecovery : Origin()
 
     data class PartnershipsSell(
       val partnerId: PartnerId?,

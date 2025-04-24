@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.SecurityHubFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
@@ -26,10 +28,11 @@ class MoneyHomeCardsUiStateMachineImpl(
   private val startSweepCardUiStateMachine: StartSweepCardUiStateMachine,
   private val bitcoinPriceCardUiStateMachine: BitcoinPriceCardUiStateMachine,
   private val inheritanceCardUiStateMachine: InheritanceCardUiStateMachine,
+  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : MoneyHomeCardsUiStateMachine {
   @Composable
-  override fun model(props: MoneyHomeCardsProps): MoneyHomeCardsModel {
-    return MoneyHomeCardsModel(
+  override fun model(props: MoneyHomeCardsProps): CardListModel {
+    return CardListModel(
       cards = buildImmutableList {
         inheritanceCardUiStateMachine.model(props.inheritanceCardUiProps).forEach {
           add(it)
@@ -37,22 +40,28 @@ class MoneyHomeCardsUiStateMachineImpl(
 
         add(startSweepCardUiStateMachine.model(props.startSweepCardUiProps))
 
-        // Cloud Backup Health warning card if there's an issue with backup
-        add(cloudBackupHealthCardUiStateMachine.model(props.cloudBackupHealthCardUiProps))
+        if (!securityHubFeatureFlag.isEnabled()) {
+          // Cloud Backup Health warning card if there's an issue with backup
+          add(cloudBackupHealthCardUiStateMachine.model(props.cloudBackupHealthCardUiProps))
+        }
 
-        add(
-          // Only one of: the HW recovery status card, the replace HW card,  or the device update card
-          hardwareRecoveryStatusCardUiStateMachine.model(props.hardwareRecoveryStatusCardUiProps)
-            ?: setupHardwareCardUiStateMachine.model(props.setupHardwareCardUiProps)
-            ?: deviceUpdateCardUiStateMachine.model(props.deviceUpdateCardUiProps)
-        )
+        if (!securityHubFeatureFlag.isEnabled()) {
+          add(
+            // Only one of: the HW recovery status card, the replace HW card,  or the device update card
+            hardwareRecoveryStatusCardUiStateMachine.model(props.hardwareRecoveryStatusCardUiProps)
+              ?: setupHardwareCardUiStateMachine.model(props.setupHardwareCardUiProps)
+              ?: deviceUpdateCardUiStateMachine.model(props.deviceUpdateCardUiProps)
+          )
+        }
 
         add(bitcoinPriceCardUiStateMachine.model(props.bitcoinPriceCardUiProps))
 
-        // Add invitation cards
-        recoveryContactCardsUiStateMachine
-          .model(props.recoveryContactCardsUiProps)
-          .forEach(::add)
+        if (!securityHubFeatureFlag.isEnabled()) {
+          // Add invitation cards
+          recoveryContactCardsUiStateMachine
+            .model(props.recoveryContactCardsUiProps)
+            .forEach(::add)
+        }
 
         // Add getting started card.
         add(gettingStartedCardUiStateMachine.model(props.gettingStartedCardUiProps))

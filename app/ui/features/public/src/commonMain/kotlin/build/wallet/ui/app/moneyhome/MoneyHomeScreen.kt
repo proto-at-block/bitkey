@@ -19,8 +19,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.statemachine.core.list.ListModel
+import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
+import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
 import build.wallet.ui.components.amount.HeroAmount
@@ -36,6 +38,7 @@ import build.wallet.ui.components.refresh.pullRefresh
 import build.wallet.ui.components.tabbar.Tab
 import build.wallet.ui.components.tabbar.TabBar
 import build.wallet.ui.components.toolbar.ToolbarAccessory
+import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.theme.WalletTheme
 
@@ -46,9 +49,15 @@ fun MoneyHomeScreen(
 ) {
   val localDensity = LocalDensity.current
   val listState = rememberLazyListState()
-  var coachmarkOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+  var coachmarkOffset by remember {
+    mutableStateOf(Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY))
+  }
   var tabBarHeightDp by remember {
     mutableStateOf(0.dp)
+  }
+
+  var coachmarkHeight: Int? by remember {
+    mutableStateOf(null)
   }
 
   Box(
@@ -61,7 +70,10 @@ fun MoneyHomeScreen(
     model.coachmark?.let { coachmarkModel ->
       CoachmarkPresenter(
         yOffset = coachmarkOffset.y,
-        model = coachmarkModel
+        model = coachmarkModel,
+        renderedSize = { size ->
+          coachmarkHeight = size.height
+        }
       )
     }
 
@@ -96,23 +108,8 @@ fun MoneyHomeScreen(
               indication = null,
               onClick = {
                 model.onHideBalance()
-                // dismiss the HiddenBalanceCoachmark coachmark if it's showing since you've interacted with the feature
-                if (model.coachmark?.identifier ==
-                  CoachmarkIdentifier.HiddenBalanceCoachmark
-                ) {
-                  model.coachmark.dismiss()
-                }
               }
-            ).onGloballyPositioned { layoutCoordinates ->
-              if (model.coachmark?.identifier == CoachmarkIdentifier.HiddenBalanceCoachmark) {
-                val positionInParent = layoutCoordinates.positionInParent()
-                val size = layoutCoordinates.size
-                coachmarkOffset = Offset(
-                  0f,
-                  positionInParent.y + size.height
-                )
-              }
-            },
+            ),
             primaryAmount = AnnotatedString(primaryAmount),
             secondaryAmountWithCurrency = secondaryAmount,
             hideBalance = model.hideBalance
@@ -136,9 +133,32 @@ fun MoneyHomeScreen(
 
       // Cards
       items(model.cardsModel.cards) { cardModel ->
+        val hasCoachmark = remember(model.coachmark, cardModel.content) {
+          model.coachmark?.identifier == CoachmarkIdentifier.BalanceGraphCoachmark &&
+            cardModel.content is CardModel.CardContent.BitcoinPrice
+        }
         MoneyHomeCard(
-          modifier = Modifier.padding(horizontal = 20.dp),
-          model = cardModel
+          modifier = Modifier
+            .padding(horizontal = 20.dp)
+            .thenIf(hasCoachmark) {
+              Modifier
+                .onGloballyPositioned { layoutCoordinates ->
+                  val positionInParent = layoutCoordinates.positionInParent()
+                  val size = layoutCoordinates.size
+                  coachmarkOffset = Offset(
+                    0f,
+                    positionInParent.y + size.height
+                  )
+                }
+            },
+          model = if (hasCoachmark) {
+            cardModel.copy(onClick = {
+              cardModel.onClick?.invoke()
+              model.coachmark?.dismiss?.invoke()
+            })
+          } else {
+            cardModel
+          }
         )
         Spacer(modifier = Modifier.height(24.dp))
       }
@@ -164,14 +184,36 @@ fun MoneyHomeScreen(
       onRefresh = model.onRefresh
     )
 
-    if (model.tabs.isNotEmpty()) {
+    if (model.onSecurityHubTabClick != null) {
+      val hasCoachmark = remember(model.coachmark, coachmarkHeight) {
+        model.coachmark?.identifier == CoachmarkIdentifier.SecurityHubHomeCoachmark && coachmarkHeight != null
+      }
       TabBar(
         modifier = Modifier.align(Alignment.BottomCenter)
-          .onGloballyPositioned {
-            tabBarHeightDp = with(localDensity) { it.size.height.toDp() + 36.dp }
+          .onGloballyPositioned { layoutCoordinates ->
+            tabBarHeightDp = with(localDensity) { layoutCoordinates.size.height.toDp() + 36.dp }
+            if (hasCoachmark) {
+              val positionInParent = layoutCoordinates.positionInParent()
+              coachmarkOffset = coachmarkHeight?.let { height ->
+                Offset(
+                  0f,
+                  positionInParent.y - height
+                )
+              } ?: Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+            }
           }
       ) {
-        model.tabs.map {
+        listOf(
+          HomeTab.MoneyHome(
+            selected = true,
+            onSelected = {}
+          ),
+          HomeTab.SecurityHub(
+            selected = false,
+            onSelected = model.onSecurityHubTabClick,
+            badged = model.isSecurityHubBadged
+          )
+        ).map {
           Tab(
             selected = it.selected,
             onClick = it.onSelected,

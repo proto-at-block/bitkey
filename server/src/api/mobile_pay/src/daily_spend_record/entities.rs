@@ -132,6 +132,7 @@ mod tests {
     };
     use crate::util::MobilepayDatetimeError;
 
+    #[allow(dead_code)]
     struct DummyWallet {
         is_mine_scripts: Vec<ScriptBuf>,
     }
@@ -183,7 +184,7 @@ mod tests {
         let result = DailySpendingRecord::try_new(&account_id, date_past_retention);
 
         match result {
-            Err(MobilepayDatetimeError::DateMathError(_)) => assert!(true),
+            Err(MobilepayDatetimeError::DateMathError(_)) => (),
             _ => panic!("DailySpendRecord should not be created."),
         }
     }

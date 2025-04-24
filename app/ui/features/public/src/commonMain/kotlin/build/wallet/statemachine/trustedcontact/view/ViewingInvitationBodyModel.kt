@@ -6,7 +6,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
@@ -64,7 +63,7 @@ data class ViewingInvitationBodyModel(
     secondaryButton = ButtonModel(
       "Remove ${invitation.label}", treatment = ButtonModel.Treatment.SecondaryDestructive,
       size = ButtonModel.Size.Footer,
-      onClick = SheetClosingClick(onRemove)
+      onClick = StandardClick(onRemove)
     ),
     renderContext = RenderContext.Sheet
   )

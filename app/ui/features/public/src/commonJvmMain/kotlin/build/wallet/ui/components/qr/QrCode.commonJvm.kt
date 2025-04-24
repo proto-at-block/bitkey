@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,10 +19,15 @@ import androidx.compose.ui.unit.min
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.components.qr.CellShape.*
 import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.tooling.LocalIsPreviewTheme
 import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import com.google.zxing.qrcode.encoder.ByteMatrix
 import com.google.zxing.qrcode.encoder.Encoder
+import kotlinx.coroutines.Dispatchers.Default
+import kotlinx.coroutines.withContext
+import kotlin.math.ceil
+import kotlin.math.floor
 
 @Composable
 actual fun QrCode(
@@ -30,22 +35,16 @@ actual fun QrCode(
   data: String?,
   cellShape: CellShape,
 ) {
-  val matrix by remember(data) {
-    mutableStateOf(
-      when (data) {
-        null -> null
-        else ->
-          Encoder.encode(
-            data,
-            ErrorCorrectionLevel.H,
-            mapOf(
-              EncodeHintType.CHARACTER_SET to "UTF-8",
-              EncodeHintType.MARGIN to 16,
-              EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H
-            )
-          ).matrix
+  val isPreviewTheme = LocalIsPreviewTheme.current
+  val previewByteMatrix = remember(isPreviewTheme, data) {
+    if (isPreviewTheme) data?.toByteMatrix() else null
+  }
+  val matrix by produceState(previewByteMatrix, data) {
+    value = data?.let {
+      withContext(Default) {
+        data.toByteMatrix()
       }
-    )
+    }
   }
 
   // Use BoxWithConstraints so that we can derive size constraints from
@@ -53,7 +52,9 @@ actual fun QrCode(
   // size of our QR code in pixels (while accounting for density).
   BoxWithConstraints {
     // Use the most narrow constraint available.
-    val qrCodeSizeDp = min(maxWidth, maxHeight)
+    val qrCodeSizeDp = remember(constraints) {
+      min(maxWidth, maxHeight)
+    }
 
     when (val m = matrix) {
       null -> {
@@ -74,18 +75,23 @@ actual fun QrCode(
           modifier = Modifier.size(qrCodeSizeDp),
           contentDescription = ""
         ) {
-          val cellSize = size.width / m.width
+          val cellSize = floor(size.width / m.width)
+          val qrCodeRealSize = cellSize * m.width
+          val baseOffsetPx = ceil((size.width - qrCodeRealSize) / 2)
+          val baseOffset = Offset(baseOffsetPx, baseOffsetPx)
           // draw the individual cells of the qr code, excluding the finder cells
           drawCells(
             matrix = m,
+            baseOffset = baseOffset,
             cellShape = cellShape,
+            cellSize = cellSize,
             color = cellColor
           )
           // top-left finder cell
           drawFinderCell(
             cellShape = cellShape,
             cellSize = cellSize,
-            topLeft = Offset(0f, 0f),
+            topLeft = baseOffset,
             color = cellColor,
             backgroundColor = backgroundColor
           )
@@ -93,7 +99,7 @@ actual fun QrCode(
           drawFinderCell(
             cellShape = cellShape,
             cellSize = cellSize,
-            topLeft = Offset(size.width - FINDER_CELL_SIZE * cellSize, 0f),
+            topLeft = baseOffset + Offset((m.width - FINDER_CELL_SIZE) * cellSize, 0f),
             color = cellColor,
             backgroundColor = backgroundColor
           )
@@ -101,7 +107,7 @@ actual fun QrCode(
           drawFinderCell(
             cellShape = cellShape,
             cellSize = cellSize,
-            topLeft = Offset(0f, size.width - FINDER_CELL_SIZE * cellSize),
+            topLeft = baseOffset + Offset(0f, (m.height - FINDER_CELL_SIZE) * cellSize),
             color = cellColor,
             backgroundColor = backgroundColor
           )
@@ -111,13 +117,25 @@ actual fun QrCode(
   }
 }
 
+private fun String.toByteMatrix(): ByteMatrix {
+  return Encoder.encode(
+    this,
+    ErrorCorrectionLevel.H,
+    mapOf(
+      EncodeHintType.CHARACTER_SET to "UTF-8",
+      EncodeHintType.MARGIN to 16,
+      EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H
+    )
+  ).matrix
+}
+
 private fun DrawScope.drawCells(
   matrix: ByteMatrix,
   cellShape: CellShape,
+  cellSize: Float,
   color: Color,
+  baseOffset: Offset,
 ) {
-  val cellSize = size.width / matrix.width
-
   for (cellRow in 0 until matrix.width) {
     for (cellColumn in 0 until matrix.height) {
       if (matrix[cellRow, cellColumn].isColoredCell() &&
@@ -126,7 +144,7 @@ private fun DrawScope.drawCells(
         drawCell(
           color = color,
           topLeftOffset =
-            Offset(
+            baseOffset + Offset(
               x = cellRow * cellSize,
               y = cellColumn * cellSize
             ),

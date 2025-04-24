@@ -39,11 +39,10 @@ fun TabBar(
         .height(60.dp)
         .width(130.dp)
         .shadow(
-          elevation = 10.dp,
+          elevation = 2.dp,
           shape = RoundedCornerShape(30.dp),
           ambientColor = Color.Black.copy(.1f)
         )
-        .padding(bottom = 8.dp)
         .background(
           color = WalletTheme.colors.tabBarBackground,
           shape = RoundedCornerShape(30.dp)

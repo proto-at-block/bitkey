@@ -308,7 +308,7 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
     };
 
     let response = client
-        .sign_transaction_with_active_keyset(&account.id, &request_data)
+        .sign_transaction_with_keyset(&account.id, &account.active_keyset_id, &request_data)
         .await;
     assert_eq!(
         vector.expected_status, response.status_code,

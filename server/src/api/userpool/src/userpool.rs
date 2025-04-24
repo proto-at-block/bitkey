@@ -40,6 +40,11 @@ const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
 // 5 minutes in seconds
 const TEST_EXPIRES_IN_SECONDS: i32 = 300;
 
+// 10 minutes in seconds
+const TEST_REFRESH_EXPIRES_IN_SECONDS: i32 = 600;
+
+const FIVE_DAYS_IN_SECONDS: i32 = 5 * 24 * 60 * 60;
+
 #[derive(Debug, Error)]
 pub enum UserPoolError {
     #[error("Could not create user in user pool: {0}")]
@@ -145,6 +150,7 @@ pub struct AuthTokens {
     pub access_token: String,
     pub refresh_token: String,
     pub expires_in: i32,
+    pub refresh_token_expires_in: Option<i32>,
 }
 
 #[async_trait]
@@ -365,6 +371,7 @@ impl CognitoIdpConnection for CognitoConnection {
                 .ok_or(UserPoolError::MissingAccessToken)?,
             refresh_token: auth_result.refresh_token.unwrap_or(refresh_token), // if the original refresh token is still good, cognito won't return a new one
             expires_in: auth_result.expires_in,
+            refresh_token_expires_in: None,
         })
     }
 
@@ -401,6 +408,7 @@ impl CognitoIdpConnection for CognitoConnection {
             access_token,
             refresh_token,
             expires_in,
+            refresh_token_expires_in: Some(FIVE_DAYS_IN_SECONDS),
         })
     }
 
@@ -865,6 +873,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             access_token,
             refresh_token,
             expires_in: TEST_EXPIRES_IN_SECONDS,
+            refresh_token_expires_in: None,
         })
     }
 
@@ -925,6 +934,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
                 access_token,
                 refresh_token,
                 expires_in: TEST_EXPIRES_IN_SECONDS,
+                refresh_token_expires_in: Some(TEST_REFRESH_EXPIRES_IN_SECONDS),
             })
         } else {
             Err(UserPoolError::InvalidChallengeResponse)

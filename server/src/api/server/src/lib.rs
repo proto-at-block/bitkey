@@ -26,7 +26,7 @@ use http_server::router::RouterBuilder;
 use http_server::swagger::SwaggerEndpoint;
 use http_server::{config, healthcheck};
 use instrumentation::metrics::system::init_tokio_metrics;
-use instrumentation::middleware::HttpMetrics;
+use instrumentation::middleware::{client_request_context, HttpMetrics};
 use jwt_authorizer::IntoLayer;
 use mempool_indexer::{
     repository::MempoolIndexerRepository, service::Service as MempoolIndexerService,
@@ -724,6 +724,7 @@ impl BootstrapBuilder {
             .layer(OtelInResponseLayer)
             .layer(OtelAxumLayer::default())
             .layer(middleware::from_fn(request_baggage))
+            .layer(middleware::from_fn(client_request_context))
             .layer(CatchPanicLayer::new());
         Ok(router)
     }

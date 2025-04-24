@@ -63,6 +63,22 @@ suspend inline fun <reified T : Any> ReceiveTurbine<ScreenModel>.awaitBodyMock(
   }
 }
 
+suspend inline fun <reified PropsT : Any> ReceiveTurbine<ScreenModel>.awaitUntilBodyMock(
+  id: String? = null,
+  validate: PropsT.() -> Unit,
+): PropsT {
+  val body = awaitUntilScreenWithBody<BodyModelMock<PropsT>>(matchingBody = { body ->
+    body.shouldBeInstanceOf<BodyModelMock<PropsT>>()
+    body.latestProps.shouldBeInstanceOf<PropsT>()
+    id?.let {
+      body.id.shouldBe(it)
+    }
+    true
+  }).body as BodyModelMock<PropsT>
+  validate(body.latestProps)
+  return body.latestProps
+}
+
 /**
  * Awaits for a model of type [T] for the [BodyModel] Turbine receiver.
  * Executes [validate] with the given [T] model.

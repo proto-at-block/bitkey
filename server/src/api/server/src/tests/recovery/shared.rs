@@ -409,7 +409,9 @@ pub async fn create_beneficiary_account(
             Account::Lite(create_lite_account(context, &bootstrap.services, None, true).await),
             None,
         ),
-        types::account::AccountType::Software => unimplemented!(),
+        types::account::AccountType::Software => {
+            panic!("Software account type not implemented in tests");
+        }
     }
 }
 

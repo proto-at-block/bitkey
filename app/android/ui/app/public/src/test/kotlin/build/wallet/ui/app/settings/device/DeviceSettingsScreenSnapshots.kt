@@ -32,8 +32,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onSyncDeviceInfo = {},
             onManageReplacement = {},
             onManageFingerprints = {},
-            onWipeDevice = {},
-            coachmark = null
+            onWipeDevice = {}
           )
       )
     }
@@ -61,8 +60,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onSyncDeviceInfo = {},
             onManageReplacement = {},
             onManageFingerprints = {},
-            onWipeDevice = {},
-            coachmark = null
+            onWipeDevice = {}
           )
       )
     }
@@ -90,8 +88,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onSyncDeviceInfo = {},
             onManageReplacement = {},
             onManageFingerprints = {},
-            onWipeDevice = {},
-            coachmark = null
+            onWipeDevice = {}
           )
       )
     }
@@ -119,8 +116,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onSyncDeviceInfo = {},
             onManageReplacement = {},
             onManageFingerprints = {},
-            onWipeDevice = {},
-            coachmark = null
+            onWipeDevice = {}
           )
       )
     }
@@ -148,8 +144,7 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onSyncDeviceInfo = {},
             onManageReplacement = {},
             onManageFingerprints = {},
-            onWipeDevice = {},
-            coachmark = null
+            onWipeDevice = {}
           )
       )
     }

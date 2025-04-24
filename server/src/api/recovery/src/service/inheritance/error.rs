@@ -93,7 +93,6 @@ impl From<ServiceError> for ApiError {
             ServiceError::GenerateId(_)
             | ServiceError::Database(_)
             | ServiceError::BdkUtils(_)
-            | ServiceError::Account(_)
             | ServiceError::InvalidPackage
             | ServiceError::MultiplePendingClaims
             | ServiceError::NoInheritancePackage

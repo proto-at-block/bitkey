@@ -19,11 +19,11 @@ impl From<CustomerFeedbackClientError> for ApiError {
 #[derive(Debug, Error)]
 pub enum GetTicketFormError {
     #[error("Error: HTTP {0} - {1}")]
-    ZendeskGetFormResponseError(StatusCode, String),
+    GetFormResponse(StatusCode, String),
     #[error("Failed to get form structure: {0}")]
-    ZendeskGetFormStructureError(#[from] reqwest::Error),
+    GetFormStructure(#[from] reqwest::Error),
     #[error("Failed to deserialize form structure response: {0}")]
-    ZendeskDeserializeResponseError(String),
+    DeserializeResponse(String),
 }
 
 impl From<GetTicketFormError> for ApiError {

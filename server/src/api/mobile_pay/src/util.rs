@@ -45,7 +45,7 @@ pub(crate) fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: 
 }
 
 pub(crate) fn total_sats_spent_today(
-    spending_entries: &Vec<&SpendingEntry>,
+    spending_entries: &[&SpendingEntry],
     limit: &SpendingLimit,
     now_utc: OffsetDateTime,
 ) -> Result<u64, String> {

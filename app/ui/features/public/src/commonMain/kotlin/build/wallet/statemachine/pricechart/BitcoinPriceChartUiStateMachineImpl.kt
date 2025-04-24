@@ -10,6 +10,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.BalanceHistoryFeatureFlag
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
@@ -27,6 +28,7 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -99,7 +101,9 @@ class BitcoinPriceChartUiStateMachineImpl(
         ChartType.BTC_PRICE ->
           latestExchangeRateFlow
             .map { chartDataFetcherService.getChartData(selectedRange) }
-        ChartType.BALANCE -> balanceHistoryService.observe(selectedRange)
+        ChartType.BALANCE ->
+          balanceHistoryService.observe(selectedRange)
+            .filter { it.isOk && it.value.size > 1 }
       }.onEach { result ->
         result
           .onSuccess { chartData ->
@@ -175,14 +179,8 @@ class BitcoinPriceChartUiStateMachineImpl(
         fiatCurrencyCode = fiatCurrency.textCode.code,
         onBuy = props.onBuy,
         onTransfer = props.onTransfer,
-        formatFiatValue = {
-          if (it.isNaN()) {
-            ""
-          } else {
-            moneyDisplayFormatter.formatCompact(
-              FiatMoney(fiatCurrency, it.toBigDecimal().scale(0))
-            )
-          }
+        formatFiatValue = { value, precise ->
+          formatValue(value, precise, fiatCurrency)
         },
         onChartTypeSelected = {
           if (selectedType != it) {
@@ -200,6 +198,24 @@ class BitcoinPriceChartUiStateMachineImpl(
         },
         onPointSelected = { selectedPoint = it },
         onBack = props.onBack
+      )
+    )
+  }
+
+  private fun formatValue(
+    value: Double,
+    precise: Boolean,
+    fiatCurrency: FiatCurrency,
+  ): String {
+    val format = if (precise) {
+      moneyDisplayFormatter::format
+    } else {
+      moneyDisplayFormatter::formatCompact
+    }
+    return format(
+      FiatMoney(
+        currency = fiatCurrency,
+        value = value.toBigDecimal()
       )
     )
   }

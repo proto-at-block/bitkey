@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{base64::Base64, serde_as};
 use tracing::{error, instrument};
 use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
-use userpool::userpool::{AuthTokens, UserPoolError, UserPoolService};
+use userpool::userpool::{UserPoolError, UserPoolService};
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
@@ -367,6 +367,7 @@ pub struct GetTokensResponse {
     pub access_token: String,
     pub refresh_token: String,
     pub expires_in: i32,
+    pub refresh_token_expires_in: Option<i32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
@@ -406,7 +407,7 @@ pub async fn get_tokens(
         ));
     }
 
-    let tokens: AuthTokens = if let Some(refresh_token) = request.refresh_token {
+    let tokens = if let Some(refresh_token) = request.refresh_token {
         user_pool_service
             .refresh_access_token(refresh_token)
             .await
@@ -445,6 +446,7 @@ pub async fn get_tokens(
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         expires_in: tokens.expires_in,
+        refresh_token_expires_in: tokens.refresh_token_expires_in,
     }))
 }
 

@@ -16,12 +16,14 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.WalletBalanceEntity
+import build.wallet.database.sqldelight.WalletBalanceQueries
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
+import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
@@ -46,6 +48,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -76,6 +79,15 @@ class BalanceHistoryServiceImpl(
   private val inactiveWallets =
     appScope.async(start = LAZY) { fetchAndSyncInactiveWallets() }
 
+  override fun clearData() {
+    appScope.launch {
+      databaseProvider
+        .database()
+        .walletBalanceQueries
+        .clearAll()
+    }
+  }
+
   override fun observe(range: ChartRange): Flow<Result<List<BalanceAt>, Error>> {
     return flow {
       updateBalanceHistory(range)
@@ -100,12 +112,8 @@ class BalanceHistoryServiceImpl(
         }
       emitAll(
         combine(query, liveBalance(range)) { data, liveBalance ->
-          if (liveBalance == null) {
-            Ok(data)
-          } else {
-            Ok(data + liveBalance)
-          }
-        }
+          Ok(data + listOfNotNull(liveBalance))
+        }.distinctUntilChanged()
       )
     }
   }
@@ -126,12 +134,13 @@ class BalanceHistoryServiceImpl(
         val activeWallet = bitcoinWalletService.spendingWallet()
           .filterNotNull()
           .first()
+        val fiatCurrency = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
         var nextCheckpoint = (aligned + range.interval) - startTime
         while (nextCheckpoint.inWholeSeconds > 0) {
           val balance = activeWallet.balance().first()
           val fiatBalance = currencyConverter.convert(
-            balance.confirmed,
-            fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value,
+            fromAmount = balance.confirmed,
+            toCurrency = fiatCurrency,
             atTime = null
           ).filterNotNull().first()
 
@@ -174,13 +183,7 @@ class BalanceHistoryServiceImpl(
     val alignedEnd = clock.now().truncateTo(range.interval)
     val alignedStart = alignedEnd - range.duration
 
-    // Clear DAY/WEEK data points since they are never used after ChartRange.duration
-    when (range) {
-      DAY, WEEK -> queries.clearStale(alignedStart, range)
-      else -> Unit
-    }
-    // Clear any values not using the selected currency, forcing all data to recompute
-    queries.clearIfNotCurrencyCode(fiatCurrency.textCode)
+    queries.clearUnusedData(range, alignedStart, fiatCurrency.textCode)
 
     // Start the range from the latest stored point
     val latestPoint = queries.selectLatest(range).awaitAsOneOrNull()
@@ -191,7 +194,7 @@ class BalanceHistoryServiceImpl(
 
     // Create a list of Instants for the remaining range intervals
     val intervalCount = ceil((alignedEnd - start) / range.interval).roundToInt()
-    if (intervalCount == 0) {
+    if (alignedEnd != start && intervalCount == 0) {
       return // nothing to do
     }
     val rangeIntervals = List(intervalCount + 1) { index ->
@@ -199,28 +202,43 @@ class BalanceHistoryServiceImpl(
     }
 
     // Fetch the price chart data which will have exchange rates aligned to our data points
-    val allChartData = loadChartData(range, rangeIntervals.size, fiatCurrency.textCode)
+    val exchangeRates = loadChartData(range, rangeIntervals.size, fiatCurrency.textCode)
       .getOrElse {
         logError(throwable = it) { "Failed to load rate data" }
         return@updateBalanceHistory
       }
 
-    // load inactive wallets if we have not checked them before
-    val shouldSyncInactiveWallets = queries.count(range).executeAsOne() == 0L
-    val wallets = if (shouldSyncInactiveWallets) {
-      inactiveWallets.await()
-        .getOrElse {
-          logError(throwable = it) { "Failed to load inactive wallets" }
-          emptyList()
-        }
-    } else {
-      emptyList()
-    }
-    val confirmedTxs = loadConfirmedTransactions(wallets)
+    val syncAll = queries.count(range).executeAsOne() == 0L
+    val confirmedTxs = loadConfirmedTransactions(syncAll)
     if (confirmedTxs.isEmpty()) {
       return
     }
 
+    val walletBalancePoints = generateBalanceEntities(
+      confirmedTxs = confirmedTxs,
+      start = start,
+      rangeIntervals = rangeIntervals,
+      exchangeRates = exchangeRates,
+      fiatCurrency = fiatCurrency,
+      range = range
+    )
+
+    // Write in background to avoid cancellation and connect observer flows immediately
+    appScope.launch {
+      queries.awaitTransactionWithResult {
+        walletBalancePoints.forEach(::insertBalance)
+      }
+    }
+  }
+
+  private fun generateBalanceEntities(
+    confirmedTxs: List<BitcoinTransaction>,
+    start: Instant,
+    rangeIntervals: List<Instant>,
+    exchangeRates: List<ExchangeRate>,
+    fiatCurrency: FiatCurrency,
+    range: ChartRange,
+  ): List<WalletBalanceEntity> {
     val txsBeforeStart = confirmedTxs.takeWhile { it.confirmationTime()!! < start }
     val txsAfterStart = confirmedTxs.drop(txsBeforeStart.size).toMutableList()
 
@@ -233,7 +251,7 @@ class BalanceHistoryServiceImpl(
       }
       else -> rangeIntervals
     }
-    val chartData = allChartData.drop(rangeIntervals.size - intervals.size)
+    val newExchangeRates = exchangeRates.drop(rangeIntervals.size - intervals.size)
 
     val walletBalancePoints = intervals.mapIndexed { index, timestamp ->
       // update the balance with transactions confirmed before this checkpoint
@@ -242,24 +260,18 @@ class BalanceHistoryServiceImpl(
       balance = balance.applyTransactions(pastTxs)
 
       val bitcoinBalance = BitcoinMoney.btc(balance)
-      val rates = listOf(chartData.getOrElse(index) { allChartData.last() })
+      val rates = listOf(newExchangeRates.getOrElse(index) { exchangeRates.last() })
       val fiatBalance =
         checkNotNull(currencyConverter.convert(bitcoinBalance, fiatCurrency, rates))
       WalletBalanceEntity(
         date = timestamp,
         fiatCurrencyCode = fiatCurrency.textCode,
-        btcBalance = balance.doubleValue(false),
-        fiatBalance = fiatBalance.value.doubleValue(false),
+        btcBalance = balance.doubleValue(exactRequired = false),
+        fiatBalance = fiatBalance.value.doubleValue(exactRequired = false),
         range = range
       )
     }
-
-    // Write in background to avoid cancellation and connect observer flows immediately
-    appScope.launch {
-      queries.awaitTransactionWithResult {
-        walletBalancePoints.forEach(::insertBalance)
-      }
-    }
+    return walletBalancePoints
   }
 
   private suspend fun loadChartData(
@@ -321,9 +333,18 @@ class BalanceHistoryServiceImpl(
         }.awaitAll()
     }.logFailure { "Failed to load inactive wallets" }
 
-  private suspend fun loadConfirmedTransactions(
-    inactiveWallets: List<WatchingWallet>,
-  ): List<BitcoinTransaction> {
+  private suspend fun loadConfirmedTransactions(syncAll: Boolean): List<BitcoinTransaction> {
+    // load inactive wallets if we have not checked them before
+    val inactiveWallets = if (syncAll) {
+      inactiveWallets.await()
+        .getOrElse {
+          logError(throwable = it) { "Failed to load inactive wallets" }
+          emptyList()
+        }
+    } else {
+      emptyList()
+    }
+
     val activeWallet = bitcoinWalletService.spendingWallet()
       .filterNotNull()
       .first()
@@ -335,6 +356,20 @@ class BalanceHistoryServiceImpl(
           .filter { it.confirmationStatus is Confirmed }
       }
       .sortedBy { it.confirmationTime() }
+  }
+
+  private fun WalletBalanceQueries.clearUnusedData(
+    range: ChartRange,
+    alignedStart: Instant,
+    fiatCurrencyCode: IsoCurrencyTextCode,
+  ) {
+    // Clear DAY/WEEK data points since they are never used after ChartRange.duration
+    when (range) {
+      DAY, WEEK -> clearStale(alignedStart, range)
+      else -> Unit
+    }
+    // Clear any values not using the selected currency, forcing all data to recompute
+    clearIfNotCurrencyCode(fiatCurrencyCode)
   }
 
   private fun SpendingKeyset.toWalletDescriptor(

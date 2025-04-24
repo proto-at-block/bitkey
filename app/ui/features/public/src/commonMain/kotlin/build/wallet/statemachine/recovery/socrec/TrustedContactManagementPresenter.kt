@@ -1,6 +1,10 @@
 package build.wallet.statemachine.recovery.socrec
 
 import androidx.compose.runtime.*
+import bitkey.ui.framework.Navigator
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -11,8 +15,8 @@ import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachineImpl.State.AddingTrustedContactState
-import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachineImpl.State.ListingContactsState
+import build.wallet.statemachine.recovery.socrec.TrustedContactManagementPresenter.State.AddingTrustedContactState
+import build.wallet.statemachine.recovery.socrec.TrustedContactManagementPresenter.State.ListingContactsState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
 import build.wallet.statemachine.recovery.socrec.list.full.ListingTrustedContactsUiProps
@@ -21,38 +25,47 @@ import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
 
+data class TrustedContactManagementScreen(
+  val account: FullAccount,
+  val onExit: () -> Unit,
+  val inviteCode: String? = null,
+) : Screen
+
 @BitkeyInject(ActivityScope::class)
-class TrustedContactManagementUiStateMachineImpl(
+class TrustedContactManagementPresenter(
   private val listingTrustedContactsUiStateMachine: ListingTrustedContactsUiStateMachine,
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val relationshipsService: RelationshipsService,
-) : TrustedContactManagementUiStateMachine {
+) : ScreenPresenter<TrustedContactManagementScreen> {
   @Composable
-  override fun model(props: TrustedContactManagementProps): ScreenModel {
+  override fun model(
+    navigator: Navigator,
+    screen: TrustedContactManagementScreen,
+  ): ScreenModel {
     var state: State by remember { mutableStateOf(ListingContactsState) }
 
     return when (state) {
       ListingContactsState ->
         listingTrustedContactsUiStateMachine.model(
           ListingTrustedContactsUiProps(
-            account = props.account,
+            account = screen.account,
             onAddTCButtonPressed = {
               state = AddingTrustedContactState
             },
             onAcceptTrustedContactInvite = { state = State.EnrollingAsTrustedContact },
-            onExit = props.onExit
+            onExit = screen.onExit
           )
         )
 
       AddingTrustedContactState ->
         addingTrustedContactUiStateMachine.model(
           AddingTrustedContactUiProps(
-            account = props.account,
+            account = screen.account,
             onAddTc = { tcAlias, hardwareProofOfPossession ->
               relationshipsService.createInvitation(
-                account = props.account,
+                account = screen.account,
                 trustedContactAlias = tcAlias,
                 hardwareProofOfPossession = hardwareProofOfPossession,
                 roles = setOf(TrustedContactRole.SocialRecoveryContact)
@@ -83,8 +96,8 @@ class TrustedContactManagementUiStateMachineImpl(
                 style = RetreatStyle.Close,
                 onRetreat = { state = ListingContactsState }
               ),
-            account = props.account,
-            inviteCode = props.inviteCode,
+            account = screen.account,
+            inviteCode = screen.inviteCode,
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             onDone = { state = ListingContactsState },
             variant = TrustedContactFeatureVariant.Direct(

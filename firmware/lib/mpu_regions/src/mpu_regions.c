@@ -18,6 +18,7 @@
 /* mpu regions for each thread */
 rtos_thread_mpu_t _fwup_thread_regions;
 rtos_thread_mpu_t _led_thread_regions;
+rtos_thread_mpu_t _captouch_thread_regions;
 rtos_thread_mpu_t _nfc_isr_thread_regions;
 rtos_thread_mpu_t _nfc_thread_regions;
 rtos_thread_mpu_t _auth_matching_thread_regions;  // TODO(W-4578)
@@ -155,6 +156,7 @@ void mpu_regions_init(void) {
   memcpy(&_fs_mount_task_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
   memcpy(&_led_mfgtest_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
   memcpy(&_mfgtest_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
+  memcpy(&_captouch_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
 #ifndef CONFIG_PROD
   memcpy(&_shell_thread_regions, &privileged_task_default_regions, sizeof(rtos_thread_mpu_t));
 #endif

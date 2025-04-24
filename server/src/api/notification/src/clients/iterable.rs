@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
+use std::fmt;
+use std::fmt::Display;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -51,12 +53,13 @@ pub enum IterableUserId<'a> {
     Touchpoint(&'a TouchpointId),
 }
 
-impl ToString for IterableUserId<'_> {
-    fn to_string(&self) -> String {
-        match self {
+impl Display for IterableUserId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let user_id_str = match self {
             IterableUserId::Account(account_id) => account_id.to_string(),
             IterableUserId::Touchpoint(touchpoint_id) => touchpoint_id.to_string(),
-        }
+        };
+        write!(f, "{}", user_id_str)
     }
 }
 
@@ -205,6 +208,7 @@ struct GetUserResponseDataFields {
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct GetUserResponseUser {
     email: String,
     user_id: String,

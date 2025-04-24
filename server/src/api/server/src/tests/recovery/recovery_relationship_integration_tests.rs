@@ -757,7 +757,11 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
                 &bootstrap,
                 &customer_account.id,
                 expected_customer_notifications,
-                vec![],
+                if vector.accepted {
+                    vec![NotificationPayloadType::RecoveryRelationshipInvitationAccepted]
+                } else {
+                    vec![]
+                },
             )
             .await;
             assert_notifications(&bootstrap, tc_account.get_id(), vec![], vec![]).await;
@@ -774,7 +778,10 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
                 &bootstrap,
                 &customer_account.id,
                 expected_customer_notifications,
-                vec![NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending],
+                vec![
+                    NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending,
+                    NotificationPayloadType::RecoveryRelationshipInvitationAccepted,
+                ],
             )
             .await;
             assert_notifications(

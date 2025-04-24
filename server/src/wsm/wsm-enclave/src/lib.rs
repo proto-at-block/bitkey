@@ -2,8 +2,6 @@ use crate::psbt_verification::verify_inputs_only_have_one_signature;
 use crate::psbt_verification::verify_inputs_pubkey_belongs_to_wallet;
 use crate::psbt_verification::WalletDescriptors;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -98,6 +96,7 @@ mod settings;
 const GLOBAL_CONTEXT: &[u8] = b"WsmIntegrityV1";
 const INTEGRITY_KEY_ID: &str = "integrity";
 const TEST_INTEGRITY_KEY_B64: &str = include_str!("../../keys/test_integrity_key.b64");
+#[allow(dead_code)]
 const STATIC_SERVER_NOISE_PRIVATE_KEY: &str =
     "22b483ea6904d7e924a5ec38ee03cd0e283fa7613cb0bcf771e84ab47aa9654e";
 
@@ -109,19 +108,6 @@ fn new_keystore() -> KeyStore {
 }
 
 type KeySpec = Vec<u8>;
-
-#[derive(Debug)]
-struct KeyStoreError {
-    message: String,
-}
-
-impl Display for KeyStoreError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl Error for KeyStoreError {}
 
 pub enum WsmError {
     BadRequest(String, LogBuffer),
@@ -631,7 +617,7 @@ fn descriptor_key_to_signer(
                 Arc::new(SignerWrapper::new(dsp.key, signer_context))
             }
             DescriptorSecretKey::XPrv(xkey) => Arc::new(SignerWrapper::new(xkey, signer_context)),
-            _ => unimplemented!("Multisig descriptors not yet supported"),
+            _ => panic!("Multisig descriptors not yet supported"),
         },
     };
     Ok(signer)
@@ -1414,6 +1400,7 @@ async fn get_dek(
     }
 }
 
+#[allow(clippy::print_stdout)]
 fn generate_root_xprv(
     root_key_id: &str,
     network: &Network,
@@ -1878,15 +1865,11 @@ mod tests {
         assert!(!enclave_logs.is_empty());
     }
 
+    #[allow(clippy::print_stdout)]
     #[tokio::test]
     async fn test_log_truncation() {
         const MAX_LOG_EVENT_SIZE_BYTES: usize = 1024; // 1KB buffer for test
 
-        // response struct that contains a LogBuffer
-        struct LogBufferResponse {
-            message: String,
-            log_buffer: LogBuffer,
-        }
         // create a handler that adds more than 1KB of log messages to a LogBuffer and then returns it
         async fn spammy_handler() -> Response {
             let mut log_buffer = LogBuffer::new();

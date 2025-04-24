@@ -6,9 +6,8 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.list.ListModel
-import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.money.amount.MoneyAmountModel
-import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
+import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.ui.app.moneyhome.MoneyHomeScreen
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
@@ -33,7 +32,7 @@ data class MoneyHomeBodyModel(
   @Redacted
   val balanceModel: MoneyAmountModel,
   override val buttonsModel: MoneyHomeButtonsModel,
-  override val cardsModel: MoneyHomeCardsModel,
+  override val cardsModel: CardListModel,
   @Redacted
   val transactionsModel: ListModel?,
   val seeAllButtonModel: ButtonModel?,
@@ -45,7 +44,8 @@ data class MoneyHomeBodyModel(
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(
     eventTrackerScreenId = MoneyHomeEventTrackerScreenId.MONEY_HOME
   ),
-  val tabs: List<HomeTab>,
+  val onSecurityHubTabClick: (() -> Unit)? = null,
+  val isSecurityHubBadged: Boolean = false,
 ) : BodyModel(), BaseMoneyHomeBodyModel {
   @Composable
   override fun render(modifier: Modifier) {

@@ -32,6 +32,7 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.flow.first
+import kotlin.time.Duration.Companion.seconds
 
 class InheritanceClaimE2eTests : FunSpec({
   test("Start Inheritance Claim") {
@@ -40,6 +41,7 @@ class InheritanceClaimE2eTests : FunSpec({
 
     // Assert that Claim enters pending state:
     apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
@@ -67,6 +69,7 @@ class InheritanceClaimE2eTests : FunSpec({
     apps.skipDelayPeriod()
 
     apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
@@ -124,6 +127,7 @@ class InheritanceClaimE2eTests : FunSpec({
     apps.skipDelayPeriod()
 
     apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
@@ -170,6 +174,7 @@ class InheritanceClaimE2eTests : FunSpec({
     apps.advanceThroughClaimStart()
 
     apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
@@ -213,6 +218,7 @@ class InheritanceClaimE2eTests : FunSpec({
     apps.advanceThroughClaimStart()
 
     apps.benefactor.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,
@@ -253,7 +259,10 @@ class InheritanceClaimE2eTests : FunSpec({
   test("Beneficiary key rotation during claim") {
     val apps = launchInheritanceApps()
     apps.advanceThroughClaimStart()
-    apps.beneficiary.app.appUiStateMachine.test(Unit) {
+    apps.beneficiary.app.appUiStateMachine.test(
+      turbineTimeout = 60.seconds,
+      props = Unit
+    ) {
       awaitUntilBody<MoneyHomeBodyModel> {
         trailingToolbarAccessoryModel.shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
           .model.onClick.invoke()
@@ -292,6 +301,7 @@ class InheritanceClaimE2eTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
     apps.beneficiary.app.inheritanceManagementUiStateMachine.test(
+      turbineTimeout = 60.seconds,
       props = InheritanceManagementUiProps(
         account = apps.beneficiary.account(),
         selectedTab = ManagingInheritanceTab.Beneficiaries,

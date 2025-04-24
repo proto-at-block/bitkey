@@ -10,30 +10,56 @@ import bitkey.securitycenter.SecurityActionsService
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
+import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
+import bitkey.ui.sheets.ViewInvitationSheet
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
 import build.wallet.router.Route
 import build.wallet.router.Router
+import build.wallet.statemachine.biometric.BiometricSettingScreen
+import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.home.full.HomeTab
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
+import build.wallet.statemachine.fwup.FwupScreen
+import build.wallet.statemachine.moneyhome.card.CardListModel
+import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
+import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
+import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
+import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
+import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
+import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
+import build.wallet.statemachine.settings.full.notifications.Source
+import build.wallet.statemachine.status.HomeStatusBannerUiProps
+import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.time.MinimumLoadingDuration
 import build.wallet.time.withMinimumDelay
-import build.wallet.ui.model.status.StatusBannerModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
+// TODO remove dependency on full account when children no longer need it
 data class SecurityHubScreen(
-  val homeStatusBannerModel: StatusBannerModel?,
-  // TODO W-11082 Update tabs interface for supporting the new tab bar
-  val tabs: List<HomeTab>,
+  val account: FullAccount,
+  val hardwareRecoveryData: LostHardwareRecoveryData,
 ) : Screen
 
 @BitkeyInject(ActivityScope::class)
 class SecurityHubPresenter(
   private val securityActionsService: SecurityActionsService,
   private val minimumLoadingDuration: MinimumLoadingDuration,
+  private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
+  private val firmwareDataService: FirmwareDataService,
+  private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
+  private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -64,20 +90,122 @@ class SecurityHubPresenter(
       }
     }
 
+    val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
+      props = HomeStatusBannerUiProps(
+        onBannerClick = { limitedFunctionality ->
+          // TODO: W-11161 Handle offline in security hub
+        }
+      )
+    )
+
+    val cardsModel = CardListModel(
+      cards = buildImmutableList {
+        // Add hardware recovery status card
+        hardwareRecoveryStatusCardUiStateMachine.model(
+          HardwareRecoveryStatusCardUiProps(
+            lostHardwareRecoveryData = screen.hardwareRecoveryData,
+            onClick = {
+              // TODO W-11181 Handle recovery status card click
+            }
+          )
+        ).also { add(it) }
+
+        // Add TC invitation cards
+        recoveryContactCardsUiStateMachine.model(
+          RecoveryContactCardsUiProps(
+            onClick = {
+              when (it) {
+                is EndorsedTrustedContact -> {
+                  // TODO W-11181 Handle endorsed contact click
+                }
+                is Invitation -> navigator.showSheet(
+                  ViewInvitationSheet(
+                    account = screen.account,
+                    invitation = it,
+                    origin = screen
+                  )
+                )
+                is UnendorsedTrustedContact -> {
+                  // TODO W-11181 Handle unendorsed contact click
+                }
+              }
+            }
+          )
+        ).forEach(::add)
+      }.filterNotNull().toImmutableList()
+    )
+
+    val firmwareUpdateData = firmwareDataService.firmwareData().value.firmwareUpdateState
+
     return SecurityHubBodyModel(
       isRefreshing = isRefreshing,
       onRefresh = { isRefreshing = true },
       recommendations = recommendations.toImmutableList(),
-      tabs = screen.tabs,
+      cardsModel = cardsModel,
       securityActions = securityActions,
       recoveryActions = recoveryActions,
       onRecommendationClick = {
-        Router.route = Route.NavigationDeeplink(screen = it.navigationScreenId())
+        navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
       },
       onSecurityActionClick = {
-        Router.route = Route.NavigationDeeplink(screen = it.navigationScreenId())
+        navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+      },
+      onHomeTabClick = {
+        navigator.exit()
       }
-    ).asRootFullScreen(statusBannerModel = screen.homeStatusBannerModel)
+    ).asRootScreen(statusBannerModel = homeStatusBannerModel)
+  }
+}
+
+private fun Navigator.navigateToScreen(
+  id: NavigationScreenId,
+  originScreen: SecurityHubScreen,
+  firmwareUpdateData: FirmwareData.FirmwareUpdateState,
+) {
+  when (id) {
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS -> goTo(
+      ManagingFingerprintsScreen(
+        account = originScreen.account,
+        onFwUpRequired = {
+          // TODO W-11181 Handle firmware update required
+        },
+        entryPoint = EntryPoint.SECURITY_HUB,
+        origin = originScreen
+      )
+    )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS -> goTo(
+      TrustedContactManagementScreen(
+        account = originScreen.account,
+        inviteCode = null,
+        onExit = { goTo(originScreen) }
+      )
+    )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP,
+    NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH,
+    -> goTo(
+      CloudBackupHealthDashboardScreen(account = originScreen.account, origin = originScreen)
+    )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE -> goTo(
+      FwupScreen(
+        firmwareUpdateData = firmwareUpdateData,
+        onExit = { goTo(originScreen) }
+      )
+    )
+
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS -> goTo(
+      RecoveryChannelSettingsScreen(
+        account = originScreen.account,
+        source = Source.SecurityHub,
+        origin = originScreen
+      )
+    )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC -> goTo(
+      BiometricSettingScreen(
+        fullAccount = originScreen.account,
+        origin = originScreen
+      )
+    )
+    else -> Router.route = Route.NavigationDeeplink(screen = id)
   }
 }
 
@@ -90,6 +218,7 @@ private fun SecurityAction.navigationScreenId(): NavigationScreenId =
     INHERITANCE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE
     MOBILE_KEY_BACKUP -> NavigationScreenId.NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP
     SOCIAL_RECOVERY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
+    HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE
   }
 
 fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
@@ -98,7 +227,11 @@ fun SecurityActionRecommendation.navigationScreenId(): NavigationScreenId =
     BACKUP_EAK -> NavigationScreenId.NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH
     ADD_FINGERPRINTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS
     ADD_TRUSTED_CONTACTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS
-    ENABLE_CRITICAL_ALERTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS
+    ENABLE_CRITICAL_ALERTS, ENABLE_PUSH_NOTIFICATIONS, ENABLE_SMS_NOTIFICATIONS,
+    ENABLE_EMAIL_NOTIFICATIONS,
+    -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS
     ADD_BENEFICIARY -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_INHERITANCE
     SETUP_BIOMETRICS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC
+    PAIR_HARDWARE_DEVICE -> NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+    UPDATE_FIRMWARE -> NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE
   }

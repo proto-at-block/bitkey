@@ -31,6 +31,7 @@ kotlin {
         implementation(projects.domain.f8eClientFake)
         implementation(projects.libs.keyValueStoreFake)
         implementation(projects.domain.notificationsFake)
+        implementation(projects.domain.featureFlagFake)
         implementation(projects.domain.walletFake)
         implementation(projects.libs.contactMethodFake)
         implementation(projects.libs.platformFake)

@@ -134,7 +134,7 @@ class VerificationCodeInputStateMachineImplTests : FunSpec({
   }
 
   test("resend code resets content after success") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       // Resend code blocked
       awaitBody<FormBodyModel>()
 

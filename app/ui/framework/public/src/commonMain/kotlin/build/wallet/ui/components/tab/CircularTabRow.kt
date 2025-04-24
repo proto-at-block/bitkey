@@ -49,13 +49,14 @@ fun CircularTabRow(
   selectedItemIndex: Int,
   modifier: Modifier = Modifier,
   onClick: (Int) -> Unit,
+  backgroundColor: Color = WalletTheme.colors.subtleBackground,
 ) {
   BoxWithConstraints(
     modifier = modifier
       .wrapContentHeight()
       .fillMaxWidth()
       .clip(shape = CircleShape)
-      .background(color = WalletTheme.colors.subtleBackground)
+      .background(backgroundColor)
       .padding(all = 4.dp)
   ) {
     val tabWidth = remember(maxWidth, items.size) { maxWidth / items.size }

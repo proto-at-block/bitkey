@@ -37,7 +37,7 @@ impl InheritanceRepository {
             DatabaseError::PersistenceError(database_object)
         })?;
 
-        self.connection
+        self.get_connection()
             .client
             .put_item()
             .table_name(self.get_table_name().await?)
@@ -92,7 +92,7 @@ impl InheritanceRepository {
     ) -> Result<Vec<Package>, DatabaseError> {
         let database_object = self.get_database_object();
         let recovery_table_name = self
-            .connection
+            .get_connection()
             .get_table_name(DatabaseObject::SocialRecovery)?;
         let table_name = self.get_table_name().await?;
 
@@ -100,7 +100,7 @@ impl InheritanceRepository {
 
         for package in packages.clone().iter() {
             let update_builder: UpdateBuilder = UpdateItemOp::new(
-                self.connection
+                self.get_connection()
                     .client
                     .try_upsert(InheritanceRow::Package(package.clone()), database_object)?,
             )
@@ -146,7 +146,7 @@ impl InheritanceRepository {
             return Ok(vec![]);
         }
 
-        self.connection
+        self.get_connection()
             .client
             .transact_write_items()
             .set_transact_items(Some(transact_items))

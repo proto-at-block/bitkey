@@ -1,5 +1,10 @@
 package build.wallet.ui.app.receive
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.qr.QrCodeModel
@@ -7,10 +12,22 @@ import build.wallet.statemachine.receive.AddressQrCodeBodyModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.ui.app.moneyhome.receive.AddressQrCodeScreen
+import build.wallet.ui.theme.WalletTheme
 import io.kotest.core.spec.style.FunSpec
 
 class AddressQrCodeScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
+
+  test("qr code") {
+    paparazzi.snapshot {
+      Box(modifier = Modifier.background(WalletTheme.colors.background)) {
+        build.wallet.ui.components.qr.QrCode(
+          modifier = Modifier.size(300.1234f.dp),
+          data = "Hello World!".repeat(10)
+        )
+      }
+    }
+  }
 
   test("qr code screen") {
     paparazzi.snapshot {

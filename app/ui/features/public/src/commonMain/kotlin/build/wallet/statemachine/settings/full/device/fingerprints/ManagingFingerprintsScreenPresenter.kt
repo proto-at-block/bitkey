@@ -4,12 +4,18 @@ import androidx.compose.runtime.*
 import bitkey.firmware.HardwareUnlockInfoService
 import bitkey.metrics.MetricOutcome
 import bitkey.metrics.MetricTrackerService
+import bitkey.ui.framework.Navigator
+import bitkey.ui.framework.Screen
+import bitkey.ui.framework.ScreenPresenter
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.firmware.*
+import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.firmware.FingerprintHandle
+import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.statemachine.core.Icon
@@ -27,8 +33,21 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toast.ToastModel
 
+data class ManagingFingerprintsScreen(
+  val account: FullAccount,
+  val onFwUpRequired: () -> Unit,
+  val entryPoint: EntryPoint,
+  override val origin: Screen?,
+) : Screen
+
+enum class EntryPoint {
+  MONEY_HOME,
+  DEVICE_SETTINGS,
+  SECURITY_HUB,
+}
+
 @BitkeyInject(ActivityScope::class)
-class ManagingFingerprintsUiStateMachineImpl(
+class ManagingFingerprintsScreenPresenter(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val editingFingerprintUiStateMachine: EditingFingerprintUiStateMachine,
   private val enrollingFingerprintUiStateMachine: EnrollingFingerprintUiStateMachine,
@@ -36,9 +55,12 @@ class ManagingFingerprintsUiStateMachineImpl(
   private val hardwareUnlockInfoService: HardwareUnlockInfoService,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
-) : ManagingFingerprintsUiStateMachine {
+) : ScreenPresenter<ManagingFingerprintsScreen> {
   @Composable
-  override fun model(props: ManagingFingerprintsProps): ScreenModel {
+  override fun model(
+    navigator: Navigator,
+    screen: ManagingFingerprintsScreen,
+  ): ScreenModel {
     var uiState: ManagingFingerprintsUiState by remember {
       mutableStateOf(RetrievingEnrolledFingerprintsUiState())
     }
@@ -47,7 +69,11 @@ class ManagingFingerprintsUiStateMachineImpl(
       is ListingFingerprintsUiState -> ScreenModel(
         body = ListingFingerprintsBodyModel(
           enrolledFingerprints = state.enrolledFingerprints,
-          onBack = props.onBack,
+          onBack = if (screen.origin != null) {
+            { navigator.goTo(screen.origin) }
+          } else {
+            { navigator.exit() }
+          },
           onEditFingerprint = {
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
@@ -96,7 +122,11 @@ class ManagingFingerprintsUiStateMachineImpl(
       is EditingFingerprintUiState -> ScreenModel(
         body = ListingFingerprintsBodyModel(
           enrolledFingerprints = state.enrolledFingerprints,
-          onBack = props.onBack,
+          onBack = if (screen.origin != null) {
+            { navigator.goTo(screen.origin) }
+          } else {
+            { navigator.exit() }
+          },
           onEditFingerprint = {
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
@@ -280,7 +310,7 @@ class ManagingFingerprintsUiStateMachineImpl(
       is RetrievingEnrolledFingerprintsUiState -> {
         if (state.fwUpdateRequired) {
           LaunchedEffect("fwup-required-for-fingerprints") {
-            props.onFwUpRequired()
+            screen.onFwUpRequired()
           }
         }
         nfcSessionUIStateMachine.model(
@@ -309,19 +339,23 @@ class ManagingFingerprintsUiStateMachineImpl(
                 is EnrolledFingerprintResult.Success -> {
                   hardwareUnlockInfoService.replaceAllUnlockInfo(it.enrolledFingerprints.toUnlockInfoList())
 
-                  when (props.entryPoint) {
+                  when (screen.entryPoint) {
                     EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
                       enrolledFingerprints = it.enrolledFingerprints,
                       isExistingFingerprint = false,
                       fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
                     )
 
-                    EntryPoint.DEVICE_SETTINGS -> ListingFingerprintsUiState(it.enrolledFingerprints)
+                    EntryPoint.DEVICE_SETTINGS, EntryPoint.SECURITY_HUB -> ListingFingerprintsUiState(it.enrolledFingerprints)
                   }
                 }
               }
             },
-            onCancel = props.onBack,
+            onCancel = if (screen.origin != null) {
+              { navigator.goTo(screen.origin) }
+            } else {
+              { navigator.exit() }
+            },
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             eventTrackerContext = NfcEventTrackerScreenIdContext.GET_ENROLLED_FINGERPRINTS
           )

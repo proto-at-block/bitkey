@@ -24,7 +24,7 @@ data class BitcoinPriceDetailsBodyModel(
   val selectedPoint: DataPoint? = null,
   val selectedPointData: SelectedPointData? = null,
   val selectedPointTimestamp: String? = null,
-  val formatFiatValue: (value: Double) -> String = { it.toString() },
+  val formatFiatValue: (value: Double, precise: Boolean) -> String = { v, _ -> v.toString() },
   val onPointSelected: (DataPoint?) -> Unit = {},
   val onChartTypeSelected: (ChartType) -> Unit = {},
   val onChartRangeSelected: (ChartRange) -> Unit = {},

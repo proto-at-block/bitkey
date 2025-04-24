@@ -52,5 +52,14 @@ enum NavigationScreenId {
     /** The screen shown to manage recovery contacts. **/
     NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS = 14;
 
-    /** The next tag is 15 **/
+    /** The screen shown to update firmware. **/
+    NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE = 15;
+
+    /** The screen shown to pair a bitkey device. **/
+    NAVIGATION_SCREEN_ID_PAIR_DEVICE = 16;
+
+    /** The screen shown to manage Bitkey device. **/
+    NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE = 17;
+
+    /** The next tag is 18 **/
 }

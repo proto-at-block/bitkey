@@ -28,13 +28,13 @@ pub trait ExchangeRateChartProvider: ExchangeRateProvider {
         days: u16,
     ) -> Result<Vec<PriceAt>, ExchangeRateError>;
 
-    fn select_price_points(prices: &Vec<PriceAt>, max_price_points: usize) -> Vec<PriceAt> {
+    fn select_price_points(prices: &[PriceAt], max_price_points: usize) -> Vec<PriceAt> {
         let total_prices = prices.len();
         if max_price_points >= total_prices || max_price_points <= 2 {
-            return prices.clone();
+            return prices.to_vec();
         }
 
-        let mut sorted_prices = prices.clone();
+        let mut sorted_prices = prices.to_vec();
         sorted_prices.sort_by_key(|price_at| price_at.timestamp);
 
         let window_size = total_prices / max_price_points;

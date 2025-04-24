@@ -13,7 +13,7 @@ import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
-import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
+import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.transactions.PartnerTransactionItemModel
 import build.wallet.statemachine.transactions.TransactionItemModel
@@ -67,7 +67,7 @@ fun MoneyHomeScreenFull(
             secondaryAmount = "424,567 sats"
           )
         },
-        cardsModel = MoneyHomeCardsModel(cards = emptyImmutableList()),
+        cardsModel = CardListModel(cards = emptyImmutableList()),
         transactionsModel =
           ListModel(
             headerText = "Recent activity",
@@ -168,8 +168,7 @@ fun MoneyHomeScreenFull(
             ),
             onClick = StandardClick {}
           )
-        ),
-        tabs = emptyList()
+        )
       )
   )
 }

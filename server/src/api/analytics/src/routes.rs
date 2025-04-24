@@ -103,8 +103,7 @@ mod local_analytics_test {
         let event_bundle = EventBundle { events };
 
         // Encode event bundle
-        let mut blob = Vec::new();
-        blob.reserve(event_bundle.encoded_len());
+        let mut blob = Vec::with_capacity(event_bundle.encoded_len());
         let encoding_result = event_bundle.encode(&mut blob);
         assert!(encoding_result.is_ok());
         let encoded_events: &[u8] = &blob;

@@ -10,6 +10,7 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.feature.flags.SecurityHubFeatureFlag
@@ -23,8 +24,12 @@ import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 @BitkeyInject(ActivityScope::class)
@@ -37,65 +42,84 @@ class SettingsListUiStateMachineImpl(
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
+    val scope = rememberStableCoroutineScope()
+
+    var coachmarksToDisplay by remember { mutableStateOf(immutableListOf<CoachmarkIdentifier>()) }
+    LaunchedEffect("coachmarks") {
+      coachmarkService.coachmarksToDisplay(
+        coachmarkIds = setOf(
+          CoachmarkIdentifier.SecurityHubSettingsCoachmark
+        )
+      ).onSuccess {
+        coachmarksToDisplay = it.toImmutableList()
+      }
+    }
 
     return SettingsBodyModel(
       onBack = props.onBack,
-      sectionModels =
-        immutableListOfNotNull(
-          SettingsSection(
-            props = props,
-            appFunctionalityStatus = appFunctionalityStatus,
-            title = "General",
-            rowTypes =
-              immutableListOf(
-                MobilePay::class,
-                BitkeyDevice::class,
-                AppearancePreference::class,
-                NotificationPreferences::class
-              )
-          ),
-          SettingsSection(
-            props = props,
-            appFunctionalityStatus = appFunctionalityStatus,
-            title = "Security & Recovery",
-            rowTypes = if (securityHubFeatureFlag.isEnabled()) {
-              immutableListOf(
-                RotateAuthKey::class
-              )
-            } else {
-              immutableListOf(
-                Biometric::class,
-                InheritanceManagement::class,
-                RotateAuthKey::class,
-                CloudBackupHealth::class,
-                CriticalAlerts::class,
-                TrustedContacts::class
-              )
-            }
-          ),
-          SettingsSection(
-            props = props,
-            appFunctionalityStatus = appFunctionalityStatus,
-            title = "Advanced",
-            rowTypes =
-              immutableListOf(
-                CustomElectrumServer::class,
-                DebugMenu::class,
-                UtxoConsolidation::class,
-                ExportTools::class
-              )
-          ),
-          SettingsSection(
-            props = props,
-            appFunctionalityStatus = appFunctionalityStatus,
-            title = "Support",
-            rowTypes =
-              immutableListOf(
-                ContactUs::class,
-                HelpCenter::class
-              )
+      toolbarModel = ToolbarModel(
+        leadingAccessory = BackAccessory(onClick = props.onBack),
+        middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
+      ),
+      sectionModels = immutableListOfNotNull(
+        SettingsSection(
+          props = props,
+          appFunctionalityStatus = appFunctionalityStatus,
+          title = "General",
+          rowTypes = immutableListOf(
+            MobilePay::class,
+            BitkeyDevice::class,
+            AppearancePreference::class,
+            NotificationPreferences::class
+          )
+        ),
+        SettingsSection(
+          props = props,
+          appFunctionalityStatus = appFunctionalityStatus,
+          title = "Security & Recovery",
+          rowTypes = if (securityHubFeatureFlag.isEnabled()) {
+            immutableListOf(
+              RotateAuthKey::class,
+              InheritanceManagement::class
+            )
+          } else {
+            immutableListOf(
+              Biometric::class,
+              InheritanceManagement::class,
+              RotateAuthKey::class,
+              CloudBackupHealth::class,
+              CriticalAlerts::class,
+              TrustedContacts::class
+            )
+          }
+        ),
+        SettingsSection(
+          props = props,
+          appFunctionalityStatus = appFunctionalityStatus,
+          title = "Advanced",
+          rowTypes = immutableListOf(
+            CustomElectrumServer::class,
+            DebugMenu::class,
+            UtxoConsolidation::class,
+            ExportTools::class
+          )
+        ),
+        SettingsSection(
+          props = props,
+          appFunctionalityStatus = appFunctionalityStatus,
+          title = "Support",
+          rowTypes = immutableListOf(
+            ContactUs::class,
+            HelpCenter::class
           )
         )
+      ),
+      onSecurityHubCoachmarkClick = {
+        scope.launch {
+          coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubSettingsCoachmark)
+        }
+        props.goToSecurityHub()
+      }.takeIf { coachmarksToDisplay.contains(CoachmarkIdentifier.SecurityHubSettingsCoachmark) }
     )
   }
 
@@ -111,26 +135,13 @@ class SettingsListUiStateMachineImpl(
       cloudBackupHealthRepository.mobileKeyBackupStatus()
     }.collectAsState()
 
-    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
-    LaunchedEffect("coachmarks") {
-      coachmarkService
-        .coachmarksToDisplay(
-          coachmarkIds = setOf(
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark,
-            CoachmarkIdentifier.InheritanceCoachmark
-          )
-        ).onSuccess {
-          coachmarksToDisplay = it
-        }
-    }
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
-      remember(appFunctionalityStatus, coachmarksToDisplay, mobileKeyBackupStatus) {
+      remember(appFunctionalityStatus, mobileKeyBackupStatus) {
         rowTypes.mapNotNull { rowType ->
           props.supportedRows
             .firstOrNull { rowType.isInstance(it) }
-            ?.rowModel(appFunctionalityStatus, coachmarksToDisplay, props, mobileKeyBackupStatus)
+            ?.rowModel(appFunctionalityStatus, props, mobileKeyBackupStatus)
         }
       }
 
@@ -144,7 +155,6 @@ class SettingsListUiStateMachineImpl(
 
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
-    coachmarksToDisplay: List<CoachmarkIdentifier>,
     props: SettingsListUiProps,
     mobileKeyBackupStatus: MobileKeyBackupStatus?,
   ): RowModel {
@@ -188,14 +198,6 @@ class SettingsListUiStateMachineImpl(
               )
           }
         }
-      },
-      showNewCoachmark = when (this) {
-        is BitkeyDevice ->
-          coachmarksToDisplay
-            .contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)
-        is Biometric -> coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)
-        is InheritanceManagement -> coachmarksToDisplay.contains(CoachmarkIdentifier.InheritanceCoachmark)
-        else -> false
       }
     )
   }
@@ -206,7 +208,7 @@ class SettingsListUiStateMachineImpl(
     return when (this) {
       is CloudBackupHealth -> {
         IconModel(
-          icon = Icon.SmallIconInformationFilled,
+          icon = SmallIconInformationFilled,
           iconSize = IconSize.Small,
           iconTint = IconTint.Warning
         ).takeIf {

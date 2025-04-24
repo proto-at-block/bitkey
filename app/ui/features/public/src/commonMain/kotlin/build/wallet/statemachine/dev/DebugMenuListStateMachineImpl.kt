@@ -17,6 +17,7 @@ import build.wallet.di.BitkeyInject
 import build.wallet.f8e.notifications.TestNotificationF8eClient
 import build.wallet.logging.logWarn
 import build.wallet.platform.config.AppVariant
+import build.wallet.pricechart.BalanceHistoryService
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
@@ -51,6 +52,7 @@ class DebugMenuListStateMachineImpl(
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
   private val testNotificationF8eClient: TestNotificationF8eClient,
+  private val balanceHistoryService: BalanceHistoryService,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
@@ -376,6 +378,12 @@ class DebugMenuListStateMachineImpl(
                       gatedAction = { onSetState(DebugMenuState.ClearingOnboardingData.HasSeenUpsell) }
                     )
                   )
+                }
+              ),
+              ListItemModel(
+                title = "Clear balance chart data",
+                onClick = {
+                  balanceHistoryService.clearData()
                 }
               )
             ),

@@ -67,8 +67,10 @@ fun Screen(
 
       Box(
         modifier = Modifier
-          .alpha(statusBannerAlpha)
-          .background(color = WalletTheme.colors.background)
+          .background(color = style.statusBarColor)
+          .thenIf(statusBannerVisible.not()) {
+            Modifier.alpha(statusBannerAlpha)
+          }
           // fill width first to prevent horizontal size animation
           .fillMaxWidth()
           .animateContentSize()

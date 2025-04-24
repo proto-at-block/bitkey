@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
+import bitkey.ui.screens.securityhub.SecurityHubBodyModel
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.platform.device.DeviceInfo
@@ -17,10 +18,14 @@ import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBod
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
+import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.ui.components.screen.*
 import build.wallet.ui.model.UiModelContentScreen
-import build.wallet.ui.theme.*
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.ThemePreferenceService
+import build.wallet.ui.theme.WalletTheme
+import build.wallet.ui.theme.systemTheme
 import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
@@ -292,7 +297,8 @@ private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
     isTransitioningFromPairHwToPairHw(model) ||
     isTransitioningFromNfcToNfc(model) ||
     isTransitioningFromFwupToFwup(model) ||
-    isTransitioningBetweenSplashBiometricAndSplashLock()
+    isTransitioningBetweenSplashBiometricAndSplashLock() ||
+    isTransitioningBetweenHomeAndSecurityHub(model)
 }
 
 private fun Navigator.isTransitioningFromSplashScreen(): Boolean {
@@ -321,6 +327,11 @@ private fun Navigator.isTransitioningBetweenSplashBiometricAndSplashLock(): Bool
 private fun Navigator.isTransitioningFromNfcToNfc(newModel: ScreenModel): Boolean {
   return currentModel().body is NfcBodyModel &&
     newModel.body is NfcBodyModel
+}
+
+private fun Navigator.isTransitioningBetweenHomeAndSecurityHub(newModel: ScreenModel): Boolean {
+  return (currentModel().body is SecurityHubBodyModel && newModel.body is MoneyHomeBodyModel) ||
+    (currentModel().body is MoneyHomeBodyModel && newModel.body is SecurityHubBodyModel)
 }
 
 private fun Navigator.previousModel(): ScreenModel? {

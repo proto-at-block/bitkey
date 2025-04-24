@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
+import bitkey.securitycenter.SecurityActionsService
 import build.wallet.activity.TransactionsActivityService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
@@ -14,8 +15,11 @@ import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.SecurityHubFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
@@ -43,7 +47,7 @@ import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
-import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
+import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
@@ -81,9 +85,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 @Suppress("LargeClass")
@@ -108,6 +109,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val transactionsActivityService: TransactionsActivityService,
   private val exchangeRateService: ExchangeRateService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val securityActionsService: SecurityActionsService,
+  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -124,18 +127,18 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       .collectAsState()
       .value
 
+    val recommendations by remember {
+      securityActionsService.getRecommendations()
+    }.collectAsState(emptyList())
+
     val numberOfVisibleTransactions = 5
 
     val appFunctionalityStatus = remember { appFunctionalityService.status }.collectAsState().value
 
     val hideBalance by remember {
-      moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest { status ->
+      moneyHomeHiddenStatusProvider.hiddenStatus.mapAsStateFlow(scope) { status ->
         status == MoneyHomeHiddenStatus.HIDDEN
-      }.stateIn(
-        scope = scope,
-        SharingStarted.Eagerly,
-        moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN
-      )
+      }
     }.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -144,9 +147,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       coachmarkService
         .coachmarksToDisplay(
           setOf(
-            CoachmarkIdentifier.MultipleFingerprintsCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark,
-            CoachmarkIdentifier.HiddenBalanceCoachmark
+            CoachmarkIdentifier.BalanceGraphCoachmark,
+            CoachmarkIdentifier.SecurityHubHomeCoachmark
           )
         ).onSuccess {
           coachmarksToDisplay = it
@@ -178,10 +180,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             scope.launch {
               moneyHomeHiddenStatusProvider.toggleStatus()
               haptics.vibrate(HapticsEffect.MediumClick)
-              coachmarkService.markCoachmarkAsDisplayed(
-                coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark
-              )
-              coachmarkDisplayed = true
             }
           },
           onSettings = props.onSettings,
@@ -240,26 +238,53 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               null
             }
           },
-          coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.HiddenBalanceCoachmark)) {
-            CoachmarkModel(
-              identifier = CoachmarkIdentifier.HiddenBalanceCoachmark,
-              title = "Tap to hide balance",
-              description = "Now you can easily conceal your balance by tapping to hide.",
-              arrowPosition = CoachmarkModel.ArrowPosition(
-                vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
-                horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
-              ),
-              button = null,
-              image = null,
-              dismiss = {
-                scope.launch {
-                  coachmarkService.markCoachmarkAsDisplayed(coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark)
-                  coachmarkDisplayed = true
+          coachmark = when {
+            coachmarksToDisplay.contains(CoachmarkIdentifier.BalanceGraphCoachmark) -> {
+              coachmarkDisplayed = false
+              CoachmarkModel(
+                identifier = CoachmarkIdentifier.BalanceGraphCoachmark,
+                title = "View your performance",
+                description = "Tap the price graph to see the performance of your bitcoin balance over time.",
+                arrowPosition = CoachmarkModel.ArrowPosition(
+                  vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
+                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
+                ),
+                button = null,
+                image = null,
+                dismiss = {
+                  scope.launch {
+                    coachmarkService.markCoachmarkAsDisplayed(
+                      coachmarkId = CoachmarkIdentifier.BalanceGraphCoachmark
+                    )
+                    coachmarkDisplayed = true
+                  }
                 }
-              }
-            )
-          } else {
-            null
+              )
+            }
+
+            coachmarksToDisplay.contains(CoachmarkIdentifier.SecurityHubHomeCoachmark) -> {
+              coachmarkDisplayed = false
+              CoachmarkModel(
+                identifier = CoachmarkIdentifier.SecurityHubHomeCoachmark,
+                title = "Bitkey Security, Simplified",
+                description = "The new Security Hub gives you a clear view of your setup and lets you know if anything needs your attention.",
+                arrowPosition = CoachmarkModel.ArrowPosition(
+                  vertical = CoachmarkModel.ArrowPosition.Vertical.Bottom,
+                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
+                ),
+                button = null,
+                image = null,
+                dismiss = {
+                  scope.launch {
+                    coachmarkService.markCoachmarkAsDisplayed(
+                      coachmarkId = CoachmarkIdentifier.SecurityHubHomeCoachmark
+                    )
+                    coachmarkDisplayed = true
+                  }
+                }
+              )
+            }
+            else -> null
           },
           onRefresh = {
             props.setState(props.state.copy(isRefreshing = true))
@@ -271,21 +296,16 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           trailingToolbarAccessoryModel = ToolbarAccessoryModel.IconAccessory(
             model = IconButtonModel(
               iconModel = IconModel(
-                icon = if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark) ||
-                  coachmarksToDisplay.contains(
-                    CoachmarkIdentifier.MultipleFingerprintsCoachmark
-                  )
-                ) {
-                  Icon.SmallIconSettingsBadged
-                } else {
-                  Icon.SmallIconSettings
-                },
+                icon = Icon.SmallIconSettings,
                 iconSize = IconSize.HeaderToolbar
               ),
               onClick = StandardClick({ props.onSettings() })
             )
           ),
-          tabs = props.tabs
+          onSecurityHubTabClick = props.onGoToSecurityHub.takeIf {
+            securityHubFeatureFlag.isEnabled()
+          },
+          isSecurityHubBadged = recommendations.isNotEmpty()
         ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(
@@ -330,7 +350,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     props: MoneyHomeViewingBalanceUiProps,
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
-  ): MoneyHomeCardsModel {
+  ): CardListModel {
     return moneyHomeCardsUiStateMachine.model(
       props =
         MoneyHomeCardsProps(

@@ -16,6 +16,7 @@ typedef struct {
 
 extern rtos_thread_mpu_t _fwup_thread_regions;
 extern rtos_thread_mpu_t _led_thread_regions;
+extern rtos_thread_mpu_t _captouch_thread_regions;
 extern rtos_thread_mpu_t _nfc_isr_thread_regions;
 extern rtos_thread_mpu_t _nfc_thread_regions;
 extern rtos_thread_mpu_t _auth_main_thread_regions;

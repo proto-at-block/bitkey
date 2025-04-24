@@ -272,7 +272,16 @@ enum Action {
     /** [App] Security center check evaluation */
     ACTION_APP_SECURITY_CENTER_CHECK = 75;
 
-    // Next tag is 76
+    /** [App] Customer has seen the security hub settings coachmark */
+    ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_SETTINGS = 76;
+
+    /** [App] Customer has seen the balance graph coachmark */
+    ACTION_APP_COACHMARK_VIEWED_BALANCE_GRAPH = 77;
+
+    /** [App] Customer has seen the balance graph coachmark */
+    ACTION_APP_COACHMARK_VIEWED_SECURITY_HUB_HOME = 78;
+
+    // Next tag is 79
 }
 
 message PlatformInfo {

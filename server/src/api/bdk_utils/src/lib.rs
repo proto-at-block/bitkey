@@ -390,7 +390,7 @@ fn extend_descriptor_public_key(
             ..*xpub
         }),
         // TODO [W-5549] Don't panic when extending invalid DescriptorPublicKey variant
-        _ => unimplemented!(),
+        _ => unreachable!("This branch should never be reached"),
     }
 }
 
@@ -698,8 +698,8 @@ pub mod tests {
         match as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json!(
             "sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"
         )))) {
-            BdkUtilError::TransactionAlreadyInMempoolError => assert!(true),
-            _ => assert!(false),
+            BdkUtilError::TransactionAlreadyInMempoolError => {},
+            other => panic!("Expected TransactionAlreadyInMempoolError, got {:?}", other),
         }
     }
 }

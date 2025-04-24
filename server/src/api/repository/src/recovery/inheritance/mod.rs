@@ -1,17 +1,13 @@
 use async_trait::async_trait;
 use database::{
-    aws_sdk_dynamodb::{
-        error::ProvideErrorMetadata,
-        types::{
-            AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
-            Projection, ProjectionType::All, ScalarAttributeType,
-        },
+    aws_sdk_dynamodb::types::{KeyType, ScalarAttributeType},
+    ddb::{
+        create_dynamodb_table, BaseRepository, Connection, DatabaseError, DatabaseObject,
+        GlobalSecondaryIndexDef, Repository, TableKey, Upsertable,
     },
-    ddb::{Connection, DatabaseError, DatabaseObject, Repository, Upsertable},
 };
 use serde::{Deserialize, Serialize};
 
-use tracing::{event, Level};
 use types::recovery::inheritance::{
     claim::InheritanceClaim, package::Package as InheritancePackage,
 };
@@ -45,31 +41,29 @@ impl Upsertable for InheritanceRow {
 
 #[derive(Clone)]
 pub struct InheritanceRepository {
-    connection: Connection,
+    base: BaseRepository,
 }
 
 #[async_trait]
 impl Repository for InheritanceRepository {
     fn new(connection: Connection) -> Self {
-        Self { connection }
+        Self {
+            base: BaseRepository::new(connection, DatabaseObject::Inheritance),
+        }
     }
 
     fn get_database_object(&self) -> DatabaseObject {
-        DatabaseObject::Inheritance
+        self.base.get_database_object()
     }
 
     fn get_connection(&self) -> &Connection {
-        &self.connection
-    }
-
-    async fn get_table_name(&self) -> Result<String, DatabaseError> {
-        self.connection.get_table_name(self.get_database_object())
+        self.base.get_connection()
     }
 
     async fn table_exists(&self) -> Result<bool, DatabaseError> {
         let table_name = self.get_table_name().await?;
         Ok(self
-            .connection
+            .get_connection()
             .client
             .describe_table()
             .table_name(table_name)
@@ -82,105 +76,65 @@ impl Repository for InheritanceRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        let pk = AttributeDefinition::builder()
-            .attribute_name(PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let partition_ks = KeySchemaElement::builder()
-            .attribute_name(PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
+        let partition_key = TableKey {
+            name: PARTITION_KEY.to_string(),
+            key_type: KeyType::Hash,
+            attribute_type: ScalarAttributeType::S,
+        };
 
-        let idx_sk = AttributeDefinition::builder()
-            .attribute_name(IDX_SORT_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
+        let gsis = vec![
+            // Recovery Relationship ID GSI
+            GlobalSecondaryIndexDef {
+                name: RECOVERY_RELATIONSHIP_ID_IDX.to_string(),
+                pk: TableKey {
+                    name: RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+            // Benefactor Account ID GSI
+            GlobalSecondaryIndexDef {
+                name: BENEFACTOR_ACCOUNT_ID_IDX.to_string(),
+                pk: TableKey {
+                    name: BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+            // Beneficiary Account ID GSI
+            GlobalSecondaryIndexDef {
+                name: BENEFICIARY_ACCOUNT_ID_IDX.to_string(),
+                pk: TableKey {
+                    name: BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY.to_string(),
+                    key_type: KeyType::Hash,
+                    attribute_type: ScalarAttributeType::S,
+                },
+                sk: Some(TableKey {
+                    name: IDX_SORT_KEY.to_string(),
+                    key_type: KeyType::Range,
+                    attribute_type: ScalarAttributeType::S,
+                }),
+            },
+        ];
 
-        let recovery_relationship_id_idx_pk = AttributeDefinition::builder()
-            .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let recovery_relationship_id_idx_pk_ks = KeySchemaElement::builder()
-            .attribute_name(RECOVERY_RELATIONSHIP_ID_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let recovery_relationship_id_idx_sk_ks = KeySchemaElement::builder()
-            .attribute_name(IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
-
-        let benefactor_account_id_idx_pk = AttributeDefinition::builder()
-            .attribute_name(BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let benefactor_account_id_idx_pk_ks = KeySchemaElement::builder()
-            .attribute_name(BENEFACTOR_ACCOUNT_ID_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let benefactor_account_id_idx_sk_ks = KeySchemaElement::builder()
-            .attribute_name(IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
-
-        let beneficiary_account_id_idx_pk = AttributeDefinition::builder()
-            .attribute_name(BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY)
-            .attribute_type(ScalarAttributeType::S)
-            .build()?;
-        let beneficiary_account_id_idx_pk_ks = KeySchemaElement::builder()
-            .attribute_name(BENEFICIARY_ACCOUNT_ID_IDX_PARTITION_KEY)
-            .key_type(KeyType::Hash)
-            .build()?;
-        let beneficiary_account_id_idx_sk_ks = KeySchemaElement::builder()
-            .attribute_name(IDX_SORT_KEY)
-            .key_type(KeyType::Range)
-            .build()?;
-
-        self.connection
-            .client
-            .create_table()
-            .table_name(table_name)
-            .key_schema(partition_ks)
-            .attribute_definitions(pk)
-            .attribute_definitions(idx_sk)
-            .attribute_definitions(recovery_relationship_id_idx_pk)
-            .attribute_definitions(benefactor_account_id_idx_pk)
-            .attribute_definitions(beneficiary_account_id_idx_pk)
-            .billing_mode(BillingMode::PayPerRequest)
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(RECOVERY_RELATIONSHIP_ID_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(recovery_relationship_id_idx_pk_ks)
-                    .key_schema(recovery_relationship_id_idx_sk_ks)
-                    .build()?,
-            )
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(BENEFACTOR_ACCOUNT_ID_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(benefactor_account_id_idx_pk_ks)
-                    .key_schema(benefactor_account_id_idx_sk_ks)
-                    .build()?,
-            )
-            .global_secondary_indexes(
-                GlobalSecondaryIndex::builder()
-                    .index_name(BENEFICIARY_ACCOUNT_ID_IDX)
-                    .projection(Projection::builder().projection_type(All).build())
-                    .key_schema(beneficiary_account_id_idx_pk_ks)
-                    .key_schema(beneficiary_account_id_idx_sk_ks)
-                    .build()?,
-            )
-            .send()
-            .await
-            .map_err(|err| {
-                let service_err = err.into_service_error();
-                event!(
-                    Level::ERROR,
-                    "Could not create Inheritance table: {service_err:?} with message: {:?}",
-                    service_err.message()
-                );
-                DatabaseError::CreateTableError(database_object)
-            })?;
-        Ok(())
+        create_dynamodb_table(
+            &self.get_connection().client,
+            table_name,
+            database_object,
+            partition_key,
+            None,
+            gsis,
+        )
+        .await
     }
 }

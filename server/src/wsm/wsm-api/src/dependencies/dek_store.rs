@@ -27,6 +27,7 @@ const LEASE_SIZE: u32 = 50;
 type WrappedDekCache = HashMap<String, String>;
 
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 struct LeasedDek {
     dek_id: String,
     dek_ciphertext: String,

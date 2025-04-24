@@ -14,6 +14,9 @@ import build.wallet.email.EmailFake
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.*
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.UsSmsFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.notifications.NotificationTouchpointDaoMock
@@ -21,6 +24,7 @@ import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.notifications.NotificationTouchpointType.Email
 import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
 import build.wallet.phonenumber.PhoneNumberMock
+import build.wallet.platform.settings.TelephonyCountryCodeProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -58,7 +62,23 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   val notificationTouchpointF8eClient = NotificationTouchpointF8eClientMock(turbines::create)
   val accountConfigService = AccountConfigServiceFake()
 
-  val stateMachine =
+  val featureFlagDao = FeatureFlagDaoFake()
+  val usSmsFeatureFlag = UsSmsFeatureFlag(featureFlagDao)
+  val phoneNotAvailableCalls = turbines.create<Unit>("phone not available calls")
+  val phoneNoneCalls = turbines.create<Unit>("phone none calls")
+  val telephonyCountryCodeProvider = TelephonyCountryCodeProviderMock()
+
+  val uiErrorHintSubmitter = object : UiErrorHintSubmitter {
+    override fun phoneNone() {
+      phoneNoneCalls.add(Unit)
+    }
+
+    override fun phoneNotAvailable() {
+      phoneNotAvailableCalls.add(Unit)
+    }
+  }
+
+  fun createStateMachine() =
     NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       emailInputUiStateMachine =
         object : EmailInputUiStateMachine, ScreenStateMachineMock<EmailInputUiProps>(
@@ -80,14 +100,14 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
           ScreenStateMachineMock<VerificationCodeInputProps>(
             "verification-code-input"
           ) {},
-      uiErrorHintSubmitter = object : UiErrorHintSubmitter {
-        override fun phoneNone() {}
-
-        override fun phoneNotAvailable() {}
-      },
+      uiErrorHintSubmitter = uiErrorHintSubmitter,
       actionSuccessDuration = ActionSuccessDuration(10.milliseconds),
-      accountConfigService = accountConfigService
+      accountConfigService = accountConfigService,
+      telephonyCountryCodeProvider = telephonyCountryCodeProvider,
+      usSmsFeatureFlag = usSmsFeatureFlag
     )
+
+  val stateMachine = createStateMachine()
 
   val props =
     NotificationTouchpointInputAndVerificationProps(
@@ -105,6 +125,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     notificationTouchpointDao.reset()
     notificationTouchpointF8eClient.reset()
     accountConfigService.reset()
+    usSmsFeatureFlag.setFlagValue(false)
+    telephonyCountryCodeProvider.mockCountryCode = ""
   }
 
   // Helper function to test both email and phone number through sending the verification code
@@ -142,6 +164,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         PhoneNumber -> shouldBeInstanceOf<PhoneNumberTouchpoint>().value.shouldBe(phoneNumber)
         Email -> shouldBeInstanceOf<EmailTouchpoint>().value.shouldBe(email)
       }
+    }
+
+    if (touchpointType == PhoneNumber) {
+      phoneNoneCalls.awaitItem()
     }
 
     // Entering verification code
@@ -407,6 +433,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       awaitBodyMock<PhoneNumberInputUiProps> {
         prefillValue.shouldBe(phoneNumber)
       }
+
+      // Consume the extra phoneNone call
+      phoneNoneCalls.awaitItem()
     }
   }
 
@@ -427,6 +456,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+
+      // Consume the extra phone-none event from the resend flow
+      phoneNoneCalls.awaitItem()
     }
   }
 
@@ -496,6 +528,119 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+    }
+  }
+
+  test("US phone number with UsSmsFeatureFlag disabled triggers phoneNotAvailable") {
+    // Set country to US and feature flag to disabled
+    telephonyCountryCodeProvider.mockCountryCode = "US"
+    usSmsFeatureFlag.setFlagValue(false)
+
+    // Setup error response
+    notificationTouchpointF8eClient.addTouchpointResult =
+      Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
+
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+      // Entering phone number
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        onSubmitPhoneNumber(PhoneNumberMock) { }
+      }
+
+      // Should trigger the server call
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+
+      // Should call phoneNotAvailable since we're in US with flag disabled
+      phoneNotAvailableCalls.awaitItem()
+    }
+  }
+
+  test("US phone number with UsSmsFeatureFlag enabled doesn't trigger phoneNotAvailable") {
+    // Set country to US and feature flag to enabled
+    telephonyCountryCodeProvider.mockCountryCode = "US"
+    usSmsFeatureFlag.setFlagValue(true)
+
+    // Setup error response
+    notificationTouchpointF8eClient.addTouchpointResult =
+      Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
+
+    val errorCalls = turbines.create<Unit>("error calls")
+
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+      // Entering phone number
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        onSubmitPhoneNumber(PhoneNumberMock) {
+          errorCalls.add(Unit)
+        }
+      }
+
+      // Should trigger the server call
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+
+      // Should still call the error handler
+      errorCalls.awaitItem()
+
+      // But should NOT call phoneNotAvailable since feature flag is enabled
+      phoneNotAvailableCalls.expectNoEvents()
+    }
+  }
+
+  test("Non-US phone number error with UsSmsFeatureFlag enabled doesn't trigger phoneNotAvailable") {
+    // Set country to non-US (Canada)
+    telephonyCountryCodeProvider.mockCountryCode = "CA"
+    usSmsFeatureFlag.setFlagValue(true)
+
+    // Setup error response
+    notificationTouchpointF8eClient.addTouchpointResult =
+      Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
+
+    val errorCalls = turbines.create<Unit>("error calls enabled")
+
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+      // Entering phone number
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        onSubmitPhoneNumber(PhoneNumberMock) {
+          errorCalls.add(Unit)
+        }
+      }
+
+      // Should trigger the server call
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+
+      // Should call the error handler
+      errorCalls.awaitItem()
+
+      // But should NOT call phoneNotAvailable since we're not in US
+      phoneNotAvailableCalls.expectNoEvents()
+    }
+  }
+
+  test("Non-US phone number error with UsSmsFeatureFlag disabled doesn't trigger phoneNotAvailable") {
+    // Set country to non-US (Canada)
+    telephonyCountryCodeProvider.mockCountryCode = "CA"
+    usSmsFeatureFlag.setFlagValue(false)
+
+    // Setup error response
+    notificationTouchpointF8eClient.addTouchpointResult =
+      Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
+
+    val errorCalls = turbines.create<Unit>("error calls disabled")
+
+    stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
+      // Entering phone number
+      awaitBodyMock<PhoneNumberInputUiProps> {
+        onSubmitPhoneNumber(PhoneNumberMock) {
+          errorCalls.add(Unit)
+        }
+      }
+
+      // Should trigger the server call
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
+
+      // Should call the error handler
+      errorCalls.awaitItem()
+
+      // But should NOT call phoneNotAvailable since we're not in US
+      phoneNotAvailableCalls.expectNoEvents()
     }
   }
 })

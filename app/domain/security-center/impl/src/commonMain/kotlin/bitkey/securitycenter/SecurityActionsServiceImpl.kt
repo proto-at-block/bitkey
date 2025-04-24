@@ -16,10 +16,11 @@ class SecurityActionsServiceImpl(
   private val mobileKeyBackupHealthActionFactory: MobileKeyBackupHealthActionFactory,
   private val eakBackupHealthActionFactory: EakBackupHealthActionFactory,
   private val socialRecoveryActionFactory: SocialRecoveryActionFactory,
-  private val inheritanceActionFactory: InheritanceActionFactory,
+//  private val inheritanceActionFactory: InheritanceActionFactory,
   private val biometricActionFactory: BiometricActionFactory,
   private val criticalAlertsActionFactory: CriticalAlertsActionFactory,
   private val fingerprintsActionFactory: FingerprintsActionFactory,
+  private val hardwareDeviceActionFactory: HardwareDeviceActionFactory,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
 ) : SecurityActionsService {
@@ -27,10 +28,11 @@ class SecurityActionsServiceImpl(
    * Order of the list is important as it will be used to determine the order of the actions in the UI.
    */
   private val factories = listOf(
+    SecurityActionType.HARDWARE_DEVICE to hardwareDeviceActionFactory::create,
     SecurityActionType.CRITICAL_ALERTS to criticalAlertsActionFactory::create,
     SecurityActionType.SOCIAL_RECOVERY to socialRecoveryActionFactory::create,
     SecurityActionType.MOBILE_KEY_BACKUP to mobileKeyBackupHealthActionFactory::create,
-    SecurityActionType.INHERITANCE to inheritanceActionFactory::create,
+    //    SecurityActionType.INHERITANCE to inheritanceActionFactory::create, // TODO: add once we have built dismissible recommendations
     SecurityActionType.EAK_BACKUP to eakBackupHealthActionFactory::create,
     SecurityActionType.FINGERPRINTS to fingerprintsActionFactory::create,
     SecurityActionType.BIOMETRIC to biometricActionFactory::create
@@ -54,6 +56,9 @@ class SecurityActionsServiceImpl(
           .sortedBy { recommendation -> recommendation.ordinal }
           .also {
             SecurityActionRecommendation.entries.forEach { recommendation ->
+              if (recommendation == SecurityActionRecommendation.ADD_BENEFICIARY) { // TODO: remove once we include inheritance action
+                return@forEach
+              }
               val isPending = it.contains(recommendation)
               eventTracker.track(
                 Action.ACTION_APP_SECURITY_CENTER_CHECK,

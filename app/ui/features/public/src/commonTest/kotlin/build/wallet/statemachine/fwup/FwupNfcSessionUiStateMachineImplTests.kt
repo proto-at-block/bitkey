@@ -30,9 +30,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val deviceInfoProvider = DeviceInfoProviderMock()
   val nfcTransactor = NfcTransactorMock(turbines::create)
-  val fwupDataDao = FwupDataDaoMock(turbines::create)
   val firmwareDataService = FirmwareDataServiceFake()
   val accountConfigService = AccountConfigServiceFake()
+  val fwupDataDaoProvider = FwupDataDaoProviderMock(turbines::create)
 
   val stateMachine =
     FwupNfcSessionUiStateMachineImpl(
@@ -42,7 +42,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapability = NfcReaderCapabilityMock(),
       nfcTransactor = nfcTransactor,
-      fwupDataDao = fwupDataDao,
+      fwupDataDaoProvider = fwupDataDaoProvider,
       firmwareDataService = firmwareDataService,
       accountConfigService = accountConfigService
     )

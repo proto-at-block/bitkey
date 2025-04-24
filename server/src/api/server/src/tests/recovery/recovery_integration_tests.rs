@@ -325,14 +325,13 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
     assert!(
         // Depending on the timing of the tests, either the completed notification could have been sent out or not
         customer_notifications_types.is_superset(&expected_customer_notification_types)
-            && match customer_notifications_types
-                .difference(&expected_customer_notification_types)
-                .collect::<Vec<_>>()
-                .as_slice()
-            {
-                [] | [NotificationPayloadType::RecoveryCompletedDelayPeriod] => true,
-                _ => false,
-            }
+            && matches!(
+                customer_notifications_types
+                    .difference(&expected_customer_notification_types)
+                    .collect::<Vec<_>>()
+                    .as_slice(),
+                [] | [NotificationPayloadType::RecoveryCompletedDelayPeriod]
+            )
     );
     assert!(scheduled_notifications
         .iter()

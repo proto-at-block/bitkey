@@ -82,7 +82,6 @@
     }
   ],
   "ignorePaths": [
-    "cli/**",
     "docs/**",
     "datadog/**",
     "factory-test/**",
@@ -92,12 +91,10 @@
   ],
   "enabledManagers": [
     "cargo",
-    "cocoapods",
     "hermit",
     "regex",
     "swift",
     "gradle",
-    "npm",
     "dockerfile",
     "pip_requirements",
     "git-submodules"

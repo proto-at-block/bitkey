@@ -14,11 +14,14 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
+import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.notifications.NotificationTouchpointType.Email
 import build.wallet.notifications.NotificationTouchpointType.PhoneNumber
+import build.wallet.platform.settings.TelephonyCountryCodeProvider
+import build.wallet.platform.settings.isCountry
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -48,6 +51,8 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val uiErrorHintSubmitter: UiErrorHintSubmitter,
   private val actionSuccessDuration: ActionSuccessDuration,
   private val accountConfigService: AccountConfigService,
+  private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider,
+  private val usSmsFeatureFlag: UsSmsFeatureFlag,
 ) : NotificationTouchpointInputAndVerificationUiStateMachine {
   @Suppress("CyclomaticComplexMethod")
   @Composable
@@ -57,6 +62,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     var uiState: NotificationTouchpointInputAndVerificationUiState by remember {
       mutableStateOf(EnteringTouchpointUiState(touchpointPrefill = null))
     }
+    val usSmsEnabled by remember { usSmsFeatureFlag.flagValue() }.collectAsState()
 
     return when (val state = uiState) {
       is EnteringTouchpointUiState -> {
@@ -138,7 +144,10 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                     SendingTouchpointToServer(
                       touchpoint = PhoneNumberTouchpoint(touchpointId = "", value = phoneNumber),
                       onError = { error ->
-                        if (error.isUnsupportedCountryCode()) {
+                        if (error.isUnsupportedCountryCode() &&
+                          !usSmsEnabled.value &&
+                          telephonyCountryCodeProvider.isCountry("us")
+                        ) {
                           phoneNotAvailable()
                         }
                         onError(error)

@@ -71,10 +71,6 @@ impl RouterBuilder for RouteState {
     fn account_authed_router(&self) -> Router {
         Router::new()
             .route(
-                "/api/accounts/:account_id/sign-transaction",
-                post(sign_transaction_with_active_keyset),
-            )
-            .route(
                 "/api/accounts/:account_id/keysets/:keyset_id/sign-transaction",
                 post(sign_transaction_with_keyset),
             )
@@ -114,7 +110,6 @@ impl From<RouteState> for SwaggerEndpoint {
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        sign_transaction_with_active_keyset,
         sign_transaction_with_keyset,
         setup_mobile_pay_for_account,
         get_mobile_pay_for_account,
@@ -377,75 +372,6 @@ async fn generate_partial_signatures_with_key_share(
     }))
 }
 
-#[instrument(
-    err,
-    level = "INFO",
-    skip(
-        account_service,
-        wsm_client,
-        config,
-        daily_spend_record_service,
-        exchange_rate_service,
-        signed_psbt_cache_service,
-        request,
-        screener_service,
-        feature_flags_service,
-        experimentation_claims
-    )
-)]
-#[utoipa::path(
-    post,
-    path = "/api/accounts/{account_id}/sign-transaction",
-    params(
-        ("account_id" = AccountId, Path, description = "AccountId"),
-    ),
-    request_body = SignTransactionData,
-    responses(
-        (status = 200, description = "Transaction was validated and signed with the server key for the active keyset", body=SignTransactionResponse),
-        (status = 400, description = "Transaction didn't pass spend rules"),
-        (status = 404, description = "Account could not be found")
-    ),
-)]
-#[deprecated(note = "Use /api/accounts/{account_id}/keysets/{keyset_id}/sign-transaction instead")]
-async fn sign_transaction_with_active_keyset(
-    Path(account_id): Path<AccountId>,
-    State(account_service): State<AccountService>,
-    State(wsm_client): State<WsmClient>,
-    State(config): State<Config>,
-    State(transaction_broadcaster): State<Arc<dyn TransactionBroadcasterTrait>>,
-    State(daily_spend_record_service): State<DailySpendRecordService>,
-    State(exchange_rate_service): State<ExchangeRateService>,
-    State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
-    State(screener_service): State<Arc<ScreenerService>>,
-    experimentation_claims: ExperimentationClaims,
-    Json(request): Json<SignTransactionData>,
-) -> Result<Json<SignTransactionResponse>, ApiError> {
-    let full_account = account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await?;
-    let context_key = experimentation_claims.account_context_key().ok();
-
-    let response = sign_transaction_maybe_broadcast_impl(
-        &full_account,
-        &full_account.active_keyset_id.clone(),
-        wsm_client,
-        config,
-        request,
-        transaction_broadcaster,
-        daily_spend_record_service,
-        exchange_rate_service,
-        signed_psbt_cache_service,
-        feature_flags_service,
-        screener_service,
-        context_key,
-    )
-    .await?;
-    Ok(Json(response))
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MobilePaySetupRequest {
@@ -581,7 +507,6 @@ pub struct MobilePayConfiguration {
         config,
         daily_spend_record_service,
         exchange_rate_service,
-        feature_flags_service
     )
 )]
 #[utoipa::path(
@@ -601,7 +526,6 @@ async fn get_mobile_pay_for_account(
     State(config): State<Config>,
     State(daily_spend_record_service): State<DailySpendRecordService>,
     State(exchange_rate_service): State<ExchangeRateService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<GetMobilePayResponse>, ApiError> {
     let full_account = account_service
         .fetch_full_account(FetchAccountInput {

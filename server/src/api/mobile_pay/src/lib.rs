@@ -115,7 +115,7 @@ mod tests {
             use_local_currency_exchange: true,
         }) {
             RateProvider::Local(_provider) => {}
-            _ => assert!(false, "Unexpected exchange rate provider returned"),
+            _ => panic!("Unexpected exchange rate provider returned"),
         }
 
         // Return CoingeckoRatePRovider
@@ -123,7 +123,7 @@ mod tests {
             use_local_currency_exchange: false,
         }) {
             RateProvider::Coingecko(_provider) => {}
-            _ => assert!(false, "Unexpected exchange rate provider returned"),
+            _ => panic!("Unexpected exchange rate provider returned"),
         }
     }
 }

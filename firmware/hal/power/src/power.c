@@ -33,10 +33,15 @@ static void charger_thread(void* args);
 static void fuel_gauge_thread(void* args);
 static void charger_boost_callback(rtos_timer_handle_t timer);
 
-void power_init(void) {
+void power_init(bool cap_touch_detect_both_edges) {
   // Note: power retain is configured and asserted by the bootloader
   mcu_gpio_configure(&power_config.five_volt_boost, false);
-  exti_enable(&power_config.cap_touch_detect);
+
+  if (cap_touch_detect_both_edges) {
+    power_config.cap_touch_detect.trigger = EXTI_TRIGGER_BOTH;
+    exti_enable(&power_config.cap_touch_detect);
+  }
+
   mcu_gpio_configure(&power_config.cap_touch_detect.gpio, true);  // Enable pull-up
 
   rtos_thread_create(charger_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 1024);

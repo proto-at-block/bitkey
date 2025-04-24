@@ -37,7 +37,7 @@ impl SocialRecoveryRepository {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        self.connection
+        self.get_connection()
             .client
             .get_item()
             .table_name(table_name)
@@ -120,7 +120,7 @@ impl SocialRecoveryRepository {
         let database_object = self.get_database_object();
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .query()
             .table_name(table_name)
@@ -175,7 +175,7 @@ impl SocialRecoveryRepository {
         let database_object = self.get_database_object();
 
         let item_output = self
-            .connection
+            .get_connection()
             .client
             .query()
             .table_name(table_name)
@@ -248,7 +248,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())
@@ -299,7 +299,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())
@@ -361,7 +361,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .scan()
                 .table_name(table_name.clone())
@@ -424,7 +424,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .scan()
                 .table_name(table_name.clone())
@@ -482,7 +482,7 @@ impl SocialRecoveryRepository {
 
         loop {
             let item_output = self
-                .connection
+                .get_connection()
                 .client
                 .query()
                 .table_name(table_name.clone())

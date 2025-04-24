@@ -8,6 +8,9 @@ import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
+import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Preview
@@ -18,8 +21,16 @@ fun SettingsScreenPreview() {
   }
 }
 
+@Preview
 @Composable
-fun SettingsScreen() {
+fun SettingsScreenWithSecurityHubCoachmarkPreview() {
+  PreviewWalletTheme {
+    SettingsScreen {}
+  }
+}
+
+@Composable
+fun SettingsScreen(securityHubClickHandler: (() -> Unit)? = null) {
   SettingsScreen(
     model = SettingsBodyModel(
       onBack = {},
@@ -62,7 +73,12 @@ fun SettingsScreen() {
                 ) {}
               )
           )
-        )
+        ),
+      toolbarModel = ToolbarModel(
+        leadingAccessory = BackAccessory(onClick = {}),
+        middleAccessory = ToolbarMiddleAccessoryModel(title = "Settings")
+      ),
+      onSecurityHubCoachmarkClick = securityHubClickHandler
     )
   )
 }

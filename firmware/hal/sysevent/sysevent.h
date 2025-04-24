@@ -7,6 +7,7 @@ typedef enum {
   SYSEVENT_FILESYSTEM_READY = (1 << 1),
   SYSEVENT_SLEEP_TIMER_READY = (1 << 2),
   SYSEVENT_FEATURE_FLAGS_READY = (1 << 3),
+  SYSEVENT_BREAK_GLASS_READY = (1 << 4)
 } sysevent_t;
 
 void sysevent_init(void);

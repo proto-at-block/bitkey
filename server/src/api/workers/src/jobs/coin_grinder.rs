@@ -20,6 +20,7 @@ const MEMPOOL_ELECTRUM_SERVER_ENDPOINT: &str =
 const OUTPUT_AMOUNT: u64 = 11_000;
 
 #[instrument]
+#[allow(clippy::print_stdout)]
 pub async fn handler() -> Result<(), WorkerError> {
     let xprv = ExtendedPrivKey::from_str(&env::var("E2E_SIGNET_TREASURY_KEY").unwrap()).unwrap();
 

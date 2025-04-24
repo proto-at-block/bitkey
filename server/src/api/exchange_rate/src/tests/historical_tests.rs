@@ -55,7 +55,7 @@ async fn test_historical_rate_success() {
 
     // Act
     let response = coingecko_provider
-        .rate(&vec![USD], OffsetDateTime::UNIX_EPOCH + to_epoch)
+        .rate(&[USD], OffsetDateTime::UNIX_EPOCH + to_epoch)
         .await;
 
     // Assert

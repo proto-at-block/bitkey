@@ -25,22 +25,22 @@ class SecurityActionsServiceImplTest : FunSpec({
 
   test("getActions when category is recovery") {
     val actions = service.getActions(SecurityActionCategory.RECOVERY)
-    actions.size shouldBe 5
-    actions.map { it.getRecommendations() }.flatten() shouldBe listOf(
-      SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS,
-      SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
-      SecurityActionRecommendation.BACKUP_MOBILE_KEY,
-      SecurityActionRecommendation.ADD_BENEFICIARY,
-      SecurityActionRecommendation.BACKUP_EAK
+    actions.size shouldBe 4
+    actions.map { it.type() } shouldBe listOf(
+      SecurityActionType.CRITICAL_ALERTS,
+      SecurityActionType.SOCIAL_RECOVERY,
+      SecurityActionType.MOBILE_KEY_BACKUP,
+      SecurityActionType.EAK_BACKUP
     )
   }
 
   test("getActions when category is security") {
     val actions = service.getActions(SecurityActionCategory.SECURITY)
-    actions.size shouldBe 2
-    actions.map { it.getRecommendations() }.flatten() shouldBe listOf(
-      SecurityActionRecommendation.ADD_FINGERPRINTS,
-      SecurityActionRecommendation.SETUP_BIOMETRICS
+    actions.size shouldBe 3
+    actions.map { it.type() } shouldBe listOf(
+      SecurityActionType.HARDWARE_DEVICE,
+      SecurityActionType.FINGERPRINTS,
+      SecurityActionType.BIOMETRIC
     )
   }
 
@@ -49,16 +49,17 @@ class SecurityActionsServiceImplTest : FunSpec({
 
     recommendedActions.test {
       awaitItem() shouldBe listOf(
+        SecurityActionRecommendation.PAIR_HARDWARE_DEVICE,
         SecurityActionRecommendation.BACKUP_MOBILE_KEY,
         SecurityActionRecommendation.BACKUP_EAK,
         SecurityActionRecommendation.ADD_FINGERPRINTS,
         SecurityActionRecommendation.ADD_TRUSTED_CONTACTS,
+        SecurityActionRecommendation.UPDATE_FIRMWARE,
         SecurityActionRecommendation.ENABLE_CRITICAL_ALERTS,
-        SecurityActionRecommendation.ADD_BENEFICIARY,
         SecurityActionRecommendation.SETUP_BIOMETRICS
       )
 
-      eventTracker.eventCalls.skipItems(7)
+      eventTracker.eventCalls.skipItems(11)
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -71,10 +72,11 @@ class SecurityActionsServiceImplTest : FunSpec({
       MobileKeyCloudBackupHealthActionFactoryFake(),
       EakCloudBackupHealthActionFactoryFake(),
       SocialRecoveryActionFactoryFake(),
-      InheritanceActionFactoryFake(),
+//      InheritanceActionFactoryFake(),
       BiometricActionFactoryFake(),
       CriticalAlertsActionFactoryFake(),
       fingerprintFactory,
+      HardwareDeviceActionFactoryFake(),
       eventTracker,
       metricTrackerService
     )
@@ -82,8 +84,14 @@ class SecurityActionsServiceImplTest : FunSpec({
     service.getRecommendations().test {
       awaitItem()
       SecurityActionRecommendation.entries.forEach { recommendation ->
+        if (recommendation == SecurityActionRecommendation.ADD_BENEFICIARY) {
+          return@forEach
+        }
         val isPending = when (recommendation) {
           SecurityActionRecommendation.ADD_FINGERPRINTS -> false
+          SecurityActionRecommendation.ENABLE_PUSH_NOTIFICATIONS -> false
+          SecurityActionRecommendation.ENABLE_EMAIL_NOTIFICATIONS -> false
+          SecurityActionRecommendation.ENABLE_SMS_NOTIFICATIONS -> false
           else -> true
         }
 
@@ -103,7 +111,10 @@ class SecurityActionsServiceImplTest : FunSpec({
 
     recommendedActions.test {
       metricTrackerService.completedMetrics.shouldContainExactlyInAnyOrder(
-        SecurityActionType.entries.map { actionType ->
+        SecurityActionType.entries.mapNotNull { actionType ->
+          if (actionType == SecurityActionType.INHERITANCE) {
+            return@mapNotNull null
+          }
           MetricTrackerServiceFake.CompletedMetric(
             metric = TrackedMetric(
               name = SecurityActionMetricDefinition(actionType).name,
@@ -113,7 +124,7 @@ class SecurityActionsServiceImplTest : FunSpec({
           )
         }
       )
-      eventTracker.eventCalls.skipItems(7)
+      eventTracker.eventCalls.skipItems(11)
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -127,10 +138,11 @@ fun securityActionsService(
     MobileKeyCloudBackupHealthActionFactoryFake(),
     EakCloudBackupHealthActionFactoryFake(),
     SocialRecoveryActionFactoryFake(),
-    InheritanceActionFactoryFake(),
+//    InheritanceActionFactoryFake(),
     BiometricActionFactoryFake(),
     CriticalAlertsActionFactoryFake(),
     FingerprintsActionFactoryFake(),
+    HardwareDeviceActionFactoryFake(),
     eventTracker,
     metricTrackerService
   )

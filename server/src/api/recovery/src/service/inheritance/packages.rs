@@ -33,7 +33,7 @@ impl Service {
             .fetch_packages_by_relationship_id(relationship_ids)
             .await?
             .into_iter()
-            .map(|row| row.try_into().map_err(|_| ServiceError::InvalidPackage))
+            .map(|row| Ok(row).map_err(|_: std::convert::Infallible| ServiceError::InvalidPackage))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(packages)

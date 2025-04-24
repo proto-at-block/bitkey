@@ -1,11 +1,12 @@
 package build.wallet.statemachine.settings.full.device
 
 import app.cash.turbine.plusAssign
+import bitkey.ui.framework.NavigatorModelFake
+import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.F8eUnreachable
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
@@ -22,15 +23,12 @@ import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
-import build.wallet.statemachine.fwup.FwupNfcUiProps
-import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
+import build.wallet.statemachine.fwup.FwupScreen
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
-import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceProps
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -50,6 +48,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
 
 class DeviceSettingsUiStateMachineImplTests : FunSpec({
@@ -69,26 +68,18 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
           "firmware metadata"
         ) {},
-      fwupNfcUiStateMachine =
-        object : FwupNfcUiStateMachine, ScreenStateMachineMock<FwupNfcUiProps>(
-          "fwup-nfc"
-        ) {},
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
       durationFormatter = DurationFormatterFake(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       appFunctionalityService = appFunctionalityService,
-      managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
-        ScreenStateMachineMock<ManagingFingerprintsProps>(
-          id = "managing fingerprints"
-        ) {},
       wipingDeviceUiStateMachine =
         object : WipingDeviceUiStateMachine, ScreenStateMachineMock<WipingDeviceProps>(
           "wiping device"
         ) {},
-      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
       firmwareDataService = firmwareDataService,
-      clock = clock
+      clock = clock,
+      navigatorPresenter = NavigatorPresenterFake()
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -226,9 +217,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // FWUP-ing
-      awaitBodyMock<FwupNfcUiProps> {
-        onDone()
+      // Going to firmware update screen
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<FwupScreen>()
+        onExit()
       }
 
       // Back to device settings
@@ -273,8 +265,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Going to manage fingerprints
-      awaitBodyMock<ManagingFingerprintsProps> {
-        onBack()
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<ManagingFingerprintsScreen>()
+        onExit()
       }
 
       // Back on the device settings screen
@@ -294,9 +287,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitBodyMock<ManagingFingerprintsProps> {
-        entryPoint.shouldBe(EntryPoint.DEVICE_SETTINGS)
-        onFwUpRequired()
+      // Going to manage fingerprints
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<ManagingFingerprintsScreen>()
+          .onFwUpRequired()
       }
 
       // Device settings screen should be showing with a bottom sheet modal
@@ -313,9 +307,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
           }
       }
 
-      // FWUP-ing
-      awaitBodyMock<FwupNfcUiProps> {
-        onDone()
+      // Going to firmware update screen
+      awaitBody<NavigatorModelFake> {
+        initialScreen.shouldBeTypeOf<FwupScreen>()
+        onExit()
       }
 
       // Back to device settings

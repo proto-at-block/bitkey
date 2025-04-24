@@ -9,7 +9,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.moneyhome.BaseMoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
-import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
+import build.wallet.statemachine.moneyhome.card.CardListModel
 import build.wallet.statemachine.moneyhome.lite.card.BuyOwnBitkeyMoneyHomeCardModel
 import build.wallet.statemachine.moneyhome.lite.card.InheritanceMoneyHomeCard
 import build.wallet.statemachine.moneyhome.lite.card.WalletsProtectingMoneyHomeCardModel
@@ -25,7 +25,7 @@ import kotlinx.collections.immutable.toImmutableList
 data class LiteMoneyHomeBodyModel(
   override val trailingToolbarAccessoryModel: ToolbarAccessoryModel,
   override val buttonsModel: MoneyHomeButtonsModel,
-  override val cardsModel: MoneyHomeCardsModel,
+  override val cardsModel: CardListModel,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = MoneyHomeEventTrackerScreenId.MONEY_HOME
@@ -42,7 +42,7 @@ data class LiteMoneyHomeBodyModel(
     onAcceptInviteClick: () -> Unit,
     onIHaveABitkeyClick: () -> Unit,
   ) : this(
-    cardsModel = MoneyHomeCardsModel(
+    cardsModel = CardListModel(
       cards = listOfNotNull(
         // Wallets you're Protecting card
         WalletsProtectingMoneyHomeCardModel(

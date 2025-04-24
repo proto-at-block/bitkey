@@ -23,7 +23,7 @@ impl ConsentRepository {
         let mut result = Vec::new();
 
         loop {
-            let item_output = self.connection.client
+            let item_output = self.get_connection().client
                 .scan()
                 .table_name(table_name.clone())
                 .filter_expression("partition_key = :partition_key")

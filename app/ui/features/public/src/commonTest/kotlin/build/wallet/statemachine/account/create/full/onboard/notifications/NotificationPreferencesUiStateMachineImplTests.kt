@@ -79,7 +79,7 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
   }
 
   test("calls onComplete when done") {
-    stateMachine.test(props) {
+    stateMachine.testWithVirtualTime(props) {
       awaitBody<FormBodyModel> {
         // Simulate tapping the ToS button
         val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
