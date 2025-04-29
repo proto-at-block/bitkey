@@ -56,4 +56,4 @@ and how to do do it yourself.
 
 * This document is released to provide transparency into the Bitkey product and service.
 
-* Software is [licensed](LICENSE) by Block, Inc. under the MIT License (the “License”)  with the Commons Clause modifier, and with no warranties or guarantees.
+* Software is [licensed](LICENSE) by Block, Inc. under the MIT License (the “License”), and with no warranties or guarantees.

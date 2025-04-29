@@ -106,6 +106,14 @@ locals {
   team_alpha_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_team_alpha.secret_string)
   team_alpha_principal  = local.team_alpha_apns_json.certificate
   team_alpha_credential = local.team_alpha_apns_json.key
+
+  team_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_team.secret_string)
+  team_principal  = local.team_apns_json.certificate
+  team_credential = local.team_apns_json.key
+
+  customer_apns_json  = jsondecode(data.aws_secretsmanager_secret_version.apns_customer.secret_string)
+  customer_principal  = local.customer_apns_json.certificate
+  customer_credential = local.customer_apns_json.key
 }
 
 data "aws_secretsmanager_secret" "fromagerie_onboarding_demo_mode_credentials" {
@@ -170,6 +178,22 @@ data "aws_secretsmanager_secret" "apns_team_alpha" {
 
 data "aws_secretsmanager_secret_version" "apns_team_alpha" {
   secret_id = data.aws_secretsmanager_secret.apns_team_alpha.id
+}
+
+data "aws_secretsmanager_secret" "apns_team" {
+  name = "fromagerie/apns/team"
+}
+
+data "aws_secretsmanager_secret_version" "apns_team" {
+  secret_id = data.aws_secretsmanager_secret.apns_team.id
+}
+
+data "aws_secretsmanager_secret" "apns_customer" {
+  name = "fromagerie/apns/customer"
+}
+
+data "aws_secretsmanager_secret_version" "apns_customer" {
+  secret_id = data.aws_secretsmanager_secret.apns_customer.id
 }
 
 data "aws_secretsmanager_secret" "fromagerie_histogram_output_encryption_key" {
@@ -1067,6 +1091,28 @@ resource "aws_sns_platform_application" "apns_application_team_alpha" {
   platform                     = "APNS"
   platform_principal           = local.team_alpha_principal
   platform_credential          = local.team_alpha_credential
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
+}
+
+resource "aws_sns_platform_application" "apns_application_team" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-team-ios"
+  platform                     = "APNS"
+  platform_principal           = local.team_principal
+  platform_credential          = local.team_credential
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
+}
+
+resource "aws_sns_platform_application" "apns_application_customer" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-customer-ios"
+  platform                     = "APNS"
+  platform_principal           = local.customer_principal
+  platform_credential          = local.customer_credential
   failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
   success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
   success_feedback_sample_rate = "100"
