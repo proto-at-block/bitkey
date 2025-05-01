@@ -14,17 +14,15 @@ class DemoModeServiceImpl(
   private val demoModeF8eClient: DemoModeF8eClient,
 ) : DemoModeService {
   override suspend fun enable(code: String): Result<Unit, Error> {
-    return return coroutineBinding {
+    return coroutineBinding {
       val defaultConfig = accountConfigService.defaultConfig().first()
       demoModeF8eClient.initiateDemoMode(defaultConfig.f8eEnvironment, code).bind()
-      accountConfigService.setIsHardwareFake(value = true).bind()
-      accountConfigService.setIsTestAccount(value = true).bind()
+      accountConfigService.enableDemoMode().bind()
     }
   }
 
   override suspend fun disable(): Result<Unit, Error> =
     coroutineBinding {
-      accountConfigService.setIsHardwareFake(value = false).bind()
-      accountConfigService.setIsTestAccount(value = false).bind()
+      accountConfigService.disableDemoMode().bind()
     }
 }

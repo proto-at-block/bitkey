@@ -18,7 +18,7 @@ import io.kotest.core.test.TestScope
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
-class DefaultAppConfigServiceImplTests : FunSpec({
+class AccountConfigServiceImplTests : FunSpec({
   val sqlDriverFactory = inMemorySqlDriver().factory
   val accountService = AccountServiceFake()
 
@@ -251,5 +251,33 @@ class DefaultAppConfigServiceImplTests : FunSpec({
     shouldThrow<IllegalStateException> { service.setUsingSocRecFakes(true) }
     shouldThrow<IllegalStateException> { service.setF8eEnvironment(F8eEnvironment.Local) }
     shouldThrow<IllegalStateException> { service.setDelayNotifyDuration(10.seconds) }
+  }
+
+  test("enableDemoMode - enables fake hardware and test account") {
+    val service = service(Customer)
+    service.defaultConfig().test {
+      val initial = awaitItem() // fallback
+
+      service.enableDemoMode()
+
+      awaitItem().shouldBe(
+        initial.copy(isTestAccount = true, isHardwareFake = true)
+      )
+    }
+  }
+
+  test("disableDemoMode - disables fake hardware and test account") {
+    val service = service(Customer)
+
+    service.defaultConfig().test {
+      val initial = awaitItem() // fallback
+      service.enableDemoMode()
+      awaitItem()
+
+      service.disableDemoMode()
+      awaitItem().shouldBe(
+        initial.copy(isTestAccount = false, isHardwareFake = false)
+      )
+    }
   }
 })

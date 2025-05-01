@@ -37,29 +37,24 @@ class AccountConfigServiceImpl(
   }
 
   private val defaultConfigCache = flow {
-    if (appVariant == Customer) {
-      // In Customer builds we don't allow changing app configuration.
-      emit(fallbackAppConfig(Customer))
-    } else {
-      databaseProvider.database()
-        .defaultAccountConfigQueries
-        .config()
-        .asFlowOfOneOrNull()
-        .mapResult { it?.toConfig() ?: fallbackAppConfig }
-        .mapLatest {
-          if (it.isOk) {
-            it.value
-          } else {
-            logError(throwable = it.error) {
-              "Error reading app config from db, using default config."
-            }
-            // Fallback on default config
-            fallbackAppConfig
+    databaseProvider.database()
+      .defaultAccountConfigQueries
+      .config()
+      .asFlowOfOneOrNull()
+      .mapResult { it?.toConfig() ?: fallbackAppConfig }
+      .mapLatest {
+        if (it.isOk) {
+          it.value
+        } else {
+          logError(throwable = it.error) {
+            "Error reading app config from db, using default config."
           }
+          // Fallback on default config
+          fallbackAppConfig
         }
-        .distinctUntilChanged()
-        .collect(::emit)
-    }
+      }
+      .distinctUntilChanged()
+      .collect(::emit)
   }.stateIn(
     scope = appCoroutineScope,
     started = Eagerly,
@@ -118,10 +113,29 @@ class AccountConfigServiceImpl(
     return updateDefaultAppConfig { it.copy(delayNotifyDuration = value) }
   }
 
+  override suspend fun enableDemoMode(): Result<Unit, Error> {
+    return updateDefaultAppConfig(bypassCustomerAppValidation = true) {
+      it.copy(
+        isHardwareFake = true,
+        isTestAccount = true
+      )
+    }
+  }
+
+  override suspend fun disableDemoMode(): Result<Unit, Error> {
+    return updateDefaultAppConfig(bypassCustomerAppValidation = true) {
+      it.copy(
+        isHardwareFake = false,
+        isTestAccount = false
+      )
+    }
+  }
+
   private suspend fun updateDefaultAppConfig(
+    bypassCustomerAppValidation: Boolean = false,
     block: (currentConfig: DefaultAccountConfig) -> DefaultAccountConfig,
   ): Result<Unit, Error> {
-    check(appVariant != Customer) {
+    check(bypassCustomerAppValidation || appVariant != Customer) {
       "Not supposed to override default app config in Customer builds."
     }
     return databaseProvider.database().awaitTransaction {

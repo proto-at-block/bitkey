@@ -89,6 +89,16 @@ class AccountConfigServiceFake : AccountConfigService {
     return Ok(Unit)
   }
 
+  override suspend fun disableDemoMode(): Result<Unit, Error> {
+    updateDefaultConfig { it.copy(isHardwareFake = true, isTestAccount = true) }
+    return Ok(Unit)
+  }
+
+  override suspend fun enableDemoMode(): Result<Unit, Error> {
+    updateDefaultConfig { it.copy(isHardwareFake = false, isTestAccount = false) }
+    return Ok(Unit)
+  }
+
   suspend fun reset() {
     lock.withLock {
       activeConfig.value = null

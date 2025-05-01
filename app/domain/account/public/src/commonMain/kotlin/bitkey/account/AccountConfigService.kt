@@ -15,6 +15,7 @@ import kotlin.time.Duration
  *
  * In non-Customer builds, default configurations can be overridden (e.g. for debug purposes).
  */
+@Suppress("TooManyFunctions")
 interface AccountConfigService {
   /**
    * Emits the currently effective account configuration.
@@ -46,4 +47,14 @@ interface AccountConfigService {
   suspend fun setSkipCloudBackupOnboarding(value: Boolean): Result<Unit, Error>
 
   suspend fun setSkipNotificationsOnboarding(value: Boolean): Result<Unit, Error>
+
+  /**
+   * Enables fake hardware and test account. Bypasses validations so it works in the Customer app
+   */
+  suspend fun enableDemoMode(): Result<Unit, Error>
+
+  /**
+   * Disables fake hardware and test account. Bypasses validations so it works in the Customer app
+   */
+  suspend fun disableDemoMode(): Result<Unit, Error>
 }

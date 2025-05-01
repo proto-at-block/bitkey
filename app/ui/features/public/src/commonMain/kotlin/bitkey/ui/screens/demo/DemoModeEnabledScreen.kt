@@ -59,6 +59,6 @@ class DemoModeEnabledScreenPresenter(
 
         else -> null
       }
-    ).asRootFullScreen()
+    ).asRootScreen()
   }
 }

@@ -34,7 +34,7 @@ class DemoModeDisabledScreenPresenter : ScreenPresenter<DemoModeDisabledScreen> 
     switchIsChecked = false,
     onSwitchCheckedChange = { navigator.goTo(DemoModeCodeEntryScreen) },
     disableAlertModel = null
-  ).asRootFullScreen()
+  ).asRootScreen()
 }
 
 data class EnableDemoModeBodyModel(
