@@ -2,19 +2,19 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2025.8.0"
+version = "2025.9.0"
 
 default-run = "bk"
 
 [dependencies]
 aes-gcm-siv = "0.11.1"
 anyhow = { version = "1.0.80", features = ["backtrace"] }
-aws-config = "=1.5.5"
-aws-sdk-dynamodb = "=1.42.0"
+aws-config = "=1.5.11"
+aws-sdk-dynamodb = "=1.56.0"
 aws-sdk-secretsmanager = "1.17.0"
 bdk = { version = "0.29.0" }
 clap = { version = "4.5.0", features = ["derive"] }
-derive_builder = { version = "0.13.0" }
+derive_builder = { version = "0.20.0" }
 hkdf = "0.12.3"
 http = { version = "0.2.10" }
 indicatif = "0.17.8"

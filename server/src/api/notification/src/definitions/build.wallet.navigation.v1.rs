@@ -50,6 +50,8 @@ pub enum NavigationScreenId {
     PairDevice = 16,
     /// * The screen shown to manage Bitkey device. *
     ManageBitkeyDevice = 17,
+    /// * The security hub screen. *
+    SecurityHub = 18,
 }
 impl NavigationScreenId {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -102,6 +104,7 @@ impl NavigationScreenId {
             NavigationScreenId::ManageBitkeyDevice => {
                 "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE"
             }
+            NavigationScreenId::SecurityHub => "NAVIGATION_SCREEN_ID_SECURITY_HUB",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -139,6 +142,7 @@ impl NavigationScreenId {
             "NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE" => Some(Self::UpdateFirmware),
             "NAVIGATION_SCREEN_ID_PAIR_DEVICE" => Some(Self::PairDevice),
             "NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE" => Some(Self::ManageBitkeyDevice),
+            "NAVIGATION_SCREEN_ID_SECURITY_HUB" => Some(Self::SecurityHub),
             _ => None,
         }
     }

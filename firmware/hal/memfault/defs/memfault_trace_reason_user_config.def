@@ -35,6 +35,7 @@ MEMFAULT_TRACE_REASON_DEFINE(fwup_delta_apply_patch_err)
 MEMFAULT_TRACE_REASON_DEFINE(wallet_sign_txn)
 MEMFAULT_TRACE_REASON_DEFINE(wallet_generate_key)
 MEMFAULT_TRACE_REASON_DEFINE(wallet_derived_key_cache_version_err)
+MEMFAULT_TRACE_REASON_DEFINE(wallet_policy_enforced)
 
 // Tamper
 MEMFAULT_TRACE_REASON_DEFINE(tamper_status)

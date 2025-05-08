@@ -1,6 +1,5 @@
 package build.wallet.statemachine.fwup
 
-import build.wallet.fwup.FirmwareData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -13,6 +12,5 @@ interface FwupNfcUiStateMachine :
   StateMachine<FwupNfcUiProps, ScreenModel>
 
 data class FwupNfcUiProps(
-  val firmwareData: FirmwareData.FirmwareUpdateState.PendingUpdate,
   val onDone: () -> Unit,
 )

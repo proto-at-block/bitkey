@@ -27,6 +27,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.recovery.inprogress.waiting.cancelRecoveryAlertModel
@@ -118,7 +119,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = props.completingRecoveryData.nfcTransaction,
             screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
+            eventTrackerContext = APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS,
+            hardwareVerification = Required(useRecoveryPubKey = true)
           )
         )
 
@@ -127,7 +129,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = props.completingRecoveryData.nfcTransaction,
             screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_UNSEAL_DDK
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_UNSEAL_DDK,
+            hardwareVerification = Required(useRecoveryPubKey = true)
           )
         )
 
@@ -136,7 +139,8 @@ class CompletingRecoveryUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             transaction = props.completingRecoveryData.nfcTransaction,
             screenPresentationStyle = props.presentationStyle,
-            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SEAL_DDK
+            eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SEAL_DDK,
+            hardwareVerification = Required(useRecoveryPubKey = true)
           )
         )
 
@@ -190,6 +194,7 @@ class CompletingRecoveryUiStateMachineImpl(
             fullAccountId = props.completingRecoveryData.fullAccountId,
             appAuthKey = props.completingRecoveryData.appAuthKey,
             onBack = props.completingRecoveryData.rollback,
+            hardwareVerification = Required(useRecoveryPubKey = true),
             screenPresentationStyle = props.presentationStyle
           )
         )

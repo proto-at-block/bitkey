@@ -33,31 +33,31 @@ enum class SecurityActionCategory {
  * Represents a recommendation that the customer can take to improve their account's security.
  * In priority order.
  */
-enum class SecurityActionRecommendation {
-  PAIR_HARDWARE_DEVICE,
-  BACKUP_MOBILE_KEY,
-  BACKUP_EAK,
-  ADD_FINGERPRINTS,
-  ADD_TRUSTED_CONTACTS,
-  UPDATE_FIRMWARE,
-  ENABLE_CRITICAL_ALERTS,
-  ENABLE_PUSH_NOTIFICATIONS,
-  ENABLE_SMS_NOTIFICATIONS,
-  ENABLE_EMAIL_NOTIFICATIONS,
-  ADD_BENEFICIARY,
-  SETUP_BIOMETRICS,
+enum class SecurityActionRecommendation(val actionType: SecurityActionType) {
+  PAIR_HARDWARE_DEVICE(actionType = SecurityActionType.HARDWARE_DEVICE),
+  BACKUP_MOBILE_KEY(actionType = SecurityActionType.MOBILE_KEY_BACKUP),
+  BACKUP_EAK(actionType = SecurityActionType.EAK_BACKUP),
+  ADD_FINGERPRINTS(actionType = SecurityActionType.FINGERPRINTS),
+  ADD_TRUSTED_CONTACTS(actionType = SecurityActionType.SOCIAL_RECOVERY),
+  UPDATE_FIRMWARE(actionType = SecurityActionType.HARDWARE_DEVICE),
+  ENABLE_CRITICAL_ALERTS(actionType = SecurityActionType.CRITICAL_ALERTS),
+  ENABLE_PUSH_NOTIFICATIONS(actionType = SecurityActionType.CRITICAL_ALERTS),
+  ENABLE_SMS_NOTIFICATIONS(actionType = SecurityActionType.CRITICAL_ALERTS),
+  ENABLE_EMAIL_NOTIFICATIONS(actionType = SecurityActionType.CRITICAL_ALERTS),
+  ADD_BENEFICIARY(actionType = SecurityActionType.INHERITANCE),
+  SETUP_BIOMETRICS(actionType = SecurityActionType.BIOMETRIC),
 }
 
 /**
  * Represents the type of security action. Maps 1:1 to classes that implement [SecurityAction].
  */
-enum class SecurityActionType {
-  HARDWARE_DEVICE,
-  BIOMETRIC,
-  CRITICAL_ALERTS,
-  EAK_BACKUP,
-  FINGERPRINTS,
-  INHERITANCE,
-  MOBILE_KEY_BACKUP,
-  SOCIAL_RECOVERY,
+enum class SecurityActionType(val hasEducation: Boolean) {
+  HARDWARE_DEVICE(hasEducation = false),
+  BIOMETRIC(hasEducation = false),
+  CRITICAL_ALERTS(hasEducation = true),
+  EAK_BACKUP(hasEducation = true),
+  FINGERPRINTS(hasEducation = true),
+  INHERITANCE(hasEducation = false),
+  MOBILE_KEY_BACKUP(hasEducation = false),
+  SOCIAL_RECOVERY(hasEducation = true),
 }

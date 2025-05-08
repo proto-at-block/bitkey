@@ -2,11 +2,11 @@
     "module-identifier": "org.apache.maven:maven-model-builder",
     "components": [
         {
-            "version": "3.9.6",
+            "version": "3.9.9",
             "variants": [
                 {
                     "artifacts": {
-                        "maven-model-builder-3.9.6.jar": "5f96dafbc411ee4b1e8426368d0d31d05ab5a4dace69808143142a0017598721"
+                        "maven-model-builder-3.9.9.jar": "a4377182ac2e5adfe16be3b3c81981a5ecddab014184de72ae1e522f04a77602"
                     }
                 }
             ],

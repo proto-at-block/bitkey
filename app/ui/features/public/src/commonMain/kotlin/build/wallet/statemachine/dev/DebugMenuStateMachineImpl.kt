@@ -29,6 +29,7 @@ import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -139,7 +140,6 @@ class DebugMenuScreenPresenter(
         fwupNfcUiStateMachine.model(
           props =
             FwupNfcUiProps(
-              firmwareData = state.firmwareData,
               onDone = { uiState = DebugMenuState.ShowingDebugMenu }
             )
         )
@@ -152,6 +152,7 @@ class DebugMenuScreenPresenter(
                 throw NfcException.UnknownError(message = "Failed to wipe device")
               }
             },
+            hardwareVerification = NotRequired,
             onSuccess = { uiState = DebugMenuState.ShowingDebugMenu },
             onCancel = { uiState = DebugMenuState.ShowingDebugMenu },
             screenPresentationStyle = Modal,

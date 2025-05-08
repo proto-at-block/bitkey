@@ -11,7 +11,6 @@ extern "C" {
 #include "key_management.h"
 #include "lfs.h"
 #include "secutils.h"
-#include "wallet_impl.h"
 #include "wkek_impl.h"
 
 #include <stdint.h>

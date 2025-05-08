@@ -2,9 +2,9 @@ package build.wallet.nfc.interceptors
 
 import build.wallet.catchingResult
 import build.wallet.logging.*
-import build.wallet.logging.NFC_TAG
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.NfcSession.RequirePairedHardware
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.nfc.platform.NfcCommands
 import com.github.michaelbull.result.getOrThrow
@@ -97,3 +97,28 @@ private suspend fun maybeLockDevice(
     commands.lockDevice(session)
   }
 }
+
+/**
+ * An interceptor that asks the hardware to sign a random challenge and delegates the verification
+ * of said challenge to the callback provided in the session parameters.
+ */
+internal fun validateHardwareIsPaired() =
+  NfcTransactionInterceptor { next ->
+    { session, commands ->
+      val requiresPairedHardware = session.parameters.requirePairedHardware
+      if (requiresPairedHardware is RequirePairedHardware.Required) {
+        // Generate a 32-byte random challenge
+        val challenge = requiresPairedHardware.challenge
+        val signature = commands.signChallenge(session, challenge)
+
+        // Delegate back to the nfc session to confirm this hardware is paired; we do this
+        // to keep the interceptor relatively simple.
+        val challengeSuccessful = requiresPairedHardware.checkHardwareIsPaired(signature, challenge)
+        if (!challengeSuccessful) {
+          throw NfcException.UnpairedHardwareError()
+        }
+      }
+
+      next(session, commands)
+    }
+  }

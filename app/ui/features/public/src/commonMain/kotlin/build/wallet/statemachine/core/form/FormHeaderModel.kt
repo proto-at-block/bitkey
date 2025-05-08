@@ -103,4 +103,8 @@ data class FormHeaderModel(
       val partnerIcon: IconModel,
     ) : CustomContent()
   }
+
+  data class PosterImage(
+    val icon: Icon,
+  ) : CustomContent()
 }

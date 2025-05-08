@@ -1,12 +1,12 @@
 <resources>
-    <string name="biometric_action_title">App lock</string>
+    <string name="biometric_action_title">App security</string>
     <string name="critical_alert_action_title">Critical alerts</string>
-    <string name="eak_backup_action_title">Emergency access</string>
-    <string name="fingerprints_action_title">Multiple Fingerprints</string>
+    <string name="eak_backup_action_title">Emergency Access Kit</string>
+    <string name="fingerprints_action_title">Fingerprints</string>
     <string name="inheritance_action_title">Inheritance</string>
     <string name="mobile_key_backup_action_title">Cloud backup</string>
     <string name="social_recovery_action_title">Trusted contacts</string>
-    <string name="hardware_device_action_title">Bitkey Device</string>
+    <string name="hardware_device_action_title">Bitkey device</string>
 
     <string name="backup_mobile_key_recommendation_title">Add cloud backup</string>
     <string name="backup_eak_recommendation_title">Back up Emergency Access Kit</string>

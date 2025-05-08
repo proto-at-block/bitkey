@@ -2,11 +2,11 @@
     "module-identifier": "org.codehaus.plexus:plexus-interpolation",
     "components": [
         {
-            "version": "1.26",
+            "version": "1.27",
             "variants": [
                 {
                     "artifacts": {
-                        "plexus-interpolation-1.26.jar": "b3b5412ce17889103ea564bcdfcf9fb3dfa540344ffeac6b538a73c9d7182662"
+                        "plexus-interpolation-1.27.jar": "3fb4fb6143fdf964024c3cb738551524b9ea84e5c211cd660c559ad0703e5230"
                     }
                 }
             ],

@@ -17,7 +17,6 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.fwup.FwupDataDaoProvider
 import build.wallet.home.GettingStartedTaskDao
-import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.inheritance.InheritanceClaimsDao
@@ -59,7 +58,6 @@ class AppDataDeleterImpl(
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val homeUiBottomSheetDao: HomeUiBottomSheetDao,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val cloudBackupDao: CloudBackupDao,
   private val relationshipsKeysDao: RelationshipsKeysDao,
@@ -95,7 +93,6 @@ class AppDataDeleterImpl(
       transactionPriorityPreference.clear()
       onboardingAppKeyKeystore.clear()
       fiatCurrencyPreferenceRepository.clear()
-      homeUiBottomSheetDao.clearHomeUiBottomSheet()
       bitcoinDisplayPreferenceRepository.clear()
       cloudBackupDao.clear()
       relationshipsKeysDao.clear()

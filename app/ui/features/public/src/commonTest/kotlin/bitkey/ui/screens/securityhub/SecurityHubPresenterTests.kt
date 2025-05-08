@@ -1,9 +1,14 @@
 package bitkey.ui.screens.securityhub
 
+import bitkey.securitycenter.EakBackupHealthAction
 import bitkey.securitycenter.SecurityActionRecommendation.*
+import bitkey.securitycenter.SecurityActionType
 import bitkey.securitycenter.SecurityActionsServiceFake
 import bitkey.ui.framework.test
+import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.cloud.backup.health.EakBackupStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
@@ -18,7 +23,6 @@ import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiP
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
-import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
@@ -28,6 +32,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.seconds
 
 class SecurityHubPresenterTests : FunSpec({
@@ -49,7 +54,8 @@ class SecurityHubPresenterTests : FunSpec({
     hardwareRecoveryStatusCardUiStateMachine = object : HardwareRecoveryStatusCardUiStateMachine,
       StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
         initialModel = null
-      ) {}
+      ) {},
+    appFunctionalityService = AppFunctionalityServiceFake()
   )
 
   beforeTest {
@@ -64,9 +70,6 @@ class SecurityHubPresenterTests : FunSpec({
         hardwareRecoveryData = LostHardwareRecoveryDataMock
       )
     ) {
-      // loading security actions
-      awaitBody<SecurityHubBodyModel>()
-
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(UPDATE_FIRMWARE)
       }
@@ -75,29 +78,40 @@ class SecurityHubPresenterTests : FunSpec({
     }
   }
 
-  test("clicking eak navigates to the correct route") {
+  test("clicking eak navigates to the education when not backed up") {
     presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
-      // loading security actions
-      awaitBody<SecurityHubBodyModel>()
-
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(BACKUP_EAK)
+      }
+
+      it.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubEducationScreen.RecommendationEducation>()
+    }
+  }
+
+  test("clicking eak navigates to the setting when backed up") {
+    val action = EakBackupHealthAction(
+      cloudBackupStatus = EakBackupStatus.Healthy(lastUploaded = Clock.System.now())
+    )
+
+    securityActionsService.actions.removeAll { it.type() == SecurityActionType.EAK_BACKUP }
+    securityActionsService.actions += action
+
+    presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
+      awaitBody<SecurityHubBodyModel> {
+        onSecurityActionClick(action)
       }
 
       it.goToCalls.awaitItem().shouldBeTypeOf<CloudBackupHealthDashboardScreen>()
     }
   }
 
-  test("clicking a fingerprint navigates to the correct screen") {
+  test("clicking a fingerprint navigates to the education screen") {
     presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
-      // loading security actions
-      awaitBody<SecurityHubBodyModel>()
-
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(ADD_FINGERPRINTS)
       }
 
-      it.goToCalls.awaitItem().shouldBeTypeOf<ManagingFingerprintsScreen>()
+      it.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubEducationScreen.RecommendationEducation>()
     }
   }
 

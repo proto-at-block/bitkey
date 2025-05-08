@@ -3,17 +3,32 @@ srcs = [
 ]
 
 includes = ['.', gecko_sdk_bootloader_includes]
-deps = [crypto_bl_dep, secutils_bl_dep, log_dep]
+real_deps = [crypto_bl_dep, secutils_bl_dep, log_dep]
 
 bootloader_lib = library('bootloader',
   srcs,
   include_directories : [includes],
-  dependencies : deps,
+  dependencies : real_deps,
 )
 bootloader_dep = declare_dependency(
   link_with : bootloader_lib,
   include_directories : [includes],
-  dependencies : deps,
+  dependencies : real_deps,
+)
+
+# Variant of the bootloader dependency for the app to pull in.
+# Functionally the same.
+for_app_deps = [crypto_dep, secutils_dep, log_dep]
+
+bootloader_for_app_lib = library('bootloader-for-app',
+  srcs,
+  include_directories : [includes],
+  dependencies : for_app_deps,
+)
+bootloader_for_app_dep = declare_dependency(
+  link_with : bootloader_for_app_lib,
+  include_directories : [includes],
+  dependencies : for_app_deps,
 )
 
 bootloader_test = executable('bootloader-test',

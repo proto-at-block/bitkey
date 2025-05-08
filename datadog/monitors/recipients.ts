@@ -1,6 +1,7 @@
 import { Environment } from "./common/environments";
 
 const PROD_CRITICAL_RECIPIENTS = ["@slack-Block-bitkey-alerts", "@pagerduty-fromagerie"];
+const PROD_CRITICAL_DAYTIME_RECIPIENTS = ["@slack-Block-bitkey-alerts", "@pagerduty-fromagerie-daytime"];
 const PROD_ERROR_RECIPIENTS = ["@slack-Block-bitkey-robots"];
 const PROD_WARNING_RECIPIENTS = ["@slack-Block-bitkey-robots", "@pagerduty-fromagerie"];
 const STAGE_RECIPIENTS = ["@slack-Block-bitkey-alerts-staging"];
@@ -9,6 +10,15 @@ const STAGE_RECIPIENTS = ["@slack-Block-bitkey-alerts-staging"];
 export const getCriticalRecipients = (environment: Environment) => {
     if (environment === Environment.PRODUCTION) {
         return PROD_CRITICAL_RECIPIENTS;
+    } else {
+        return STAGE_RECIPIENTS;
+    }
+}
+
+// Critical: goes to alerts channel and pages during daytime hours (oncall should address during daytime hours)
+export const getCriticalDaytimeRecipients = (environment: Environment) => {
+    if (environment === Environment.PRODUCTION) {
+        return PROD_CRITICAL_DAYTIME_RECIPIENTS;
     } else {
         return STAGE_RECIPIENTS;
     }

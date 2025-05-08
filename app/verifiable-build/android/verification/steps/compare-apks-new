@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Compares the content of extracted apks by comparing two directories.
-set -x
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <directory-1> <directory-2>" >&2
     exit 1

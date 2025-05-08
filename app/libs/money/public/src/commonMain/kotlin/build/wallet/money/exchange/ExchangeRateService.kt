@@ -13,11 +13,6 @@ interface ExchangeRateService {
    */
   val exchangeRates: StateFlow<List<ExchangeRate>>
 
-  /**
-   * Requests a sync of remote exchange rates.
-   */
-  suspend fun requestSync()
-
   fun mostRecentRatesSinceDurationForCurrency(
     duration: Duration,
     currency: Currency,

@@ -26,7 +26,6 @@ if system == 'efr32mg24'
 
   deps += [
     printf_dep,
-    secure_engine_dep,
     rtos_dep,
   ]
 
@@ -34,7 +33,7 @@ if system == 'efr32mg24'
     srcs,
     include_directories : [crypto_includes, 'src', '.'],
     c_args : ['-DIMAGE_TYPE_APPLICATION=1'],
-    dependencies : deps,
+    dependencies : [deps, secure_engine_dep],
   )
   crypto_dep = declare_dependency(
     link_with : crypto_lib,
@@ -45,7 +44,7 @@ if system == 'efr32mg24'
     srcs,
     include_directories : [crypto_includes, 'src', '.'],
     c_args : ['-DIMAGE_TYPE_BOOTLOADER=1'],
-    dependencies : deps,
+    dependencies : [deps, secure_engine_bl_dep],
   )
   crypto_bl_dep = declare_dependency(
     link_with : crypto_bl_lib,

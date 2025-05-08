@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.licensee:licensee-gradle-plugin",
     "components": [
         {
-            "version": "1.11.0",
+            "version": "1.12.0",
             "variants": [
                 {
                     "artifacts": {
-                        "licensee-gradle-plugin-1.11.0.jar": "e36d655d2129c3d1d7fa85420150325fcd67fad70fc3910b7ed7b1ef0f6fa979"
+                        "licensee-gradle-plugin-1.12.0.jar": "a168b3e93489f118883eb183dae09f04082a448c33c0a8eb062a49e5ca3c595d"
                     }
                 }
             ],

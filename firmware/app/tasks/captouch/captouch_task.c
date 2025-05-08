@@ -1,6 +1,8 @@
 #include "captouch_task.h"
 
+#include "auth.h"
 #include "exti.h"
+#include "log.h"
 #include "mcu.h"
 #include "power.h"
 #include "rtos.h"
@@ -34,7 +36,12 @@ void captouch_thread(void* UNUSED(args)) {
         start_time = 0;
 
         if (duration > LONG_PRESS_THRESHOLD_MS) {
-          sysevent_set(SYSEVENT_BREAK_GLASS_READY);
+          if (is_authenticated() == SECURE_TRUE) {
+            LOGW("sysevent: break glass");
+            sysevent_set(SYSEVENT_BREAK_GLASS_READY);
+          } else {
+            LOGW("not authenticated, won't break glass");
+          }
         }
       }
     }
@@ -43,6 +50,6 @@ void captouch_thread(void* UNUSED(args)) {
 
 void captouch_task_create(void) {
   rtos_thread_t* captouch_thread_handle =
-    rtos_thread_create(captouch_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 512);
+    rtos_thread_create(captouch_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 1024);
   ASSERT(captouch_thread_handle);
 }

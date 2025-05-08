@@ -19,6 +19,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
@@ -162,6 +163,7 @@ class RecoveryInProgressUiStateMachineImpl(
               ),
             fullAccountId = recoveryInProgressData.fullAccountId,
             appAuthKey = recoveryInProgressData.appAuthKey,
+            hardwareVerification = Required(useRecoveryPubKey = true),
             screenPresentationStyle = Modal, // TODO Validate this is correct?
             onBack = recoveryInProgressData.rollback,
             onTokenRefresh = null,

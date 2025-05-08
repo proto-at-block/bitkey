@@ -7,7 +7,7 @@ jvmTarget = "11"
 # JDK version for builds
 jvmToolchain = "17"
 bdk = "0.32.1"
-datadog = "2.16.0"
+datadog = "2.16.1"
 detekt = "1.23.6"
 kotlin = "2.0.21"
 ksp = "2.0.21-1.0.26"
@@ -252,7 +252,7 @@ jvm-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = 
 jvm-slf4j-api = { module = "org.slf4j:slf4j-api", version = "2.0.13" }
 jvm-slf4j-simple = { module = "org.slf4j:slf4j-simple", version = "2.0.13" }
 jvm-sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "kmp-sqldelight" }
-jvm-zxing = { module = "com.google.zxing:core", version = "3.5.2" }
+jvm-zxing = { module = "com.google.zxing:core", version = "3.5.3" }
 jvm-apache-httpclient = { module = "org.apache.httpcomponents:httpclient", version = "4.5.14" }
 jvm-apache-commons-lang = { module = "org.apache.commons:commons-lang3", version = "3.13.0"}
 jvm-bytebuddy = { module = "net.bytebuddy:byte-buddy", version.ref = "jvm-bytebuddy" }
@@ -301,14 +301,14 @@ compose-runtime = { id = "org.jetbrains.compose", version.ref = "kmp-compose-run
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 datadog = { id = "com.datadoghq.dd-sdk-android-gradle-plugin", version = "1.12.0" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
-gradle-doctor = { id = "com.osacky.doctor", version = "0.9.1" }
+gradle-doctor = { id = "com.osacky.doctor", version = "0.10.0" }
 kotest-kmp = { id = "io.kotest.multiplatform", version.ref = "kmp-kotest" }
 kotlinx-benchmark = { id = "org.jetbrains.kotlinx.benchmark", version.ref = "kmp-benchmark" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kmp = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-licensee = { id = "app.cash.licensee", version = "1.11.0" }
+licensee = { id = "app.cash.licensee", version = "1.12.0" }
 paparazzi = { id = "app.cash.paparazzi", version.ref = "android-paparazzi" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "kmp-sqldelight" }
 test-logger = { id = "com.adarshr.test-logger", version = "4.0.0" }

@@ -53,7 +53,6 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
 
   val props =
     FwupNfcSessionUiProps(
-      firmwareData = PendingUpdate(FwupDataMock),
       onBack = { onBackCalls.add(Unit) },
       onDone = { onDoneCalls.add(Unit) },
       transactionType = FwupTransactionType.StartFromBeginning,
@@ -64,7 +63,9 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     accountConfigService.reset()
     deviceInfoProvider.reset()
     nfcTransactor.reset()
-    firmwareDataService.reset()
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock.copy(
+      firmwareUpdateState = PendingUpdate(FwupDataMock)
+    )
   }
 
   test("happy path") {

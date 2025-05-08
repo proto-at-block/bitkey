@@ -24,6 +24,14 @@ data class NfcErrorMessage(
             description = "You can try again or contact customer support to get help."
           )
 
+        is NfcException.UnpairedHardwareError,
+        is NfcException.CommandErrorSealCsekResponseUnsealException,
+        ->
+          NfcErrorMessage(
+            title = "Bitkey not recognized",
+            description = "The Bitkey you tapped isn’t paired to this app."
+          )
+
         else ->
           NfcErrorMessage(
             title = "NFC Error",

@@ -2,11 +2,11 @@
     "module-identifier": "com.google.zxing:core",
     "components": [
         {
-            "version": "3.5.2",
+            "version": "3.5.3",
             "variants": [
                 {
                     "artifacts": {
-                        "core-3.5.2.jar": "fba90122b5d56bac8c947c60b5925211b0d8d40c539b3109be3774f08f74fedb"
+                        "core-3.5.3.jar": "8d8064c1636fdaef7189dd9055c7d59950a8940a12f2293956446ec3c109fd82"
                     }
                 }
             ],

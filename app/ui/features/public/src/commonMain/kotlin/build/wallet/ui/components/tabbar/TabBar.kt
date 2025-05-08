@@ -39,7 +39,7 @@ fun TabBar(
         .height(60.dp)
         .width(130.dp)
         .shadow(
-          elevation = 2.dp,
+          elevation = 6.dp,
           shape = RoundedCornerShape(30.dp),
           ambientColor = Color.Black.copy(.1f)
         )

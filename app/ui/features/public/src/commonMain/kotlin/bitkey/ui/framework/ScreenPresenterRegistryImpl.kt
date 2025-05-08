@@ -1,6 +1,8 @@
 package bitkey.ui.framework
 
 import bitkey.ui.screens.demo.*
+import bitkey.ui.screens.device.DeviceSettingsScreen
+import bitkey.ui.screens.device.DeviceSettingsScreenPresenter
 import bitkey.ui.screens.onboarding.AccountAccessOptionsScreen
 import bitkey.ui.screens.onboarding.AccountAccessOptionsScreenPresenter
 import bitkey.ui.screens.onboarding.WelcomeScreen
@@ -9,6 +11,8 @@ import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreenPresenter
 import bitkey.ui.screens.securityhub.SecurityHubPresenter
 import bitkey.ui.screens.securityhub.SecurityHubScreen
+import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
+import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreenPresenter
 import bitkey.ui.screens.trustedcontact.ReinviteTrustedContactScreen
 import bitkey.ui.screens.trustedcontact.ReinviteTrustedContactScreenPresenter
 import bitkey.ui.screens.trustedcontact.RemoveTrustedContactScreen
@@ -29,6 +33,8 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementPresent
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreenPresenter
+import build.wallet.statemachine.status.AppFunctionalityStatusScreen
+import build.wallet.statemachine.status.AppFunctionalityStatusScreenPresenter
 
 /**
  * Registry of [ScreenPresenter]'s for the app.
@@ -54,6 +60,9 @@ class ScreenPresenterRegistryImpl(
   private val biometricSettingScreenPresenter: BiometricSettingScreenPresenter,
   private val reinviteTrustedContactScreenPresenter: ReinviteTrustedContactScreenPresenter,
   private val removeTrustedContactScreenPresenter: RemoveTrustedContactScreenPresenter,
+  private val deviceSettingsScreenPresenter: DeviceSettingsScreenPresenter,
+  private val appFunctionalityStatusScreenPresenter: AppFunctionalityStatusScreenPresenter,
+  private val securityHubEducationScreenPresenter: SecurityHubEducationScreenPresenter,
 ) : ScreenPresenterRegistry {
   override fun <ScreenT : Screen> get(screen: ScreenT): ScreenPresenter<ScreenT> {
     @Suppress("UNCHECKED_CAST")
@@ -75,6 +84,9 @@ class ScreenPresenterRegistryImpl(
       is BiometricSettingScreen -> biometricSettingScreenPresenter
       is ReinviteTrustedContactScreen -> reinviteTrustedContactScreenPresenter
       is RemoveTrustedContactScreen -> removeTrustedContactScreenPresenter
+      is DeviceSettingsScreen -> deviceSettingsScreenPresenter
+      is AppFunctionalityStatusScreen -> appFunctionalityStatusScreenPresenter
+      is SecurityHubEducationScreen -> securityHubEducationScreenPresenter
       else -> error("Did not find presenter for $screen")
     } as ScreenPresenter<ScreenT>
   }

@@ -67,6 +67,7 @@ FAKE_VALUE_FUNC(uint64_t, rtos_thread_micros);
 
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
+FAKE_VALUE_FUNC(uint32_t, rtos_event_group_get_bits, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_wait_bits, rtos_event_group_t*, const uint32_t,
                 const bool, const bool, uint32_t);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_clear_bits, rtos_event_group_t*, const uint32_t);
@@ -122,6 +123,14 @@ const struct lfs_config cfg = {
 
   .context = &emubd,
 };
+
+DERIVATION_PATH(BIP84_MAINNET_INTERNAL, PURPOSE_BIP84, COIN_TYPE_MAINNET, CHANGE_INTERNAL,
+                ((uint32_t[4]){
+                  84 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  1,
+                }));
 
 uint32_t timestamp(void) {
   return 0;

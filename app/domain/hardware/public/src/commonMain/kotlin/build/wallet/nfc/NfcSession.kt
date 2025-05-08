@@ -1,5 +1,6 @@
 package build.wallet.nfc
 
+import okio.ByteString
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -25,6 +26,8 @@ interface NfcSession : AutoCloseable {
    * @param shouldLock: Whether or not the hardware should be locked when the transaction completes
    * @param skipFirmwareTelemetry: Whether or not to skip shipping up firmware telemetry
    * @param asyncNfcSigning: Whether or not to use async NFC signing
+   * @param checkHardwareIsPaired: Function to verify if a challenge signature was made by the paired hardware
+   * @param requirePairedHardware: Whether to validate that the hardware being used is the one paired with the account
    */
   class Parameters(
     val isHardwareFake: Boolean,
@@ -33,6 +36,7 @@ interface NfcSession : AutoCloseable {
     val skipFirmwareTelemetry: Boolean,
     val asyncNfcSigning: Boolean,
     val nfcFlowName: String,
+    val requirePairedHardware: RequirePairedHardware,
     onTagConnected: (NfcSession?) -> Unit,
     onTagDisconnected: () -> Unit,
   ) {
@@ -42,5 +46,17 @@ interface NfcSession : AutoCloseable {
 
     val onTagDisconnectedObservers = mutableListOf(onTagDisconnected)
     val onTagDisconnected: () -> Unit = { onTagDisconnectedObservers.forEach { it() } }
+  }
+
+  /** Whether we should check that the tapped hardware matches that expected by the app. */
+  sealed interface RequirePairedHardware {
+    data object NotRequired : RequirePairedHardware
+
+    data class Required(
+      /** The challenge to be signed by hardware. */
+      val challenge: ByteString,
+      /** The callback in which the signature and challenge and verified, returning the result of the verification. */
+      val checkHardwareIsPaired: (String, ByteString) -> Boolean,
+    ) : RequirePairedHardware
   }
 }

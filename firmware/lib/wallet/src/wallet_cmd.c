@@ -7,7 +7,6 @@
 #include "shell_argparse.h"
 #include "shell_cmd.h"
 #include "wallet.h"
-#include "wallet_impl.h"
 #include "wkek.h"
 
 #include <stdlib.h>
@@ -15,7 +14,6 @@
 
 static struct {
   arg_lit_t* create;
-  arg_lit_t* sign;
   arg_lit_t* list;
   arg_str_t* write_seed;
   arg_end_t* end;
@@ -28,7 +26,6 @@ static void dump_key_bundle(const wallet_key_bundle_type_t type);
 
 static void cmd_wallet_register(void) {
   wallet_cmd_args.create = ARG_LIT_OPT('c', "create", "create a new wallet");
-  wallet_cmd_args.sign = ARG_LIT_OPT('s', "sign", "sign a transaction");
   wallet_cmd_args.list = ARG_LIT_OPT('l', "list", "list all stored keys");
   wallet_cmd_args.write_seed = ARG_STR_OPT('w', "write-seed", "write a seed; use with care");
   wallet_cmd_args.end = ARG_END();
@@ -100,15 +97,6 @@ static void cmd_wallet_run(int argc, char** argv) {
   if (wallet_cmd_args.create->header.found) {
     ASSERT(wkek_lazy_init() == true);
     ASSERT(wallet_create_keybundle(WALLET_KEY_BUNDLE_ACTIVE) == WALLET_RES_OK);
-  }
-
-  if (wallet_cmd_args.sign->header.found) {
-    uint8_t digest[32] = {0};
-    uint8_t sig[64] = {0};
-    wallet_res_t result = wallet_sign_txn(WALLET_KEY_DOMAIN_SPEND, digest, sig, 1, 0, NULL);
-    LOGI("wallet sign: %s", (result == WALLET_RES_OK) ? "ok" : "fail");
-    (void)result;
-    dumphex(sig, 64);
   }
 
   if (wallet_cmd_args.list->header.found) {

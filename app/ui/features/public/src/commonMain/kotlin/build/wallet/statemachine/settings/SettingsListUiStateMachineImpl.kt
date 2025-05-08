@@ -66,33 +66,36 @@ class SettingsListUiStateMachineImpl(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
           title = "General",
-          rowTypes = immutableListOf(
-            MobilePay::class,
-            BitkeyDevice::class,
-            AppearancePreference::class,
-            NotificationPreferences::class
-          )
-        ),
-        SettingsSection(
-          props = props,
-          appFunctionalityStatus = appFunctionalityStatus,
-          title = "Security & Recovery",
           rowTypes = if (securityHubFeatureFlag.isEnabled()) {
             immutableListOf(
+              MobilePay::class,
+              AppearancePreference::class,
+              NotificationPreferences::class,
               RotateAuthKey::class,
               InheritanceManagement::class
             )
           } else {
             immutableListOf(
-              Biometric::class,
-              InheritanceManagement::class,
-              RotateAuthKey::class,
-              CloudBackupHealth::class,
-              CriticalAlerts::class,
-              TrustedContacts::class
+              MobilePay::class,
+              BitkeyDevice::class,
+              AppearancePreference::class,
+              NotificationPreferences::class
             )
           }
         ),
+        SettingsSection(
+          props = props,
+          appFunctionalityStatus = appFunctionalityStatus,
+          title = "Security & Recovery",
+          rowTypes = immutableListOf(
+            Biometric::class,
+            InheritanceManagement::class,
+            RotateAuthKey::class,
+            CloudBackupHealth::class,
+            CriticalAlerts::class,
+            TrustedContacts::class
+          )
+        ).takeIf { !securityHubFeatureFlag.isEnabled() },
         SettingsSection(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
@@ -166,7 +169,7 @@ class SettingsListUiStateMachineImpl(
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
         is CriticalAlerts -> Pair(SmallIconWarning, "Critical Alerts")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
-        is ContactUs -> Pair(SmallIconAnnouncement, "Contact Us")
+        is ContactUs -> Pair(SmallIconMessage, "Contact Us")
         is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
         is TrustedContacts -> Pair(SmallIconShieldPerson, "Trusted Contacts")
         is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")

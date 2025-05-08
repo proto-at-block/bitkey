@@ -1,4 +1,3 @@
-#include "aes.h"
 #include "arithmetic.h"
 #include "attributes.h"
 #include "bip32.h"
@@ -9,6 +8,50 @@
 #include "seed.h"
 #include "wallet.h"
 
+DERIVATION_PATH(BIP84_MAINNET_EXTERNAL, PURPOSE_BIP84, COIN_TYPE_MAINNET, CHANGE_EXTERNAL,
+                ((uint32_t[4]){
+                  84 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  0,
+                }));
+
+DERIVATION_PATH(BIP84_MAINNET_INTERNAL, PURPOSE_BIP84, COIN_TYPE_MAINNET, CHANGE_INTERNAL,
+                ((uint32_t[4]){
+                  84 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  1,
+                }));
+
+DERIVATION_PATH(BIP84_TESTNET_EXTERNAL, PURPOSE_BIP84, COIN_TYPE_TESTNET, CHANGE_EXTERNAL,
+                ((uint32_t[4]){
+                  84 | BIP32_HARDENED_BIT,
+                  1 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  0,
+                }));
+
+DERIVATION_PATH(BIP84_TESTNET_INTERNAL, PURPOSE_BIP84, COIN_TYPE_TESTNET, CHANGE_INTERNAL,
+                ((uint32_t[4]){
+                  84 | BIP32_HARDENED_BIT,
+                  1 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                  1,
+                }));
+
+DERIVATION_PATH(W1_AUTH, PURPOSE_W1_AUTH, COIN_TYPE_UNKNOWN, CHANGE_UNKNOWN,
+                ((uint32_t[2]){
+                  87497287 | BIP32_HARDENED_BIT,
+                  0 | BIP32_HARDENED_BIT,
+                }));
+
+// Ordered by most likely to be used in descending order.
+static const derivation_path_parts_t* DERIVATION_PATHS[] = {
+  &BIP84_MAINNET_EXTERNAL, &BIP84_MAINNET_INTERNAL, &W1_AUTH,
+  &BIP84_TESTNET_EXTERNAL, &BIP84_TESTNET_INTERNAL,
+};
+
 // NOTE: This cache should be zeroed out via `wallet_clear_derived_key_cache` after each signing
 // session.
 STATIC_VISIBLE_FOR_TESTING derived_key_cache_t derived_key_cache = {
@@ -16,6 +59,10 @@ STATIC_VISIBLE_FOR_TESTING derived_key_cache_t derived_key_cache = {
 };
 
 STATIC_VISIBLE_FOR_TESTING bool derived_key_cache_initialized = false;
+
+derivation_path_t* wallet_get_w1_auth_path() {
+  return &W1_AUTH.path;
+}
 
 // Returns whether `a` is a subset of `b`.
 static bool derivation_path_is_subset(derivation_path_t a, derivation_path_t b) {
@@ -111,6 +158,7 @@ void derived_key_cache_lazy_init(coin_type_t coin_type) {
   if (coin_type == COIN_TYPE_UNKNOWN) {
     return;
   }
+
   if (derived_key_cache_initialized) {
     return;
   }
@@ -165,6 +213,7 @@ static bool maybe_derive_from_cached_key(extended_key_t* key_priv,
 bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
                                         derivation_path_t derivation_path) {
   const derivation_path_parts_t* parts = get_derivation_path_parts(derivation_path);
+
   if (parts) {
     // We have a known cached path, ensure the cache is initialized and derive from it instead of
     // from the seed.

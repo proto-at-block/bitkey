@@ -33,6 +33,8 @@ import build.wallet.money.FiatMoney.Companion.usd
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryFake
 import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.money.exchange.ExchangeRateServiceFake
+import build.wallet.money.exchange.USDtoBTC
 import build.wallet.platform.app.AppSessionManagerFake
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -57,6 +59,7 @@ class MobilePayServiceImplTests : FunSpec({
   val accountService = AccountServiceFake()
   val currencyConverter = CurrencyConverterFake()
   val mobilePaySigningF8eClient = MobilePaySigningF8eClientMock(turbines::create)
+  val exchangeRateService = ExchangeRateServiceFake()
   val syncFrequency = 100.milliseconds
 
   val mobilePayBalance = MobilePayBalance(
@@ -72,8 +75,8 @@ class MobilePayServiceImplTests : FunSpec({
 
   val mobilePayDataEnabled = MobilePayEnabledData(
     activeSpendingLimit = mobilePayEnabled.activeSpendingLimit,
-    balance = mobilePayEnabled.balance,
-    remainingFiatSpendingAmount = usd(100)
+    remainingBitcoinSpendingAmount = BitcoinMoney.btc(1.0),
+    remainingFiatSpendingAmount = usd(300)
   )
 
   lateinit var mobilePayService: MobilePayServiceImpl
@@ -88,6 +91,7 @@ class MobilePayServiceImplTests : FunSpec({
     currencyConverter.reset()
     fiatCurrencyPreferenceRepository.reset()
     mobilePaySigningF8eClient.reset()
+    exchangeRateService.reset()
 
     mobilePayService = MobilePayServiceImpl(
       eventTracker = eventTracker,
@@ -100,7 +104,8 @@ class MobilePayServiceImplTests : FunSpec({
       currencyConverter = currencyConverter,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       mobilePaySigningF8eClient = mobilePaySigningF8eClient,
-      mobilePaySyncFrequency = MobilePaySyncFrequency(syncFrequency)
+      mobilePaySyncFrequency = MobilePaySyncFrequency(syncFrequency),
+      exchangeRateService = exchangeRateService
     )
   }
 
@@ -287,7 +292,36 @@ class MobilePayServiceImplTests : FunSpec({
       awaitUntil(mobilePayDataEnabled)
 
       fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value = EUR
-      awaitItem().shouldBe(mobilePayDataEnabled.copy(remainingFiatSpendingAmount = eur(100)))
+      awaitItem().shouldBe(
+        mobilePayDataEnabled.copy(
+          activeSpendingLimit = mobilePayEnabled.activeSpendingLimit.copy(
+            // 900 because our fake currency conversion multiplies by 3, and we're starting with a fiat
+            // limit of 100, converting it to BTC (300), then converting to euro (900).
+            amount = eur(900)
+          ),
+          remainingFiatSpendingAmount = eur(300)
+        )
+      )
+    }
+  }
+
+  test("mobilePayData updates if exchange rates change") {
+    createBackgroundScope().launch {
+      mobilePayService.executeWork()
+    }
+    accountService.accountState.value = Ok(ActiveAccount(FullAccountMock))
+    mobilePayStatusProvider.status.value = mobilePayEnabled
+
+    mobilePayService.mobilePayData.test {
+      awaitUntil(mobilePayDataEnabled)
+
+      // Update the exchange rate
+      currencyConverter.conversionRate = 5.0
+      // This exchange rate isn't used due to fakes, but changing it should trigger a recalculation.
+      exchangeRateService.exchangeRates.value = listOf(USDtoBTC(0.05))
+      awaitItem().shouldBe(
+        mobilePayDataEnabled.copy(remainingFiatSpendingAmount = usd(500))
+      )
     }
   }
 
@@ -316,9 +350,9 @@ class MobilePayServiceImplTests : FunSpec({
     currencyConverter.conversionRate = 3.0 // 1 btc == 3 dollars
     val mobilePayEnabledWithSpentBtc = mobilePayEnabled.copy(
       balance = MobilePayBalance(
-        spent = BitcoinMoney.btc(1.0), // spent 3 usd
-        available = BitcoinMoney.btc(2.0),
-        limit = SpendingLimitMock(usd(dollars = 6.0)) // 6 usd available
+        spent = BitcoinMoney.btc(0.5), // spent $1.5
+        available = BitcoinMoney.btc(1.5), // $4.5 available
+        limit = SpendingLimitMock(usd(dollars = 6.0)) // 6 usd limit
       )
     )
     mobilePayStatusProvider.status.value = mobilePayEnabledWithSpentBtc
@@ -327,8 +361,8 @@ class MobilePayServiceImplTests : FunSpec({
       awaitUntil(
         MobilePayEnabledData(
           activeSpendingLimit = mobilePayEnabledWithSpentBtc.activeSpendingLimit,
-          balance = mobilePayEnabledWithSpentBtc.balance,
-          remainingFiatSpendingAmount = usd(dollars = 3.0)
+          remainingBitcoinSpendingAmount = mobilePayEnabledWithSpentBtc.balance!!.available,
+          remainingFiatSpendingAmount = usd(dollars = 4.5)
         )
       )
     }

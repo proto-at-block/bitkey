@@ -2,8 +2,6 @@
 
 #include "assert.h"
 #include "bitlog_impl.h"
-#include "bitops.h"
-#include "hex.h"
 #include "log.h"
 #include "perf.h"
 

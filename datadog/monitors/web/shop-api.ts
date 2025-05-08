@@ -4,7 +4,7 @@ import { metric_avg_query, metric_sum_query, trace_analytics_count_query } from 
 import { PercentileLatencyHighMonitor, AverageLatencyHighMonitor } from "../common/http";
 import { Environment } from "../common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor } from "../common/system";
-import { getErrorRecipients } from "../recipients";
+import { getErrorRecipients } from "./recipients";
 
 interface ShopApiConfig {
   title: string,

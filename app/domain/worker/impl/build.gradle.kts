@@ -26,6 +26,7 @@ kotlin {
       dependencies {
         implementation(projects.libs.testingPublic)
         implementation(projects.domain.workerFake)
+        implementation(projects.libs.platformFake)
       }
     }
   }

@@ -3,6 +3,6 @@
   <style name="Theme.AppSplash" parent="Theme.SplashScreen">
     <item name="windowSplashScreenBackground">@color/black</item>
     <item name="windowSplashScreenAnimatedIcon">@drawable/bitkey_splash_logo</item>
-    <item name="postSplashScreenTheme">@android:style/Theme.Material.NoActionBar</item>
+    <item name="postSplashScreenTheme">@style/Theme.AppCompat.DayNight.NoActionBar</item>
   </style>
 </resources>

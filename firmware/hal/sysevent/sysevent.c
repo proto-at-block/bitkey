@@ -1,6 +1,6 @@
 #include "sysevent.h"
 
-#include "log.h"
+#include "attributes.h"
 #include "rtos_event_groups.h"
 
 static SHARED_TASK_DATA rtos_event_group_t sys_events = {0};
@@ -11,6 +11,11 @@ void sysevent_init(void) {
 
 void sysevent_set(const sysevent_t events) {
   rtos_event_group_set_bits(&sys_events, (uint32_t)events);
+}
+
+bool sysevent_get(const sysevent_t event) {
+  uint32_t bits = rtos_event_group_get_bits(&sys_events);
+  return bits & (uint32_t)event;
 }
 
 void sysevent_clear(const sysevent_t events) {

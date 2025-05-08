@@ -19,6 +19,3 @@ seed_res_t seed_as_extended_key(extended_key_t* key);
 seed_res_t seed_derive_bip32(const derivation_path_t path, extended_key_t* key,
                              fingerprint_t* master_fingerprint,
                              fingerprint_t* childs_parent_fingerprint);
-
-seed_res_t seed_derive_hkdf(key_algorithm_t algorithm, uint8_t* label, size_t label_len,
-                            key_handle_t* privkey_out, key_handle_t* pubkey_out);

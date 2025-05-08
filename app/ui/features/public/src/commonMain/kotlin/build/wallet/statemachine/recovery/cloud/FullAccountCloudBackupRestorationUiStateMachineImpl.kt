@@ -43,6 +43,7 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.*
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
@@ -201,6 +202,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 RestoringFromBackupUiState
             },
             onCancel = { uiState = CloudBackupFoundUiState },
+            hardwareVerification = NotRequired,
             screenPresentationStyle = Root,
             eventTrackerContext = UNSEAL_CLOUD_BACKUP,
             segment = RecoverySegment.CloudBackup.FullAccount.Restoration,

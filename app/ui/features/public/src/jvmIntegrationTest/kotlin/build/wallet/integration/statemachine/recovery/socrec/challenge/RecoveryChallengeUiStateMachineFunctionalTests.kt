@@ -44,6 +44,7 @@ import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.*
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -98,6 +99,47 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         endorsedTrustedContact.identityKey,
         privateKeyEncryptionKey
       ).getOrThrow()
+  }
+
+  suspend fun AppTester.runChallengeToContactList(
+    props: RecoveryChallengeUiProps,
+    clickNotifications: Boolean = true,
+  ) {
+    this.recoveryChallengeUiStateMachine.test(props = props) {
+      awaitUntilBody<LoadingSuccessBodyModel>(
+        SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
+      )
+      if (clickNotifications) {
+        awaitUntilBody<FormBodyModel>(
+          NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
+        )
+          .clickPrimaryButton()
+      }
+      awaitUntilBody<FormBodyModel>(
+        SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
+      )
+    }
+  }
+
+  suspend fun simulateRespondToChallenge() {
+    val recoveryAuth =
+      app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
+        recoveryRelationshipId = endorsedTrustedContact.relationshipId
+      ).getOrThrow().shouldNotBeNull()
+    val decryptOutput = relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
+      password = recoveryAuth.pakeCode,
+      protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
+      delegatedDecryptionKey = delegatedDecryptionKey,
+      sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.relationshipId].shouldNotBeNull()
+    ).getOrThrow()
+    socRecF8eClientFake.challengeResponses.add(
+      SocialChallengeResponse(
+        recoveryRelationshipId = endorsedTrustedContact.relationshipId,
+        trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
+        recoveryPakeConfirmation = decryptOutput.keyConfirmation,
+        resealedDek = decryptOutput.sealedPrivateKeyEncryptionKey
+      )
+    )
   }
 
   test("Start Challenge") {
@@ -314,28 +356,6 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   test("Complete Challenge") {
     launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
-
-    suspend fun simulateRespondToChallenge() {
-      val recoveryAuth =
-        app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
-          recoveryRelationshipId = endorsedTrustedContact.relationshipId
-        ).getOrThrow().shouldNotBeNull()
-      val decryptOutput = relationshipsCrypto.transferPrivateKeyEncryptionKeyEncryption(
-        password = recoveryAuth.pakeCode,
-        protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
-        delegatedDecryptionKey = delegatedDecryptionKey,
-        sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.relationshipId].shouldNotBeNull()
-      ).getOrThrow()
-      socRecF8eClientFake.challengeResponses.add(
-        SocialChallengeResponse(
-          recoveryRelationshipId = endorsedTrustedContact.relationshipId,
-          trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
-          recoveryPakeConfirmation = decryptOutput.keyConfirmation,
-          resealedDek = decryptOutput.sealedPrivateKeyEncryptionKey
-        )
-      )
-    }
-
     val props = RecoveryChallengeUiProps(
       accountId = account.accountId,
       actions = app.socRecChallengeRepository.toActions(
@@ -349,25 +369,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       onKeyRecovered = { onRecoveryCalls.add(it) }
     )
 
-    app.recoveryChallengeUiStateMachine.test(
-      props = props
-    ) {
-      awaitUntilBody<LoadingSuccessBodyModel> {
-        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
-        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-      }
-      awaitUntilBody<FormBodyModel>(
-        NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
-      )
-        .clickPrimaryButton()
-
-      awaitUntilBody<FormBodyModel>(
-        SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
-      )
-
-      cancelAndIgnoreRemainingEvents()
-    }
-
+    app.runChallengeToContactList(props)
     simulateRespondToChallenge()
 
     app.recoveryChallengeUiStateMachine.test(
@@ -407,6 +409,102 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         onRecoveryCalls.awaitItem()
       }
+    }
+  }
+
+  test("Complete Challenge Failure - Missing Endorsed Contact") {
+    launchAndPrepareApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    val initialProps = RecoveryChallengeUiProps(
+      accountId = account.accountId,
+      actions = app.socRecChallengeRepository.toActions(
+        accountId = account.accountId,
+        isUsingSocRecFakes = true
+      ),
+      relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+      sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+      endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+      onExit = { onExitCalls.add(Unit) },
+      onKeyRecovered = { onRecoveryCalls.add(it) }
+    )
+
+    app.runChallengeToContactList(initialProps)
+    simulateRespondToChallenge()
+
+    // Remove contact
+    val propsWithMissingContact = initialProps.copy(
+      endorsedTrustedContacts = persistentListOf()
+    )
+
+    app.recoveryChallengeUiStateMachine.test(props = propsWithMissingContact) {
+      // Resume flow
+      awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
+      awaitUntilBody<FormBodyModel>(NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS).clickPrimaryButton()
+
+      // Reach list, click continue, should fail inside handler
+      awaitUntilBody<FormBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
+        primaryButton.shouldNotBeNull().isEnabled.shouldBe(true) // Button enabled due to external response
+        primaryButton?.onClick?.invoke()
+      }
+
+      // Expect the RecoveryFailed state
+      awaitUntilBody<FormBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RECOVERY_FAILED)
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t complete recovery.")
+        primaryButton.shouldNotBeNull().text.shouldBe("Back")
+        primaryButton?.onClick?.invoke()
+      }
+      awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
+    }
+  }
+
+  test("Complete Challenge Failure - Missing Challenge Auth") {
+    launchAndPrepareApp()
+    val account = app.onboardFullAccountWithFakeHardware()
+    val props = RecoveryChallengeUiProps(
+      accountId = account.accountId,
+      actions = app.socRecChallengeRepository.toActions(
+        accountId = account.accountId,
+        isUsingSocRecFakes = true
+      ),
+      relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+      sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+      endorsedTrustedContacts = relationshipsF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+      onExit = { onExitCalls.add(Unit) },
+      onKeyRecovered = { onRecoveryCalls.add(it) }
+    )
+
+    app.runChallengeToContactList(props)
+    app.socRecStartedChallengeAuthenticationDao.getAll().getOrThrow().shouldHaveSize(1)
+
+    simulateRespondToChallenge()
+
+    // Delete the auth data before resuming the state machine
+    app.socRecStartedChallengeDao.clear()
+    app.socRecStartedChallengeAuthenticationDao.clear()
+
+    // Run the state machine again with the original props
+    app.recoveryChallengeUiStateMachine.test(props = props) {
+      // Resume flow
+      awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
+      awaitUntilBody<FormBodyModel>(NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS).clickPrimaryButton()
+
+      // Reach list, click continue, should fail inside handler
+      awaitUntilBody<FormBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
+        primaryButton.shouldNotBeNull().isEnabled.shouldBe(true)
+        primaryButton?.onClick?.invoke()
+      }
+
+      // Expect the RecoveryFailed state
+      awaitUntilBody<FormBodyModel> {
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RECOVERY_FAILED)
+        header.shouldNotBeNull().headline.shouldBe("We couldn’t complete recovery.")
+        primaryButton.shouldNotBeNull().text.shouldBe("Back")
+        primaryButton?.onClick?.invoke()
+      }
+      awaitUntilBody<LoadingSuccessBodyModel>(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING)
     }
   }
 })

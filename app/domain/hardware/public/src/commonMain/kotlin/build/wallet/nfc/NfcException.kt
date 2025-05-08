@@ -38,6 +38,9 @@ sealed class NfcException : Error() {
   /** Indicates that the command required the device to first be unlocked and it wasn't */
   class CommandErrorUnauthenticated : NfcException()
 
+  /** Indicates unsealing the csek failed, likely due to using the wrong device. */
+  class CommandErrorSealCsekResponseUnsealException : NfcException()
+
   class InauthenticHardware(
     override val message: String? = null,
     override val cause: Throwable? = null,
@@ -51,6 +54,12 @@ sealed class NfcException : Error() {
 
   /** Catch-all for unknown or unexpected errors */
   class UnknownError(
+    override val message: String? = null,
+    override val cause: Throwable? = null,
+  ) : NfcException()
+
+  /** The hardware is not paired to the current user's account. */
+  class UnpairedHardwareError(
     override val message: String? = null,
     override val cause: Throwable? = null,
   ) : NfcException()

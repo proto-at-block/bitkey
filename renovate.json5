@@ -99,7 +99,11 @@
     "pip_requirements",
     "git-submodules"
   ],
-  "labels": ["dependencies", "task-list-completed-disable"],
+  "labels": [
+    "dependencies", 
+    "task-list-completed-disable",
+    "do-not-mark-stale"
+  ],
   // See Library Update Age Policy https://docs.google.com/document/d/1n32Xl4eTOviesHrvMSfmb19dgBhmcsguno2QanfgBkE/edit
   "minimumReleaseAge": "120 days",
   "internalChecksFilter": "strict",

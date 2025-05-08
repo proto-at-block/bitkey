@@ -23,6 +23,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
@@ -70,6 +71,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 onCancel = { uiState = ShowingInstructionsState },
                 shouldLock = false, // Don't lock because we quickly call [SignChallenge] next
                 screenPresentationStyle = Root,
+                hardwareVerification = NotRequired,
                 eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_GET_HW_KEYS
               )
             )
@@ -133,6 +135,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
+            hardwareVerification = NotRequired,
             shouldLock = false, // Don't lock because we quickly call [GetNextSpendingKey] next
             eventTrackerContext = APP_DELAY_NOTIFY_SIGN_AUTH,
             screenPresentationStyle = Root
@@ -167,6 +170,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
+            hardwareVerification = NotRequired,
             eventTrackerContext = HW_PROOF_OF_POSSESSION,
             screenPresentationStyle = Root
           )

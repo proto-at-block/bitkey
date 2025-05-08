@@ -15,6 +15,7 @@ import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
+import build.wallet.statemachine.account.create.full.onboard.notifications.ConfirmSkipRecoveryMethodsSheetModel
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormBodyModel
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.Completed
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -37,6 +38,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class CreateAndOnboardFullAccountFunctionalTests : FunSpec({
@@ -150,8 +152,10 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
 }
 
 internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardingNotificationSetupScreens() {
-  awaitUntilBody<RecoveryChannelsSetupFormBodyModel>()
-    .emailItem.onClick.shouldNotBeNull().invoke()
+  val recoverySetupScreen = awaitUntilBody<RecoveryChannelsSetupFormBodyModel>()
+  val isUsSmsFeatureFlagEnabled = recoverySetupScreen.smsItem != null
+
+  recoverySetupScreen.emailItem.onClick.shouldNotBeNull().invoke()
   advanceThroughEmailScreensEnterAndVerify()
 
   // Check that the email touchpoint has propagated back to the state machine
@@ -162,6 +166,15 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardingNotific
     matching = { it.emailItem.state == Completed }
   ) {
     continueOnClick()
+  }
+
+  if (isUsSmsFeatureFlagEnabled) {
+    awaitItem()
+      .bottomSheetModel
+      .shouldNotBeNull()
+      .body
+      .shouldBeTypeOf<ConfirmSkipRecoveryMethodsSheetModel>()
+      .onContinue()
   }
 
   // Accept the TOS

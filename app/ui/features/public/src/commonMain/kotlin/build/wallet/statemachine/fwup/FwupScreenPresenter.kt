@@ -32,7 +32,6 @@ class FwupScreenPresenter(
         fwupNfcUiStateMachine.model(
           props =
             FwupNfcUiProps(
-              firmwareData = screen.firmwareUpdateData,
               onDone = screen.onExit
             )
         )

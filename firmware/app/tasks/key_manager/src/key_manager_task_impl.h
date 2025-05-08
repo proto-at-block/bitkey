@@ -12,6 +12,8 @@ typedef enum {
   CRYPTO_TASK_SUCCESS = 2,
   CRYPTO_TASK_ERROR = 3,
   CRYPTO_TASK_DERIVATION_FAILED = 5,
+  CRYPTO_TASK_SIGNING_FAILED = 6,
+  CRYPTO_TASK_POLICY_VIOLATION = 7,
 } crypto_task_status_t;
 
 rtos_thread_t* crypto_task_create(void);

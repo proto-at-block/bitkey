@@ -27,7 +27,6 @@ import build.wallet.ensureNotNull
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayData
 import build.wallet.limit.MobilePayService
-import build.wallet.limit.SpendingLimit
 import build.wallet.logging.logDebug
 import build.wallet.logging.logError
 import build.wallet.logging.logFailure
@@ -244,8 +243,7 @@ class TransferConfirmationUiStateMachineImpl(
             uiState =
               if (requiredSigner == F8e && spendingLimit != null) {
                 SigningWithServerUiState(
-                  appSignedPsbt = state.appSignedPsbt,
-                  spendingLimit = spendingLimit!!
+                  appSignedPsbt = state.appSignedPsbt
                 )
               } else {
                 SigningWithHardwareUiState(
@@ -529,11 +527,9 @@ private sealed interface TransferConfirmationUiState {
    * Signing the psbt via server
    *
    * @property appSignedPsbt - the psbt to be signed
-   * @property spendingLimit - the [SpendingLimit] associated with the server signing
    */
   data class SigningWithServerUiState(
     val appSignedPsbt: Psbt,
-    val spendingLimit: SpendingLimit,
   ) : TransferConfirmationUiState
 
   /**

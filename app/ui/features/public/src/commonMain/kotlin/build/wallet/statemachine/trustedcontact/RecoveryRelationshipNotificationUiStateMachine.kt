@@ -1,6 +1,7 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -29,6 +30,6 @@ enum class RecoveryRelationshipNotificationAction {
 data class RecoveryRelationshipNotificationUiProps(
   val fullAccount: FullAccount,
   val action: RecoveryRelationshipNotificationAction,
-  val recoveryRelationshipId: String,
+  val recoveryRelationshipId: RelationshipId,
   val onBack: () -> Unit,
 )

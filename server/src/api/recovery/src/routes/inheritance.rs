@@ -38,13 +38,15 @@ use types::{account::entities::Account, recovery::inheritance::claim::Inheritanc
 use utoipa::{OpenApi, ToSchema};
 use wsm_rust_client::WsmClient;
 
-use crate::service::inheritance::create_inheritance_claim::CreateInheritanceClaimInput;
 use crate::service::inheritance::get_inheritance_claims::GetInheritanceClaimsInput;
 use crate::service::inheritance::lock_inheritance_claim::LockInheritanceClaimInput;
 use crate::service::inheritance::Service as InheritanceService;
 use crate::service::inheritance::{
     cancel_inheritance_claim::CancelInheritanceClaimInput,
     complete_inheritance_claim::{CompleteWithoutPsbtInput, SignAndCompleteInheritanceClaimInput},
+};
+use crate::service::inheritance::{
+    create_inheritance_claim::CreateInheritanceClaimInput, packages::UploadPackagesInput,
 };
 use crate::{metrics, service::inheritance::shorten_delay::ShortenDelayForBeneficiaryInput};
 
@@ -327,8 +329,13 @@ pub async fn upload_inheritance_packages(
         ));
     };
 
+    let packages = request.packages.into_iter().map(Package::from).collect();
+
     inheritance_service
-        .upload_packages(request.packages.into_iter().map(Package::from).collect())
+        .upload_packages(UploadPackagesInput {
+            benefactor_account_id: &account_id,
+            packages,
+        })
         .await?;
 
     Ok(Json(UploadInheritancePackagesResponse {}))

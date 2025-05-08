@@ -2,7 +2,7 @@ import build.wallet.gradle.logic.extensions.targets
 import build.wallet.gradle.logic.gradle.HostEnvironment
 import build.wallet.gradle.logic.gradle.konanTargetsForIOS
 import build.wallet.gradle.logic.gradle.optimalTargetsForIOS
-import org.jetbrains.kotlin.gradle.plugin.mpp.BitcodeEmbeddingMode.DISABLE
+import org.jetbrains.kotlin.gradle.plugin.mpp.Framework.BitcodeEmbeddingMode.DISABLE
 
 plugins {
   id("build.wallet.kmp")

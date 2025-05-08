@@ -9,6 +9,7 @@ deps = [
   led_dep,
   sysevent_dep,
   ipc_dep,
+  auth_dep,
 ]
 
 captouch_task_lib = library(

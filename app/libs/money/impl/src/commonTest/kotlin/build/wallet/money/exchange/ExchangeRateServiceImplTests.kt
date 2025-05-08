@@ -11,9 +11,6 @@ import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.SoftwareAccountMock
-import build.wallet.coroutines.createBackgroundScope
-import build.wallet.coroutines.turbine.awaitNoEvents
-import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.money.currency.USD
 import build.wallet.platform.app.AppSessionManagerFake
@@ -28,8 +25,8 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -39,11 +36,11 @@ class ExchangeRateServiceImplTests : FunSpec({
   val exchangeRateF8eClient = ExchangeRateF8eClientFake()
   val appSessionManager = AppSessionManagerFake()
   val accountService = AccountServiceFake()
+  val testScope = TestScope()
 
   lateinit var exchangeRateService: ExchangeRateServiceImpl
 
   val exchangeRate1 = USDtoBTC(0.5)
-  val exchangeRate2 = USDtoBTC(1.0)
   val eurtoBtcExchangeRate = EURtoBTC(0.7)
   val syncFrequency = 100.milliseconds
 
@@ -61,10 +58,10 @@ class ExchangeRateServiceImplTests : FunSpec({
     exchangeRateService = ExchangeRateServiceImpl(
       exchangeRateDao = exchangeRateDao,
       exchangeRateF8eClient = exchangeRateF8eClient,
-      appSessionManager = appSessionManager,
       accountService = accountService,
       clock = ClockFake(now = Instant.fromEpochSeconds(500)),
-      exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency)
+      exchangeRateSyncFrequency = ExchangeRateSyncFrequency(syncFrequency),
+      appScope = testScope
     )
   }
 
@@ -74,211 +71,84 @@ class ExchangeRateServiceImplTests : FunSpec({
     }
   }
 
-  test("sync immediately") {
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+  test("worker updates exchange rate") {
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty()
+    exchangeRateService.exchangeRates.value.shouldBeEmpty()
 
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-      awaitItem().shouldBe(listOf(exchangeRate1))
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateDao.allExchangeRates.test {
-      awaitItem().shouldBe(listOf(exchangeRate1))
-    }
+    exchangeRateService.exchangeRates.value.shouldBe(listOf(exchangeRate1))
   }
 
-  test("ignore sync failure") {
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+  test("ignores sync failure") {
+    // f8e returns error
+    exchangeRateF8eClient.exchangeRates.value = Err(UnhandledException(Exception("oops")))
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
+    // no rates updated
+    exchangeRateService.exchangeRates.value.shouldBeEmpty()
 
-      // f8e returns error
-      exchangeRateF8eClient.exchangeRates.value = Err(UnhandledException(Exception("oops")))
+    // f8e returns ok
+    exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-      // no rates updated
-      expectNoEvents()
-      exchangeRateDao.allExchangeRates.value.shouldBeEmpty()
-
-      // f8e returns ok
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-
-      // rates updated
-      awaitItem().shouldContainExactly(exchangeRate1)
-      // database updated
-      exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRate1)
-    }
+    // rates updated
+    exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
+    exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRate1)
   }
 
-  test("syncs periodically") {
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
-
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
-
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-
-      // rates updated
-      awaitItem().shouldContainExactly(exchangeRate1)
-
-      // Update the exchange rate response.
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate2))
-
-      // new rates updated
-      awaitItem().shouldContainExactly(exchangeRate2)
-      // database updated
-      exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRate2)
-
-      // Update the exchange rate response.
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-
-      // new rate updated
-      awaitItem().shouldContainExactly(exchangeRate1)
-      // database updated
-      exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRate1)
-    }
-  }
-
-  test("sync multiple currencies immediately") {
+  test("sync multiple currencies") {
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
-
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
-
-    exchangeRateService.exchangeRates.test {
-      awaitUntil(exchangeRates)
-      // database updated
-      exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
-    }
-  }
-
-  test("sync does not occur while app is backgrounded and resumes once foregrounded") {
-    appSessionManager.appDidEnterBackground()
-
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
-
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty() // Initial value
-
-      val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
-      exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
-
-      // no rates synced because app is backgrounded
-      delay(syncFrequency)
-      awaitNoEvents()
-      exchangeRateDao.allExchangeRates.value.shouldBeEmpty()
-
-      appSessionManager.appDidEnterForeground()
-
-      // rates synced because app is foregrounded
-      awaitUntil(exchangeRates)
-      // database updated
-      exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
-    }
-  }
-
-  test("remote sync occurs when manually requesting sync") {
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
-
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty()
-
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-
-      exchangeRateService.requestSync()
-
-      awaitItem().shouldContainExactly(listOf(exchangeRate1))
-    }
-  }
-
-  test("remote sync occurs when entering foreground") {
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
-
-    appSessionManager.appDidEnterBackground()
-
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty()
-
-      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
-
-      appSessionManager.appDidEnterForeground()
-
-      awaitItem().shouldContainExactly(exchangeRate1)
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
+    exchangeRateDao.allExchangeRates.value.shouldContainExactly(exchangeRates)
   }
 
   test("retrieving existing exchange rates in past 10 mins") {
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateService.exchangeRates.test {
-      awaitUntil(exchangeRates)
-
-      exchangeRateService.mostRecentRatesSinceDurationForCurrency(10.minutes, USD)
-        .shouldNotBeNull()
-        .shouldContainExactly(exchangeRates)
-    }
+    exchangeRateService.mostRecentRatesSinceDurationForCurrency(10.minutes, USD)
+      .shouldNotBeNull()
+      .shouldContainExactly(exchangeRates)
   }
 
   test("retrieving existing exchange rates in past 5 mins") {
     val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
     exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateService.exchangeRates.test {
-      awaitUntil(exchangeRates)
-
-      exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, USD)
-        .shouldBeNull()
-    }
+    exchangeRateService.mostRecentRatesSinceDurationForCurrency(5.minutes, USD)
+      .shouldBeNull()
   }
 
   test("syncs exchange rates for software accounts") {
     accountService.accountState.value = Ok(ActiveAccount(SoftwareAccountMock))
     exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateService.exchangeRates.test {
-      awaitUntil(listOf(exchangeRate1))
-    }
+    exchangeRateService.exchangeRates.value.shouldContainExactly(exchangeRate1)
   }
 
   test("does not sync exchange rates for lite accounts") {
     accountService.accountState.value = Ok(ActiveAccount(LiteAccountMock))
     exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
-    createBackgroundScope().launch {
-      exchangeRateService.executeWork()
-    }
+    exchangeRateService.executeWork()
+    testScope.runCurrent()
 
-    exchangeRateService.exchangeRates.test {
-      awaitItem().shouldBeEmpty()
-    }
+    exchangeRateService.exchangeRates.value.shouldBeEmpty()
   }
 })

@@ -20,17 +20,19 @@ import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClient
 import build.wallet.limit.DailySpendingLimitStatus.MobilePayAvailable
 import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
-import build.wallet.limit.MobilePayData.MobilePayDisabledData
-import build.wallet.limit.MobilePayData.MobilePayEnabledData
+import build.wallet.limit.MobilePayData.*
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
 import build.wallet.limit.MobilePayStatus.MobilePayEnabled
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.BTC
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.exchange.ExchangeRate
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.app.AppSessionManager
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
@@ -53,6 +55,7 @@ class MobilePayServiceImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val mobilePaySyncFrequency: MobilePaySyncFrequency,
+  private val exchangeRateService: ExchangeRateService,
 ) : MobilePayService, MobilePayBalanceSyncWorker {
   override val mobilePayData = MutableStateFlow<MobilePayData?>(null)
 
@@ -65,13 +68,13 @@ class MobilePayServiceImpl(
           .flatMapLatest { accountStatusResult ->
             val accountStatus = accountStatusResult.get()
             if (accountStatus is AccountStatus.ActiveAccount && accountStatus.account is FullAccount) {
-              mobilePayStatusRepository.status(accountStatus.account as FullAccount)
-                .combine(
-                  // When the currency changes, we need to recompute the remaining fiat balance
-                  fiatCurrencyPreferenceRepository.fiatCurrencyPreference
-                ) { mobilePayStatus, fiatCurrency ->
-                  mobilePayStatus.toMobilePayData(fiatCurrency)
-                }
+              combine(
+                mobilePayStatusRepository.status(accountStatus.account as FullAccount),
+                fiatCurrencyPreferenceRepository.fiatCurrencyPreference,
+                exchangeRateService.exchangeRates
+              ) { mobilePayStatus, fiatCurrency, exchangeRates ->
+                mobilePayStatus.toMobilePayData(fiatCurrency, exchangeRates)
+              }
             } else {
               // If we don't have an active full account, mobile pay data is just null
               flowOf(null)
@@ -119,7 +122,8 @@ class MobilePayServiceImpl(
       else -> when (data) {
         is MobilePayDisabledData -> RequiresHardware
         is MobilePayEnabledData -> {
-          if (data.balance != null && transactionAmount <= data.balance!!.available) {
+          val remainingBitcoinAmount = data.remainingBitcoinSpendingAmount
+          if (remainingBitcoinAmount != null && transactionAmount <= remainingBitcoinAmount) {
             MobilePayAvailable
           } else {
             RequiresHardware
@@ -132,14 +136,14 @@ class MobilePayServiceImpl(
   override fun getDailySpendingLimitStatus(
     transactionAmount: BitcoinTransactionSendAmount,
   ): DailySpendingLimitStatus {
-    val balance = when (val data = bitcoinWalletService.transactionsData().value) {
-      null -> return RequiresHardware
-      else -> data.balance
-    }
-
     val amount = when (transactionAmount) {
       is BitcoinTransactionSendAmount.ExactAmount -> transactionAmount.money
-      BitcoinTransactionSendAmount.SendAll -> balance.total
+      BitcoinTransactionSendAmount.SendAll -> {
+        when (val data = bitcoinWalletService.transactionsData().value) {
+          null -> return RequiresHardware
+          else -> data.balance.total
+        }
+      }
     }
 
     return getDailySpendingLimitStatus(amount)
@@ -184,29 +188,61 @@ class MobilePayServiceImpl(
     }
   }
 
-  private suspend fun MobilePayStatus.toMobilePayData(fiatCurrency: FiatCurrency) =
-    when (this) {
-      is MobilePayDisabled -> MobilePayDisabledData(mostRecentSpendingLimit)
-      is MobilePayEnabled -> MobilePayEnabledData(
-        activeSpendingLimit = activeSpendingLimit,
-        balance = balance,
-        remainingFiatSpendingAmount = remainingFiatSpendingAmount(
-          mobilePayBalance = balance,
-          fiatCurrency = fiatCurrency
-        )
-      )
-    }
-
-  private suspend fun remainingFiatSpendingAmount(
-    mobilePayBalance: MobilePayBalance?,
+  private fun MobilePayStatus.toMobilePayData(
     fiatCurrency: FiatCurrency,
+    exchangeRates: List<ExchangeRate>,
+  ) = when (this) {
+    is MobilePayDisabled -> MobilePayDisabledData(mostRecentSpendingLimit)
+    is MobilePayEnabled -> MobilePayEnabledData(
+      activeSpendingLimit = convertSpendingLimitToCurrency(
+        activeSpendingLimit,
+        fiatCurrency,
+        exchangeRates
+      ),
+      remainingBitcoinSpendingAmount = balance?.available,
+      remainingFiatSpendingAmount = balance?.available?.let {
+        remainingFiatSpendingAmount(it, fiatCurrency, exchangeRates)
+      }
+    )
+  }
+
+  /**
+   * Converts the server-provided spending limit into the user's local currency, if they differ.
+   *
+   * F8e persists the user's original currency preference when setting a mobile pay spending limit.
+   * However, the user can later change their currency preference (e.g. when traveling), and we want
+   * mobile pay to continue working. Yet, we don't want to require the user to have to update their
+   * mobile pay settings as currency is an *appearance*, so we convert to the current currency preference.
+   * locally.
+   *
+   * Returns null if currency conversion fails.
+   */
+  private fun convertSpendingLimitToCurrency(
+    spendingLimit: SpendingLimit,
+    fiatCurrency: FiatCurrency,
+    exchangeRates: List<ExchangeRate>,
+  ): SpendingLimit? {
+    if (spendingLimit.amount.currency == fiatCurrency) return spendingLimit
+
+    // First, convert the spending limit fiat into BTC.
+    val btcAmount = currencyConverter.convert(spendingLimit.amount, BTC, exchangeRates)
+
+    // Then, convert it into the user's currency preference.
+    return btcAmount?.let {
+      currencyConverter.convert(btcAmount, fiatCurrency, exchangeRates) as FiatMoney
+    }?.let { spendingLimit.copy(amount = it) }
+  }
+
+  /**
+   * Calculates the remaining spending amount in the user's preferred currency.
+   */
+  private fun remainingFiatSpendingAmount(
+    remainingBitcoinMoney: BitcoinMoney,
+    fiatCurrency: FiatCurrency,
+    exchangeRates: List<ExchangeRate>,
   ): FiatMoney? {
-    return mobilePayBalance?.let { balance ->
-      currencyConverter.convert(balance.spent, fiatCurrency, null).first()
-        ?.let { spentMoneyInFiat ->
-          val balanceLimit = balance.limit.amount
-          FiatMoney(fiatCurrency, balanceLimit.value - spentMoneyInFiat.value)
-        }
-    }
+    return currencyConverter.convert(
+      remainingBitcoinMoney, fiatCurrency, exchangeRates
+    ) as FiatMoney?
   }
 }

@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.10
+# syntax=docker/dockerfile:1.12
 FROM scratch AS source
 COPY --link Cargo.lock .
 COPY --link Cargo.toml .

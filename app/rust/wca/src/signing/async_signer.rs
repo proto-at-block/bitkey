@@ -81,6 +81,8 @@ fn extract_sync_signing_result(message: fwpb::wallet_rsp::Msg) -> Result<Signatu
             Ok(DeriveAndSignRspStatus::Error) => Err(CommandError::GeneralCommandError),
             Ok(DeriveAndSignRspStatus::Unauthenticated) => Err(CommandError::Unauthenticated),
             Ok(DeriveAndSignRspStatus::Unspecified) => Err(CommandError::UnspecifiedCommandError),
+            Ok(DeriveAndSignRspStatus::PolicyViolation) => Err(CommandError::PolicyViolation),
+            Ok(DeriveAndSignRspStatus::SigningFailed) => Err(CommandError::SigningError),
             Err(_) => Err(CommandError::InvalidResponse),
         }
     } else {

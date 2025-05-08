@@ -34,7 +34,6 @@ import build.wallet.firmware.HardwareUnlockInfoServiceFake
 import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupDataDaoProviderMock
 import build.wallet.home.GettingStartedTaskDaoMock
-import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.inheritance.InheritanceClaimsDaoFake
@@ -80,7 +79,6 @@ class AppDataDeleterImplTests : FunSpec({
   val onboardingAppKeyKeystoreFake = OnboardingAppKeyKeystoreFake()
   val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
-  val homeUiBottomSheetDao = HomeUiBottomSheetDaoMock(turbines::create)
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(turbines::create)
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val cloudBackupDao = CloudBackupDaoFake()
@@ -112,7 +110,6 @@ class AppDataDeleterImplTests : FunSpec({
       transactionPriorityPreference = transactionPriorityPreference,
       onboardingAppKeyKeystore = onboardingAppKeyKeystoreFake,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      homeUiBottomSheetDao = homeUiBottomSheetDao,
       bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
       appPrivateKeyDao = appPrivateKeyDao,
       cloudBackupDao = cloudBackupDao,
@@ -187,7 +184,6 @@ class AppDataDeleterImplTests : FunSpec({
       transactionPriorityPreference.preference.shouldBeNull()
       onboardingAppKeyKeystoreFake.appKeys.shouldBeNull()
       fiatCurrencyPreferenceRepository.clearCalls.awaitItem()
-      homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
       bitcoinDisplayPreferenceRepository.clearCalls?.awaitItem()
       authKeyRotationAttemptMock.clearCalls.awaitItem()
       onboardingKeyboxHwAuthPublicKeyDao.keys?.hwAuthPublicKey.shouldBeNull()

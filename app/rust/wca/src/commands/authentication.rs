@@ -35,6 +35,7 @@ pub const AUTHENTICATION_DERIVATION_PATH: [ChildNumber; 2] = [
 
 pub const AUTHENTICATION_KEY_LABEL: &str = "BK-AUTH-V1";
 
+/// NOTE: We never switched to the v2 commands.
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn get_authentication_key_v2() -> Result<PublicKeyHandle, CommandError> {
     // The underlying API is flexible and supports more than ed25519, but
@@ -63,6 +64,7 @@ fn get_authentication_key_v2() -> Result<PublicKeyHandle, CommandError> {
     }
 }
 
+/// NOTE: We never switched to the v2 commands.
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn sign_challenge_v2(challenge: Vec<u8>) -> Result<SignatureContext, CommandError> {
     let hash = <sha256::Hash as Hash>::hash(&challenge)

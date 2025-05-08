@@ -29,7 +29,7 @@ configureAndroidFlavor
 
 mkdir -p "$2"
 
-docker build -f "$1/app/verifiable-build/android/Dockerfile" \
+docker build --platform=linux/amd64 -f "$1/app/verifiable-build/android/Dockerfile" \
   -t bitkey-android-verification-builder \
   --target build \
   --build-arg REPRODUCIBLE_BUILD_VARIABLES="$3" \

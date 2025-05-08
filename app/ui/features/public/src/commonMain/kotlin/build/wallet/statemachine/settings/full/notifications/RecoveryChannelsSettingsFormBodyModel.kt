@@ -99,7 +99,10 @@ data class RecoveryChannelsSettingsFormBodyModel(
               )
             )
           )
-        ).takeIf { missingRecoveryMethods.isNotEmpty() },
+          // This information is only shown in the event that the customer is missing recovery methods
+          // If the customer reached the screen from SecurityHub, we don't want to show this information
+          // since it's previously shown in the SecurityHub screen
+        ).takeIf { missingRecoveryMethods.isNotEmpty() && source != Source.SecurityHub },
         ListGroup(
           listGroupModel =
             ListGroupModel(

@@ -2,18 +2,27 @@ use database::ddb::DatabaseError;
 
 use tracing::instrument;
 
-use types::recovery::{
-    inheritance::package::Package, social::relationship::RecoveryRelationshipId,
+use types::{
+    account::identifiers::AccountId,
+    recovery::{inheritance::package::Package, social::relationship::RecoveryRelationshipId},
 };
 
 use super::{error::ServiceError, Service};
 
+pub struct UploadPackagesInput<'a> {
+    pub benefactor_account_id: &'a AccountId,
+    pub packages: Vec<Package>,
+}
+
 impl Service {
     #[instrument(skip(self, input))]
-    pub async fn upload_packages(&self, input: Vec<Package>) -> Result<Vec<Package>, ServiceError> {
+    pub async fn upload_packages(
+        &self,
+        input: UploadPackagesInput<'_>,
+    ) -> Result<Vec<Package>, ServiceError> {
         let package_rows = self
             .repository
-            .persist_packages(input)
+            .persist_packages(input.benefactor_account_id, input.packages)
             .await
             .map_err(|e| match e {
                 DatabaseError::DependantObjectNotFound(_) => ServiceError::InvalidRelationship,

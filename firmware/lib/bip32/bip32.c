@@ -4,8 +4,6 @@
 #include "bitops.h"
 #include "ecc.h"
 #include "hash.h"
-#include "hex.h"
-#include "secp256k1.h"
 #include "secutils.h"
 
 #include <string.h>

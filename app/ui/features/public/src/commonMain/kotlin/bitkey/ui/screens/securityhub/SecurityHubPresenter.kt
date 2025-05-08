@@ -10,8 +10,13 @@ import bitkey.securitycenter.SecurityActionsService
 import bitkey.ui.framework.Navigator
 import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
+import bitkey.ui.screens.device.DeviceSettingsScreen
 import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
+import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
+import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen.ActionEducation
 import bitkey.ui.sheets.ViewInvitationSheet
+import build.wallet.availability.AppFunctionalityService
+import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
@@ -38,6 +43,7 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementScreen
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.notifications.Source
+import build.wallet.statemachine.status.AppFunctionalityStatusScreen
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.time.MinimumLoadingDuration
@@ -60,6 +66,7 @@ class SecurityHubPresenter(
   private val firmwareDataService: FirmwareDataService,
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
   private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
@@ -92,11 +99,19 @@ class SecurityHubPresenter(
 
     val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
       props = HomeStatusBannerUiProps(
-        onBannerClick = { limitedFunctionality ->
-          // TODO: W-11161 Handle offline in security hub
+        onBannerClick = {
+          navigator.goTo(
+            AppFunctionalityStatusScreen(
+              originScreen = screen
+            )
+          )
         }
       )
     )
+
+    val functionalityStatus by remember {
+      appFunctionalityService.status
+    }.collectAsState()
 
     val cardsModel = CardListModel(
       cards = buildImmutableList {
@@ -138,17 +153,36 @@ class SecurityHubPresenter(
     val firmwareUpdateData = firmwareDataService.firmwareData().value.firmwareUpdateState
 
     return SecurityHubBodyModel(
-      isRefreshing = isRefreshing,
-      onRefresh = { isRefreshing = true },
+      isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
       recommendations = recommendations.toImmutableList(),
       cardsModel = cardsModel,
       securityActions = securityActions,
       recoveryActions = recoveryActions,
       onRecommendationClick = {
-        navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+        if (it.shouldShowEducation()) {
+          navigator.goTo(
+            screen = SecurityHubEducationScreen.RecommendationEducation(
+              recommendation = it,
+              originScreen = screen,
+              firmwareData = firmwareUpdateData
+            )
+          )
+        } else {
+          navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+        }
       },
       onSecurityActionClick = {
-        navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+        if (it.shouldShowEducation()) {
+          navigator.goTo(
+            screen = ActionEducation(
+              action = it,
+              originScreen = screen,
+              firmwareData = firmwareUpdateData
+            )
+          )
+        } else {
+          navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+        }
       },
       onHomeTabClick = {
         navigator.exit()
@@ -157,7 +191,15 @@ class SecurityHubPresenter(
   }
 }
 
-private fun Navigator.navigateToScreen(
+private fun SecurityAction.shouldShowEducation(): Boolean {
+  return type().hasEducation && requiresAction()
+}
+
+private fun SecurityActionRecommendation.shouldShowEducation(): Boolean {
+  return actionType.hasEducation
+}
+
+fun Navigator.navigateToScreen(
   id: NavigationScreenId,
   originScreen: SecurityHubScreen,
   firmwareUpdateData: FirmwareData.FirmwareUpdateState,
@@ -205,11 +247,18 @@ private fun Navigator.navigateToScreen(
         origin = originScreen
       )
     )
+    NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE -> goTo(
+      screen = DeviceSettingsScreen(
+        account = originScreen.account,
+        lostHardwareRecoveryData = originScreen.hardwareRecoveryData,
+        originScreen = originScreen
+      )
+    )
     else -> Router.route = Route.NavigationDeeplink(screen = id)
   }
 }
 
-private fun SecurityAction.navigationScreenId(): NavigationScreenId =
+fun SecurityAction.navigationScreenId(): NavigationScreenId =
   when (this.type()) {
     BIOMETRIC -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_BIOMETRIC
     CRITICAL_ALERTS -> NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS

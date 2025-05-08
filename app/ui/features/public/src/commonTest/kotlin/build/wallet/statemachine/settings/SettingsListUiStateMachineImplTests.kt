@@ -54,7 +54,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       TrustedContacts::class to turbines.create("TrustedContacts onClick calls"),
       CloudBackupHealth::class to turbines.create("CloudBackupHealth onClick calls"),
       RotateAuthKey::class to turbines.create("RotateAuthKey onClick calls"),
-      Biometric::class to turbines.create("Biometric onClick calls")
+      Biometric::class to turbines.create("Biometric onClick calls"),
+      InheritanceManagement::class to turbines.create("InheritanceManagement onClick calls")
     )
 
   val props =
@@ -73,7 +74,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           CloudBackupHealth { propsOnClickCalls[CloudBackupHealth::class]?.add(Unit) },
           RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) },
           Biometric { propsOnClickCalls[Biometric::class]?.add(Unit) },
-          UtxoConsolidation { propsOnClickCalls[UtxoConsolidation::class]?.add(Unit) }
+          UtxoConsolidation { propsOnClickCalls[UtxoConsolidation::class]?.add(Unit) },
+          InheritanceManagement { propsOnClickCalls[InheritanceManagement::class]?.add(Unit) }
         ),
       onShowAlert = {},
       onDismissAlert = {},
@@ -104,6 +106,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
               "General" to listOf("Transfers", "Bitkey Device", "Appearance", "Notifications"),
               "Security & Recovery" to listOf(
                 "App Security",
+                "Inheritance",
                 "Mobile Devices",
                 "Cloud Backup",
                 "Trusted Contacts"
@@ -118,16 +121,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("list w/ security hub enabled") {
     securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
           .shouldBe(
             listOf(
-              "General" to listOf("Transfers", "Bitkey Device", "Appearance", "Notifications"),
-              "Security & Recovery" to listOf(
-                "Mobile Devices"
-              ),
+              "General" to listOf("Transfers", "Appearance", "Notifications", "Mobile Devices", "Inheritance"),
               "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
               "Support" to listOf("Contact Us", "Help Center")
             )
@@ -226,6 +227,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Transfers",
           "Appearance",
           "Notifications",
+          "Inheritance",
           "Trusted Contacts",
           "Help Center",
           "Mobile Devices",
@@ -253,6 +255,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Transfers",
           "Appearance",
           "Notifications",
+          "Inheritance",
           "Trusted Contacts",
           "Custom Electrum Server",
           "Help Center",

@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import { Environment } from "../common/environments";
-import { getErrorRecipients } from "../recipients";
+import { getErrorRecipients } from "./recipients";
 import { Monitor } from "../common/monitor";
 import { Comparator, metric_avg_query, metric_sum_query, trace_analytics_count_query } from "../common/queries";
 

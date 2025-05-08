@@ -55,7 +55,7 @@ def targets(c, names_only=False):
             print(target["name"])
     else:
         with c.cd(BUILD_FW_DIR):
-            c.run("meson introspect --targets | jq", pty=True)
+            c.run("meson introspect --targets | jq -M", pty=True)
 
 
 @task

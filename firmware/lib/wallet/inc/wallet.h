@@ -82,12 +82,6 @@ _Static_assert(
 
 void wallet_init(mempool_t* mempool);
 
-wallet_res_t wallet_create_keybundle(wallet_key_bundle_type_t type);
-bool wallet_keybundle_exists(wallet_key_bundle_type_t type);
-wallet_res_t wallet_keybundle_id(const wallet_key_bundle_type_t type, uint8_t* id_digest);
-wallet_res_t wallet_get_pubkey(const wallet_key_bundle_type_t type,
-                               const wallet_key_domain_t domain, extended_key_t* key_pub);
-
 void wallet_clear_derived_key_cache(void);
 bool wallet_derive_key_priv_using_cache(extended_key_t* key_priv,
                                         derivation_path_t derivation_path);
@@ -99,24 +93,13 @@ wallet_res_t wallet_csek_decrypt(uint8_t* wrapped_csek, uint8_t* unwrapped_csek_
                                  uint32_t length, uint8_t iv[AES_GCM_IV_LENGTH],
                                  uint8_t tag[AES_GCM_TAG_LENGTH]);
 
-wallet_res_t wallet_sign_txn(const wallet_key_domain_t key_domain,
-                             uint8_t digest[SHA256_DIGEST_SIZE], uint8_t signature[ECC_SIG_SIZE],
-                             uint32_t change, uint32_t address_index, key_descriptor_t* descriptor);
-
-wallet_res_t wallet_get_descriptor(const wallet_key_bundle_type_t type,
-                                   const wallet_key_domain_t key_domain,
-                                   key_descriptor_t* descriptor);
-
-bool wallet_set_network_type(fwpb_btc_network network);
-bool wallet_get_network_type(fwpb_btc_network* network_out);
+derivation_path_t* wallet_get_w1_auth_path();
 
 // Store data in flash, wrapped by the WKEK.
 bool wkek_encrypt_and_store(char* filename, const uint8_t* data, uint32_t size);
 // Read data from flash, decrypt with WKEK. `data_out` is memory managed by the caller
 // and must be at least `size` bytes.
 bool wkek_read_and_decrypt(char* filename, uint8_t* data_out, uint32_t size);
-
-bool wallet_created(void);
 
 // From wallet_storage.c
 void wallet_remove_files(void);  // Delete all wallet state.

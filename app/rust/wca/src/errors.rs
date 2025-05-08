@@ -90,6 +90,8 @@ pub enum CommandError {
     Timeout,
     #[error("bad status: {0}")]
     BadStatus(i32),
+    #[error("policy violation")]
+    PolicyViolation,
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

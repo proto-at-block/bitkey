@@ -221,10 +221,6 @@ class BitkeyDatabaseProviderImpl(
         PriorityPreferenceEntity.Adapter(
           priorityAdapter = EnumColumnAdapter()
         ),
-      homeUiBottomSheetEntityAdapter =
-        HomeUiBottomSheetEntity.Adapter(
-          sheetIdAdapter = EnumColumnAdapter()
-        ),
       bitcoinDisplayPreferenceEntityAdapter =
         BitcoinDisplayPreferenceEntity.Adapter(
           displayUnitAdapter = EnumColumnAdapter()

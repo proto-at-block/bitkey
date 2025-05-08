@@ -18,6 +18,7 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionModel
@@ -246,6 +247,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
             segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
             actionDescription = "Error getting hardware keyproof",
             screenPresentationStyle = props.screenPresentationStyle,
+            hardwareVerification = Required(true),
             onBack = recoveryData.rollback
           )
         )

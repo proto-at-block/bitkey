@@ -1,0 +1,7 @@
+-- Drop table since its no longer used; we used to persist a bottom sheet that appeared when changing
+-- your currency preference if you had mobile pay enabled. We now longer have that behavior so we
+-- no longer need the table.
+
+DROP TABLE homeUiBottomSheetEntity;
+
+PRAGMA foreign_key_check;

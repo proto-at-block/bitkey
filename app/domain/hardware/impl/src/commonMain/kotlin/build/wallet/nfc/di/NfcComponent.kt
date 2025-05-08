@@ -37,26 +37,26 @@ interface NfcComponent {
     return NfcTransactorImpl(
       commandsProvider = nfcCommandsProvider,
       sessionProvider = nfcSessionProvider,
-      interceptors =
-        listOf(
-          retryCommands(),
-          iosMessages(),
-          collectFirmwareTelemetry(
-            firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-            firmwareTelemetryUploader = firmwareTelemetryUploader,
-            firmwareCommsLogBuffer = firmwareCommsLogBuffer,
-            firmwareCommsLoggingFeatureFlag = firmwareCommsLoggingFeatureFlag
-          ),
-          lockDevice(),
-          haptics(nfcHaptics),
-          timeoutSession(),
-          collectMetrics(
-            datadogRumMonitor = datadogRumMonitor,
-            datadogTracer = datadogTracer,
-            eventTracker = eventTracker
-          ),
-          sessionLogger()
-        )
+      interceptors = listOf(
+        validateHardwareIsPaired(),
+        retryCommands(),
+        iosMessages(),
+        collectFirmwareTelemetry(
+          firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+          firmwareTelemetryUploader = firmwareTelemetryUploader,
+          firmwareCommsLogBuffer = firmwareCommsLogBuffer,
+          firmwareCommsLoggingFeatureFlag = firmwareCommsLoggingFeatureFlag
+        ),
+        lockDevice(),
+        haptics(nfcHaptics),
+        timeoutSession(),
+        collectMetrics(
+          datadogRumMonitor = datadogRumMonitor,
+          datadogTracer = datadogTracer,
+          eventTracker = eventTracker
+        ),
+        sessionLogger()
+      )
     )
   }
 }

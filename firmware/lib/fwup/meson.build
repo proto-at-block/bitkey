@@ -12,7 +12,7 @@ deps = [
   crypto_dep,
   perf_dep,
   bitlog_dep,
-  bootloader_dep,
+  bootloader_for_app_dep,
   detools_dep,
   fs_dep,
 ]
@@ -58,4 +58,3 @@ fwup_test = executable('fwup-test',
   dependencies : [fwup_dep, test_deps],
 )
 test('fwup test', fwup_test)
-

@@ -13,6 +13,9 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.transactions.TransactionsDataMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.relationships.RelationshipsFake
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -49,6 +52,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val onEnableSpendingLimitCalls = turbines.create<Unit>("enable spending limit calls")
   val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
   val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
+  val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
   val appFunctionalityService = AppFunctionalityServiceFake()
   val gettingStartedTaskDao =
@@ -77,7 +81,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       eventTracker = eventTracker,
       bitcoinWalletService = bitcoinWalletService,
       mobilePayService = mobilePayService,
-      socRecService = socRecService
+      socRecService = socRecService,
+      securityHubFeatureFlag = securityHubFeatureFlag
     )
 
   beforeTest {
@@ -86,8 +91,30 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
     mobilePayService.reset()
     appFunctionalityService.reset()
     socRecService.reset()
+    securityHubFeatureFlag.reset()
 
     socRecService.socRecRelationships.value = Relationships.EMPTY
+  }
+
+  test("card with security hub enabled") {
+    securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+      gettingStartedTaskDao.addTasks(
+        listOf(
+          GettingStartedTask(InviteTrustedContact, state = Incomplete),
+          GettingStartedTask(AddBitcoin, state = Incomplete),
+          GettingStartedTask(EnableSpendingLimit, state = Incomplete),
+          GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
+        )
+      )
+      awaitItem().shouldNotBeNull().expect(
+        listOf(
+          GettingStartedTask(AddBitcoin, state = Incomplete),
+          GettingStartedTask(EnableSpendingLimit, state = Incomplete)
+        )
+      )
+    }
   }
 
   test("card model should be null") {

@@ -3,6 +3,7 @@ package build.wallet.ui.app
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterExitState.Visible
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.*
@@ -162,7 +163,7 @@ private fun BitkeyTransition(
   // animation
   val density = LocalDensity.current
 
-  val transition: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
+  val transitionSpec: AnimatedContentTransitionScope<VoyagerScreen>.() -> ContentTransform = {
     when (navigator.lastEvent) {
       Replace, Idle -> NoAnimation
       Pop ->
@@ -182,17 +183,19 @@ private fun BitkeyTransition(
 
   AnimatedContent(
     targetState = navigator.lastItem,
-    transitionSpec = transition,
+    transitionSpec = transitionSpec,
     modifier = modifier,
     label = "Screen Transform"
   ) { screen ->
     content(screen)
 
-    // Check for animation to complete and then clear the stack
-    if (this.transition.currentState == this.transition.targetState) {
-      if ((screen as UiModelContentScreen).model.shouldClearStack()) {
-        navigator.replaceAll(item = screen)
-      }
+    // Clear the backstack every time a root screen is displayed
+    if (
+      transition.targetState == Visible &&
+      transition.currentState == Visible &&
+      screen.isBackstackRoot()
+    ) {
+      navigator.replaceAll(item = screen)
     }
   }
 }
@@ -277,13 +280,16 @@ private fun Navigator.pushContentTransform(
 }
 
 /**
- * Screen models that should clear the navigation stack after they are
- * presented.
+ * Returns true when this [ScreenModel] is considered the navigation or
+ * backstack root screen.  That is, when displayed, all previous screens
+ * should no longer be accessible via back navigation.
  */
-private fun ScreenModel.shouldClearStack(): Boolean {
+private fun VoyagerScreen.isBackstackRoot(): Boolean {
   // Always clear the stack on Money Home and Choose Account Access
-  return body.eventTrackerScreenInfo?.eventTrackerScreenId == MoneyHomeEventTrackerScreenId.MONEY_HOME ||
-    body.eventTrackerScreenInfo?.eventTrackerScreenId == GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS ||
+  val body = (this as UiModelContentScreen).model.body
+  val eventTrackerScreenId = body.eventTrackerScreenInfo?.eventTrackerScreenId
+  return eventTrackerScreenId == MoneyHomeEventTrackerScreenId.MONEY_HOME ||
+    eventTrackerScreenId == GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS ||
     body is SplashBodyModel ||
     body is SplashLockModel
 }

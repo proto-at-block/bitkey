@@ -11,6 +11,8 @@ import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_DEVI
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_UPDATE_IN_PROGRESS_FWUP
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.coroutines.scopes.mapAsStateFlow
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.fwup.*
@@ -22,6 +24,7 @@ import build.wallet.nfc.NfcAvailability.NotAvailable
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcReaderCapability
 import build.wallet.nfc.NfcSession
+import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.platform.device.DeviceInfoProvider
@@ -58,7 +61,16 @@ class FwupNfcSessionUiStateMachineImpl(
 
   @Composable
   override fun model(props: FwupNfcSessionUiProps): ScreenModel {
+    val scope = rememberStableCoroutineScope()
     val accountConfig = remember { accountConfigService.activeOrDefaultConfig().value }
+    val fwupData by remember {
+      firmwareDataService.firmwareData().mapAsStateFlow(scope) {
+        when (val state = it.firmwareUpdateState) {
+          is FirmwareData.FirmwareUpdateState.PendingUpdate -> state.fwupData
+          FirmwareData.FirmwareUpdateState.UpToDate -> null
+        }
+      }
+    }.collectAsState()
     val isHardwareFake = remember {
       when (accountConfig) {
         is FullAccountConfig -> accountConfig.isHardwareFake
@@ -72,7 +84,10 @@ class FwupNfcSessionUiStateMachineImpl(
         when (nfcReaderCapability.availability(isHardwareFake)) {
           NotAvailable -> NoNFCMessage
           Disabled -> EnableNFCInstructions
-          Enabled -> SearchingUiState
+          Enabled -> when (val data = fwupData) {
+            null -> error("No FWUP data available, this shouldn't happen")
+            else -> SearchingUiState(fwupData = data)
+          }
         }
       )
     }
@@ -84,6 +99,7 @@ class FwupNfcSessionUiStateMachineImpl(
         NfcTransactionEffect(
           props = props,
           state = state,
+          fwupData = state.fwupData,
           isHardwareFake = isHardwareFake,
           setProgress = { fwupProgress = it },
           setState = { newState ->
@@ -118,7 +134,7 @@ class FwupNfcSessionUiStateMachineImpl(
 
           is SuccessUiState -> {
             LaunchedEffect("fwup-success") {
-              firmwareDataService.updateFirmwareVersion(props.firmwareData.fwupData)
+              firmwareDataService.updateFirmwareVersion(state.fwupData)
               eventTracker.track(Action.ACTION_APP_FWUP_COMPLETE)
               delay(
                 NfcSuccessScreenDuration(
@@ -152,7 +168,11 @@ class FwupNfcSessionUiStateMachineImpl(
           }
 
           is NavigateToEnableNFC -> {
-            enableNfcNavigator.navigateToEnableNfc { uiState = SearchingUiState }
+            enableNfcNavigator.navigateToEnableNfc {
+              fwupData?.let {
+                uiState = SearchingUiState(it)
+              } ?: error("No FWUP data available, this shouldn't happen")
+            }
             NoNfcMessageModel(onBack = props.onBack)
               .asModalScreen()
           }
@@ -165,6 +185,7 @@ class FwupNfcSessionUiStateMachineImpl(
   private fun NfcTransactionEffect(
     props: FwupNfcSessionUiProps,
     state: InSessionUiState,
+    fwupData: FwupData,
     isHardwareFake: Boolean,
     // TODO(W-8034): use Progress type.
     setProgress: (progress: Float) -> Unit,
@@ -182,26 +203,27 @@ class FwupNfcSessionUiStateMachineImpl(
               nfcFlowName = "fwup",
               onTagConnected = {
                 eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
-                setState(UpdatingUiState)
+                setState(UpdatingUiState(state.fwupData))
               },
               onTagDisconnected = {
                 if (state !is SuccessUiState) {
-                  setState(InSessionUiState.LostConnectionUiState)
+                  setState(LostConnectionUiState(state.fwupData))
                 }
               },
+              requirePairedHardware = NotRequired, // Allow users to fwup unpaired devices
               asyncNfcSigning = false // Unused for FWUP
             ),
           transaction = { session, commands ->
             fwupTransaction(
               session = session,
               commands = commands,
-              fwupData = props.firmwareData.fwupData,
+              fwupData = fwupData,
               updateSequenceId = { sequenceId ->
                 setSequenceId(sequenceId)
                 val progress =
                   fwupProgressCalculator.calculateProgress(
                     sequenceId = sequenceId,
-                    finalSequenceId = props.firmwareData.fwupData.finalSequenceId()
+                    finalSequenceId = fwupData.finalSequenceId()
                   )
                 session.message = "${progress.roundToInt()}%"
                 setProgress(progress)
@@ -223,7 +245,7 @@ class FwupNfcSessionUiStateMachineImpl(
             }
           }
         }.onSuccess {
-          setState(SuccessUiState)
+          setState(SuccessUiState(state.fwupData))
         }
     }
   }
@@ -341,14 +363,14 @@ class FwupNfcSessionUiStateMachineImpl(
 }
 
 private sealed interface FwupNfcSessionUiState {
-  sealed interface InSessionUiState : FwupNfcSessionUiState {
-    data object SearchingUiState : InSessionUiState
+  sealed class InSessionUiState(open val fwupData: FwupData) : FwupNfcSessionUiState {
+    data class SearchingUiState(override val fwupData: FwupData) : InSessionUiState(fwupData)
 
-    data object UpdatingUiState : InSessionUiState
+    data class UpdatingUiState(override val fwupData: FwupData) : InSessionUiState(fwupData)
 
-    data object LostConnectionUiState : InSessionUiState
+    data class LostConnectionUiState(override val fwupData: FwupData) : InSessionUiState(fwupData)
 
-    data object SuccessUiState : InSessionUiState
+    data class SuccessUiState(override val fwupData: FwupData) : InSessionUiState(fwupData)
   }
 
   // TODO (W-4558): Consolidate these states with those in [NfcSessionUiStateMachineImpl]

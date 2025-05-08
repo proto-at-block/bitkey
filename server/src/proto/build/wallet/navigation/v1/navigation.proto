@@ -61,5 +61,8 @@ enum NavigationScreenId {
     /** The screen shown to manage Bitkey device. **/
     NAVIGATION_SCREEN_ID_MANAGE_BITKEY_DEVICE = 17;
 
-    /** The next tag is 18 **/
+    /** The security hub screen. **/
+    NAVIGATION_SCREEN_ID_SECURITY_HUB = 18;
+
+    /** The next tag is 19 **/
 }

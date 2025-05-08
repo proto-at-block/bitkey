@@ -16,6 +16,7 @@ deps = [
   animation_dep,
   secure_channel_dep,
   onboarding_dep,
+  policy_dep,
 ]
 
 key_manager_task_lib = library('key-manager-task',

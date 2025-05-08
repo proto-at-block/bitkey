@@ -1,12 +1,11 @@
 package build.wallet.statemachine.trustedcontact
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import bitkey.relationships.Relationships
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
@@ -20,6 +19,9 @@ import build.wallet.statemachine.trustedcontact.model.BenefactorInviteAcceptedNo
 import build.wallet.statemachine.trustedcontact.model.ProtectedCustomerInviteAcceptedNotificationBodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 
 @BitkeyInject(ActivityScope::class)
 class RecoveryRelationshipNotificationUiStateMachineImpl(
@@ -28,109 +30,89 @@ class RecoveryRelationshipNotificationUiStateMachineImpl(
 ) : RecoveryRelationshipNotificationUiStateMachine {
   @Composable
   override fun model(props: RecoveryRelationshipNotificationUiProps): ScreenModel {
-    var uiState: UiState by remember { mutableStateOf(Loading) }
+    val relationships = when (props.action) {
+      RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> inheritanceService.inheritanceRelationships
+      RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> socRecService.socRecRelationships
+    }
+    val uiState by relationships
+      .filterNotNull()
+      .toStateMatching(props.recoveryRelationshipId)
+      .collectAsState(Loading)
 
     return when (val state = uiState) {
-      is Loading -> {
-        when (props.action) {
-          RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> {
-            LaunchedEffect("fetch inheritance relationships") {
-              inheritanceService.inheritanceRelationships.collect { relationships ->
-                val matchingContact = relationships.endorsedTrustedContacts
-                  .firstOrNull { it.id.toString() == props.recoveryRelationshipId }
-
-                uiState = if (matchingContact != null) {
-                  BenefactorInviteAccepted(matchingContact)
-                } else {
-                  createRelationshipNotExistState(
-                    SocialRecoveryEventTrackerScreenId.BENEFACTOR_RECOVERY_RELATIONSHIP_NOT_ACTIVE,
-                    InheritanceAppSegment.Benefactor.Invite,
-                    "When the benefactor opens up the push notification to endorse the inheritance recovery relationship, it isn't active."
-                  )
-                }
-              }
-            }
-          }
-
-          RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> {
-            LaunchedEffect("fetch socrec relationships") {
-              socRecService.socRecRelationships.collect { relationships ->
-                val matchingContact = relationships?.let { rel ->
-                  (rel.endorsedTrustedContacts + rel.unendorsedTrustedContacts)
-                    .firstOrNull { it.id.toString() == props.recoveryRelationshipId }
-                }
-
-                uiState = if (matchingContact != null) {
-                  ProtectedCustomerInviteAccepted(matchingContact)
-                } else {
-                  createRelationshipNotExistState(
-                    SocialRecoveryEventTrackerScreenId.PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_NOT_ACTIVE,
-                    RecoverySegment.SocRec.TrustedContact.Setup,
-                    "When the customer opens up the push notification to endorse the recovery relationship, it isn't active."
-                  )
-                }
-              }
-            }
-          }
+      is Loading -> LoadingBodyModel(
+        id = when (props.action) {
+          RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> SocialRecoveryEventTrackerScreenId.BENEFACTOR_RECOVERY_RELATIONSHIP_LOADING
+          RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> SocialRecoveryEventTrackerScreenId.PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_LOADING
         }
-        LoadingBodyModel(id = null).asModalScreen()
-      }
-
-      is BenefactorInviteAccepted -> {
-        BenefactorInviteAcceptedNotificationBodyModel(
-          beneficiary = state.beneficiary,
+      ).asModalScreen()
+      is Endorsing -> LoadingBodyModel(
+        id = when (props.action) {
+          RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> SocialRecoveryEventTrackerScreenId.BENEFACTOR_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT
+          RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> SocialRecoveryEventTrackerScreenId.PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT
+        },
+        message = "Completing invitation..."
+      ).asModalScreen()
+      is Endorsed -> when (props.action) {
+        RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> BenefactorInviteAcceptedNotificationBodyModel(
+          beneficiary = state.contact,
           onDone = props.onBack
         ).asModalScreen()
-      }
-
-      is ProtectedCustomerInviteAccepted -> {
-        ProtectedCustomerInviteAcceptedNotificationBodyModel(
+        RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> ProtectedCustomerInviteAcceptedNotificationBodyModel(
           trustedContact = state.contact,
           onDone = props.onBack
         ).asModalScreen()
       }
-
-      is RecoveryRelationshipDoesNotExist -> {
-        ErrorFormBodyModel(
-          title = "Recovery relationship is no longer active.",
-          toolbar =
-            ToolbarModel(
-              leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onBack)
-            ),
-          primaryButton =
-            ButtonDataModel(
-              text = "Close",
-              onClick = props.onBack
-            ),
-          errorData = state.errorData,
-          eventTrackerScreenId = state.eventTrackerScreenId
-        ).asModalScreen()
-      }
+      is NotFound -> ErrorFormBodyModel(
+        title = when (props.action) {
+          RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> "Beneficiary is no longer active."
+          RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> "Recovery relationship is no longer active."
+        },
+        toolbar =
+          ToolbarModel(
+            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(props.onBack)
+          ),
+        primaryButton =
+          ButtonDataModel(
+            text = "Close",
+            onClick = props.onBack
+          ),
+        errorData = ErrorData(
+          when (props.action) {
+            RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> InheritanceAppSegment.Benefactor.Invite
+            RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> RecoverySegment.SocRec.TrustedContact.Setup
+          },
+          "User opens app from notification to complete contact invitation",
+          Error("Recovery relationship for notification is not active")
+        ),
+        eventTrackerScreenId = when (props.action) {
+          RecoveryRelationshipNotificationAction.BenefactorInviteAccepted -> SocialRecoveryEventTrackerScreenId.BENEFACTOR_RECOVERY_RELATIONSHIP_NOT_ACTIVE
+          RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted -> SocialRecoveryEventTrackerScreenId.PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_NOT_ACTIVE
+        }
+      ).asModalScreen()
     }
   }
 
-  private fun createRelationshipNotExistState(
-    screenId: SocialRecoveryEventTrackerScreenId,
-    segment: AppSegment,
-    message: String,
-  ): UiState {
-    return RecoveryRelationshipDoesNotExist(
-      screenId,
-      ErrorData(
-        segment,
-        message,
-        Error("Recovery relationship for notification is not active")
-      )
-    )
+  private fun Flow<Relationships>.toStateMatching(matchId: RelationshipId): Flow<UiState> {
+    return map {
+      val endorsed = it.endorsedTrustedContacts.find { it.id == matchId }
+      val unendorsed = it.unendorsedTrustedContacts.find { it.id == matchId }
+
+      when {
+        unendorsed != null -> Endorsing(unendorsed)
+        endorsed != null -> Endorsed(endorsed)
+        else -> NotFound
+      }
+    }
   }
 
   private sealed interface UiState {
     data object Loading : UiState
 
-    data class BenefactorInviteAccepted(val beneficiary: TrustedContact) : UiState
+    data class Endorsing(val contact: TrustedContact) : UiState
 
-    data class ProtectedCustomerInviteAccepted(val contact: TrustedContact) : UiState
+    data class Endorsed(val contact: TrustedContact) : UiState
 
-    data class RecoveryRelationshipDoesNotExist(val eventTrackerScreenId: SocialRecoveryEventTrackerScreenId, val errorData: ErrorData) : UiState
+    data object NotFound : UiState
   }
 }

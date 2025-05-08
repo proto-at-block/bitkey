@@ -175,6 +175,12 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Benefactor invite accepted, tapped notification and showing success screen */
   BENEFACTOR_INVITE_ACCEPTED,
 
+  /** Loading information about benefactor invitation */
+  BENEFACTOR_RECOVERY_RELATIONSHIP_LOADING,
+
+  /** Awaiting Benefactor endorsement */
+  BENEFACTOR_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT,
+
   /** Benefactor invite accepted, tapped notification but the relationship is no longer active leading to an error screen */
   BENEFACTOR_RECOVERY_RELATIONSHIP_NOT_ACTIVE,
 
@@ -183,4 +189,10 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
 
   /** Protected customer invite accepted, tapped notification but the relationship is no longer active leading to an error screen */
   PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_NOT_ACTIVE,
+
+  /** Loading information about protected customer invitation */
+  PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_LOADING,
+
+  /** Awaiting Protected customer endorsement */
+  PROTECTED_CUSTOMER_RECOVERY_RELATIONSHIP_AWAITING_ENDORSEMENT,
 }

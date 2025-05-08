@@ -68,7 +68,6 @@ dev_variant_deps = base_deps + [
   fs_cmd_dep,
   sysinfo_cmd_dep,
   crypto_cmd_dep,
-  wallet_cmd_dep,
   memfault_cmd_dep,
   power_cmd_dep,
   wca_cmd_dep,

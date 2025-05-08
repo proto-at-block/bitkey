@@ -47,11 +47,18 @@ fun CircularProgressIndicator(
     progressValue = 1f
   }
 
+  // Clamp the duration in milliseconds to avoid integer overflow when converting long durations,
+  // such as 6 months for inheritance claims. No user will actually see a 6-month animation,
+  // so only the correct progress percentage is displayed.
+  val durationMillis = remainingSeconds.seconds.inWholeMilliseconds
+    .coerceIn(0L, Int.MAX_VALUE.toLong())
+    .toInt()
+
   val animatedProgress by animateFloatAsState(
     targetValue = progressValue,
     animationSpec =
       tween(
-        durationMillis = remainingSeconds.seconds.inWholeMilliseconds.toInt(),
+        durationMillis = durationMillis,
         easing = LinearEasing
       ),
     label = "progressAnimation"

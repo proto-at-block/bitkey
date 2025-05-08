@@ -4,14 +4,12 @@ import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.availability.AppFunctionalityService
-import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.limit.MobilePayService
-import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.navigation.v1.NavigationScreenId
 import build.wallet.partnerships.*
 import build.wallet.platform.links.DeepLinkHandler
@@ -22,9 +20,6 @@ import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
 import build.wallet.statemachine.home.full.PresentedScreen.*
-import build.wallet.statemachine.home.full.bottomsheet.CurrencyChangeMobilePayBottomSheetUpdater
-import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
-import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiStateMachine
 import build.wallet.statemachine.inheritance.InheritanceNotificationAction
@@ -40,8 +35,7 @@ import build.wallet.statemachine.settings.full.SettingsHomeUiProps
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.ShowingInheritanceUiState
-import build.wallet.statemachine.status.AppFunctionalityStatusUiProps
-import build.wallet.statemachine.status.AppFunctionalityStatusUiStateMachine
+import build.wallet.statemachine.status.AppFunctionalityStatusScreen
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.*
@@ -57,11 +51,7 @@ import kotlinx.datetime.toLocalDateTime
 
 @BitkeyInject(ActivityScope::class)
 class HomeUiStateMachineImpl(
-  private val appFunctionalityStatusUiStateMachine: AppFunctionalityStatusUiStateMachine,
-  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val currencyChangeMobilePayBottomSheetUpdater: CurrencyChangeMobilePayBottomSheetUpdater,
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
-  private val homeUiBottomSheetStateMachine: HomeUiBottomSheetStateMachine,
   private val moneyHomeUiStateMachine: MoneyHomeUiStateMachine,
   private val settingsHomeUiStateMachine: SettingsHomeUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
@@ -73,7 +63,6 @@ class HomeUiStateMachineImpl(
   private val deepLinkHandler: DeepLinkHandler,
   private val clock: Clock,
   private val timeZoneProvider: TimeZoneProvider,
-  private val mobilePayService: MobilePayService,
   private val partnershipTransactionsService: PartnershipTransactionsService,
   private val inheritanceClaimNotificationUiStateMachine:
     InheritanceClaimNotificationUiStateMachine,
@@ -95,21 +84,6 @@ class HomeUiStateMachineImpl(
     }
 
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
-    val mobilePayData by remember { mobilePayService.mobilePayData }.collectAsState()
-
-    // Update bottom sheet for currency changes which affect Mobile Pay
-    // Set up an effect to set or clear the bottom sheet alert when Mobile Pay is enabled
-    val fiatCurrency by remember {
-      fiatCurrencyPreferenceRepository.fiatCurrencyPreference
-    }.collectAsState()
-
-    LaunchedEffect("set-or-clear-bottom-sheet", fiatCurrency) {
-      // TODO(W-8080): implement as a worker
-      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheet(
-        fiatCurrency = fiatCurrency,
-        mobilePayData = mobilePayData
-      )
-    }
 
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
@@ -214,20 +188,23 @@ class HomeUiStateMachineImpl(
                 uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery))
                 true
               }
+              NavigationScreenId.NAVIGATION_SCREEN_ID_SECURITY_HUB -> {
+                uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+                true
+              }
               else -> false
             }
           }
           is Route.RecoveryRelationshipNavigationDeepLink -> {
             return@onRouteChange when (route.screen) {
               NavigationScreenId.NAVIGATION_SCREEN_ID_INHERITANCE_BENEFACTOR_INVITE_ACCEPTED -> {
-                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.BenefactorInviteAccepted, route.recoveryRelationshipId))
+                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.BenefactorInviteAccepted, RelationshipId(route.recoveryRelationshipId)))
                 true
               }
               NavigationScreenId.NAVIGATION_SCREEN_ID_SOCIAL_RECOVERY_PROTECTED_CUSTOMER_INVITE_ACCEPTED -> {
-                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted, route.recoveryRelationshipId))
+                uiState = uiState.copy(presentedScreen = RecoveryRelationshipAction(RecoveryRelationshipNotificationAction.ProtectedCustomerInviteAccepted, RelationshipId(route.recoveryRelationshipId)))
                 true
               }
-
               else -> false
             }
           }
@@ -260,20 +237,11 @@ class HomeUiStateMachineImpl(
 
     return when (val presentedScreen = uiState.presentedScreen) {
       null -> {
-        // Observe the global bottom sheet model
-        val homeBottomSheetModel = homeUiBottomSheetStateMachine.model(
-          props = HomeUiBottomSheetProps(
-            onShowSetSpendingLimitFlow = {
-              uiState = uiState.copy(presentedScreen = SetSpendingLimit)
-            }
-          )
-        )
-
         // Observe the global status banner model
         val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
           props = HomeStatusBannerUiProps(
-            onBannerClick = { limitedFunctionality ->
-              uiState = uiState.copy(presentedScreen = AppFunctionalityStatus(limitedFunctionality))
+            onBannerClick = {
+              uiState = uiState.copy(presentedScreen = AppFunctionalityStatus)
             }
           )
         )
@@ -283,7 +251,7 @@ class HomeUiStateMachineImpl(
             props = MoneyHomeUiProps(
               account = props.account,
               lostHardwareRecoveryData = props.lostHardwareRecoveryData,
-              homeBottomSheetModel = homeBottomSheetModel,
+              homeBottomSheetModel = null,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettings = {
                 uiState = uiState.copy(rootScreen = Settings(null))
@@ -312,7 +280,6 @@ class HomeUiStateMachineImpl(
               account = props.account,
               settingsListState = rootScreen.screen,
               lostHardwareRecoveryData = props.lostHardwareRecoveryData,
-              homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               goToSecurityHub = {
                 uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
@@ -412,11 +379,9 @@ class HomeUiStateMachineImpl(
         }
       ).asModalScreen()
 
-      is AppFunctionalityStatus -> appFunctionalityStatusUiStateMachine.model(
-        props = AppFunctionalityStatusUiProps(
-          onClose = { uiState = uiState.copy(presentedScreen = null) },
-          status = presentedScreen.status
-        )
+      is AppFunctionalityStatus -> navigatorPresenter.model(
+        AppFunctionalityStatusScreen(originScreen = null),
+        onExit = { uiState = uiState.copy(presentedScreen = null) }
       )
 
       is InheritanceClaimAction -> inheritanceClaimNotificationUiStateMachine.model(
@@ -474,7 +439,7 @@ private sealed interface PresentedScreen {
   data object SetSpendingLimit : PresentedScreen
 
   /** Indicates that the app functionality status screen is currently presented */
-  data class AppFunctionalityStatus(val status: LimitedFunctionality) : PresentedScreen
+  data object AppFunctionalityStatus : PresentedScreen
 
   /** Indicates that the add trusted contact flow is currently presented */
   data class AddTrustedContact(val inviteCode: String?) : PresentedScreen
@@ -493,7 +458,7 @@ private sealed interface PresentedScreen {
   /** Perform an action on a recovery relationship */
   data class RecoveryRelationshipAction(
     val action: RecoveryRelationshipNotificationAction,
-    val recoveryRelationshipId: String,
+    val recoveryRelationshipId: RelationshipId,
   ) : PresentedScreen
 
   /** Indicates that the partner transfer flow is currently presented */

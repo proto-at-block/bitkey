@@ -359,6 +359,9 @@ extension IOCommand {
                 case CommandError.Unauthenticated:
                     throw NfcException.CommandErrorUnauthenticated().asError()
 
+                case CommandError.SealCsekResponseUnsealError:
+                    throw NfcException.CommandErrorSealCsekResponseUnsealException().asError()
+
                 // If there was an issue with the specific command, it will be thrown as a
                 // `CommandError`
                 case is CommandError:

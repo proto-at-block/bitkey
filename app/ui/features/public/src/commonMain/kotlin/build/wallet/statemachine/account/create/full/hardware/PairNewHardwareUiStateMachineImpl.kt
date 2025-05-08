@@ -28,6 +28,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.theme.Theme
@@ -119,6 +120,7 @@ class PairNewHardwareUiStateMachineImpl(
             ),
             screenPresentationStyle = props.screenPresentationStyle,
             segment = props.segment,
+            hardwareVerification = NotRequired,
             actionDescription = "Pairing new hardware",
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_ACTIVATION,
             onInauthenticHardware = { state = ShowingHelpCenter }
@@ -189,6 +191,7 @@ class PairNewHardwareUiStateMachineImpl(
                 state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
               }
             ),
+            hardwareVerification = NotRequired,
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_FINGERPRINT,
             onInauthenticHardware = { cause ->

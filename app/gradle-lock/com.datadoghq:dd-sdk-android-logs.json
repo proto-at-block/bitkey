@@ -2,11 +2,11 @@
     "module-identifier": "com.datadoghq:dd-sdk-android-logs",
     "components": [
         {
-            "version": "2.16.0",
+            "version": "2.16.1",
             "variants": [
                 {
                     "artifacts": {
-                        "dd-sdk-android-logs-2.16.0.aar": "d3294eb1b0fafa451e5177b84e8dd9f25ff09985c138111e1c0c8d94be6b7a21"
+                        "dd-sdk-android-logs-2.16.1.aar": "d3294eb1b0fafa451e5177b84e8dd9f25ff09985c138111e1c0c8d94be6b7a21"
                     }
                 }
             ],

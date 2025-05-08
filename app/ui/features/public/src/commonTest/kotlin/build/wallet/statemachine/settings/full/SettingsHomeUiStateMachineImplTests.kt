@@ -14,7 +14,6 @@ import build.wallet.fwup.FwupDataMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.export.ExportToolsUiProps
@@ -63,7 +62,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       account = FullAccountMock,
       settingsListState = null,
       lostHardwareRecoveryData = LostHardwareRecoveryDataMock,
-      homeBottomSheetModel = null,
       homeStatusBannerModel = null,
       onBack = { propsOnBackCalls.add(Unit) },
       goToSecurityHub = {}
@@ -324,12 +322,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       }
       awaitBodyMock<SettingsListUiProps>()
       firmwareDataService.firmwareData.value.shouldBe(secondUpdate)
-    }
-  }
-
-  test("shows bottom sheet from props") {
-    stateMachine().test(props.copy(homeBottomSheetModel = SheetModelMock {})) {
-      awaitItem().bottomSheetModel.shouldNotBeNull()
     }
   }
 

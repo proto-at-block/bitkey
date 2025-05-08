@@ -11,7 +11,6 @@ extern "C" {
 #include "key_management.h"
 #include "lfs.h"
 #include "secutils.h"
-#include "wallet_impl.h"
 #include "wkek_impl.h"
 
 #include <stdint.h>
@@ -247,10 +246,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     // verify that wallet functions behave as expected with potentially incomplete setup
     switch (ops_choice) {
       case Wallet_Fuzzer_Ops::SIGN_TXN: {
-        uint8_t sighash[SHA256_DIGEST_SIZE] = {0};
-        uint8_t sig[ECC_SIG_SIZE] = {0};
-        assert(wallet_sign_txn(WALLET_KEY_DOMAIN_SPEND, sighash, sig, 0, 0, &descriptor) ==
-               expected[static_cast<int>(Wallet_Fuzzer_Ops::SIGN_TXN)]);
         break;
       }
       case Wallet_Fuzzer_Ops::ENCRYPT: {

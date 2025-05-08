@@ -12,6 +12,6 @@ val MobilePayDisabledDataMock =
 val MobilePayEnabledDataMock =
   MobilePayEnabledData(
     activeSpendingLimit = SpendingLimitMock,
-    balance = MobilePayBalanceMock,
+    remainingBitcoinSpendingAmount = MobilePayBalanceMock.available,
     remainingFiatSpendingAmount = FiatMoney.usd(100)
   )

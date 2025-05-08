@@ -147,6 +147,7 @@ subdir('hal/power')
 subdir('hal/biometrics')
 subdir('lib/unlock')
 subdir('lib/onboarding')
+subdir('lib/policy')
 
 subdir('config')
 subdir('app')

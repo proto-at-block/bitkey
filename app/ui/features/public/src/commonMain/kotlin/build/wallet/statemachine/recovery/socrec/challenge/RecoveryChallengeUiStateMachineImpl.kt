@@ -47,6 +47,34 @@ class RecoveryChallengeUiStateMachineImpl(
   override fun model(props: RecoveryChallengeUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.StartingChallengeState) }
 
+    fun handleContinueClick(currentState: State.TrustedContactList) {
+      val response = currentState.challenge.challenge.responses.firstOrNull() ?: run {
+        state = State.RecoveryFailed(error = Error("No response from trusted contacts"))
+        return
+      }
+
+      val respondingContact = props.endorsedTrustedContacts.find {
+        it.relationshipId == response.recoveryRelationshipId
+      } ?: run {
+        state = State.RecoveryFailed(error = Error("Could not find matching trusted contact"))
+        return
+      }
+
+      val matchingAuth = currentState.challenge.tcAuths.find {
+        it.relationshipId == response.recoveryRelationshipId
+      } ?: run {
+        state = State.RecoveryFailed(error = Error("Could not find matching challenge authentication"))
+        return
+      }
+
+      state = State.RestoringAppKey(
+        sealedPrivateKeyMaterial = props.sealedPrivateKeyMaterial,
+        response = response,
+        contact = respondingContact,
+        challengeAuth = matchingAuth
+      )
+    }
+
     return when (val current = state) {
       State.StartingChallengeState -> {
         LaunchedEffect("start-challenge") {
@@ -122,48 +150,40 @@ class RecoveryChallengeUiStateMachineImpl(
           verifiedBy = current.challenge.challenge.responses.map {
             it.recoveryRelationshipId
           }.toImmutableList(),
-          onContinue = {
-            val response = current.challenge.challenge.responses.first()
-            val respondingContact =
-              props.endorsedTrustedContacts.first { contact ->
-                contact.relationshipId == response.recoveryRelationshipId
-              }
-            state =
-              State.RestoringAppKey(
-                sealedPrivateKeyMaterial = props.sealedPrivateKeyMaterial,
-                response = response,
-                contact = respondingContact,
-                challengeAuth =
-                  current.challenge.tcAuths.first {
-                    it.relationshipId == response.recoveryRelationshipId
-                  }
-              )
-          },
+          onContinue = { handleContinueClick(current) },
           onCancelRecovery = props.onExit
         ).asRootScreen()
       }
-      is State.ShareChallengeCode -> {
-        RecoveryChallengeCodeBodyModel(
-          recoveryChallengeCode =
-            challengeCodeFormatter.format(
-              current.challenge.tcAuths
-                .first { it.relationshipId == current.selectedContact.relationshipId }
-                .fullCode
-            ),
-          onBack = {
-            state =
-              State.TrustedContactList(
-                challenge = current.challenge
-              )
-          },
-          onDone = {
-            state =
-              State.TrustedContactList(
-                challenge = current.challenge
-              )
+      is State.ShareChallengeCode ->
+        current.challenge.tcAuths
+          .firstOrNull { it.relationshipId == current.selectedContact.relationshipId }
+          ?.let { auth ->
+            // Matching auth found -> render the code screen
+            RecoveryChallengeCodeBodyModel(
+              recoveryChallengeCode = challengeCodeFormatter.format(auth.fullCode),
+              onBack = { state = State.TrustedContactList(current.challenge) },
+              onDone = { state = State.TrustedContactList(current.challenge) }
+            )
           }
-        ).asRootScreen()
-      }
+          ?.asRootScreen()
+          ?: run {
+            // No auth -> transition to error state and show an error sheet
+            state = State.RecoveryFailed(Error("Could not find matching challenge authentication"))
+            ErrorFormBodyModel(
+              title = "Challenge authentication failed",
+              primaryButton = ButtonDataModel(
+                text = "Back",
+                onClick = { state = State.StartingChallengeState }
+              ),
+              errorData = ErrorData(
+                segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+                actionDescription = "Finding matching challenge authentication",
+                cause = Error("Could not find matching challenge authentication")
+              ),
+              eventTrackerScreenId =
+                SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RECOVERY_FAILED
+            ).asRootScreen()
+          }
 
       is State.RestoringAppKey -> {
         LaunchedEffect("restore-app-key") {

@@ -75,7 +75,9 @@ class MobilePayStatusUiStateMachineImpl(
       dailyLimitRow =
         ActionRow(
           title = "Daily limit",
-          sideText = moneyDisplayFormatter.format(mobilePayData.activeSpendingLimit.amount),
+          sideText = mobilePayData.activeSpendingLimit?.amount?.let {
+            moneyDisplayFormatter.format(it)
+          } ?: "",
           onClick = {
             props.onSetLimitClick(mobilePayData.activeSpendingLimit)
           }
@@ -110,14 +112,16 @@ class MobilePayStatusUiStateMachineImpl(
   private fun SpendingLimitCardModel(
     mobilePayData: MobilePayEnabledData,
   ): SpendingLimitCardModel? {
-    return mobilePayData.remainingFiatSpendingAmount?.let {
+    return if (mobilePayData.remainingFiatSpendingAmount != null && mobilePayData.activeSpendingLimit != null) {
       spendingLimitCardUiStateMachine.model(
         props =
           SpendingLimitCardUiProps(
-            spendingLimit = mobilePayData.activeSpendingLimit,
-            remainingAmount = it
+            spendingLimit = mobilePayData.activeSpendingLimit!!,
+            remainingAmount = mobilePayData.remainingFiatSpendingAmount!!
           )
       )
+    } else {
+      null
     }
   }
 

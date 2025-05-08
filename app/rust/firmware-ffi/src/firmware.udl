@@ -390,6 +390,7 @@ enum CommandError {
   "InProgress",
   "Timeout",
   "BadStatus",
+  "PolicyViolation",
 };
 
 enum FirmwareSlot {

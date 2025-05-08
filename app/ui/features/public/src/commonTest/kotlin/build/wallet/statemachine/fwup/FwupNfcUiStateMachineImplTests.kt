@@ -1,8 +1,6 @@
 package build.wallet.statemachine.fwup
 
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
-import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
@@ -40,7 +38,6 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   val onDoneCalls = turbines.create<Unit>("onDone calls")
   val props =
     FwupNfcUiProps(
-      firmwareData = PendingUpdate(FwupDataMock),
       onDone = { onDoneCalls.add(Unit) }
     )
 

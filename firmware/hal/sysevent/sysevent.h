@@ -12,5 +12,6 @@ typedef enum {
 
 void sysevent_init(void);
 void sysevent_set(const sysevent_t events);
+bool sysevent_get(const sysevent_t event);
 void sysevent_clear(const sysevent_t events);
 void sysevent_wait(const sysevent_t events, const bool wait_for_all);

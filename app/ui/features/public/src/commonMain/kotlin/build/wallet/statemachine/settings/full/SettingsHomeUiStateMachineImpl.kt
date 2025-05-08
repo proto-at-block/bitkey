@@ -142,7 +142,6 @@ class SettingsHomeUiStateMachineImpl(
                   goToSecurityHub = props.goToSecurityHub
                 )
             ),
-          bottomSheetModel = props.homeBottomSheetModel,
           statusBannerModel = props.homeStatusBannerModel,
           alertModel = alertModel
         )

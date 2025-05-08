@@ -26,6 +26,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
 import build.wallet.statemachine.settings.full.device.wipedevice.WipingDeviceEventTrackerScreenId
 import build.wallet.statemachine.settings.full.device.wipedevice.intro.WipingDeviceIntroUiState.*
 import build.wallet.ui.model.StandardClick
@@ -310,6 +311,7 @@ class WipingDeviceIntroUiStateMachineImpl(
             onTapUnknownDevice(publicKey)
           }
         },
+        hardwareVerification = NotRequired,
         onCancel = onCancel,
         screenPresentationStyle = ScreenPresentationStyle.Modal,
         eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION

@@ -3,6 +3,7 @@
 #include "ipc.h"
 #include "key_manager_task_impl.h"
 #include "log.h"
+#include "policy.h"
 #include "rtos.h"
 #include "seed.h"
 #include "wallet.h"
@@ -101,13 +102,26 @@ static crypto_task_status_t crypto_derive_and_sign(void) {
     goto out;
   }
 
-  if (!bip32_sign(&key_priv, crypto_thread_priv.hash, crypto_thread_priv.signature)) {
-    rsp = CRYPTO_TASK_ERROR;
-    LOGE("bip32_ecdsa_sign failed");
-    goto out;
+  policy_sign_result_t sign_result =
+    bip32_sign_with_policy(&key_priv, crypto_thread_priv.derivation_path, crypto_thread_priv.hash,
+                           crypto_thread_priv.signature);
+  switch (sign_result) {
+    case POLICY_SIGN_SUCCESS:
+      rsp = CRYPTO_TASK_SUCCESS;
+      break;
+    case POLICY_SIGN_SIGNING_ERROR:
+      rsp = CRYPTO_TASK_SIGNING_FAILED;
+      LOGE("bip32_sign: signing failed");
+      break;
+    case POLICY_SIGN_POLICY_VIOLATION:
+      rsp = CRYPTO_TASK_POLICY_VIOLATION;
+      LOGE("bip32_sign: policy enforced");
+      break;
+    default:
+      rsp = CRYPTO_TASK_ERROR;
+      LOGE("bip32_sign: failed");
+      break;
   }
-
-  rsp = CRYPTO_TASK_SUCCESS;
 
 out:
   crypto_thread_priv.status = rsp;

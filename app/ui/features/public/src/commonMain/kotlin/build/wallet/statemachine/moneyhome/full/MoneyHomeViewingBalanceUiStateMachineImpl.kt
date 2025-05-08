@@ -2,6 +2,7 @@ package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.*
 import bitkey.securitycenter.SecurityActionsService
+import build.wallet.activity.TransactionActivityOperations
 import build.wallet.activity.TransactionsActivityService
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
@@ -26,7 +27,6 @@ import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inappsecurity.MoneyHomeHiddenStatus
 import build.wallet.inappsecurity.MoneyHomeHiddenStatusProvider
-import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
@@ -84,6 +84,8 @@ import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.worker.RefreshExecutor
+import build.wallet.worker.runRefreshOperations
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
@@ -107,19 +109,19 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val firmwareDataService: FirmwareDataService,
   private val bitcoinWalletService: BitcoinWalletService,
   private val transactionsActivityService: TransactionsActivityService,
-  private val exchangeRateService: ExchangeRateService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val securityActionsService: SecurityActionsService,
   private val securityHubFeatureFlag: SecurityHubFeatureFlag,
+  private val refreshExecutor: RefreshExecutor,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
+        refreshExecutor.runRefreshOperations(TransactionActivityOperations)
         transactionsActivityService.sync()
         sweepService.checkForSweeps()
-        exchangeRateService.requestSync()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
@@ -302,8 +304,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               onClick = StandardClick({ props.onSettings() })
             )
           ),
-          onSecurityHubTabClick = props.onGoToSecurityHub.takeIf {
-            securityHubFeatureFlag.isEnabled()
+          onSecurityHubTabClick = if (securityHubFeatureFlag.isEnabled()) {
+            {
+              props.onGoToSecurityHub()
+              scope.launch {
+                coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubHomeCoachmark)
+              }
+            }
+          } else {
+            null
           },
           isSecurityHubBadged = recommendations.isNotEmpty()
         ),

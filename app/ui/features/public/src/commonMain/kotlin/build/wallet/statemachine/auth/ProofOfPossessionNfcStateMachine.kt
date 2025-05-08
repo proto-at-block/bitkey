@@ -11,6 +11,8 @@ import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification
+import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 
 /**
  * TODO(W-3757): break down this state machine into more domain specific implementations.
@@ -72,6 +74,9 @@ sealed interface Request {
  * @property onTokenRefresh When defined, allows consumers of the state machine to define a
  * `ScreenModel` to show while the auth token is refreshing. Else, we show a default
  * `LoadingScreenModel`
+ * @property hardwareVerification: Whether to require the PoP to be paired with the app, and if so,
+ * whether the PoP should be for the account's currently paired hardware or new hardware during recovery.
+ * If you aren't in a recovery flow, just use the default.
  * @property onTokenRefreshError When defined, allows consumers of the state machine to define a
  * `ScreenModel` to show if auth token refreshing fails. Else, we show a default `ErrorFormScreenModel`
  */
@@ -86,6 +91,7 @@ data class ProofOfPossessionNfcProps(
   val screenPresentationStyle: ScreenPresentationStyle,
   val onBack: () -> Unit,
   val onTokenRefresh: (() -> ScreenModel)? = null,
+  val hardwareVerification: HardwareVerification = Required(),
   val onTokenRefreshError: (
     (
       isConnectivityError: Boolean,

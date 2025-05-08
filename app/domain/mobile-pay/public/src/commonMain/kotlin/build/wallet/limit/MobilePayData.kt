@@ -1,5 +1,6 @@
 package build.wallet.limit
 
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 
 /**
@@ -10,11 +11,13 @@ sealed interface MobilePayData {
    * Mobile Pay is enabled.
    *
    * @property activeSpendingLimit current spending limit set on this account.
-   * @property balance current balance information of a customer's Mobile Pay setup
+   * @property remainingBitcoinSpendingAmount the amount of bitcoin remaining that can be spent
+   * @property remainingFiatSpendingAmount the fiat value of [remainingBitcoinSpendingAmount] in the
+   * user's preferred currency
    */
   data class MobilePayEnabledData(
-    val activeSpendingLimit: SpendingLimit,
-    val balance: MobilePayBalance?,
+    val activeSpendingLimit: SpendingLimit?,
+    val remainingBitcoinSpendingAmount: BitcoinMoney?,
     val remainingFiatSpendingAmount: FiatMoney?,
   ) : MobilePayData
 

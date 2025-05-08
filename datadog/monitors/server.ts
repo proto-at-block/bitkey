@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import { ErrorRateHighMonitor, HttpStatusCompositeMonitor } from "./common/http";
-import { getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
+import { getCriticalDaytimeRecipients, getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
 import { Environment } from "./common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor, TokioBusyRatioHighMonitor } from "./common/system";
 import { Monitor } from "./common/monitor";
@@ -10,6 +10,7 @@ export class FromagerieMonitors extends Construct {
     super(scope, `fromagerie_${environment}`);
 
     const criticalRecipients = getCriticalRecipients(environment);
+    const criticalDaytimeRecipients = getCriticalDaytimeRecipients(environment);
     const errorRecipients = getErrorRecipients(environment);
     const warningRecipients = getWarningRecipients(environment);
 
@@ -41,21 +42,19 @@ export class FromagerieMonitors extends Construct {
       recipients: warningRecipients,
     });
 
-    // Temporary monitors to audit and fine tune alerting by path
     new Monitor(this, 'fromagerie_breached_5xx_count_by_path', {
       query:
         `sum(last_24h):
               sum:bitkey.http.response{${[`status:5xx`, `env:${environment}`, `!path:/`, `app_id:world.bitkey.app`].join(",")}} by {path}.as_count()
-          > 1000000`,
+          > 2`,
       name: `Breached 5xx http status count on env:${environment} by path {{ path.name }}`,
       message: `Breached 5xx http status count on env:${environment} by path {{ path.name }}`,
       monitorThresholds: {
-        critical: "1000000", // Set impossibly high to ensure we don't trigger high-urgency incidents
-        warning: "0",
+        critical: "2",
       },
       type: "query alert",
       tags: [],
-      recipients: warningRecipients,
+      recipients: criticalDaytimeRecipients,
     });
 
     new HttpStatusCompositeMonitor(this, "4xx_fromagerie_api_status", {
@@ -69,6 +68,7 @@ export class FromagerieMonitors extends Construct {
         {tag: "path:*", rateInclusion: "both"},
         // Filter out 401s, monitor separately
         {tag: "!status_exact:401", rateInclusion: "numerator"},
+        {tag: "app_id:world.bitkey.app", rateInclusion: "both"},
       ],
       rateThreshold: "0.1",
       countThreshold: "150",
@@ -87,6 +87,7 @@ export class FromagerieMonitors extends Construct {
         // Filter out root path (healthcheck) & no matched path (path-based 404s, as opposed to application 404s)
         {tag: "!path:/", rateInclusion: "both"},
         {tag: "path:*", rateInclusion: "both"},
+        {tag: "app_id:world.bitkey.app", rateInclusion: "both"},
       ],
       rateThreshold: "0.01",
       countThreshold: "15",

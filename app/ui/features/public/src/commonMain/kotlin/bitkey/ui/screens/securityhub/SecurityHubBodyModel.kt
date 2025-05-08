@@ -1,15 +1,19 @@
 package bitkey.ui.screens.securityhub
 
-import androidx.compose.foundation.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement.SpaceBetween
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.CenterVertically
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -55,8 +59,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 data class SecurityHubBodyModel(
-  val isRefreshing: Boolean,
-  val onRefresh: () -> Unit,
+  val isOffline: Boolean = false,
   val recommendations: ImmutableList<SecurityActionRecommendation>,
   val cardsModel: CardListModel,
   val securityActions: List<SecurityAction> = emptyList(),
@@ -76,16 +79,36 @@ data class SecurityHubBodyModel(
       mutableStateOf(0.dp)
     }
     Box(
-      modifier = modifier
-        .fillMaxSize()
-        .background(WalletTheme.colors.background)
+      modifier = modifier.fillMaxSize()
+        .background(
+          color = if (isOffline) {
+            WalletTheme.colors.background
+          } else {
+            WalletTheme.colors.secondary
+          }
+        )
     ) {
+      // Small background to cover the bottom of the screen so the overscroll on iOS is the
+      // background color
+      Box(
+        modifier = Modifier.align(Alignment.BottomCenter)
+          .fillMaxWidth()
+          .height(300.dp)
+          .background(WalletTheme.colors.background)
+      )
+
       Column(
         modifier = Modifier.verticalScroll(rememberScrollState())
       ) {
         Column(
           modifier = Modifier.fillMaxWidth()
-            .background(color = WalletTheme.colors.secondary)
+            .background(
+              color = if (isOffline) {
+                WalletTheme.colors.background
+              } else {
+                WalletTheme.colors.secondary
+              }
+            )
             .padding(horizontal = 20.dp)
         ) {
           Spacer(modifier = Modifier.height(8.dp))
@@ -94,47 +117,54 @@ data class SecurityHubBodyModel(
             style = WalletTheme.labelStyle(LabelType.Title1, textColor = WalletTheme.colors.foreground)
           )
 
-          if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
-            RecommendationList(
-              modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-              recommendations = recommendations,
-              onRecommendationClick = onRecommendationClick
-            )
-          }
+          if (!isOffline) {
+            if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
+              RecommendationList(
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                recommendations = recommendations,
+                onRecommendationClick = onRecommendationClick
+              )
+            }
 
-          if (cardsModel.cards.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(20.dp))
-          }
+            if (cardsModel.cards.isNotEmpty()) {
+              Spacer(modifier = Modifier.height(20.dp))
+            }
 
-          cardsModel.cards.map {
-            MoneyHomeCard(model = it)
-            Spacer(modifier = Modifier.height(8.dp))
-          }
+            cardsModel.cards.map {
+              MoneyHomeCard(model = it)
+              Spacer(modifier = Modifier.height(8.dp))
+            }
 
-          Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+          }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        if (securityActions.isNotEmpty() && recoveryActions.isNotEmpty()) {
+          Column(
+            modifier = Modifier.background(WalletTheme.colors.background)
+              .padding(horizontal = 20.dp)
+          ) {
+            Spacer(modifier = Modifier.height(32.dp))
 
-        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-          if (securityActions.isNotEmpty()) {
-            HubActionSection(
-              sectionTitle = "Security",
-              actions = securityActions.toImmutableList(),
-              onTileClick = onSecurityActionClick
-            )
+            if (securityActions.isNotEmpty()) {
+              HubActionSection(
+                sectionTitle = "Security",
+                actions = securityActions.toImmutableList(),
+                onTileClick = onSecurityActionClick
+              )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (recoveryActions.isNotEmpty()) {
+              HubActionSection(
+                sectionTitle = "Recovery",
+                actions = recoveryActions.toImmutableList(),
+                onTileClick = onSecurityActionClick
+              )
+            }
+            Spacer(Modifier.height(tabBarHeightDp))
           }
-
-          Spacer(modifier = Modifier.height(20.dp))
-
-          if (recoveryActions.isNotEmpty()) {
-            HubActionSection(
-              sectionTitle = "Recovery",
-              actions = recoveryActions.toImmutableList(),
-              onTileClick = onSecurityActionClick
-            )
-          }
-          Spacer(Modifier.height(tabBarHeightDp))
         }
       }
 
@@ -169,10 +199,10 @@ private fun RecommendationList(
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
   Column(
-    modifier = modifier.border(
-      width = 2.dp,
-      color = WalletTheme.colors.foreground10,
-      shape = RoundedCornerShape(16.dp)
+    modifier = modifier.shadow(
+      elevation = 2.dp,
+      shape = RoundedCornerShape(16.dp),
+      ambientColor = Color.Black.copy(.1f)
     ).background(
       color = WalletTheme.colors.background,
       shape = RoundedCornerShape(16.dp)
@@ -505,8 +535,6 @@ private fun SecurityActionRecommendation.icon(): Icon =
 @Snapshot
 val SnapshotHost.pendingRecommendations
   get() = SecurityHubBodyModel(
-    isRefreshing = false,
-    onRefresh = {},
     recommendations = listOf(
       BACKUP_MOBILE_KEY,
       BACKUP_EAK,
@@ -564,8 +592,6 @@ val SnapshotHost.pendingRecommendations
 @Snapshot
 val SnapshotHost.completedRecommendations
   get() = SecurityHubBodyModel(
-    isRefreshing = false,
-    onRefresh = {},
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = listOf(
@@ -608,12 +634,53 @@ val SnapshotHost.completedRecommendations
 @Snapshot
 val SnapshotHost.loadingRecommendations
   get() = SecurityHubBodyModel(
-    isRefreshing = true,
-    onRefresh = {},
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = emptyList(),
     recoveryActions = emptyList(),
+    onRecommendationClick = {},
+    onSecurityActionClick = {},
+    onHomeTabClick = {}
+  )
+
+@Snapshot
+val SnapshotHost.offline
+  get() = SecurityHubBodyModel(
+    isOffline = true,
+    recommendations = immutableListOf(),
+    cardsModel = CardListModel(cards = immutableListOf()),
+    securityActions = listOf(
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY
+      ),
+      previewSecurityAction(
+        type = EAK_BACKUP,
+        category = SecurityActionCategory.SECURITY
+      ),
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY
+      )
+    ),
+    recoveryActions = listOf(
+      previewSecurityAction(
+        type = FINGERPRINTS,
+        category = SecurityActionCategory.SECURITY
+      ),
+      previewSecurityAction(
+        type = INHERITANCE,
+        category = SecurityActionCategory.SECURITY
+      ),
+      previewSecurityAction(
+        type = MOBILE_KEY_BACKUP,
+        category = SecurityActionCategory.SECURITY
+      ),
+      previewSecurityAction(
+        type = SOCIAL_RECOVERY,
+        category = SecurityActionCategory.SECURITY
+      )
+    ),
     onRecommendationClick = {},
     onSecurityActionClick = {},
     onHomeTabClick = {}

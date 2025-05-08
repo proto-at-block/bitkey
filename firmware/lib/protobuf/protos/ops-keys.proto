@@ -37,6 +37,8 @@ message derive_and_sign_rsp {
     ERROR = 2;
     UNAUTHENTICATED = 3;
     DERIVATION_FAILED = 4;
+    SIGNING_FAILED = 5;
+    POLICY_VIOLATION = 6;
   }
   derive_and_sign_rsp_status status = 1;
   bytes signature = 2 [(nanopb).max_size = 64];

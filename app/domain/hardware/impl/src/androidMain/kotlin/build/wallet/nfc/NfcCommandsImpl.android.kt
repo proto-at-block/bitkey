@@ -487,6 +487,7 @@ private suspend inline fun <
       logWarn(tag = NFC_TAG, throwable = e) { "NFC Command $commandName failed" }
       when (e) {
         is CommandException.Unauthenticated -> throw NfcException.CommandErrorUnauthenticated()
+        is CommandException.SealCsekResponseUnsealException -> throw NfcException.CommandErrorSealCsekResponseUnsealException()
         is CommandException -> throw NfcException.CommandError(cause = e)
         else -> throw e
       }

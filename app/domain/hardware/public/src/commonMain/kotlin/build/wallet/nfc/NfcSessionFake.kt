@@ -1,5 +1,6 @@
 package build.wallet.nfc
 
+import build.wallet.nfc.NfcSession.RequirePairedHardware.NotRequired
 import build.wallet.nfc.platform.NfcSessionProvider
 
 class NfcSessionFake(
@@ -23,6 +24,7 @@ class NfcSessionFake(
         shouldLock = true,
         skipFirmwareTelemetry = false,
         nfcFlowName = "fake-flow-name",
+        requirePairedHardware = NotRequired,
         onTagConnected = {},
         onTagDisconnected = {},
         asyncNfcSigning = false

@@ -34,7 +34,13 @@ async fn test_lock_inheritance_claim_success() {
 
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
-    create_inheritance_package(&recovery_relationship_id, &sealed_dek, &sealed_mobile_key).await;
+    create_inheritance_package(
+        &benefactor_account.id,
+        &recovery_relationship_id,
+        &sealed_dek,
+        &sealed_mobile_key,
+    )
+    .await;
 
     // act
     let input = LockInheritanceClaimInput {
@@ -100,7 +106,13 @@ async fn test_lock_inheritance_claim_before_delay_end_fails() {
 
     let recovery_relationship_id = pending_claim.common_fields.recovery_relationship_id.clone();
 
-    create_inheritance_package(&recovery_relationship_id, "test_dek", "test_mobile_key").await;
+    create_inheritance_package(
+        &benefactor_account.id,
+        &recovery_relationship_id,
+        "test_dek",
+        "test_mobile_key",
+    )
+    .await;
 
     // act
     let input = LockInheritanceClaimInput {
@@ -244,7 +256,13 @@ async fn test_lock_inheritance_claim_canceled_claim() {
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
 
-    create_inheritance_package(&recovery_relationship_id, &sealed_dek, &sealed_mobile_key).await;
+    create_inheritance_package(
+        &benefactor_account.id,
+        &recovery_relationship_id,
+        &sealed_dek,
+        &sealed_mobile_key,
+    )
+    .await;
 
     cancel_claim(
         &InheritanceClaim::Pending(pending_claim.clone()),
@@ -290,7 +308,13 @@ async fn test_lock_inheritance_claim_locked_claim_success() {
 
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
-    create_inheritance_package(&recovery_relationship_id, &sealed_dek, &sealed_mobile_key).await;
+    create_inheritance_package(
+        &benefactor_account.id,
+        &recovery_relationship_id,
+        &sealed_dek,
+        &sealed_mobile_key,
+    )
+    .await;
 
     let input = LockInheritanceClaimInput {
         inheritance_claim_id: pending_claim.common_fields.id,

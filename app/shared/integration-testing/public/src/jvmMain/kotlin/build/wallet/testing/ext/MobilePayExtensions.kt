@@ -37,7 +37,7 @@ suspend fun AppTester.setupMobilePay(limit: FiatMoney): SpendingLimit {
   mobilePayService.mobilePayData.test {
     awaitUntil {
       it is MobilePayData.MobilePayEnabledData &&
-        it.activeSpendingLimit.amount == limit
+        it.activeSpendingLimit?.amount == limit
     }
   }
 

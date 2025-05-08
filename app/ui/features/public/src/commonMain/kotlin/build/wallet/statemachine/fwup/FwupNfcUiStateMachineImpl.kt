@@ -45,7 +45,6 @@ class FwupNfcUiStateMachineImpl(
         fwupNfcSessionUiStateMachine.model(
           props =
             FwupNfcSessionUiProps(
-              firmwareData = props.firmwareData,
               transactionType = uiState.transactionType,
               onBack = {
                 uiState = ShowingUpdateInstructionsUiState()

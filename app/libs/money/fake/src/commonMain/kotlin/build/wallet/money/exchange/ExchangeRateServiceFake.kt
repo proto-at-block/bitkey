@@ -19,10 +19,6 @@ class ExchangeRateServiceFake(private val clock: Clock = Clock.System) : Exchang
 
   override val exchangeRates = MutableStateFlow(initialRates)
 
-  override suspend fun requestSync() {
-    reset()
-  }
-
   override fun mostRecentRatesSinceDurationForCurrency(
     duration: Duration,
     currency: Currency,

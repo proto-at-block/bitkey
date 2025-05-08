@@ -37,6 +37,7 @@ use std::sync::Arc;
 use time::{Duration, OffsetDateTime};
 use types::account::bitcoin::Network;
 use types::account::entities::FullAccount;
+use types::account::identifiers::AccountId;
 use types::account::keys::FullAccountAuthKeys;
 use types::recovery::inheritance::claim::{
     InheritanceClaim, InheritanceClaimAuthKeys, InheritanceClaimCanceled,
@@ -48,6 +49,8 @@ use types::recovery::social::relationship::{
     RecoveryRelationship, RecoveryRelationshipEndorsement, RecoveryRelationshipId,
 };
 use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
+
+use super::packages::UploadPackagesInput;
 
 fn get_auth_keys(account: &FullAccount) -> InheritanceClaimAuthKeys {
     InheritanceClaimAuthKeys::FullAccount(
@@ -209,7 +212,13 @@ pub async fn create_locked_claim(
 
     let sealed_dek = "TEST_SEALED_DEK".to_string();
     let sealed_mobile_key = "TEST_SEALED_MOBILE_KEY".to_string();
-    create_inheritance_package(&recovery_relationship_id, &sealed_dek, &sealed_mobile_key).await;
+    create_inheritance_package(
+        &benefactor_account.id,
+        &recovery_relationship_id,
+        &sealed_dek,
+        &sealed_mobile_key,
+    )
+    .await;
 
     let input = LockInheritanceClaimInput {
         inheritance_claim_id: pending_claim.common_fields.id.clone(),
@@ -268,6 +277,7 @@ pub async fn create_canceled_claim(
 }
 
 pub async fn create_inheritance_package(
+    benefactor_account_id: &AccountId,
     recovery_relationship_id: &RecoveryRelationshipId,
     sealed_dek: &str,
     sealed_mobile_key: &str,
@@ -282,7 +292,10 @@ pub async fn create_inheritance_package(
     };
     let inheritance_service = construct_test_inheritance_service().await;
     inheritance_service
-        .upload_packages(vec![package])
+        .upload_packages(UploadPackagesInput {
+            benefactor_account_id,
+            packages: vec![package],
+        })
         .await
         .expect("upload packages");
 }

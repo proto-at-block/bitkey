@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.10
+# syntax=docker/dockerfile:1.12
 FROM rust:alpine AS build
 RUN <<EOF
 set -e

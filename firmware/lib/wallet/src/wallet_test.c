@@ -8,7 +8,6 @@
 #include "key_management.h"
 #include "lfs.h"
 #include "wallet.pb.h"
-#include "wallet_impl.h"
 #include "wkek_impl.h"
 
 #include <criterion/criterion.h>
@@ -63,6 +62,7 @@ FAKE_VALUE_FUNC(uint64_t, rtos_thread_micros);
 
 FAKE_VOID_FUNC(rtos_event_group_create, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_set_bits, rtos_event_group_t*, const uint32_t);
+FAKE_VALUE_FUNC(uint32_t, rtos_event_group_get_bits, rtos_event_group_t*);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_wait_bits, rtos_event_group_t*, const uint32_t,
                 const bool, const bool, uint32_t);
 FAKE_VALUE_FUNC(uint32_t, rtos_event_group_clear_bits, rtos_event_group_t*, const uint32_t);
@@ -185,14 +185,6 @@ static void create_and_load(void) {
 
 void teardown(void) {
   lfs_emubd_destroy(&cfg);
-}
-
-Test(wallet, create_load_sign, .init = setup, .fini = teardown) {
-  create_and_load();
-  uint8_t sighash[32] = {0};
-  uint8_t sig[64] = {0};
-  cr_assert(wallet_sign_txn(WALLET_KEY_DOMAIN_SPEND, sighash, sig, 0, 0, &descriptor) ==
-            WALLET_RES_OK);
 }
 
 Test(wallet, create_multiple_attempts, .init = setup, .fini = teardown) {

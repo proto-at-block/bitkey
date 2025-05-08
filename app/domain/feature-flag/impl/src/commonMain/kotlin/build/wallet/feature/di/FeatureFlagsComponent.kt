@@ -116,6 +116,16 @@ interface FeatureFlagsComponent {
   fun usSmsFeatureFlag(featureFlagDao: FeatureFlagDao) = UsSmsFeatureFlag(featureFlagDao)
 
   @Provides
+  @SingleIn(AppScope::class)
+  fun provideCheckHardwareIsPairedFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    CheckHardwareIsPairedFeatureFlag(featureFlagDao)
+
+  @Provides
+  @SingleIn(AppScope::class)
+  fun fingerprintResetFeatureFlag(featureFlagDao: FeatureFlagDao) =
+    FingerprintResetFeatureFlag(featureFlagDao)
+
+  @Provides
   fun featureFlags(
     darkModeFeatureFlag: DarkModeFeatureFlag,
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
@@ -136,6 +146,8 @@ interface FeatureFlagsComponent {
     balanceHistoryFeatureFlag: BalanceHistoryFeatureFlag,
     wipeHardwareLoggedOutFeatureFlag: WipeHardwareLoggedOutFeatureFlag,
     usSmsFeatureFlag: UsSmsFeatureFlag,
+    checkHardwareIsPairedFeatureFlag: CheckHardwareIsPairedFeatureFlag,
+    fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
       darkModeFeatureFlag,
@@ -156,7 +168,9 @@ interface FeatureFlagsComponent {
       mobileRealTimeMetricsFeatureFlag,
       securityHubFeatureFlag,
       wipeHardwareLoggedOutFeatureFlag,
-      usSmsFeatureFlag
+      usSmsFeatureFlag,
+      checkHardwareIsPairedFeatureFlag,
+      fingerprintResetFeatureFlag
     )
   }
 }

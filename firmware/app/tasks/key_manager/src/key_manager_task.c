@@ -4,6 +4,8 @@
 #include "attestation.h"
 #include "attributes.h"
 #include "auth.h"
+#include "bip32.h"
+#include "bitlog.h"
 #include "ecc.h"
 #include "filesystem.h"
 #include "hash.h"
@@ -14,6 +16,7 @@
 #include "onboarding.h"
 #include "pb_decode.h"
 #include "pb_encode.h"
+#include "policy.h"
 #include "proto_helpers.h"
 #include "rtos.h"
 #include "secure_channel.h"
@@ -34,17 +37,6 @@ static struct {
   .send_timeout_ms = 1000,
   .crypto_thread = NULL,
 };
-
-static key_algorithm_t key_alg_from_curve(fwpb_curve curve) {
-  switch (curve) {
-    case fwpb_curve_CURVE_ED25519:
-      return ALG_ECC_ED25519;
-    case fwpb_curve_CURVE_P256:
-      return ALG_ECC_P256;
-    default:
-      ASSERT(false);
-  }
-}
 
 static void handle_derive(ipc_ref_t* message) {
   fwpb_wallet_cmd* m_cmd = proto_get_cmd((uint8_t*)message->object, message->length);
@@ -145,10 +137,23 @@ static void do_sync_derive_and_sign(fwpb_wallet_cmd* m_cmd, fwpb_wallet_rsp* m_r
     return;
   }
 
-  if (!bip32_sign(&key_priv, cmd->hash.bytes, rsp->signature.bytes)) {
-    rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
-    LOGE("bip32_ecdsa_sign failed");
-    return;
+  policy_sign_result_t sign_result =
+    bip32_sign_with_policy(&key_priv, derivation_path, cmd->hash.bytes, rsp->signature.bytes);
+  switch (sign_result) {
+    case POLICY_SIGN_SUCCESS:
+      break;
+    case POLICY_SIGN_SIGNING_ERROR:
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_SIGNING_FAILED;
+      LOGE("bip32_sign: signing failed");
+      return;
+    case POLICY_SIGN_POLICY_VIOLATION:
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_POLICY_VIOLATION;
+      LOGE("bip32_sign: policy enforced");
+      return;
+    default:
+      rsp->status = fwpb_derive_and_sign_rsp_derive_and_sign_rsp_status_ERROR;
+      LOGE("bip32_sign: failed");
+      return;
   }
 
   rsp->signature.size = ECC_SIG_SIZE;
@@ -417,93 +422,6 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
-static void handle_derive_public_key(ipc_ref_t* message) {
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-
-  rsp->which_msg = fwpb_wallet_rsp_derive_public_key_rsp_tag;
-  rsp->status = fwpb_status_ERROR;
-
-  key_algorithm_t alg = key_alg_from_curve(cmd->msg.derive_public_key_cmd.curve);
-
-  uint8_t privkey_buf[SEED_DERIVE_HKDF_PRIVKEY_SIZE] = {0};
-  key_handle_t privkey = {
-    .alg = alg,
-    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
-    .key.bytes = privkey_buf,
-    .key.size = sizeof(privkey_buf),
-  };
-  key_handle_t pubkey_out = {
-    .alg = alg,
-    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
-    .key.bytes = rsp->msg.derive_public_key_rsp.pubkey.bytes,
-    .key.size = sizeof(rsp->msg.derive_public_key_rsp.pubkey.bytes),
-  };
-
-  if (seed_derive_hkdf(alg, cmd->msg.derive_public_key_cmd.label.bytes,
-                       cmd->msg.derive_public_key_cmd.label.size, &privkey,
-                       &pubkey_out) != SEED_RES_OK) {
-    rsp->status = fwpb_status_KEY_DERIVATION_FAILED;
-    goto out;
-  }
-
-  rsp->msg.derive_public_key_rsp.pubkey.size = pubkey_out.key.size;
-  rsp->status = fwpb_status_SUCCESS;
-
-out:
-  zeroize_key(&privkey);
-  proto_send_rsp(cmd, rsp);
-}
-
-static void handle_derive_public_key_and_sign(ipc_ref_t* message) {
-  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
-  fwpb_wallet_rsp* rsp = proto_get_rsp();
-
-  rsp->which_msg = fwpb_wallet_rsp_derive_public_key_and_sign_rsp_tag;
-  rsp->status = fwpb_status_ERROR;
-
-  key_algorithm_t alg = key_alg_from_curve(cmd->msg.derive_public_key_cmd.curve);
-
-  uint8_t privkey_buf[SEED_DERIVE_HKDF_PRIVKEY_SIZE] = {0};
-  key_handle_t privkey = {
-    .alg = alg,
-    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
-    .key.bytes = privkey_buf,
-    .key.size = sizeof(privkey_buf),
-  };
-  key_handle_t pubkey_out = {
-    .alg = alg,
-    .storage_type = KEY_STORAGE_EXTERNAL_PLAINTEXT,
-    .key.bytes = rsp->msg.derive_public_key_rsp.pubkey.bytes,
-    .key.size = sizeof(rsp->msg.derive_public_key_rsp.pubkey.bytes),
-  };
-
-  if (seed_derive_hkdf(alg, cmd->msg.derive_public_key_and_sign_cmd.label.bytes,
-                       cmd->msg.derive_public_key_and_sign_cmd.label.size, &privkey,
-                       &pubkey_out) != SEED_RES_OK) {
-    rsp->status = fwpb_status_KEY_DERIVATION_FAILED;
-    goto out;
-  }
-
-  rsp->msg.derive_public_key_rsp.pubkey.size = pubkey_out.key.size;
-
-  if (crypto_ecc_sign_hash(&privkey, cmd->msg.derive_public_key_and_sign_cmd.hash.bytes,
-                           sizeof(cmd->msg.derive_public_key_and_sign_cmd.hash.bytes),
-                           rsp->msg.derive_public_key_and_sign_rsp.signature.bytes) !=
-      SECURE_TRUE) {
-    rsp->status = fwpb_status_SIGNING_FAILED;
-    goto out;
-  }
-
-  rsp->status = fwpb_status_SUCCESS;
-  rsp->msg.derive_public_key_and_sign_rsp.signature.size =
-    sizeof(rsp->msg.derive_public_key_and_sign_rsp.signature.bytes);
-
-out:
-  zeroize_key(&privkey);
-  proto_send_rsp(cmd, rsp);
-}
-
 void key_manager_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_FILESYSTEM_READY, true);
 
@@ -521,6 +439,11 @@ void key_manager_thread(void* UNUSED(args)) {
   for (;;) {
     ipc_ref_t message = {0};
     ipc_recv(key_manager_port, &message);
+
+    if (sysevent_get(SYSEVENT_BREAK_GLASS_READY)) {
+      LOGW("Entering break glass mode - disabling signing policies!");
+      policy_disable();
+    }
 
     switch (message.tag) {
       // Unauthenticated commands
@@ -545,12 +468,6 @@ void key_manager_thread(void* UNUSED(args)) {
         break;
       case IPC_PROTO_SECURE_CHANNEL_ESTABLISH_CMD:
         handle_secure_channel_establish(&message);
-        break;
-      case IPC_PROTO_DERIVE_PUBLIC_KEY_CMD:
-        handle_derive_public_key(&message);
-        break;
-      case IPC_PROTO_DERIVE_PUBLIC_KEY_AND_SIGN_CMD:
-        handle_derive_public_key_and_sign(&message);
         break;
       case IPC_KEY_MANAGER_CLEAR_DERIVED_KEY_CACHE:
         wallet_clear_derived_key_cache();
@@ -580,4 +497,6 @@ void key_manager_task_create(void) {
   key_manager_priv.mempool = mempool_create(wallet_cmd_pool);
 #undef REGIONS
   wallet_init(key_manager_priv.mempool);
+
+  policy_init(&wallet_get_w1_auth_path, true);
 }

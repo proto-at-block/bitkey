@@ -13,6 +13,8 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.SecurityHubFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
@@ -42,6 +44,7 @@ class GettingStartedCardUiStateMachineImpl(
   private val bitcoinWalletService: BitcoinWalletService,
   private val mobilePayService: MobilePayService,
   private val socRecService: SocRecService,
+  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : GettingStartedCardUiStateMachine {
   @Composable
   override fun model(props: GettingStartedCardUiProps): CardModel? {
@@ -50,7 +53,7 @@ class GettingStartedCardUiStateMachineImpl(
 
     LaunchedEffect("set-state-based-on-tasks") {
       gettingStartedTaskDao.tasks().collectLatest { activeTasks ->
-        uiState = uiState.copy(activeTasks = activeTasks.toImmutableList())
+        uiState = uiState.copy(activeTasks = activeTasks.nonSecurityHubTasks().toImmutableList())
       }
     }
 
@@ -159,6 +162,14 @@ class GettingStartedCardUiStateMachineImpl(
       null
     }
   }
+
+  private fun List<GettingStartedTask>.nonSecurityHubTasks() =
+    this.filter { task ->
+      when (task.id) {
+        InviteTrustedContact, AddAdditionalFingerprint -> !securityHubFeatureFlag.isEnabled()
+        else -> true
+      }
+    }
 
   private fun GettingStartedTask.isEnabled(appFunctionalityStatus: AppFunctionalityStatus) =
     when (id) {

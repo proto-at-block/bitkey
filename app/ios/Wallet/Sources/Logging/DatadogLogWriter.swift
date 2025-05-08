@@ -40,10 +40,18 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
         tag: String,
         throwable: Shared.KotlinThrowable?
     ) {
+        let strongThrowable = throwable
+
+        let error: Error? = if let strongThrowable {
+            strongThrowable.asError()
+        } else {
+            nil
+        }
+
         logger.log(
             level: severity.asLogLevel(),
             message: message,
-            error: throwable?.asError(),
+            error: error,
             attributes: ["tag": tag]
         )
     }
