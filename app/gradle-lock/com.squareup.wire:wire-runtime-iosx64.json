@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.wire:wire-runtime-iosx64",
     "components": [
         {
-            "version": "4.9.9",
+            "version": "4.9.11",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-runtime-iosx64-4.9.9-metadata.jar": "9146314edf2e0a9f9728ab2ef90ca860ff4775525b361e639f8bdc0827769316"
+                        "wire-runtime-iosx64-4.9.11-metadata.jar": "db7397b588432db4201823e42748ecb86b8a3e3dcd6da06073505b70a5911bc7"
                     }
                 },
                 {
                     "artifacts": {
-                        "wire-runtime.klib": "2c727fb9ba54a338b4ab854bf4c6af95a4b8a6ffa91691eaae60375551ba178d"
+                        "wire-runtime.klib": "715a14271509ea364843962ca01d6c2bd7b93c430e96dfadd833ef8c976454fb"
                     }
                 }
             ],

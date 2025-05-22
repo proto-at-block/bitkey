@@ -762,7 +762,7 @@ async fn account_status(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
 ) -> Result<Json<GetAccountStatusResponse>, ApiError> {
-    //TODO: Update this when we introduce Trusted Contacts
+    //TODO: Update this when we introduce Recovery Contacts
     let account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,

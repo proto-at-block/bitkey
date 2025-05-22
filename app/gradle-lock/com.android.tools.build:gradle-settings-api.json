@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:gradle-settings-api",
     "components": [
         {
-            "version": "8.5.2",
+            "version": "8.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-settings-api-8.5.2.jar": "11f607850dac33267a60bf0bee1a55858731fffe001f800fe99bef88393c0b0f"
+                        "gradle-settings-api-8.9.1.jar": "5e74a1d59b5039b65c344ec1e5a8afa878217d9a2338cc486c47be786b5915d9"
                     }
                 }
             ],

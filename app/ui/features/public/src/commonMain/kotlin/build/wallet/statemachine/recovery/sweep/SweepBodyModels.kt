@@ -337,7 +337,7 @@ data class SweepSuccessScreenBodyModel(
         icon = LargeIconCheckFilled,
         headline =
           when (recoveredFactor) {
-            App -> "Your mobile key recovery is complete!"
+            App -> "Your App Key recovery is complete!"
             Hardware -> "Success!"
             null -> "Your transfer is complete!"
           },

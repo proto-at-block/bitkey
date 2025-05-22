@@ -199,7 +199,7 @@ class RecoveryInProgressDataStateMachineImpl(
         LaunchedEffect("rotating tokens") {
           // If we are restoring the app from D+N, it means
           // we have lost the local + cloud data and will no longer
-          // have access to the DDK, so we remove the trusted contacts
+          // have access to the DDK, so we remove the Recovery Contacts
           recoveryAuthCompleter
             .rotateAuthTokens(
               fullAccountId = props.recovery.fullAccountId,
@@ -748,14 +748,14 @@ class RecoveryInProgressDataStateMachineImpl(
 
   private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
     coroutineBinding {
-      // 1. Get latest trusted contacts from f8e
+      // 1. Get latest Recovery Contacts from f8e
       val trustedContacts = relationshipsService
         .getRelationshipsWithoutSyncing(
           accountId = props.recovery.fullAccountId
         )
         .bind()
         .endorsedTrustedContacts
-      // 2. Verify all trusted contacts with new auth keys
+      // 2. Verify all Recovery Contacts with new auth keys
       endorseTrustedContactsService.authenticateRegenerateAndEndorse(
         accountId = props.recovery.fullAccountId,
         contacts = trustedContacts,
@@ -1081,7 +1081,7 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     /**
-     * Generating new TC certificates using updated auth keys.
+     * Generating new RC certificates using updated auth keys.
      */
     data class RegeneratingTcCertificatesState(
       val sealedCsek: SealedCsek,

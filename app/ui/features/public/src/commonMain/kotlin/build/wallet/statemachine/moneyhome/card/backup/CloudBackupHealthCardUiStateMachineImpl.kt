@@ -33,7 +33,7 @@ class CloudBackupHealthCardUiStateMachineImpl(
           CloudBackupHealthCardModel(
             title = when (status) {
               NoCloudAccess -> "Problem with ${cloudServiceProvider().name}\naccount access"
-              else -> "Mobile Key backup missing"
+              else -> "App Key backup missing"
             },
             onActionClick = { props.onActionClick(status) }
           )

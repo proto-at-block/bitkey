@@ -2,16 +2,16 @@
     "module-identifier": "io.matthewnelson.encoding:base32-iosarm64",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "base32-iosarm64-2.2.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "base32-iosarm64-2.3.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "base32.klib": "52d7a3c25c9e9e7791e219a20a615c65be1b204ba53fac63f678b76e5779c84f"
+                        "base32.klib": "ecbb9011f9270e063416e2b8659f3db8c19fae227f4f5dce08229df15eca91ee"
                     }
                 }
             ],

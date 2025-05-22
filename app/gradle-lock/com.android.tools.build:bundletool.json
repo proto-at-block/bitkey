@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:bundletool",
     "components": [
         {
-            "version": "1.16.0",
+            "version": "1.17.2",
             "variants": [
                 {
                     "artifacts": {
-                        "bundletool-1.16.0.jar": "1ea2bf5274bbac7a3bb5618521d2fa11fb04e900e33a8a646029ec6332fc08c8"
+                        "bundletool-1.17.2.jar": "166855cb81e10f2328a2931006f4801f422d8f4de5d717ec0f7f16fc2049a089"
                     }
                 }
             ],

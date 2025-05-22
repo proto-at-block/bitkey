@@ -15,7 +15,7 @@ import platform.Foundation.dataWithContentsOfURL
 class EmergencyAccessKitTemplateProviderImpl : EmergencyAccessKitTemplateProvider {
   override suspend fun pdfTemplateBytes(): Result<ByteString, EmergencyAccessKitTemplateUnavailableError> =
     binding {
-      val templateData = resourceData("EmergencyAccessKitTemplate000", "pdf")
+      val templateData = resourceData("EmergencyExitKitTemplate000", "pdf")
       ensureNotNull(templateData) {
         EmergencyAccessKitTemplateUnavailableError(null)
       }

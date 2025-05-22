@@ -2,11 +2,11 @@
     "module-identifier": "com.google.errorprone:error_prone_annotations",
     "components": [
         {
-            "version": "2.23.0",
+            "version": "2.27.0",
             "variants": [
                 {
                     "artifacts": {
-                        "error_prone_annotations-2.23.0.jar": "ec6f39f068b6ff9ac323c68e28b9299f8c0a80ca512dccb1d4a70f40ac3ec054"
+                        "error_prone_annotations-2.27.0.jar": "24c923372c58e35d0b9f16a028929bb9aedc77521867c274f2bd0735df5ba1f5"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.27.1",
+            "version": "2.36.0",
             "variants": [
                 {
                     "artifacts": {
-                        "error_prone_annotations-2.27.1.jar": "a4895b5db0243614d90ce2a2c6f830624909c01e31587d8ec3ecf51e5e7e7506"
+                        "error_prone_annotations-2.36.0.jar": "77440e270b0bc9a249903c5a076c36a722c4886ca4f42675f2903a1c53ed61a5"
                     }
                 }
             ],

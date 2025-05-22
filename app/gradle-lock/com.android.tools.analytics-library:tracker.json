@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.analytics-library:tracker",
     "components": [
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "tracker-31.5.2.jar": "542c6c0070a7df6254050532f2a14aa9db5553a0fc2cb203fdba7b721523e716"
+                        "tracker-31.9.1.jar": "0fc55e4d215f4b021d881172acef82464061d962dfebb113a0540dc7045928e5"
                     }
                 }
             ],

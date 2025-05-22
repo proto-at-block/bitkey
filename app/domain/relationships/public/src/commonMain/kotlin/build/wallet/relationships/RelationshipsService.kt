@@ -19,7 +19,7 @@ import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Domain service for managing Trusted Contact relationships. These relationships
+ * Domain service for managing Recovery Contact relationships. These relationships
  * could be leveraged for social recovery or inheritance.
  */
 @Suppress("TooManyFunctions")
@@ -67,7 +67,7 @@ interface RelationshipsService {
   ): Result<Unit, Error>
 
   /**
-   * Create an invitation to add a new Trusted Contact.
+   * Create an invitation to add a new Recovery Contact.
    */
   suspend fun createInvitation(
     account: FullAccount,
@@ -77,7 +77,7 @@ interface RelationshipsService {
   ): Result<OutgoingInvitation, Error>
 
   /**
-   * Update an invitation for an existing Trusted Contact.
+   * Update an invitation for an existing Recovery Contact.
    */
   suspend fun refreshInvitation(
     account: FullAccount,
@@ -86,7 +86,7 @@ interface RelationshipsService {
   ): Result<OutgoingInvitation, Error>
 
   /**
-   * Retrieves invitation data for a potential Trusted Contact given a code.
+   * Retrieves invitation data for a potential Recovery Contact given a code.
    * Note: [AccountId] can be for either a Full or Lite Customer
    */
   suspend fun retrieveInvitation(
@@ -95,13 +95,13 @@ interface RelationshipsService {
   ): Result<IncomingInvitation, RetrieveInvitationCodeError>
 
   /**
-   * Accept an invitation to become a Trusted Contact. Can be done both by a
+   * Accept an invitation to become a Recovery Contact. Can be done both by a
    * Full Account and Lite Account.
    *
    * @param account the active Account which accepts the invite.
-   * @param invitation the invitation data for becoming a TC.
+   * @param invitation the invitation data for becoming a RC.
    * @param protectedCustomerAlias alias/name of the Protected Customer - so that
-   * TC remembers whose wallet they are protecting.
+   * RC remembers whose wallet they are protecting.
    */
   suspend fun acceptInvitation(
     account: Account,

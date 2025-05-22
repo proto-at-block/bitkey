@@ -25,8 +25,6 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -71,7 +69,6 @@ class TransactionDetailsUiStateMachineImpl(
   private val durationFormatter: DurationFormatter,
   private val eventTracker: EventTracker,
   private val bitcoinTransactionBumpabilityChecker: BitcoinTransactionBumpabilityChecker,
-  private val feeBumpEnabled: FeeBumpIsAvailableFeatureFlag,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val feeBumpConfirmationUiStateMachine: FeeBumpConfirmationUiStateMachine,
   private val feeRateEstimator: BitcoinFeeRateEstimator,
@@ -501,7 +498,7 @@ class TransactionDetailsUiStateMachineImpl(
     estimatedConfirmationTime: Instant?,
     onViewSpeedUpEducation: () -> Unit,
   ): Data? {
-    if (!feeBumpEnabled.flagValue().value.value || estimatedConfirmationTime == null) {
+    if (estimatedConfirmationTime == null) {
       return null
     }
 
@@ -570,11 +567,10 @@ class TransactionDetailsUiStateMachineImpl(
     val feeBumpEnabled by remember {
       val onchainDetails = transaction.onChainDetails()
       mutableStateOf(
-        onchainDetails != null &&
-          feeBumpEnabled.isEnabled() && bitcoinTransactionBumpabilityChecker.isBumpable(
-            transaction = onchainDetails,
-            walletUnspentOutputs = allUtxos.toImmutableList()
-          )
+        onchainDetails != null && bitcoinTransactionBumpabilityChecker.isBumpable(
+          transaction = onchainDetails,
+          walletUnspentOutputs = allUtxos.toImmutableList()
+        )
       )
     }
     return TransactionDetailModel(

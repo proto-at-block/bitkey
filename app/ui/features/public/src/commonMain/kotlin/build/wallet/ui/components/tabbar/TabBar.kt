@@ -78,18 +78,18 @@ fun Tab(
     )
 
     if (badged) {
-      val badgeColor = WalletTheme.colors.bitkeyPrimary
+      val badgeColor = WalletTheme.colors.warningForeground
       val badgeBorder = WalletTheme.colors.tabBarBackground
       Canvas(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
         drawCircle(
           color = badgeColor,
-          radius = 4.dp.toPx()
+          radius = 6.dp.toPx()
         )
 
         drawCircle(
           color = badgeBorder,
-          radius = 4.dp.toPx(),
-          style = Stroke(width = 1.5.dp.toPx())
+          radius = 6.dp.toPx(),
+          style = Stroke(width = 2.dp.toPx())
         )
       }
     }

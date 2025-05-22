@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-protobuf-lite",
     "components": [
         {
-            "version": "1.57.0",
+            "version": "1.57.2",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-protobuf-lite-1.57.0.jar": "2c507c02d981b84a21763d44e09af4f279881dd3e25be3080f6361258607f198"
+                        "grpc-protobuf-lite-1.57.2.jar": "fc4917dc5d419ac810fb3f27523c14e75e1fe50372154fab29324215ee6a955a"
                     }
                 }
             ],

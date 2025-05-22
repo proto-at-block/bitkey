@@ -2,11 +2,11 @@
     "module-identifier": "androidx.collection:collection-ktx",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-ktx-1.4.0.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "collection-ktx-1.5.0.jar": "939b4a8697640e77d83e4e8b4c4a9d18f8130198c5961194af8dd9db9dc7c353"
                     }
                 }
             ],

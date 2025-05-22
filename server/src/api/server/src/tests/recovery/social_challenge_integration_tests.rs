@@ -15,10 +15,7 @@ use recovery::{
 };
 use time::UtcOffset;
 use types::account::bitcoin::Network;
-use types::account::{
-    entities::Account,
-    spend_limit::{Money, SpendingLimit},
-};
+use types::account::{entities::Account, money::Money, spend_limit::SpendingLimit};
 use types::recovery::trusted_contacts::TrustedContactRole;
 use types::{
     account::identifiers::AccountId,
@@ -399,7 +396,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     )
     .await;
 
-    // If the trusted contact isn't endorsed, there's no point in continuing
+    // If the Recovery Contact isn't endorsed, there's no point in continuing
     if !vector.is_trusted_contact_endorsed_by_customer {
         return;
     }

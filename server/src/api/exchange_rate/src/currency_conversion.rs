@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use bdk_utils::constants::ONE_BTC_IN_SATOSHIS;
 use time::OffsetDateTime;
 use tracing::instrument;
-use types::account::spend_limit::Money;
+use types::account::money::Money;
 use types::currencies::CurrencyCode::BTC;
 use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::bitstamp::{BitstampRate, BitstampRateProvider};
@@ -245,7 +245,7 @@ impl SpotExchangeRateProvider for LocalRateProvider {
 
 #[cfg(test)]
 mod sats_for_tests {
-    use types::account::spend_limit::Money;
+    use types::account::money::Money;
     use types::currencies::CurrencyCode::{JPY, USD};
     use types::exchange_rate::local_rate_provider::LocalRateProvider;
 

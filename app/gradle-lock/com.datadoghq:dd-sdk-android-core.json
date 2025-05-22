@@ -2,11 +2,11 @@
     "module-identifier": "com.datadoghq:dd-sdk-android-core",
     "components": [
         {
-            "version": "2.16.1",
+            "version": "2.17.0",
             "variants": [
                 {
                     "artifacts": {
-                        "dd-sdk-android-core-2.16.1.aar": "5f7a45b1b28bd604a56bf7b625cad494e5c4ba376567b5fdc967dabd7f046d61"
+                        "dd-sdk-android-core-2.17.0.aar": "2d33981fb3ad5f0622d79eeaa509a633c5cd5bcaefc3cf42a9f19837de057952"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "com.google.code.gson:gson",
     "components": [
         {
-            "version": "2.10.1",
+            "version": "2.11.0",
             "variants": [
                 {
                     "artifacts": {
-                        "gson-2.10.1.jar": "4241c14a7727c34feea6507ec801318a3d4a90f070e4525681079fb94ee4c593"
+                        "gson-2.11.0.jar": "57928d6e5a6edeb2abd3770a8f95ba44dce45f3b23b7a9dc2b309c581552a78b"
                     }
                 }
             ],

@@ -68,6 +68,7 @@ use recovery::routes::relationship::{
     GetRecoveryRelationshipsResponse, UpdateRecoveryRelationshipRequest,
     UpdateRecoveryRelationshipResponse, UploadRecoveryBackupRequest, UploadRecoveryBackupResponse,
 };
+use recovery::routes::reset_fingerprint::{ResetFingerprintRequest, ResetFingerprintResponse};
 use recovery::routes::social_challenge::{
     FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
     RespondToSocialChallengeResponse, StartSocialChallengeRequest, StartSocialChallengeResponse,
@@ -80,6 +81,10 @@ use serde::{de::DeserializeOwned, Serialize};
 use sha2::Sha256;
 use tokio::sync::Mutex;
 use tower::Service;
+use transaction_verification::routes::{
+    GetTransactionVerificationPolicyResponse, PutTransactionVerificationPolicyRequest,
+    PutTransactionVerificationPolicyResponse,
+};
 use types::account::identifiers::{AccountId, KeysetId};
 use types::notification::NotificationsPreferences;
 use types::privileged_action::router::generic::{
@@ -418,6 +423,47 @@ impl TestClient {
             .uri(format!("/api/accounts/{account_id}/mobile-pay"))
             .authenticated(account_id, Some(keys.app.secret_key), None)
             .delete()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_transaction_verification_policy(
+        &self,
+        account_id: &AccountId,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetTransactionVerificationPolicyResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/tx-verify/policy"))
+            .authenticated(account_id, Some(keys.app.secret_key), None)
+            .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn update_transaction_verification_policy(
+        &self,
+        account_id: &AccountId,
+        app_signed: bool,
+        hw_signed: bool,
+        keys: &TestAuthenticationKeys,
+        request: &PutTransactionVerificationPolicyRequest,
+    ) -> Response<PutTransactionVerificationPolicyResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/tx-verify/policy"))
+            .authenticated(
+                account_id,
+                if app_signed {
+                    Some(keys.app.secret_key)
+                } else {
+                    None
+                },
+                if hw_signed {
+                    Some(keys.hw.secret_key)
+                } else {
+                    None
+                },
+            )
+            .put(request)
             .call(&self.router)
             .await
     }
@@ -1571,6 +1617,19 @@ impl TestClient {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/recovery/evaluate-pin"))
             .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
+            .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn reset_fingerprint(
+        &self,
+        account_id: &str,
+        request: &PrivilegedActionRequest<ResetFingerprintRequest>,
+    ) -> Response<PrivilegedActionResponse<ResetFingerprintResponse>> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/fingerprint-reset"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .post(&request)
             .call(&self.router)
             .await

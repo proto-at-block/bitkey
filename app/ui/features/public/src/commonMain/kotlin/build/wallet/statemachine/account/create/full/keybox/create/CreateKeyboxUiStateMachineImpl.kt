@@ -183,7 +183,7 @@ class CreateKeyboxUiStateMachineImpl(
     data object CreateAppKeysErrorState : State
 
     /**
-     * App keys generated. We can now pair with hardware, UI state machine is taking care of this.
+     * App Keys generated. We can now pair with hardware, UI state machine is taking care of this.
      */
     data class HasAppKeysState(
       val appKeys: WithAppKeys,

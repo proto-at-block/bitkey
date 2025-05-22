@@ -7,7 +7,7 @@ export class InheritanceMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `inheritance_${environment}`);
 
-    let recipients = environment === Environment.PRODUCTION ? ["@slack-Block-bitkey-recovery-alerts", "@pagerduty-fromagerie"] : ["@slack-Block-bitkey-alerts-staging"];
+    let recipients = environment === Environment.PRODUCTION ? ["@slack-Block-bitkey-alerts", "@pagerduty-fromagerie"] : ["@slack-Block-bitkey-alerts-staging"];
 
     new HttpStatusCompositeMonitor(this, "4xx_inheritance_status", {
       status: "4xx",

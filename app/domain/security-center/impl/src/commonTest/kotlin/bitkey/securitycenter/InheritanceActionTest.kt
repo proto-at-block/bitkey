@@ -8,7 +8,7 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 
 class InheritanceActionTest : FunSpec({
-  test("Test InheritanceActionTest with trusted contacts") {
+  test("Test InheritanceActionTest with Recovery Contacts") {
     val relationships = Relationships(
       invitations = emptyList(),
       endorsedTrustedContacts = listOf(EndorsedBeneficiaryFake),
@@ -20,7 +20,7 @@ class InheritanceActionTest : FunSpec({
     healthyAction.category() shouldBe SecurityActionCategory.RECOVERY
   }
 
-  test("Test InheritanceAction without trusted contacts") {
+  test("Test InheritanceAction without Recovery Contacts") {
     val relationships = Relationships(
       invitations = emptyList(),
       endorsedTrustedContacts = emptyList(),

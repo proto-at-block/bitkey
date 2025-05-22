@@ -1,6 +1,8 @@
 package bitkey.securitycenter
 
+import build.wallet.database.SecurityInteractionStatus
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.Instant
 
 interface SecurityActionsService {
   /**
@@ -15,4 +17,19 @@ interface SecurityActionsService {
    *
    */
   fun getRecommendations(): Flow<List<SecurityActionRecommendation>>
+
+  fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>>
+
+  suspend fun recordUserInteractionWithRecommendation(
+    id: SecurityActionRecommendation,
+    status: SecurityInteractionStatus,
+    interactedAt: Instant,
+  ): Result<Unit>
+
+  fun hasRecommendationsRequiringAttention(): Flow<Boolean>
+
+  /**
+   * Marks all current recommendations as viewed
+   */
+  suspend fun markAllRecommendationsViewed()
 }

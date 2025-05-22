@@ -115,7 +115,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
     pdfAnnotator: PdfAnnotator,
     mobileKeyParameters: MobileKeyParameters,
   ) {
-    // Populate Mobile Key characters.
+    // Populate App Key characters.
     pdfAnnotator.addBlackHelveticaText(
       text = mobileKeyParameters.mobileKeyCharacters,
       fontSize = FONT_SIZE_MEDIUM,
@@ -123,7 +123,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
       frame = PdfFrame(TEXT_BOX_X, 1198.0f, 1490.0f, 850.0f)
     )
 
-    // Populate Mobile Key QR code.
+    // Populate App Key QR code.
     if (mobileKeyParameters.mobileKeyQRCodeText.isNotEmpty()) {
       pdfAnnotator.addQrCodeImage(
         contents = mobileKeyParameters.mobileKeyQRCodeText,

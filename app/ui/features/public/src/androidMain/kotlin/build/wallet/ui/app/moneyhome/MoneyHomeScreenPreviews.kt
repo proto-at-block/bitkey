@@ -49,6 +49,8 @@ fun MoneyHomeScreenFull(
   hideBalance: Boolean = false,
   largeBalance: Boolean = false,
   showSellButton: Boolean = false,
+  securityHub: Boolean = false,
+  securityHubBadged: Boolean = false,
 ) {
   MoneyHomeScreen(
     model =
@@ -168,7 +170,9 @@ fun MoneyHomeScreenFull(
             ),
             onClick = StandardClick {}
           )
-        )
+        ),
+        onSecurityHubTabClick = if (securityHub) ({}) else null,
+        isSecurityHubBadged = securityHubBadged
       )
   )
 }
@@ -196,7 +200,6 @@ fun MoneyHomeScreenLite() {
           )
         ),
         badgedSettingsIcon = false,
-        inheritanceIsEnabled = true,
         onProtectedCustomerClick = {},
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},
@@ -222,7 +225,6 @@ fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
         buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
         protectedCustomers = immutableListOf(),
         badgedSettingsIcon = true,
-        inheritanceIsEnabled = true,
         onProtectedCustomerClick = {},
         onBuyOwnBitkeyClick = {},
         onAcceptInviteClick = {},

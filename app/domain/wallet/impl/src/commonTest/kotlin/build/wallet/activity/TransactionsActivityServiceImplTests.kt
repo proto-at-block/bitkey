@@ -7,6 +7,7 @@ import build.wallet.bitcoin.transactions.BitcoinWalletServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.coroutines.createBackgroundScope
 import build.wallet.coroutines.turbine.awaitUntil
+import build.wallet.coroutines.turbine.awaitUntilNotNull
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.ExpectedTransactionsPhase2FeatureFlag
@@ -35,11 +36,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
   val featureFlag = ExpectedTransactionsPhase2FeatureFlag(FeatureFlagDaoFake())
-  val service = TransactionsActivityServiceImpl(
-    expectedTransactionsPhase2FeatureFlag = featureFlag,
-    partnershipTransactionsService = partnershipTransactionsService,
-    bitcoinWalletService = bitcoinWalletService
-  )
+  lateinit var service: TransactionsActivityServiceImpl
 
   val wallet = SpendingWalletMock(turbines::create)
 
@@ -101,6 +98,12 @@ class TransactionsActivityServiceImplTests : FunSpec({
       listOf(partnershipTxWithoutMatch, partnershipTxWithMatch, partnershipTxWithoutStatus)
 
     featureFlag.setFlagValue(true)
+
+    service = TransactionsActivityServiceImpl(
+      expectedTransactionsPhase2FeatureFlag = featureFlag,
+      partnershipTransactionsService = partnershipTransactionsService,
+      bitcoinWalletService = bitcoinWalletService
+    )
   }
 
   test("sync") {
@@ -115,7 +118,7 @@ class TransactionsActivityServiceImplTests : FunSpec({
     }
 
     service.transactions.test {
-      awaitItem().shouldContainExactly(
+      awaitUntilNotNull().shouldContainExactly(
         Transaction.PartnershipTransaction(
           details = partnershipTxWithMatch,
           bitcoinTransaction = btcTxWithMatch

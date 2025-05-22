@@ -1,7 +1,7 @@
 package build.wallet.statemachine.home.full.card
 
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.feature.FeatureFlagDaoFake
@@ -9,7 +9,6 @@ import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachineImpl
@@ -118,11 +117,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         ),
       hardwareRecoveryStatusCardUiProps =
         HardwareRecoveryStatusCardUiProps(
-          lostHardwareRecoveryData =
-            AwaitingNewHardwareData(
-              newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-              addHardwareKeys = { _, _, _ -> }
-            ),
+          account = FullAccountMock,
           onClick = {}
         ),
       recoveryContactCardsUiProps =

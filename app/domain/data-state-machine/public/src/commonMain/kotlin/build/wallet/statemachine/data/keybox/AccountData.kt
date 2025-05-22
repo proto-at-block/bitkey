@@ -10,7 +10,7 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 
 /**
- * Describes Account state in the app. This could be Customer or Trusted Contact
+ * Describes Account state in the app. This could be Customer or Recovery Contact
  * account.
  */
 sealed interface AccountData {
@@ -54,7 +54,7 @@ sealed interface AccountData {
     ) : NoActiveAccountData
 
     /**
-     * Indicates that the account is attempting recovery with the Emergency Access Kit.
+     * Indicates that the account is attempting recovery with the Emergency Exit Kit.
      */
     data class RecoveringAccountWithEmergencyAccessKit(
       val onExit: () -> Unit,
@@ -94,7 +94,7 @@ sealed interface AccountData {
 
     /**
      * Indicates that the user started onboarding with the intent to
-     * become a trusted contact.
+     * become a Recovery Contact.
      */
     BeTrustedContact,
 

@@ -10,8 +10,8 @@ fun ProtectedCustomer.listItemModel(onClick: (ProtectedCustomer) -> Unit) =
   ListItemModel(
     title = alias.alias,
     leadingAccessory =
-      ListItemAccessory.CircularCharacterAccessory(
-        character = alias.alias.first().uppercaseChar()
+      ListItemAccessory.CircularCharacterAccessory.fromLetters(
+        input = alias.alias
       ),
     trailingAccessory = drillIcon(tint = IconTint.On30),
     onClick = { onClick(this) }

@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-io-2.0.21.jar": "0efee4c20f3e7f912b31c796c4e47f9d14ea68803ec7ed4e5d4f24258e3aa61e"
+                        "kotlin-util-io-2.1.20.jar": "82a3b29a611d47ce634ae2e6c509cde2a86f94b23b86be30864eb3d4b8fe8e7e"
                     }
                 }
             ],

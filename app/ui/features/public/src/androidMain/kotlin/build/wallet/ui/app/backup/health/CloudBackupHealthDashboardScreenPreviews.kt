@@ -12,7 +12,7 @@ fun CloudBackupHealthDashboardScreenPreview() {
       CloudBackupHealthDashboardBodyModel(
         onBack = {},
         mobileKeyBackupStatusCard = CloudBackupHealthStatusCardModelForPreview,
-        eakBackupStatusCard = CloudBackupHealthStatusCardModelForPreview
+        eekBackupStatusCard = CloudBackupHealthStatusCardModelForPreview
       )
   )
 }

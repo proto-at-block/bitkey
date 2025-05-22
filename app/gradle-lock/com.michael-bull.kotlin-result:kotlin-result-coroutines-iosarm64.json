@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-iosarm64",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines-iosarm64-2.0.0-metadata.jar": "1ef1bf0fc3e63bb1d3ac0ff22441cb8193620d5e1174115bd01089e96e82efc4"
+                        "kotlin-result-coroutines-iosarm64-2.0.1-metadata.jar": "695098b3a9438f4ba75591b3c5c151447e8307864d3f69b626fe2c6db2e23850"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines.klib": "bac5332bcbca6be146a3fbcc2341c0c4bb42d57d54a45bbf4b929da223231823"
+                        "kotlin-result-coroutines.klib": "b45dc4f01d05883e510756a6a2cded92dd555d845b48f764134527c325ea2c6e"
                     }
                 }
             ],

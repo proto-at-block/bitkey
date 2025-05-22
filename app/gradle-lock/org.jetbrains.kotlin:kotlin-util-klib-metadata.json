@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-util-klib-metadata",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-klib-metadata-1.9.21.jar": "bbbd126ac2065d91173ae66382819e45c5f0ccccac8bda2865c3c42157594f85"
+                        "kotlin-util-klib-metadata-2.1.20.jar": "f2d5e684715b920b6084968e6c33c8bb05b0b6b97919800e2f221d9418240c7d"
                     }
                 }
             ],

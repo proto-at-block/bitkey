@@ -43,7 +43,7 @@ pub enum TrustedContactRole {
 pub enum TrustedContactError {
     #[error("Blank alias")]
     BlankAlias,
-    #[error("No roles assigned to trusted contact")]
+    #[error("No roles assigned to Recovery Contact")]
     NoRoles,
 }
 

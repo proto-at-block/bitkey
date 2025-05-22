@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.turbine:turbine-iosarm64",
     "components": [
         {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "Turbine-iosarm64-metadata.jar": "c2956f1fd18fcd040013878012373afac63fe67ee9e0c9f69a33d0df28ca5159"
+                        "Turbine-iosarm64-metadata.jar": "cf67a48fd4dd5d62b53123081b8e3a8408284c8f47fb639cc5a4541cd0b867f8"
                     }
                 },
                 {
                     "artifacts": {
-                        "Turbine.klib": "d4669cb00b998073e76facfcce409191fc26ad57bb92d71fb84d8bb7e9d5f883"
+                        "Turbine.klib": "79c46187f5f3873dee7b89c597e70d5bc02c7bbfcc99aab0487252ba08339b6e"
                     }
                 }
             ],

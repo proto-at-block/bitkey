@@ -95,7 +95,7 @@ impl From<RouteState> for SwaggerEndpoint {
         )
     ),
     tags(
-        (name = "Social Challenge", description = "Endpoints related to Social Challenges allowing a customer to get back into their account with the help of a trusted contact")
+        (name = "Social Challenge", description = "Endpoints related to Social Challenges allowing a customer to get back into their account with the help of a Recovery Contact")
     )
 )]
 struct ApiDoc;
@@ -258,7 +258,7 @@ pub struct VerifySocialChallengeResponse {
 }
 
 ///
-/// This route is used by Trusted Contacts to retrieve the social challenge
+/// This route is used by Recovery Contacts to retrieve the social challenge
 /// given the code and the recovery relationship. The code was given to them
 /// by the Customer who's account they're protecting.
 ///
@@ -305,7 +305,7 @@ pub struct RespondToSocialChallengeRequest {
 pub struct RespondToSocialChallengeResponse {}
 
 ///
-/// This route is used by Trusted Contacts to attest the social challenge
+/// This route is used by Recovery Contacts to attest the social challenge
 /// and to provide the shared secret that the Customer will use to recover
 /// their account.
 ///

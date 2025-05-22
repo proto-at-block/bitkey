@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.foundation:foundation-desktop",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-desktop-1.7.3.jar": "e1dc2e97eca6acf5bb16fc587b7d92b09c89e3b7cec0589ea169a970d1c9fe48"
+                        "foundation-desktop-1.8.0.jar": "f89dce9f0cbf541c47ddd616cc3229351e0634c60551b652bfe9b9234c4d7c9c"
                     }
                 }
             ],

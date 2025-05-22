@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-coverage-proto",
     "components": [
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-coverage-proto-31.5.2.jar": "efb4d7014aaa7355246a07c2e437a2231fb252540ff1bce6872c88dc8da89d12"
+                        "android-test-plugin-host-coverage-proto-31.9.1.jar": "fa86719a3dc5de465f7e0c023184414c27f8fd53a34fd557289c0bf6df340244"
                     }
                 }
             ],

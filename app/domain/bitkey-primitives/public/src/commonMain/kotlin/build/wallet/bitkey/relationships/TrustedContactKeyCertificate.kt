@@ -17,18 +17,18 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 /**
- * A certificate that endorses a trusted contact (TC) key's authenticity.
+ * A certificate that endorses a Recovery Contact (RC) key's authenticity.
  *
- * Each endorsed and verified TC has its own key certificate.
+ * Each endorsed and verified RC has its own key certificate.
  *
  * This certificate can be verified as long as the app has either the original
  * hardware auth key or the original app global auth key:
  *    - if the PC has not gone through D&N recovery, either the app or hardware auth key can be used to
  *      verify the cert.
- *    - if the PC did a Lost Hardware recovery, we can use the app's auth key to verify the TC identity key.
+ *    - if the PC did a Lost Hardware recovery, we can use the app's auth key to verify the RC identity key.
  *      The certs will be rotated post recovery.
  *    - if the PC did a Lost App recovery, we can use the hardware to verify the old app auth key, and
- *      then use that key to verify the TC identity key. The certs will be rotated post recovery.
+ *      then use that key to verify the RC identity key. The certs will be rotated post recovery.
  */
 @Serializable
 data class TrustedContactKeyCertificate(

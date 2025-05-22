@@ -29,6 +29,7 @@ mod fetch_touchpoint;
 mod migrations;
 mod put_comms_verification_claim;
 mod put_inactive_spending_distributed_key;
+mod put_transaction_verification_policy;
 mod rotate_to_spending_key_definition;
 mod rotate_to_spending_keyset;
 pub mod tests;

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.material3:material3-android",
     "components": [
         {
-            "version": "1.3.1",
+            "version": "1.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "material3-release.aar": "752473d4ea271f822858c313ec0d857ab05249021906f3005b30f2b1fcd0dcc0"
+                        "material3-release.aar": "847666d9fc2d4348b6ec76a6a6094f14fb60de631ee4f6992004ec71a4f44336"
                     }
                 }
             ],

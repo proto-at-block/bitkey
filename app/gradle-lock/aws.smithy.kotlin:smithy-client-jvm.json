@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:smithy-client-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "smithy-client-jvm-1.3.7.jar": "f7526d4a87d098fdf67afa1af9999fdc3d1098ce009e34a053a0ca702fac2527"
+                        "smithy-client-jvm-1.3.31.jar": "89af3d1885302f213b418799a3a317fd395341f144dd276ceb47882fded308b9"
                     }
                 }
             ],

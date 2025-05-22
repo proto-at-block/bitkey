@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime-android",
     "components": [
         {
-            "version": "1.7.6",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-release.aar": "482942683274e1961727b2a76d68fe4ab4abb8145fd8b3146142144ce0b25311"
+                        "runtime-release.aar": "08026344536084655958120bcc3aa8fd812bb44e0b819b3fe2e7a023f421afd8"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-script-runtime",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-script-runtime-2.0.21.jar": "9c111f8d08ade455566272d561921adc2b2cb6b7a4ccee38d9829c5e3a1ca6a3"
+                        "kotlin-script-runtime-2.1.20.jar": "ae4397fbb3aa2a1ada09290e753bba99a4114548977c3115526b9958f4cb1a04"
                     }
                 }
             ],

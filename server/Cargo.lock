@@ -1304,6 +1304,7 @@ dependencies = [
  "hex",
  "instrumentation",
  "once_cell",
+ "rstest",
  "serde",
  "serde_json",
  "thiserror 1.0.57",
@@ -5198,6 +5199,7 @@ dependencies = [
  "mockall",
  "notification",
  "once_cell",
+ "privileged_action",
  "promotion_code",
  "rand",
  "repository",
@@ -6125,6 +6127,7 @@ dependencies = [
  "tower 0.5.0",
  "tower-http",
  "tracing",
+ "transaction_verification",
  "types",
  "ulid",
  "userpool",
@@ -6941,6 +6944,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "transaction_verification"
+version = "0.1.0"
+dependencies = [
+ "account",
+ "async-trait",
+ "authn_authz",
+ "axum",
+ "axum-extra",
+ "axum-macros",
+ "base64 0.22.1",
+ "bdk_utils",
+ "config",
+ "database",
+ "errors",
+ "exchange_rate",
+ "experimentation",
+ "feature_flags",
+ "http_server",
+ "notification",
+ "rstest",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.57",
+ "time",
+ "tokio",
+ "tracing",
+ "types",
+ "userpool",
+ "utoipa",
+]
+
+[[package]]
 name = "trim-in-place"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6969,12 +7004,14 @@ name = "types"
 version = "0.1.0"
 dependencies = [
  "base32",
+ "base64 0.22.1",
  "bdk_utils",
  "derive_builder",
  "errors",
  "external_identifier",
  "isocountry",
  "once_cell",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",
@@ -7722,6 +7759,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 3.9.0",
+ "sha2",
  "subprocess",
  "tokio",
  "tower 0.5.0",

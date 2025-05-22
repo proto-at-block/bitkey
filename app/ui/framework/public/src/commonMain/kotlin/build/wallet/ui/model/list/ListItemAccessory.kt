@@ -14,24 +14,32 @@ sealed interface ListItemAccessory {
     val character: Char,
   ) : ListItemAccessory {
     val text = character.toString()
+
+    companion object {
+      fun fromLetters(input: String): CircularCharacterAccessory {
+        return CircularCharacterAccessory(
+          character = input.firstOrNull(Char::isLetter)?.uppercaseChar() ?: '?'
+        )
+      }
+    }
   }
 
   data class ContactAvatarAccessory(
     val name: String,
     val isLoading: Boolean,
   ) : ListItemAccessory {
-    val initials = buildString(2) {
-      val letters = name
-        .split(' ')
-        .mapNotNull { part ->
-          part.firstOrNull(Char::isLetter)
-            ?.uppercaseChar()
-        }
-      append(letters.first())
-      if (letters.size > 1) {
-        append(letters.last())
+    val initials = name
+      .split(' ')
+      .mapNotNull { chunk ->
+        chunk.firstOrNull(Char::isLetter)?.uppercaseChar()
       }
-    }
+      .let { letters ->
+        when {
+          letters.isEmpty() -> "?"
+          letters.size == 1 -> letters.single().toString()
+          else -> "${letters.first()}${letters.last()}"
+        }
+      }
   }
 
   data class IconAccessory(

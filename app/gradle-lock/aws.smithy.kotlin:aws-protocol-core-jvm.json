@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:aws-protocol-core-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-protocol-core-jvm-1.3.7.jar": "5944375147c82194cce2c13599b6475e4e637faae5e26fbd0b2d6939271871e9"
+                        "aws-protocol-core-jvm-1.3.31.jar": "fc4b361bb379ae71dfdf8e7d6958437314e1589e8b7cf43d3ee5bcb1340e5441"
                     }
                 }
             ],

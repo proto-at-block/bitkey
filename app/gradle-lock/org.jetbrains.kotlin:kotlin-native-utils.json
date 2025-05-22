@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-native-utils",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-native-utils-2.0.21.jar": "45eb08a3929f97c48a92912c9625779d1540bc6f3f212fb9e94620d0326bcc00"
+                        "kotlin-native-utils-2.1.20.jar": "a7256273abb9df2235924d80fdd36d678b458467c3076c66851c42437bdd3c66"
                     }
                 }
             ],

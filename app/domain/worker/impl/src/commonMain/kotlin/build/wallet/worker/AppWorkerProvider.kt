@@ -2,6 +2,7 @@ package build.wallet.worker
 
 import bitkey.metrics.MetricTrackerTimeoutPoller
 import bitkey.recovery.RecoverySyncWorker
+import bitkey.recovery.fundslost.FundsLostRiskSyncWorker
 import build.wallet.activity.TransactionsActivitySyncWorker
 import build.wallet.analytics.events.AnalyticsEventPeriodicProcessor
 import build.wallet.analytics.events.EventTracker
@@ -26,6 +27,7 @@ import build.wallet.money.exchange.ExchangeRateSyncWorker
 import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.notifications.RegisterWatchAddressPeriodicProcessor
 import build.wallet.partnerships.PartnershipTransactionsSyncWorker
+import build.wallet.recovery.sweep.SweepSyncWorker
 import build.wallet.relationships.EndorseTrustedContactsWorker
 import build.wallet.relationships.SyncRelationshipsWorker
 
@@ -67,6 +69,8 @@ class AppWorkerProviderImpl(
   private val socRecCloudBackupSyncWorker: SocRecCloudBackupSyncWorker,
   private val metricTrackerTimeoutPoller: MetricTrackerTimeoutPoller,
   private val recoverySyncWorker: RecoverySyncWorker,
+  private val sweepSyncWorker: SweepSyncWorker,
+  private val fundsLostRiskSyncWorker: FundsLostRiskSyncWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -94,7 +98,9 @@ class AppWorkerProviderImpl(
       partnershipTransactionsSyncWorker,
       socRecCloudBackupSyncWorker,
       metricTrackerTimeoutPoller,
-      recoverySyncWorker
+      recoverySyncWorker,
+      sweepSyncWorker,
+      fundsLostRiskSyncWorker
     )
   }
 }

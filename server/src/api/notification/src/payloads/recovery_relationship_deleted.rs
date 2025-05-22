@@ -84,7 +84,7 @@ fn payloads_for_social_recovery(
     }
 
     let message = format!(
-        "{} has been removed as one of your trusted contacts. You can manage your trusted contacts from your Bitkey app if you want to replace them.",
+        "{} has been removed as one of your Recovery Contacts. You can manage your Recovery Contacts from your Bitkey app if you want to replace them.",
         trusted_contact_alias
     );
 

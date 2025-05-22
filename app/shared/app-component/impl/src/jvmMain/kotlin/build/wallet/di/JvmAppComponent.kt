@@ -36,7 +36,6 @@ import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApi
 import build.wallet.feature.FeatureFlagService
-import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao
@@ -111,7 +110,6 @@ interface JvmAppComponent {
   val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService
   val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator
   val gettingStartedTaskDao: GettingStartedTaskDao
-  val inheritanceFeatureFlag: InheritanceFeatureFlag
   val keyboxDao: KeyboxDao
   val keysetWalletProvider: KeysetWalletProvider
   val liteAccountCloudBackupCreator: LiteAccountCloudBackupCreator

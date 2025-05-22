@@ -65,8 +65,8 @@ class ViewingProtectedCustomerUiStateMachineImpl(
 
         is State.ViewingFailedToRemoveError ->
           ErrorFormBottomSheetModel(
-            title = "We couldn’t remove you as a Trusted Contact",
-            subline = "There was a problem removing yourself as a trusted contact. Please try again.",
+            title = "We couldn’t remove you as a Recovery Contact",
+            subline = "There was a problem removing yourself as a Recovery Contact. Please try again.",
             primaryButton = ButtonDataModel("Back", onClick = { props.onExit() }),
             onClosed = props.onExit,
             eventTrackerScreenId = TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE

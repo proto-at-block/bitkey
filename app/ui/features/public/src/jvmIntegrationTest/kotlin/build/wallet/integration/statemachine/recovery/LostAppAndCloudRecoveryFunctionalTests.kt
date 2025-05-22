@@ -81,8 +81,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
-      app.completeRecoveryDelayPeriodOnF8e()
-
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
         .onCompleteRecovery()
@@ -136,8 +134,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
-      app.completeRecoveryDelayPeriodOnF8e()
 
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
@@ -199,8 +195,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Resume with Delay & Notify period in progress
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
-      app.completeRecoveryDelayPeriodOnF8e()
-
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
         .onCompleteRecovery()
@@ -246,8 +240,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
-      app.completeRecoveryDelayPeriodOnF8e()
 
       // Start completing recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
@@ -306,8 +298,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
-      app.completeRecoveryDelayPeriodOnF8e()
 
       // Start completing recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
@@ -382,15 +372,10 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       // Resume on D&N wait
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
-      app.completeRecoveryDelayPeriodOnF8e()
-
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
         .onCompleteRecovery()
       awaitLoadingScreen(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
-      // TODO(W-11057): this sometimes fails indicating a bug.
-      //  There is a race condition in the implementation causing auth key rotation to fail
-      //  when completing recovery.
       awaitUntilBody<SaveBackupInstructionsBodyModel>()
 
       cancelAndIgnoreRemainingEvents()
@@ -423,8 +408,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
-      app.completeRecoveryDelayPeriodOnF8e()
 
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
@@ -518,8 +501,6 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       awaitUntilBody<EnableNotificationsBodyModel>()
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
-
-      app.completeRecoveryDelayPeriodOnF8e()
 
       awaitUntilBody<DelayAndNotifyNewKeyReady>(
         matching = { it.onStopRecovery != null }

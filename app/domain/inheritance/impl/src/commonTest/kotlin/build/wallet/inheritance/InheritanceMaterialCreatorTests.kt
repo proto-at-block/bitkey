@@ -87,7 +87,7 @@ class InheritanceMaterialCreatorTests : FunSpec({
       packages[1].relationshipId.value.shouldBe("second-contact")
       // Sealed Encryption key should be encrypted per-contact:
       packages[0].sealedDek.shouldNotBeEqual(packages[1].sealedDek)
-      // Mobile keys should all result in identical keys:
+      // App Keys should all result in identical keys:
       packages[0].sealedMobileKey.shouldBeEqual(packages[1].sealedMobileKey)
     }
   }

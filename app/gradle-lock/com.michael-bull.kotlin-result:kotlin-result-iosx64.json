@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-iosx64",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-iosx64-2.0.0-metadata.jar": "47eb065b3bcea91945667c3fe6db658ae703d9cb94156da745b716937e75bc06"
+                        "kotlin-result-iosx64-2.0.1-metadata.jar": "a427e11ebcb41e4c0fdc70f5f093d21171d0d3537c8b5f8f4b0c29694d4cd680"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result.klib": "468c30c65fda21c4c8d8305cf6da7e1553ff5a5168629376ba1a1c5baf1762eb"
+                        "kotlin-result.klib": "1024f5c12c50377a414ad57317280d9ea271bb60946b63174f5e52a6137116a5"
                     }
                 }
             ],

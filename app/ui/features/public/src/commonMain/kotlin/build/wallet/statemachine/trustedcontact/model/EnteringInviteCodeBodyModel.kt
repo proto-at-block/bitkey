@@ -28,15 +28,12 @@ data class EnteringInviteCodeBodyModel(
     onBack = retreat.onRetreat,
     toolbar = ToolbarModel(leadingAccessory = retreat.leadingToolbarAccessory),
     header = FormHeaderModel(
-      headline = if (variant.isInheritanceEnabled) "Enter invite code" else "Enter invite code to accept",
+      headline = "Enter invite code",
       subline = when (variant) {
-        is TrustedContactFeatureVariant.Generic -> when {
-          variant.isInheritanceEnabled -> "Enter your invite code to accept a beneficiary or Trusted Contact invitation."
-          else -> "Use the code that your Trusted Contact sent you to help safeguard their wallet."
-        }
+        is TrustedContactFeatureVariant.Generic -> "Enter your invite code to accept a beneficiary or Recovery Contact invitation."
         is TrustedContactFeatureVariant.Direct -> when (variant.target) {
           Feature.Inheritance -> "Enter your invite code to accept a beneficiary invitation."
-          Feature.Recovery -> "Use the code that your Trusted Contact sent you to help safeguard their wallet."
+          Feature.Recovery -> "Use the code that your Recovery Contact sent you to help safeguard their wallet."
         }
       }
     ),

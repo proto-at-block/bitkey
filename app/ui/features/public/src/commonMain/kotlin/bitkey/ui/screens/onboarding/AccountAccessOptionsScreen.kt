@@ -6,21 +6,17 @@ import bitkey.ui.framework.Screen
 import bitkey.ui.framework.ScreenPresenter
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.statemachine.account.AccountAccessMoreOptionsFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 
 /**
  * Options for accessing an existing account (recovery), or becoming
- * a trusted contact.
+ * a Recovery Contact.
  */
 data object AccountAccessOptionsScreen : Screen
 
 @BitkeyInject(ActivityScope::class)
-class AccountAccessOptionsScreenPresenter(
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
-) : ScreenPresenter<AccountAccessOptionsScreen> {
+class AccountAccessOptionsScreenPresenter : ScreenPresenter<AccountAccessOptionsScreen> {
   @Composable
   override fun model(
     navigator: Navigator,
@@ -38,8 +34,7 @@ class AccountAccessOptionsScreenPresenter(
       },
       onResetExistingDevice = {
         // TODO: implement
-      },
-      isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
+      }
     ).asRootFullScreen()
   }
 }

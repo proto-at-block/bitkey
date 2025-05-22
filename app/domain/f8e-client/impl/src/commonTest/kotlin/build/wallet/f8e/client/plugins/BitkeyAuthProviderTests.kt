@@ -20,6 +20,7 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.auth.*
 import io.ktor.util.*
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -53,7 +54,8 @@ class BitkeyAuthProviderTests : FunSpec({
     val tokens = AccountAuthTokens(
       accessToken = AccessToken("access-token"),
       refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().plus(5.minutes)
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
     )
     authTokensService.setTokens(
       accountId = FullAccountId("test-account"),
@@ -68,11 +70,12 @@ class BitkeyAuthProviderTests : FunSpec({
     request.headers[HttpHeaders.Authorization].shouldBe("Bearer access-token")
   }
 
-  test("refreshes and adds new token when token is about to expire") {
+  test("refreshes and adds new token when access token is about to expire") {
     val tokens = AccountAuthTokens(
       accessToken = AccessToken("access-token"),
       refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().plus(5.seconds)
+      accessTokenExpiresAt = clock.now().plus(5.seconds),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
     )
     authTokensService.setTokens(
       accountId = FullAccountId("test-account"),
@@ -82,9 +85,10 @@ class BitkeyAuthProviderTests : FunSpec({
     val refreshedTokens = AccountAuthTokens(
       accessToken = AccessToken("new-access-token"),
       refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().plus(5.minutes)
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
     )
-    authTokensService.refreshTokens = refreshedTokens
+    authTokensService.refreshAccessTokenTokens = refreshedTokens
 
     val request = createRequestBuilder()
 
@@ -97,11 +101,12 @@ class BitkeyAuthProviderTests : FunSpec({
     ).shouldBeOk(refreshedTokens)
   }
 
-  test("refreshes and adds new token when token is expired") {
+  test("re-authenticates when refresh token is about to expire") {
     val tokens = AccountAuthTokens(
       accessToken = AccessToken("access-token"),
       refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().minus(1.seconds)
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(5.seconds)
     )
     authTokensService.setTokens(
       accountId = FullAccountId("test-account"),
@@ -110,10 +115,11 @@ class BitkeyAuthProviderTests : FunSpec({
     )
     val refreshedTokens = AccountAuthTokens(
       accessToken = AccessToken("new-access-token"),
-      refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().plus(5.minutes)
+      refreshToken = RefreshToken("new-refresh-token"),
+      accessTokenExpiresAt = clock.now().plus(5.minutes),
+      refreshTokenExpiresAt = clock.now().plus(30.days)
     )
-    authTokensService.refreshTokens = refreshedTokens
+    authTokensService.refreshRefreshTokenTokens = refreshedTokens
 
     val request = createRequestBuilder()
 
@@ -151,7 +157,8 @@ class BitkeyAuthProviderTests : FunSpec({
     val tokens = AccountAuthTokens(
       accessToken = AccessToken("access-token"),
       refreshToken = RefreshToken("refresh-token"),
-      accessTokenExpiresAt = clock.now().minus(1.seconds)
+      accessTokenExpiresAt = clock.now().minus(1.seconds),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
     )
     authTokensService.setTokens(
       accountId = FullAccountId("test-account"),
@@ -162,9 +169,10 @@ class BitkeyAuthProviderTests : FunSpec({
     val refreshedTokens = AccountAuthTokens(
       accessToken = AccessToken("new-access-token"),
       refreshToken = RefreshToken("new-refresh-token"),
-      accessTokenExpiresAt = clock.now().plus(300.seconds)
+      accessTokenExpiresAt = clock.now().plus(300.seconds),
+      refreshTokenExpiresAt = clock.now().plus(5.minutes)
     )
-    authTokensService.refreshTokens = refreshedTokens
+    authTokensService.refreshAccessTokenTokens = refreshedTokens
 
     provider.refreshToken(httpResponse).shouldBeTrue()
     authTokensService.getTokens(

@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * This state machine is used to show the flow of screens for an which is acting is a trusted contact
+ * This state machine is used to show the flow of screens for an which is acting is a Recovery Contact
  * to recover another customer's account
  */
 interface HelpingWithRecoveryUiStateMachine : StateMachine<HelpingWithRecoveryUiProps, ScreenModel>

@@ -14,6 +14,7 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ktor.result.HttpError
+import build.wallet.logging.logWarn
 import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.*
@@ -73,8 +74,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           }
 
         if (smsTouchpoint == null && emailTouchpoint == null) {
-          // TODO (W-3872): Handle empty list of touchpoints
-          Unit
+          logWarn { "No sms or email touchpoint available for verification" }
         }
 
         ChooseRecoveryNotificationVerificationMethodModel(

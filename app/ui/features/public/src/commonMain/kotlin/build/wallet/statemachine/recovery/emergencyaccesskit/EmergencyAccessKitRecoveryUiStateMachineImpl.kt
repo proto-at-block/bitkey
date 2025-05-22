@@ -227,7 +227,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private fun importingBackupScreen(): LoadingSuccessBodyModel =
     LoadingBodyModel(
       onBack = null,
-      message = "Importing Emergency Access backup...",
+      message = "Importing Emergency Exit Kit backup...",
       id = EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
     )
 
@@ -240,10 +240,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     /** Requesting camera permission to scan the QR code */
     data object RequestingCameraPermission : State
 
-    /** Showing the QR scanning screen to load the emergency access payload */
+    /** Showing the QR scanning screen to load the Emergency Exit Kit payload */
     data object QrEntry : State
 
-    /** Importing via pasting or manually typing in the emergency access payload */
+    /** Importing via pasting or manually typing in the Emergency Exit Kit payload */
     data class ManualEntry(val enteredText: String) : State {
       fun onManualEntryTextChanged(newText: String): State {
         return if (this.enteredText != newText) {
@@ -255,7 +255,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     }
 
     /**
-     * The entered emergency access payload was not recognized, due to a parsing error
+     * The entered Emergency Exit Kit payload was not recognized, due to a parsing error
      * or invalid contents
      * */
     data class CodeNotRecognized(val entrySource: EntrySource) : State {
@@ -285,7 +285,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     }
 
     /**
-     * Screen providing the instructions to restore the wallet from the emergency access
+     * Screen providing the instructions to restore the wallet from the Emergency Exit Kit
      * kit payload.
      * */
     data class RestoreWallet(

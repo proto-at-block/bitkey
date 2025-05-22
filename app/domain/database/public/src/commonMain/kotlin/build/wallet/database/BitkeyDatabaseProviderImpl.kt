@@ -332,6 +332,13 @@ class BitkeyDatabaseProviderImpl(
         appGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
         appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter()
       ),
+      securityRecommendationInteractionEntityAdapter =
+        SecurityRecommendationInteractionEntity.Adapter(
+          interactionStatusAdapter = EnumColumnAdapter(),
+          lastInteractedAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          lastRecommendationTriggeredAtAdapter = InstantAsEpochMillisecondsColumnAdapter,
+          recordUpdatedAtAdapter = InstantAsEpochMillisecondsColumnAdapter
+        ),
       inheritanceDataEntityAdapter = InheritanceDataEntity.Adapter(
         lastSyncHashAdapter = DelegatedColumnAdapter(
           ::InheritanceMaterialHash,
@@ -369,6 +376,11 @@ class BitkeyDatabaseProviderImpl(
       ),
       chartRangePreferenceEntityAdapter = ChartRangePreferenceEntity.Adapter(
         timeScaleAdapter = EnumColumnAdapter()
+      ),
+      txVerificationPolicyEntityAdapter = TxVerificationPolicyEntity.Adapter(
+        effectiveAdapter = InstantAsIso8601ColumnAdapter,
+        thresholdCurrencyAlphaCodeAdapter = IsoCurrencyTextCodeColumnAdapter,
+        delayEndTimeAdapter = InstantAsIso8601ColumnAdapter
       )
     )
   }

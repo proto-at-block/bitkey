@@ -2,19 +2,6 @@
     "module-identifier": "org.checkerframework:checker-qual",
     "components": [
         {
-            "version": "3.37.0",
-            "variants": [
-                {
-                    "artifacts": {
-                        "checker-qual-3.37.0.jar": "e4ce1376cc2735e1dde220b62ad0913f51297704daad155a33f386bc5db0d9f7"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "build-classpath"
-            ]
-        },
-        {
             "version": "3.42.0",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "3.43.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "checker-qual-3.43.0.jar": "3fbc2e98f05854c3df16df9abaa955b91b15b3ecac33623208ed6424640ef0f6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

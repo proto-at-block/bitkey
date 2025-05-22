@@ -6,7 +6,6 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -76,12 +75,10 @@ suspend fun TestScope.launchInheritanceApps(
   beneficiaryName: String = "bob",
 ): InheritanceTestApps {
   val benefactorApp = launchNewApp(executeWorkers = false)
-  benefactorApp.inheritanceFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
   benefactorApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
   )
   val beneficiaryApp = launchNewApp(cloudKeyValueStore = benefactorApp.cloudKeyValueStore)
-  beneficiaryApp.inheritanceFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
   beneficiaryApp.onboardFullAccountWithFakeHardware(
     cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
   )
@@ -143,7 +140,7 @@ suspend fun TestScope.launchInheritanceApps(
 }
 
 /**
- * Advances through the full account invite screens for a TC receiving an
+ * Advances through the full account invite screens for a RC receiving an
  * inheritance invite.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteScreens(
@@ -161,13 +158,13 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
   awaitUntilBody<SettingsBodyModel>(SettingsEventTrackerScreenId.SETTINGS) {
     sectionModels
       .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Trusted Contacts" }
+      .firstOrNull { it.title == "Recovery Contacts" }
       .shouldNotBeNull()
       .onClick()
   }
 
   awaitUntilBody<FormBodyModel> {
-    header?.headline.shouldBe("Trusted Contacts")
+    header?.headline.shouldBe("Recovery Contacts")
     mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
       .toList()[1]
       .shouldBeInstanceOf<FormMainContentModel.ListGroup>()

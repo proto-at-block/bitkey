@@ -42,6 +42,9 @@ kotlin {
         implementation(projects.domain.analyticsFake)
         implementation(projects.domain.relationshipsFake)
         implementation(projects.domain.walletFake)
+        implementation(projects.domain.cloudBackupFake)
+        implementation(projects.domain.notificationsFake)
+        implementation(projects.domain.hardwareFake)
       }
     }
 

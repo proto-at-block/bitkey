@@ -2,11 +2,11 @@
     "module-identifier": "org.slf4j:slf4j-simple",
     "components": [
         {
-            "version": "2.0.13",
+            "version": "2.0.16",
             "variants": [
                 {
                     "artifacts": {
-                        "slf4j-simple-2.0.13.jar": "3153fe1d689cffb94f1530b58470c306685ba68844de8857116e3b6ebb81d9f7"
+                        "slf4j-simple-2.0.16.jar": "effc32018658bea09d1e08c7d1060ccad46c086960f583d07dd7ffe9c1172a47"
                     }
                 }
             ],

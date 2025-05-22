@@ -15,6 +15,7 @@ kotlin {
         api(projects.libs.bitcoinPrimitivesFake)
         api(projects.libs.timeFake)
         api(projects.domain.f8eClientFake)
+        api(projects.domain.databasePublic)
       }
     }
   }

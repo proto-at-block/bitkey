@@ -14,6 +14,7 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.BitcoinMoney
@@ -37,7 +38,7 @@ import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.collections.shouldContainOnly
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -203,7 +204,7 @@ class TransferConfirmationUiStateMachineImplRegularTests : FunSpec({
       }
 
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainOnly(appAndHwSignedPsbt)
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
       }
     }
 

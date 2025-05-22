@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-iosx64",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines-iosx64-2.0.0-metadata.jar": "d23eeacd3a2acea1dd3fca5e70a912a89f188b2dbcdc5d49d2baabbec9360a6e"
+                        "kotlin-result-coroutines-iosx64-2.0.1-metadata.jar": "67ccf471ad590fafde957a50741df563d0d54a106b6681618f8bd3efa26b80b5"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines.klib": "959b86c9d2ce06726debeb7a673768117ff2d6dd54c76db559043a3142064197"
+                        "kotlin-result-coroutines.klib": "cb2ed0fe6b4712364c4c2266f62ce60286be4b0a885f2c36c790d4f2e08201af"
                     }
                 }
             ],

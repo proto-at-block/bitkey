@@ -15,17 +15,29 @@
             ]
         },
         {
-            "version": "2.0.21",
+            "version": "2.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk7-2.0.21.jar": "712f480760edeee48a84369e6be89f6ab52375408bb2ca3be14ef663f72bee31"
+                        "kotlin-stdlib-jdk7-2.1.0.jar": "fdea6c4203724f42e8e64bef2f0bf79129ccd1df1edf1ccffdc22de7df498c76"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "2.1.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk7-2.1.20.jar": "5343bf795783932e5fa538b0bca05af810bb07213edb9baa770c784068f57867"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

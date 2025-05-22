@@ -2,11 +2,11 @@
     "module-identifier": "com.google.http-client:google-http-client",
     "components": [
         {
-            "version": "1.44.1",
+            "version": "1.45.2",
             "variants": [
                 {
                     "artifacts": {
-                        "google-http-client-1.44.1.jar": "f3fd3fc971425659d6f78a853381de590279f191fdae63bd31c5a21382441023"
+                        "google-http-client-1.45.2.jar": "3b2d76c485ffff3af62775d8b6c44221290d67614e8d11b3f4adfd3cad65446e"
                     }
                 }
             ],

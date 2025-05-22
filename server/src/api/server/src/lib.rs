@@ -68,6 +68,11 @@ use screener::service::Service as ScreenerService;
 use thiserror::Error;
 use tokio::try_join;
 use tower_http::catch_panic::CatchPanicLayer;
+use transaction_verification::{
+    repository::TransactionVerificationRepository,
+    service::Config as TransactionVerificationConfig,
+    service::Service as TransactionVerificationService,
+};
 use types::time::{Clock, DefaultClock};
 use userpool::userpool::UserPoolService;
 use utoipa_swagger_ui::SwaggerUi;
@@ -111,6 +116,7 @@ pub struct Services {
     pub signed_psbt_cache_service: SignedPsbtCacheService,
     pub social_challenge_service: SocialChallengeService,
     pub sqs: SqsQueue,
+    pub transaction_verification_service: TransactionVerificationService,
     pub twilio_client: TwilioClient,
     pub userpool_service: UserPoolService,
     pub wsm_client: WsmClient,
@@ -226,6 +232,7 @@ struct Repositories {
     inheritance_repository: InheritanceRepository,
     privileged_action_repository: PrivilegedActionRepository,
     promotion_code_repository: PromotionCodeRepository,
+    transaction_verification_repository: TransactionVerificationRepository,
 }
 
 impl BootstrapBuilder {
@@ -279,6 +286,9 @@ impl BootstrapBuilder {
             inheritance_repository: InheritanceRepository::new(ddb_connection.clone()),
             privileged_action_repository: PrivilegedActionRepository::new(ddb_connection.clone()),
             promotion_code_repository: PromotionCodeRepository::new(ddb_connection.clone()),
+            transaction_verification_repository: TransactionVerificationRepository::new(
+                ddb_connection.clone(),
+            ),
         };
 
         // Create tables concurrently
@@ -317,6 +327,9 @@ impl BootstrapBuilder {
                 .create_table_if_necessary(),
             repositories
                 .promotion_code_repository
+                .create_table_if_necessary(),
+            repositories
+                .transaction_verification_repository
                 .create_table_if_necessary(),
         )?;
 
@@ -434,6 +447,13 @@ impl BootstrapBuilder {
                 .unwrap_or_else(|| Arc::new(DefaultClock)),
             notification_service.clone(),
         );
+        let transaction_verification_service = TransactionVerificationService::new(
+            config::extract::<TransactionVerificationConfig>(profile)?,
+            repositories.transaction_verification_repository.clone(),
+            account_service.clone(),
+            exchange_rate_service.clone(),
+            notification_service.clone(),
+        );
 
         let wsm_service = config::extract::<wsm::Config>(profile)?.to_client()?;
         let wsm_client = wsm_service.client;
@@ -463,6 +483,7 @@ impl BootstrapBuilder {
             signed_psbt_cache_service,
             social_challenge_service,
             sqs,
+            transaction_verification_service,
             twilio_client,
             userpool_service,
             wsm_client,
@@ -528,6 +549,13 @@ impl BootstrapBuilder {
             self.services.signed_psbt_cache_service.clone(),
             self.services.feature_flags_service.clone(),
             self.services.screener_service.clone(),
+        );
+
+        let transaction_verification_state = transaction_verification::routes::RouteState(
+            self.services.account_service.clone(),
+            self.services.feature_flags_service.clone(),
+            self.services.userpool_service.clone(),
+            self.services.transaction_verification_service.clone(),
         );
 
         let delay_notify_state = recovery::routes::delay_notify::RouteState(
@@ -608,6 +636,12 @@ impl BootstrapBuilder {
             self.services.feature_flags_service.clone(),
         );
 
+        let reset_fingerprint_state = recovery::routes::reset_fingerprint::RouteState(
+            self.services.userpool_service.clone(),
+            self.services.privileged_action_service.clone(),
+            self.services.wsm_client.clone(),
+        );
+
         let analytics_state = config::extract::<analytics::routes::Config>(profile)?.to_state();
         let health_checks_state = healthcheck::Service;
 
@@ -628,11 +662,13 @@ impl BootstrapBuilder {
             .merge(privileged_action_state.account_authed_router())
             .merge(notification_state.account_authed_router())
             .merge(mobile_pay_state.account_authed_router())
+            .merge(transaction_verification_state.account_authed_router())
             .merge(delay_notify_state.account_authed_router())
             .merge(distributed_keys_state.account_authed_router())
             .merge(inheritance_state.account_authed_router())
             .merge(relationship_state.account_authed_router())
             .merge(onboarding_state.account_authed_router())
+            .merge(reset_fingerprint_state.account_authed_router())
             .route_layer(middleware::from_fn(authorize_token_for_path));
 
         // Recovery authenticated routes protected by "authorize_recovery_token_for_path" middleware
@@ -687,6 +723,7 @@ impl BootstrapBuilder {
             SwaggerEndpoint::from(authentication_state),
             SwaggerEndpoint::from(experimentation_state),
             SwaggerEndpoint::from(promotion_state),
+            SwaggerEndpoint::from(reset_fingerprint_state),
         ];
 
         #[cfg(feature = "partnerships")]

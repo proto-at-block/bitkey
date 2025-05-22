@@ -5,10 +5,12 @@ import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.Money
 import build.wallet.money.currency.BTC
+import dev.zacsweers.redacted.annotations.Redacted
 
 /**
  * Partially Signed Bitcoin Transaction.
  */
+@Redacted
 data class Psbt(
   /** The ID of the transaction */
   val id: String,

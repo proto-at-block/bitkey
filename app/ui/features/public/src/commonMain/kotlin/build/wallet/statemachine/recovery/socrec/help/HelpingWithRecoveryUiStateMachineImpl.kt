@@ -91,7 +91,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
             else -> "Failed to verify your recovery code"
           },
           subline = when (state.error) {
-            is SocialChallengeError.ChallengeCodeVersionMismatch -> "The invite could not be accepted - please make sure both you and the Trusted Contact you invited have updated to the most recent Bitkey app version, and then try again."
+            is SocialChallengeError.ChallengeCodeVersionMismatch -> "The invite could not be accepted - please make sure both you and the Recovery Contact you invited have updated to the most recent Bitkey app version, and then try again."
             else -> "Please try to re-enter your recovery code."
           },
           primaryButton =

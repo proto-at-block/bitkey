@@ -16,10 +16,10 @@ class CloudBackupHealthRepositoryMock(
     return mobileKeyBackupStatus
   }
 
-  val eakBackupStatus = MutableStateFlow<EakBackupStatus?>(null)
+  val eekBackupStatus = MutableStateFlow<EekBackupStatus?>(null)
 
-  override fun eakBackupStatus(): StateFlow<EakBackupStatus?> {
-    return eakBackupStatus
+  override fun eekBackupStatus(): StateFlow<EekBackupStatus?> {
+    return eekBackupStatus
   }
 
   val syncLoopCalls = turbine("syncLoop calls")
@@ -34,7 +34,7 @@ class CloudBackupHealthRepositoryMock(
     performSyncCalls += Unit
     return CloudBackupStatus(
       mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
-      eakBackupStatus = EakBackupStatus.ProblemWithBackup.NoCloudAccess
+      eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
     )
   }
 
@@ -46,6 +46,6 @@ class CloudBackupHealthRepositoryMock(
 
   fun reset() {
     mobileKeyBackupStatus.value = null
-    eakBackupStatus.value = null
+    eekBackupStatus.value = null
   }
 }

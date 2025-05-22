@@ -11,6 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.domain.bitkeyPrimitivesFake)
+        api(projects.libs.testingPublic)
       }
     }
   }

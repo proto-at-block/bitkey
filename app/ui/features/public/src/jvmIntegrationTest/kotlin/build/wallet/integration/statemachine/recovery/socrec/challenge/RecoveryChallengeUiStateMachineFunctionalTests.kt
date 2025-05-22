@@ -194,7 +194,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
         onExitCalls.awaitItem()
         primaryButton.shouldNotBeNull()
-          .text.shouldBe("Waiting for your Trusted Contact to verify you…")
+          .text.shouldBe("Waiting for your Recovery Contact to verify you…")
       }
     }
   }
@@ -228,7 +228,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     }
   }
 
-  test("TC Verification Code") {
+  test("RC Verification Code") {
     launchAndPrepareApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.recoveryChallengeUiStateMachine.test(

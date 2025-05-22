@@ -113,7 +113,7 @@ data class ConfirmingIdentityFormBodyModel(
 ) : FormBodyModel(
     header = FormHeaderModel(
       headline = "Are you sure it’s really ${protectedCustomer.alias.alias} asking for help?",
-      subline = "To safeguard their wallet from potential scams, it's crucial we confirm the authenticity of your Trusted Contact's communication."
+      subline = "To safeguard their wallet from potential scams, it's crucial we confirm the authenticity of your Recovery Contact's communication."
     ),
     onBack = onBack,
     toolbar = ToolbarModel(
@@ -150,7 +150,7 @@ data class EnterRecoveryCodeFormBodyModel(
 ) : FormBodyModel(
     header = FormHeaderModel(
       headline = "Enter recovery code",
-      subline = "Use the code your recovery contact provided you with."
+      subline = "Use the code your Recovery Contact provided you with."
     ),
     onBack = onBack,
     toolbar = ToolbarModel(

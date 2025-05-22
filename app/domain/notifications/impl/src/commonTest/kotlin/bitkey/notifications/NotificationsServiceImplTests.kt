@@ -1,6 +1,7 @@
 package bitkey.notifications
 
-import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.account.AccountServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.flags.UsSmsFeatureFlag
 import build.wallet.feature.setFlagValue
@@ -20,13 +21,19 @@ class NotificationsServiceImplTests : FunSpec({
 
   val featureFlagDao = FeatureFlagDaoFake()
   val featureFlag = UsSmsFeatureFlag(featureFlagDao)
+  val accountService = AccountServiceFake()
 
   val notificationService = NotificationsServiceImpl(
     permissionChecker = permissionsChecker,
     notificationsPreferencesProvider = notificationsPreferencesProvider,
     telephonyCountryCodeProvider = telephonyCountryCodeProvider,
-    usSmsFeatureFlag = featureFlag
+    usSmsFeatureFlag = featureFlag,
+    accountService = accountService
   )
+
+  beforeTest {
+    accountService.setActiveAccount(FullAccountMock)
+  }
 
   test("Notifications Enabled") {
     notificationsPreferencesProvider.notificationPreferences.value = Ok(
@@ -41,9 +48,7 @@ class NotificationsServiceImplTests : FunSpec({
       )
     )
     permissionsChecker.permissionsOn = true
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(NotificationsService.NotificationStatus.Enabled)
   }
@@ -57,9 +62,7 @@ class NotificationsServiceImplTests : FunSpec({
       )
     )
     permissionsChecker.permissionsOn = true
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(
       NotificationsService.NotificationStatus.Missing(
@@ -80,9 +83,7 @@ class NotificationsServiceImplTests : FunSpec({
       )
     )
     permissionsChecker.permissionsOn = false
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Push)))
   }
@@ -101,9 +102,7 @@ class NotificationsServiceImplTests : FunSpec({
     permissionsChecker.permissionsOn = true
     telephonyCountryCodeProvider.mockCountryCode = "us"
     // Feature flag is false by default
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     // When in US with flag disabled, SMS should not be required
     result.shouldBe(NotificationsService.NotificationStatus.Enabled)
@@ -126,9 +125,7 @@ class NotificationsServiceImplTests : FunSpec({
     // Enable US SMS feature flag
     featureFlag.setFlagValue(true)
 
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     // With feature flag enabled, SMS should now be required for US users
     result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Sms)))
@@ -150,9 +147,7 @@ class NotificationsServiceImplTests : FunSpec({
     // Feature flag doesn't matter for non-US users, but set to false to be sure
     featureFlag.setFlagValue(false)
 
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     // SMS should be required for non-US users regardless of feature flag
     result.shouldBe(NotificationsService.NotificationStatus.Missing(setOf(NotificationChannel.Sms)))
@@ -163,9 +158,7 @@ class NotificationsServiceImplTests : FunSpec({
     notificationsPreferencesProvider.notificationPreferences.value = Err(cause)
     permissionsChecker.permissionsOn = true
     telephonyCountryCodeProvider.mockCountryCode = "us"
-    val result = notificationService.getCriticalNotificationStatus(
-      accountId = FullAccountIdMock
-    ).first()
+    val result = notificationService.getCriticalNotificationStatus().first()
 
     result.shouldBe(NotificationsService.NotificationStatus.Error((cause)))
   }

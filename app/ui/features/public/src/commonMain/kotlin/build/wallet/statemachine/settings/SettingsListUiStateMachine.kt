@@ -18,6 +18,7 @@ interface SettingsListUiStateMachine : StateMachine<SettingsListUiProps, BodyMod
  */
 data class SettingsListUiProps(
   val onBack: () -> Unit,
+  val isLiteAccount: Boolean,
   val supportedRows: Set<SettingsListRow>,
   val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,

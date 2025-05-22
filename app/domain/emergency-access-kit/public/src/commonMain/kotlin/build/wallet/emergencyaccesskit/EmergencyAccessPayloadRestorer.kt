@@ -37,21 +37,24 @@ interface EmergencyAccessPayloadRestorer {
       hwKeyBundleId: String,
     ) = Keybox(
       localId = keyboxId,
-      fullAccountId = FullAccountId("EAK Recovery, no server ID: $keyboxId"),
+      fullAccountId = FullAccountId("EEK Recovery, no server ID: $keyboxId"),
       activeSpendingKeyset = activeSpendingKeyset,
+      // We are not currently storing old keysets in EEK and not restoring them, although we potentially
+      // could in the future. As a result of that, once Emergency Exit Kit is used, transaction
+      // exports and sweeps from old keysets are not available for use.
       inactiveKeysets = immutableListOf(),
-      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("EAK Recovery: Invalid key"),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("EEK Recovery: Invalid key"),
       activeAppKeyBundle = AppKeyBundle(
         localId = appKeyBundleId,
         spendingKey = activeSpendingKeyset.appKey,
-        authKey = PublicKey("EAK Recovery: Invalid key"),
+        authKey = PublicKey("EEK Recovery: Invalid key"),
         networkType = activeSpendingKeyset.networkType,
-        recoveryAuthKey = PublicKey("EAK Recovery: Invalid recovery key")
+        recoveryAuthKey = PublicKey("EEK Recovery: Invalid recovery key")
       ),
       activeHwKeyBundle = HwKeyBundle(
         localId = hwKeyBundleId,
         spendingKey = activeSpendingKeyset.hardwareKey,
-        authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid key")),
+        authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey("EEK Recovery: Invalid key")),
         networkType = activeSpendingKeyset.networkType
       ),
       config = fullAccountConfig

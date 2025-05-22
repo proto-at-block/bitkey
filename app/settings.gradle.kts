@@ -38,7 +38,7 @@ dependencyResolutionManagement {
 }
 
 plugins {
-  id("com.github.burrunan.s3-build-cache") version "1.8.1"
+  id("com.github.burrunan.s3-build-cache") version "1.8.4"
 }
 
 val isCi = System.getenv().containsKey("CI")
@@ -161,6 +161,8 @@ module(":domain:security-center:public")
 module(":domain:support:fake")
 module(":domain:support:impl")
 module(":domain:support:public")
+module(":domain:tx-verification:public")
+module(":domain:tx-verification:impl")
 module(":domain:wallet:fake")
 module(":domain:wallet:impl")
 module(":domain:wallet:public")

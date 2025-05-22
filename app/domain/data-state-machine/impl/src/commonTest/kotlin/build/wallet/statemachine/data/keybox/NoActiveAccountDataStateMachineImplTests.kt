@@ -75,7 +75,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("no onboarding or recovery, transition to emergency access kit recovery") {
+  test("no onboarding or recovery, transition to Emergency Exit Kit recovery") {
     stateMachine.test(props()) {
       eventTracker.shouldLogAppKeyMissingEvent()
 

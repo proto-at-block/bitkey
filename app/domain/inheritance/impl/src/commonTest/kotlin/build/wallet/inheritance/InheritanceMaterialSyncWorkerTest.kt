@@ -5,9 +5,6 @@ import build.wallet.bitkey.keybox.KeyboxMock2
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbQueryError
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.keybox.KeyboxDaoMock
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -29,20 +26,16 @@ class InheritanceMaterialSyncWorkerTest : FunSpec({
     syncCalls = turbines.create("Sync Calls")
   )
   val inheritanceRelationshipsProvider = InheritanceRelationshipsProviderFake()
-  val featureFlagDao = FeatureFlagDaoFake()
-  val featureFlag = InheritanceFeatureFlag(featureFlagDao)
   val keyboxDao = KeyboxDaoMock(turbine = turbines::create)
   val syncFrequency = 100.milliseconds
   val worker = InheritanceMaterialSyncWorkerImpl(
     inheritanceService = inheritanceService,
     inheritanceRelationshipsProvider = inheritanceRelationshipsProvider,
     keyboxDao = keyboxDao,
-    featureFlag = featureFlag,
     inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
   )
 
   beforeTest {
-    featureFlag.setFlagValue(true)
     keyboxDao.activeKeybox.value = Ok(KeyboxMock)
   }
 
@@ -57,21 +50,6 @@ class InheritanceMaterialSyncWorkerTest : FunSpec({
     inheritanceService.syncCalls.awaitItem()
 
     workJob.cancelAndJoin()
-  }
-
-  test("Inheritance sync is not run without feature flag") {
-    featureFlag.setFlagValue(false)
-
-    backgroundScope.launch { worker.executeWork() }
-    testCoroutineScheduler.runCurrent()
-    inheritanceRelationshipsProvider.endorsedInheritanceContacts.emit(
-      listOf(
-        EndorsedTrustedContactFake1
-      )
-    )
-    testCoroutineScheduler.runCurrent()
-
-    inheritanceService.syncCalls.expectNoEvents()
   }
 
   test("Inheritance sync is not run with inactive keybox") {

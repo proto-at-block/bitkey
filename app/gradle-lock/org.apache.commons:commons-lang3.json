@@ -2,11 +2,11 @@
     "module-identifier": "org.apache.commons:commons-lang3",
     "components": [
         {
-            "version": "3.13.0",
+            "version": "3.17.0",
             "variants": [
                 {
                     "artifacts": {
-                        "commons-lang3-3.13.0.jar": "82f528cf718c7a3c2f30fc5bc784e3c6a0a10b17605dadb9e16c82ede11e6064"
+                        "commons-lang3-3.17.0.jar": "6ee731df5c8e5a2976a1ca023b6bb320ea8d3539fbe64c8a1d5cb765127c33b4"
                     }
                 }
             ],

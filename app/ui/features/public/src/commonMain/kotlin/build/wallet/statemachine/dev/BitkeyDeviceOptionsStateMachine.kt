@@ -18,4 +18,5 @@ data class BitkeyDeviceOptionsUiProps(
   val onFirmwareMetadataClick: () -> Unit,
   val onFirmwareUpdateClick: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
   val onWipeBitkeyClick: () -> Unit,
+  val onResetFingerprintsClick: () -> Unit,
 )

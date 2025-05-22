@@ -2,16 +2,16 @@
     "module-identifier": "androidx.collection:collection-iosarm64",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-iosarm64-1.4.0-metadata.jar": "d1a4bc5f34b8c6e363bf91a7074eb53a0bf6f28d37bb092bbba2aae0e0c2fd9d"
+                        "collection-iosArm64Main-1.5.0.klib": "58baf49e376e3de985eca30197c2d9e07d5a92621915ae2170b4dbcc2f08dba7"
                     }
                 },
                 {
                     "artifacts": {
-                        "collection.klib": "a650b52a0dd16744d0ff8fba17186119f4c7ca9c75a2072fde40fb8a00d69315"
+                        "collection-iosarm64-1.5.0-metadata.jar": "92314e3e012cb43ee4b305a32438ce5c489d05a127a5fa2689e1500049fa7eed"
                     }
                 }
             ],

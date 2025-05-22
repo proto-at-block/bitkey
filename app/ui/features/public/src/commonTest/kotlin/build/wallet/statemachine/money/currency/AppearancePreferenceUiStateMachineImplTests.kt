@@ -79,6 +79,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
     fiatCurrenciesService.allFiatCurrencies.value = listOf(USD, GBP)
 
     stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceFormModel>()
+
       awaitBody<AppearancePreferenceFormModel> {
         moneyHomeHero.isHidden.shouldBeFalse()
         moneyHomeHero.primaryAmount.shouldBe("$0.00")
@@ -112,6 +115,9 @@ class AppearancePreferenceUiStateMachineImplTests : FunSpec({
 
   test("update chart history preference") {
     stateMachine.test(props) {
+      // loading theme
+      awaitBody<AppearancePreferenceFormModel>()
+
       awaitBody<AppearancePreferenceFormModel> {
         onDefaultTimeScalePreferenceClick()
       }

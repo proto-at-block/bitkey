@@ -2,16 +2,16 @@
     "module-identifier": "androidx.annotation:annotation-iossimulatorarm64",
     "components": [
         {
-            "version": "1.8.2",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-iossimulatorarm64-1.8.2-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "annotation-iossimulatorarm64-1.9.1-metadata.jar": "39a5c38f5e98e41a3c64f1b604ca19756c6ba59dc81b848adbad4ef3db7e8601"
                     }
                 },
                 {
                     "artifacts": {
-                        "annotation.klib": "a0e994f86c256c5bfe913a298b396035012c2aa99c2f102647ec4624f9e571e5"
+                        "annotation.klib": "370abeae251a2f69bc38cdbed2e19ee2fab102c373875386141c34eb8075db8d"
                     }
                 }
             ],

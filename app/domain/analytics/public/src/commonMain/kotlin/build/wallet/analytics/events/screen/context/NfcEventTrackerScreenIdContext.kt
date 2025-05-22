@@ -36,7 +36,7 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to unseal the cloud sealed encryption key (CSEK) */
   UNSEAL_CLOUD_BACKUP,
 
-  /** NFC flow to unseal the cloud sealed encryption key (CSEK) in Emergency Access Restore */
+  /** NFC flow to unseal the cloud sealed encryption key (CSEK) in Emergency Exit Kit Restore */
   UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP,
 
   /** NFC flow to sign many transactions during the recovery flow */
@@ -65,6 +65,9 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
 
   /** Deleting an enrolled fingerprint. */
   DELETE_FINGERPRINT,
+
+  /** Resetting all enrolled fingerprints. */
+  RESET_FINGERPRINTS,
 
   /** Enrolling an additional fingerprint */
   ENROLLING_NEW_FINGERPRINT,

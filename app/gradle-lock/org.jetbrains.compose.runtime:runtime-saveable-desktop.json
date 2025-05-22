@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable-desktop",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-desktop-1.7.3.jar": "4306363be90eaabe74b900db4c32ed1f15c7548e5b30a7093c4ee40c436b9b8c"
+                        "runtime-saveable-desktop-1.8.0.jar": "211e9b317de32eebbbd293ea8648db10a55869f73be258fe59f5fbd38bb65f5a"
                     }
                 }
             ],

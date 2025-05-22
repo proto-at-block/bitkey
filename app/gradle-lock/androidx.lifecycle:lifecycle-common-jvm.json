@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-common-jvm",
     "components": [
         {
-            "version": "2.8.5",
+            "version": "2.8.7",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-common-jvm-2.8.5.jar": "61c873a7327c946ec033c310bb98f3f92eeabcede0e1a5200ab8a1896483c7bf"
+                        "lifecycle-common-jvm-2.8.7.jar": "61c873a7327c946ec033c310bb98f3f92eeabcede0e1a5200ab8a1896483c7bf"
                     }
                 }
             ],

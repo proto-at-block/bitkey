@@ -2,16 +2,16 @@
     "module-identifier": "cafe.adriel.voyager:voyager-transitions-iossimulatorarm64",
     "components": [
         {
-            "version": "1.1.0-alpha04",
+            "version": "1.1.0-beta03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-transitions-iossimulatorarm64-1.1.0-alpha04-metadata.jar": "6176b3cb0578fc9ef63c7b94803b07e11ba5b5055e54618aba59bfff0ec12294"
+                        "voyager-transitions-iossimulatorarm64-1.1.0-beta03-metadata.jar": "d4d7c97a37f4f6b40b2db3de1d479c1a3874e5f3a56934d2a9745b9c037db959"
                     }
                 },
                 {
                     "artifacts": {
-                        "voyager-transitions.klib": "aa34c6a71426ae77ec82ee95accbef3e5a9596e8a7b68498686214617aff1e76"
+                        "voyager-transitions.klib": "df6d00bafc6a809992f69837c5af36440c282773345a7577f2f36e101bff8655"
                     }
                 }
             ],

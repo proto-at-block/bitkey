@@ -182,7 +182,7 @@ private sealed interface State {
   ) : State
 
   /**
-   * Application is in the process of recovering from the emergency access kit backup.
+   * Application is in the process of recovering from the Emergency Exit Kit backup.
    */
   data object EmergencyAccessAccountRecoveryState : State
 

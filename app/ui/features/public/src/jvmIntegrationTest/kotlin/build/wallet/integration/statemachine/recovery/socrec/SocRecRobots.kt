@@ -29,7 +29,6 @@ import build.wallet.statemachine.recovery.cloud.SocialRecoveryExplanationModel
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionBodyModel
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
-import build.wallet.statemachine.recovery.inprogress.waiting.HardwareDelayNotifyInProgressScreenModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeCodeBodyModel
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeContactListBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
@@ -46,8 +45,6 @@ import build.wallet.statemachine.ui.matchers.hasProtectedCustomers
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.statemachine.ui.matchers.shouldHaveMessage
 import build.wallet.statemachine.ui.robots.*
-import build.wallet.testing.AppTester
-import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
@@ -58,7 +55,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 
 /**
- * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
+ * Advances through Recovery Contact invite screens starting at the Recovery Contact Management screen.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreens(tcName: String) {
   awaitUntilBody<TrustedContactsListBodyModel>()
@@ -71,7 +68,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreen
 
 /**
  * Advances through Lite Account onboarding, starting at Getting Started screen.
- * @param inviteCode the Trusted Contact invite code
+ * @param inviteCode the Recovery Contact invite code
  * @param cloudStoreAccount the cloud store account to sign in with
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
@@ -112,7 +109,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
   ) {
     sectionModels
       .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Trusted Contacts" }
+      .firstOrNull { it.title == "Recovery Contacts" }
       .shouldNotBeNull()
       .onClick()
   }
@@ -148,7 +145,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteS
 }
 
 /**
- * Advances through trusted contact enrollment screen, starting at the invite code entry.
+ * Advances through Recovery Contact enrollment screen, starting at the invite code entry.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentScreens(
   protectedCustomerName: String,
@@ -235,8 +232,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
 }
 
 /**
- * Starts a social challenge from the Trusted Contacts list in Social Recovery
- * @param formBodyModel the trusted contact list form
+ * Starts a social challenge from the Recovery Contacts list in Social Recovery
+ * @param formBodyModel the Recovery Contact list form
  * @return the challenge code
  */
 suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(
@@ -251,8 +248,8 @@ suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(
 
 /**
  * Advances the protected customer through restoring their app using the social challenge response,
- * starting at the TC list screen.
- * @param formBodyModel the trusted contact list form
+ * starting at the RC list screen.
+ * @param formBodyModel the Recovery Contact list form
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceFromSocialRestoreToLostHardwareRecovery(
   formBodyModel: FormBodyModel,
@@ -326,13 +323,13 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
   ) {
     sectionModels
       .flatMap { it.rowModels }
-      .firstOrNull { it.title == "Trusted Contacts" }
+      .firstOrNull { it.title == "Recovery Contacts" }
       .shouldNotBeNull()
       .onClick()
   }
 
   awaitUntilBody<FormBodyModel> {
-    header?.headline.shouldBe("Trusted Contacts")
+    header?.headline.shouldBe("Recovery Contacts")
     mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
       .toList()[1]
       .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
@@ -430,7 +427,6 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostAppAndCloudRecoveryToM
  * Money Home screen.
  */
 suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(
-  app: AppTester,
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
 ) {
   awaitUntilBody<MoneyHomeBodyModel>()
@@ -466,9 +462,6 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
   )
     .clickPrimaryButton()
-  awaitUntilBody<HardwareDelayNotifyInProgressScreenModel>()
-
-  app.completeRecoveryDelayPeriodOnF8e()
 
   awaitUntilBody<DelayAndNotifyNewKeyReady>(
     HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY

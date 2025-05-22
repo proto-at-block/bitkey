@@ -8,7 +8,7 @@ import com.github.michaelbull.result.Result
 
 interface RetrieveTrustedContactInvitationF8eClient {
   /**
-   * Retrieves invitation data for a potential Trusted Contact given a code.
+   * Retrieves invitation data for a potential Recovery Contact given a code.
    * Note: [Account] can be for either a Full or Lite Customer
    */
   suspend fun retrieveInvitation(

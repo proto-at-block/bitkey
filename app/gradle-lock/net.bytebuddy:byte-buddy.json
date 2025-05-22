@@ -2,11 +2,11 @@
     "module-identifier": "net.bytebuddy:byte-buddy",
     "components": [
         {
-            "version": "1.14.5",
+            "version": "1.15.11",
             "variants": [
                 {
                     "artifacts": {
-                        "byte-buddy-1.14.5.jar": "e99761a526df0fefbbd3fe14436b0f953000cdfa5151dc63c0b18d37d9c46f1c"
+                        "byte-buddy-1.15.11.jar": "fa08998aae1e7bdae83bde0712c50e8444d71c0e0c196bb2247ade8d4ad0eb90"
                     }
                 }
             ],

@@ -24,16 +24,16 @@ data class EmergencyAccessKitImportWalletBodyModel(
       )
     ),
     header = FormHeaderModel(
-      headline = "Import your wallet using your Emergency access kit",
-      subline = "Your Emergency access kit is a PDF document located in your device's cloud backup."
+      headline = "Import your wallet using your Emergency Exit Kit",
+      subline = "Your Emergency Exit Kit is a PDF document located in your device's cloud backup."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(
         items = immutableListOf(
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.SmallIconCloud,
-            title = "Find your Emergency Access Kit",
-            body = "Navigate to your device's cloud file manager to locate and download your Emergency Access Kit."
+            title = "Find your Emergency Exit Kit",
+            body = "Navigate to your device's cloud file manager to locate and download your Emergency Exit Kit."
           ),
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.SmallIconQrCode,

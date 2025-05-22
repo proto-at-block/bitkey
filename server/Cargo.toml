@@ -36,6 +36,7 @@ members = [
   "src/api/s3_utils",
   "src/api/screener",
   "src/api/server",
+  "src/api/transaction_verification",
   "src/api/types",
   "src/api/userpool",
   "src/api/workers",
@@ -164,6 +165,7 @@ recovery = { path = "src/api/recovery" }
 repository = { path = "src/api/repository" }
 s3-utils = { path = "src/api/s3_utils" }
 screener = { path = "src/api/screener" }
+transaction_verification = { path = "src/api/transaction_verification" }
 types = { path = "src/api/types" }
 userpool = { path = "src/api/userpool" }
 wallet-telemetry = { path = "src/wallet-telemetry" }

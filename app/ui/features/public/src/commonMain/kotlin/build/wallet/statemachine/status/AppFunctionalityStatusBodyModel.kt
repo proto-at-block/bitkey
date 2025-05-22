@@ -36,7 +36,7 @@ data class AppFunctionalityStatusBodyModel(
       headline = when (cause) {
         is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
         is InternetUnreachable -> "It looks like you’re offline."
-        EmergencyAccessMode -> "You're using the Emergency Access Kit."
+        EmergencyAccessMode -> "You're in Emergency Exit Mode."
       },
       subline = when (cause) {
         is F8eUnreachable -> "Some features may not be available:"

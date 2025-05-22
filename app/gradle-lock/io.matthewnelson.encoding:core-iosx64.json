@@ -2,16 +2,16 @@
     "module-identifier": "io.matthewnelson.encoding:core-iosx64",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "core-iosx64-2.2.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "core-iosx64-2.3.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "core.klib": "6d41aa7e84c7aa2110e3e007d55e064d72557e7273653581f000ae227102bd2e"
+                        "core.klib": "e1ce2c81d734f4c5d522863af62c82f30c9d7d688fb427f589b2b0747e479a6e"
                     }
                 }
             ],

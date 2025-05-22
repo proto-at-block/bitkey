@@ -2,11 +2,11 @@
     "module-identifier": "com.bugsnag:bugsnag-android-core",
     "components": [
         {
-            "version": "6.8.0",
+            "version": "6.10.0",
             "variants": [
                 {
                     "artifacts": {
-                        "bugsnag-android-core-6.8.0.aar": "00d04bfa10e7a29609c73834e4a32eefaa229f0e76a8d363f0d9414200547af4"
+                        "bugsnag-android-core-6.10.0.aar": "d14d2456b49c9108c546d12df426953de9a3eef25e12a086c6e0a8442efc9b42"
                     }
                 }
             ],

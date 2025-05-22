@@ -42,9 +42,12 @@ class CloudFileStoreFake(
   override suspend fun remove(
     account: CloudStoreAccount,
     fileName: String,
-  ): CloudFileStoreResult<Unit> {
-    TODO("Not implemented")
-  }
+  ): CloudFileStoreResult<Unit> =
+    fileManager
+      .deleteFile(rootDir.join(account.toString()).join(fileName))
+      .result
+      .mapError { CloudError(it) }
+      .toCloudFileStoreResult()
 
   override suspend fun write(
     account: CloudStoreAccount,

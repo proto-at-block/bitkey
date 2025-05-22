@@ -6,7 +6,7 @@ import kotlinx.datetime.Instant
 import kotlin.contracts.contract
 
 /**
- * Indicates the status of the mobile key backup.
+ * Indicates the status of the App Key backup.
  */
 sealed interface MobileKeyBackupStatus {
   /**

@@ -43,7 +43,7 @@ class FullAccountCloudBackupCreatorImpl(
         .create(
           keybox = keybox,
           sealedCsek = sealedCsek,
-          // Exclude trusted contacts that have not been verified.
+          // Exclude Recovery Contacts that have not been verified.
           endorsedTrustedContacts = endorsedTrustedContacts.filter { it.authenticationState == VERIFIED }
         )
         .logFailure { "Error creating full account backup" }

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-model",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-model-2.0.21.jar": "951d77989b357009631ff1efb12b0161ccf329c529c546a529f8a1d31f9bc03c"
+                        "kotlin-gradle-plugin-model-2.1.20.jar": "d637fba470b3bf713b0a65e6717ad5dd03a8725fcc94530289473ab26b42e82b"
                     }
                 }
             ],

@@ -100,7 +100,7 @@ data class CloudWarningBodyModel(
                           )
                       ),
                     title = "Recover your Wallet",
-                    secondaryText = "Replace a lost Mobile Key by creating a new one",
+                    secondaryText = "Replace a lost App Key by creating a new one",
                     onClick = onCannotAccessCloud,
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   ),
@@ -116,7 +116,7 @@ data class CloudWarningBodyModel(
                             )
                         ),
                       title = "Import your wallet",
-                      secondaryText = "(Advanced) Use your Emergency Access Kit to import wallet.",
+                      secondaryText = "(Advanced) Use your Emergency Exit Kit to import wallet.",
                       onClick = it,
                       trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                     )
@@ -196,8 +196,8 @@ data class CloudBackupFoundModel(
     header = FormHeaderModel(
       headline = "Restore your wallet",
       subline = when (devicePlatform) {
-        Android, Jvm -> "Access your wallet on this phone with your Google Drive backup of your mobile key and Bitkey device."
-        IOS -> "Access your wallet on this phone using the iCloud backup of your mobile key, with approval from your Bitkey device."
+        Android, Jvm -> "Access your wallet on this phone with your Google Drive backup of your App Key and Bitkey device."
+        IOS -> "Access your wallet on this phone using the iCloud backup of your App Key, with approval from your Bitkey device."
       }
     ),
     primaryButton = BitkeyInteractionButtonModel(
@@ -217,7 +217,7 @@ data class SocialRecoveryExplanationModel(
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
     header = FormHeaderModel(
-      headline = "Recover your wallet using Trusted Contacts"
+      headline = "Recover your wallet using Recovery Contacts"
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
@@ -228,8 +228,8 @@ data class SocialRecoveryExplanationModel(
             ListItemModel(
               leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '1'),
               leadingAccessoryAlignment = ListItemAccessoryAlignment.TOP,
-              title = "Verify via a Trusted Contact",
-              secondaryText = "You’ll provide a recovery code to one of your Trusted Contacts to enter into their Bitkey app. Once they verify you’re really you, your wallet will be restored to this device."
+              title = "Verify via a Recovery Contact",
+              secondaryText = "You’ll provide a recovery code to one of your Recovery Contacts to enter into their Bitkey app. Once they verify you’re really you, your wallet will be restored to this device."
             ),
             ListItemModel(
               leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '2'),

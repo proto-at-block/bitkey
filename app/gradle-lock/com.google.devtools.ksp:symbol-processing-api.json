@@ -2,11 +2,11 @@
     "module-identifier": "com.google.devtools.ksp:symbol-processing-api",
     "components": [
         {
-            "version": "2.0.21-1.0.26",
+            "version": "2.1.20-1.0.32",
             "variants": [
                 {
                     "artifacts": {
-                        "symbol-processing-api-2.0.21-1.0.26.jar": "06c4bcb3eb40953d4435ece2232ad6b760868631968596ce666cf9f805729a5f"
+                        "symbol-processing-api-2.1.20-1.0.32.jar": "f3a5b9283551671747662e6541bee4d186db41054d89591be060cb4d9af204ad"
                     }
                 }
             ],

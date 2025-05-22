@@ -2,16 +2,16 @@
     "module-identifier": "androidx.annotation:annotation-iosarm64",
     "components": [
         {
-            "version": "1.8.2",
+            "version": "1.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-iosarm64-1.8.2-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "annotation-iosarm64-1.9.1-metadata.jar": "39a5c38f5e98e41a3c64f1b604ca19756c6ba59dc81b848adbad4ef3db7e8601"
                     }
                 },
                 {
                     "artifacts": {
-                        "annotation.klib": "7cf883e692454eaf6bdf789354bcfbeb881229d28e0f7a4fa80ccd9aa08f0e5a"
+                        "annotation.klib": "7f5b56c89b8acbde25178a480de6f6bb8de23f2ac5c5f765471b349567ffa93c"
                     }
                 }
             ],

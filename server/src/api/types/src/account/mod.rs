@@ -10,6 +10,7 @@ pub mod entities;
 pub mod errors;
 pub mod identifiers;
 pub mod keys;
+pub mod money;
 pub mod spend_limit;
 pub mod spending;
 

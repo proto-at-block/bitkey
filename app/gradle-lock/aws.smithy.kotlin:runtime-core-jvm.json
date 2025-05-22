@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:runtime-core-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-core-jvm-1.3.7.jar": "b73c06d77a1926bebca2b9d769b957d50308865891651580a021b33194d851e6"
+                        "runtime-core-jvm-1.3.31.jar": "2af6e0a9f2382c1083ff4434cb3d242130fe0bf2f8a9975248fa402a94e651bb"
                     }
                 }
             ],

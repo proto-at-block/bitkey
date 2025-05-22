@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-iossimulatorarm64",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-iossimulatorarm64-2.0.0-metadata.jar": "47eb065b3bcea91945667c3fe6db658ae703d9cb94156da745b716937e75bc06"
+                        "kotlin-result-iossimulatorarm64-2.0.1-metadata.jar": "a427e11ebcb41e4c0fdc70f5f093d21171d0d3537c8b5f8f4b0c29694d4cd680"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result.klib": "5332b27722365607d5e4a0abb67627a4c1b5a09b6b106d9a9f31d246fd741870"
+                        "kotlin-result.klib": "81ed7a2e0730f5eedb006d6002681b9d9de43aedfe2ecc9a6f91477d4ebfb393"
                     }
                 }
             ],

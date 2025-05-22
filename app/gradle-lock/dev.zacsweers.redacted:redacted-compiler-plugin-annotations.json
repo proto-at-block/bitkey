@@ -2,11 +2,11 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations",
     "components": [
         {
-            "version": "1.10.0",
+            "version": "1.13.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations-metadata-1.10.0.jar": "7776ce2c6171588dbd73ac1d49b8a46191605684324f4b01b80abab8537de0df"
+                        "redacted-compiler-plugin-annotations-metadata-1.13.0.jar": "fe551ac6a2716df305dce9fce28e7063d7a25eaf23d7cbe58a4d72d9c876a088"
                     }
                 }
             ],

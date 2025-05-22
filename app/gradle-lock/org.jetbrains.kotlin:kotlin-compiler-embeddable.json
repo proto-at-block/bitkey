@@ -2,16 +2,15 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-compiler-embeddable",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-compiler-embeddable-2.0.21.jar": "9fa8cdd1de0dccffe154c997d423ec6b5f53cd6d9177e3a77a9b0de03fb1bc81"
+                        "kotlin-compiler-embeddable-2.1.20.jar": "c54a00718c8c0e3ee858bf42771c7f401c5e3c1738861e18e9536371042fa1b3"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[bitkey]",
                 "kotlin-compiler"
             ]
         }

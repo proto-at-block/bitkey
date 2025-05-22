@@ -59,7 +59,7 @@ fn gen_code() -> (String, usize) {
 ///
 /// # Arguments
 ///
-/// * `role` - The role of the trusted contact
+/// * `role` - The role of the Recovery Contact
 /// * `account_properties` - The properties for a given account, for now only the test account flag is used
 fn gen_expiration(
     role: &TrustedContactRole,

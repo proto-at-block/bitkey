@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "sdklib-31.5.2.jar": "a87c7d95a6d9c329ddde828af3f213253140135c60a0bf025a9107b3c2123f20"
+                        "sdklib-31.9.1.jar": "ee9d81187dab97900640c41e2ae30c0ebaf4572dd56a7d7e34447c93d794c2fd"
                     }
                 }
             ],

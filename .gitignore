@@ -26,6 +26,7 @@ Fastlane/report.xml
 Fastlane/bin
 
 server/cdk.out
+server/nohup.out
 server/**/target
 server/resources/lambda/bootstrap
 

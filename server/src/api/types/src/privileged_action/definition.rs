@@ -8,7 +8,10 @@ use crate::account::AccountType;
 
 use super::shared::{PrivilegedActionDelayDuration, PrivilegedActionType};
 
-const SEVENTY_TWO_HOURS_SECS: usize = 259_200;
+const ONE_HOUR_SECS: usize = 3600;
+const ONE_DAY_SECS: usize = 24 * ONE_HOUR_SECS;
+const SEVENTY_TWO_HOURS_SECS: usize = 72 * ONE_HOUR_SECS;
+const SEVEN_DAYS_SECS: usize = 7 * ONE_DAY_SECS;
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
 pub struct HardwareProofOfPossessionDefinition {
@@ -113,6 +116,20 @@ impl From<&PrivilegedActionType> for PrivilegedActionDefinition {
                         }),
                     ),
                 ]),
+            },
+            PrivilegedActionType::ResetFingerprint => PrivilegedActionDefinition {
+                privileged_action_type: value.clone(),
+                authorization_strategies: HashMap::from([(
+                    AccountType::Full,
+                    AuthorizationStrategyDefinition::DelayAndNotify(DelayAndNotifyDefinition {
+                        delay_duration_secs: SEVEN_DAYS_SECS,
+                        delay_configurable: false,
+                        concurrency: false,
+                        skip_during_onboarding: false,
+                        notification_summary: "reset fingerprints for your Bitkey device"
+                            .to_string(),
+                    }),
+                )]),
             },
         }
     }

@@ -2,11 +2,11 @@
     "module-identifier": "aws.sdk.kotlin:aws-core-jvm",
     "components": [
         {
-            "version": "1.3.20",
+            "version": "1.3.109",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-core-jvm-1.3.20.jar": "2aeb996085992e27d7a2a3b4c5be7252a1778bcd15fd2e2734bfbf39fef4bbfc"
+                        "aws-core-jvm-1.3.109.jar": "2aeb996085992e27d7a2a3b4c5be7252a1778bcd15fd2e2734bfbf39fef4bbfc"
                     }
                 }
             ],

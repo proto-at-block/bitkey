@@ -18,7 +18,7 @@ import kotlinx.datetime.Instant
 class TrustedContactsListFormScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("trusted contacts list") {
+  test("Recovery Contacts list") {
     paparazzi.snapshot {
       FormScreen(
         TrustedContactsListBodyModel(
@@ -61,7 +61,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
     }
   }
 
-  test("trusted contacts list lite") {
+  test("Recovery Contacts list lite") {
     paparazzi.snapshot {
       FormScreen(
         LiteTrustedContactsListBodyModel(

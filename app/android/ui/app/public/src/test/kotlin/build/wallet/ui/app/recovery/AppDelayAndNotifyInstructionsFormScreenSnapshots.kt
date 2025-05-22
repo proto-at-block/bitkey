@@ -8,7 +8,7 @@ import io.kotest.core.spec.style.FunSpec
 class AppDelayAndNotifyInstructionsFormScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("recover your mobile key screen") {
+  test("recover your App Key screen") {
     paparazzi.snapshot {
       FormScreen(
         RecoverYourMobileKeyBodyModel(

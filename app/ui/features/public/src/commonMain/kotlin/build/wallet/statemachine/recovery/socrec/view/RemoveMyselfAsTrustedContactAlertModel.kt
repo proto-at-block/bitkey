@@ -8,7 +8,7 @@ fun RemoveMyselfAsTrustedContactAlertModel(
   onDismiss: () -> Unit,
   onRemove: () -> Unit,
 ) = ButtonAlertModel(
-  title = "Are you sure you want to remove yourself as a Trusted Contact?",
+  title = "Are you sure you want to remove yourself as a Recovery Contact?",
   subline = "If $alias needs help recovering in the future, you won’t be able to assist them.",
   onDismiss = onDismiss,
   primaryButtonText = "Remove",

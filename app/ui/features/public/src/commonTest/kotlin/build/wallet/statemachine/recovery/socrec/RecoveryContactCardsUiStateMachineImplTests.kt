@@ -7,6 +7,8 @@ import build.wallet.bitkey.relationships.InvitationFake
 import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.relationships.UnendorsedTrustedContactFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoFake
+import build.wallet.feature.flags.SecurityHubFeatureFlag
 import build.wallet.relationships.RelationshipsServiceMock
 import build.wallet.statemachine.core.test
 import build.wallet.time.ClockFake
@@ -26,7 +28,8 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   val recoveryContactCardsUiStateMachine =
     RecoveryContactCardsUiStateMachineImpl(
       clock = ClockFake(),
-      relationshipsService = relationshipsService
+      relationshipsService = relationshipsService,
+      securityHubFeatureFlag = SecurityHubFeatureFlag(FeatureFlagDaoFake())
     )
   val onClickCalls = turbines.create<Unit>("onClick call")
   val relationships = Relationships.EMPTY

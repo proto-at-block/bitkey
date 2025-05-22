@@ -2,11 +2,11 @@
     "module-identifier": "androidx.appcompat:appcompat",
     "components": [
         {
-            "version": "1.6.1",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "appcompat-1.6.1.aar": "7ea5573b93ababd3bd32312451c6ea48a662b03a140dda81aebe75776a20a422"
+                        "appcompat-1.7.0.aar": "67189713b30a3fab6971713cc5fab1cb7f022bcf648a257563715c91d719d584"
                     }
                 }
             ],

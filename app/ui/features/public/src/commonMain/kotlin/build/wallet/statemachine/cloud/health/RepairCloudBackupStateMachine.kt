@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State Machine for repairing the Mobile Key and EAK backups.
+ * State Machine for repairing the App Key and EEK backups.
  *
  * Depending on the problem with the backup,
  * the state machine will ask the customer to take different actions to fix the problem.

@@ -2,7 +2,7 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2025.9.0"
+version = "2025.10.0"
 
 default-run = "bk"
 
@@ -37,4 +37,4 @@ tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 wca = { path = "../app/rust/wca" }
-zip = "0.6.6"
+zip = "1.0.0"

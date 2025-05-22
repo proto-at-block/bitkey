@@ -42,7 +42,7 @@ interface FullAccountFieldsCreator {
       override val cause: Throwable,
     ) : FullAccountFieldsCreationError()
 
-    /** Error returned when encrypting the PKEK using TC keys fails */
+    /** Error returned when encrypting the PKEK using RC keys fails */
     data class SocRecEncryptionError(
       override val cause: Throwable,
     ) : FullAccountFieldsCreationError()

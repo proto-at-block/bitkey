@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:aws-signing-default-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-signing-default-jvm-1.3.7.jar": "68eb28220e8b66e04caee6259d80a2420861a525686cfb47664b6c4c4ae46178"
+                        "aws-signing-default-jvm-1.3.31.jar": "ac08f4fd4e39752a3fbc96e280e3a9e7501d40ec9864dc23d692850ed5bd35af"
                     }
                 }
             ],

@@ -20,20 +20,21 @@ locals {
   # DynamoDB Tables
   ################################################
   tables = {
-    account_table_name               = "${module.this.id_dot}.accounts"
-    address_watchlist_table_name     = "${module.this.id_dot}.address_watchlist"
-    notification_table_name          = "${module.this.id_dot}.notification"
-    chain_indexer_table_name         = "${module.this.id_dot}.chain_indexer"
-    mempool_indexer_table_name       = "${module.this.id_dot}.mempool_indexer"
-    daily_spending_record_table_name = "${module.this.id_dot}.daily_spending_record"
-    signed_psbt_cache_table_name     = "${module.this.id_dot}.signed_psbt_cache"
-    migration_record_table_name      = "${module.this.id_dot}.migration_records"
-    social_recovery_table_name       = "${module.this.id_dot}.social_recovery"
-    consent_table_name               = "${module.this.id_dot}.consent"
-    recovery_table_name              = "${module.this.id_dot}.account_recovery"
-    privileged_action_table_name     = "${module.this.id_dot}.privileged_action"
-    inheritance_table_name           = "${module.this.id_dot}.inheritance"
-    promotion_code_table_name        = "${module.this.id_dot}.promotion_code"
+    account_table_name                  = "${module.this.id_dot}.accounts"
+    address_watchlist_table_name        = "${module.this.id_dot}.address_watchlist"
+    notification_table_name             = "${module.this.id_dot}.notification"
+    chain_indexer_table_name            = "${module.this.id_dot}.chain_indexer"
+    mempool_indexer_table_name          = "${module.this.id_dot}.mempool_indexer"
+    daily_spending_record_table_name    = "${module.this.id_dot}.daily_spending_record"
+    signed_psbt_cache_table_name        = "${module.this.id_dot}.signed_psbt_cache"
+    migration_record_table_name         = "${module.this.id_dot}.migration_records"
+    social_recovery_table_name          = "${module.this.id_dot}.social_recovery"
+    consent_table_name                  = "${module.this.id_dot}.consent"
+    recovery_table_name                 = "${module.this.id_dot}.account_recovery"
+    privileged_action_table_name        = "${module.this.id_dot}.privileged_action"
+    inheritance_table_name              = "${module.this.id_dot}.inheritance"
+    promotion_code_table_name           = "${module.this.id_dot}.promotion_code"
+    transaction_verification_table_name = "${module.this.id_dot}.transaction_verification"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -75,19 +76,20 @@ locals {
     SERVER_ENABLE_FUND_SIGNET_WALLET = "true"
     ROCKET_PROFILE                   = var.config_profile
 
-    ACCOUNT_TABLE               = local.tables.account_table_name
-    ADDRESS_WATCHLIST_TABLE     = local.tables.address_watchlist_table_name
-    CHAIN_INDEXER_TABLE         = local.tables.chain_indexer_table_name
-    MEMPOOL_INDEXER_TABLE       = local.tables.mempool_indexer_table_name
-    DAILY_SPENDING_RECORD_TABLE = local.tables.daily_spending_record_table_name
-    NOTIFICATION_TABLE          = local.tables.notification_table_name
-    RECOVERY_TABLE              = local.tables.recovery_table_name
-    SIGNED_PSBT_CACHE_TABLE     = local.tables.signed_psbt_cache_table_name
-    SOCIAL_RECOVERY_TABLE       = local.tables.social_recovery_table_name
-    CONSENT_TABLE               = local.tables.consent_table_name
-    PRIVILEGED_ACTION_TABLE     = local.tables.privileged_action_table_name
-    INHERITANCE_TABLE           = local.tables.inheritance_table_name
-    PROMOTION_CODE_TABLE        = local.tables.promotion_code_table_name
+    ACCOUNT_TABLE                  = local.tables.account_table_name
+    ADDRESS_WATCHLIST_TABLE        = local.tables.address_watchlist_table_name
+    CHAIN_INDEXER_TABLE            = local.tables.chain_indexer_table_name
+    MEMPOOL_INDEXER_TABLE          = local.tables.mempool_indexer_table_name
+    DAILY_SPENDING_RECORD_TABLE    = local.tables.daily_spending_record_table_name
+    NOTIFICATION_TABLE             = local.tables.notification_table_name
+    RECOVERY_TABLE                 = local.tables.recovery_table_name
+    SIGNED_PSBT_CACHE_TABLE        = local.tables.signed_psbt_cache_table_name
+    SOCIAL_RECOVERY_TABLE          = local.tables.social_recovery_table_name
+    CONSENT_TABLE                  = local.tables.consent_table_name
+    PRIVILEGED_ACTION_TABLE        = local.tables.privileged_action_table_name
+    INHERITANCE_TABLE              = local.tables.inheritance_table_name
+    PROMOTION_CODE_TABLE           = local.tables.promotion_code_table_name
+    TRANSACTION_VERIFICATION_TABLE = local.tables.transaction_verification_table_name
   }
 
   ###############################################
@@ -218,20 +220,21 @@ module "dynamodb_tables" {
 
   enable_deletion_protection = var.enable_deletion_protection
 
-  account_table_name               = local.tables.account_table_name
-  address_watchlist_table_name     = local.tables.address_watchlist_table_name
-  chain_indexer_table_name         = local.tables.chain_indexer_table_name
-  mempool_indexer_table_name       = local.tables.mempool_indexer_table_name
-  daily_spending_record_table_name = local.tables.daily_spending_record_table_name
-  notification_table_name          = local.tables.notification_table_name
-  recovery_table_name              = local.tables.recovery_table_name
-  signed_psbt_cache_table_name     = local.tables.signed_psbt_cache_table_name
-  migration_record_table_name      = local.tables.migration_record_table_name
-  social_recovery_table_name       = local.tables.social_recovery_table_name
-  consent_table_name               = local.tables.consent_table_name
-  privileged_action_table_name     = local.tables.privileged_action_table_name
-  inheritance_table_name           = local.tables.inheritance_table_name
-  promotion_code_table_name        = local.tables.promotion_code_table_name
+  account_table_name                  = local.tables.account_table_name
+  address_watchlist_table_name        = local.tables.address_watchlist_table_name
+  chain_indexer_table_name            = local.tables.chain_indexer_table_name
+  mempool_indexer_table_name          = local.tables.mempool_indexer_table_name
+  daily_spending_record_table_name    = local.tables.daily_spending_record_table_name
+  notification_table_name             = local.tables.notification_table_name
+  recovery_table_name                 = local.tables.recovery_table_name
+  signed_psbt_cache_table_name        = local.tables.signed_psbt_cache_table_name
+  migration_record_table_name         = local.tables.migration_record_table_name
+  social_recovery_table_name          = local.tables.social_recovery_table_name
+  consent_table_name                  = local.tables.consent_table_name
+  privileged_action_table_name        = local.tables.privileged_action_table_name
+  inheritance_table_name              = local.tables.inheritance_table_name
+  promotion_code_table_name           = local.tables.promotion_code_table_name
+  transaction_verification_table_name = local.tables.transaction_verification_table_name
 }
 
 module "ecs_api" {

@@ -47,7 +47,7 @@ interface LostAppAndCloudRecoveryService {
   ): Result<CompletedAuth, Throwable>
 
   /**
-   * Initiates delay + notify recovery for Lost App/Mobile key. Process is initiated
+   * Initiates delay + notify recovery for Lost App/App Key. Process is initiated
    * through f8e, DN recovery is written into local state.
    *
    * @param completedAuth The auth tokens and keys we got from the hardware to begin recovery

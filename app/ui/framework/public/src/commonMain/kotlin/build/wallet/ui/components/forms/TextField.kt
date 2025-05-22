@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.None
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Sentences
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Words
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.button.Button
@@ -193,14 +194,14 @@ fun TextField(
               ParagraphIntrinsics(
                 text = value.text,
                 style = textStyle,
-                spanStyles = emptyList(),
+                annotations = emptyList(),
                 placeholders = emptyList(),
                 density = LocalDensity.current,
                 fontFamilyResolver = LocalFontFamilyResolver.current
               ),
             constraints = Constraints(),
             maxLines = textFieldOverflowCharacteristic.maxLines,
-            ellipsis = false
+            overflow = TextOverflow.Clip
           )
         }
 

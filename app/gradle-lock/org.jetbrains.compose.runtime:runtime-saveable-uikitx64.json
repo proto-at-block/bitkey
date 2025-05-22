@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable-uikitx64",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-uikitx64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "runtime-saveable-uikitX64Main-1.8.0.klib": "b330fb15b0b56301686276fd4a4afdbea1935c19a0895e6c4021eaf38520c343"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime-saveable.klib": "7d9cc9a83a3413ee7212d5c5a9b0d31fa4ab7247fe433302c2cd0d3e4deaf980"
+                        "runtime-saveable-uikitx64-1.8.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 }
             ],

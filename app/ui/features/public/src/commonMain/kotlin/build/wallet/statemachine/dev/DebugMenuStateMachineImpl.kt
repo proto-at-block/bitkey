@@ -30,6 +30,8 @@ import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.NotRequired
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.resetfingerprints.ResetFingerprintsUiStateMachine
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -59,6 +61,7 @@ class DebugMenuScreenPresenter(
   private val firmwareDataService: FirmwareDataService,
   private val onboardingCompletionService: OnboardingCompletionService,
   private val inheritanceUpsellService: InheritanceUpsellService,
+  private val resetFingerprintsUiStateMachine: ResetFingerprintsUiStateMachine,
 ) : ScreenPresenter<DebugMenuScreen> {
   @Composable
   override fun model(
@@ -168,6 +171,14 @@ class DebugMenuScreenPresenter(
             )
         )
 
+      is DebugMenuState.ResettingFingerprints ->
+        resetFingerprintsUiStateMachine.model(
+          props = ResetFingerprintsProps(
+            onCancel = { uiState = DebugMenuState.ShowingDebugMenu },
+            onComplete = { uiState = DebugMenuState.ShowingDebugMenu }
+          )
+        )
+
       is DebugMenuState.ClearingOnboardingData -> {
         LaunchedEffect(state) {
           when (state) {
@@ -219,6 +230,8 @@ sealed interface DebugMenuState {
   data object WipingHardware : DebugMenuState
 
   data object ShowingFirmwareMetadata : DebugMenuState
+
+  data object ResettingFingerprints : DebugMenuState
 
   sealed interface ClearingOnboardingData : DebugMenuState {
     data object OnboardingTimestamp : ClearingOnboardingData

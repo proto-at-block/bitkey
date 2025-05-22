@@ -49,9 +49,9 @@ class FullAccountCloudBackupRepairerImpl(
       return
     }
 
-    val (mobileKeyBackupStatus, eakBackupStatus) = cloudBackupStatus
+    val (mobileKeyBackupStatus, eekBackupStatus) = cloudBackupStatus
 
-    // Attempt to fix Mobile Key Backup
+    // Attempt to fix App Key Backup
     when (mobileKeyBackupStatus) {
       MobileKeyBackupStatus.ProblemWithBackup.BackupMissing ->
         uploadMobileKeyBackup(account, cloudStoreAccount, localBackup)
@@ -66,16 +66,16 @@ class FullAccountCloudBackupRepairerImpl(
           uploadMobileKeyBackup(account, cloudStoreAccount, localBackup)
         }
       }
-      // Cannot auto repair other problems with Mobile Key Backup.
+      // Cannot auto repair other problems with App Key Backup.
       // Customer will have to resolve this manually.
       else -> Unit
     }
 
-    // Attempt to fix Emergency Access Kit
-    when (eakBackupStatus) {
-      EakBackupStatus.ProblemWithBackup.BackupMissing ->
+    // Attempt to fix Emergency Exit Kit
+    when (eekBackupStatus) {
+      EekBackupStatus.ProblemWithBackup.BackupMissing ->
         uploadEakBackup(account, cloudStoreAccount, localBackup)
-      // Cannot auto repair other problems with Emergency Access Kit.
+      // Cannot auto repair other problems with Emergency Exit Kit.
       // Customer will have to resolve this manually.
       else -> Unit
     }
@@ -114,9 +114,9 @@ class FullAccountCloudBackupRepairerImpl(
         emergencyAccessKitRepository.write(cloudStoreAccount, eakData)
       }
       .onSuccess {
-        logDebug { "Successfully uploaded Emergency Access Kit" }
+        logDebug { "Successfully uploaded Emergency Exit Kit" }
       }
       // Customer will have to resolve this manually
-      .logFailure { "Error uploading Emergency Access Kit" }
+      .logFailure { "Error uploading Emergency Exit Kit" }
   }
 }

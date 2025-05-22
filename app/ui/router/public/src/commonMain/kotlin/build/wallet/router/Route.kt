@@ -161,9 +161,9 @@ sealed class Route {
 
   /**
    * Navigate to either:
-   * a) Add TC screen with invite code
-   * b) TC onboarding
-   * @param inviteCode The invite code for the trusted contact
+   * a) Add RC screen with invite code
+   * b) RC onboarding
+   * @param inviteCode The invite code for the Recovery Contact
    */
   data class TrustedContactInvite(val inviteCode: String) : Route()
 
@@ -171,7 +171,7 @@ sealed class Route {
    * Navigate to either:
    * a) Become beneficiary screen with invite code
    * b) Beneficiary onboarding
-   * @param inviteCode The invite code for the trusted contact
+   * @param inviteCode The invite code for the Recovery Contact
    */
   data class BeneficiaryInvite(val inviteCode: String) : Route()
 

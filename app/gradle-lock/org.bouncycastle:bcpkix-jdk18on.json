@@ -11,7 +11,19 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "1.79",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcpkix-jdk18on-1.79.jar": "3639a24ddf9ba4b7eba0659b44770e91eba816421888e571f285aadefe532cd6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "gradle-plugins[bitkey]"
             ]
         }

@@ -5,6 +5,7 @@ pub mod delay_notify;
 pub mod distributed_keys;
 pub mod inheritance;
 pub mod relationship;
+pub mod reset_fingerprint;
 pub mod social_challenge;
 pub const INHERITANCE_ENABLED_FLAG_KEY: &str = "inheritance-enabled";
 

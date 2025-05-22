@@ -54,7 +54,7 @@ private data class ProtectedCustomerBottomSheetBodyModel(
       ),
     secondaryButton =
       ButtonModel(
-        text = "Remove Myself as Trusted Contact",
+        text = "Remove Myself as Recovery Contact",
         size = ButtonModel.Size.Footer,
         onClick = StandardClick { onRemoveSelfAsTrustedContact() },
         treatment = ButtonModel.Treatment.SecondaryDestructive,

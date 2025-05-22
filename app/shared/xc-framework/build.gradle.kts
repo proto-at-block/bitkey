@@ -2,7 +2,6 @@ import build.wallet.gradle.logic.extensions.targets
 import build.wallet.gradle.logic.gradle.HostEnvironment
 import build.wallet.gradle.logic.gradle.konanTargetsForIOS
 import build.wallet.gradle.logic.gradle.optimalTargetsForIOS
-import org.jetbrains.kotlin.gradle.plugin.mpp.Framework.BitcodeEmbeddingMode.DISABLE
 
 plugins {
   id("build.wallet.kmp")
@@ -89,9 +88,6 @@ kotlin {
     it.binaries.framework {
       baseName = "Shared"
       isStatic = true
-
-      // Disable iOS bitcode completely.
-      embedBitcode(DISABLE)
 
       (exposedDependencies + testDependencies).onEach { dep ->
         export(dep)

@@ -11,8 +11,6 @@ import build.wallet.coroutines.flow.tickerFlow
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8eClient
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import com.github.michaelbull.result.*
@@ -27,7 +25,6 @@ class InheritanceClaimsRepositoryImpl(
   accountService: AccountService,
   private val inheritanceClaimsDao: InheritanceClaimsDao,
   private val retrieveInheritanceClaimsF8eClient: RetrieveInheritanceClaimsF8eClient,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
   stateScope: CoroutineScope,
   private val inheritanceSyncFrequency: InheritanceSyncFrequency,
 ) : InheritanceClaimsRepository {
@@ -111,16 +108,9 @@ class InheritanceClaimsRepositoryImpl(
     replay = 1
   )
 
-  override val claims: Flow<Result<InheritanceClaims, Error>> =
-    inheritanceFeatureFlag.flagValue()
-      .flatMapLatest { enabled -> if (enabled.value) claimsFlow else emptyFlow() }
-      .distinctUntilChanged()
+  override val claims: Flow<Result<InheritanceClaims, Error>> = claimsFlow.distinctUntilChanged()
 
   override suspend fun fetchClaims(): Result<InheritanceClaims, Error> {
-    if (!inheritanceFeatureFlag.isEnabled()) {
-      return Err(Error("Inheritance feature flag is disabled"))
-    }
-
     return serverClaims.first()
       .onSuccess { newClaims ->
         claimsState.value = Ok(newClaims)
@@ -132,10 +122,6 @@ class InheritanceClaimsRepositoryImpl(
    * Update the state of a single inheritance claim.
    */
   override suspend fun updateSingleClaim(claim: InheritanceClaim) {
-    if (!inheritanceFeatureFlag.isEnabled()) {
-      return
-    }
-
     claimsState.value = when (claim) {
       is BeneficiaryClaim -> updateClaim(claim, { it.beneficiaryClaims }) { state, updatedClaims ->
         state.copy(beneficiaryClaims = updatedClaims)

@@ -30,7 +30,6 @@ import build.wallet.statemachine.notifications.NotificationPreferencesProps.Sour
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -94,7 +93,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Complete notifications
-      onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
+      onboardAccountService.awaitPendingStep(NotificationPreferences)
 
       awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
@@ -105,7 +104,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -129,7 +128,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -143,7 +142,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete notifications
-      onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
+      onboardAccountService.awaitPendingStep(NotificationPreferences)
 
       awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
@@ -154,7 +153,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -178,7 +177,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -191,7 +190,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -221,7 +220,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -305,7 +304,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -328,8 +327,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
 
       awaitBody<FormBodyModel>(id = SAVE_CLOUD_BACKUP_FAILED) {
         // Cloud backup step is not complete
-        onboardAccountService.pendingStep()
-          .shouldBeOk(OnboardAccountStep.CloudBackup(SealedCsekFake))
+        onboardAccountService.awaitPendingStep(OnboardAccountStep.CloudBackup(SealedCsekFake))
 
         // Retry
         clickPrimaryButton()
@@ -346,7 +344,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -381,7 +379,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_CLOUD_BACKUP_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }
@@ -395,7 +393,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = LOADING_ONBOARDING_STEP)
 
       // Complete notifications
-      onboardAccountService.pendingStep().shouldBeOk(NotificationPreferences)
+      onboardAccountService.awaitPendingStep(NotificationPreferences)
 
       awaitBodyMock<NotificationPreferencesSetupUiProps> {
         accountId.shouldBe(KeyboxMock.fullAccountId)
@@ -417,7 +415,7 @@ class OnboardFullAccountUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>(id = SAVE_NOTIFICATIONS_LOADING)
 
       // Onboarding is complete
-      onboardAccountService.pendingStep().shouldBeOk(null)
+      onboardAccountService.awaitPendingStep(null)
       onOnboardingComplete.awaitItem()
     }
   }

@@ -5,8 +5,10 @@ import build.wallet.money.currency.Currency
 import build.wallet.money.currency.FiatCurrency
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import dev.zacsweers.redacted.annotations.Redacted
 
 @Suppress("TooManyFunctions")
+@Redacted
 sealed interface Money {
   /** The currency of the amount */
   val currency: Currency
@@ -19,9 +21,6 @@ sealed interface Money {
    * Callers should perform rounding and formatting.
    */
   val value: BigDecimal
-
-  /** A non-l10n non-i18n friendly formatting function for debugging and logging */
-  override fun toString(): String
 
   fun copy(
     currency: Currency,

@@ -28,8 +28,8 @@ enum class AppVariant {
   Customer,
 
   /**
-   * Emergency Access variant, identical to the [Customer] variant, but
-   * in emergency access mode, with most onboarding features and server
+   * Emergency Exit Kit variant, identical to the [Customer] variant, but
+   * in Emergency Exit Kit mode, with most onboarding features and server
    * connectivity disabled.
    * This variant is currently only used in Android builds
    */

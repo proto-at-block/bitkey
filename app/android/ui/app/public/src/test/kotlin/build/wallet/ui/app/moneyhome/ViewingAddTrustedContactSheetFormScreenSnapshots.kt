@@ -8,7 +8,7 @@ import io.kotest.core.spec.style.FunSpec
 class ViewingAddTrustedContactSheetFormScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("Add trusted contact sheet model screen") {
+  test("Add Recovery Contact sheet model screen") {
     paparazzi.snapshotSheet(
       ViewingAddTrustedContactFormBodyModel(
         onAddTrustedContact = {},

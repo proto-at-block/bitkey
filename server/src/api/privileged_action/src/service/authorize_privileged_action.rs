@@ -37,6 +37,20 @@ use types::{
 
 use super::{error::ServiceError, gen_token, Service};
 
+/// Validator for privileged action requests that allows registering callbacks to validate
+/// requests based on their authorization strategy.
+///
+/// The validator can have callbacks registered for:
+/// - Delay and notify strategy: Validates requests that require a delay period and notifications
+/// - Hardware proof of possession: Validates requests that require hardware authentication
+///
+/// The callbacks are executed when a privileged action request is initiated with the corresponding
+/// authorization strategy. They can perform any necessary validation logic and return an error
+/// if the request is invalid.
+///
+/// Type parameters:
+/// - ReqT: The type of the request payload
+/// - ErrT: The error type that can be converted into an ApiError
 #[derive(Builder)]
 #[builder(pattern = "owned", setter(strip_option), default)]
 pub struct PrivilegedActionRequestValidator<ReqT, ErrT>
@@ -69,6 +83,21 @@ where
     }
 }
 
+/// Input parameters for authorizing a privileged action in the system.
+///
+/// This struct encapsulates all the necessary information to determine whether a privileged
+/// action should be authorized, delayed for additional verification, or rejected.
+///
+/// # Type Parameters
+/// * `ReqT` - The type of the request payload contained within the privileged action request
+/// * `ErrT` - An error type that can be converted into an ApiError
+///
+/// # Fields
+/// * `account_id` - The account identifier for which the privileged action is being requested
+/// * `privileged_action_definition` - Definition of the privileged action with its requirements
+/// * `key_proof` - Proof of possession (typically signatures from app/hardware keys)
+/// * `privileged_action_request` - The actual request containing action-specific parameters
+/// * `request_validator` - Validator that contains handlers for different authorization paths, checked before the authorization is checked
 pub struct AuthorizePrivilegedActionInput<'a, ReqT, ErrT>
 where
     ErrT: Into<ApiError>,
@@ -80,6 +109,9 @@ where
     pub request_validator: PrivilegedActionRequestValidator<ReqT, ErrT>,
 }
 
+// A call to `authorize_privileged_action` can return one of the following:
+// - `Authorized(ReqT)`: The request is authorized and the request payload is returned
+// - `Pending(PrivilegedActionResponse<RespT>)`: The request is pending and the response is returned
 #[derive(Debug)]
 pub enum AuthorizePrivilegedActionOutput<ReqT, RespT> {
     Authorized(ReqT),
@@ -87,6 +119,32 @@ pub enum AuthorizePrivilegedActionOutput<ReqT, RespT> {
 }
 
 impl Service {
+    /// Authorizes a privileged action request based on the defined authorization strategy.
+    ///
+    /// This function evaluates whether a privileged action should be immediately authorized,
+    /// delayed for additional verification, or rejected. It handles both initial requests
+    /// and continuation of previously initiated privileged actions.
+    ///
+    /// # Authorization Flow
+    /// - For initial requests:
+    ///   - With HardwareProofOfPossession strategy: Verifies key signatures and may bypass checks during onboarding
+    ///   - With DelayAndNotify strategy: May start a time-delay period with notifications
+    ///
+    /// - For continuation requests:
+    ///   - Validates the instance ID, completion token, and ensures the delay period has elapsed
+    ///
+    /// # Type Parameters
+    /// * `ReqT` - Request payload type (must be serializable/deserializable as it's persisted in the database)
+    /// * `RespT` - Response type for pending actions
+    /// * `ErrT` - Error type that can be converted to ApiError
+    ///
+    /// # Returns
+    /// * `AuthorizePrivilegedActionOutput::Authorized(ReqT)` - If the action is authorized immediately
+    /// * `AuthorizePrivilegedActionOutput::Pending(PrivilegedActionResponse<RespT>)` - If additional steps are needed
+    ///
+    /// # Errors
+    /// Returns a ServiceError if authorization fails due to invalid inputs, missing permissions,
+    /// or when trying to continue an action with an incompatible strategy.
     #[instrument(skip(self, input))]
     pub async fn authorize_privileged_action<ReqT, RespT, ErrT>(
         &self,
@@ -176,6 +234,21 @@ impl Service {
         }
     }
 
+    /// Validates hardware proof-of-possession for a privileged action.
+    ///
+    /// This method ensures that sensitive operations have proper authorization by verifying
+    /// that the request has signatures from both hardware and app authentication factors.
+    /// This requirement can be bypassed during the onboarding process if configured.
+    ///
+    /// # Parameters
+    /// * `hardware_proof_of_possession_definition` - Configuration for hardware proof verification
+    /// * `key_proof` - The key claims containing signature information from authentication factors
+    /// * `initial_request` - The original request payload
+    /// * `on_initiate_hardware_proof_of_possession` - Optional callback function to execute during validation
+    /// * `onboarding_complete` - Whether the account has completed onboarding
+    ///
+    /// # Returns
+    /// * `Result<(), ServiceError>` - Success if validation passes
     #[instrument(skip(self, initial_request, on_initiate_hardware_proof_of_possession))]
     async fn initiate_hardware_proof_of_possession<ReqT, ErrT>(
         &self,
@@ -213,6 +286,29 @@ impl Service {
         return Ok(());
     }
 
+    /// Initiates a delay-and-notify privileged action flow.
+    ///
+    /// This method implements a time-delay security mechanism for sensitive operations. It creates
+    /// a pending privileged action instance with a delay period, during which the user can cancel
+    /// the action if it was initiated fraudulently. Notifications are sent to the user at the start
+    /// and end of the delay period.
+    ///
+    /// The delay is bypassed if:
+    /// - The delay duration is set to 0 seconds
+    /// - The account is in onboarding and the action is configured to skip delays during onboarding
+    ///
+    /// # Parameters
+    /// * `account_id` - The ID of the account initiating the privileged action
+    /// * `account_type` - The type of the account (Full, Lite, etc.)
+    /// * `privileged_action_type` - The type of privileged action being initiated
+    /// * `delay_and_notify_definition` - Configuration for the delay period and notification behavior
+    /// * `initial_request` - The original request payload that will be stored and executed after the delay
+    /// * `on_initiate_delay_and_notify` - Optional callback function to execute when initiating the delay
+    /// * `onboarding_complete` - Whether the account has completed onboarding
+    ///
+    /// # Returns
+    /// * `Result<Option<PrivilegedActionResponse<RespT>>, ServiceError>` - None if the action can proceed
+    ///   immediately, or a PrivilegedActionResponse if a delay period was initiated
     #[instrument(skip(self, initial_request, on_initiate_delay_and_notify))]
     async fn initiate_delay_and_notify<ReqT, RespT, ErrT>(
         &self,
@@ -312,6 +408,27 @@ impl Service {
         Ok(Some(instance_record.into()))
     }
 
+    /// Continues a delay-and-notify privileged action flow that was previously initiated.
+    ///
+    /// This method is called when the delay period for a privileged action is complete and
+    /// the user wants to finalize the action. It validates:
+    /// - The instance belongs to the specified account
+    /// - The action type matches what was initiated
+    /// - The authorization strategy is DelayAndNotify
+    /// - The action is still in Pending status
+    /// - The delay period has elapsed
+    /// - The completion token provided matches the stored token
+    ///
+    /// If all validations pass, it updates the status to Completed and returns the original request.
+    ///
+    /// # Parameters
+    /// * `account_id` - The ID of the account performing the privileged action
+    /// * `account_type` - The type of the account (Full, Lite, etc.)
+    /// * `privileged_action_type` - The type of privileged action being continued
+    /// * `continue_request` - The request containing the privileged action instance and completion token
+    ///
+    /// # Returns
+    /// * `Result<ReqT, ServiceError>` - The original request payload on success, or an error if validation fails
     #[instrument(skip(self, continue_request))]
     async fn continue_delay_and_notify<ReqT>(
         &self,

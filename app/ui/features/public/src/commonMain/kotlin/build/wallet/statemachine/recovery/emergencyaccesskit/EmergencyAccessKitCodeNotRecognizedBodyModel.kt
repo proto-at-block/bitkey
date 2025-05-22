@@ -25,7 +25,7 @@ data class EmergencyAccessKitCodeNotRecognizedBodyModel(
     ),
     header = FormHeaderModel(
       icon = Icon.LargeIconWarningFilled,
-      headline = "Mobile Key backup code not recognized",
+      headline = "App Key backup code not recognized",
       subline = "Try entering the code again or scanning the QR code."
     ),
     mainContentList = immutableListOf(),

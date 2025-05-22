@@ -2,9 +2,9 @@ package build.wallet.cloud.backup.health
 
 data class CloudBackupStatus(
   val mobileKeyBackupStatus: MobileKeyBackupStatus,
-  val eakBackupStatus: EakBackupStatus,
+  val eekBackupStatus: EekBackupStatus,
 )
 
 fun CloudBackupStatus.isHealthy(): Boolean {
-  return mobileKeyBackupStatus.isHealthy() && eakBackupStatus.isHealthy()
+  return mobileKeyBackupStatus.isHealthy() && eekBackupStatus.isHealthy()
 }

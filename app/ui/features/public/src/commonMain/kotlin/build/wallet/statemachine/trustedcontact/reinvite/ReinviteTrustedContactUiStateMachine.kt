@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
 /**
- * State machine for reinviting a Trusted Contact. Manages generating and sending Invitation.
+ * State machine for reinviting a Recovery Contact. Manages generating and sending Invitation.
  */
 interface ReinviteTrustedContactUiStateMachine : StateMachine<ReinviteTrustedContactUiProps, ScreenModel>
 

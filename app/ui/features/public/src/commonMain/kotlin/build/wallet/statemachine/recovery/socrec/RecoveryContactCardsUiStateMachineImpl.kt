@@ -10,6 +10,8 @@ import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
+import build.wallet.feature.flags.SecurityHubFeatureFlag
+import build.wallet.feature.isEnabled
 import build.wallet.relationships.RelationshipsService
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.trustedcontact.model.TrustedContactCardModel
@@ -22,6 +24,7 @@ import kotlinx.datetime.Clock
 class RecoveryContactCardsUiStateMachineImpl(
   private val clock: Clock,
   private val relationshipsService: RelationshipsService,
+  private val securityHubFeatureFlag: SecurityHubFeatureFlag,
 ) : RecoveryContactCardsUiStateMachine {
   @Composable
   override fun model(props: RecoveryContactCardsUiProps): ImmutableList<CardModel> {
@@ -39,7 +42,8 @@ class RecoveryContactCardsUiStateMachineImpl(
             } else {
               "Pending"
             },
-            onClick = { props.onClick(it) }
+            onClick = { props.onClick(it) },
+            isSecurityHub = securityHubFeatureFlag.isEnabled()
           )
         },
       relationships.unendorsedTrustedContacts
@@ -49,7 +53,8 @@ class RecoveryContactCardsUiStateMachineImpl(
             contact = it,
             buttonText = "Failed",
             buttonTreatment = ButtonModel.Treatment.Warning,
-            onClick = { props.onClick(it) }
+            onClick = { props.onClick(it) },
+            isSecurityHub = securityHubFeatureFlag.isEnabled()
           )
         },
       relationships.unendorsedTrustedContacts
@@ -59,7 +64,8 @@ class RecoveryContactCardsUiStateMachineImpl(
             contact = it,
             buttonText = "Invalid",
             buttonTreatment = ButtonModel.Treatment.Warning,
-            onClick = { props.onClick(it) }
+            onClick = { props.onClick(it) },
+            isSecurityHub = securityHubFeatureFlag.isEnabled()
           )
         }
     ).flatten().toImmutableList()

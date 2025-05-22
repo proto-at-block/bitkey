@@ -25,7 +25,7 @@ class CriticalAlertsActionFactoryImpl(
       logError { "No active account found when checking critical alerts." }
       return flowOf(null)
     }
-    return notificationsService.getCriticalNotificationStatus(account.accountId).map {
+    return notificationsService.getCriticalNotificationStatus().map {
       CriticalAlertsAction(it)
     }
   }

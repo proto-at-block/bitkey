@@ -95,7 +95,7 @@ class SettingsListUiStateMachineImpl(
             CriticalAlerts::class,
             TrustedContacts::class
           )
-        ).takeIf { !securityHubFeatureFlag.isEnabled() },
+        ).takeIf { !securityHubFeatureFlag.isEnabled() || props.isLiteAccount },
         SettingsSection(
           props = props,
           appFunctionalityStatus = appFunctionalityStatus,
@@ -171,7 +171,7 @@ class SettingsListUiStateMachineImpl(
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
         is ContactUs -> Pair(SmallIconMessage, "Contact Us")
         is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
-        is TrustedContacts -> Pair(SmallIconShieldPerson, "Trusted Contacts")
+        is TrustedContacts -> Pair(SmallIconShieldPerson, "Recovery Contacts")
         is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
         is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")

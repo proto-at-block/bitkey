@@ -22,7 +22,6 @@ class AppearancePreferenceFormSnapshots : FunSpec({
           bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
           onBitcoinDisplayPreferenceClick = {},
           onEnableHideBalanceChanged = {},
-          isThemePreferenceEnabled = true,
           onThemePreferenceClick = {},
           themePreferenceString = "System",
           defaultTimeScalePreferenceString = "1D",

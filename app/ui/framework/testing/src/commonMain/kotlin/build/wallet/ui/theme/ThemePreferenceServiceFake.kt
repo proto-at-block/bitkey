@@ -6,22 +6,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class ThemePreferenceServiceFake(
-  private var darkModeEnabled: Boolean = true,
   initialThemePreference: ThemePreference = ThemePreference.System,
 ) : ThemePreferenceService {
   private val _themePreference = MutableStateFlow(initialThemePreference)
 
-  override val isThemePreferenceEnabled: Boolean
-    get() = darkModeEnabled
-
   private var systemTheme = Theme.LIGHT
 
   override fun themePreference(): Flow<ThemePreference> =
-    if (darkModeEnabled) {
-      _themePreference
-    } else {
-      MutableStateFlow(ThemePreference.Manual(Theme.LIGHT))
-    }
+    MutableStateFlow(ThemePreference.Manual(Theme.LIGHT))
 
   override fun theme(): Flow<Theme> {
     return when (_themePreference.value) {
@@ -31,16 +23,12 @@ class ThemePreferenceServiceFake(
   }
 
   override suspend fun setThemePreference(themePreference: ThemePreference): Result<Unit, Error> {
-    if (darkModeEnabled) {
-      _themePreference.value = themePreference
-    }
+    _themePreference.value = themePreference
     return Ok(Unit)
   }
 
   override suspend fun clearThemePreference(): Result<Unit, Error> {
-    if (darkModeEnabled) {
-      _themePreference.value = ThemePreference.System
-    }
+    _themePreference.value = ThemePreference.System
     return Ok(Unit)
   }
 

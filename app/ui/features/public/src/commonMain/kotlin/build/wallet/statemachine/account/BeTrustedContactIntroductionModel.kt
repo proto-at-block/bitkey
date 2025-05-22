@@ -24,8 +24,8 @@ data class BeTrustedContactIntroductionModel(
 ) : FormBodyModel(
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
     header = FormHeaderModel(
-      headline = "You've been invited to become a Trusted Contact",
-      subline = "A Trusted Contact can help someone restore a wallet that they may have lost access to."
+      headline = "You've been invited to become a Recovery Contact",
+      subline = "A Recovery Contact can help someone restore a wallet that they may have lost access to."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.Explainer(

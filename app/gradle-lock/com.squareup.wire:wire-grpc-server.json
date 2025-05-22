@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-grpc-server",
     "components": [
         {
-            "version": "4.9.9",
+            "version": "4.9.11",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-grpc-server-4.9.9.jar": "c1692ff771e70062d9d44e85d30e79307f467578a8a218a59f022300124dc24f"
+                        "wire-grpc-server-4.9.11.jar": "72be1cb48ed6c24eff8fbd5676b82906bf70ea0a90e0e2ebf3c57f5197978d26"
                     }
                 }
             ],

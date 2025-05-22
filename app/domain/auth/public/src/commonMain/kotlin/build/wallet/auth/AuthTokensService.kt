@@ -31,6 +31,16 @@ interface AuthTokensService {
   ): Result<AccountAuthTokens, Error>
 
   /**
+   * Refreshes the account's refresh token by looking up the current account and performing a new
+   * app auth.
+   */
+  suspend fun refreshRefreshTokenWithApp(
+    f8eEnvironment: F8eEnvironment,
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ): Result<AccountAuthTokens, Error>
+
+  /**
    * Returns auth tokens stored in the app for the given account for the given scope.
    *
    * Note that:

@@ -13,6 +13,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.status.BannerStyle
 import build.wallet.ui.model.status.StatusBannerModel
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -69,6 +70,7 @@ fun ScreenWithBodyAndStatusBannerPreview() {
         statusBannerModel = StatusBannerModel(
           title = "Title",
           subtitle = "Subtitle",
+          style = BannerStyle.Warning,
           onClick = null
         )
       )

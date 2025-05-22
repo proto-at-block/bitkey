@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:telemetry-defaults-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "telemetry-defaults-jvm-1.3.7.jar": "c87a2e4786bf9516ef9596166187e2f6d083cac020944e4b4b4e6d12e941365e"
+                        "telemetry-defaults-jvm-1.3.31.jar": "24d199ac9c5eac36692e9c00b19ef16306d1c967bfde0a16e2f18eef657cf4a2"
                     }
                 }
             ],

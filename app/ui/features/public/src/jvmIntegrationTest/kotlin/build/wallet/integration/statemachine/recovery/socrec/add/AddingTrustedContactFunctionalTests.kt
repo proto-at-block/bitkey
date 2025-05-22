@@ -46,7 +46,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
     )
   }
 
-  test("Enter TC Name") {
+  test("Enter RC Name") {
     val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
     app.addingTcsUiStateMachine.test(
@@ -103,7 +103,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
     ) {
       proceedWithFakeNames()
       awaitUntilBody<FormBodyModel> {
-        header?.headline.shouldBe("Save tc-name as a Trusted Contact")
+        header?.headline.shouldBe("Save tc-name as a Recovery Contact")
       }
     }
   }
@@ -128,7 +128,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
       }
       onAddTcCalls.awaitItem()
       awaitUntilBody<FormBodyModel> {
-        header?.headline.shouldBe("Finally, invite tc-name to be your Trusted Contact")
+        header?.headline.shouldBe("Finally, invite tc-name to be your Recovery Contact")
         onBack?.invoke()
         // Pressing back after invite is created should finish the flow:
         onInvitationShared.awaitItem()

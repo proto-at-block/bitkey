@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.lint:lint-typedef-remover",
     "components": [
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "lint-typedef-remover-31.5.2.jar": "5b4f485215ca4d86ef2319fc398b5f2251e62f5446bc5fd0e00653648ddde318"
+                        "lint-typedef-remover-31.9.1.jar": "4a3ba3babfd79e6fc67bcef647fb4ecfeaf59b481b108f7c2eba4d1c5c6dea8e"
                     }
                 }
             ],

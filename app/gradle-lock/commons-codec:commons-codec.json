@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.17.0",
+            "version": "1.17.2",
             "variants": [
                 {
                     "artifacts": {
-                        "commons-codec-1.17.0.jar": "f700de80ac270d0344fdea7468201d8b9c805e5c648331c3619f2ee067ccfc59"
+                        "commons-codec-1.17.2.jar": "4148332728490cef12b29dac4c385f46982f04285132c6fa51ad7267d7dc7a8b"
                     }
                 }
             ],

@@ -9,8 +9,6 @@ import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.router.Route
 import build.wallet.router.Router
@@ -40,7 +38,6 @@ class CreateLiteAccountUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
   private val accountConfigService: AccountConfigService,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
 ) : CreateLiteAccountUiStateMachine {
   @Composable
   override fun model(props: CreateLiteAccountUiProps): ScreenModel {
@@ -107,7 +104,7 @@ class CreateLiteAccountUiStateMachineImpl(
               isEnabled = value.isNotEmpty(),
               size = ButtonModel.Size.Footer,
               onClick = StandardClick {
-                // If the TC is tapping the continue button, it wasn't from a deep link
+                // If the RC is tapping the continue button, it wasn't from a deep link
                 // but rather manually entered.
                 eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY)
                 uiState = State.CreatingLiteAccount(value)
@@ -123,9 +120,7 @@ class CreateLiteAccountUiStateMachineImpl(
                 props.onBack
               }
             ).toBackRetreat(),
-          variant = TrustedContactFeatureVariant.Generic(
-            isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
-          )
+          variant = TrustedContactFeatureVariant.Generic
         ).asRootScreen()
       }
 
@@ -222,9 +217,7 @@ class CreateLiteAccountUiStateMachineImpl(
                 props.onAccountCreated(it)
               },
               screenPresentationStyle = Root,
-              variant = TrustedContactFeatureVariant.Generic(
-                isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
-              )
+              variant = TrustedContactFeatureVariant.Generic
             )
         )
       }
@@ -242,7 +235,7 @@ private sealed class State {
   abstract val inviteCode: String
 
   /**
-   * Introduction to being a trusted contact.
+   * Introduction to being a Recovery Contact.
    */
   data class ShowingBeTrustedContactIntroduction(
     override val inviteCode: String,
@@ -282,7 +275,7 @@ private sealed class State {
     override val inviteCode: String,
   ) : State()
 
-  /** The account creation process succeeded, we are now enrolling the account as a Trusted Contact */
+  /** The account creation process succeeded, we are now enrolling the account as a Recovery Contact */
   data class EnrollingAsTrustedContact(
     override val inviteCode: String,
     val liteAccount: LiteAccount,

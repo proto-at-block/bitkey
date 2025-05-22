@@ -112,7 +112,8 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.jvm.asm,
       libs.jvm.kotlinpoet.asProvider(),
       libs.jvm.kotlinpoet.ksp,
-      libs.jvm.ksp.api
+      libs.jvm.ksp.api,
+      libs.android.google.play.services.coroutines
     )
 
     dependencyLockingExtension.commonDependencyLockingGroups.kotlinCompiler.pin(

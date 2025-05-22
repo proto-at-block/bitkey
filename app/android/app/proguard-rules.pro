@@ -31,6 +31,6 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
-# Needed for Emergency Access Kit PDF generation (by virtue of com.tom_roush.pdfbox dependency)
+# Needed for Emergency Exit Kit PDF generation (by virtue of com.tom_roush.pdfbox dependency)
 -dontwarn com.gemalto.jp2.JP2Decoder
 -dontwarn com.gemalto.jp2.JP2Encoder

@@ -15,6 +15,7 @@ import build.wallet.cloud.backup.CloudBackupRepositoryFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreatorMock
+import build.wallet.cloud.backup.awaitBackup
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
@@ -36,7 +37,6 @@ import build.wallet.statemachine.ui.awaitBodyMock
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.matchers.shouldBeLoading
 import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
-import build.wallet.testing.shouldBeOk
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -134,9 +134,9 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.readBackup(
+      cloudBackupRepository.awaitBackup(
         cloudAccount
-      ).shouldBeOk(CloudBackupV2WithFullAccountMock)
+      ).shouldBe(CloudBackupV2WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -266,9 +266,9 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.readBackup(
+      cloudBackupRepository.awaitBackup(
         cloudAccount
-      ).shouldBeOk(CloudBackupV2WithFullAccountMock)
+      ).shouldBe(CloudBackupV2WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -317,9 +317,9 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.readBackup(
+      cloudBackupRepository.awaitBackup(
         cloudAccount
-      ).shouldBeOk(CloudBackupV2WithFullAccountMock)
+      ).shouldBe(CloudBackupV2WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -361,9 +361,9 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       onExistingAppDataFoundCalls.awaitItem()
         .shouldNotBeNull().shouldBeEqual(CloudBackupV2WithFullAccountMock)
 
-      cloudBackupRepository.readBackup(
+      cloudBackupRepository.awaitBackup(
         cloudAccount
-      ).shouldBeOk(CloudBackupV2WithFullAccountMock)
+      ).shouldBe(CloudBackupV2WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }
@@ -382,9 +382,9 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
 
       cloudBackupCreator.createCalls.awaitItem()
 
-      cloudBackupRepository.readBackup(
+      cloudBackupRepository.awaitBackup(
         cloudAccount
-      ).shouldBeOk(CloudBackupV2WithFullAccountMock)
+      ).shouldBe(CloudBackupV2WithFullAccountMock)
 
       onBackupSavedCalls.awaitItem()
     }

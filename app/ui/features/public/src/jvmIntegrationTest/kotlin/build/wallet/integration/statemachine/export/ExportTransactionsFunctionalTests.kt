@@ -140,8 +140,6 @@ class ExportTransactionsFunctionalTests : FunSpec({
         .onComplete()
       awaitUntilBody<AppDelayNotifyInProgressBodyModel>()
 
-      app.completeRecoveryDelayPeriodOnF8e()
-
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
         .onCompleteRecovery()

@@ -222,6 +222,7 @@ class DebugMenuListStateMachineImpl(
               )
             )
           },
+          onResetFingerprintsClick = { props.onSetState(DebugMenuState.ResettingFingerprints) },
           onFirmwareMetadataClick = {
             props.onSetState(DebugMenuState.ShowingFirmwareMetadata)
           }

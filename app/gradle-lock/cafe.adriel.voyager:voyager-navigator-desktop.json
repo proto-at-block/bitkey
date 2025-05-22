@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-navigator-desktop",
     "components": [
         {
-            "version": "1.1.0-alpha04",
+            "version": "1.1.0-beta03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-navigator-desktop-1.1.0-alpha04.jar": "194d7d91c322b4f240ae42cf21fb31afc65920568f803ada2eb1d299796fce9d"
+                        "voyager-navigator-desktop-1.1.0-beta03.jar": "7ebf1bfcfce25206da6fefc27e255d68e8162a2f22645b9962387f94aa1bf549"
                     }
                 }
             ],

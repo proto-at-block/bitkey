@@ -9,11 +9,11 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Prompt the user to save their trusted contact with bitkey.
+ * Prompt the user to save their Recovery Contact with bitkey.
  */
 data class ReinviteContactBodyModel(
   /**
-   * Name of the trusted contact to be added.
+   * Name of the Recovery Contact to be added.
    */
   val trustedContactName: String,
   /**
@@ -36,7 +36,7 @@ data class ReinviteContactBodyModel(
     ),
     header = FormHeaderModel(
       headline = "Resend invite to ${trustedContactName.trim()}",
-      subline = "Reinviting a " + (if (isBeneficiary) "beneficiary" else "Trusted Contact") + " requires your Bitkey device since it impacts the security of your wallet."
+      subline = "Reinviting a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " requires your Bitkey device since it impacts the security of your wallet."
     ),
     primaryButton = BitkeyInteractionButtonModel(
       text = "Resend invite",

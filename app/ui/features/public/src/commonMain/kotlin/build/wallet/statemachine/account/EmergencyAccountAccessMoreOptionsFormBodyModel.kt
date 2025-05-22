@@ -18,7 +18,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Content for account access options for the EAK app variant.
+ * Content for account access options for the EEK app variant.
  */
 data class EmergencyAccountAccessMoreOptionsFormBodyModel(
   override val onBack: () -> Unit,
@@ -43,7 +43,7 @@ data class EmergencyAccountAccessMoreOptionsFormBodyModel(
                   iconSize = IconSize.Small
                 )
               ),
-              title = "Import using Emergency Access Kit",
+              title = "Import using Emergency Exit Kit",
               onClick = onRestoreEmergencyAccessKit,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
             )

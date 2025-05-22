@@ -82,7 +82,7 @@ class SocRecCloudBackupSyncWorkerImpl(
     combine(
       relationshipsService.relationships
         .filterNotNull()
-        // Only endorsed and verified trusted contacts are interesting for cloud backups.
+        // Only endorsed and verified Recovery Contacts are interesting for cloud backups.
         .map { it.endorsedTrustedContacts }
         .distinctUntilChanged(),
       cloudBackupDao
@@ -101,7 +101,7 @@ class SocRecCloudBackupSyncWorkerImpl(
               fullAccount = account,
               hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek
             ).onSuccess {
-              logDebug { "Refreshed cloud backup TC count=${trustedContacts.size}" }
+              logDebug { "Refreshed cloud backup RC count=${trustedContacts.size}" }
             }.bind()
           }
         }
@@ -131,7 +131,7 @@ class SocRecCloudBackupSyncWorkerImpl(
       is CloudBackupV2 -> {
         val fields =
           fullAccountFields
-            ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
+            ?: return Err(Error("Lite Account Backups have no Recovery Contacts to refresh"))
 
         val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
         val newRelationshipIds = endorsedTrustedContacts.map { it.relationshipId }.toSet()

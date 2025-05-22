@@ -1,17 +1,17 @@
 <resources>
     <string name="biometric_action_title">App security</string>
     <string name="critical_alert_action_title">Critical alerts</string>
-    <string name="eak_backup_action_title">Emergency Access Kit</string>
+    <string name="eak_backup_action_title">Emergency Exit Kit</string>
     <string name="fingerprints_action_title">Fingerprints</string>
     <string name="inheritance_action_title">Inheritance</string>
     <string name="mobile_key_backup_action_title">Cloud backup</string>
-    <string name="social_recovery_action_title">Trusted contacts</string>
+    <string name="social_recovery_action_title">Recovery Contacts</string>
     <string name="hardware_device_action_title">Bitkey device</string>
 
     <string name="backup_mobile_key_recommendation_title">Add cloud backup</string>
-    <string name="backup_eak_recommendation_title">Back up Emergency Access Kit</string>
+    <string name="backup_eak_recommendation_title">Back up Emergency Exit Kit</string>
     <string name="add_fingerprints_recommendation_title">Add a backup fingerprint</string>
-    <string name="add_recovery_contacts_recommendation_title">Add a Trusted Contact</string>
+    <string name="add_recovery_contacts_recommendation_title">Add a Recovery Contact</string>
     <string name="enable_critical_alerts_recommendation_title">Enable critical alerts</string>
     <string name="enable_sms_recommendation_title">Enable SMS notifications</string>
     <string name="enable_email_recommendation_title">Enable email notifications</string>

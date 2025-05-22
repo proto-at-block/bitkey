@@ -165,7 +165,7 @@ class AppFunctionalityServiceImplTests : FunSpec({
     }
   }
 
-  test("emergency access variant has limited emergecy access mode") {
+  test("Emergency Exit Kit variant has limited emergecy access mode") {
     service = AppFunctionalityServiceImpl(
       accountConfigService = accountConfigService,
       networkReachabilityEventDao = networkReachabilityEventDao,

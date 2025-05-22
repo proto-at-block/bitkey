@@ -14,6 +14,11 @@ interface FileManager {
   ): FileManagerResult<Unit>
 
   /**
+   * Deletes the given file.
+   */
+  suspend fun deleteFile(fileName: String): FileManagerResult<Unit>
+
+  /**
    * Reads the given file as data.
    */
   suspend fun readFileAsBytes(fileName: String): FileManagerResult<ByteArray>

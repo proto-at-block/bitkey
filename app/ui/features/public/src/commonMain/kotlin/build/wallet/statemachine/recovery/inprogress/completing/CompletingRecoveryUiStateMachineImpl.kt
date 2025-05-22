@@ -157,12 +157,12 @@ class CompletingRecoveryUiStateMachineImpl(
 
       is DelegatedDecryptionKeyErrorStateData ->
         ErrorFormBodyModel(
-          title = "Unable to fetch Trusted Contact & inheritance data",
+          title = "Unable to fetch Recovery Contact & inheritance data",
           subline =
             """
             Make sure you are connected to the internet and try again. You may choose to remove
-            trusted contacts and inheritance relationships, which will not cause funds to be lost,
-            but trusted contact and inheritance will need to be setup again.
+            Recovery Contacts and inheritance relationships, which will not cause funds to be lost,
+            but Recovery Contact and inheritance will need to be setup again.
             """.trimIndent(),
           primaryButton =
             ButtonDataModel(
@@ -171,7 +171,7 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           secondaryButton =
             ButtonDataModel(
-              text = "Remove Trusted Contacts & Inheritance data",
+              text = "Remove Recovery Contacts & Inheritance data",
               onClick = props.completingRecoveryData.onContinue
             ),
           errorData = ErrorData(
@@ -254,7 +254,7 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           errorData = ErrorData(
             segment = RecoverySegment.DelayAndNotify.LostApp.Completion,
-            actionDescription = "Fetching trusted contacts to complete recovery",
+            actionDescription = "Fetching Recovery Contacts to complete recovery",
             cause = props.completingRecoveryData.cause
           )
         ).asScreen(props.presentationStyle)

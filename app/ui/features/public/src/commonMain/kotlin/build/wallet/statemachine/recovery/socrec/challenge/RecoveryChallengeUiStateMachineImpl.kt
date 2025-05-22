@@ -49,14 +49,14 @@ class RecoveryChallengeUiStateMachineImpl(
 
     fun handleContinueClick(currentState: State.TrustedContactList) {
       val response = currentState.challenge.challenge.responses.firstOrNull() ?: run {
-        state = State.RecoveryFailed(error = Error("No response from trusted contacts"))
+        state = State.RecoveryFailed(error = Error("No response from Recovery Contacts"))
         return
       }
 
       val respondingContact = props.endorsedTrustedContacts.find {
         it.relationshipId == response.recoveryRelationshipId
       } ?: run {
-        state = State.RecoveryFailed(error = Error("Could not find matching trusted contact"))
+        state = State.RecoveryFailed(error = Error("Could not find matching Recovery Contact"))
         return
       }
 

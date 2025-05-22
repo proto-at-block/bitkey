@@ -89,7 +89,7 @@ fn payloads_for_social_recovery(
     }
 
     let message = format!(
-        "{} is now a Trusted Contact for your Bitkey. Open the Bitkey app to confirm they've been added to your list.",
+        "{} is now a Recovery Contact for your Bitkey. Open the Bitkey app to confirm they've been added to your list.",
         trusted_contact_alias
     );
     let extras = SNSPushPayloadExtras {

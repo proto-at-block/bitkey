@@ -22,8 +22,8 @@ mod trusted_contact_limits {
 /// # Fields
 ///
 /// * `customer_account` - The account that is issuing the invitation
-/// * `trusted_contact_alias` - Allows the Customer to give the Trusted Contact an alias for future reference
-/// * `protected_customer_enrollment_pake_pubkey` - The public key that will be used to establish the secure channel between the customer and the trusted contact
+/// * `trusted_contact_alias` - Allows the Customer to give the Recovery Contact an alias for future reference
+/// * `protected_customer_enrollment_pake_pubkey` - The public key that will be used to establish the secure channel between the customer and the Recovery Contact
 pub struct CreateRecoveryRelationshipInvitationInput<'a> {
     pub customer_account: &'a FullAccount,
     pub trusted_contact: &'a TrustedContactInfo,
@@ -32,13 +32,13 @@ pub struct CreateRecoveryRelationshipInvitationInput<'a> {
 
 impl Service {
     /// Enables a customer account to generate an invitation which authorizes a friend
-    /// or family member to become a Trusted Contact. This trusted contact can help to
+    /// or family member to become a Recovery Contact. This Recovery Contact can help to
     /// recover their account in the future. Each issued invitation has a distinct code
     /// attached to it, which will be used to accept the invitation.
     ///
     /// # Arguments
     ///
-    /// * `input` - Contains the customer account, the trusted contact alias and the customer enrollment pake pubkey
+    /// * `input` - Contains the customer account, the Recovery Contact alias and the customer enrollment pake pubkey
     ///
     /// # Returns
     ///

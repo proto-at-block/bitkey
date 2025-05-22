@@ -3,7 +3,7 @@ package build.wallet.emergencyaccesskit
 import build.wallet.cloud.backup.CloudBackupError
 
 /**
- * Describes a failure that can occur when reading or writing the emergency access kit from cloud
+ * Describes a failure that can occur when reading or writing the Emergency Exit Kit from cloud
  * file store.
  */
 sealed class EmergencyAccessKitRepositoryError : Error() {

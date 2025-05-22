@@ -3,10 +3,13 @@ package bitkey.securitycenter
 import bitkey.metrics.MetricOutcome
 import bitkey.metrics.MetricTrackerService
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.v1.Action
+import build.wallet.analytics.v1.Action.ACTION_APP_SECURITY_CENTER_CHECK
+import build.wallet.database.SecurityInteractionStatus
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import kotlinx.coroutines.flow.*
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 /**
  * Implementation of [SecurityActionsService].
@@ -23,6 +26,8 @@ class SecurityActionsServiceImpl(
   private val hardwareDeviceActionFactory: HardwareDeviceActionFactory,
   private val eventTracker: EventTracker,
   private val metricTrackerService: MetricTrackerService,
+  private val securityRecommendationInteractionDao: SecurityRecommendationInteractionDao,
+  private val clock: Clock,
 ) : SecurityActionsService {
   /**
    * Order of the list is important as it will be used to determine the order of the actions in the UI.
@@ -53,21 +58,87 @@ class SecurityActionsServiceImpl(
             )
           }
         }
-          .sortedBy { recommendation -> recommendation.ordinal }
-          .also {
-            SecurityActionRecommendation.entries.forEach { recommendation ->
-              if (recommendation == SecurityActionRecommendation.ADD_BENEFICIARY) { // TODO: remove once we include inheritance action
+          .sortedBy { it.ordinal }
+          .also { recommendations ->
+            SecurityActionRecommendation.entries.forEach { entry ->
+              if (entry == SecurityActionRecommendation.ADD_BENEFICIARY) {
                 return@forEach
-              }
-              val isPending = it.contains(recommendation)
+              } // TODO: remove once we include inheritance action
               eventTracker.track(
-                Action.ACTION_APP_SECURITY_CENTER_CHECK,
-                SecurityCenterScreenIdContext(recommendation, isPending)
+                ACTION_APP_SECURITY_CENTER_CHECK,
+                SecurityCenterScreenIdContext(entry, recommendations.contains(entry))
               )
             }
           }
       }.collect(::emit)
     }
+  }
+
+  override fun getRecommendationsWithInteractionStatus(): Flow<List<SecurityRecommendationWithStatus>> {
+    val activeSystemRecsFlow = getRecommendations()
+    return activeSystemRecsFlow.transformLatest { activeSystemRecs ->
+      val currentTime = clock.now()
+      activeSystemRecs.forEach { recommendation ->
+        securityRecommendationInteractionDao.recordRecommendationActive(
+          id = recommendation,
+          triggeredAt = currentTime,
+          currentTime = currentTime
+        )
+      }
+      emitAll(
+        securityRecommendationInteractionDao.getAllInteractions().map { interactionsFromDb ->
+          val interactionMap = interactionsFromDb.associateBy { it.recommendationId }
+
+          // Remove any persisted recommendations that are no longer active
+          interactionMap.keys
+            .filter { id -> activeSystemRecs.none { it.name == id } }
+            .forEach { idToRemove ->
+              securityRecommendationInteractionDao.deleteRecommendation(SecurityActionRecommendation.valueOf(idToRemove))
+            }
+
+          SecurityActionRecommendation.entries.mapNotNull { possibleRecommendation ->
+            val dbEntry = interactionMap[possibleRecommendation.name]
+            val isActiveNow = activeSystemRecs.contains(possibleRecommendation)
+            when {
+              isActiveNow && dbEntry != null -> SecurityRecommendationWithStatus(
+                recommendation = possibleRecommendation,
+                interactionStatus = dbEntry.interactionStatus,
+                lastRecommendationTriggeredAt = currentTime,
+                lastInteractedAt = dbEntry.lastInteractedAt,
+                recordUpdatedAt = dbEntry.recordUpdatedAt
+              )
+              isActiveNow -> SecurityRecommendationWithStatus(
+                recommendation = possibleRecommendation,
+                interactionStatus = SecurityInteractionStatus.NEW,
+                lastRecommendationTriggeredAt = currentTime,
+                lastInteractedAt = null,
+                recordUpdatedAt = currentTime
+              )
+              else -> null
+            }
+          }
+        }
+      )
+    }
+  }
+
+  override fun hasRecommendationsRequiringAttention(): Flow<Boolean> =
+    getRecommendationsWithInteractionStatus().map { list ->
+      list.any { it.interactionStatus == SecurityInteractionStatus.NEW }
+    }
+
+  override suspend fun recordUserInteractionWithRecommendation(
+    id: SecurityActionRecommendation,
+    status: SecurityInteractionStatus,
+    interactedAt: Instant,
+  ): Result<Unit> {
+    securityRecommendationInteractionDao.recordUserInteraction(
+      id = id,
+      status = status,
+      interactedAt = interactedAt,
+      currentTime = clock.now()
+    )
+    return Result.success(Unit)
   }
 
   private suspend fun allActions(): Flow<List<SecurityAction>> {
@@ -77,7 +148,6 @@ class SecurityActionsServiceImpl(
           metricTrackerService.startMetric(
             metricDefinition = SecurityActionMetricDefinition(actionType)
           )
-
           if (action == null) {
             metricTrackerService.completeMetric(
               metricDefinition = SecurityActionMetricDefinition(actionType),
@@ -90,5 +160,18 @@ class SecurityActionsServiceImpl(
     ) {
       it.filterNotNull().toList()
     }
+  }
+
+  override suspend fun markAllRecommendationsViewed() {
+    getRecommendationsWithInteractionStatus()
+      .first()
+      .filter { it.interactionStatus != SecurityInteractionStatus.VIEWED }
+      .forEach { rec ->
+        recordUserInteractionWithRecommendation(
+          id = rec.recommendation,
+          status = SecurityInteractionStatus.VIEWED,
+          interactedAt = clock.now()
+        )
+      }
   }
 }

@@ -1,12 +1,11 @@
 package build.wallet.statemachine.settings.full
 
+import app.cash.turbine.test
 import bitkey.ui.framework.NavigatorModelFake
 import bitkey.ui.framework.NavigatorPresenterFake
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
@@ -67,8 +66,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       goToSecurityHub = {}
     )
 
-  val featureFlagDao = FeatureFlagDaoFake()
-  val inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao)
   val navigatorPresenter = NavigatorPresenterFake()
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
@@ -99,15 +96,12 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<UtxoConsolidationProps>("utxo-consolidation") {},
       inheritanceManagementUiStateMachine = object : InheritanceManagementUiStateMachine,
         ScreenStateMachineMock<InheritanceManagementUiProps>("inheritance-management") {},
-      inheritanceFeatureFlag = inheritanceFeatureFlag,
       exportToolsUiStateMachine = object : ExportToolsUiStateMachine,
         ScreenStateMachineMock<ExportToolsUiProps>("export-tools") {}
     )
 
   beforeTest {
     firmwareDataService.reset()
-    featureFlagDao.reset()
-    inheritanceFeatureFlag.reset()
   }
 
   test("onBack calls props onBack") {
@@ -138,34 +132,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
               SettingsListUiProps.SettingsListRow.Biometric::class,
-              SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
-              SettingsListUiProps.SettingsListRow.ExportTools::class
-            )
-          )
-      }
-    }
-  }
-
-  test("settings list with inheritance enabled") {
-    inheritanceFeatureFlag.setFlagValue(true)
-    stateMachine().test(props) {
-      awaitBodyMock<SettingsListUiProps> {
-        supportedRows
-          .map { it::class }.toSet()
-          .shouldBe(
-            setOf(
-              SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
-              SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
-              SettingsListUiProps.SettingsListRow.AppearancePreference::class,
-              SettingsListUiProps.SettingsListRow.HelpCenter::class,
-              SettingsListUiProps.SettingsListRow.MobilePay::class,
-              SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
-              SettingsListUiProps.SettingsListRow.CriticalAlerts::class,
-              SettingsListUiProps.SettingsListRow.ContactUs::class,
-              SettingsListUiProps.SettingsListRow.TrustedContacts::class,
-              SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
-              SettingsListUiProps.SettingsListRow.RotateAuthKey::class,
-              SettingsListUiProps.SettingsListRow.Biometric::class,
               SettingsListUiProps.SettingsListRow.InheritanceManagement::class,
               SettingsListUiProps.SettingsListRow.UtxoConsolidation::class,
               SettingsListUiProps.SettingsListRow.ExportTools::class
@@ -176,8 +142,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("settings list deeplink") {
-    inheritanceFeatureFlag.setFlagValue(true)
-
     val props = props.copy(
       settingsListState = SettingsHomeUiStateMachineImpl.SettingsListState.ShowingInheritanceUiState(
         ManagingInheritanceTab.Beneficiaries
@@ -244,7 +208,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("open and close trusted contacts settings") {
+  test("open and close Recovery Contacts settings") {
     stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()
@@ -309,7 +273,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
 
     stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
-        firmwareDataService.firmwareData.value.shouldBe(firstUpdate)
+        firmwareDataService.firmwareData.test {
+          awaitUntil(firstUpdate)
+        }
 
         // Prepare a new update
         firmwareDataService.pendingUpdate = secondUpdate
@@ -321,7 +287,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         onBack()
       }
       awaitBodyMock<SettingsListUiProps>()
-      firmwareDataService.firmwareData.value.shouldBe(secondUpdate)
+      firmwareDataService.firmwareData.test {
+        awaitUntil(secondUpdate)
+      }
     }
   }
 

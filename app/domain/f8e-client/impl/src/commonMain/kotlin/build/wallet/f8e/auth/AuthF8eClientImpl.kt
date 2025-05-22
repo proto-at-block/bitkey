@@ -147,12 +147,16 @@ class AuthF8eClientImpl(
     // Seconds until the accessToken expires
     @SerialName("expires_in")
     val expiresIn: Int,
+    // Seconds until the refreshToken expires
+    @SerialName("refresh_token_expires_in")
+    val refreshTokenExpiresIn: Int?,
   ) : RedactedResponseBody
 
   private fun AuthTokensSuccess.toAccountAuthTokens() =
     AccountAuthTokens(
       accessToken = AccessToken(accessToken),
       refreshToken = RefreshToken(refreshToken),
-      accessTokenExpiresAt = clock.now().plus(expiresIn.seconds)
+      accessTokenExpiresAt = clock.now().plus(expiresIn.seconds),
+      refreshTokenExpiresAt = refreshTokenExpiresIn?.let { clock.now().plus(it.seconds) }
     )
 }

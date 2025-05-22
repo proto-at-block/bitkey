@@ -24,10 +24,7 @@ class EakBackupHealthActionFactoryImpl(
       logError { message }
       return flowOf(null)
     }
-    return cloudBackupHealthRepository.eakBackupStatus()
-      .filterNotNull()
-      .map {
-        EakBackupHealthAction(it)
-      }
+    return cloudBackupHealthRepository.eekBackupStatus()
+      .map { status -> status?.let(::EakBackupHealthAction) }
   }
 }

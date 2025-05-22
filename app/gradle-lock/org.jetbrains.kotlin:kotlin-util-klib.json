@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-util-klib",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-klib-2.0.21.jar": "a13b73896554b48e4bef4d8a4630ea7e940149ac4cadccac06914639146549ea"
+                        "kotlin-util-klib-2.1.20.jar": "ff79c5b0e6e42d920ebb1c76ba10cc2ddbf224e805645a8eeacade4916e2aace"
                     }
                 }
             ],

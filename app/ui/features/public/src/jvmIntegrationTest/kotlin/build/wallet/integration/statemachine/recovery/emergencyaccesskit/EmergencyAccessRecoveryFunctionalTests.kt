@@ -38,10 +38,10 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class EmergencyAccessRecoveryFunctionalTests : FunSpec({
-  test("recover keybox with no funds from emergency access kit")
+  test("recover keybox with no funds from Emergency Exit Kit")
     .config(tags = setOf(FlakyTest)) {
       val app = launchNewApp()
-      // Onboard a new account, and generate an EAK payload.
+      // Onboard a new account, and generate an EEK payload.
       app.onboardFullAccountWithFakeHardware()
 
       val csek = app.csekGenerator.generate()
@@ -58,7 +58,7 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
         .get().shouldNotBeNull()
 
       // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
-      //      creation of an emergency access kit PDF. This simulates the same creation so that
+      //      creation of an Emergency Exit Kit PDF. This simulates the same creation so that
       //      the account that restores from it can validate it's the same spending keys.
       val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
         unsealedData = EmergencyAccessKitPayloadDecoderImpl().encodeBackup(
@@ -86,7 +86,7 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
         Unit,
         turbineTimeout = 10.seconds
       ) {
-        // Do not find backup, enter the EAK flow.
+        // Do not find backup, enter the EEK flow.
         awaitUntilBody<ChooseAccountAccessModel>()
           .clickMoreOptionsButton()
         awaitUntilBody<FormBodyModel>()
@@ -96,7 +96,7 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
         awaitUntilBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
           .restoreEmergencyAccessButton.onClick.shouldNotBeNull().invoke()
 
-        // Progress through the EAK flow with manual entry.
+        // Progress through the EEK flow with manual entry.
         awaitUntilBody<EmergencyAccessKitImportWalletBodyModel>()
           .onEnterManually()
         awaitUntilBody<EmergencyAccessKitImportPasteMobileKeyBodyModel> {

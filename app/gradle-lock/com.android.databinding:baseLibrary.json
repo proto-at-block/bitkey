@@ -2,11 +2,11 @@
     "module-identifier": "com.android.databinding:baseLibrary",
     "components": [
         {
-            "version": "8.5.2",
+            "version": "8.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "baseLibrary-8.5.2.jar": "794113709dab21b06c262b3795e73cb708fbacae61715f34361e1af6237a1870"
+                        "baseLibrary-8.9.1.jar": "794113709dab21b06c262b3795e73cb708fbacae61715f34361e1af6237a1870"
                     }
                 }
             ],

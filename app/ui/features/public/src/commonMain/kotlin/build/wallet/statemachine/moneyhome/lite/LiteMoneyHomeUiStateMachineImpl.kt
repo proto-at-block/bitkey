@@ -4,8 +4,6 @@ import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -23,7 +21,6 @@ class LiteMoneyHomeUiStateMachineImpl(
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
   private val socRecService: SocRecService,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
 ) : LiteMoneyHomeUiStateMachine {
   @Composable
   override fun model(props: LiteMoneyHomeUiProps): ScreenModel {
@@ -41,7 +38,6 @@ class LiteMoneyHomeUiStateMachineImpl(
           ),
           protectedCustomers = protectedCustomers.toImmutableList(),
           badgedSettingsIcon = false,
-          inheritanceIsEnabled = inheritanceFeatureFlag.isEnabled(),
           onProtectedCustomerClick = {
             state = State.ViewingProtectedCustomerDetail(it)
           },

@@ -15,8 +15,6 @@ import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceMarketingFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareData
 import build.wallet.inheritance.InheritanceUpsellService
 import build.wallet.money.FiatMoney
@@ -103,7 +101,6 @@ class MoneyHomeUiStateMachineImpl(
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val partnershipsSellUiStateMachine: PartnershipsSellUiStateMachine,
   private val failedPartnerTransactionUiStateMachine: FailedPartnerTransactionUiStateMachine,
-  private val inheritanceMarketingFlag: InheritanceMarketingFeatureFlag,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
   private val inheritanceUpsellService: InheritanceUpsellService,
   private val completeClaimUiStateMachine: CompleteInheritanceClaimUiStateMachine,
@@ -150,7 +147,7 @@ class MoneyHomeUiStateMachineImpl(
                   )
                 else -> ViewingBalanceUiState()
               }
-            inheritanceMarketingFlag.isEnabled() && shouldShowUpsell.value -> {
+            shouldShowUpsell.value -> {
               scope.launch {
                 inheritanceUpsellService.markUpsellAsSeen()
               }
@@ -170,7 +167,10 @@ class MoneyHomeUiStateMachineImpl(
         }
         is MoneyHomeUiProps.Origin.LostHardwareRecovery -> {
           ViewHardwareRecoveryStatusUiState(
-            instructionsStyle = InstructionsStyle.Independent
+            instructionsStyle = when (props.lostHardwareRecoveryData) {
+              is CompletingRecoveryData -> InstructionsStyle.Independent
+              else -> InstructionsStyle.ResumedRecoveryAttempt
+            }
           )
         }
         else -> ViewingBalanceUiState()
@@ -186,8 +186,8 @@ class MoneyHomeUiStateMachineImpl(
           account = props.account as FullAccount,
           presentationStyle = Modal,
           mobileKeyBackupStatus = state.status,
-          onExit = { uiState = ViewingBalanceUiState() },
-          onRepaired = { uiState = ViewingBalanceUiState() }
+          onExit = { props.onDismissOrigin() },
+          onRepaired = { props.onDismissOrigin() }
         )
       )
 
@@ -260,6 +260,7 @@ class MoneyHomeUiStateMachineImpl(
         instructionsStyle = state.instructionsStyle,
         onExit = {
           uiState = ViewingBalanceUiState()
+          props.onDismissOrigin()
         }
       )
 

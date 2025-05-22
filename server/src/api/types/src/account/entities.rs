@@ -15,6 +15,7 @@ use crate::{
     account::{
         identifiers::{AccountId, AuthKeysId, KeyDefinitionId, KeysetId, TouchpointId},
         keys::{FullAccountAuthKeys, LiteAccountAuthKeys, SoftwareAccountAuthKeys},
+        money::Money,
         spend_limit::SpendingLimit,
         spending::{SpendingKeyDefinition, SpendingKeyset},
         AccountType, PubkeysToAccount,
@@ -267,6 +268,24 @@ pub struct CommonAccountFields {
     pub comms_verification_claims: Vec<CommsVerificationClaim>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
+#[serde(
+    tag = "state",
+    content = "threshold",
+    rename_all = "SCREAMING_SNAKE_CASE"
+)]
+pub enum TransactionVerificationPolicy {
+    Never,
+    Threshold(Money),
+    Always,
+}
+
+impl Default for TransactionVerificationPolicy {
+    fn default() -> Self {
+        Self::Never
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FullAccount {
     #[serde(rename = "partition_key")]
@@ -277,6 +296,8 @@ pub struct FullAccount {
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
     // Spending limit
     pub spending_limit: Option<SpendingLimit>,
+    #[serde(default)]
+    pub transaction_verification_policy: Option<TransactionVerificationPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub application_auth_pubkey: Option<PublicKey>,
     // Hardware Authentication Key
@@ -307,6 +328,7 @@ impl FullAccount {
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::from([(active_keyset_id, spending)]),
             spending_limit: None,
+            transaction_verification_policy: None,
             application_auth_pubkey,
             hardware_auth_pubkey,
             common_fields: CommonAccountFields {
@@ -416,6 +438,7 @@ impl LiteAccount {
             active_keyset_id: keyset_id.clone(),
             spending_keysets: HashMap::from([(keyset_id, spending_keyset)]),
             spending_limit: None,
+            transaction_verification_policy: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
             hardware_auth_pubkey: auth_keys.hardware_pubkey,
             auth_keys: HashMap::from([(auth_keys_id.clone(), auth_keys)]),
@@ -805,6 +828,7 @@ mod tests {
                 ),
             )]),
             spending_limit: None,
+            transaction_verification_policy: None,
             application_auth_pubkey: None,
             hardware_auth_pubkey: PublicKey::from_slice(&pubkey).unwrap(),
             common_fields: CommonAccountFields {

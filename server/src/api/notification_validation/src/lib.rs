@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use error::NotificationValidationError;
+use notification::payloads::transaction_verification::TransactionVerificationPayload;
 use notification::{
     entities::NotificationCompositeKey,
     payloads::{
@@ -151,6 +152,10 @@ pub fn to_validator(
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::RecoveryRelationshipBenefactorInvitationPending => payload
                 .recovery_relationship_benefactor_invitation_pending_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::TransactionVerification => payload
+                .transaction_verification_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
         };
@@ -460,5 +465,16 @@ impl ValidateNotificationDelivery for RecoveryRelationshipBenefactorInvitationPe
             .await;
 
         matches!(relationship_result, Ok(RecoveryRelationship::Invitation(_)))
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for TransactionVerificationPayload {
+    async fn validate_delivery(
+        &self,
+        _state: &NotificationValidationState,
+        _composite_key: &NotificationCompositeKey,
+    ) -> bool {
+        true
     }
 }

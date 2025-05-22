@@ -40,7 +40,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     }
   }
 
-  test("eak good") {
+  test("EEK good") {
     paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =
@@ -51,7 +51,7 @@ class CloudBackupHealthStatusCardSnapshots : FunSpec({
     }
   }
 
-  test("eak error") {
+  test("EEK error") {
     paparazzi.snapshot {
       CloudBackupHealthStatusCard(
         model =

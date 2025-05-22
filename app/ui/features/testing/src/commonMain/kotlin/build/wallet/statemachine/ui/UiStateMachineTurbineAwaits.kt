@@ -107,6 +107,40 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
   return body
 }
 
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<BodyModel>.awaitUntilBodyModel(
+  id: EventTrackerScreenId? = null,
+  crossinline matching: (T) -> Boolean = { true },
+  validate: T.() -> Unit = {},
+): T {
+  // Models that were previously seen but do not match predicate. Used for debugging.
+  val previousModels = mutableListOf<BodyModel>()
+
+  val body = try {
+    awaitUntil {
+      logTesting { "Saw ${it.toSimpleString()}" }
+      val matches = it is T &&
+        (id == null || it.eventTrackerScreenInfo?.eventTrackerScreenId == id) &&
+        matching(it)
+      if (!matches) previousModels += it
+      matches
+    } as T
+  } catch (e: AssertionError) {
+    val previousModelsMessage = "Previous models: ${previousModels.map { it.toSimpleString() }}"
+    val message = if (id != null) {
+      "Did not see expected BodyModel(${T::class.simpleName} id=$id). $previousModelsMessage"
+    } else {
+      "Did not see expected BodyModel(${T::class.simpleName}). $previousModelsMessage"
+    }
+    throw AssertionError(message, e)
+  }
+  body.asClue {
+    assertSoftly {
+      validate(body)
+    }
+  }
+  return body
+}
+
 @JvmName("awaitSheetFromScreenModelTurbine")
 suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitSheet(
   validate: T.() -> Unit = {},
@@ -181,17 +215,23 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
 inline fun ScreenModel.toSimpleString(): String {
   return buildString {
     append("ScreenModel(")
-    val bodyName = body::class.simpleName
-    append("body=$bodyName")
-    // TODO(W-9780): remove this once FormBodyModelImpl is removed.
-    if (bodyName == "FormBodyModelImpl") {
-      // not an exact FormBodyModel type, so add screen ID as a hint
-      append(" id=${body.eventTrackerScreenInfo?.eventTrackerScreenId}")
-    }
+    append(body.toSimpleString())
     bottomSheetModel?.run {
       append(", bottomSheetModel=SheetModel(body=${body::class.simpleName})")
     }
     append(")")
+  }
+}
+
+inline fun BodyModel.toSimpleString(): String {
+  return buildString {
+    val bodyName = this@toSimpleString::class.simpleName
+    append("body=$bodyName")
+    // TODO(W-9780): remove this once FormBodyModelImpl is removed.
+    if (bodyName == "FormBodyModelImpl") {
+      // not an exact FormBodyModel type, so add screen ID as a hint
+      append(" id=${eventTrackerScreenInfo?.eventTrackerScreenId}")
+    }
   }
 }
 

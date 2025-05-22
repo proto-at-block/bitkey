@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-uikitsimarm64-1.7.3-metadata.jar": "669db7f61a6ee168452bf22daf3f3df77d0e7ba98b8629208887876b9db7666f"
+                        "runtime-uikitSimArm64Main-1.8.0.klib": "835a9f36635e026bd7e7385cca18d3771ea21802d33e1f3ac38b4c31b0f4e8cf"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime.klib": "c58f9d791b875f75b5bde3b1cb61c5639e5ecf9c4c570e65ed609553d99ff212"
+                        "runtime-uikitsimarm64-1.8.0-metadata.jar": "2b2d5b3b121acd1fc5a0447f01d828c64dadaf1f701451cd0e079a95feac256f"
                     }
                 }
             ],

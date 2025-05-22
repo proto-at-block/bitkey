@@ -112,7 +112,7 @@ class EndorseTrustedContactsServiceImpl(
         .filterNotNull()
       if (authenticated.any()) {
         endorseAll(fullAccount, authenticated)
-          .logFailure { "Failed to endorse trusted contacts" }
+          .logFailure { "Failed to endorse Recovery Contacts" }
           .bind()
 
         // If any contacts were endorsed, sync relationships to update the endorsed contacts

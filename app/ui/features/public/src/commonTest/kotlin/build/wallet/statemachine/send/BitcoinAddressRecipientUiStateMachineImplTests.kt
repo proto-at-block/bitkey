@@ -16,7 +16,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.core.testWithVirtualTime
-import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -45,12 +45,11 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
   val accountConfigService = AccountConfigServiceFake()
   val bitcoinWalletService = BitcoinWalletServiceFake()
 
-  val stateMachine =
-    BitcoinAddressRecipientUiStateMachineImpl(
-      paymentDataParser = paymentParser,
-      accountConfigService = accountConfigService,
-      bitcoinWalletService = bitcoinWalletService
-    )
+  val stateMachine = BitcoinAddressRecipientUiStateMachineImpl(
+    paymentDataParser = paymentParser,
+    accountConfigService = accountConfigService,
+    bitcoinWalletService = bitcoinWalletService
+  )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onRecipientEnteredCalls = turbines.create<BitcoinAddress>("on recipient entered")
@@ -153,27 +152,27 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
 
   test("enter valid address and remove character to make entry invalid") {
     stateMachine.test(props) {
-      awaitBody<BitcoinRecipientAddressScreenModel> {
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick == null }
+      ) {
         onEnteredTextChanged(validAddress.address)
-      }
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        // intermittent model
-        onEnteredTextChanged(validAddress.address)
-        onContinueClick.shouldBeNull()
       }
 
       val invalidAddress = validAddress.address.dropLast(1)
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        onContinueClick.shouldNotBeNull()
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick != null }
+      ) {
         onEnteredTextChanged(invalidAddress)
       }
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick == null }
+      ) {
         enteredText.shouldBe(invalidAddress)
-        onContinueClick.shouldBeNull()
       }
+
+      // Ignore duplicate models
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -183,19 +182,15 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(invalidAddressText)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(invalidAddressText)
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.enteredText == invalidAddressText }
+      ) {
         onEnteredTextChanged(validAddress.address)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(validAddress.address)
-        onContinueClick.shouldNotBeNull()
-      }
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.enteredText == validAddress.address && it.onContinueClick != null }
+      )
     }
   }
 
@@ -219,14 +214,16 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validSignetAddress)
-
-        awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-        awaitBody<BitcoinRecipientAddressScreenModel> {
-          onContinueClick.shouldBeNull()
-        }
-        onRecipientEnteredCalls.expectNoEvents()
       }
+
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.enteredText == validSignetAddress && it.onContinueClick == null }
+      )
+
+      onRecipientEnteredCalls.expectNoEvents()
+
+      // Ignore duplicate models
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -234,14 +231,15 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitBody<BitcoinRecipientAddressScreenModel> {
         onEnteredTextChanged(validSignetBIP21URI)
-
-        awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-        awaitBody<BitcoinRecipientAddressScreenModel> {
-          onContinueClick.shouldBeNull()
-        }
-        onRecipientEnteredCalls.expectNoEvents()
       }
+
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.enteredText == validSignetBIP21URI && it.onContinueClick == null }
+      )
+      onRecipientEnteredCalls.expectNoEvents()
+
+      // Ignore duplicate models
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -251,52 +249,47 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
         onEnteredTextChanged(selfAddress.address)
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        onContinueClick.shouldBeNull()
-
-        showSelfSendWarningWithRedirect.shouldBeTrue()
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick == null && it.showSelfSendWarningWithRedirect }
+      ) {
         onGoToUtxoConsolidation()
-        onGoToUtxoConsolidationCalls.awaitItem()
       }
+      onGoToUtxoConsolidationCalls.awaitItem()
     }
   }
 
   test("paste button fills text field") {
     stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(someBitcoinAddress))) {
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        showPasteButton.shouldBeTrue()
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.showPasteButton }
+      ) {
         onPasteButtonClick()
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.onContinueClick != null }
+      ) {
         enteredText.shouldBe(someBitcoinAddress.address)
         showPasteButton.shouldBeFalse()
-        onContinueClick.shouldBeNull()
-      }
-
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        enteredText.shouldBe(someBitcoinAddress.address)
-        showPasteButton.shouldBeFalse()
-        onContinueClick.shouldNotBeNull()
       }
     }
   }
 
   test("paste button does not show with contents in address field") {
     stateMachine.test(props.copy(validInvoiceInClipboard = Onchain(validAddress))) {
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        showPasteButton.shouldBeTrue()
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { it.showPasteButton }
+      ) {
         // Now, user manually enters some text
         onEnteredTextChanged("t")
       }
 
-      awaitBody<BitcoinRecipientAddressScreenModel>() // intermittent model
+      awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+        matching = { !it.showPasteButton && it.enteredText == "t" && it.onContinueClick == null }
+      )
 
-      awaitBody<BitcoinRecipientAddressScreenModel> {
-        showPasteButton.shouldBeFalse()
-      }
+      // Ignore duplicate models
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -360,16 +353,14 @@ private suspend fun ReceiveTurbine<BodyModel>.awaitOnContinueNotNull(
   address: String,
   click: Boolean = false,
 ) {
-  awaitBody<BitcoinRecipientAddressScreenModel> {
-    enteredText.shouldBe(address)
-    onContinueClick.shouldBeNull()
-  }
-  awaitBody<BitcoinRecipientAddressScreenModel> {
+  awaitUntilBodyModel<BitcoinRecipientAddressScreenModel>(
+    matching = { it.onContinueClick != null }
+  ) {
     enteredText.shouldBe(address)
     onContinueClick.shouldNotBeNull()
       .also {
         if (click) {
-          onContinueClick!!.invoke()
+          onContinueClick.invoke()
         }
       }
   }

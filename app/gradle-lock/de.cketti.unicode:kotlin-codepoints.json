@@ -2,11 +2,11 @@
     "module-identifier": "de.cketti.unicode:kotlin-codepoints",
     "components": [
         {
-            "version": "0.7.0",
+            "version": "0.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-codepoints-metadata.jar": "bec5498153b3a2104b661bf57cbbf9f7538e8242c489f718bc90957e0a5755c1"
+                        "kotlin-codepoints-metadata.jar": "872546be7660b36db20407a9f99b31b73f3bccc5a1680a2d9f9cb8d7a97970b8"
                     }
                 }
             ],

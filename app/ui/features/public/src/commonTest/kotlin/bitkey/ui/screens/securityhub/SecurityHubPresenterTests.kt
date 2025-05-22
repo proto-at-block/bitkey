@@ -1,6 +1,7 @@
 package bitkey.ui.screens.securityhub
 
 import bitkey.securitycenter.EakBackupHealthAction
+import bitkey.securitycenter.SecurityActionRecommendation
 import bitkey.securitycenter.SecurityActionRecommendation.*
 import bitkey.securitycenter.SecurityActionType
 import bitkey.securitycenter.SecurityActionsServiceFake
@@ -8,11 +9,13 @@ import bitkey.ui.framework.test
 import bitkey.ui.screens.securityhub.education.SecurityHubEducationScreen
 import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.cloud.backup.health.EakBackupStatus
+import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.database.SecurityInteractionStatus
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.platform.haptics.HapticsMock
 import build.wallet.router.Router
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardScreen
@@ -26,17 +29,23 @@ import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMach
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.ui.awaitBody
+import build.wallet.statemachine.ui.awaitUntilBody
+import build.wallet.time.ClockFake
 import build.wallet.time.MinimumLoadingDuration
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.seconds
 
 class SecurityHubPresenterTests : FunSpec({
+  val testClock = ClockFake()
   val securityActionsService = SecurityActionsServiceFake()
+  val haptics = HapticsMock()
 
   val firmwareDataService = FirmwareDataServiceFake()
   firmwareDataService.pendingUpdate = FirmwareDataPendingUpdateMock
@@ -55,7 +64,8 @@ class SecurityHubPresenterTests : FunSpec({
       StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
         initialModel = null
       ) {},
-    appFunctionalityService = AppFunctionalityServiceFake()
+    appFunctionalityService = AppFunctionalityServiceFake(),
+    haptics = haptics
   )
 
   beforeTest {
@@ -73,44 +83,57 @@ class SecurityHubPresenterTests : FunSpec({
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(UPDATE_FIRMWARE)
       }
-
       it.goToCalls.awaitItem().shouldBeTypeOf<FwupScreen>()
     }
   }
 
-  test("clicking eak navigates to the education when not backed up") {
-    presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
+  test("clicking EEK navigates to the education when not backed up") {
+    presenter.test(
+      SecurityHubScreen(
+        account = FullAccountMock,
+        hardwareRecoveryData = LostHardwareRecoveryDataMock
+      )
+    ) {
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(BACKUP_EAK)
       }
-
       it.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubEducationScreen.RecommendationEducation>()
     }
   }
 
-  test("clicking eak navigates to the setting when backed up") {
+  test("clicking EEK navigates to the setting when backed up") {
     val action = EakBackupHealthAction(
-      cloudBackupStatus = EakBackupStatus.Healthy(lastUploaded = Clock.System.now())
+      cloudBackupStatus = EekBackupStatus.Healthy(lastUploaded = Clock.System.now())
     )
-
     securityActionsService.actions.removeAll { it.type() == SecurityActionType.EAK_BACKUP }
     securityActionsService.actions += action
-
-    presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
-      awaitBody<SecurityHubBodyModel> {
+    presenter.test(
+      SecurityHubScreen(
+        account = FullAccountMock,
+        hardwareRecoveryData = LostHardwareRecoveryDataMock
+      )
+    ) {
+      awaitUntilBody<SecurityHubBodyModel>(
+        // The presenter loads actions from the SecurityActionsService asynchronously; await until
+        // the body model with the actions is available and skip any intermediate ones.
+        matching = { bodyModel -> bodyModel.securityActions.isNotEmpty() }
+      ) {
         onSecurityActionClick(action)
       }
-
       it.goToCalls.awaitItem().shouldBeTypeOf<CloudBackupHealthDashboardScreen>()
     }
   }
 
   test("clicking a fingerprint navigates to the education screen") {
-    presenter.test(SecurityHubScreen(account = FullAccountMock, hardwareRecoveryData = LostHardwareRecoveryDataMock)) {
+    presenter.test(
+      SecurityHubScreen(
+        account = FullAccountMock,
+        hardwareRecoveryData = LostHardwareRecoveryDataMock
+      )
+    ) {
       awaitBody<SecurityHubBodyModel> {
         onRecommendationClick(ADD_FINGERPRINTS)
       }
-
       it.goToCalls.awaitItem().shouldBeTypeOf<SecurityHubEducationScreen.RecommendationEducation>()
     }
   }
@@ -138,6 +161,26 @@ class SecurityHubPresenterTests : FunSpec({
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE)
         UPDATE_FIRMWARE -> recommendation.navigationScreenId()
           .shouldBe(NavigationScreenId.NAVIGATION_SCREEN_ID_UPDATE_FIRMWARE)
+      }
+    }
+  }
+
+  test("markAllRecommendationsViewed marks all NEW recommendations as VIEWED with timestamps") {
+    securityActionsService.statuses = SecurityActionRecommendation.entries.mapIndexed { i, rec ->
+      bitkey.securitycenter.SecurityRecommendationWithStatus(
+        recommendation = rec,
+        interactionStatus = if (i % 2 == 0) SecurityInteractionStatus.NEW else SecurityInteractionStatus.VIEWED,
+        lastRecommendationTriggeredAt = testClock.now(),
+        lastInteractedAt = if (i % 2 == 0) null else testClock.now(),
+        recordUpdatedAt = testClock.now()
+      )
+    }
+    runBlocking {
+      securityActionsService.markAllRecommendationsViewed()
+      securityActionsService.statuses.forEach { status ->
+        status.interactionStatus shouldBe SecurityInteractionStatus.VIEWED
+        (status.lastInteractedAt?.toEpochMilliseconds() ?: -1) shouldBe (status.recordUpdatedAt?.toEpochMilliseconds() ?: -2)
+        status.lastInteractedAt shouldNotBe null
       }
     }
   }

@@ -24,7 +24,7 @@ data class GettingStartedTaskRowModel(
         when (task.id) {
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
           EnableSpendingLimit -> Pair("Customize transfer settings", SmallIconMobileLimit)
-          InviteTrustedContact -> Pair("Invite a Trusted Contact", SmallIconShieldPerson)
+          InviteTrustedContact -> Pair("Invite a Recovery Contact", SmallIconShieldPerson)
           AddAdditionalFingerprint -> Pair("Add additional fingerprint", SmallIconFingerprint)
         }
 

@@ -2,16 +2,16 @@
     "module-identifier": "io.matthewnelson.encoding:core-iosarm64",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "core-iosarm64-2.2.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "core-iosarm64-2.3.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "core.klib": "d1295c01d0b956facb80ff08785b771d36343b941ee6dcef8ad9b1e8516d4449"
+                        "core.klib": "edcf354ff5cbaad7bd4d41ee21f474b776653e6e9c54526af525b2cfcf068d30"
                     }
                 }
             ],

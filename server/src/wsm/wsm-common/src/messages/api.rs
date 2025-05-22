@@ -1,7 +1,8 @@
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::Network;
 use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
-use serde_with::{base64::Base64, serde_as};
+use serde_with::{base64::Base64, serde_as, DisplayFromStr};
 
 use crate::derivation::WSMSupportedDomain;
 
@@ -198,4 +199,26 @@ pub struct EvaluatePinRequest {
 pub struct EvaluatePinResponse {
     #[serde_as(as = "Base64")]
     pub sealed_response: Vec<u8>,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GrantRequest {
+    pub version: u8,
+    pub action: String,
+    pub device_id: String,
+    pub challenge: Vec<u8>,
+    #[serde_as(as = "DisplayFromStr")]
+    pub signature: Signature,
+    pub hw_auth_public_key: PublicKey,
+}
+
+#[serde_as]
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GrantResponse {
+    pub version: u8,
+    #[serde_as(as = "Base64")]
+    pub serialized_request: Vec<u8>,
+    #[serde_as(as = "DisplayFromStr")]
+    pub signature: Signature,
 }

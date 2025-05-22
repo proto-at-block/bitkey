@@ -8,6 +8,6 @@ steps:
     timeout_in_minutes: 30
     command: ".buildkite/build-customer-release-aab.sh"
 
-  - label: "build emergency eak"
+  - label: "build emergency EEK"
     timeout_in_minutes: 30
     command: ".buildkite/build-emergency-release-apk.sh"

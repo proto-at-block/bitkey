@@ -52,6 +52,7 @@ impl Display for PrivilegedActionInstanceId {
 pub enum PrivilegedActionType {
     ConfigurePrivilegedActionDelays,
     ActivateTouchpoint,
+    ResetFingerprint,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:annotations",
     "components": [
         {
-            "version": "31.4.1",
+            "version": "31.7.3",
             "variants": [
                 {
                     "artifacts": {
-                        "annotations-31.4.1.jar": "25e8825547de7146d08fa18f04ef934ee1e6aec52e4c97ffa510a8f0f44b07a0"
+                        "annotations-31.7.3.jar": "b25995fa7b220d35fbb8e325df071f8291691bfbaff9734c98e38f45ec2a73ee"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "annotations-31.5.2.jar": "b25995fa7b220d35fbb8e325df071f8291691bfbaff9734c98e38f45ec2a73ee"
+                        "annotations-31.9.1.jar": "b25995fa7b220d35fbb8e325df071f8291691bfbaff9734c98e38f45ec2a73ee"
                     }
                 }
             ],

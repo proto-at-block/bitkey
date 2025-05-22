@@ -2,10 +2,8 @@ package bitkey.securitycenter
 
 import app.cash.turbine.test
 import bitkey.metrics.MetricOutcome
-import bitkey.metrics.MetricTrackerService
 import bitkey.metrics.MetricTrackerServiceFake
 import bitkey.metrics.TrackedMetric
-import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action
@@ -13,11 +11,27 @@ import build.wallet.coroutines.turbine.turbines
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
+import kotlinx.datetime.Clock
 
 class SecurityActionsServiceImplTest : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val metricTrackerService = MetricTrackerServiceFake()
-  val service = securityActionsService(eventTracker, metricTrackerService)
+  val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
+  val clock = Clock.System
+
+  val service = SecurityActionsServiceImpl(
+    MobileKeyCloudBackupHealthActionFactoryFake(),
+    EakCloudBackupHealthActionFactoryFake(),
+    SocialRecoveryActionFactoryFake(),
+    BiometricActionFactoryFake(),
+    CriticalAlertsActionFactoryFake(),
+    FingerprintsActionFactoryFake(),
+    HardwareDeviceActionFactoryFake(),
+    eventTracker,
+    metricTrackerService,
+    securityRecommendationInteractionDao,
+    clock
+  )
 
   beforeTest {
     metricTrackerService.reset()
@@ -72,13 +86,15 @@ class SecurityActionsServiceImplTest : FunSpec({
       MobileKeyCloudBackupHealthActionFactoryFake(),
       EakCloudBackupHealthActionFactoryFake(),
       SocialRecoveryActionFactoryFake(),
-//      InheritanceActionFactoryFake(),
+      // InheritanceActionFactoryFake(),
       BiometricActionFactoryFake(),
       CriticalAlertsActionFactoryFake(),
       fingerprintFactory,
       HardwareDeviceActionFactoryFake(),
       eventTracker,
-      metricTrackerService
+      metricTrackerService,
+      securityRecommendationInteractionDao,
+      clock
     )
 
     service.getRecommendations().test {
@@ -129,21 +145,3 @@ class SecurityActionsServiceImplTest : FunSpec({
     }
   }
 })
-
-fun securityActionsService(
-  eventTracker: EventTracker,
-  metricTrackerService: MetricTrackerService,
-): SecurityActionsService {
-  return SecurityActionsServiceImpl(
-    MobileKeyCloudBackupHealthActionFactoryFake(),
-    EakCloudBackupHealthActionFactoryFake(),
-    SocialRecoveryActionFactoryFake(),
-//    InheritanceActionFactoryFake(),
-    BiometricActionFactoryFake(),
-    CriticalAlertsActionFactoryFake(),
-    FingerprintsActionFactoryFake(),
-    HardwareDeviceActionFactoryFake(),
-    eventTracker,
-    metricTrackerService
-  )
-}

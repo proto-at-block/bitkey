@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-text",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-text-1.7.3.jar": "8ff9a2b8c93b0287d8fa837d5b0917923168cb97dea1ada1a8d4aa7bb17c9f15"
+                        "ui-text-1.8.0.jar": "1023d515109881b024bf1dcb8c90e8c14a84cbf99292fc19dd776dc98b4dd187"
                     }
                 }
             ],

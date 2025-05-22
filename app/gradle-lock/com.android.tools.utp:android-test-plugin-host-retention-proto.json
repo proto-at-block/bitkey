@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-retention-proto",
     "components": [
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-retention-proto-31.5.2.jar": "3db8ed38ef49b694caea466ae22e3b36cedc9557b3589d0e07c0cdd83294591c"
+                        "android-test-plugin-host-retention-proto-31.9.1.jar": "08f1af96115b2bd02cd4b684e194f5c5c2763f01c8f59e011d9aeccb3fef1863"
                     }
                 }
             ],

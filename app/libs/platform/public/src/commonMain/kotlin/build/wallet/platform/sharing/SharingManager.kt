@@ -45,7 +45,7 @@ fun SharingManager.shareInvitation(
   onCompletion: () -> Unit = {},
   onFailure: () -> Unit = {},
 ) {
-  val roleType = if (isBeneficiary) "beneficiary" else "Trusted Contact"
+  val roleType = if (isBeneficiary) "beneficiary" else "Recovery Contact"
   val downloadPath = if (isBeneficiary) "beneficiary" else "trusted-contact"
   val trustedContactRoleExplainer = if (isBeneficiary) "" else " If my device ever gets lost, you'd be a huge help with the recovery."
 

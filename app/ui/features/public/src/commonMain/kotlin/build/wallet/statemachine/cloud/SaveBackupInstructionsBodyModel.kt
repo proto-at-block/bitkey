@@ -48,15 +48,15 @@ data class SaveBackupInstructionsBodyModel(
         items = immutableListOf(
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.SmallIconMobileKey,
-            title = "Mobile Key",
+            title = "App Key",
             body = "If you ever get a new phone, simply restore your wallet with this backup and your Bitkey device."
           ),
           FormMainContentModel.Explainer.Statement(
             leadingIcon = Icon.SmallIconRecovery,
-            title = "Emergency Access Kit",
+            title = "Emergency Exit Kit",
             body = when (devicePlatform) {
-              Android, Jvm -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your Google Drive to maintain self-custody."
-              IOS -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your iCloud Drive to maintain self-custody."
+              Android, Jvm -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Exit Kit document located in your Google Drive to maintain self-custody."
+              IOS -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Exit Kit document located in your iCloud Drive to maintain self-custody."
             }
           )
         )

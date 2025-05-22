@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "ddmlib-31.5.2.jar": "c571c0224fe3e7e6607196d95cc3142fdc19f013e8f1510f68c7b4a686c53809"
+                        "ddmlib-31.9.1.jar": "9cdca206e08fbc1f01daa1a0d64ead2a62b8ccc5941569f5181e27e4a6f5fba0"
                     }
                 }
             ],

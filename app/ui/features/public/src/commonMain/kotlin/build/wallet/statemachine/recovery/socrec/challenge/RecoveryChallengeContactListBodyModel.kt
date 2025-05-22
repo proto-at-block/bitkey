@@ -35,18 +35,18 @@ data class RecoveryChallengeContactListBodyModel(
       )
     ),
     header = FormHeaderModel(
-      headline = "Select a Trusted Contact",
-      subline = "Choose a Trusted Contact to help with recovery."
+      headline = "Select a Recovery Contact",
+      subline = "Choose a Recovery Contact to help with recovery."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         ListGroupModel(
-          header = "Your Trusted Contacts",
+          header = "Your Recovery Contacts",
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
           items = endorsedTrustedContacts.map { contact ->
             ListItemModel(
-              leadingAccessory = ListItemAccessory.CircularCharacterAccessory(
-                character = contact.trustedContactAlias.alias.first().uppercaseChar()
+              leadingAccessory = ListItemAccessory.CircularCharacterAccessory.fromLetters(
+                input = contact.trustedContactAlias.alias
               ),
               title = contact.trustedContactAlias.alias,
               sideTextTint = ListItemSideTextTint.PRIMARY,
@@ -72,7 +72,7 @@ data class RecoveryChallengeContactListBodyModel(
       onClick = StandardClick { onContinue() }
     ).takeIf { verifiedBy.isNotEmpty() }
       ?: ButtonModel(
-        text = "Waiting for your Trusted Contact to verify you\u2026",
+        text = "Waiting for your Recovery Contact to verify you\u2026",
         treatment = ButtonModel.Treatment.TertiaryNoUnderline,
         size = ButtonModel.Size.Footer,
         onClick = StandardClick {}

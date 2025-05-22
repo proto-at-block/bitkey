@@ -21,6 +21,8 @@ import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
+import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataMock
 import build.wallet.statemachine.inheritance.InheritanceClaimNotificationUiProps
@@ -126,7 +128,11 @@ class HomeUiStateMachineImplTests : FunSpec({
           "recovery-relationship-notifications"
         ) {},
       appCoroutineScope = appScope,
-      navigatorPresenter = NavigatorPresenterFake()
+      navigatorPresenter = NavigatorPresenterFake(),
+      repairCloudBackupStateMachine = object : RepairCloudBackupStateMachine,
+        ScreenStateMachineMock<RepairMobileKeyBackupProps>(
+          "repair-cloud-backup"
+        ) {}
     )
 
   val props =

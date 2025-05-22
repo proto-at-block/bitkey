@@ -24,7 +24,7 @@ const val LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE =
  * protecting.
  *
  * Different from [TrustedContactsListBodyModel] which is for a Full Account because Full
- * Accounts can both *be* a Trusted Contact and *have* Trusted Contacts.
+ * Accounts can both *be* a Recovery Contact and *have* Recovery Contacts.
  */
 data class LiteTrustedContactsListBodyModel(
   override val id: SocialRecoveryEventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_SETTINGS_LIST_LITE,
@@ -37,7 +37,7 @@ data class LiteTrustedContactsListBodyModel(
     id = id,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
     header = FormHeaderModel(
-      headline = "Trusted Contacts",
+      headline = "Recovery Contacts",
       subline = subline
     ),
     mainContentList = immutableListOf(

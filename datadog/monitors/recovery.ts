@@ -8,7 +8,7 @@ export class RecoveryMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `recovery_${environment}`);
 
-    let recipients = environment === Environment.PRODUCTION ? ["@slack-Block-bitkey-recovery-alerts"] : ["@slack-Block-bitkey-alerts-staging"];
+    let recipients = environment === Environment.PRODUCTION ? ["@slack-Block-bitkey-alerts"] : ["@slack-Block-bitkey-alerts-staging"];
 
     new HttpStatusCompositeMonitor(this, "4xx_recovery_status", {
       status: "4xx",

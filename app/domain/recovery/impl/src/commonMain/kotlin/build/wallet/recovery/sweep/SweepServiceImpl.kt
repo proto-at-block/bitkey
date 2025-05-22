@@ -2,65 +2,50 @@ package build.wallet.recovery.sweep
 
 import build.wallet.account.AccountService
 import build.wallet.account.AccountStatus.ActiveAccount
+import build.wallet.activity.TransactionActivityOperations
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.coroutines.flow.launchTicker
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.PromptSweepFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
-import build.wallet.platform.app.AppSessionManager
+import build.wallet.worker.BackgroundStrategy.Wait
+import build.wallet.worker.RefreshOperationFilter
+import build.wallet.worker.RunStrategy
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
 @BitkeyInject(AppScope::class)
 class SweepServiceImpl(
   private val accountService: AccountService,
-  private val appSessionManager: AppSessionManager,
-  private val promptSweepFeatureFlag: PromptSweepFeatureFlag,
   private val sweepGenerator: SweepGenerator,
-  private val sweepSyncFrequency: SweepSyncFrequency,
+  sweepSyncFrequency: SweepSyncFrequency,
 ) : SweepService, SweepSyncWorker {
+  override val runStrategy: Set<RunStrategy> = setOf(
+    RunStrategy.Startup(),
+    RunStrategy.Refresh(
+      type = RefreshOperationFilter.Subset(TransactionActivityOperations)
+    ),
+    RunStrategy.Periodic(
+      interval = sweepSyncFrequency.value,
+      backgroundStrategy = Wait
+    )
+  )
+
   /**
    * Caches the value of the sweep required flag. Synced by the [executeWork].
    */
   override val sweepRequired = MutableStateFlow(false)
 
   override suspend fun checkForSweeps() {
-    if (promptSweepFeatureFlag.isEnabled()) {
-      sweepRequired.value = isSweepRequired()
-    } else {
-      sweepRequired.value = false
-    }
+    sweepRequired.value = isSweepRequired()
   }
 
   override suspend fun executeWork() {
-    coroutineScope {
-      launch {
-        // Sync the prompt sweep required if:
-        //  - the flag is on
-        //  - the app is in the foreground
-        //  - there is a sweep available
-        promptSweepFeatureFlag.flagValue()
-          .collectLatest { flag ->
-            if (flag.isEnabled()) {
-              launchTicker(sweepSyncFrequency.value) {
-                if (appSessionManager.isAppForegrounded()) {
-                  sweepRequired.value = isSweepRequired()
-                }
-              }
-            }
-          }
-      }
-    }
+    sweepRequired.value = isSweepRequired()
   }
 
   /**

@@ -36,13 +36,13 @@ pub enum NavigationScreenId {
     ManageBiometric = 9,
     /// * The screen shown to enable or disable critical alerts and the information associated with the alert *
     ManageCriticalAlerts = 10,
-    /// * The screen shown to view the status of the EAK backup. *
+    /// * The screen shown to view the status of the EEK backup. *
     EakBackupHealth = 11,
     /// * The screen shown to manage the HW fingerprints. *
     ManageFingerprints = 12,
-    /// * The screen shown to view the status of the mobile key backup. *
+    /// * The screen shown to view the status of the App Key backup. *
     MobileKeyBackup = 13,
-    /// * The screen shown to manage recovery contacts. *
+    /// * The screen shown to manage Recovery Contacts. *
     ManageRecoveryContacts = 14,
     /// * The screen shown to update firmware. *
     UpdateFirmware = 15,

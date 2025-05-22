@@ -79,7 +79,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
         ),
       onShowAlert = {},
       onDismissAlert = {},
-      goToSecurityHub = {}
+      goToSecurityHub = {},
+      isLiteAccount = false
     )
 
   afterEach {
@@ -109,7 +110,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
                 "Inheritance",
                 "Mobile Devices",
                 "Cloud Backup",
-                "Trusted Contacts"
+                "Recovery Contacts"
               ),
               "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
               "Support" to listOf("Contact Us", "Help Center")
@@ -119,7 +120,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("list w/ security hub enabled") {
+  test("list w/ security hub enabled for full account") {
     securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
 
     stateMachine.test(props) {
@@ -129,6 +130,33 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           .shouldBe(
             listOf(
               "General" to listOf("Transfers", "Appearance", "Notifications", "Mobile Devices", "Inheritance"),
+              "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
+              "Support" to listOf("Contact Us", "Help Center")
+            )
+          )
+      }
+    }
+  }
+
+  test("list w/ security hub enabled for lite account") {
+    securityHubFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
+
+    stateMachine.test(props.copy(isLiteAccount = true)) {
+      // *NOTE* These are filtered out in the LiteSettingsHomeUiStateMachine and don't reflect how it
+      // would be shown in the UI.
+      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+        sectionModels
+          .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
+          .shouldBe(
+            listOf(
+              "General" to listOf("Transfers", "Appearance", "Notifications", "Mobile Devices", "Inheritance"),
+              "Security & Recovery" to listOf(
+                "App Security",
+                "Inheritance",
+                "Mobile Devices",
+                "Cloud Backup",
+                "Recovery Contacts"
+              ),
               "Advanced" to listOf("Custom Electrum Server", "UTXO Consolidation"),
               "Support" to listOf("Contact Us", "Help Center")
             )
@@ -180,9 +208,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       .testRowOnClickCallsProps<NotificationPreferences>("Notifications", props, propsOnClickCalls)
   }
 
-  test("Trusted Contacts updates state") {
+  test("Recovery Contacts updates state") {
     stateMachine
-      .testRowOnClickCallsProps<TrustedContacts>("Trusted Contacts", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<TrustedContacts>("Recovery Contacts", props, propsOnClickCalls)
   }
 
   test("Custom Electrum Server updates state") {
@@ -228,7 +256,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Appearance",
           "Notifications",
           "Inheritance",
-          "Trusted Contacts",
+          "Recovery Contacts",
           "Help Center",
           "Mobile Devices",
           "Cloud Backup",
@@ -256,7 +284,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Appearance",
           "Notifications",
           "Inheritance",
-          "Trusted Contacts",
+          "Recovery Contacts",
           "Custom Electrum Server",
           "Help Center",
           "Mobile Devices",

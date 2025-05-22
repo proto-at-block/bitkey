@@ -26,7 +26,7 @@ class GettingStartedRoutingStateMachineTests : FunSpec({
   val startLiteAccountRecoveryCalls = turbines.create<Unit>("Recover Lite Account")
   val startCloudRecoveryCalls = turbines.create<Unit>("Cloud Recovery")
   val startLostAppRecoveryCalls = turbines.create<Unit>("App Recovery")
-  val importEmergencyAccessKitCalls = turbines.create<Unit>("Import Emergency Access Kit")
+  val importEmergencyAccessKitCalls = turbines.create<Unit>("Import Emergency Exit Kit")
   val onExitCalls = turbines.create<Unit>("Exit")
 
   test("Load backup") {

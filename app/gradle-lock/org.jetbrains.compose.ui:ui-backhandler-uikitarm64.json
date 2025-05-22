@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-backhandler-uikitarm64",
+    "components": [
+        {
+            "version": "1.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-backhandler-uikitArm64Main-1.8.0.klib": "3cd6880baaa8814692dd6417f14b58bcf5b0321d33e22f0856c59a2f93bab100"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ui-backhandler-uikitarm64-1.8.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

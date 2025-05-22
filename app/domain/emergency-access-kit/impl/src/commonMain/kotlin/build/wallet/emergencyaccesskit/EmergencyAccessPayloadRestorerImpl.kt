@@ -83,5 +83,5 @@ class EmergencyAccessPayloadRestorerImpl(
           )
         }
       }
-    }.logFailure { "EAK payload failed to decrypt" }
+    }.logFailure { "EEK payload failed to decrypt" }
 }

@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:http-client-engine-okhttp-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "http-client-engine-okhttp-jvm-1.3.7.jar": "28fdb3f9c0754fe5023236b92dde32cdaa0a6159d9ca9a00a79c073b8d2b2aa1"
+                        "http-client-engine-okhttp-jvm-1.3.31.jar": "2d371bfdbd3936b1ce4b7f29194e8e10637d8cb2b1171ddea63478dde7f7f37f"
                     }
                 }
             ],

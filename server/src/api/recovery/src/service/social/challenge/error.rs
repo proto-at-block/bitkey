@@ -8,7 +8,7 @@ pub enum ServiceError {
     Database(#[from] database::ddb::DatabaseError),
     #[error("Account is not the customer")]
     AccountNotCustomer,
-    #[error("Account is not a trusted contact")]
+    #[error("Account is not a Recovery Contact")]
     AccountNotTrustedContact,
     #[error("Mismatch between recovery relationships and challenge requests")]
     MismatchingRecoveryRelationships,

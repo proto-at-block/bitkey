@@ -19,9 +19,9 @@ pub enum ServiceError {
     Account(#[from] AccountError),
     #[error(transparent)]
     InvalidAddress(#[from] bdk_utils::bdk::bitcoin::address::Error),
-    #[error("Trusted contact's alias cannot be blank")]
+    #[error("Recovery Contact's alias cannot be blank")]
     BlankTrustedContactAlias,
-    #[error("Trusted contact has no roles assigned")]
+    #[error("Recovery Contact has no roles assigned")]
     MissingTrustedContactRoles,
     #[error(transparent)]
     RecoveryRelationship(#[from] RecoveryRelationshipServiceError),

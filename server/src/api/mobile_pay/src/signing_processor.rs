@@ -250,8 +250,8 @@ mod tests {
         GetIntegritySigResponse, InitiateDistributedKeygenResponse, InitiateShareRefreshResponse,
     };
     use wsm_rust_client::{
-        CreatedSigningKey, Error, NoiseInitiateBundleResponseWithSession, SignedPsbt,
-        SigningService,
+        CreateGrantRequest, CreatedSigningKey, Error, Grant,
+        NoiseInitiateBundleResponseWithSession, SignedPsbt, SigningService,
     };
 
     mock! {
@@ -324,7 +324,8 @@ mod tests {
                 server_static_pubkey: &str,
             ) -> Result<NoiseInitiateBundleResponseWithSession, Error>;
             async fn evaluate_pin(&self, sealed_request: Vec<u8>, noise_session: Vec<u8>) -> Result<EvaluatePinResponse, Error>;
-    }
+            async fn create_signed_grant(&self, request: CreateGrantRequest) -> Result<Grant, Error>;
+        }
     }
 
     mock! {

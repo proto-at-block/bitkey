@@ -59,6 +59,7 @@ impl fmt::Debug for dyn TransactionBroadcasterTrait {
 }
 
 const BAD_TXNS_MISSING_OR_SPENT_MESSAGE: &str = "bad-txns-inputs-missingorspent";
+const MIN_RELAY_FEE_NOT_MET_MESSAGE: &str = "min relay fee not met";
 
 pub struct TransactionBroadcaster;
 
@@ -81,54 +82,36 @@ impl TransactionBroadcasterTrait for TransactionBroadcaster {
 }
 
 fn as_bdk_util_err(value: bdk::Error) -> BdkUtilError {
-    match value {
-        Electrum(ElectrumClientError::Protocol(ref json_value)) => {
-            let error_str = json_value.as_str().unwrap_or_default();
-            let parsed_json: Result<serde_json::Value, _> = serde_json::from_str(error_str);
+    if let Electrum(ElectrumClientError::Protocol(ref json_value)) = value {
+        let json_str = json_value.to_string();
 
-            let json_value = match parsed_json {
-                Ok(value) => value,
-                Err(_) => {
-                    // handle values like "sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"
-                    let json_start = error_str.find('{').unwrap_or_default();
-                    let json_str = &error_str[json_start..];
-                    serde_json::from_str(json_str).unwrap_or_else(|_| json_value.clone())
-                }
-            };
-            if let Some(message) = json_value["message"].as_str() {
-                // We broadcast on both App and Server, so we could get this error when the
-                // App "wins" the race. Under those circumstances, we just return a 409 and
-                // not consider it an error.
-                if message == BAD_TXNS_MISSING_OR_SPENT_MESSAGE {
-                    event!(
-                        Level::WARN,
-                        "Failed to broadcast PSBT with message: {}",
-                        BAD_TXNS_MISSING_OR_SPENT_MESSAGE
-                    );
-                    return BdkUtilError::TransactionAlreadyInMempoolError;
-                }
-
-                event!(
-                    Level::ERROR,
-                    "Failed to broadcast PSBT with message: {}",
-                    message.to_string()
-                );
-            } else {
-                event!(
-                    Level::ERROR,
-                    "Failed to broadcast PSBT {}",
-                    json_value.to_string()
-                );
-            }
+        // We broadcast on both App and Server, so we could get this error when the
+        // App "wins" the race. Under those circumstances, we just return a 409 and
+        // not consider it an error.
+        if json_str.contains(BAD_TXNS_MISSING_OR_SPENT_MESSAGE) {
+            event!(
+                Level::WARN,
+                "Failed to broadcast PSBT with message: {}",
+                BAD_TXNS_MISSING_OR_SPENT_MESSAGE
+            );
+            return BdkUtilError::TransactionAlreadyInMempoolError;
         }
-        _ => {
+
+        if json_str.contains(MIN_RELAY_FEE_NOT_MET_MESSAGE) {
             event!(
                 Level::ERROR,
-                "Failed to broadcast PSBT {}",
-                value.to_string()
+                "Failed to broadcast PSBT with message: {}",
+                MIN_RELAY_FEE_NOT_MET_MESSAGE
             );
+            return BdkUtilError::MinRelayFeeNotMetError;
         }
     }
+
+    event!(
+        Level::ERROR,
+        "Failed to broadcast PSBT: {}",
+        value.to_string()
+    );
 
     BdkUtilError::TransactionBroadcastError(value)
 }
@@ -379,6 +362,23 @@ pub fn is_psbt_addressed_to_wallet(
     Ok(true)
 }
 
+pub fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) -> u64 {
+    psbt.unsigned_tx
+        .output
+        .iter()
+        .enumerate()
+        .filter(|(idx, _output)| {
+            // we want to filter OUT addresses that are ours
+            // get_output_spk_and_derivation should be none, and then even if its some, is_my_psbt_address should be false
+            // so construct the case where it would be our output and negate it.
+            !psbt
+                .get_output_spk_and_derivation(*idx)
+                .is_some_and(|spk| wallet.is_my_psbt_address(&spk).is_ok_and(|x| x))
+        })
+        .map(|(_idx, output)| output.value)
+        .sum()
+}
+
 fn extend_descriptor_public_key(
     origin: &DescriptorPublicKey,
     path: &[ChildNumber],
@@ -554,6 +554,7 @@ pub mod tests {
     use bdk::wallet::AddressIndex;
     use bdk::Error::Electrum;
     use bdk::{bitcoin, populate_test_db, testutils, BlockTime, KeychainKind, Wallet};
+    use rstest::rstest;
     use serde_json::json;
     use std::str::FromStr;
 
@@ -693,13 +694,15 @@ pub mod tests {
         assert!(get_electrum_server(Network::Regtest, &rpc_uris).is_err());
     }
 
+    #[rstest]
+    #[case::bad_txns_inputs_missingorspent(json!({"code":-32603,"message":"sendrawtransaction RPC error: sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"}), BdkUtilError::TransactionAlreadyInMempoolError)]
+    #[case::min_relay_fee_not_met(json!({"code":-32603,"message":"sendrawtransaction RPC error: {\"code\":-26,\"message\":\"min relay fee not met, 189 < 293\"}"}), BdkUtilError::MinRelayFeeNotMetError)]
     #[test]
-    fn test_convert_bdk_error_to_bdk_util_error() {
-        match as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json!(
-            "sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"
-        )))) {
-            BdkUtilError::TransactionAlreadyInMempoolError => {},
-            other => panic!("Expected TransactionAlreadyInMempoolError, got {:?}", other),
-        }
+    fn test_convert_bdk_error_to_bdk_util_error(
+        #[case] json: serde_json::Value,
+        #[case] expected: BdkUtilError,
+    ) {
+        let actual = as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json)));
+        assert_eq!(actual.to_string(), expected.to_string());
     }
 }

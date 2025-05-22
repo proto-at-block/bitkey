@@ -19,6 +19,9 @@ url = { workspace = true }
 errors = { workspace = true }
 instrumentation = { workspace = true }
 
+[dev-dependencies]
+rstest = { workspace = true }
+
 [features]
 test-helpers = []
 

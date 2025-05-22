@@ -1,0 +1,12 @@
+CREATE TABLE securityRecommendationInteractionEntity (
+  recommendationId TEXT NOT NULL PRIMARY KEY,
+  interactionStatus TEXT NOT NULL,
+  lastInteractedAt INTEGER,
+  lastRecommendationTriggeredAt INTEGER NOT NULL,
+  recordUpdatedAt INTEGER NOT NULL
+);
+
+CREATE INDEX idx_securityRecommendationInteractionEntity_status
+ON securityRecommendationInteractionEntity(interactionStatus);
+
+PRAGMA foreign_key_check;

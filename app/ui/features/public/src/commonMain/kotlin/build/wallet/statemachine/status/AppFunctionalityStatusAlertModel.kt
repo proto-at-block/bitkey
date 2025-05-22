@@ -23,7 +23,7 @@ fun AppFunctionalityStatusAlertModel(
       is F8eUnreachable -> "Some features may not be available"
       is InternetUnreachable -> "Some functionality may not be available until you’re connected to the internet."
       InactiveApp -> "Your wallet is active on another phone"
-      EmergencyAccessMode -> "Some functionality is disabled in the Emergency Access Kit."
+      EmergencyAccessMode -> "Some functionality is disabled in Emergency Exit Mode."
     },
   onDismiss = onDismiss,
   primaryButtonText = "OK",

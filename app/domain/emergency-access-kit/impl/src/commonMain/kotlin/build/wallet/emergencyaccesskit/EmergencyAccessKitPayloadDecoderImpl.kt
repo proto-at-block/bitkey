@@ -46,7 +46,7 @@ class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
   ): Result<EmergencyAccessKitPayload, DecodeError> {
     return coroutineBinding {
       val data = catchingResult {
-        // The EAK payload in the PDF has line breaks to allow it to wrap appropriately.
+        // The EEK payload in the PDF has line breaks to allow it to wrap appropriately.
         // Filter for only valid base58 characters to ensure that it can be parsed.
         val filter = Regex("[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]")
         filter.replace(encodedString, "").decodeBase58()
@@ -63,7 +63,7 @@ class EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDecoder {
         .toResultOr { InvalidBackupVersion }
         .flatMap { it.toEmergencyAccessKitPayload() }
         .bind()
-    }.logFailure { "Emergency Access Kit decrypted payload failed to decode" }
+    }.logFailure { "Emergency Exit Kit decrypted payload failed to decode" }
   }
 
   override suspend fun encodeBackup(backupV1: EmergencyAccessKitBackup): ByteString {

@@ -36,7 +36,8 @@ use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
 use types::account::bitcoin::Network;
 use types::account::identifiers::AccountId;
-use types::account::spend_limit::{Money, SpendingLimit};
+use types::account::money::Money;
+use types::account::spend_limit::SpendingLimit;
 use types::currencies::CurrencyCode::USD;
 use ulid::Ulid;
 

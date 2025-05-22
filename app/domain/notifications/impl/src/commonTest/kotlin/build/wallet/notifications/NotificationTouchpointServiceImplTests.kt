@@ -40,13 +40,7 @@ class NotificationTouchpointServiceImplTests : FunSpec({
     RecoveryNotificationVerificationF8eClientMock(turbine = turbines::create)
   val accountService = AccountServiceFake()
   val accountConfigService = AccountConfigServiceFake()
-  val service = NotificationTouchpointServiceImpl(
-    notificationTouchpointF8eClient = notificationTouchpointF8eClient,
-    notificationTouchpointDao = notificationTouchpointDao,
-    recoveryNotificationVerificationF8eClient = recoveryNotificationVerificationF8eClient,
-    accountService = accountService,
-    accountConfigService = accountConfigService
-  )
+  lateinit var service: NotificationTouchpointServiceImpl
 
   beforeTest {
     accountService.reset()
@@ -54,6 +48,14 @@ class NotificationTouchpointServiceImplTests : FunSpec({
     notificationTouchpointF8eClient.reset()
     recoveryNotificationVerificationF8eClient.reset()
     accountConfigService.reset()
+
+    service = NotificationTouchpointServiceImpl(
+      notificationTouchpointF8eClient = notificationTouchpointF8eClient,
+      notificationTouchpointDao = notificationTouchpointDao,
+      recoveryNotificationVerificationF8eClient = recoveryNotificationVerificationF8eClient,
+      accountService = accountService,
+      accountConfigService = accountConfigService
+    )
   }
 
   context("has active Full Account") {

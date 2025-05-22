@@ -18,7 +18,7 @@ data class ProblemWithCloudBackupFormModel(
     toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
     header = FormHeaderModel(
       headline = "There’s an problem with your ${cloudServiceProvider().name} backup",
-      subline = "Tap your Bitkey device to create a new Mobile Key backup and save it to your ${cloudServiceProvider().name} account"
+      subline = "Tap your Bitkey device to create a new App Key backup and save it to your ${cloudServiceProvider().name} account"
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Continue",

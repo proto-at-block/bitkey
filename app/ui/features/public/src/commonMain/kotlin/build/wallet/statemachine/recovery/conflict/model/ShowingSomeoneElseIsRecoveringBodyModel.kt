@@ -50,11 +50,11 @@ data class ShowingSomeoneElseIsRecoveringBodyModel(
   )
 
 private const val LOST_HW_SUBLINE_BOLD =
-  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your mobile key recovery on this phone."
+  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your App Key recovery on this phone."
 private const val LOST_HW_SUBLINE = """
 We’ve detected an attempt to replace your Bitkey hardware device using the mobile phone currently active with your wallet.
   
-If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your mobile key recovery on this phone.
+If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your App Key recovery on this phone.
 
 If you are attempting to replace your currently paired Bitkey hardware device, please proceed with the recovery process on your active phone."""
 

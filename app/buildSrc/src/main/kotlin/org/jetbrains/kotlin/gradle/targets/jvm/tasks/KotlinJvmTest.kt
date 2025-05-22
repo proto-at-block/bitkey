@@ -8,15 +8,15 @@
 package org.jetbrains.kotlin.gradle.targets.jvm.tasks
 
 import org.gradle.api.internal.tasks.testing.JvmTestExecutionSpec
+import org.gradle.api.internal.tasks.testing.TestDescriptorInternal
 import org.gradle.api.internal.tasks.testing.TestExecuter
 import org.gradle.api.internal.tasks.testing.TestResultProcessor
+import org.gradle.api.internal.tasks.testing.TestStartEvent
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.testing.Test
 import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.gradle.plugin.UsesVariantImplementationFactories
-import org.jetbrains.kotlin.gradle.plugin.internal.MppTestReportHelper
-import org.jetbrains.kotlin.gradle.plugin.variantImplementationFactoryProvider
 
 @DisableCachingByDefault
 abstract class KotlinJvmTest : Test(), UsesVariantImplementationFactories {
@@ -35,26 +35,13 @@ abstract class KotlinJvmTest : Test(), UsesVariantImplementationFactories {
   @Optional
   var targetName: String? = null
 
-  private val testReporter =
-    project
-      .variantImplementationFactoryProvider<MppTestReportHelper.MppTestReportHelperVariantFactory>()
-      .map { it.getInstance() }
-
   override fun createTestExecuter(): TestExecuter<JvmTestExecutionSpec> =
-    if (targetName != null) {
-      Executor(
-        super.createTestExecuter(),
-        targetName!!,
-        testReporter.get()
-      )
-    } else {
-      super.createTestExecuter()
-    }
+    targetName?.let { Executor(super.createTestExecuter(), it) }
+      ?: super.createTestExecuter()
 
   class Executor(
     private val delegate: TestExecuter<JvmTestExecutionSpec>,
     private val targetName: String,
-    private val testReporter: MppTestReportHelper,
   ) : TestExecuter<JvmTestExecutionSpec> by delegate {
     override fun execute(
       testExecutionSpec: JvmTestExecutionSpec,
@@ -62,7 +49,21 @@ abstract class KotlinJvmTest : Test(), UsesVariantImplementationFactories {
     ) {
       delegate.execute(
         testExecutionSpec,
-        testReporter.createDelegatingTestReportProcessor(testResultProcessor, targetName)
+        object : TestResultProcessor by testResultProcessor {
+          override fun started(
+            test: TestDescriptorInternal,
+            event: TestStartEvent,
+          ) {
+            val myTest = object : TestDescriptorInternal by test {
+              override fun getDisplayName(): String = "${test.displayName}[$targetName]"
+
+              override fun getClassName(): String? = test.className?.replace('$', '.')
+
+              override fun getClassDisplayName(): String? = test.classDisplayName?.replace('$', '.')
+            }
+            testResultProcessor.started(myTest, event)
+          }
+        }
       )
     }
   }

@@ -1,16 +1,86 @@
 #!/bin/bash
 
+validateInputs() {
+  local docker_name="$1"
+  local android_flavor="$2"
+  local output_directory="$3"
+  
+  if [[ "$docker_name" =~ [^a-zA-Z0-9_.-] ]]; then
+    echo "Error: Invalid docker name" >&2
+    return 1
+  fi
+  
+  if [[ "$android_flavor" =~ [^a-zA-Z0-9_] ]]; then
+    echo "Error: Invalid android flavor" >&2
+    return 1
+  fi
+  
+  if [[ ! -d "$output_directory" ]]; then
+    echo "Error: Output directory does not exist" >&2
+    return 1
+  fi
+  
+  return 0
+}
+
 buildAabUsingDockerContainer() {
   local docker_name="$1"
   local android_flavor="$2"
   local output_directory="$3"
   local upload_bugsnag_mapping="$4"
 
-  docker run --platform=linux/amd64 --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" -e UPLOAD_BUGSNAG_MAPPING="$upload_bugsnag_mapping" "$docker_name" 'sleep infinity' || exit $?
+  validateInputs "$docker_name" "$android_flavor" "$output_directory" || return $?
 
-  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:bundle$ANDROID_FLAVOR --no-daemon --no-build-cache --no-configuration-cache;' || exit $?
+  # Despite our best efforts, some gradle plugins add non-deterministic files
+  # to the build (like build times). We remove them from the aab to make it
+  # deterministic.
+  local -a files_to_remove=(
+    "BUNDLE-METADATA/com.android.tools/r8.json"
+    # Add additional files to remove here, one per line
+  )
 
-  docker cp "$docker_name":/build/app/android/app/_build/outputs "$output_directory" || exit $?
+  local build_outputs="/build/app/android/app/_build/outputs"
+  local build_script='
+    set -e
+
+    source bin/activate-hermit
+    cd app
+    
+    aab_path="/build/app/android/app/_build/outputs/bundle/${ANDROID_FLAVOR}/app-${ANDROID_FLAVOR}.aab"
+    staging_dir="${ANDROID_FLAVOR}-modify"
+
+    gradle :android:app:bundle${ANDROID_FLAVOR} --no-daemon --no-build-cache --no-configuration-cache
+
+    mkdir -p "${staging_dir}"
+    unzip -q "${aab_path}" -d "${staging_dir}"
+    cd "${staging_dir}"
+
+    if [ -n "$FILES_TO_REMOVE_LIST" ]; then
+      IFS="," read -ra FILES_TO_REMOVE_ARRAY <<< "$FILES_TO_REMOVE_LIST"
+      for file_to_remove in "${FILES_TO_REMOVE_ARRAY[@]}"; do
+        if [ -n "$file_to_remove" ]; then
+          rm -f "$file_to_remove"
+        fi
+      done
+    fi
+
+    find . -exec touch -t $(git log -1 --date=format:"%Y%m%d%H%M" --format="%ad") {} +
+    zip -rq -D -X -9 -A --compression-method deflate "${aab_path}.zip" *
+
+    cd ..
+    mv "${aab_path}.zip" "${aab_path}"
+    rm -rf "${staging_dir}"
+  '
+
+  local files_to_remove_str=$(IFS=,; echo "${files_to_remove[*]}")
+
+  docker run --platform=linux/amd64 --name "${docker_name}" \
+    -e ANDROID_FLAVOR="${android_flavor}" \
+    -e UPLOAD_BUGSNAG_MAPPING="${upload_bugsnag_mapping}" \
+    -e FILES_TO_REMOVE_LIST="${files_to_remove_str}" \
+    "${docker_name}" "${build_script}" || return $?
+
+  docker cp "${docker_name}:${build_outputs}" "${output_directory}" || return $?
 }
 
 buildApkUsingDockerContainer() {
@@ -19,17 +89,33 @@ buildApkUsingDockerContainer() {
   local output_directory="$3"
   local upload_bugsnag_mapping="$4"
 
-  docker run --platform=linux/amd64 --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" -e UPLOAD_BUGSNAG_MAPPING="$upload_bugsnag_mapping" "$docker_name" 'sleep infinity' || exit $?
+  validateInputs "$docker_name" "$android_flavor" "$output_directory" || return $?
 
-  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:assemble$ANDROID_FLAVOR --no-daemon --no-build-cache --no-configuration-cache;' || exit $?
+  local build_outputs="/build/app/android/app/_build/outputs"
 
-  docker cp "$docker_name":/build/app/android/app/_build/outputs "$output_directory" || exit $?
+  local build_script='
+    set -e
+    source bin/activate-hermit
+    cd app
+    gradle :android:app:assemble${ANDROID_FLAVOR} --no-daemon --no-build-cache --no-configuration-cache
+  '
+
+  docker run --platform=linux/amd64 --name "${docker_name}" \
+    -e ANDROID_FLAVOR="${android_flavor}" \
+    -e UPLOAD_BUGSNAG_MAPPING="${upload_bugsnag_mapping}" \
+    "${docker_name}" "${build_script}" || return $?
+
+  docker cp "${docker_name}:${build_outputs}" "${output_directory}" || return $?
 }
 
 cleanUpDockerResources() {
   local docker_name="$1"
+  
+  if [[ "$docker_name" =~ [^a-zA-Z0-9_.-] ]]; then
+    echo "Error: Invalid docker name" >&2
+    return 1
+  fi
 
-  docker stop "$docker_name"
   docker container rm "$docker_name"
   docker image rm "$docker_name"
 }

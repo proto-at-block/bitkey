@@ -10,7 +10,7 @@ import build.wallet.statemachine.core.StateMachine
 import com.github.michaelbull.result.Result
 
 /**
- * State machine for adding a Trusted Contact. Manages generating and sending Invitation.
+ * State machine for adding a Recovery Contact. Manages generating and sending Invitation.
  */
 interface AddingTrustedContactUiStateMachine : StateMachine<AddingTrustedContactUiProps, ScreenModel>
 

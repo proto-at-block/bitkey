@@ -6,7 +6,9 @@ import bitkey.auth.AuthTokenScope
 import build.wallet.availability.AuthSignatureStatus.Authenticated
 import build.wallet.availability.AuthSignatureStatus.Unauthenticated
 import build.wallet.availability.F8eAuthSignatureStatusProvider
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
 import build.wallet.ensure
@@ -33,15 +35,7 @@ class AuthTokensServiceImpl(
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens, Error> {
     return coroutineBinding {
-      val appAuthPublicKey = appAuthPublicKeyProvider
-        .getAppAuthPublicKeyFromAccountOrRecovery(accountId, scope)
-        // Allow access token to be refreshed using the refresh token even if we don't have an
-        // account or recovery. If the refresh token is expired, we will fail later in this flow.
-        .recoverIf(
-          predicate = { it is AccountMissing },
-          transform = { null }
-        )
-        .bind()
+      val appAuthPublicKey = appAuthPublicKey(accountId, scope).bind()
 
       // Retrieve current auth tokens from local storage
       val authTokens = authTokenDao
@@ -52,12 +46,7 @@ class AuthTokensServiceImpl(
         .mapError(::AuthStorageError)
         .bind()
 
-      val accountConfig = accountConfigService.activeOrDefaultConfig().value
-      ensure(accountConfig.f8eEnvironment == f8eEnvironment) {
-        Error(
-          "Requested F8eEnvironment ($f8eEnvironment) does not match app's F8eEnvironment (${accountConfig.f8eEnvironment})"
-        )
-      }
+      validateF8eEnvironment(f8eEnvironment).bind()
 
       // Refresh auth tokens with f8e
       val newTokens = authF8eClient
@@ -69,34 +58,91 @@ class AuthTokensServiceImpl(
             // If we couldn't find an account or pending recovery, we won't be able to authenticate
             Err(AccountMissing)
           } else {
-            accountAuthenticator
-              .appAuth(appAuthPublicKey, scope)
-              .logAuthFailure { "Error when re-authenticating with app key" }
-              .map { it.authTokens }
-              .onSuccess {
-                // If able to authenticate with app key, mark the auth signature as authenticated
-                f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Authenticated)
-              }
-              .onFailure { error ->
-                // If unable to authenticate with app key due to a signature mismatch, mark the auth
-                // status as unauthenticated
-                if (error is AuthSignatureMismatch) {
-                  f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
-                }
-              }
+            performAppAuth(appAuthPublicKey, scope)
           }
         }
         .bind()
 
       // Update auth tokens in local storage
-      authTokenDao
-        .setTokensOfScope(accountId, newTokens, scope)
-        .mapError(::AuthStorageError)
-        .bind()
+      storeAuthTokens(accountId, newTokens, scope).bind()
 
       newTokens
     }.logFailure { "Error refreshing access token for active or onboarding keybox for $accountId" }
   }
+
+  override suspend fun refreshRefreshTokenWithApp(
+    f8eEnvironment: F8eEnvironment,
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ): Result<AccountAuthTokens, Error> {
+    return coroutineBinding {
+      val appAuthPublicKey = appAuthPublicKey(accountId, scope).bind()
+      validateF8eEnvironment(f8eEnvironment).bind()
+
+      ensure(appAuthPublicKey != null) {
+        Error(AccountMissing)
+      }
+
+      // Reauthenticate with f8e
+      val newTokens = performAppAuth(appAuthPublicKey, scope).bind()
+      // Update auth tokens in local storage
+      storeAuthTokens(accountId, newTokens, scope).bind()
+
+      newTokens
+    }.logFailure { "Error refreshing refresh token for active or onboarding keybox for $accountId" }
+  }
+
+  private suspend fun appAuthPublicKey(
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ) = appAuthPublicKeyProvider
+    .getAppAuthPublicKeyFromAccountOrRecovery(accountId, scope)
+    // Allow tokens to be refreshed even if we don't have an account or recovery.
+    .recoverIf(
+      predicate = { it is AccountMissing },
+      transform = { null }
+    )
+
+  private suspend fun storeAuthTokens(
+    accountId: AccountId,
+    newTokens: AccountAuthTokens,
+    scope: AuthTokenScope,
+  ) = authTokenDao
+    .setTokensOfScope(accountId, newTokens, scope)
+    .mapError(::AuthStorageError)
+
+  private suspend fun validateF8eEnvironment(
+    f8eEnvironment: F8eEnvironment,
+  ): Result<F8eEnvironment, Error> {
+    return coroutineBinding {
+      val accountConfig = accountConfigService.activeOrDefaultConfig().value
+      ensure(accountConfig.f8eEnvironment == f8eEnvironment) {
+        Error(
+          "Requested F8eEnvironment ($f8eEnvironment) does not match app's F8eEnvironment (${accountConfig.f8eEnvironment})"
+        )
+      }
+      accountConfig.f8eEnvironment
+    }
+  }
+
+  private suspend fun performAppAuth(
+    appAuthPublicKey: PublicKey<out AppAuthKey>,
+    scope: AuthTokenScope,
+  ) = accountAuthenticator
+    .appAuth(appAuthPublicKey, scope)
+    .logAuthFailure { "Error when re-authenticating with App Key" }
+    .map { it.authTokens }
+    .onSuccess {
+      // If able to authenticate with App Key, mark the auth signature as authenticated
+      f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Authenticated)
+    }
+    .onFailure { error ->
+      // If unable to authenticate with App Key due to a signature mismatch, mark the auth
+      // status as unauthenticated
+      if (error is AuthSignatureMismatch) {
+        f8eAuthSignatureStatusProvider.updateAuthSignatureStatus(Unauthenticated)
+      }
+    }
 
   override suspend fun getTokens(
     accountId: AccountId,

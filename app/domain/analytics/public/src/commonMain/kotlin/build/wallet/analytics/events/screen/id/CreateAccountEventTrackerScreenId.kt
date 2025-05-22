@@ -16,7 +16,7 @@ enum class CreateAccountEventTrackerScreenId : EventTrackerScreenId {
   /** The customer encountered a generic hardware error when trying to create a new account. */
   NEW_ACCOUNT_CREATION_HW_FAILURE,
 
-  /** Error screen shown when we failed to generate app keys. Should rarely, if ever, happen. */
+  /** Error screen shown when we failed to generate App Keys. Should rarely, if ever, happen. */
   APP_KEYS_CREATION_FAILURE,
 
   /** Loading screen shown when we are determining which onboarding step to show. */

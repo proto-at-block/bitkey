@@ -11,7 +11,7 @@ import kotlin.jvm.JvmInline
  * [HwAuthPublicKey]. Meaning that if the [AppGlobalAuthPublicKey] or [HwAuthPublicKey] are rotated,
  * a new signature needs to be created using new [AppGlobalAuthPublicKey] and a [HwAuthPublicKey].
  *
- * This signature is used by a PC app to be able to verify the authenticity of a TC's key
+ * This signature is used by a PC app to be able to verify the authenticity of a RC's key
  * certificate.
  *
  * See [TrustedContactKeyCertificate] for more details.

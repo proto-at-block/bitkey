@@ -496,7 +496,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 
@@ -632,7 +632,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 
@@ -773,7 +773,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 
@@ -908,7 +908,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 
@@ -1055,7 +1055,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 
@@ -1175,7 +1175,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Generating TC certs with new auth keys
+      // Generating RC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       relationshipsService.syncCalls.awaitItem()
 

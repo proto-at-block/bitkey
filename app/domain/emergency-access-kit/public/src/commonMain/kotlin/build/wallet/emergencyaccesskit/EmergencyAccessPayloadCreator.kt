@@ -8,7 +8,7 @@ interface EmergencyAccessPayloadCreator {
   /**
    * Creates an [EmergencyAccessKitPayload] backup from a [Keybox].
    *
-   * @param keybox used to generate the emergency access kit payload.
+   * @param keybox used to generate the Emergency Exit Kit payload.
    * @param sealedCsek the sealed CSEK to use to encrypt the backup. Expected that as this point,
    * unsealed [Csek] is persisted in [CsekDao]. If not, returns [CsekMissing] error.
    */

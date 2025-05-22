@@ -12,6 +12,7 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRateServiceFake
@@ -29,7 +30,6 @@ import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpConfirmationModel
 import build.wallet.statemachine.utxo.UtxoConsolidationSpeedUpTransactionSentModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.collections.shouldContainExactly
 
 class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
 
@@ -100,7 +100,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>()
 
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(PsbtMock)
+        awaitUntil(listOf(PsbtMock))
       }
 
       awaitBodyMock<TransferInitiatedUiProps>("transfer-initiated") {
@@ -128,7 +128,7 @@ class FeeBumpConfirmationUiStateMachineImplTests : FunSpec({
       awaitBody<LoadingSuccessBodyModel>()
 
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(PsbtMock)
+        awaitUntil(listOf(PsbtMock))
       }
 
       awaitBody<UtxoConsolidationSpeedUpTransactionSentModel> {

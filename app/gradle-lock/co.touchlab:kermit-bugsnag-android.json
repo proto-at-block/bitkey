@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:kermit-bugsnag-android",
     "components": [
         {
-            "version": "2.0.4",
+            "version": "2.0.5",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-bugsnag-release.aar": "445a2b31ca34ec17cacad26ba9e3ada3ec691c46fdbf45a0a937614b923445bb"
+                        "kermit-bugsnag-release.aar": "887a1f4d8646e2a139d02dc21dbaf20b3d5ef406f7b5977176f2321dfd3fbc90"
                     }
                 }
             ],

@@ -21,10 +21,14 @@ import kotlin.time.Duration
 
 /**
  * Model to represent the screen in which the user is waiting for their
- * delay time to pass so that they can recover their mobile key
+ * delay time to pass so that they can recover their App Key
  * https://www.figma.com/file/XH6G74MVgS7x0WGvomq80f/Lost-Mobile-Key?node-id=354%3A19029&t=8ZQiMO2gZLaoROx7-0
  */
 data class AppDelayNotifyInProgressBodyModel(
+  val headline: String = "Recovery in progress...",
+  val delayInfoText: String = "Your new App Key will be ready for creation on this phone after our security delay.",
+  val cancelWarningText: String = "If you didn’t authorize this replacement, press “Cancel recovery” above.",
+  val cancelText: String = "Cancel recovery",
   val onStopRecovery: () -> Unit,
   val durationTitle: String,
   val progress: Progress,
@@ -41,7 +45,7 @@ data class AppDelayNotifyInProgressBodyModel(
     },
     trailingAccessory = ButtonAccessory(
       model = ButtonModel(
-        text = "Cancel recovery",
+        text = cancelText,
         treatment = TertiaryDestructive,
         size = Compact,
         onClick = StandardClick { onStopRecovery() }
@@ -49,15 +53,15 @@ data class AppDelayNotifyInProgressBodyModel(
     )
   )
   val header = FormHeaderModel(
-    headline = "Recovery in progress...",
+    headline = headline,
     subline = buildString {
       append(
-        "Your new mobile key will be ready for creation on this phone after our security delay."
+        delayInfoText
       )
       appendLine()
       appendLine()
       appendLine(
-        "If you didn’t authorize this replacement, press “Cancel recovery” above."
+        cancelWarningText
       )
     }
   )

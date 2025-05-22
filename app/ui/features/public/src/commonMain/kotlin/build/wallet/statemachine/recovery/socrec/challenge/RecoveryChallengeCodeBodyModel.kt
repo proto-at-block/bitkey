@@ -24,7 +24,7 @@ data class RecoveryChallengeCodeBodyModel(
     toolbar = ToolbarModel(),
     header = FormHeaderModel(
       headline = "Share Recovery Code",
-      subline = "Call your Trusted Contact and have them enter this code within their app."
+      subline = "Call your Recovery Contact and have them enter this code within their app."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(

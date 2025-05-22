@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.turbine:turbine-iossimulatorarm64",
     "components": [
         {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "Turbine-iossimulatorarm64-metadata.jar": "9afe838ade6ddb0f13c3f6b36facf4aa60965f960494725bfe0f2e4dfb58ba70"
+                        "Turbine-iossimulatorarm64-metadata.jar": "25b86da33e35e82bb6620441d881921fdf09db4267b85ece543fae78201ec99a"
                     }
                 },
                 {
                     "artifacts": {
-                        "Turbine.klib": "66d4d6a6d53b2b75770a7eb03a30141846682d7812044485ca2d1ed1ac43a11a"
+                        "Turbine.klib": "1d8e40b923f30eeb66aabd3ce62b6aa3fc0891fabe252cca6d3e0d646c5960e7"
                     }
                 }
             ],

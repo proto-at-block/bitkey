@@ -2,11 +2,11 @@
     "module-identifier": "androidx.emoji2:emoji2-views-helper",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "emoji2-views-helper-1.4.0.aar": "ed5d3ed772a5fbf0d570f7526f585cd61a180e60f9372584c328a68e2cff3375"
+                        "emoji2-views-helper-1.5.0.aar": "ae6c4d0c1b4711fbbce1fa6bd94c53f8eb129c8d2cd313cffa3a76fb9e33449a"
                     }
                 }
             ],

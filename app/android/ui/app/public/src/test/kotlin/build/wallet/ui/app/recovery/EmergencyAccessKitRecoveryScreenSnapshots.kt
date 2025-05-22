@@ -11,7 +11,7 @@ import io.kotest.core.spec.style.FunSpec
 class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("emergency access import your wallet method selection screen") {
+  test("Emergency Exit Kit import your wallet method selection screen") {
     paparazzi.snapshot {
       FormScreen(
         model = EmergencyAccessKitImportWalletBodyModel(
@@ -23,7 +23,7 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
     }
   }
 
-  test("emergency access paste your mobile key screen") {
+  test("Emergency Exit Kit paste your App Key screen") {
     paparazzi.snapshot {
       FormScreen(
         model = EmergencyAccessKitImportPasteMobileKeyBodyModel(
@@ -37,7 +37,7 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
     }
   }
 
-  test("emergency access code not recognized error screen") {
+  test("Emergency Exit Kit code not recognized error screen") {
     paparazzi.snapshot {
       FormScreen(
         model = EmergencyAccessKitCodeNotRecognizedBodyModel(
@@ -50,7 +50,7 @@ class EmergencyAccessKitRecoveryScreenSnapshots : FunSpec({
     }
   }
 
-  test("emergency access restore your wallet screen") {
+  test("Emergency Exit Kit restore your wallet screen") {
     paparazzi.snapshot {
       FormScreen(
         model = EmergencyAccessKitRestoreWalletBodyModel(

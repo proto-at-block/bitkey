@@ -62,7 +62,7 @@ You'll need:
 4. Export AAPT2
 
     ```sh
-    export AAPT2="$ANDROID_HOME/build-tools/34.0.0/aapt2"
+    export AAPT2="$ANDROID_HOME/build-tools/35.0.0/aapt2"
     ```
 
 5. Connect your phone using USB and make sure it's authorized for USB debugging

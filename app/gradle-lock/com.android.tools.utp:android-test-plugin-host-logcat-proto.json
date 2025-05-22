@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-logcat-proto",
     "components": [
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-logcat-proto-31.5.2.jar": "9129024bd8e38353bca3eb26dfd8e3628e058d57d6e9d8451ffc35f016751e63"
+                        "android-test-plugin-host-logcat-proto-31.9.1.jar": "c1f6ebbacdad559b6efe4eaa29561552b33156395f069cd9703fda09c462dea6"
                     }
                 }
             ],

@@ -25,9 +25,6 @@ class MobileKeyBackupHealthActionFactoryImpl(
       return flowOf(null)
     }
     return cloudBackupHealthRepository.mobileKeyBackupStatus()
-      .filterNotNull()
-      .map {
-        MobileKeyBackupHealthAction(it)
-      }
+      .map { it?.let(::MobileKeyBackupHealthAction) }
   }
 }

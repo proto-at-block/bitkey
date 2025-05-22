@@ -23,7 +23,7 @@ class EmergencyAccessKitTemplateProviderImpl(
       val resourceBytes =
         rawResourceBytes(
           application,
-          R.raw.emergency_access_kit_template_000
+          R.raw.emergency_exit_kit_template_000
         )
       return Ok(resourceBytes)
     }

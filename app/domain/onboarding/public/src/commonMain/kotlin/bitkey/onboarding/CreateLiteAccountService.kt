@@ -3,7 +3,8 @@ package bitkey.onboarding
 import bitkey.account.LiteAccountConfig
 import bitkey.f8e.error.F8eError
 import bitkey.f8e.error.code.CreateAccountClientErrorCode
-import build.wallet.auth.*
+import build.wallet.auth.AuthError
+import build.wallet.auth.AuthNetworkError
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.ktor.result.HttpError
 import com.github.michaelbull.result.Result
@@ -54,7 +55,7 @@ sealed class LiteAccountCreationError : Error() {
     get() {
       return when (this) {
         is LiteAccountCreationF8eError -> f8eError is F8eError.ConnectivityError
-        is LiteAccountCreationAuthError -> (authError as AuthNetworkError).cause is HttpError.NetworkError
+        is LiteAccountCreationAuthError -> authError is AuthNetworkError && authError.cause is HttpError.NetworkError
         else -> false
       }
     }

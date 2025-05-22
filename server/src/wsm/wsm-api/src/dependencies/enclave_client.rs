@@ -13,8 +13,8 @@ use tracing::{event, instrument};
 
 use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::api::{
-    AttestationDocResponse, EvaluatePinRequest, EvaluatePinResponse, NoiseInitiateBundleRequest,
-    NoiseInitiateBundleResponse,
+    AttestationDocResponse, EvaluatePinRequest, EvaluatePinResponse, GrantRequest, GrantResponse,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse,
 };
 use wsm_common::messages::enclave::{
     DerivedKey, EnclaveContinueDistributedKeygenRequest, EnclaveContinueDistributedKeygenResponse,
@@ -267,6 +267,18 @@ impl EnclaveClient {
         if result.status() != 200 {
             bail!("Error from the enclave: {}", result.text().await?);
         }
+        Ok(result.json().await?)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn approve_grant(&self, request: GrantRequest) -> anyhow::Result<GrantResponse> {
+        self.load_integrity_key().await?;
+        let result = self
+            .client
+            .post(self.endpoint.join("approve-grant")?)
+            .json(&request)
+            .send()
+            .await?;
         Ok(result.json().await?)
     }
 

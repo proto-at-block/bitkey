@@ -22,20 +22,20 @@ import kotlinx.collections.immutable.toImmutableList
 private const val TRUSTED_CONTACT_COUNT_LIMIT = 3
 
 /**
- * Data used in the TC Management screen.
+ * Data used in the RC Management screen.
  */
 data class TrustedContactsListBodyModel(
   /**
-   * List of the current user's trusted contacts to be displayed.
+   * List of the current user's Recovery Contacts to be displayed.
    */
   val contacts: List<EndorsedTrustedContact>,
   /**
-   * List of the current user's trusted contacts to be displayed.
+   * List of the current user's Recovery Contacts to be displayed.
    */
   val invitations: List<Invitation>,
   /**
    * List of the current user's protected customers
-   * (i.e. customers they are serving as Trusted Contact for) to be displayed.
+   * (i.e. customers they are serving as Recovery Contact for) to be displayed.
    */
   val protectedCustomers: List<ProtectedCustomer>,
   /**
@@ -47,7 +47,7 @@ data class TrustedContactsListBodyModel(
    */
   val onAddPressed: () -> Unit,
   /**
-   * Invoked when the user clicks on a trusted contact or invitation in the list of contacts.
+   * Invoked when the user clicks on a Recovery Contact or invitation in the list of contacts.
    */
   val onContactPressed: (TrustedContact) -> Unit,
   /**
@@ -55,7 +55,7 @@ data class TrustedContactsListBodyModel(
    */
   val onProtectedCustomerPressed: (ProtectedCustomer) -> Unit,
   /**
-   * Invoked when the user clicks the accept invite action to become a Trusted Contact.
+   * Invoked when the user clicks the accept invite action to become a Recovery Contact.
    */
   val onAcceptInvitePressed: () -> Unit,
   val onBackPressed: () -> Unit,
@@ -63,13 +63,13 @@ data class TrustedContactsListBodyModel(
     id = TC_MANAGEMENT_SETTINGS_LIST,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBackPressed)),
     header = FormHeaderModel(
-      headline = "Trusted Contacts",
+      headline = "Recovery Contacts",
       subline = "Add people you trust to securely recover your wallet in case of lost access."
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.ListGroup(
         ListGroupModel(
-          header = "Your Trusted Contacts",
+          header = "Your Recovery Contacts",
           items = (contacts + invitations)
             .toListItems(now, onContactPressed)
             .toImmutableList(),
@@ -80,7 +80,7 @@ data class TrustedContactsListBodyModel(
             size = ButtonModel.Size.Footer,
             onClick = StandardClick(onAddPressed)
           ).takeIf {
-            // Determine if the user can invite more trusted contacts.
+            // Determine if the user can invite more Recovery Contacts.
             (invitations + contacts).size < TRUSTED_CONTACT_COUNT_LIMIT
           }
         )
@@ -108,7 +108,7 @@ data class TrustedContactsListBodyModel(
   )
 
 /**
- * Convert a list of recovery contacts to row items for a ListGroup.
+ * Convert a list of Recovery Contacts to row items for a ListGroup.
  */
 private fun List<TrustedContact>.toListItems(
   now: Long,
@@ -116,8 +116,8 @@ private fun List<TrustedContact>.toListItems(
 ) = map { contact ->
   ListItemModel(
     leadingAccessory =
-      ListItemAccessory.CircularCharacterAccessory(
-        character = contact.trustedContactAlias.alias.first().uppercaseChar()
+      ListItemAccessory.CircularCharacterAccessory.fromLetters(
+        contact.trustedContactAlias.alias
       ),
     title = contact.trustedContactAlias.alias,
     sideText = sideText(contact, now),

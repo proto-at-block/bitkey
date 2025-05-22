@@ -55,7 +55,7 @@ Your funds might be at risk.
 private const val CANCELED_APP_SUBLINE_BOLD =
   "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."
 private const val CANCELED_APP_SUBLINE = """
-Your paired mobile phone was used to cancel your mobile key recovery process on this phone.
+Your paired mobile phone was used to cancel your App Key recovery process on this phone.
   
 If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again.
 

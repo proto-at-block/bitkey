@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "dvlib-31.5.2.jar": "5ccc490258202850630c59eecb9d29a6c849bb17f10f4ca9017db649f72e481f"
+                        "dvlib-31.9.1.jar": "e3cf3fdc947788dee8d5baa76cb72a66571174bc4741edf0e3bab97a7ca90e1b"
                     }
                 }
             ],

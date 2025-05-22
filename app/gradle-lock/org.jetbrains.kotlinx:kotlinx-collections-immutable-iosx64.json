@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-collections-immutable-iosx64",
     "components": [
         {
-            "version": "0.3.7",
+            "version": "0.3.8",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-collections-immutable-iosx64-0.3.7-metadata.jar": "5eedf3101aa4327e2c837ebea86f7c7fe55aa41970e4232611c646c1ac58b836"
+                        "kotlinx-collections-immutable-iosx64-0.3.8-metadata.jar": "750bc7587a10dd70c514af0ccf8a72bbe2551ce74ab973c21b118538e0c2ab54"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-collections-immutable.klib": "195ab1515918b3cfca8169c6045d75663cef981b4a1bb398d649de520e1244a8"
+                        "kotlinx-collections-immutable.klib": "4cd757e7eeb9a9455f0f252c7bb26372122151c87984491ae06f429b3066cb8c"
                     }
                 }
             ],

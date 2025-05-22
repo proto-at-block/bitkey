@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
  *
  * Contains hardware-encrypted private material (spending and auth keys).
  *
- * Also contains trusted contact information for Social Recovery, however the
+ * Also contains Recovery Contact information for Social Recovery, however the
  * instance of this backup does not yet contain a Recovery authentication key,
  * thus it's not possible to perform Social Recovery using this backup.
  */
@@ -30,7 +30,7 @@ data class FullAccountFields(
   /** Private key encryption key encrypted by Bitkey hardware's encryption key. */
   val sealedHwEncryptionKey: SealedCsek,
   /**
-   * TC RelationshipId -> socRecEncryptionKeyCiphertext.
+   * RC RelationshipId -> socRecEncryptionKeyCiphertext.
    * Contains data required for SocRec recovery.
    */
   override val socRecSealedDekMap: Map<String, XCiphertext>,

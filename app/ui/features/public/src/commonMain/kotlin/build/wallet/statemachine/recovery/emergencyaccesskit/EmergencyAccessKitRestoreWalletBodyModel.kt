@@ -20,7 +20,7 @@ data class EmergencyAccessKitRestoreWalletBodyModel(
     ),
     header = FormHeaderModel(
       headline = "Restore your wallet",
-      subline = "Access your wallet on this phone using the Emergency Access backup of your mobile key, with approval from your Bitkey device."
+      subline = "Access your wallet on this phone using the Emergency Exit Kit backup of your App Key, with approval from your Bitkey device."
     ),
     primaryButton = ButtonModel.BitkeyInteractionButtonModel(
       text = "Restore Bitkey Wallet",

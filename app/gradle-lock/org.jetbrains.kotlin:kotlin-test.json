@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-test",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-test-2.0.21-all.jar": "da2868fa95a3fb8f35e2b4e331ca2e29321486701965ec766bae820f98e0277c"
+                        "kotlin-test-2.1.20-all.jar": "d3b7cf9622b74e8ea4c0d36f4bd5ff9d1d31b32fe350e46e082047c5be3c6a57"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-test-2.0.21.jar": "a897b28c6a3ea8ec8f00ed766941a0c0df993d7f65908875879868e08ceb8985"
+                        "kotlin-test-2.1.20.jar": "0028b5c74191184519f60e727c5aa4e5d7e3ac04fc0bed559f49d37165dec961"
                     }
                 }
             ],

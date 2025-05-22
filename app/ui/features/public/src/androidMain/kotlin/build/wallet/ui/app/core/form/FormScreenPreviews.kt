@@ -424,8 +424,7 @@ fun AppearancePreferencePreview() {
         onBitcoinDisplayPreferenceClick = {},
         onEnableHideBalanceChanged = {},
         themePreferenceString = "Light",
-        onThemePreferenceClick = {},
-        isThemePreferenceEnabled = true
+        onThemePreferenceClick = {}
       )
   )
 }

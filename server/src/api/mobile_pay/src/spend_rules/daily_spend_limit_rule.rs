@@ -1,14 +1,14 @@
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::database::AnyDatabase;
-use bdk_utils::bdk::Wallet;
-use time::OffsetDateTime;
-
 use super::Rule;
 use crate::daily_spend_record::entities::SpendingEntry;
 use crate::entities::Features;
 use crate::metrics;
 use crate::spend_rules::errors::SpendRuleCheckError;
-use crate::util::{get_total_outflow_for_psbt, total_sats_spent_today};
+use crate::util::total_sats_spent_today;
+use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
+use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::Wallet;
+use bdk_utils::get_total_outflow_for_psbt;
+use time::OffsetDateTime;
 
 pub(crate) struct DailySpendingLimitRule<'a> {
     wallet: &'a Wallet<AnyDatabase>,
@@ -78,7 +78,8 @@ mod tests {
     use exchange_rate::currency_conversion::sats_for;
     use exchange_rate::service::Service as ExchangeRateService;
     use time::{macros::datetime, Duration, OffsetDateTime, UtcOffset};
-    use types::account::spend_limit::{Money, SpendingLimit};
+    use types::account::money::Money;
+    use types::account::spend_limit::SpendingLimit;
     use types::currencies::CurrencyCode::USD;
     use types::exchange_rate::local_rate_provider::LocalRateProvider;
 

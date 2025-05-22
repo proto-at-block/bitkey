@@ -13,8 +13,6 @@ import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.account.Account
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.router.Router
@@ -56,8 +54,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
       ) {},
     deviceInfoProvider = DeviceInfoProviderMock(),
     eventTracker = eventTracker,
-    accountConfigService = appConfigService,
-    inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
+    accountConfigService = appConfigService
   )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -144,7 +141,7 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("TC enrollment on retreat calls props.onBack") {
+  test("RC enrollment on retreat calls props.onBack") {
     stateMachine.test(props) {
       awaitBody<EnteringInviteCodeBodyModel> {
         onValueChange("code")

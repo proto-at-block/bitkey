@@ -52,7 +52,7 @@ data class RecoveryConflictBodyModel(
                 )
                 appendLine()
                 appendLine(
-                  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your mobile key recovery on this phone."
+                  "If you didn’t initiate this recovery, please tap “Cancel conflicting recovery” before proceeding with your App Key recovery on this phone."
                 )
                 appendLine()
                 appendLine(

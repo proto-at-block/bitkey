@@ -230,7 +230,7 @@ class WipingDeviceIntroUiStateMachineImpl(
       header = FormHeaderModel(
         headline = "Permanently wipe your device",
         subline = "Always pair a new Bitkey device before wiping your current device.\n\n" +
-          "If you lose your phone and do not have Trusted Contacts set up before a new device is paired you will permanently lose access to your funds."
+          "If you lose your phone and do not have Recovery Contacts set up before a new device is paired you will permanently lose access to your funds."
       ),
       primaryButton = ButtonModel(
         text = "Wipe device",

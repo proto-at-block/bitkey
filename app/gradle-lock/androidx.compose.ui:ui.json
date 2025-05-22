@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui",
     "components": [
         {
-            "version": "1.7.6",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-metadata-1.7.6.jar": "0db108477257620c685b18e3541ced4c6a0c1172bd6ae6a0836e8ead5c408ad9"
+                        "ui-metadata-1.8.0.jar": "60510ddf51293eea169ab9d97ee3d9c81e026ad6d1afb2a6a8436341dd8d381f"
                     }
                 }
             ],

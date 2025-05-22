@@ -9,6 +9,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.limit.DailySpendingLimitStatus
 import build.wallet.limit.MobilePayEnabledDataMock
@@ -152,7 +153,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(appAndHwSignedPsbt)
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(appAndHwSignedPsbt)
       }
 
       // ReceivedBdkError
@@ -197,7 +198,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
       }
 
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }
 
@@ -263,7 +264,7 @@ fun FunSpec.transferConfirmationUiStateMachineTests(
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       bitcoinWalletService.broadcastedPsbts.test {
-        awaitItem().shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
+        awaitUntil { it.isNotEmpty() }.shouldContainExactly(mobilePayService.signPsbtCalls.awaitItem())
       }
     }
 

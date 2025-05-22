@@ -107,7 +107,7 @@ class RelationshipsF8eClientFake(
     invitations += invitation
 
     backgroundScope.launch {
-      // Promote the invitation to a TC after some time:
+      // Promote the invitation to a RC after some time:
       delay(acceptInvitationDelay)
       if (invitations.remove(invitation)) {
         unendorsedTrustedContacts.add(
@@ -217,7 +217,7 @@ class RelationshipsF8eClientFake(
     endorsements: List<TrustedContactEndorsement>,
   ): Result<Unit, Error> {
     endorsements.forEach { (relationshipId, certificate) ->
-      // Find known unendorsed trusted contacts based on given endorsement
+      // Find known unendorsed Recovery Contacts based on given endorsement
       val unendorsedContact =
         unendorsedTrustedContacts.find { it.relationshipId == relationshipId.value }
 
@@ -225,7 +225,7 @@ class RelationshipsF8eClientFake(
         // Add new certificates
         keyCertificates += certificate
 
-        // Promote an unendorsed TC to an endorsed TC
+        // Promote an unendorsed RC to an endorsed RC
         unendorsedTrustedContacts.remove(unendorsedContact)
         endorsedTrustedContacts.add(
           EndorsedTrustedContact(

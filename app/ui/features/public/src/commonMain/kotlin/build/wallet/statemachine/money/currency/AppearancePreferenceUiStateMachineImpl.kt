@@ -56,8 +56,11 @@ class AppearancePreferenceUiStateMachineImpl(
       mutableStateOf(ShowingCurrencyPreferenceUiState(isHideBalanceEnabled = false))
     }
 
-    val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    val selectedThemePreference by themePreferenceService.themePreference().collectAsState(ThemePreference.System)
+    val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference
+      .collectAsState()
+
+    val selectedThemePreference by themePreferenceService.themePreference()
+      .collectAsState(ThemePreference.System)
 
     val isHideBalanceEnabled by remember {
       hideBalancePreference.isEnabled
@@ -76,7 +79,6 @@ class AppearancePreferenceUiStateMachineImpl(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
-          isThemePreferenceEnabled = themePreferenceService.isThemePreferenceEnabled,
           themePreferenceString = selectedThemePreference.displayText,
           onThemePreferenceClick = {
             state = ShowingThemeSelectionUiState(
@@ -119,7 +121,6 @@ class AppearancePreferenceUiStateMachineImpl(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
           isHideBalanceEnabled = isHideBalanceEnabled,
-          isThemePreferenceEnabled = themePreferenceService.isThemePreferenceEnabled,
           themePreferenceString = selectedTheme.displayText,
           onThemePreferenceClick = {},
           onFiatCurrencyPreferenceClick = {},
@@ -166,7 +167,6 @@ class AppearancePreferenceUiStateMachineImpl(
     props: AppearancePreferenceProps,
     selectedFiatCurrency: FiatCurrency,
     isHideBalanceEnabled: Boolean,
-    isThemePreferenceEnabled: Boolean,
     themePreferenceString: String,
     onThemePreferenceClick: () -> Unit,
     onFiatCurrencyPreferenceClick: () -> Unit,
@@ -252,7 +252,6 @@ class AppearancePreferenceUiStateMachineImpl(
           secondaryAmount = moneyHomeHeroSecondaryAmountString,
           isHidden = isHideBalanceEnabled
         ),
-      isThemePreferenceEnabled = isThemePreferenceEnabled,
       themePreferenceString = themePreferenceString,
       onThemePreferenceClick = onThemePreferenceClick,
       fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,

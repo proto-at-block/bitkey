@@ -15,15 +15,15 @@ use super::{error::ServiceError, Service};
 /// # Fields
 ///
 /// * `customer_account_id` - The customer account that is trying to endorse the recovery relationship
-/// * `trusted_contacts_to_endorse` - The list of trusted contacts to be endorsed. They include the recovery_relationship_id and the endorsement_key_certificate
+/// * `trusted_contacts_to_endorse` - The list of Recovery Contacts to be endorsed. They include the recovery_relationship_id and the endorsement_key_certificate
 pub struct EndorseRecoveryRelationshipsInput<'a> {
     pub customer_account_id: &'a AccountId,
     pub endorsements: Vec<RecoveryRelationshipEndorsement>,
 }
 
 impl Service {
-    /// This function allows the customer to endorse the recovery relationship after it has been accepted by the TC.
-    /// This ensures that in the future, the customer will be able to trust that Trusted Contact keys haven't been
+    /// This function allows the customer to endorse the recovery relationship after it has been accepted by the RC.
+    /// This ensures that in the future, the customer will be able to trust that Recovery Contact keys haven't been
     /// tampered with in transit.
     ///
     /// # Arguments

@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import build.wallet.activity.Transaction.BitcoinWalletTransaction
 import build.wallet.activity.Transaction.PartnershipTransaction
 import build.wallet.activity.TransactionsActivityService
-import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -28,22 +27,21 @@ class TransactionsActivityUiStateMachineImpl(
   override fun model(props: TransactionsActivityProps): TransactionsActivityModel? {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    val transactions by remember { transactionsActivityService.transactions }.collectAsState(
-      emptyImmutableList()
-    )
+    val transactions by remember { transactionsActivityService.transactions }
+      .collectAsState()
 
-    if (transactions.isEmpty()) return null
+    if (transactions.isNullOrEmpty()) return null
 
     val transactionsToShow = remember(transactions, props.transactionVisibility) {
       when (val visibility = props.transactionVisibility) {
         is All -> transactions
-        is Some -> transactions.take(visibility.numberOfVisibleTransactions).toImmutableList()
-      }
+        is Some -> transactions?.take(visibility.numberOfVisibleTransactions)?.toImmutableList()
+      } ?: error("Transactions should not be since we short circuit above")
     }
 
     val listModel = ListGroupModel(
       style = ListGroupStyle.NONE,
-      items = transactionsToShow.mapNotNull {
+      items = transactionsToShow.map {
         when (it) {
           is BitcoinWalletTransaction -> bitcoinTransactionItemUiStateMachine.model(
             props = BitcoinTransactionItemUiProps(
@@ -64,7 +62,7 @@ class TransactionsActivityUiStateMachineImpl(
 
     return TransactionsActivityModel(
       listModel = listModel,
-      hasMoreTransactions = transactions.size > transactionsToShow.size
+      hasMoreTransactions = (transactions?.size ?: 0) > transactionsToShow.size
     )
   }
 }

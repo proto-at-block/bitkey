@@ -16,6 +16,7 @@ data class FormHeaderModel(
   /** Text shown large at the top of the screen. */
   val headline: String?,
   /** Optional subline shown below the headline. */
+  @Suppress("ktlint:standard:no-consecutive-comments")
   // TODO [W-6168] Currently, the transaction detail, send confirmation, and send success screens
   //  use sublineModel to show the wallet address the customer sends to. We redact this outright as
   //  a temporary measure, but should endeavor to build a better solution to redact without

@@ -38,10 +38,10 @@ class CloudBackupHealthRepositoryImpl(
     return mobileKeyBackupStatus
   }
 
-  private val eakBackupStatus = MutableStateFlow<EakBackupStatus?>(null)
+  private val eekBackupStatus = MutableStateFlow<EekBackupStatus?>(null)
 
-  override fun eakBackupStatus(): StateFlow<EakBackupStatus?> {
-    return eakBackupStatus
+  override fun eekBackupStatus(): StateFlow<EekBackupStatus?> {
+    return eekBackupStatus
   }
 
   /**
@@ -96,13 +96,13 @@ class CloudBackupHealthRepositoryImpl(
             // If we can't get the cloud account, we can't sync the backup status.
             CloudBackupStatus(
               mobileKeyBackupStatus = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess,
-              eakBackupStatus = EakBackupStatus.ProblemWithBackup.NoCloudAccess
+              eekBackupStatus = EekBackupStatus.ProblemWithBackup.NoCloudAccess
             )
           }
         )
         .also {
           mobileKeyBackupStatus.value = it.mobileKeyBackupStatus
-          eakBackupStatus.value = it.eakBackupStatus
+          eekBackupStatus.value = it.eekBackupStatus
         }
     }
   }
@@ -119,7 +119,7 @@ class CloudBackupHealthRepositoryImpl(
     account: FullAccount,
   ) = CloudBackupStatus(
     mobileKeyBackupStatus = syncMobileKeyBackupStatus(cloudAccount, account),
-    eakBackupStatus = syncEakBackupStatus(cloudAccount)
+    eekBackupStatus = syncEekBackupStatus(cloudAccount)
   )
 
   private suspend fun syncMobileKeyBackupStatus(
@@ -163,19 +163,19 @@ class CloudBackupHealthRepositoryImpl(
       )
   }
 
-  private suspend fun syncEakBackupStatus(cloudAccount: CloudStoreAccount): EakBackupStatus {
+  private suspend fun syncEekBackupStatus(cloudAccount: CloudStoreAccount): EekBackupStatus {
     return emergencyAccessKitRepository
       .read(cloudAccount)
       .fold(
         success = {
-          EakBackupStatus.Healthy(
+          EekBackupStatus.Healthy(
             // TODO(BKR-1154): use actual timestamp from backup
             lastUploaded = Clock.System.now()
           )
         },
         failure = {
           // TODO(BKR-1153): handle unknown loading errors
-          EakBackupStatus.ProblemWithBackup.BackupMissing
+          EekBackupStatus.ProblemWithBackup.BackupMissing
         }
       )
   }

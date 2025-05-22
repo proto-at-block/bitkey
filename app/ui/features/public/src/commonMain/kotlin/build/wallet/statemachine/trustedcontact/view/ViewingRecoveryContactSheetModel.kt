@@ -13,10 +13,10 @@ import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
 /**
- * Builds a sheet model to show details about a Trusted Contact.
+ * Builds a sheet model to show details about a Recovery Contact.
  *
  * @param contact The contact to show information and actions for.
- * @param onRemove Invoked when the user wants to remove the trusted contact.
+ * @param onRemove Invoked when the user wants to remove the Recovery Contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTrustedContactSheetModel(
@@ -26,7 +26,7 @@ fun ViewingTrustedContactSheetModel(
 ) = ViewingRecoveryContactSheetModel(
   headline = contact.trustedContactAlias.alias,
   subline = "If you ever get a new phone, ${contact.trustedContactAlias.alias} can help verify you so you can regain access to your wallet.",
-  removeButtonText = "Remove Trusted Contact",
+  removeButtonText = "Remove Recovery Contact",
   onRemove = onRemove,
   onClosed = onClosed
 )
@@ -35,7 +35,7 @@ fun ViewingTrustedContactSheetModel(
  * Builds a sheet model to show details about a Recovery Contact that is in a tampered state.
  *
  * @param contact The contact to show information and actions for.
- * @param onRemove Invoked when the user wants to remove the trusted contact.
+ * @param onRemove Invoked when the user wants to remove the Recovery Contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTamperedContactSheetModel(
@@ -80,11 +80,11 @@ fun ViewingFailedContactSheetModel(
  */
 private val UnendorsedTrustedContact.label: String get() = when {
   TrustedContactRole.Beneficiary == roles.singleOrNull() -> "beneficiary"
-  else -> "Trusted Contact"
+  else -> "Recovery Contact"
 }
 
 /**
- * Generic sheet model for viewing a recovery contact.
+ * Generic sheet model for viewing a Recovery Contact.
  *
  * @param headline The headline to display in the sheet.
  * @param subline The subline to display, optional.

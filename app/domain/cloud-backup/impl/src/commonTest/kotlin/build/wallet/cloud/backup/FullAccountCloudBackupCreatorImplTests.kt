@@ -115,7 +115,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
       relationshipsService.syncCalls.awaitItem()
     }
 
-    test("failure - could not verify endorsed Trusted Contacts") {
+    test("failure - could not verify endorsed Recovery Contacts") {
       relationshipsService.syncAndVerifyRelationshipsResult = Err(Error("oops"))
 
       backupCreator

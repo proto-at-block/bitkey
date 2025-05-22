@@ -11,12 +11,12 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps.Request.*
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.*
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps.HardwareVerification.Required
 import build.wallet.statemachine.recovery.RecoverySegment
@@ -28,7 +28,7 @@ import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerif
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 
@@ -57,7 +57,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
           }
         var state: UiState by remember { mutableStateOf(initialScreen) }
 
-        when (state) {
+        when (val current = state) {
           ShowingInstructionsState ->
             HardwareReplacementInstructionsModel(
               onContinue = {
@@ -90,7 +90,12 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                   InstructionsStyle.ResumedRecoveryAttempt ->
                     ButtonModel(
                       text = "I’ve found my old Bitkey device",
-                      onClick = StandardClick { props.onFoundHardware() },
+                      onClick = StandardClick {
+                        state = VerifyingFoundHardwareState(
+                          onSuccess = { props.onFoundHardware() },
+                          onBack = { state = AskingNewHardwareReadyQuestionState }
+                        )
+                      },
                       treatment = ButtonModel.Treatment.Tertiary,
                       size = ButtonModel.Size.Footer
                     )
@@ -145,7 +150,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                   else -> Icon.SmallIconArrowLeft
                 },
                 iconSize = IconSize.Accessory,
-                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
+                iconBackgroundType = Circle(circleSize = IconSize.Regular)
               )
             )
           }
@@ -154,7 +159,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
             pairNewHardwareUiStateMachine.model(
               props = PairNewHardwareProps(
                 segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
-                request = PairNewHardwareProps.Request.Ready(
+                request = Ready(
                   appGlobalAuthPublicKey = recoveryData.newAppGlobalAuthKey,
                   onSuccess = { response ->
                     recoveryData.addHardwareKeys(
@@ -171,10 +176,26 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                 eventTrackerContext = HW_RECOVERY
               )
             )
+          is VerifyingFoundHardwareState -> {
+            proofOfPossessionNfcStateMachine.model(
+              ProofOfPossessionNfcProps(
+                request = Request.HwKeyProof(
+                  onSuccess = { current.onSuccess() }
+                ),
+                fullAccountId = props.account.accountId,
+                appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+                segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+                actionDescription = "Error getting hardware keyproof",
+                screenPresentationStyle = props.screenPresentationStyle,
+                hardwareVerification = Required(),
+                onBack = current.onBack
+              )
+            )
+          }
         }
       }
 
-      is LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.ErrorGeneratingNewAppKeysData ->
+      is ErrorGeneratingNewAppKeysData ->
         InitiateRecoveryErrorScreenModel(
           props = props,
           onRetryClicked = recoveryData.retry,
@@ -299,5 +320,10 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
     data object AskingNewHardwareReadyQuestionState : UiState
 
     data object PairingNewWalletState : UiState
+
+    data class VerifyingFoundHardwareState(
+      val onSuccess: () -> Unit,
+      val onBack: () -> Unit,
+    ) : UiState
   }
 }

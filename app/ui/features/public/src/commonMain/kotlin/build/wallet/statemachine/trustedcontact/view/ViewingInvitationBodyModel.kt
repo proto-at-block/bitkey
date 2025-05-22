@@ -14,9 +14,9 @@ import build.wallet.ui.model.button.ButtonModel
  *
  * @param invitation The invitation to show information and actions for.
  * @param isExpired Whether the invitation is expired.
- * @param onRemove Invoked when the user wants to remove the trusted contact.
+ * @param onRemove Invoked when the user wants to remove the Recovery Contact.
  * @param onShare Invoked when the user wants to reshare an existing invite.
- * @param onReinvite Invoke when the user wants to reinvite the trusted contact.
+ * @param onReinvite Invoke when the user wants to reinvite the Recovery Contact.
  * @param onBack Invoked when the user navigates back.
  */
 data class ViewingInvitationBodyModel(
@@ -73,5 +73,5 @@ data class ViewingInvitationBodyModel(
  */
 private val Invitation.label: String get() = when {
   TrustedContactRole.Beneficiary == roles.singleOrNull() -> "beneficiary"
-  else -> "Trusted Contact"
+  else -> "Recovery Contact"
 }

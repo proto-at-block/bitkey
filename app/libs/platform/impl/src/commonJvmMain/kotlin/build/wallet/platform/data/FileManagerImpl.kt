@@ -37,6 +37,19 @@ class FileManagerImpl(
       .toFileManagerResult()
   }
 
+  override suspend fun deleteFile(fileName: String): FileManagerResult<Unit> {
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        val filePath = (fileDirectoryProvider.filesDir().join(fileName)).toPath()
+        FileSystem.SYSTEM.delete(filePath)
+      }
+    }
+      .mapError { FileManagerError(it) }
+      .logFailure { "Failed to remove file [$fileName]" }
+      .mapUnit()
+      .toFileManagerResult()
+  }
+
   override suspend fun readFileAsString(fileName: String): FileManagerResult<String> {
     return catchingResult {
       withContext(Dispatchers.IO) {

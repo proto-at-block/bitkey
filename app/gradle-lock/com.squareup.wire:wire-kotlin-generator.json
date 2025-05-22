@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-kotlin-generator",
     "components": [
         {
-            "version": "4.9.9",
+            "version": "4.9.11",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-kotlin-generator-4.9.9.jar": "c784105f826d19a6d2ea107a9142d2a84f8bdbd1d7b340662dd30f37c9a8fe50"
+                        "wire-kotlin-generator-4.9.11.jar": "4d2fe232f641df28cec23d4741a8c1305ffbdc471bb360a2d8ab7e7262f4de16"
                     }
                 }
             ],

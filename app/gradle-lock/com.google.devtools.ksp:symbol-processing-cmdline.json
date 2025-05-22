@@ -2,11 +2,11 @@
     "module-identifier": "com.google.devtools.ksp:symbol-processing-cmdline",
     "components": [
         {
-            "version": "2.0.21-1.0.26",
+            "version": "2.1.20-1.0.32",
             "variants": [
                 {
                     "artifacts": {
-                        "symbol-processing-cmdline-2.0.21-1.0.26.jar": "43b0a1d0e18839b54bfc5f021ea1c5e9feb88723f12976137bbfe6d5be4839b8"
+                        "symbol-processing-cmdline-2.1.20-1.0.32.jar": "244d8729a26e5bc27adcedb794fe24a6cb135b1475f10880c854ef1670bc0973"
                     }
                 }
             ],

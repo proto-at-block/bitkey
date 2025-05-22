@@ -31,8 +31,11 @@ tower = { workspace = true }
 # path dependencies
 wsm-common = { workspace = true }
 
-#[dev-dependencies]
 http-body-util = "0.1.0"
+sha2 = "0.10.8"
+
+[dev-dependencies]
+tower = { workspace = true, features = ["util"] }
 
 [lints]
 workspace = true

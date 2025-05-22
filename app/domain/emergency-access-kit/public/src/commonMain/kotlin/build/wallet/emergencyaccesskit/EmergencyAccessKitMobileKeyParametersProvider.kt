@@ -13,11 +13,11 @@ interface EmergencyAccessKitMobileKeyParametersProvider {
 
 data class MobileKeyParameters(
   /**
-   * The mobile key characters material, displayed in Step 4.
+   * The App Key characters material, displayed in Step 4.
    */
   val mobileKeyCharacters: String,
   /**
-   * The QR code text used to generate the QR code of the mobile key, displayed in Step 4.
+   * The QR code text used to generate the QR code of the App Key, displayed in Step 4.
    */
   val mobileKeyQRCodeText: String,
 )

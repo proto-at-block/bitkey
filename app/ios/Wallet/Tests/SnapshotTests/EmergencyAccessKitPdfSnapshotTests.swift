@@ -14,8 +14,8 @@ class EmergencyAccessKitPdfSnapshotTests: XCTestCase {
         // records a snapshot
         // change even when the PDF is unchanged. For now we skip this test and manually run it when
         // changing the
-        // EAK contents.
-        throw XCTSkip("BKR-1052 iOS EAK PDF snapshot always changes when recording")
+        // EEK contents.
+        throw XCTSkip("BKR-1052 iOS EEK PDF snapshot always changes when recording")
 
         let pdfDocument = try await EmergencyAccessKitPdfGeneratorImpl.generatedPDFDocument()
 

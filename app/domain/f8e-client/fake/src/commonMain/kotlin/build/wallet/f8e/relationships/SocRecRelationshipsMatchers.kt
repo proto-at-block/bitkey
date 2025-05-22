@@ -24,7 +24,7 @@ fun Relationships.shouldBeEmpty() =
   }
 
 /**
- * Asserts that the [Relationships] exactly has the given [contacts] as trusted contacts.
+ * Asserts that the [Relationships] exactly has the given [contacts] as Recovery Contacts.
  */
 fun Relationships.shouldHaveEndorsed(vararg contacts: EndorsedTrustedContact) =
   apply {
@@ -67,8 +67,8 @@ fun Relationships.shouldOnlyHaveSingleProtectedCustomer(block: (ProtectedCustome
   }
 
 /**
- * Asserts that the [Relationships] has only a single endorsed trusted contact and no other relationships.
- * Applies the given [block] to the trusted contact.
+ * Asserts that the [Relationships] has only a single endorsed Recovery Contact and no other relationships.
+ * Applies the given [block] to the Recovery Contact.
  */
 fun Relationships.shouldOnlyHaveSingleEndorsedTrustedContact(
   block: (EndorsedTrustedContact) -> Unit,

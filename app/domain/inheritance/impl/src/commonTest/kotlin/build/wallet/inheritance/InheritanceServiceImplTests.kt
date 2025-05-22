@@ -19,9 +19,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.inheritance.*
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.isOk
 import build.wallet.relationships.OutgoingInvitationFake
 import build.wallet.relationships.RelationshipsServiceMock
@@ -76,7 +73,6 @@ class InheritanceServiceImplTests : FunSpec({
   val claimsRepository = InheritanceClaimsRepositoryMock(
     updateSingleClaimCalls = turbines.create("update single claim")
   )
-  val inheritanceFeatureFlag = InheritanceFeatureFlag(FeatureFlagDaoFake())
   val messageSigner = AppAuthKeyMessageSignerMock()
   val lockClaimF8eClient = LockInheritanceClaimF8eClientFake(
     calls = turbines.create("Lock Claim Calls")
@@ -106,8 +102,6 @@ class InheritanceServiceImplTests : FunSpec({
     inheritanceMaterialCreator.inheritanceMaterial = Ok(fakeInheritanceMaterial)
     inheritanceMaterialCreator.inheritanceMaterialHash = Ok(newHash)
     uploadClaimF8eClient.uploadResponse = Ok(Unit)
-
-    inheritanceFeatureFlag.setFlagValue(true)
   }
 
   test("creating an invitation") {

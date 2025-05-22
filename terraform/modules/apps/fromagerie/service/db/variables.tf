@@ -79,3 +79,8 @@ variable "promotion_code_table_name" {
   type        = string
   description = "The name of the promotion code table"
 }
+
+variable "transaction_verification_table_name" {
+  type        = string
+  description = "The name of the transaction verification table"
+}

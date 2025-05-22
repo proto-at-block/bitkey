@@ -2,16 +2,17 @@
     "module-identifier": "co.touchlab:kermit-core-iossimulatorarm64",
     "components": [
         {
-            "version": "2.0.4",
+            "version": "2.0.5",
             "variants": [
                 {
                     "artifacts": {
-                        "kermit-core-iossimulatorarm64-2.0.4-metadata.jar": "f6e463ebb15eba0ddeec28a7c173dc537669222b3f8feb9320793eb35964d080"
+                        "kermit-core-cinterop-os_log.klib": "c31606244e81d23c40ced0f19dd2c77ba5f6d114a89a2ff380604d8814d29ac8",
+                        "kermit-core.klib": "ba08de8374c24764084a4755ccbdc8cb7efd28648c0e274e38af5fa59103d248"
                     }
                 },
                 {
                     "artifacts": {
-                        "kermit-core.klib": "50ec15e392d8d5cd0daa02f73f3e0fc330349828745ca7f246c2d528d8965757"
+                        "kermit-core-iossimulatorarm64-2.0.5-metadata.jar": "9b59c7acf755feb5f8e007b77bdea038473cfd44954b3ba6569f25cfcae9bda6"
                     }
                 }
             ],

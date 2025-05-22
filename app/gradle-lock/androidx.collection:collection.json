@@ -2,11 +2,11 @@
     "module-identifier": "androidx.collection:collection",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-metadata-1.4.0.jar": "335679dcda5b9047e8e0838772c272fd7cbcbbceed87565184a369c0563ac06b"
+                        "collection-metadata-1.5.0.jar": "f5ffb8f461c4b5d6f2883a2c7047977773b31d5b23ef030c057514c0c9eceb47"
                     }
                 }
             ],

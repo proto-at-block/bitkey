@@ -15,17 +15,29 @@
             ]
         },
         {
-            "version": "2.0.21",
+            "version": "2.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-2.0.21.jar": "15c8c0acb311483c068d1697501965474b70dfd80ac79580eca3a03cf51e4a1d"
+                        "kotlin-stdlib-jdk8-2.1.0.jar": "238d3c7e492f119b50da1c22546dd762462e55f22409611f5e53dd77625cd544"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "2.1.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk8-2.1.20.jar": "ed22217b5dc0940a068d8be9440bbe2f7f9f51c466cdd1185e2385cdec19f238"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

@@ -7,7 +7,7 @@ import com.github.michaelbull.result.Result
 
 /**
  * Uploads inheritance material to the server for storage and use with
- * inheritance features for Trusted Contacts.
+ * inheritance features for Recovery Contacts.
  */
 interface UploadInheritanceMaterialF8eClient {
   /**

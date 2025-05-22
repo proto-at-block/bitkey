@@ -18,8 +18,6 @@ data class BitcoinMoney(
     value = BTC.unitValueFromFractionalUnitValue(fractionalUnitAmount)
   )
 
-  override fun toString() = "Money(${currency.textCode.code},${value.toPlainString()})"
-
   operator fun plus(other: BitcoinMoney): BitcoinMoney {
     require(this.currency == other.currency)
     return copy(value = this.value + other.value)
@@ -30,8 +28,16 @@ data class BitcoinMoney(
     return copy(value = this.value - other.value)
   }
 
+  override fun equals(other: Any?): Boolean {
+    return when {
+      isZero && other is Money && other.isZero -> true
+      other is BitcoinMoney -> currency == other.currency && value == other.value
+      else -> false
+    }
+  }
+
   companion object {
-    fun zero() = btc(0.0)
+    fun zero() = btc(BigDecimal.ZERO)
 
     /**
      * Constructor for creating bitcoin Money given BTC amount.

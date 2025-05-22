@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETT
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudFileStoreResult
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.platform.data.MimeType
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
 import build.wallet.statemachine.core.*
@@ -32,6 +33,7 @@ import io.kotest.core.test.TestScope
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import okio.ByteString.Companion.toByteString
 
 private const val CLOUD_ACCESS_FAILURE = "cloud-access-failure"
 
@@ -101,13 +103,13 @@ class CloudBackupHealthFunctionalTests : FunSpec({
       }
     }
 
-  test("Cloud backup health dashboard repair mobile key backup") {
+  test("Cloud backup health dashboard repair App Key backup") {
     val app = launchAppAndOnboard()
     app.appUiStateMachine.test(props = Unit) {
       app.cloudBackupRepository.clear(CloudStoreAccount1Fake, false)
       shouldNavigateToCloudBackupHealthDashboard {
         mobileKeyBackupStatusCard.backupStatus.title
-          .shouldBe("Problem with Mobile Key\nBackup")
+          .shouldBe("Problem with App Key\nBackup")
         mobileKeyBackupStatusCard.backupStatus.onClick.shouldBeNull()
         mobileKeyBackupStatusCard.backupStatusActionButton.shouldNotBeNull().onClick()
       }
@@ -127,20 +129,48 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     }
   }
 
-  test("Cloud backup health automatically repairs eak backup") {
+  test("Cloud backup health automatically repairs EEK backup") {
     val app = launchAppAndOnboard()
     app.appUiStateMachine.test(props = Unit) {
       val cloudFileStoreFake = app.cloudFileStore as CloudFileStoreFake
       cloudFileStoreFake.clear()
       shouldNavigateToCloudBackupHealthDashboard {
-        eakBackupStatusCard.shouldNotBeNull().backupStatus.title
+        eekBackupStatusCard.shouldNotBeNull().backupStatus.title
           .shouldBe("Fake Cloud Store backup")
-        eakBackupStatusCard.shouldNotBeNull().backupStatusActionButton.shouldBeNull()
+        eekBackupStatusCard.shouldNotBeNull().backupStatusActionButton.shouldBeNull()
       }
       cloudFileStoreFake.exists(
         account = CloudStoreAccount1Fake,
-        fileName = "Emergency Access Kit.pdf"
+        fileName = "Emergency Exit Kit.pdf"
       ).shouldBe(CloudFileStoreResult.Ok(true))
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
+
+  test("Cloud backup health automatically repairs EAK -> EEK") {
+    val app = launchAppAndOnboard()
+    app.appUiStateMachine.test(props = Unit) {
+      val cloudFileStoreFake = app.cloudFileStore as CloudFileStoreFake
+      cloudFileStoreFake.clear()
+      cloudFileStoreFake.write(
+        CloudStoreAccount1Fake,
+        bytes = "dummy pdf data".encodeToByteArray().toByteString(),
+        fileName = "Emergency Access Kit.pdf",
+        mimeType = MimeType.PDF
+      )
+      shouldNavigateToCloudBackupHealthDashboard {
+        eekBackupStatusCard.shouldNotBeNull().backupStatus.title
+          .shouldBe("Fake Cloud Store backup")
+        eekBackupStatusCard.shouldNotBeNull().backupStatusActionButton.shouldBeNull()
+      }
+      cloudFileStoreFake.exists(
+        account = CloudStoreAccount1Fake,
+        fileName = "Emergency Exit Kit.pdf"
+      ).shouldBe(CloudFileStoreResult.Ok(true))
+      cloudFileStoreFake.exists(
+        account = CloudStoreAccount1Fake,
+        fileName = "Emergency Access Kit.pdf"
+      ).shouldBe(CloudFileStoreResult.Ok(false))
       cancelAndIgnoreRemainingEvents()
     }
   }

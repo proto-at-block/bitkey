@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-context",
     "components": [
         {
-            "version": "1.57.0",
+            "version": "1.57.2",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-context-1.57.0.jar": "953fcacd82f531e69b76e3834f5830bad4c22ae84144e058d71dc80a7430275d"
+                        "grpc-context-1.57.2.jar": "9b8ac88d9cef2819daffed7bdbd2f22680237d482c6c671fe02d36da3f08cf00"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.60.1",
+            "version": "1.68.2",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-context-1.60.1.jar": "4ab6efb9cbadc88f8dc723ada3a61785da367697373d4432aef5222312aa70f6"
+                        "grpc-context-1.68.2.jar": "99925ffb2964c32ea2b34d88679b0c5afe37bd35df3be38f46f7398ea52d9a31"
                     }
                 }
             ],

@@ -29,12 +29,12 @@ data class RectifiableErrorMessages(
   companion object {
     val RectifiableErrorAccessMessages =
       RectifiableErrorMessages(
-        title = "There was a problem accessing your cloud backup for your mobile key",
+        title = "There was a problem accessing your cloud backup for your App Key",
         subline = "Please try connecting to a cloud account and accessing your backup again. Make sure Bitkey’s permissions to write to your cloud are enabled."
       )
     val RectifiableErrorCreateFullMessages =
       RectifiableErrorMessages(
-        title = "There was a problem creating a cloud backup for your mobile key",
+        title = "There was a problem creating a cloud backup for your App Key",
         subline = "Please try connecting to a cloud account and creating a backup again. Make sure Bitkey’s permissions to write to your cloud are enabled."
       )
     val RectifiableErrorCreateLiteMessages =

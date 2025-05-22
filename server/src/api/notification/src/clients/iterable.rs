@@ -112,6 +112,7 @@ pub struct ClientConfig {
     pub account_security_message_type_id: usize,
     pub money_movement_message_type_id: usize,
     pub product_marketing_message_type_id: usize,
+    pub transaction_verification_campaign_id: usize,
 }
 
 #[derive(Deserialize, EnumString, Clone)]
@@ -138,7 +139,7 @@ pub enum IterableClient {
     Test(Arc<Mutex<HashMap<String, HashSet<NotificationCategory>>>>),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq)]
 pub enum IterableCampaignType {
     CommsVerification,
     InheritanceClaimAlmostOverAsBenefactor,
@@ -167,6 +168,7 @@ pub enum IterableCampaignType {
     RecoveryRelationshipDeletedByBeneficiaryReceivedByBenefactor,
     RecoveryRelationshipDeletedByBeneficiaryReceivedByBeneficiary,
     SocialChallengeResponseReceived,
+    TransactionVerification,
 }
 
 #[derive(Deserialize)]
@@ -348,6 +350,9 @@ impl IterableClient {
                     }
                     IterableCampaignType::SocialChallengeResponseReceived => {
                         config.social_challenge_response_received_campaign_id
+                    }
+                    IterableCampaignType::TransactionVerification => {
+                        config.transaction_verification_campaign_id
                     }
                 };
 

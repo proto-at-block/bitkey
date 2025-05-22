@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "repository-31.5.2.jar": "df2533e154b736a0a95e4804893aa59099552842bf9635cda3751be9e894a0e2"
+                        "repository-31.9.1.jar": "ee7331131b6d80dc83ea7d78fb6600847300733f2964d18861709c4d23075e08"
                     }
                 }
             ],

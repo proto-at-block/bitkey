@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose:compose-gradle-plugin",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "compose-gradle-plugin-1.7.3.jar": "d0fc223b3ccd5d0254d66959b1cc0c153523a26480ef0b03a46c5ab56de922bc"
+                        "compose-gradle-plugin-1.8.0.jar": "6922fb6564a736b817002091114ea97baa95d71b7f701c92167e327bbc8ac3cd"
                     }
                 }
             ],

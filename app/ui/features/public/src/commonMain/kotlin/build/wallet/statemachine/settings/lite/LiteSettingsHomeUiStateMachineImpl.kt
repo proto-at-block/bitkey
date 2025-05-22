@@ -116,7 +116,8 @@ class LiteSettingsHomeUiStateMachineImpl(
               ),
               onShowAlert = { alertModel = it },
               onDismissAlert = { alertModel = null },
-              goToSecurityHub = {}
+              goToSecurityHub = {},
+              isLiteAccount = true
             )
         ),
       statusBannerModel = props.homeStatusBannerModel,

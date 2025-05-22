@@ -2,16 +2,16 @@
     "module-identifier": "androidx.collection:collection-iosx64",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-iosx64-1.4.0-metadata.jar": "d1a4bc5f34b8c6e363bf91a7074eb53a0bf6f28d37bb092bbba2aae0e0c2fd9d"
+                        "collection-iosX64Main-1.5.0.klib": "704d059be789af2cce5ae81ef61a43c47f33542162b280a7c65263844e966545"
                     }
                 },
                 {
                     "artifacts": {
-                        "collection.klib": "aae0c533c7a1418d100ba74ebb38ac8deada78bbbc9e41bc18fcec854b91245c"
+                        "collection-iosx64-1.5.0-metadata.jar": "92314e3e012cb43ee4b305a32438ce5c489d05a127a5fa2689e1500049fa7eed"
                     }
                 }
             ],

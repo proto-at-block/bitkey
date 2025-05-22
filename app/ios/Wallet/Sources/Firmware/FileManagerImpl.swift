@@ -41,6 +41,16 @@ public class FileManagerImpl: Shared.FileManager {
         }
     }
 
+    public func deleteFile(fileName: String) async throws -> FileManagerResult<KotlinUnit> {
+        do {
+            let filePath = applicationFilesDirectory.appendingPathComponent(fileName)
+            try fileManager.removeItem(at: filePath)
+            return FileManagerResultOk(value: KotlinUnit())
+        } catch {
+            return error.toFileManagerResultErr()
+        }
+    }
+
     public func readFileAsBytes(fileName: String) async throws
         -> FileManagerResult<KotlinByteArray>
     {

@@ -2,11 +2,11 @@
     "module-identifier": "org.ow2.asm:asm-tree",
     "components": [
         {
-            "version": "9.6",
+            "version": "9.7",
             "variants": [
                 {
                     "artifacts": {
-                        "asm-tree-9.6.jar": "c43ecf17b539c777e15da7b5b86553b377e2d39a683de6285567d5283888e7ef"
+                        "asm-tree-9.7.jar": "62f4b3bc436045c1acb5c3ba2d8ec556ec3369093d7f5d06c747eb04b56d52b1"
                     }
                 }
             ],

@@ -1,0 +1,44 @@
+import build.wallet.database.SecurityInteractionStatus;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE securityRecommendationInteractionEntity(
+  recommendationId              TEXT NOT NULL PRIMARY KEY,
+  interactionStatus             TEXT AS SecurityInteractionStatus NOT NULL,
+  lastInteractedAt              INTEGER AS Instant,
+  lastRecommendationTriggeredAt INTEGER AS Instant NOT NULL,
+  recordUpdatedAt               INTEGER AS Instant NOT NULL
+);
+
+CREATE INDEX idx_securityRecommendationInteractionEntity_status
+ON securityRecommendationInteractionEntity(interactionStatus);
+
+insertOrUpdateActiveRecommendation:
+INSERT INTO securityRecommendationInteractionEntity (recommendationId, interactionStatus, lastInteractedAt, lastRecommendationTriggeredAt, recordUpdatedAt)
+VALUES (:recommendationId, :interactionStatus, :lastInteractedAt, :lastRecommendationTriggeredAt, :recordUpdatedAt)
+ON CONFLICT(recommendationId) DO UPDATE SET
+lastRecommendationTriggeredAt = :lastRecommendationTriggeredAt,
+recordUpdatedAt = :recordUpdatedAt
+WHERE recommendationId = :recommendationId;
+
+insertOrResetToNew:
+INSERT INTO securityRecommendationInteractionEntity (recommendationId, interactionStatus, lastInteractedAt, lastRecommendationTriggeredAt, recordUpdatedAt)
+VALUES (:recommendationId, 'NEW', NULL, :lastRecommendationTriggeredAt, :recordUpdatedAt)
+ON CONFLICT(recommendationId) DO UPDATE SET
+interactionStatus = 'NEW',
+lastInteractedAt = NULL,
+lastRecommendationTriggeredAt = :lastRecommendationTriggeredAt,
+recordUpdatedAt = :recordUpdatedAt
+WHERE recommendationId = :recommendationId;
+
+updateUserInteraction:
+UPDATE securityRecommendationInteractionEntity
+SET
+interactionStatus = :interactionStatus,
+lastInteractedAt = :lastInteractedAt,
+recordUpdatedAt = :recordUpdatedAt
+WHERE recommendationId = :recommendationId;
+
+getById: SELECT * FROM securityRecommendationInteractionEntity WHERE recommendationId = ?;
+getByIds: SELECT * FROM securityRecommendationInteractionEntity WHERE recommendationId IN ?;
+getAll: SELECT * FROM securityRecommendationInteractionEntity;
+deleteByIds: DELETE FROM securityRecommendationInteractionEntity WHERE recommendationId IN ?;

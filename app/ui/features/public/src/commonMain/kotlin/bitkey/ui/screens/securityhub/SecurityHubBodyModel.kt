@@ -31,6 +31,7 @@ import bitkey.securitycenter.SecurityActionType.*
 import bitkey.ui.Snapshot
 import bitkey.ui.SnapshotHost
 import bitkey.ui.features_public.generated.resources.*
+import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
@@ -38,7 +39,8 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.home.full.HomeTab
 import build.wallet.statemachine.moneyhome.card.CardListModel
-import build.wallet.ui.app.moneyhome.card.MoneyHomeCard
+import build.wallet.statemachine.recovery.hardware.HardwareRecoveryCardModel
+import build.wallet.ui.app.moneyhome.card.NewCard
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.labelStyle
@@ -58,8 +60,13 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
+private val DestructiveRed = Color(0xffca0000)
+private val WarningOrange = Color(0xffbf46e38)
+private val SuccessGreen = Color(0xff3aba5a)
+
 data class SecurityHubBodyModel(
   val isOffline: Boolean = false,
+  val atRiskRecommendations: ImmutableList<SecurityActionRecommendation>,
   val recommendations: ImmutableList<SecurityActionRecommendation>,
   val cardsModel: CardListModel,
   val securityActions: List<SecurityAction> = emptyList(),
@@ -68,8 +75,7 @@ data class SecurityHubBodyModel(
   val onSecurityActionClick: (SecurityAction) -> Unit,
   val onHomeTabClick: () -> Unit,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = EventTrackerScreenInfo(
-    eventTrackerScreenId = SecurityHubEventTrackerScreenId.SECURITY_HUB_SCREEN,
-    eventTrackerShouldTrack = false
+    eventTrackerScreenId = SecurityHubEventTrackerScreenId.SECURITY_HUB_SCREEN
   ),
 ) : BodyModel() {
   @Composable
@@ -118,28 +124,45 @@ data class SecurityHubBodyModel(
           )
 
           if (!isOffline) {
-            if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
+            Spacer(modifier = Modifier.height(20.dp))
+
+            if (atRiskRecommendations.isNotEmpty()) {
               RecommendationList(
-                modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-                recommendations = recommendations,
-                onRecommendationClick = onRecommendationClick
+                modifier = Modifier.fillMaxWidth(),
+                recommendations = atRiskRecommendations,
+                onRecommendationClick = onRecommendationClick,
+                type = RecommendationType.Critical
               )
+
+              Spacer(modifier = Modifier.height(12.dp))
             }
 
-            if (cardsModel.cards.isNotEmpty()) {
-              Spacer(modifier = Modifier.height(20.dp))
-            }
+            // TODO W-11412 filter this in the service, not in the UI
+            if (atRiskRecommendations.isEmpty()) {
+              cardsModel.cards.map {
+                NewCard(model = it)
+                Spacer(modifier = Modifier.height(8.dp))
+              }
 
-            cardsModel.cards.map {
-              MoneyHomeCard(model = it)
-              Spacer(modifier = Modifier.height(8.dp))
+              if (cardsModel.cards.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+              }
+
+              if (recommendations.isNotEmpty() || cardsModel.cards.isEmpty()) {
+                RecommendationList(
+                  modifier = Modifier.fillMaxWidth(),
+                  recommendations = recommendations,
+                  onRecommendationClick = onRecommendationClick,
+                  type = RecommendationType.Recommended
+                )
+              }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
           }
         }
 
-        if (securityActions.isNotEmpty() && recoveryActions.isNotEmpty()) {
+        if (securityActions.isNotEmpty() || recoveryActions.isNotEmpty()) {
           Column(
             modifier = Modifier.background(WalletTheme.colors.background)
               .padding(horizontal = 20.dp)
@@ -192,9 +215,27 @@ data class SecurityHubBodyModel(
   }
 }
 
+/**
+ * Represents the type of recommendation. Used to determine the color of the recommendation
+ * indicator.
+ */
+private sealed interface RecommendationType {
+  /**
+   * Indicates that the recommendation is critical and requires immediate action, associated with
+   * funds loss
+   */
+  object Critical : RecommendationType
+
+  /**
+   * Indicates that the recommendation is recommended but not critical.
+   */
+  object Recommended : RecommendationType
+}
+
 @Composable
 private fun RecommendationList(
   modifier: Modifier = Modifier,
+  type: RecommendationType,
   recommendations: ImmutableList<SecurityActionRecommendation>,
   onRecommendationClick: (SecurityActionRecommendation) -> Unit,
 ) {
@@ -210,7 +251,8 @@ private fun RecommendationList(
   ) {
     RecommendationHeader(
       modifier = Modifier.padding(vertical = 20.dp, horizontal = 16.dp),
-      recommendations.size
+      numberOfRecommendations = recommendations.size,
+      type = type
     )
     if (recommendations.isNotEmpty()) {
       Divider(modifier = Modifier.fillMaxWidth(), thickness = 2.dp)
@@ -228,22 +270,28 @@ private fun RecommendationList(
 }
 
 @Composable
-fun RecommendationHeader(
+private fun RecommendationHeader(
   modifier: Modifier = Modifier,
   numberOfRecommendations: Int,
+  type: RecommendationType,
 ) {
+  val text = when (type) {
+    RecommendationType.Critical -> "Wallet at risk"
+    RecommendationType.Recommended -> when (numberOfRecommendations) {
+      0 -> "You're all set"
+      1 -> "1 recommended action"
+      else -> "$numberOfRecommendations recommended actions"
+    }
+  }
+
   Row(
     modifier = modifier,
     verticalAlignment = CenterVertically
   ) {
-    RecommendationStateIndicator(numberOfRecommendations)
+    RecommendationStateIndicator(numberOfRecommendations, type)
     Spacer(modifier = Modifier.width(10.dp))
     Label(
-      text = when (numberOfRecommendations) {
-        0 -> "You're all set"
-        1 -> "1 recommended action"
-        else -> "$numberOfRecommendations recommended actions"
-      },
+      text = text,
       style = WalletTheme.labelStyle(
         LabelType.Title2,
         textColor = WalletTheme.colors.foreground
@@ -283,14 +331,23 @@ fun RecommendationRow(
 }
 
 @Composable
-private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
+private fun RecommendationStateIndicator(
+  numberOfRecommendations: Int,
+  type: RecommendationType,
+) {
   val color = WalletTheme.colors.secondary
+
+  val warningColor = when (type) {
+    RecommendationType.Critical -> DestructiveRed
+    RecommendationType.Recommended -> WarningOrange
+  }
+
   Box(modifier = Modifier.padding(5.dp).size(42.dp)) {
     if (numberOfRecommendations == 0) {
       Canvas(modifier = Modifier.fillMaxSize()) {
         val canvasWidth = size.width
         drawCircle(
-          color = Color(0xff3aba5a),
+          color = SuccessGreen,
           style = Stroke(4.dp.toPx()),
           radius = canvasWidth / 2
         )
@@ -300,7 +357,7 @@ private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
         modifier = Modifier.align(Center),
         icon = Icon.LargeIconCheckFilled,
         size = IconSize.Regular,
-        color = Color(0xff3aba5a)
+        color = SuccessGreen
       )
     } else {
       Canvas(modifier = Modifier.fillMaxSize()) {
@@ -323,7 +380,7 @@ private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
           val x = center.x + (size.width / 2) * cos(angleRadians).toFloat()
           val y = center.y + (size.width / 2) * sin(angleRadians).toFloat()
           drawCircle(
-            color = Color(0xffbf46e38),
+            color = warningColor,
             radius = recommendationCircleRadius,
             center = Offset(x, y)
           )
@@ -344,7 +401,7 @@ private fun RecommendationStateIndicator(numberOfRecommendations: Int) {
         modifier = Modifier.align(Center),
         icon = Icon.LargeIconWarningFilled,
         size = IconSize.Regular,
-        color = Color(0xffbf46e38)
+        color = warningColor
       )
     }
   }
@@ -498,8 +555,10 @@ private fun SecurityAction.icon(): Icon =
 
 private fun SecurityAction.statusColor(): Color =
   when {
-    requiresAction() -> Color(0xffbf46e38)
-    else -> Color(0xff3aba5a)
+    this.getRecommendations().contains(PAIR_HARDWARE_DEVICE) ->
+      DestructiveRed
+    requiresAction() -> WarningOrange
+    else -> SuccessGreen
   }
 
 private fun SecurityActionRecommendation.title(): StringResource =
@@ -535,6 +594,7 @@ private fun SecurityActionRecommendation.icon(): Icon =
 @Snapshot
 val SnapshotHost.pendingRecommendations
   get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
     recommendations = listOf(
       BACKUP_MOBILE_KEY,
       BACKUP_EAK,
@@ -590,8 +650,147 @@ val SnapshotHost.pendingRecommendations
   )
 
 @Snapshot
+val SnapshotHost.pendingRecommendationsWithCards
+  get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
+    recommendations = listOf(
+      BACKUP_MOBILE_KEY,
+      BACKUP_EAK,
+      ADD_FINGERPRINTS,
+      ADD_TRUSTED_CONTACTS,
+      ENABLE_CRITICAL_ALERTS,
+      ADD_BENEFICIARY,
+      SETUP_BIOMETRICS
+    ).toImmutableList(),
+    securityActions = listOf(
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS
+      ),
+      previewSecurityAction(
+        type = EAK_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_EAK
+      ),
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS
+      )
+    ),
+    recoveryActions = listOf(
+      previewSecurityAction(
+        type = FINGERPRINTS,
+        category = SecurityActionCategory.SECURITY,
+        ADD_FINGERPRINTS
+      ),
+      previewSecurityAction(
+        type = INHERITANCE,
+        category = SecurityActionCategory.SECURITY,
+        ADD_BENEFICIARY
+      ),
+      previewSecurityAction(
+        type = MOBILE_KEY_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_MOBILE_KEY
+      ),
+      previewSecurityAction(
+        type = SOCIAL_RECOVERY,
+        category = SecurityActionCategory.SECURITY,
+        ADD_TRUSTED_CONTACTS
+      )
+    ),
+    onRecommendationClick = {},
+    onSecurityActionClick = {},
+    onHomeTabClick = {},
+    cardsModel = CardListModel(
+      cards = immutableListOf(
+        HardwareRecoveryCardModel(
+          title = "Replacement pending...",
+          subtitle = "2 days remaining",
+          delayPeriodProgress = Progress.Half,
+          delayPeriodRemainingSeconds = 0,
+          onClick = {}
+        )
+      )
+    )
+  )
+
+@Snapshot
+val SnapshotHost.pendingAtRiskRecommendations
+  get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(
+      BACKUP_MOBILE_KEY
+    ),
+    recommendations = listOf(
+      BACKUP_MOBILE_KEY,
+      BACKUP_EAK,
+      ADD_FINGERPRINTS,
+      ADD_TRUSTED_CONTACTS,
+      ENABLE_CRITICAL_ALERTS,
+      ADD_BENEFICIARY,
+      SETUP_BIOMETRICS
+    ).toImmutableList(),
+    securityActions = listOf(
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS
+      ),
+      previewSecurityAction(
+        type = EAK_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_EAK
+      ),
+      previewSecurityAction(
+        type = CRITICAL_ALERTS,
+        category = SecurityActionCategory.SECURITY,
+        ENABLE_CRITICAL_ALERTS
+      )
+    ),
+    recoveryActions = listOf(
+      previewSecurityAction(
+        type = FINGERPRINTS,
+        category = SecurityActionCategory.SECURITY,
+        ADD_FINGERPRINTS
+      ),
+      previewSecurityAction(
+        type = INHERITANCE,
+        category = SecurityActionCategory.SECURITY,
+        ADD_BENEFICIARY
+      ),
+      previewSecurityAction(
+        type = MOBILE_KEY_BACKUP,
+        category = SecurityActionCategory.SECURITY,
+        BACKUP_MOBILE_KEY
+      ),
+      previewSecurityAction(
+        type = SOCIAL_RECOVERY,
+        category = SecurityActionCategory.SECURITY,
+        ADD_TRUSTED_CONTACTS
+      )
+    ),
+    onRecommendationClick = {},
+    onSecurityActionClick = {},
+    onHomeTabClick = {},
+    cardsModel = CardListModel(
+      cards = immutableListOf(
+        HardwareRecoveryCardModel(
+          title = "Replacement pending...",
+          subtitle = "2 days remaining",
+          delayPeriodProgress = Progress.Half,
+          delayPeriodRemainingSeconds = 0,
+          onClick = {}
+        )
+      )
+    )
+  )
+
+@Snapshot
 val SnapshotHost.completedRecommendations
   get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = listOf(
@@ -634,6 +833,7 @@ val SnapshotHost.completedRecommendations
 @Snapshot
 val SnapshotHost.loadingRecommendations
   get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),
     securityActions = emptyList(),
@@ -646,6 +846,7 @@ val SnapshotHost.loadingRecommendations
 @Snapshot
 val SnapshotHost.offline
   get() = SecurityHubBodyModel(
+    atRiskRecommendations = immutableListOf(),
     isOffline = true,
     recommendations = immutableListOf(),
     cardsModel = CardListModel(cards = immutableListOf()),

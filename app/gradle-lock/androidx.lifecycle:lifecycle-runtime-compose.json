@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime-compose",
+    "components": [
+        {
+            "version": "2.8.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-metadata-2.8.7.jar": "bb5489c9bf561b7addcff4179b10f959b3d441aa0fbae5c2d24a9065913fa212"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

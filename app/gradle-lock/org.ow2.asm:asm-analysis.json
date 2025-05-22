@@ -2,11 +2,11 @@
     "module-identifier": "org.ow2.asm:asm-analysis",
     "components": [
         {
-            "version": "9.6",
+            "version": "9.7",
             "variants": [
                 {
                     "artifacts": {
-                        "asm-analysis-9.6.jar": "d92832d7c37edc07c60e2559ac6118b31d642e337a6671edcb7ba9fae68edbbb"
+                        "asm-analysis-9.7.jar": "7bc6bcbc21379948a0c8c467fb0f864206e5b818f6bc0b546872f5c9f941556f"
                     }
                 }
             ],

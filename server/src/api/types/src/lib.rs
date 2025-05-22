@@ -18,3 +18,5 @@ pub mod recovery;
 pub mod serde;
 #[cfg(feature = "time")]
 pub mod time;
+#[cfg(feature = "transaction_verification")]
+pub mod transaction_verification;

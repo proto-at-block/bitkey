@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.material:material-ripple",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "material-ripple-1.7.3.jar": "93895a93ec14fe1988346d379a0c774b7aa4d2eb2b14f20a7d3a76bd50e481b8"
+                        "material-ripple-1.8.0.jar": "5abafb2ab2ba7cff4c2d45055704d6c1326d6d47280954dcd65413c1f14c99fa"
                     }
                 }
             ],

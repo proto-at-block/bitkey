@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-basement",
     "components": [
         {
-            "version": "18.3.0",
+            "version": "18.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-basement-18.3.0.aar": "6c11ae3eb2dd7f17373f919c4c557a70e4cf891bc0c9b66926a0a6445d654352"
+                        "play-services-basement-18.5.0.aar": "a3df6efb29beb2ff78fb7cde712ac773bd6cdcdfc9833c901895804f609c995e"
                     }
                 }
             ],

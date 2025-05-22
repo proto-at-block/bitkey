@@ -101,7 +101,7 @@ class RelationshipsCryptoFake(
         protectedCustomerEnrollmentPakeKey,
         trustedContactIdentityKeyBytes.size
       )
-    // Encrypt TC Identity Key
+    // Encrypt RC Identity Key
     val trustedContactIdentityKeyCiphertext =
       trustedContactIdentityKeyBytes.xorWith(secureChannelOutput.sharedSecretKey)
 
@@ -408,7 +408,7 @@ class RelationshipsCryptoFake(
     protectedCustomerPasswordAuthenticatedKey: PublicKey<P>,
     length: Int,
   ): EstablishSecureChannelOutput<T> {
-    // Generate TC PAKE Key
+    // Generate RC PAKE Key
     // x ⭠ ℤ_q
     val privKey = randomBytes()
     val x = q.parseString(privKey.hex(), 16)
@@ -455,7 +455,7 @@ class RelationshipsCryptoFake(
     keyConfirmation: ByteString,
     sealedData: XCiphertext,
   ): Result<ByteString, RelationshipsCryptoError> {
-    // Tweak TC PAKE Key
+    // Tweak RC PAKE Key
     val deserializedTrustedContactPasswordAuthenticatedKey =
       Point.secDeserialize(
         trustedContactPasswordAuthenticatedKey.value.decodeHex()

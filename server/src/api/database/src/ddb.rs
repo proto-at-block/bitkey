@@ -125,6 +125,9 @@ impl Connection {
             DatabaseObject::PrivilegedAction => ("PRIVILEGED_ACTION_TABLE", "PrivilegedAction"),
             DatabaseObject::Inheritance => ("INHERITANCE_TABLE", "Inheritance"),
             DatabaseObject::PromotionCode => ("PROMOTION_CODE_TABLE", "PromotionCode"),
+            DatabaseObject::TransactionVerification => {
+                ("TRANSACTION_VERIFICATION_TABLE", "TransactionVerification")
+            }
         };
 
         match self {
@@ -397,6 +400,7 @@ pub enum DatabaseObject {
     PrivilegedAction,
     Inheritance,
     PromotionCode,
+    TransactionVerification,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -417,6 +421,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::PrivilegedAction => write!(f, "PrivilegedAction"),
             DatabaseObject::Inheritance => write!(f, "Inheritance"),
             DatabaseObject::PromotionCode => write!(f, "PromotionCode"),
+            DatabaseObject::TransactionVerification => write!(f, "TransactionVerification"),
         }
     }
 }

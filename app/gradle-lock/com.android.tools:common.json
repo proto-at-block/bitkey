@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools:common",
     "components": [
         {
-            "version": "31.4.1",
+            "version": "31.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "common-31.4.1.jar": "37a718ab8453e4152aa75bb898aaad3d80473a9a69663f0c3d3cdb63b130cc3e"
+                        "common-31.8.0.jar": "4d23784349911cf932018114bed291f52ca79c15e30be1076eb4660ae8c4301a"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "common-31.5.2.jar": "ebfb15bf3c16b4037653c8180d0a0b7ae91522dbc43cccdd87049ff28234161a"
+                        "common-31.9.1.jar": "23d3da3f5d341d7c660cd241a6199eafcdb6f48e89d730def4b78da256930416"
                     }
                 }
             ],

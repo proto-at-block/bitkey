@@ -4,7 +4,7 @@ import build.wallet.crypto.PublicKey
 import dev.zacsweers.redacted.annotations.Redacted
 
 /**
- * The Trusted Contact's view of an invitation.
+ * The Recovery Contact's view of an invitation.
  */
 data class IncomingInvitation(
   val relationshipId: String,

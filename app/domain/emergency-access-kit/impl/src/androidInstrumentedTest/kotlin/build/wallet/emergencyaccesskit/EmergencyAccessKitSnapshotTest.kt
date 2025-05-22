@@ -40,7 +40,9 @@ class EmergencyAccessKitSnapshotTest {
 
       // Writes PDF in `data/data/build.wallet.domain.emergency.access.kit.impl.test/files`,
       // which can be viewed in IntelliJ Device Explorer.
-      val fileOutput = application.openFileOutput("Emergency Access Kit.pdf", Context.MODE_PRIVATE)
+      // The directory is removed upon the completion of the test so to view it
+      // set a breakpoint on `fileOutput.close()` and run the test in Debug.
+      val fileOutput = application.openFileOutput("Emergency Exit Kit.pdf", Context.MODE_PRIVATE)
       fileOutput.write(pdfBytes)
       fileOutput.close()
     }

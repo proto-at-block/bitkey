@@ -2,11 +2,11 @@
     "module-identifier": "io.matthewnelson.encoding:core-jvm",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "core-jvm-2.2.1.jar": "4e43465cf956178ecce5423acd65e509563602739d4636a8e86082ffc8c7e268"
+                        "core-jvm-2.3.1.jar": "a2fe697c779fb5e61662dad816bc24194cb2ae133d773ed0a2869773ecb20bb8"
                     }
                 }
             ],

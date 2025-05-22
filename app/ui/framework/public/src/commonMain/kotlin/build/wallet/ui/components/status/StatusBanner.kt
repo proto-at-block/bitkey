@@ -20,14 +20,28 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.status.BannerStyle
 import build.wallet.ui.model.status.StatusBannerModel
+import build.wallet.ui.theme.LocalTheme
+import build.wallet.ui.theme.Theme
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
 // All status banners currently use a warning background color
-val StatusBannerModel.backgroundColor: Color
-  @Composable
-  get() = WalletTheme.colors.warning
+@Composable
+fun StatusBannerModel.backgroundColor(): Color {
+  val theme = LocalTheme.current
+  return when (style) {
+    // when the theme is light, use a lighter color for the destructive banner
+    // otherwise we always use the warning color
+    BannerStyle.Destructive -> if (theme == Theme.LIGHT) {
+      WalletTheme.colors.destructiveForeground.copy(.1f)
+    } else {
+      WalletTheme.colors.warning
+    }
+    BannerStyle.Warning -> WalletTheme.colors.warning
+  }
+}
 
 @Composable
 fun StatusBanner(
@@ -37,7 +51,7 @@ fun StatusBanner(
   Column(
     modifier = modifier
       .fillMaxWidth()
-      .background(model.backgroundColor)
+      .background(model.backgroundColor())
       .statusBarsPadding()
       .thenIf(model.onClick != null) {
         model.onClick?.let {
@@ -53,7 +67,7 @@ fun StatusBanner(
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-      StatusBannerLabel(text = model.title, type = LabelType.Body3Medium)
+      StatusBannerLabel(text = model.title, type = LabelType.Body3Medium, style = model.style)
       model.onClick?.let {
         IconImage(
           modifier = Modifier.padding(start = 4.dp),
@@ -64,14 +78,17 @@ fun StatusBanner(
             ),
           style =
             IconStyle(
-              color = WalletTheme.colors.warningForeground
+              color = when (model.style) {
+                BannerStyle.Destructive -> WalletTheme.colors.destructiveForeground
+                BannerStyle.Warning -> WalletTheme.colors.warningForeground
+              }
             )
         )
       }
     }
 
     model.subtitle?.let {
-      StatusBannerLabel(text = it, type = LabelType.Body4Regular)
+      StatusBannerLabel(text = it, type = LabelType.Body4Regular, style = model.style)
     }
   }
 }
@@ -80,12 +97,16 @@ fun StatusBanner(
 private fun StatusBannerLabel(
   text: String,
   type: LabelType,
+  style: BannerStyle,
 ) {
   Label(
     text = text,
     type = type,
     treatment = LabelTreatment.Unspecified,
-    color = WalletTheme.colors.warningForeground,
+    color = when (style) {
+      BannerStyle.Destructive -> WalletTheme.colors.destructiveForeground
+      BannerStyle.Warning -> WalletTheme.colors.warningForeground
+    },
     alignment = TextAlign.Center
   )
 }

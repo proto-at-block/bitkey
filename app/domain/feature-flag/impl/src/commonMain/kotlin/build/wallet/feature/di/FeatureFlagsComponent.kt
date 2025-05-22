@@ -38,33 +38,13 @@ interface FeatureFlagsComponent {
 
   @Provides
   @SingleIn(AppScope::class)
-  fun feeBumpIsAvailableFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    FeeBumpIsAvailableFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun firmwareCommsLoggingFeatureFlag(featureFlagDao: FeatureFlagDao) =
     FirmwareCommsLoggingFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
-  fun inheritanceFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    InheritanceFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun inheritanceMarketingFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    InheritanceMarketingFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
   fun nfcHapticsOnConnectedIsEnabledFeatureFlag(featureFlagDao: FeatureFlagDao) =
     NfcHapticsOnConnectedIsEnabledFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun promptSweepFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    PromptSweepFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -85,11 +65,6 @@ interface FeatureFlagsComponent {
   @SingleIn(AppScope::class)
   fun softwareWalletIsEnabledFeatureFlag(featureFlagDao: FeatureFlagDao) =
     SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
-
-  @Provides
-  @SingleIn(AppScope::class)
-  fun provideDarkModeFeatureFlag(featureFlagDao: FeatureFlagDao) =
-    DarkModeFeatureFlag(featureFlagDao)
 
   @Provides
   @SingleIn(AppScope::class)
@@ -127,16 +102,11 @@ interface FeatureFlagsComponent {
 
   @Provides
   fun featureFlags(
-    darkModeFeatureFlag: DarkModeFeatureFlag,
     asyncNfcSigningFeatureFlag: AsyncNfcSigningFeatureFlag,
     coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
     expectedTransactionsPhase2FeatureFlag: ExpectedTransactionsPhase2FeatureFlag,
-    feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag,
     firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag,
-    inheritanceFeatureFlag: InheritanceFeatureFlag,
-    inheritanceMarketingFeatureFlag: InheritanceMarketingFeatureFlag,
     nfcHapticsOnConnectedIsEnabledFeatureFlag: NfcHapticsOnConnectedIsEnabledFeatureFlag,
-    promptSweepFeatureFlag: PromptSweepFeatureFlag,
     sellBitcoinMaxAmountFeatureFlag: SellBitcoinMaxAmountFeatureFlag,
     sellBitcoinMinAmountFeatureFlag: SellBitcoinMinAmountFeatureFlag,
     softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
@@ -150,27 +120,24 @@ interface FeatureFlagsComponent {
     fingerprintResetFeatureFlag: FingerprintResetFeatureFlag,
   ): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
-      darkModeFeatureFlag,
       balanceHistoryFeatureFlag,
-      promptSweepFeatureFlag,
-      inheritanceFeatureFlag,
-      inheritanceMarketingFeatureFlag,
-      coachmarksGlobalFeatureFlag,
-      asyncNfcSigningFeatureFlag,
-      utxoMaxConsolidationCountFeatureFlag,
-      feeBumpIsAvailableFeatureFlag,
-      nfcHapticsOnConnectedIsEnabledFeatureFlag,
       softwareWalletIsEnabledFeatureFlag,
-      firmwareCommsLoggingFeatureFlag,
       expectedTransactionsPhase2FeatureFlag,
-      sellBitcoinMinAmountFeatureFlag,
-      sellBitcoinMaxAmountFeatureFlag,
       mobileRealTimeMetricsFeatureFlag,
       securityHubFeatureFlag,
-      wipeHardwareLoggedOutFeatureFlag,
       usSmsFeatureFlag,
       checkHardwareIsPairedFeatureFlag,
-      fingerprintResetFeatureFlag
+      fingerprintResetFeatureFlag,
+      // these are long-lived feature flags that are not for actively developing features
+      // pushing towards the bottom
+      utxoMaxConsolidationCountFeatureFlag,
+      sellBitcoinMinAmountFeatureFlag,
+      sellBitcoinMaxAmountFeatureFlag,
+      coachmarksGlobalFeatureFlag,
+      nfcHapticsOnConnectedIsEnabledFeatureFlag,
+      firmwareCommsLoggingFeatureFlag,
+      wipeHardwareLoggedOutFeatureFlag,
+      asyncNfcSigningFeatureFlag
     )
   }
 }

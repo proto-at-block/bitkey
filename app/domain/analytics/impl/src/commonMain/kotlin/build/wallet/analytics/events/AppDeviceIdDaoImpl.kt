@@ -24,15 +24,10 @@ class AppDeviceIdDaoImpl(
   override suspend fun getOrCreateAppDeviceIdIfNotExists(): Result<String, Throwable> {
     val secureStore = secureStore()
     return coroutineBinding {
-      val appDeviceId = secureStore.getStringOrNullWithResult(KEY).bind()
-
-      if (appDeviceId != null) {
-        appDeviceId
-      } else {
-        val newAppDeviceId = uuidGenerator.random()
-        secureStore.putStringWithResult(key = KEY, value = newAppDeviceId).bind()
-        newAppDeviceId
-      }
+      secureStore.getStringOrNullWithResult(KEY).bind()
+        ?: uuidGenerator.random().also { newAppDeviceId ->
+          secureStore.putStringWithResult(KEY, newAppDeviceId).bind()
+        }
     }.logFailure { "Failed to get App Device ID" }
   }
 

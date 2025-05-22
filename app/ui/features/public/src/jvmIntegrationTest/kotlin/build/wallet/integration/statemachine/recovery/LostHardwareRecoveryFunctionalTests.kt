@@ -388,8 +388,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       // Resume on delay in progress step
       awaitUntilBody<HardwareDelayNotifyInProgressScreenModel>()
 
-      app.completeRecoveryDelayPeriodOnF8e()
-
       // Complete recovery
       awaitUntilBody<DelayAndNotifyNewKeyReady>()
         .onCompleteRecovery()
@@ -652,7 +650,4 @@ private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNo
   awaitUntilBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
     .clickPrimaryButton()
   awaitLoadingScreen(LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY)
-  awaitUntilBody<HardwareDelayNotifyInProgressScreenModel>()
-
-  app.completeRecoveryDelayPeriodOnF8e()
 }

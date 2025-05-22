@@ -7,7 +7,6 @@ import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
-import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.isEnabled
@@ -30,7 +29,6 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
   private val wipeHardwareFlag: WipeHardwareLoggedOutFeatureFlag,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
@@ -93,15 +91,10 @@ class ChooseAccountAccessUiStateMachineImpl(
             onBack = { state = ShowingChooseAccountAccess },
             onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
             onBeTrustedContactClick = {
-              if (inheritanceFeatureFlag.isEnabled()) {
-                props.chooseAccountAccessData.startLiteAccountCreation()
-              } else {
-                state = ShowingBeTrustedContactIntroduction
-              }
+              props.chooseAccountAccessData.startLiteAccountCreation()
             },
             onResetExistingDevice = props.chooseAccountAccessData.wipeExistingDevice
-              .takeIf { wipeHardwareFlag.isEnabled() },
-            isInheritanceEnabled = inheritanceFeatureFlag.isEnabled()
+              .takeIf { wipeHardwareFlag.isEnabled() }
           ).asRootScreen()
         }
       }
@@ -136,12 +129,12 @@ class ChooseAccountAccessUiStateMachineImpl(
   }
 
   /**
-   * Alert shown when an action taken is disabled due to the app being in Emergency Access Kit mode.
+   * Alert shown when an action taken is disabled due to the app being in Emergency Exit Kit mode.
    */
   private fun featureUnavailableForEakAlert(onDismiss: () -> Unit) =
     ButtonAlertModel(
       title = "Feature Unavailable",
-      subline = "This feature is disabled in the Emergency Access Kit app.",
+      subline = "This feature is disabled in the Emergency Exit Kit app.",
       primaryButtonText = "OK",
       onPrimaryButtonClick = onDismiss,
       onDismiss = onDismiss
@@ -162,12 +155,12 @@ class ChooseAccountAccessUiStateMachineImpl(
 
     /**
      * Showing screen allowing customer to choose from additional account access options,
-     * 'Be a Trusted Contact' and 'Restore your wallet'.
+     * 'Be a Recovery Contact' and 'Restore your wallet'.
      */
     data object ShowingAccountAccessMoreOptions : State
 
     /**
-     * Showing screen explaining the process of becoming a trusted contact, before checking for
+     * Showing screen explaining the process of becoming a Recovery Contact, before checking for
      * cloud backup and routing to the appropriate flow.
      */
     data object ShowingBeTrustedContactIntroduction : State

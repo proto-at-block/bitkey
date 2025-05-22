@@ -119,7 +119,7 @@ class AddingTrustedContactUiStateMachineImpl(
 
       is EnterTcNameState -> {
         var input by remember { mutableStateOf(current.tcNameInitial) }
-        val contactType = if (isInheritance) "beneficiary" else "trusted contact"
+        val contactType = if (isInheritance) "beneficiary" else "Recovery Contact"
 
         val continueClick = remember(input) {
           StandardClick {
@@ -164,9 +164,8 @@ class AddingTrustedContactUiStateMachineImpl(
       is LoadingNotificationPermissions -> {
         LaunchedEffect(current) {
           val result = notificationsService
-            .getCriticalNotificationStatus(
-              accountId = props.account.accountId
-            ).first()
+            .getCriticalNotificationStatus()
+            .first()
 
           state = when (result) {
             NotificationStatus.Enabled ->
@@ -323,7 +322,7 @@ class AddingTrustedContactUiStateMachineImpl(
           isConnectivityError = current.error is HttpError.NetworkError,
           errorData = ErrorData(
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
-            actionDescription = "Saving Trusted contact to F8e",
+            actionDescription = "Saving Recovery Contact to F8e",
             cause = current.error
           ),
           onRetry = {
@@ -405,7 +404,7 @@ class AddingTrustedContactUiStateMachineImpl(
           message = if (isInheritance) {
             "We'll let you know when your contact accepts their invite."
           } else {
-            "You can manage your trusted contacts in your settings."
+            "You can manage your Recovery Contacts in your settings."
           }
         ).asModalScreen()
       }

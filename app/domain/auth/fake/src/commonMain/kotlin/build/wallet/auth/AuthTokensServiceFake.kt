@@ -3,6 +3,7 @@ package build.wallet.auth
 import bitkey.auth.AccessToken
 import bitkey.auth.AccountAuthTokens
 import bitkey.auth.AuthTokenScope
+import bitkey.auth.RefreshToken
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.platform.random.uuid
@@ -12,6 +13,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
 /**
@@ -23,7 +25,8 @@ class AuthTokensServiceFake : AuthTokensService {
   private val allTokens = mutableMapOf<Pair<AccountId, AuthTokenScope>, AccountAuthTokens>()
 
   var refreshAccessTokenError: Error? = null
-  var refreshTokens: AccountAuthTokens? = null
+  var refreshAccessTokenTokens: AccountAuthTokens? = null
+  var refreshRefreshTokenTokens: AccountAuthTokens? = null
 
   override suspend fun refreshAccessTokenWithApp(
     f8eEnvironment: F8eEnvironment,
@@ -36,9 +39,30 @@ class AuthTokensServiceFake : AuthTokensService {
       val currentTokens = allTokens[accountId to scope]
         ?: return Err(Error("No $scope tokens found for $accountId"))
 
-      val newTokens = refreshTokens ?: currentTokens.copy(
+      val newTokens = refreshAccessTokenTokens ?: currentTokens.copy(
         accessToken = AccessToken("${currentTokens.accessToken.raw}-${uuid()}"),
         accessTokenExpiresAt = clock.now().plus(5.minutes)
+      )
+
+      allTokens[accountId to scope] = newTokens
+      Ok(newTokens)
+    }
+  }
+
+  override suspend fun refreshRefreshTokenWithApp(
+    f8eEnvironment: F8eEnvironment,
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ): Result<AccountAuthTokens, Error> {
+    return lock.withLock {
+      val currentTokens = allTokens[accountId to scope]
+        ?: return Err(Error("No $scope tokens found for $accountId"))
+
+      val newTokens = refreshRefreshTokenTokens ?: currentTokens.copy(
+        accessToken = AccessToken("${currentTokens.accessToken.raw}-${uuid()}"),
+        refreshToken = RefreshToken("${currentTokens.refreshToken.raw}-${uuid()}"),
+        accessTokenExpiresAt = clock.now().plus(5.minutes),
+        refreshTokenExpiresAt = clock.now().plus(30.days)
       )
 
       allTokens[accountId to scope] = newTokens
@@ -81,7 +105,8 @@ class AuthTokensServiceFake : AuthTokensService {
       allTokens.clear()
       setTokensError = null
       refreshAccessTokenError = null
-      refreshTokens = null
+      refreshAccessTokenTokens = null
+      refreshRefreshTokenTokens = null
     }
   }
 }

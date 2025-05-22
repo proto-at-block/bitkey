@@ -2,11 +2,11 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result",
     "components": [
         {
-            "version": "2.0.0",
+            "version": "2.0.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-metadata-2.0.0.jar": "9e806a953c951777d6c9bb1fe4b329dea89a045c730b267642249207065f1b1c"
+                        "kotlin-result-metadata-2.0.1.jar": "ecdae9905adf393d84f38ba5a987775428fd5aa7b731f1eec8f404cb45abc7bf"
                     }
                 }
             ],

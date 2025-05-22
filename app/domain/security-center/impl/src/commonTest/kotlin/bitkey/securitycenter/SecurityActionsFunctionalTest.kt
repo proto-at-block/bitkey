@@ -11,7 +11,7 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.relationships.EndorsedTrustedContactFake1
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
-import build.wallet.cloud.backup.health.EakBackupStatus
+import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
@@ -34,7 +34,7 @@ class SecurityActionsFunctionalTest :
   FunSpec({
     val accountService = AccountServiceFake()
     val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create).apply {
-      eakBackupStatus.value = EakBackupStatus.ProblemWithBackup.BackupMissing
+      eekBackupStatus.value = EekBackupStatus.ProblemWithBackup.BackupMissing
       mobileKeyBackupStatus.value = MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     }
     val mobileKeyBackupHealthActionFactory = MobileKeyBackupHealthActionFactoryImpl(
@@ -86,6 +86,9 @@ class SecurityActionsFunctionalTest :
 
     val metricTrackerService = MetricTrackerServiceFake()
 
+    val securityRecommendationInteractionDao = SecurityRecommendationInteractionDaoMock()
+    val clock = Clock.System
+
     val securityActionsService = SecurityActionsServiceImpl(
       mobileKeyBackupHealthActionFactory,
       eakBackupHealthActionFactory,
@@ -95,7 +98,9 @@ class SecurityActionsFunctionalTest :
       fingerprintsActionFactory,
       hardwareDeviceActionFactory,
       eventTracker,
-      metricTrackerService
+      metricTrackerService,
+      securityRecommendationInteractionDao,
+      clock
     )
 
     beforeTest {
@@ -116,14 +121,14 @@ class SecurityActionsFunctionalTest :
           SecurityActionRecommendation.SETUP_BIOMETRICS
         ),
         Triple(
-          "EAK backup completed",
+          "EEK backup completed",
           {
-            cloudBackupHealthRepository.eakBackupStatus.value = EakBackupStatus.Healthy(lastUploaded = Clock.System.now())
+            cloudBackupHealthRepository.eekBackupStatus.value = EekBackupStatus.Healthy(lastUploaded = Clock.System.now())
           },
           SecurityActionRecommendation.BACKUP_EAK
         ),
         Triple(
-          "Mobile key backup completed",
+          "App Key backup completed",
           {
             cloudBackupHealthRepository.mobileKeyBackupStatus.value = MobileKeyBackupStatus.Healthy(lastUploaded = Clock.System.now())
           },

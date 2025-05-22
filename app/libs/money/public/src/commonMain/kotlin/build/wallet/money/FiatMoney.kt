@@ -27,8 +27,6 @@ data class FiatMoney(
     value = currency.unitValueFromFractionalUnitValue(fractionalUnitAmount)
   )
 
-  override fun toString() = "Money(${currency.textCode.code},${value.toPlainString()})"
-
   operator fun plus(other: FiatMoney): FiatMoney {
     require(this.currency == other.currency)
     return copy(value = this.value + other.value)
@@ -37,6 +35,14 @@ data class FiatMoney(
   operator fun minus(other: FiatMoney): FiatMoney {
     require(this.currency == other.currency)
     return copy(value = this.value - other.value)
+  }
+
+  override fun equals(other: Any?): Boolean {
+    return when {
+      isZero && other is Money && other.isZero -> true
+      other is FiatMoney -> currency == other.currency && value == other.value
+      else -> false
+    }
   }
 
   @Suppress("TooManyFunctions")

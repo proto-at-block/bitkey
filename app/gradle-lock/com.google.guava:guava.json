@@ -15,16 +15,16 @@
             ]
         },
         {
-            "version": "32.1.3-jre",
+            "version": "33.4.0-jre",
             "variants": [
                 {
                     "artifacts": {
-                        "guava-32.1.3-android.jar": "20e6ac8902ddf49e7806cc70f3054c8d91accb5eefdc10f3207e80e0a336b263"
+                        "guava-33.4.0-android.jar": "e335cd1678426f15e04ae4f623c58b4c176572d7258c6ea64e3437cdc01e5707"
                     }
                 },
                 {
                     "artifacts": {
-                        "guava-32.1.3-jre.jar": "6d4e2b5a118aab62e6e5e29d185a0224eed82c85c40ac3d33cf04a270c3b3744"
+                        "guava-33.4.0-jre.jar": "b918c98a7e44dbe94ebd9fe3e40cddaadb5a93e6a78eb6008b42df237241e538"
                     }
                 }
             ],

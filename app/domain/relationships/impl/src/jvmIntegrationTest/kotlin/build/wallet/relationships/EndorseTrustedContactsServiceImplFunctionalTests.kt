@@ -95,17 +95,17 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
         roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
       .getOrThrow()
-    // Delete the invitation since we'll be adding it back as an unendorsed trusted contact.
+    // Delete the invitation since we'll be adding it back as an unendorsed Recovery Contact.
     relationshipsF8eClientFake.deleteInvitation(invite.invitation.relationshipId)
 
-    // Get the PAKE code and enrollment public key that should be shared with the TC
+    // Get the PAKE code and enrollment public key that should be shared with the RC
     val pakeData = relationshipsEnrollmentAuthenticationDao
       .getByRelationshipId(invite.invitation.relationshipId)
       .getOrThrow()
       .shouldNotBeNull()
     val delegatedDecryptionKey = relationshipsCrypto.generateDelegatedDecryptionKey().getOrThrow()
 
-    // Simulate the TC accepting the invitation and sending their identity key
+    // Simulate the RC accepting the invitation and sending their identity key
     val pakeCode = if (overridePakeCode != null) {
       PakeCode(overridePakeCode.toByteArray().toByteString())
     } else {
@@ -128,7 +128,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
       roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
 
-    // Update unendorsed TC
+    // Update unendorsed RC
     relationshipsF8eClientFake.unendorsedTrustedContacts
       .removeAll { it.relationshipId == unendorsedTc.relationshipId }
     relationshipsF8eClientFake.unendorsedTrustedContacts.add(unendorsedTc)
@@ -143,7 +143,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
-    // Create TC invite
+    // Create RC invite
     val (_, tcIdentityKey) = simulateAcceptedInvite(account)
 
     // PC to authenticate and verify unendorsed TCs
@@ -156,13 +156,13 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     val keyCertificate = relationshipsF8eClientFake.keyCertificates.single()
     relationshipsCrypto.verifyKeyCertificate(account, keyCertificate)
       .shouldBeOk()
-      // Verify the TC's identity key
+      // Verify the RC's identity key
       .shouldBe(tcIdentityKey)
 
     // Fetch relationships
     val relationships = relationshipsDao.relationships().first().getOrThrow()
 
-    // TC should be completely endorsed
+    // RC should be completely endorsed
     relationships
       .endorsedTrustedContacts
       .single()
@@ -211,7 +211,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
-    // Create TC invite
+    // Create RC invite
     simulateAcceptedInvite(account)
 
     // Endorse
@@ -249,7 +249,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
-    // Create TC invite
+    // Create RC invite
     simulateAcceptedInvite(account)
 
     // Endorse
@@ -295,7 +295,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     // Onboard new account
     val account = app.onboardFullAccountWithFakeHardware()
 
-    // Creat TC invite
+    // Creat RC invite
     simulateAcceptedInvite(account)
 
     // Clear the PAKE data
@@ -310,7 +310,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
 
     relationships.endorsedTrustedContacts.shouldBeEmpty()
 
-    // Verify that the unendorsed TC is in a failed state
+    // Verify that the unendorsed RC is in a failed state
     relationships
       .unendorsedTrustedContacts
       .single()
@@ -371,7 +371,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
     // Fetch relationships
     val relationships = relationshipsDao.relationships().first().getOrThrow()
 
-    // Verify that the unendorsed TC is in a failed state
+    // Verify that the unendorsed RC is in a failed state
     relationships
       .unendorsedTrustedContacts
       .single()
@@ -380,7 +380,7 @@ class EndorseTrustedContactsServiceImplFunctionalTests : FunSpec({
         authenticationState.shouldBe(TrustedContactAuthenticationState.FAILED)
       }
 
-    // Verify that the unendorsed TC is in the endorsed state
+    // Verify that the unendorsed RC is in the endorsed state
     relationships
       .endorsedTrustedContacts
       .single()

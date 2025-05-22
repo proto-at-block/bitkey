@@ -14,7 +14,7 @@ sealed interface InheritanceClaim {
   val claimId: InheritanceClaimId
 
   /**
-   * The ID of the Trusted Contact relationship for which this claim is made.
+   * The ID of the Recovery Contact relationship for which this claim is made.
    */
   val relationshipId: RelationshipId
 }

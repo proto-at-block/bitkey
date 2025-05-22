@@ -2,11 +2,11 @@
     "module-identifier": "io.matthewnelson.encoding:base32-jvm",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "base32-jvm-2.2.1.jar": "e39bde7786d5fe486f6626837431f816af677045825ea85ba99941ceb5dec4dc"
+                        "base32-jvm-2.3.1.jar": "5a83e8020c8c10bcd5d9b3bed905f7706b3684526c3d0c032c8dada64b68f406"
                     }
                 }
             ],

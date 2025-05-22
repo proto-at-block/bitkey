@@ -28,36 +28,46 @@ class AuthTokenDaoImpl(
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
     return catchingResult {
-      // Initialize the secure store
       val secureStore = secureStore()
 
-      val accessToken =
-        secureStore
-          .getStringOrNull(accessTokenKey(accountId, scope))
-          ?.let { AccessToken(it) }
+      val accessToken = secureStore
+        .getStringOrNull(accessTokenKey(accountId, scope))
+        ?.let { AccessToken(it) }
 
       val accessTokenExpiresAt = secureStore
         .getStringOrNull(accessTokenExpiresAtKey(accountId, scope))
         ?.let { expiresAt ->
           try {
             Instant.parse(expiresAt)
-          } catch (e: IllegalArgumentException) {
+          } catch (_: IllegalArgumentException) {
             // In case of a parsing error, simply fall back to no expiry being available.
-            logWarn { "Failed to parse accessTokenExpiresAt $e" }
+            logWarn { "Failed to parse accessTokenExpiresAt" }
             null
           }
         }
 
-      val refreshToken =
-        secureStore
-          .getStringOrNull(refreshTokenKey(accountId, scope))
-          ?.let { RefreshToken(it) }
+      val refreshToken = secureStore
+        .getStringOrNull(refreshTokenKey(accountId, scope))
+        ?.let { RefreshToken(it) }
+
+      val refreshTokenExpiresAt = secureStore
+        .getStringOrNull(refreshTokenExpiresAtKey(accountId, scope))
+        ?.let { expiresAt ->
+          try {
+            Instant.parse(expiresAt)
+          } catch (_: IllegalArgumentException) {
+            // In case of a parsing error, simply fall back to no expiry being available.
+            logWarn { "Failed to parse refreshTokenExpiresAt" }
+            null
+          }
+        }
 
       if (accessToken != null && refreshToken != null) {
         AccountAuthTokens(
           accessToken = accessToken,
           refreshToken = refreshToken,
-          accessTokenExpiresAt = accessTokenExpiresAt
+          accessTokenExpiresAt = accessTokenExpiresAt,
+          refreshTokenExpiresAt = refreshTokenExpiresAt
         )
       } else {
         null
@@ -72,9 +82,7 @@ class AuthTokenDaoImpl(
     scope: AuthTokenScope,
   ): Result<Unit, Throwable> =
     coroutineBinding {
-      // Initialize the secure store
       val secureStore = secureStore()
-      // Atomically write both refresh and access tokens
       secureStore
         .putStringWithResult(key = accessTokenKey(accountId, scope), value = tokens.accessToken.raw)
         .bind()
@@ -88,13 +96,23 @@ class AuthTokenDaoImpl(
           .bind()
       }
 
+      tokens.refreshTokenExpiresAt?.let {
+        secureStore
+          .putStringWithResult(
+            key = refreshTokenExpiresAtKey(accountId, scope),
+            value = it.toString()
+          )
+          .bind()
+      }
+
       secureStore
         .putStringWithResult(
           key = refreshTokenKey(accountId, scope),
           value = tokens.refreshToken.raw
         )
         .bind()
-    }.logFailure { "Error setting auth tokens for $accountId" }
+    }
+      .logFailure { "Error setting auth tokens for $accountId" }
 
   override suspend fun clear(): Result<Unit, Throwable> {
     return secureStore().clearWithResult()
@@ -127,6 +145,16 @@ class AuthTokenDaoImpl(
     return when (scope) {
       AuthTokenScope.Global -> "refreshToken_global_${accountId.serverId}"
       AuthTokenScope.Recovery -> "refreshToken_recovery_${accountId.serverId}"
+    }
+  }
+
+  private fun refreshTokenExpiresAtKey(
+    accountId: AccountId,
+    scope: AuthTokenScope,
+  ): String {
+    return when (scope) {
+      AuthTokenScope.Global -> "refreshToken_expiresAt_global_${accountId.serverId}"
+      AuthTokenScope.Recovery -> "refreshToken_expiresAt_recovery_${accountId.serverId}"
     }
   }
 

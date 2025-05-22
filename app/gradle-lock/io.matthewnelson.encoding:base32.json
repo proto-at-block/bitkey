@@ -2,11 +2,11 @@
     "module-identifier": "io.matthewnelson.encoding:base32",
     "components": [
         {
-            "version": "2.2.1",
+            "version": "2.3.1",
             "variants": [
                 {
                     "artifacts": {
-                        "base32-metadata-2.2.1.jar": "43afe2e9a0627b7f865289728ca82f86b0e241e8127fec77f0deea28385db9fd"
+                        "base32-metadata-2.3.1.jar": "4b931fdb5cd2eee046193f4f338ae4d5eaf7c2cca85bf02c33908ea032da65a2"
                     }
                 }
             ],

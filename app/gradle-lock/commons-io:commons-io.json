@@ -2,11 +2,11 @@
     "module-identifier": "commons-io:commons-io",
     "components": [
         {
-            "version": "2.13.0",
+            "version": "2.16.1",
             "variants": [
                 {
                     "artifacts": {
-                        "commons-io-2.13.0.jar": "671eaa39688dac2ffaa4645b3c9980ae2d0ea2471e4ae6a5da199cd15ae23666"
+                        "commons-io-2.16.1.jar": "f41f7baacd716896447ace9758621f62c1c6b0a91d89acee488da26fc477c84f"
                     }
                 }
             ],

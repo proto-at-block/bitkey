@@ -1,4 +1,5 @@
 use bitcoin::bip32::{DerivationPath, ExtendedPubKey};
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::Network;
 use crypto::keys::PublicKey;
 use serde::{Deserialize, Serialize};
@@ -211,6 +212,37 @@ pub struct EnclaveContinueShareRefreshRequest {
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EnclaveContinueShareRefreshResponse {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GrantRequest {
+    pub version: u8,
+    pub action: String,
+    pub device_id: String,
+    pub challenge: Vec<u8>,
+    pub signature: Signature,
+}
+
+impl GrantRequest {
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut data = Vec::new();
+
+        data.push(self.version);
+        data.extend_from_slice(self.action.as_bytes());
+        data.extend_from_slice(self.device_id.as_bytes());
+        data.extend_from_slice(&self.challenge);
+        data.extend_from_slice(&self.signature.serialize_compact());
+
+        data
+    }
+}
+
+#[serde_as]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveSignGrantRequest {
+    pub hw_auth_public_key: PublicKey,
+    #[serde(flatten)]
+    pub grant_request: GrantRequest,
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct CreatedKey {

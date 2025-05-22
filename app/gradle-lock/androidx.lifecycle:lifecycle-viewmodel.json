@@ -2,22 +2,22 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel",
     "components": [
         {
-            "version": "2.8.5",
+            "version": "2.8.7",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-2.8.5.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd"
+                        "lifecycle-viewmodel-2.8.7.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd"
                     }
                 },
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-2.8.5.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd",
-                        "lifecycle-viewmodel-metadata-2.8.5.jar": "539281344ce8a81d33570be300d86bb872c7b719a6dd2ce494eacba438fb53ce"
+                        "lifecycle-viewmodel-2.8.7.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd",
+                        "lifecycle-viewmodel-metadata-2.8.7.jar": "539281344ce8a81d33570be300d86bb872c7b719a6dd2ce494eacba438fb53ce"
                     }
                 },
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-metadata-2.8.5.jar": "539281344ce8a81d33570be300d86bb872c7b719a6dd2ce494eacba438fb53ce"
+                        "lifecycle-viewmodel-metadata-2.8.7.jar": "539281344ce8a81d33570be300d86bb872c7b719a6dd2ce494eacba438fb53ce"
                     }
                 }
             ],

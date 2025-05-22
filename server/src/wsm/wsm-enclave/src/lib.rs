@@ -53,13 +53,12 @@ use tokio::sync::RwLock;
 
 use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
-use wsm_common::messages::api::AttestationDocResponse;
 use wsm_common::messages::api::EvaluatePinRequest;
 use wsm_common::messages::api::EvaluatePinResponse;
 use wsm_common::messages::api::NoiseInitiateBundleRequest;
 use wsm_common::messages::api::NoiseInitiateBundleResponse;
 use wsm_common::messages::api::SignedPsbt;
-use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenRequest;
+use wsm_common::messages::api::{AttestationDocResponse, GrantResponse};
 use wsm_common::messages::enclave::EnclaveContinueDistributedKeygenResponse;
 use wsm_common::messages::enclave::EnclaveContinueShareRefreshRequest;
 use wsm_common::messages::enclave::EnclaveContinueShareRefreshResponse;
@@ -76,6 +75,9 @@ use wsm_common::messages::enclave::{
     EnclaveDeriveKeyRequest, EnclaveSignRequest, KmsRequest, LoadIntegrityKeyRequest,
     LoadSecretRequest, LoadedSecret,
 };
+use wsm_common::messages::enclave::{
+    EnclaveContinueDistributedKeygenRequest, EnclaveSignGrantRequest,
+};
 use wsm_common::messages::TEST_KEY_IDS;
 use wsm_common::{
     enclave_log::{LogBuffer, MAX_LOG_EVENT_SIZE_BYTES},
@@ -83,11 +85,13 @@ use wsm_common::{
 };
 
 use crate::aad::Aad;
+use crate::grants::GrantCreator;
 use crate::kms_tool::{KmsTool, KmsToolError};
 use crate::settings::Settings;
 
 mod aad;
 mod frost;
+mod grants;
 mod kms_tool;
 mod noise_cache;
 mod psbt_verification;
@@ -1238,6 +1242,35 @@ async fn continue_share_refresh(
     Ok(Json(EnclaveContinueShareRefreshResponse {}))
 }
 
+async fn approve_grant(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveSignGrantRequest>,
+) -> Result<Json<GrantResponse>, WsmError> {
+    let keystore = route_state.keystore.clone();
+    let mut log_buffer = LogBuffer::new();
+
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
+    let integrity_key =
+        SecretKey::from_slice(&integrity_key).map_err(|e| WsmError::ServerError {
+            message: format!("Failed to fetch integrity key: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    let grant_creator = GrantCreator {
+        wik_private_key: integrity_key,
+        hw_auth_public_key: request.hw_auth_public_key,
+    };
+
+    let grant = grant_creator
+        .create_signed_grant(request.grant_request)
+        .map_err(|e| WsmError::ServerError {
+            message: format!("Failed to create signed grant: {}", e),
+            log_buffer: log_buffer.clone(),
+        })?;
+
+    Ok(Json(grant))
+}
+
 async fn derive_key(
     State(route_state): State<RouteState>,
     Json(request): Json<EnclaveDeriveKeyRequest>,
@@ -1584,6 +1617,7 @@ impl From<RouteState> for Router {
             .route("/evaluate-pin", post(evaluate_pin))
             .route("/initiate-share-refresh", post(initiate_share_refresh))
             .route("/continue-share-refresh", post(continue_share_refresh))
+            .route("/approve-grant", post(approve_grant))
             .with_state(state)
     }
 }

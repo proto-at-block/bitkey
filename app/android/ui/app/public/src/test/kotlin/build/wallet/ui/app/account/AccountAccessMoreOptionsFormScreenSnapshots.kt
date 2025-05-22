@@ -17,14 +17,13 @@ class AccountAccessMoreOptionsFormScreenSnapshots :
             onBack = {},
             onBeTrustedContactClick = {},
             onRestoreYourWalletClick = {},
-            onResetExistingDevice = {},
-            isInheritanceEnabled = false
+            onResetExistingDevice = {}
           )
         )
       }
     }
 
-    test("EAK app variant - emergency recovery screen") {
+    test("EEK app variant - emergency recovery screen") {
       paparazzi.snapshot {
         FormScreen(
           EmergencyAccountAccessMoreOptionsFormBodyModel(

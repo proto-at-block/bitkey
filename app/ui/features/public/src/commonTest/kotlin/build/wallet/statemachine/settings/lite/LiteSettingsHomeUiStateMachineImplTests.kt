@@ -108,7 +108,7 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("open and close trusted contact management") {
+  test("open and close Recovery Contact management") {
     stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()
@@ -138,7 +138,7 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("onAccountUpgraded is called by trusted contact management") {
+  test("onAccountUpgraded is called by Recovery Contact management") {
     stateMachine().test(props) {
       awaitBodyMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()

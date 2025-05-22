@@ -8,7 +8,6 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.flags.WipeHardwareLoggedOutFeatureFlag
 import build.wallet.feature.setFlagValue
@@ -49,7 +48,6 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
       softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
       createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine,
-      inheritanceFeatureFlag = InheritanceFeatureFlag(featureFlagDao = FeatureFlagDaoFake()),
       wipeHardwareFlag = wipeHardwareFlag
     )
 
@@ -102,10 +100,6 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
       awaitBody<AccountAccessMoreOptionsFormBodyModel> {
         onBeTrustedContactClick()
-      }
-
-      awaitBody<BeTrustedContactIntroductionModel> {
-        onContinue()
       }
 
       startLiteAccountCreationCalls.awaitItem()
@@ -167,7 +161,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("emergency access recovery button shows in eak builds") {
+  test("Emergency Exit Kit recovery button shows in EEK builds") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
     stateMachine.test(props) {
@@ -211,7 +205,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("EAK disabled paths") {
+  test("EEK disabled paths") {
     emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
 
     stateMachine.test(props) {

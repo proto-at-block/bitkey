@@ -95,7 +95,7 @@ ios-snapshots-verify:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   echo "⚠️⚠️⚠️ Please be aware than verifying snapshots locally may result in flakey failures ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.2'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3'
 
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
@@ -104,7 +104,7 @@ ios-snapshots-record:
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   echo "⚠️⚠️⚠️ Only for use for local development, DO NOT COMMIT LOCALLY GENERATED SNAPSHOTS ⚠️⚠️⚠️"
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.2'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max,OS=18.3'
 
 [private]
 ios-snapshot-prework:
@@ -113,11 +113,11 @@ ios-snapshot-prework:
   # Check for the specific iOS simulator runtime
   runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-18-2' && echo true || echo false)
   if [ "$runtime" == "false" ]; then
-    echo "You must install the iOS 18.2 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    echo "You must install the iOS 18.3 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
     exit 1
   fi
   # Check for the specific simulator device
-  devices=$(xcrun simctl list devices | awk '/-- iOS 18.2 --/{flag=1;next}/--/{flag=0}flag')
+  devices=$(xcrun simctl list devices | awk '/-- iOS 18.3 --/{flag=1;next}/--/{flag=0}flag')
   device=$(echo "$devices" | grep -E 'iPhone 16 Pro Max \(.*\)' && echo true || echo false)
   if [ "$device" == "false" ]; then
     echo "You must install the iPhone 16 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
@@ -187,7 +187,7 @@ list-env-vars:
   @echo "Set these environment variables OR add them to  ~/.zprofile:"
   @echo 'export ANDROID_HOME="$HOME/Library/Android/sdk"'
   @echo 'export ANDROID_NDK_VERSION="25.2.9519653"'
-  @echo 'export ANDROID_BUILD_TOOLS_VERSION="34.0.0"'
+  @echo 'export ANDROID_BUILD_TOOLS_VERSION="35.0.0"'
   @echo 'export ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION'
   @echo 'export PATH=$ANDROID_HOME/tools:$PATH'
   @echo 'export PATH=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS_VERSION:$PATH'

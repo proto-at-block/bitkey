@@ -6,8 +6,6 @@ import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingScreen
@@ -62,7 +60,6 @@ class SettingsHomeUiStateMachineImpl(
   private val firmwareDataService: FirmwareDataService,
   private val utxoConsolidationUiStateMachine: UtxoConsolidationUiStateMachine,
   private val inheritanceManagementUiStateMachine: InheritanceManagementUiStateMachine,
-  private val inheritanceFeatureFlag: InheritanceFeatureFlag,
   private val exportToolsUiStateMachine: ExportToolsUiStateMachine,
 ) : SettingsHomeUiStateMachine {
   @Composable
@@ -132,14 +129,15 @@ class SettingsHomeUiStateMachineImpl(
                       },
                       SettingsListUiProps.SettingsListRow.InheritanceManagement {
                         state = ShowingInheritanceUiState(ManagingInheritanceTab.Beneficiaries)
-                      }.takeIf { inheritanceFeatureFlag.isEnabled() },
+                      },
                       SettingsListUiProps.SettingsListRow.ExportTools {
                         state = ShowingExportToolsUiState
                       }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null },
-                  goToSecurityHub = props.goToSecurityHub
+                  goToSecurityHub = props.goToSecurityHub,
+                  isLiteAccount = false
                 )
             ),
           statusBannerModel = props.homeStatusBannerModel,

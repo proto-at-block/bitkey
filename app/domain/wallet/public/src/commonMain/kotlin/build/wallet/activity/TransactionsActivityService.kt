@@ -2,6 +2,7 @@ package build.wallet.activity
 
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Domain service that provides transactions activity for active account.
@@ -19,7 +20,7 @@ interface TransactionsActivityService {
   /**
    * Emits latest list of transactions activity.
    */
-  val transactions: Flow<List<Transaction>>
+  val transactions: StateFlow<List<Transaction>?>
 
   /**
    * A flow of the latest transaction fetched by its [transactionId], null when none is found.

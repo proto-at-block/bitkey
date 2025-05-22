@@ -5,9 +5,6 @@ import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.relationships.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.recovery.socrec.SocRecServiceFake
 import build.wallet.router.Router
@@ -33,7 +30,6 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   val socRecService = SocRecServiceFake()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val inheritanceFeatureFlag = InheritanceFeatureFlag(FeatureFlagDaoFake())
   val stateMachine = LiteMoneyHomeUiStateMachineImpl(
     socRecService = socRecService,
     inAppBrowserNavigator = inAppBrowserNavigator,
@@ -45,8 +41,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     helpingWithRecoveryUiStateMachine = object : HelpingWithRecoveryUiStateMachine,
       ScreenStateMachineMock<HelpingWithRecoveryUiProps>(
         "helping-with-recovery"
-      ) {},
-    inheritanceFeatureFlag = inheritanceFeatureFlag
+      ) {}
   )
 
   val propsOnSettingsCalls = turbines.create<Unit>("props onSettings call")
@@ -65,7 +60,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     inAppBrowserNavigator.reset()
     socRecService.reset()
     Router.reset()
-    inheritanceFeatureFlag.reset()
   }
 
   test("initially shows Money Home screen") {
@@ -167,21 +161,10 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("inheritance card is shown with feature flag enabled") {
-    inheritanceFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.size
           .shouldBe(3)
-      }
-    }
-  }
-
-  test("inheritance card is not shown with feature flag disabled") {
-    inheritanceFeatureFlag.setFlagValue(false)
-    stateMachine.test(props) {
-      awaitBody<LiteMoneyHomeBodyModel> {
-        cardsModel.cards.size
-          .shouldBe(2)
       }
     }
   }

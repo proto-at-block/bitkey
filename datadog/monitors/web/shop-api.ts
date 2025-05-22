@@ -335,7 +335,7 @@ export class ShopApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[web-shop-api]: service has a high average latency",
-      priority: 2,
+      priority: "2",
       tags: tags,
       recipients: getErrorRecipients(environment),
     });

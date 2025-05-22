@@ -69,6 +69,7 @@ pub struct TicketFormEndUserConditionPayload {
 pub enum TicketFormEndUserConditionValuePayload {
     String(String),
     Bool(bool),
+    MultiChoice(Vec<String>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]

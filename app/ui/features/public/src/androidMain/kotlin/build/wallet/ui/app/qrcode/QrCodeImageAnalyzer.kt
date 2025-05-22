@@ -63,9 +63,18 @@ internal class QrCodeImageAnalyzer(
         val result = reader.decode(binaryBitmap)
         onQrCodeDetected(result.text)
       } catch (_: Exception) {
-        // no-op ignore exception
-        // swallow exception since these are fired during focus, positioning, etc
-        // we don't log to prevent noisy logging
+        // The DecodeHintType.ALSO_INVERTED hint (from zxing) proved unreliable for our dark mode QR codes.
+        // Therefore, we manually invert the image and attempt a second decode for such cases.
+        try {
+          val invertedSource = source.invert()
+          val invertedBitmap = BinaryBitmap(HybridBinarizer(invertedSource))
+          val result = reader.decode(invertedBitmap)
+          onQrCodeDetected(result.text)
+        } catch (_: Exception) {
+          // no-op ignore exception
+          // swallow exception since these are fired during focus, positioning, etc
+          // we don't log to prevent noisy logging
+        }
       } finally {
         image.close()
       }

@@ -557,7 +557,7 @@ private sealed interface CloudBackupRestorationUiState {
 
   /**
    * Starts the Social Recovery challenge flow for restoring
-   * using trusted contacts instead of hardware.
+   * using Recovery Contacts instead of hardware.
    */
   data class SocRecChallengeState(
     val accountId: FullAccountId,

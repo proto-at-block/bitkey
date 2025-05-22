@@ -36,7 +36,6 @@ import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
@@ -104,7 +103,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
   private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
   private val coachmarkService: CoachmarkService,
-  private val sweepService: SweepService,
   private val haptics: Haptics,
   private val firmwareDataService: FirmwareDataService,
   private val bitcoinWalletService: BitcoinWalletService,
@@ -121,17 +119,12 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       LaunchedEffect("refresh-transactions") {
         refreshExecutor.runRefreshOperations(TransactionActivityOperations)
         transactionsActivityService.sync()
-        sweepService.checkForSweeps()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
     val transactionsData = remember { bitcoinWalletService.transactionsData() }
       .collectAsState()
       .value
-
-    val recommendations by remember {
-      securityActionsService.getRecommendations()
-    }.collectAsState(emptyList())
 
     val numberOfVisibleTransactions = 5
 
@@ -308,13 +301,14 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             {
               props.onGoToSecurityHub()
               scope.launch {
+                haptics.vibrate(effect = HapticsEffect.LightClick)
                 coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.SecurityHubHomeCoachmark)
               }
             }
           } else {
             null
           },
-          isSecurityHubBadged = recommendations.isNotEmpty()
+          isSecurityHubBadged = securityActionsService.hasRecommendationsRequiringAttention().collectAsState(false).value
         ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(
@@ -409,7 +403,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             ),
           hardwareRecoveryStatusCardUiProps =
             HardwareRecoveryStatusCardUiProps(
-              lostHardwareRecoveryData = props.lostHardwareRecoveryData,
+              account = props.account as FullAccount,
               onClick = {
                 props.setState(
                   ViewHardwareRecoveryStatusUiState(InstructionsStyle.Independent)

@@ -75,10 +75,10 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("no trusted contacts") {
+  test("no Recovery Contacts") {
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        header?.headline.shouldBe("Trusted Contacts")
+        header?.headline.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
         mainContentList[0].shouldBeInstanceOf<ListGroup>()
           .listGroupModel
@@ -91,7 +91,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("trusted contacts loaded") {
+  test("Recovery Contacts loaded") {
     val testContact =
       EndorsedTrustedContact(
         relationshipId = "test-id",
@@ -108,7 +108,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        header?.headline.shouldBe("Trusted Contacts")
+        header?.headline.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
           .first()
           .shouldBeInstanceOf<ListGroup>()
@@ -136,7 +136,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
 
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
-        header?.headline.shouldBe("Trusted Contacts")
+        header?.headline.shouldBe("Recovery Contacts")
         mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
           .first()
           .shouldBeInstanceOf<ListGroup>()
@@ -149,7 +149,7 @@ class ListingTrustedContactsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("start add new trusted contact flow") {
+  test("start add new Recovery Contact flow") {
     listingTrustedContactsUiStateMachine.test(props) {
       awaitUntilBody<FormBodyModel> {
         mainContentList.first()

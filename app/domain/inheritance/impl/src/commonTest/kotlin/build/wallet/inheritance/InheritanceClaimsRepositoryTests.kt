@@ -10,19 +10,15 @@ import build.wallet.bitkey.inheritance.BeneficiaryLockedClaimFake
 import build.wallet.bitkey.inheritance.BeneficiaryPendingClaimFake
 import build.wallet.bitkey.inheritance.InheritanceClaims
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.coroutines.turbine.awaitNoEvents
 import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.f8e.inheritance.RetrieveInheritanceClaimsF8EClientFake
 import build.wallet.feature.FeatureFlagDaoFake
-import build.wallet.feature.flags.InheritanceFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import io.kotest.assertions.withClue
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 class InheritanceClaimsRepositoryTests : FunSpec({
@@ -32,7 +28,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
   val accountService = AccountServiceFake()
   val retrieveInheritanceClaimsF8eClient = RetrieveInheritanceClaimsF8EClientFake()
   val featureFlagDao = FeatureFlagDaoFake()
-  val featureFlag = InheritanceFeatureFlag(featureFlagDao)
   val inheritanceClaimsDao = InheritanceClaimsDaoFake()
   val syncFrequency = 100.milliseconds
 
@@ -40,7 +35,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
     accountService.reset()
     retrieveInheritanceClaimsF8eClient.reset()
     featureFlagDao.reset()
-    featureFlag.setFlagValue(true)
     inheritanceClaimsDao.clear()
   }
 
@@ -55,7 +49,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
       stateScope = backgroundScope,
-      inheritanceFeatureFlag = featureFlag,
       inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
@@ -76,7 +69,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
       stateScope = backgroundScope,
-      inheritanceFeatureFlag = featureFlag,
       inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
@@ -113,7 +105,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
       inheritanceClaimsDao = inheritanceClaimsDao,
       retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
       stateScope = backgroundScope,
-      inheritanceFeatureFlag = featureFlag,
       inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
     )
 
@@ -139,29 +130,6 @@ class InheritanceClaimsRepositoryTests : FunSpec({
           )
         )
       }
-    }
-  }
-
-  test("feature flag test") {
-    val initialClaimsList = InheritanceClaims(
-      beneficiaryClaims = listOf(BeneficiaryPendingClaimFake),
-      benefactorClaims = listOf(BenefactorPendingClaimFake)
-    )
-    featureFlag.setFlagValue(false)
-    accountService.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
-    retrieveInheritanceClaimsF8eClient.response = Ok(initialClaimsList)
-    val repository = InheritanceClaimsRepositoryImpl(
-      accountService = accountService,
-      inheritanceClaimsDao = inheritanceClaimsDao,
-      retrieveInheritanceClaimsF8eClient = retrieveInheritanceClaimsF8eClient,
-      stateScope = backgroundScope,
-      inheritanceFeatureFlag = featureFlag,
-      inheritanceSyncFrequency = InheritanceSyncFrequency(syncFrequency)
-    )
-
-    repository.claims.test {
-      delay(syncFrequency)
-      awaitNoEvents()
     }
   }
 })

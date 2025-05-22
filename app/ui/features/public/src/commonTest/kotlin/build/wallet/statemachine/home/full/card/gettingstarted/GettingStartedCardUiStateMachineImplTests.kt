@@ -50,7 +50,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val onAddBitcoinCalls = turbines.create<Unit>("add bitcoin calls")
   val onEnableSpendingLimitCalls = turbines.create<Unit>("enable spending limit calls")
-  val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
+  val onInviteTrustedContactCalls = turbines.create<Unit>("invite Recovery Contact calls")
   val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
   val securityHubFeatureFlag = SecurityHubFeatureFlag(featureFlagDao = FeatureFlagDaoFake())
 
@@ -179,7 +179,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       cardModel.expect(
         tasks = listOf(GettingStartedTask(InviteTrustedContact, state = Incomplete))
       )
-      cardModel.onClick("Invite a Trusted Contact").invoke()
+      cardModel.onClick("Invite a Recovery Contact").invoke()
       onInviteTrustedContactCalls.awaitItem()
     }
   }

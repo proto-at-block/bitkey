@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.animation:animation-uikitarm64",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "animation-uikitarm64-1.7.3-metadata.jar": "0ca709c16d8c12dc304f21b9fb578163564e2569261313e332e7f6d5678b7914"
+                        "animation-uikitArm64Main-1.8.0.klib": "3e8c0f2f1b18c7aec48486a3fe05873439d402421cb13487a0515f13387ccf96"
                     }
                 },
                 {
                     "artifacts": {
-                        "animation.klib": "e5bed615a263fba4cf2035bc6d29fc19db3f465eb3b5686225dc464818038940"
+                        "animation-uikitarm64-1.8.0-metadata.jar": "65b0e19f80cc4793336fe6137286cd3e8b04592d06a73258cad93fe2c41d6ee1"
                     }
                 }
             ],

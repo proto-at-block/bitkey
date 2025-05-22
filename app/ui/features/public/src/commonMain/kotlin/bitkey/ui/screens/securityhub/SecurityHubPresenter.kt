@@ -22,11 +22,14 @@ import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.compose.collections.buildImmutableList
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.navigation.v1.NavigationScreenId
+import build.wallet.platform.haptics.Haptics
+import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.biometric.BiometricSettingScreen
@@ -44,6 +47,8 @@ import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsScreen
 import build.wallet.statemachine.settings.full.notifications.Source
 import build.wallet.statemachine.status.AppFunctionalityStatusScreen
+import build.wallet.statemachine.status.BannerContext
+import build.wallet.statemachine.status.BannerType.OfflineStatus
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.time.MinimumLoadingDuration
@@ -67,16 +72,20 @@ class SecurityHubPresenter(
   private val recoveryContactCardsUiStateMachine: RecoveryContactCardsUiStateMachine,
   private val hardwareRecoveryStatusCardUiStateMachine: HardwareRecoveryStatusCardUiStateMachine,
   private val appFunctionalityService: AppFunctionalityService,
+  private val haptics: Haptics,
 ) : ScreenPresenter<SecurityHubScreen> {
   @Composable
   override fun model(
     navigator: Navigator,
     screen: SecurityHubScreen,
   ): ScreenModel {
+    val scope = rememberStableCoroutineScope()
+
     var securityActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
     var recoveryActions by remember { mutableStateOf(emptyList<SecurityAction>()) }
-    val recommendations by remember {
-      securityActionsService.getRecommendations()
+
+    val recommendationsWithStatus by remember {
+      securityActionsService.getRecommendationsWithInteractionStatus()
     }.collectAsState(emptyList())
 
     var isRefreshing by remember { mutableStateOf(true) }
@@ -99,12 +108,16 @@ class SecurityHubPresenter(
 
     val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
       props = HomeStatusBannerUiProps(
+        bannerContext = BannerContext.SecurityHub,
         onBannerClick = {
-          navigator.goTo(
-            AppFunctionalityStatusScreen(
-              originScreen = screen
+          when (it) {
+            OfflineStatus -> navigator.goTo(
+              AppFunctionalityStatusScreen(
+                originScreen = screen
+              )
             )
-          )
+            else -> {} // no-op since we are in Security Hub
+          }
         }
       )
     )
@@ -118,20 +131,27 @@ class SecurityHubPresenter(
         // Add hardware recovery status card
         hardwareRecoveryStatusCardUiStateMachine.model(
           HardwareRecoveryStatusCardUiProps(
-            lostHardwareRecoveryData = screen.hardwareRecoveryData,
+            account = screen.account,
             onClick = {
-              // TODO W-11181 Handle recovery status card click
+              Router.route = Route.NavigationDeeplink(
+                screen = NavigationScreenId.NAVIGATION_SCREEN_ID_PAIR_DEVICE
+              )
             }
           )
         ).also { add(it) }
 
-        // Add TC invitation cards
+        // Add RC invitation cards
         recoveryContactCardsUiStateMachine.model(
           RecoveryContactCardsUiProps(
             onClick = {
               when (it) {
                 is EndorsedTrustedContact -> {
-                  // TODO W-11181 Handle endorsed contact click
+                  navigator.goTo(
+                    TrustedContactManagementScreen(
+                      account = screen.account,
+                      onExit = { navigator.goTo(screen) }
+                    )
+                  )
                 }
                 is Invitation -> navigator.showSheet(
                   ViewInvitationSheet(
@@ -141,7 +161,12 @@ class SecurityHubPresenter(
                   )
                 )
                 is UnendorsedTrustedContact -> {
-                  // TODO W-11181 Handle unendorsed contact click
+                  navigator.goTo(
+                    TrustedContactManagementScreen(
+                      account = screen.account,
+                      onExit = { navigator.goTo(screen) }
+                    )
+                  )
                 }
               }
             }
@@ -152,40 +177,59 @@ class SecurityHubPresenter(
 
     val firmwareUpdateData = firmwareDataService.firmwareData().value.firmwareUpdateState
 
+    // Mark all recommendations as viewed when Security Hub is entered
+    LaunchedEffect("mark-all-recommendations-viewed") {
+      securityActionsService.markAllRecommendationsViewed()
+    }
+
+    val recommendations = remember(recommendationsWithStatus) {
+      recommendationsWithStatus.map { it.recommendation }.toImmutableList()
+    }
+
     return SecurityHubBodyModel(
       isOffline = functionalityStatus is AppFunctionalityStatus.LimitedFunctionality,
-      recommendations = recommendations.toImmutableList(),
+      // TODO W-11412 filter this in the service
+      atRiskRecommendations = recommendations.filter {
+        it == BACKUP_EAK || it == BACKUP_MOBILE_KEY || it == PAIR_HARDWARE_DEVICE
+      }.toImmutableList(),
+      // TODO W-11412 filter this in the service
+      recommendations = recommendations.filter {
+        it != BACKUP_EAK && it != BACKUP_MOBILE_KEY && it != PAIR_HARDWARE_DEVICE
+      }.toImmutableList(),
       cardsModel = cardsModel,
       securityActions = securityActions,
       recoveryActions = recoveryActions,
-      onRecommendationClick = {
-        if (it.shouldShowEducation()) {
+      onRecommendationClick = { recommendation ->
+        if (recommendation.shouldShowEducation()) {
           navigator.goTo(
             screen = SecurityHubEducationScreen.RecommendationEducation(
-              recommendation = it,
+              recommendation = recommendation,
               originScreen = screen,
               firmwareData = firmwareUpdateData
             )
           )
         } else {
-          navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+          navigator.navigateToScreen(recommendation.navigationScreenId(), screen, firmwareUpdateData)
         }
       },
-      onSecurityActionClick = {
-        if (it.shouldShowEducation()) {
+      onSecurityActionClick = { securityAction ->
+        if (securityAction.shouldShowEducation()) {
           navigator.goTo(
             screen = ActionEducation(
-              action = it,
+              action = securityAction,
               originScreen = screen,
               firmwareData = firmwareUpdateData
             )
           )
         } else {
-          navigator.navigateToScreen(it.navigationScreenId(), screen, firmwareUpdateData)
+          navigator.navigateToScreen(securityAction.navigationScreenId(), screen, firmwareUpdateData)
         }
       },
       onHomeTabClick = {
-        navigator.exit()
+        scope.launch {
+          haptics.vibrate(effect = HapticsEffect.LightClick)
+          navigator.exit()
+        }
       }
     ).asRootScreen(statusBannerModel = homeStatusBannerModel)
   }
@@ -209,7 +253,12 @@ fun Navigator.navigateToScreen(
       ManagingFingerprintsScreen(
         account = originScreen.account,
         onFwUpRequired = {
-          // TODO W-11181 Handle firmware update required
+          goTo(
+            FwupScreen(
+              firmwareUpdateData = firmwareUpdateData,
+              onExit = { goTo(originScreen) }
+            )
+          )
         },
         entryPoint = EntryPoint.SECURITY_HUB,
         origin = originScreen
@@ -233,7 +282,6 @@ fun Navigator.navigateToScreen(
         onExit = { goTo(originScreen) }
       )
     )
-
     NavigationScreenId.NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS -> goTo(
       RecoveryChannelSettingsScreen(
         account = originScreen.account,

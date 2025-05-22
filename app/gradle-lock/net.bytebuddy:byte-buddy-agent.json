@@ -2,11 +2,11 @@
     "module-identifier": "net.bytebuddy:byte-buddy-agent",
     "components": [
         {
-            "version": "1.14.5",
+            "version": "1.15.11",
             "variants": [
                 {
                     "artifacts": {
-                        "byte-buddy-agent-1.14.5.jar": "55f19862b870f5d85890ba5386b1b45e9bbc88d5fe1f819abe0c788b4929fa6b"
+                        "byte-buddy-agent-1.15.11.jar": "316d2c0795c2a4d4c4756f2e6f9349837c7430ac34e0477ead874d05f5cc19e5"
                     }
                 }
             ],

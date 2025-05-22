@@ -1,0 +1,14 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE txVerificationPolicyEntity(
+    id TEXT PRIMARY KEY NOT NULL,
+    effective TEXT AS Instant,
+    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode,
+    thresholdAmountFractionalUnitValue INTEGER,
+    delayEndTime TEXT AS Instant,
+    cancellationToken TEXT,
+    completionToken TEXT
+);
+
+PRAGMA foreign_key_check;

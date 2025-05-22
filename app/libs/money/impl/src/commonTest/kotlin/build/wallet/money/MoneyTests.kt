@@ -9,6 +9,8 @@ import com.ionspin.kotlin.bignum.integer.toBigInteger
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.equals.shouldBeEqual
+import io.kotest.matchers.equals.shouldNotBeEqual
 import io.kotest.matchers.shouldBe
 import io.kotest.property.Arb
 import io.kotest.property.Exhaustive
@@ -117,6 +119,13 @@ class MoneyTests : FunSpec({
 
     (BitcoinMoney.btc(4.0) - BitcoinMoney.btc(-2.0))
       .value.shouldBe(6.toBigDecimal())
+  }
+
+  test("Equality") {
+    BitcoinMoney.btc(1.23).shouldBeEqual(BitcoinMoney.btc(1.23))
+    FiatMoney.usd(123).shouldBeEqual(FiatMoney.usd(123))
+    BitcoinMoney.zero().shouldBeEqual(FiatMoney.zeroUsd())
+    BitcoinMoney.sats(123).shouldNotBeEqual(FiatMoney.usd(123))
   }
 
   test("Fractional Unit Constructor") {

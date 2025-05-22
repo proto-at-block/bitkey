@@ -28,18 +28,18 @@ data class EmergencyAccessKitImportPasteMobileKeyBodyModel(
       )
     ),
     header = FormHeaderModel(
-      headline = "Enter your Emergency Access Kit details",
+      headline = "Enter your Emergency Exit Kit details",
       sublineModel =
         LabelModel.StringWithStyledSubstringModel.from(
-          string = "Copy the code from the box labeled Mobile key backup directly from your emergency access kit, and paste it into the field below",
-          boldedSubstrings = immutableListOf("Mobile key backup")
+          string = "Copy the code from the box labeled App Key backup directly from your Emergency Exit Kit, and paste it into the field below",
+          boldedSubstrings = immutableListOf("App Key backup")
         )
     ),
     mainContentList = immutableListOf(
       FormMainContentModel.AddressInput(
         fieldModel = TextFieldModel(
           value = enteredText,
-          placeholderText = "Mobile key code",
+          placeholderText = "App Key code",
           onValueChange = { newText, _ -> onEnterTextChanged(newText) },
           keyboardType = TextFieldModel.KeyboardType.Default
         ),

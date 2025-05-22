@@ -1,6 +1,5 @@
 package bitkey.notifications
 
-import build.wallet.bitkey.f8e.AccountId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -9,9 +8,7 @@ class NotificationsServiceMock : NotificationsService {
     NotificationsService.NotificationStatus.Enabled
   )
 
-  override fun getCriticalNotificationStatus(
-    accountId: AccountId,
-  ): Flow<NotificationsService.NotificationStatus> {
+  override fun getCriticalNotificationStatus(): Flow<NotificationsService.NotificationStatus> {
     return criticalNotificationsStatus
   }
 

@@ -48,10 +48,10 @@ class TransactionsActivityServiceImpl(
 
   private val transactionsCache = MutableStateFlow<List<Transaction>?>(null)
 
-  override val transactions: Flow<List<Transaction>> = transactionsCache.filterNotNull()
+  override val transactions: StateFlow<List<Transaction>?> = transactionsCache
 
   override fun transactionById(transactionId: String): Flow<Transaction?> {
-    return transactions.map { it.find { tx -> tx.id == transactionId } }
+    return transactions.map { it?.find { tx -> tx.id == transactionId } }
       .distinctUntilChanged()
   }
 }

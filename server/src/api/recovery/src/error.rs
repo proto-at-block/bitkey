@@ -10,6 +10,7 @@ use userpool::userpool::UserPoolError;
 
 use crate::service::inheritance::error::ServiceError as InheritanceServiceError;
 use crate::service::social::challenge::error::ServiceError as SocialChallengeServiceError;
+use wsm_rust_client::Error as WsmError;
 
 #[derive(Debug, Error)]
 pub enum RecoveryError {
@@ -107,6 +108,8 @@ pub enum RecoveryError {
     InheritanceService(#[from] InheritanceServiceError),
     #[error(transparent)]
     Experimentation(#[from] ExperimentationError),
+    #[error(transparent)]
+    WsmGrantError(#[from] WsmError),
 }
 
 impl From<RecoveryError> for ApiError {
@@ -127,6 +130,7 @@ impl From<RecoveryError> for ApiError {
             | RecoveryError::MalformedRecoveryRequirements
             | RecoveryError::NoActiveSpendKeysetError
             | RecoveryError::InvalidRecoveryRelationshipType
+            | RecoveryError::WsmGrantError(_)
             | RecoveryError::Experimentation(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }

@@ -130,7 +130,7 @@ interface RelationshipsCrypto {
   /**
    * Decrypt a private key encryption key using the delegated decryption key.
    *
-   * This is used by trusted contacts to unseal a private key encryption key.
+   * This is used by Recovery Contacts to unseal a private key encryption key.
    * In recovery, this will be sent to the protected customer over a secure
    * channel using [transferPrivateKeyEncryptionKeyEncryption]
    * In Inheritance, this will be used to decrypt the private key material
@@ -145,7 +145,7 @@ interface RelationshipsCrypto {
    * Decrypts the private key encryption key and re-encrypt it with the PAKE
    * secure channel.
    *
-   * This is used by the trusted contact to transfer their encrypted version
+   * This is used by the Recovery Contact to transfer their encrypted version
    * of the private key using the newly created PAKE secure channel
    * for recovery.
    */

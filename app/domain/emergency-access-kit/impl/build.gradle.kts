@@ -43,7 +43,12 @@ kotlin {
         implementation(projects.domain.walletFake)
         implementation(projects.libs.testingPublic)
         implementation(projects.domain.cloudBackupFake)
+        implementation(projects.libs.cloudStorePublic)
+        implementation(projects.libs.cloudStoreFake)
+        implementation(projects.libs.cloudStoreImpl)
         implementation(projects.libs.encryptionFake)
+        implementation(projects.libs.platformPublic)
+        implementation(projects.libs.platformFake)
       }
     }
 

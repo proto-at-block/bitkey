@@ -31,17 +31,17 @@ data class ViewingAddTrustedContactFormBodyModel(
         ),
         iconTopSpacing = 0
       ),
-      headline = "Trusted Contacts",
+      headline = "Recovery Contacts",
       alignment = FormHeaderModel.Alignment.LEADING,
       subline =
         """
-            Trusted Contacts can help you recover your wallet if you lose access. Instead of relying on a company, you depend on the people you know and trust.
+            Recovery Contacts can help you recover your wallet if you lose access. Instead of relying on a company, you depend on the people you know and trust.
             
-            Trusted Contacts won’t have access to your wallet or funds. They’re only able to help you recover your wallet.
+            Recovery Contacts won’t have access to your wallet or funds. They’re only able to help you recover your wallet.
         """.trimIndent()
     ),
     primaryButton = ButtonModel(
-      text = "Add Trusted Contact",
+      text = "Add Recovery Contact",
       size = ButtonModel.Size.Footer,
       onClick = SheetClosingClick(onAddTrustedContact)
     ),

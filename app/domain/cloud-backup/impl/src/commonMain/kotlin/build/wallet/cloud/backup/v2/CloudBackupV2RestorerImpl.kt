@@ -88,7 +88,7 @@ class CloudBackupV2RestorerImpl(
         }.bind()
     }
 
-    // Store trusted contact identity key
+    // Store Recovery Contact identity key
     relationshipsKeysDao.saveKey(cloudBackupV2.delegatedDecryptionKeypair)
       .mapError(::SocRecTrustedContactIdentityKeyStorageError)
       .bind()

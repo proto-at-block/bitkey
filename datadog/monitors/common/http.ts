@@ -219,3 +219,78 @@ export class HttpStatusCompositeMonitor extends Construct {
     });
   }
 }
+
+interface HttpAnomalousStatusCountConfig {
+  environment: string,
+  status: '2xx' | '3xx' | '4xx' | '5xx',
+  tags: string[],
+  query_window?: string,
+  algorithm?: string,
+  deviations?: number,
+  direction?: string,
+  interval?: number,
+  alert_window?: string,
+  seasonality?: string,
+  threshold?: number,
+  recipients: string[],
+  dataDogLink?: string,
+  requireFullWindow?: boolean,
+}
+
+const httpAnomalousStatusCountConfigDefaults: Partial<HttpAnomalousStatusCountConfig> = {
+  query_window: "2w",
+  algorithm: "robust",
+  deviations: 1,
+  direction: "above",
+  interval: 7200,
+  alert_window: "2d",
+  seasonality: "daily",
+  threshold: 0.25,
+  requireFullWindow: false,
+}
+
+/**
+ * SnsAnomalousPublishVolumeMonitor alerts if the SNS publish volume falls below that predicted by the anomaly detection
+ * algorithm for a configurable number of data points within the specified window.
+ * https://docs.datadoghq.com/monitors/types/anomaly/
+ */
+export class HttpAnomalousStatusCountMonitor extends Construct {
+  constructor(scope: Construct, id: string, config: HttpAnomalousStatusCountConfig) {
+    super(scope, id);
+
+    config = {
+      ...httpAnomalousStatusCountConfigDefaults,
+      ...config,
+    };
+
+    const {
+      environment,
+      status,
+      tags,
+      query_window,
+      algorithm,
+      deviations,
+      direction,
+      interval,
+      alert_window,
+      seasonality,
+      threshold,
+      recipients,
+      dataDogLink,
+      requireFullWindow,
+    } = config;
+    
+    const query = `avg(last_${query_window}):anomalies(sum:bitkey.http.response{${[`env:${environment}`, `status:${status}`, 'path:*', '!path:/'].concat(tags).join(",")}}.as_count(), '${algorithm}', ${deviations}, direction='${direction}', interval=${interval}, alert_window='last_${alert_window}', count_default_zero='true', seasonality='${seasonality}') >= ${threshold}`;
+
+    new Monitor(this, `http_anomalous_${status}_status_count`, {
+      query,
+      name: `HTTP anomalous ${status} status count on env:${environment}`,
+      message: `HTTP ${status} status count is anomalous.`,
+      type: "query alert",
+      tags,
+      dataDogLink,
+      recipients,
+      requireFullWindow,
+    });
+  }
+}

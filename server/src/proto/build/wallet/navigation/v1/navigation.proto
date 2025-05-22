@@ -40,16 +40,16 @@ enum NavigationScreenId {
     /** The screen shown to enable or disable critical alerts and the information associated with the alert **/
     NAVIGATION_SCREEN_ID_MANAGE_CRITICAL_ALERTS = 10;
 
-    /** The screen shown to view the status of the EAK backup. **/
+    /** The screen shown to view the status of the EEK backup. **/
     NAVIGATION_SCREEN_ID_EAK_BACKUP_HEALTH = 11;
 
     /** The screen shown to manage the HW fingerprints. **/
     NAVIGATION_SCREEN_ID_MANAGE_FINGERPRINTS = 12;
 
-    /** The screen shown to view the status of the mobile key backup. **/
+    /** The screen shown to view the status of the App Key backup. **/
     NAVIGATION_SCREEN_ID_MOBILE_KEY_BACKUP = 13;
 
-    /** The screen shown to manage recovery contacts. **/
+    /** The screen shown to manage Recovery Contacts. **/
     NAVIGATION_SCREEN_ID_MANAGE_RECOVERY_CONTACTS = 14;
 
     /** The screen shown to update firmware. **/

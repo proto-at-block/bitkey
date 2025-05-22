@@ -12,10 +12,10 @@ fun ProtectedCustomerInviteAcceptedNotificationBodyModel(
 ): FormBodyModel {
   return SuccessBodyModel(
     id = PROTECTED_CUSTOMER_INVITE_ACCEPTED,
-    title = "Your Trusted Contact is now active\n",
+    title = "Your Recovery Contact is now active\n",
     message =
-      "${trustedContact.recoveryAlias} is now set up as a trusted contact of your Bitkey wallet. " +
-        "You can manage your Trusted Contacts anytime in Settings.",
+      "${trustedContact.recoveryAlias} is now set up as a Recovery Contact of your Bitkey wallet. " +
+        "You can manage your Recovery Contacts anytime in Settings.",
     primaryButtonModel = ButtonDataModel("Got it", onClick = onDone)
   )
 }

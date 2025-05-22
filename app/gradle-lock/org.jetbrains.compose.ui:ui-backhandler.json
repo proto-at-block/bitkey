@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-backhandler",
+    "components": [
+        {
+            "version": "1.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-backhandler-metadata-1.8.0.jar": "8c6c9a39bfa06a3db2e4519206e9cbcc6b50f0ea968220c7e4deecc198b5c33e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

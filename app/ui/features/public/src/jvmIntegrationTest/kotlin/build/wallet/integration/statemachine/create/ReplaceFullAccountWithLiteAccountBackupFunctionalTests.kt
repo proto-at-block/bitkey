@@ -169,7 +169,7 @@ private suspend fun TestScope.createLiteAccountWithInvite(): Triple<AppTester, L
   fullApp.onboardFullAccountWithFakeHardware()
   val liteApp = launchNewApp()
 
-  val (inviteCode, _) = fullApp.createTcInvite("trusted contact")
+  val (inviteCode, _) = fullApp.createTcInvite("Recovery Contact")
   val liteAccount =
     liteApp.onboardLiteAccountFromInvitation(
       inviteCode,

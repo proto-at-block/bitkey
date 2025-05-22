@@ -2,11 +2,11 @@
     "module-identifier": "com.google.gms:google-services",
     "components": [
         {
-            "version": "4.4.1",
+            "version": "4.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "google-services-4.4.1.jar": "9a13adc1c80cac159043e692a3b7efa994703195f0f8422b4e92675263d53722"
+                        "google-services-4.4.2.jar": "33ac5b8c20c7c9cc81e898d9f4d72f8e5f17a35505182683cd815ec69392ec8d"
                     }
                 }
             ],

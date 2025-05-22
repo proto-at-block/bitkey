@@ -1,0 +1,42 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE txVerificationPolicyEntity(
+    id TEXT PRIMARY KEY NOT NULL,
+    effective TEXT AS Instant,
+    thresholdCurrencyAlphaCode TEXT AS IsoCurrencyTextCode,
+    thresholdAmountFractionalUnitValue INTEGER,
+    delayEndTime TEXT AS Instant,
+    cancellationToken TEXT,
+    completionToken TEXT
+);
+
+setPolicy:
+INSERT INTO txVerificationPolicyEntity(id, effective, thresholdCurrencyAlphaCode, thresholdAmountFractionalUnitValue, delayEndTime, cancellationToken, completionToken)
+VALUES(?, ?, ?, ?, ?, ?, ?);
+
+markPolicyEffective:
+UPDATE txVerificationPolicyEntity
+SET effective = ?
+WHERE id = ?;
+
+deletePolicy:
+DELETE FROM txVerificationPolicyEntity
+WHERE id = ?;
+
+getEffectivePolicy:
+SELECT * FROM txVerificationPolicyEntity
+WHERE effective IS NOT NULL
+ORDER BY effective DESC
+LIMIT 1;
+
+getPendingPolicies:
+SELECT * FROM txVerificationPolicyEntity
+WHERE effective IS NULL
+AND delayEndTime IS NOT NULL
+AND completionToken IS NOT NULL
+AND cancellationToken IS NOT NULL
+ORDER BY delayEndTime ASC;
+
+clear:
+DELETE FROM txVerificationPolicyEntity;

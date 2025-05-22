@@ -8,7 +8,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel
  * Produces a [CardModel] with a warning and an action button if there is a problem with the mobile
  * key backup. The action button allows the customer to manually fix the problem.
  *
- * Currently only handles Mobile Key Backups. If there is a problem with EAK backups, no card will
+ * Currently only handles App Key Backups. If there is a problem with EEK backups, no card will
  * be shown, as per intentional product decision.
  */
 interface CloudBackupHealthCardUiStateMachine :

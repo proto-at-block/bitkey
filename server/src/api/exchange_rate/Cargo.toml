@@ -19,7 +19,11 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-types = { workspace = true, features = ["currencies", "exchange_rate"] }
+types = { workspace = true, features = [
+  "currencies",
+  "exchange_rate",
+  "serde",
+] }
 utoipa = { workspace = true }
 
 # path dependencies

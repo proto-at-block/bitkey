@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.wire:wire-runtime-iosarm64",
     "components": [
         {
-            "version": "4.9.9",
+            "version": "4.9.11",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-runtime-iosarm64-4.9.9-metadata.jar": "9146314edf2e0a9f9728ab2ef90ca860ff4775525b361e639f8bdc0827769316"
+                        "wire-runtime-iosarm64-4.9.11-metadata.jar": "db7397b588432db4201823e42748ecb86b8a3e3dcd6da06073505b70a5911bc7"
                     }
                 },
                 {
                     "artifacts": {
-                        "wire-runtime.klib": "35c1061d5a8c0f3f29c0f6ee1f95183cf117dda3c2f1070207e7340f0e4d7d08"
+                        "wire-runtime.klib": "4bef9235fd03f3842255f1925190413dedc99d47ca73fb06fcb8335ec0dcd8fd"
                     }
                 }
             ],

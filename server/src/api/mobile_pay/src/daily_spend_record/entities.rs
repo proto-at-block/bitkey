@@ -4,11 +4,11 @@ use tracing::event;
 
 use bdk_utils::bdk::bitcoin::psbt::Psbt;
 use bdk_utils::bdk::bitcoin::Txid;
-use bdk_utils::AttributableWallet;
+use bdk_utils::{get_total_outflow_for_psbt, AttributableWallet};
 use types::account::identifiers::AccountId;
 use types::serde::{deserialize_ts, serialize_ts};
 
-use crate::util::{get_total_outflow_for_psbt, MobilepayDatetimeError};
+use crate::util::MobilepayDatetimeError;
 
 const RETENTION_DAYS: i64 = 30;
 

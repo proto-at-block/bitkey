@@ -81,8 +81,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
     transactionsActivityService.transactions.value = txnListAllPending + txnListAllConfirmed
 
     stateMachine.test(createProps(transactionVisibility = All)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(20)
@@ -100,8 +98,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       listOf(BitcoinWalletTransaction(BitcoinTransactionFake))
 
     stateMachine.test(createProps(transactionVisibility)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(1)
@@ -117,8 +113,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
     ).map(::BitcoinWalletTransaction)
     stateMachine.test(createProps(transactionVisibility)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(numberOfVisibleTransactions)
@@ -134,8 +128,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake
     ).map(::BitcoinWalletTransaction)
     stateMachine.test(createProps(transactionVisibility)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(numberOfVisibleTransactions)
@@ -151,8 +143,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake.copy(confirmationStatus = Confirmed(BlockTimeFake))
     ).map(::BitcoinWalletTransaction)
     stateMachine.test(createProps(transactionVisibility)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(numberOfVisibleTransactions)
@@ -168,8 +158,6 @@ class TransactionsActivityUiStateMachineImplTests : FunSpec({
       BitcoinTransactionFake
     ).map(::BitcoinWalletTransaction)
     stateMachine.test(createProps(transactionVisibility)) {
-      awaitItem().shouldBeNull() // Initial loading
-
       awaitItem().shouldNotBeNull().should {
         it.listModel.header.shouldBeNull()
         it.listModel.items.shouldHaveSize(numberOfVisibleTransactions)

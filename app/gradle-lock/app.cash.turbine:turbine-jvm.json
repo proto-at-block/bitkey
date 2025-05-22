@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.turbine:turbine-jvm",
     "components": [
         {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "Turbine-jvm.jar": "9b779f2390bc0e56c5f86cbf3552b0b41b53e4c2c2322b53ba1f796054026356"
+                        "Turbine-jvm.jar": "dcc2e85dbf7d4a0375eb9ff0d4587475e256914f7796aa6c006cc29b66b339da"
                     }
                 }
             ],

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Enables customer to share app's files. We use this to allow customer share Emergency Access Kit PDF. -->
+<!-- Enables customer to share app's files. We use this to allow customer share Emergency Exit Kit PDF. -->
 <paths>
-    <!-- EAK PDF is written to `files` directory. -->
+    <!-- EEK PDF is written to `files` directory. -->
     <files-path name="files" path="."/>
 </paths>

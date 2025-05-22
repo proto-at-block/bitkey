@@ -41,4 +41,13 @@ class MoneyHomeScreenSnapshots : FunSpec({
       MoneyHomeScreenLiteWithoutProtectedCustomers()
     }
   }
+
+  test("MoneyHome Screen Full with security dot hidden (no recommendations)") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(
+        securityHub = true,
+        securityHubBadged = false
+      )
+    }
+  }
 })

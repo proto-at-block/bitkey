@@ -25,6 +25,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
 
 /**
@@ -43,6 +44,7 @@ import kotlinx.collections.immutable.ImmutableList
 data class TransferConfirmationScreenModel(
   override val onBack: () -> Unit,
   val variant: TransferConfirmationScreenVariant,
+  @Redacted
   val recipientAddress: String,
   val transactionDetails: TransactionDetailsModel,
   val requiresHardware: Boolean,

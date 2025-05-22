@@ -2,11 +2,11 @@
     "module-identifier": "androidx.collection:collection-jvm",
     "components": [
         {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "collection-jvm-1.4.0.jar": "d5cf7b72647c7995071588fe870450ff9c8f127f253d2d4851e161b800f67ae0"
+                        "collection-jvm-1.5.0.jar": "70b35924e4babcdffa37d0e575ee039c56a2d97123342624c48b603233704341"
                     }
                 }
             ],

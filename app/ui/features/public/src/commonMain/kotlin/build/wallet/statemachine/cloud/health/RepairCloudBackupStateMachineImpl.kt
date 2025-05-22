@@ -268,8 +268,8 @@ class RepairCloudBackupStateMachineImpl(
       }
 
       is CreatingEakBackupState -> {
-        LaunchedEffect("creating-eak-backup") {
-          // Create the emergency access kit.
+        LaunchedEffect("creating-EEK-backup") {
+          // Create the Emergency Exit Kit.
           emergencyAccessKitPdfGenerator
             .generate(
               keybox = props.account.keybox,
@@ -294,7 +294,7 @@ class RepairCloudBackupStateMachineImpl(
 
       is UploadingBackupState -> {
         LaunchedEffect("upload-backup") {
-          // Uploading Mobile Key backup to cloud
+          // Uploading App Key backup to cloud
           cloudBackupRepository
             .writeBackup(
               accountId = props.account.keybox.fullAccountId,
@@ -315,16 +315,16 @@ class RepairCloudBackupStateMachineImpl(
               }
             }
             .onSuccess {
-              // proceed to uploading EAK
+              // proceed to uploading EEK
             }
 
-          // Uploading EAK backup to cloud
+          // Uploading EEK backup to cloud
           emergencyAccessKitRepository
             .write(
               account = currentState.cloudAccount,
               emergencyAccessKitData = currentState.eakBackup
             )
-            .logFailure { "Error saving emergency access kit to cloud file store" }
+            .logFailure { "Error saving Emergency Exit Kit to cloud file store" }
             .onFailure { error ->
               state = when (error) {
                 is EmergencyAccessKitRepositoryError.RectifiableCloudError ->
@@ -493,7 +493,7 @@ class RepairCloudBackupStateMachineImpl(
       /**
        * Determine the next state based on the existing cloud backup found.
        *
-       * @param foundMobileKeyBackup the Mobile Key backup that we found on cloud.
+       * @param foundMobileKeyBackup the App Key backup that we found on cloud.
        */
       fun determineNextState(
         props: RepairMobileKeyBackupProps,
@@ -552,7 +552,7 @@ class RepairCloudBackupStateMachineImpl(
     ) : State
 
     /**
-     * Creating a new mobile key backup.
+     * Creating a new App Key backup.
      */
     data class CreatingMobileKeyBackupState(
       val cloudAccount: CloudStoreAccount,
@@ -560,7 +560,7 @@ class RepairCloudBackupStateMachineImpl(
     ) : State
 
     /**
-     * Creating a new EAK backup.
+     * Creating a new EEK backup.
      */
     data class CreatingEakBackupState(
       val cloudAccount: CloudStoreAccount,

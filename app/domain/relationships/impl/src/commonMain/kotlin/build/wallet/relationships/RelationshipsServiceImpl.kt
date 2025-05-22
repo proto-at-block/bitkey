@@ -233,7 +233,7 @@ class RelationshipsServiceImpl(
           invitation.protectedCustomerEnrollmentPakeKey,
           delegatedDecryptionKey
         )
-          .logFailure { "Failed to encrypt trusted contact identity key" }
+          .logFailure { "Failed to encrypt Recovery Contact identity key" }
           .mapError { AcceptInvitationCodeError.CryptoError(it) }
       }
       .andThen {
@@ -293,7 +293,7 @@ class RelationshipsServiceImpl(
     }
 
   /**
-   * Returns a copy of the given relationships with the trusted contacts verified using [account]'s
+   * Returns a copy of the given relationships with the Recovery Contacts verified using [account]'s
    * auth keys.
    */
   private fun Relationships.verified(
@@ -307,7 +307,7 @@ class RelationshipsServiceImpl(
     )
 
   /**
-   * Verifies that the given endorsed TC is authentic by signing the key certificate with
+   * Verifies that the given endorsed RC is authentic by signing the key certificate with
    * [account]'s active app and/or auth key.
    */
   private fun EndorsedTrustedContact.verified(
@@ -318,7 +318,7 @@ class RelationshipsServiceImpl(
       .verifyKeyCertificate(keyCertificate, hwAuthPublicKey, appAuthKey)
       // DO NOT REMOVE this log line. We alert on it.
       // See BKR-858
-      .logFailure { "[socrec_key_certificate_verification_failure] Error verifying TC certificate $this" }
+      .logFailure { "[socrec_key_certificate_verification_failure] Error verifying RC certificate $this" }
       .isOk()
 
     val authState = when {

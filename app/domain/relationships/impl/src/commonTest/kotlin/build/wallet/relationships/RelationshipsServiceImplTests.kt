@@ -172,7 +172,7 @@ class RelationshipsServiceImplTests : FunSpec({
     }
   }
 
-  test("invalid trusted contacts are marked as tampered") {
+  test("invalid Recovery Contacts are marked as tampered") {
     val backgroundScope = createBackgroundScope()
     val service = relationshipsService(backgroundScope)
 

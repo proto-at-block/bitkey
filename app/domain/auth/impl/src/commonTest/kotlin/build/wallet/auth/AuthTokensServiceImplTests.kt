@@ -8,6 +8,7 @@ import bitkey.auth.RefreshToken
 import build.wallet.auth.AccountAuthenticator.AuthData
 import build.wallet.availability.AuthSignatureStatus
 import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
@@ -32,14 +33,14 @@ class AuthTokensServiceImplTests : FunSpec({
   val authenticationF8eClient = AuthF8eClientMock()
   val f8eAuthSignatureStatusProvider = F8eAuthSignatureStatusProviderImpl()
   val accountConfigService = AccountConfigServiceFake()
-  val accountAuthorizer = AccountAuthenticatorMock(
+  val accountAuthenticator = AccountAuthenticatorMock(
     turbine = turbines::create
   )
   val appAuthPublicKeyProvider = AppAuthPublicKeyProviderMock()
 
   val service = AuthTokensServiceImpl(
     authTokenDao = authTokenDao,
-    accountAuthenticator = accountAuthorizer,
+    accountAuthenticator = accountAuthenticator,
     authF8eClient = authenticationF8eClient,
     appAuthPublicKeyProvider = appAuthPublicKeyProvider,
     f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider,
@@ -76,17 +77,45 @@ class AuthTokensServiceImplTests : FunSpec({
       )
     )
 
-    val newTokens =
-      AccountAuthTokens(
-        accessToken = AccessToken(newAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken),
-        accessTokenExpiresAt = Instant.DISTANT_FUTURE
-      )
+    val newTokens = AccountAuthTokens(
+      accessToken = AccessToken(newAccessToken),
+      refreshToken = RefreshToken(originalRefreshToken),
+      accessTokenExpiresAt = Instant.DISTANT_FUTURE
+    )
     service.refreshAccessTokenWithApp(
-      f8eEnvironment,
-      accountId,
-      Global
+      f8eEnvironment = f8eEnvironment,
+      accountId = accountId,
+      scope = Global
     ).shouldBe(Ok(newTokens))
+    authTokenDao.setTokensCalls.awaitItem()
+      .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
+      .tokens.shouldBe(newTokens)
+    f8eAuthSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
+  }
+
+  test("successfully refresh refresh token") {
+    val newTokens = AccountAuthTokens(
+      accessToken = AccessToken("new-access-token"),
+      refreshToken = RefreshToken("new-refresh-token"),
+      accessTokenExpiresAt = Instant.DISTANT_FUTURE,
+      refreshTokenExpiresAt = Instant.DISTANT_FUTURE
+    )
+
+    accountAuthenticator.authResults = mutableListOf(
+      Ok(
+        AuthData(
+          accountId = FullAccountIdMock.serverId,
+          authTokens = newTokens
+        )
+      )
+    )
+
+    service.refreshRefreshTokenWithApp(
+      f8eEnvironment = f8eEnvironment,
+      accountId = accountId,
+      scope = Global
+    ).shouldBe(Ok(newTokens))
+    accountAuthenticator.authCalls.awaitItem().shouldBe(AppGlobalAuthPublicKeyMock)
     authTokenDao.setTokensCalls.awaitItem()
       .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
       .tokens.shouldBe(newTokens)
@@ -117,28 +146,25 @@ class AuthTokensServiceImplTests : FunSpec({
     )
     authenticationF8eClient.refreshResult =
       Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
-    val newTokens =
-      AccountAuthTokens(
-        accessToken = AccessToken(newAccessToken),
-        refreshToken = RefreshToken(originalRefreshToken),
-        accessTokenExpiresAt = Instant.DISTANT_FUTURE
-      )
+    val newTokens = AccountAuthTokens(
+      accessToken = AccessToken(newAccessToken),
+      refreshToken = RefreshToken(originalRefreshToken),
+      accessTokenExpiresAt = Instant.DISTANT_FUTURE
+    )
 
-    val authData =
-      AuthData(
-        accountId = FullAccountIdMock.serverId,
-        authTokens = newTokens
-      )
+    val authData = AuthData(
+      accountId = FullAccountIdMock.serverId,
+      authTokens = newTokens
+    )
 
-    accountAuthorizer.authResults =
-      mutableListOf(Ok(authData))
+    accountAuthenticator.authResults = mutableListOf(Ok(authData))
 
     service.refreshAccessTokenWithApp(
       f8eEnvironment,
       accountId,
       Global
     ).shouldBe(Ok(newTokens))
-    accountAuthorizer.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem()
     authTokenDao.setTokensCalls.awaitItem()
       .shouldBeTypeOf<AuthTokenDaoMock.SetTokensParams>()
       .tokens.shouldBe(authData.authTokens)
@@ -150,7 +176,7 @@ class AuthTokensServiceImplTests : FunSpec({
 
     authenticationF8eClient.refreshResult =
       Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
-    accountAuthorizer.authResults =
+    accountAuthenticator.authResults =
       mutableListOf(Err(AuthSignatureMismatch))
 
     authTokenDao.getTokensResult = Ok(
@@ -167,7 +193,7 @@ class AuthTokensServiceImplTests : FunSpec({
       Global
     )
 
-    accountAuthorizer.authCalls.awaitItem()
+    accountAuthenticator.authCalls.awaitItem()
     f8eAuthSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Unauthenticated)
   }
 
@@ -183,7 +209,7 @@ class AuthTokensServiceImplTests : FunSpec({
   test("clear tokens in non Customer builds") {
     val service = AuthTokensServiceImpl(
       authTokenDao = authTokenDao,
-      accountAuthenticator = accountAuthorizer,
+      accountAuthenticator = accountAuthenticator,
       authF8eClient = authenticationF8eClient,
       appAuthPublicKeyProvider = appAuthPublicKeyProvider,
       f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider,

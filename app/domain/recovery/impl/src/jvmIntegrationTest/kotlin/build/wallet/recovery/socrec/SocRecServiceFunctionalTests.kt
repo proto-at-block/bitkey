@@ -15,16 +15,16 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class SocRecServiceFunctionalTests : FunSpec({
-  val tcName = "Alice (TC)"
+  val tcName = "Alice (RC)"
   val customerName = "Bob (Protected Customer)"
 
-  test("customer creates TC invite, TC onboards and accepts invite") {
-    // Customer onboards and creates Trusted Contact invitation
+  test("customer creates RC invite, RC onboards and accepts invite") {
+    // Customer onboards and creates Recovery Contact invitation
     val customerApp = launchNewApp()
     customerApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, tcInvitation) = customerApp.createTcInvite(tcName = tcName)
 
-    // Protected Customer sees pending TC invitation
+    // Protected Customer sees pending RC invitation
     customerApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.invitations.isNotEmpty() }.run {
         shouldNotBeNull()
@@ -35,11 +35,11 @@ class SocRecServiceFunctionalTests : FunSpec({
       }
     }
 
-    // Trusted Contact onboards by accepting Invitation
+    // Recovery Contact onboards by accepting Invitation
     val tcApp = launchNewApp()
     tcApp.onboardLiteAccountFromInvitation(inviteCode, customerName)
 
-    // Trusted Contact sees Protected Customer
+    // Recovery Contact sees Protected Customer
     tcApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.protectedCustomers.isNotEmpty() }.run {
         shouldNotBeNull()
@@ -49,12 +49,12 @@ class SocRecServiceFunctionalTests : FunSpec({
       }
     }
 
-    // TODO(W-5202): enable the rest of the test when real endpoints are used - Customer and TC
+    // TODO(W-5202): enable the rest of the test when real endpoints are used - Customer and RC
     //               apps can't talk to each other right now to successfully sync relationships.
     return@test
     @Suppress("UNREACHABLE_CODE")
 
-    // Protected Customer sees Trusted Contact, no longer pending
+    // Protected Customer sees Recovery Contact, no longer pending
     customerApp.socRecService.socRecRelationships.test {
       awaitUntil { it != null && it.endorsedTrustedContacts.isNotEmpty() }.run {
         shouldNotBeNull()

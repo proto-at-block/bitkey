@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:http-auth-aws-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "http-auth-aws-jvm-1.3.7.jar": "54c4f249eda86a07af44ac10ae236377a2d02260dd5b0ba0e093a78a888b5ad6"
+                        "http-auth-aws-jvm-1.3.31.jar": "469c1d5f59a38df6642c3e993a74b08c1de140fb47d297d752550e9536439da1"
                     }
                 }
             ],

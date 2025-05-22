@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "8.5.2-11315950",
+            "version": "8.9.1-12782657",
             "variants": [
                 {
                     "artifacts": {
-                        "aapt2-proto-8.5.2-11315950.jar": "6a1476974aa0192e8c2fd337f36fd207f489c9abea010cd83416d215202af4e8"
+                        "aapt2-proto-8.9.1-12782657.jar": "0779df11a7c840e2857b96e509db3cbda73ceb2582575887ad647133984a6683"
                     }
                 }
             ],

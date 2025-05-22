@@ -88,7 +88,7 @@ impl Repository for SocialRecoveryRepository {
                     attribute_type: ScalarAttributeType::S,
                 }),
             },
-            // Trusted Contact Index GSI
+            // Recovery Contact Index GSI
             GlobalSecondaryIndexDef {
                 name: TRUSTED_CONTACT_IDX.to_string(),
                 pk: TableKey {

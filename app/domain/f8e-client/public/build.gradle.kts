@@ -23,6 +23,7 @@ kotlin {
         api(projects.libs.loggingPublic)
         api(projects.domain.mobilePayPublic)
         api(projects.domain.partnershipsPublic)
+        api(projects.domain.txVerificationPublic)
         api(projects.libs.timePublic)
       }
     }

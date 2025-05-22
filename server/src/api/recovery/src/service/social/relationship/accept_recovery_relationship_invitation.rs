@@ -20,10 +20,10 @@ const MAX_PROTECTED_CUSTOMERS: usize = 10;
 /// # Fields
 ///
 /// * `trusted_contact_account_id` - The account id of the Trusted that's accepting the invitation
-/// * `recovery_relationship_id` - The invitation id to be redeemed by the Trusted Contact
+/// * `recovery_relationship_id` - The invitation id to be redeemed by the Recovery Contact
 /// * `code` - The code corresponding to the recovery_relationship_id which was fetched before calling the endpoint
-/// * `customer_alias` - Allows the Trusted Contact to give the customer an alias for future reference
-/// * `trusted_contact_enrollment_pake_pubkey` - The public key of the Trusted Contact, used to encrypt the Social Recovery payload
+/// * `customer_alias` - Allows the Recovery Contact to give the customer an alias for future reference
+/// * `trusted_contact_enrollment_pake_pubkey` - The public key of the Recovery Contact, used to encrypt the Social Recovery payload
 /// * `enrollment_pake_confirmation` - The confirmation code used in PAKE to ensure nothing was tampered in transit.
 /// * `sealed_delegated_decryption_pubkey` - The sealed delegated decryption pubkey
 pub struct AcceptRecoveryRelationshipInvitationInput<'a> {
@@ -42,9 +42,9 @@ pub struct AcceptRecoveryRelationshipInvitationInput<'a> {
 ///
 /// * `customer_account_id` - The ID of the customer account that sent the invitation
 /// * `customer_alias` - The alias of the customer account
-/// * `trusted_contact_account_id` - The ID of the trusted contact account that accepted the invitation
-/// * `trusted_contact_alias` - The alias of the trusted contact account
-/// * `trusted_contact_roles` - The roles assigned to the trusted contact
+/// * `trusted_contact_account_id` - The ID of the Recovery Contact account that accepted the invitation
+/// * `trusted_contact_alias` - The alias of the Recovery Contact account
+/// * `trusted_contact_roles` - The roles assigned to the Recovery Contact
 
 struct NotificationParams {
     customer_account_id: AccountId,
@@ -58,7 +58,7 @@ struct NotificationParams {
 impl Service {
     /// When a valid invitation is provided, this method forms a social recovery relationship between
     /// the account that issued the invitation and the one that calls this method. After the invitation
-    /// is accepted, the Trusted Contact can assist the customer in retrieving their account via Social
+    /// is accepted, the Recovery Contact can assist the customer in retrieving their account via Social
     /// Recovery.
     ///
     /// # Arguments
@@ -67,7 +67,7 @@ impl Service {
     ///
     /// # Returns
     ///
-    /// * The unendorsed recovery relationship that was accepted by the Trusted Contact
+    /// * The unendorsed recovery relationship that was accepted by the Recovery Contact
     #[instrument(skip(self, input))]
     pub async fn accept_recovery_relationship_invitation(
         &self,
@@ -181,7 +181,7 @@ impl Service {
         Ok(relationship)
     }
 
-    /// Sends notifications to both the customer and trusted contact when a recovery relationship invitation is accepted.
+    /// Sends notifications to both the customer and Recovery Contact when a recovery relationship invitation is accepted.
     ///
     /// This is the main notification orchestration method that:
     /// 1. Sends immediate notifications to appropriate parties
@@ -208,9 +208,9 @@ impl Service {
         Ok(())
     }
 
-    /// Sends immediate notifications about the accepted invitation to the trusted contact.
+    /// Sends immediate notifications about the accepted invitation to the Recovery Contact.
     ///
-    /// For beneficiary relationships, the trusted contact receive notifications.
+    /// For beneficiary relationships, the Recovery Contact receive notifications.
     ///
     /// # Arguments
     ///
@@ -228,13 +228,13 @@ impl Service {
             .contains(&TrustedContactRole::Beneficiary);
 
         if is_beneficiary {
-            // Create payload for trusted contact notification
+            // Create payload for Recovery Contact notification
             let trusted_contact_payload = self.create_invitation_accepted_payload(
                 params,
                 RecoveryRelationshipRole::TrustedContact,
             )?;
 
-            // Send notification to trusted contact
+            // Send notification to Recovery Contact
             self.notification_service
                 .send_notification(SendNotificationInput {
                     account_id: &params.trusted_contact_account_id,
@@ -286,7 +286,7 @@ impl Service {
     /// Creates a notification payload for the invitation acceptance event.
     ///
     /// Constructs the appropriate payload based on the recipient's role in the
-    /// recovery relationship (either protected customer or trusted contact).
+    /// recovery relationship (either protected customer or Recovery Contact).
     ///
     /// # Arguments
     ///

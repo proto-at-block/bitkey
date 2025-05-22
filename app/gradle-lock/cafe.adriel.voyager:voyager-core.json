@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-core",
     "components": [
         {
-            "version": "1.1.0-alpha04",
+            "version": "1.1.0-beta03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-core-metadata-1.1.0-alpha04.jar": "608fdc83648921f2e253c6cc6341e8102ad78c7afab3873bb7985c54a0b59c27"
+                        "voyager-core-metadata-1.1.0-beta03.jar": "740a6c7c83a41d8cd126e2193fecd776d8d26fa1f0d0f8118e22e04562de44f2"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-daemon-client",
     "components": [
         {
-            "version": "2.0.21",
+            "version": "2.1.20",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-daemon-client-2.0.21.jar": "371ea08e4f036882cc8e064ffcf6445990df444295ba1ec68928e7cc2b5bc015"
+                        "kotlin-daemon-client-2.1.20.jar": "3630a30182c63570eb519ae65aaa9419217dbad0814fede42c8dde704465a4c6"
                     }
                 }
             ],

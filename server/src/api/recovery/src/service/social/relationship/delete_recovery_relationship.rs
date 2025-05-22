@@ -39,9 +39,9 @@ struct NotificationParams {
 }
 
 impl Service {
-    /// This function allows either a customer or a trusted contact to sever a recovery relationship
+    /// This function allows either a customer or a Recovery Contact to sever a recovery relationship
     /// they belong to. Additionally, customers can withdraw invitations they have previously sent to
-    /// trusted contacts. For a customer to dissolve the recovery relationship or withdraw an invitation,
+    /// Recovery Contacts. For a customer to dissolve the recovery relationship or withdraw an invitation,
     /// they must use a valid account access token as well as a keyproof containing both app and hardware
     ///
     /// # Arguments

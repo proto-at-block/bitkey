@@ -5,9 +5,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * The [F8eEndorsedTrustedContact] type represents an endorsed trusted contact from the perspective
+ * The [F8eEndorsedTrustedContact] type represents an endorsed Recovery Contact from the perspective
  * of the server (f8e). This type is similar to the [EndorsedTrustedContact] type, which represents
- * an endorsed trusted contact as well but from the perspective of the app. However,
+ * an endorsed Recovery Contact as well but from the perspective of the app. However,
  * unlike [EndorsedTrustedContact], the [F8eEndorsedTrustedContact] does not include an authentication
  * state. This is because the f8e service cannot make assumptions or verify the authentication state
  * of the certificate.

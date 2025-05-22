@@ -24,7 +24,7 @@ class GoogleSignInClientProviderImpl(
           ), // used by [GoogleDriveKeyValueStore] for storing encrypted app backup
           Scope(
             Scopes.DRIVE_FILE
-          ) // used by [GoogleDriveFileStore] for storing Emergency Access Kit PDF
+          ) // used by [GoogleDriveFileStore] for storing Emergency Exit Kit PDF
         )
         .build()
     GoogleSignIn.getClient(application, options)

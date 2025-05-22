@@ -22,17 +22,17 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 
-  test("happy path through create lite account and enroll as trusted contact") {
-    // Set up a protected customer with a full account and create a trusted contact invite
+  test("happy path through create lite account and enroll as Recovery Contact") {
+    // Set up a protected customer with a full account and create a Recovery Contact invite
     val fullAccountApp = launchNewApp()
     fullAccountApp.onboardFullAccountWithFakeHardware()
     val (inviteCode, _) =
       fullAccountApp.createTcInvite(
-        tcName = "Test Trusted Contact Name"
+        tcName = "Test Recovery Contact Name"
       )
 
-    // Going through onboarding with the lite account, becoming a trusted contact
-    // and then remove the trusted contact relationship
+    // Going through onboarding with the lite account, becoming a Recovery Contact
+    // and then remove the Recovery Contact relationship
     val liteAccountApp = launchNewApp()
     liteAccountApp.appUiStateMachine.test(Unit) {
       advanceThroughCreateLiteAccountScreens(
@@ -59,7 +59,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
   awaitItem()
     .alertModel.shouldBeTypeOf<ButtonAlertModel>()
     .let {
-      it.title.shouldBe("Are you sure you want to remove yourself as a Trusted Contact?")
+      it.title.shouldBe("Are you sure you want to remove yourself as a Recovery Contact?")
       it.subline.shouldBe(
         "If Test Protected Customer Name needs help recovering in the future, you won’t be able to assist them."
       )

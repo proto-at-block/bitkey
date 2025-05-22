@@ -15,7 +15,6 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 data class AppearancePreferenceFormModel(
   override val onBack: () -> Unit,
   val moneyHomeHero: FormMainContentModel.MoneyHomeHero,
-  val isThemePreferenceEnabled: Boolean,
   val themePreferenceString: String,
   val onThemePreferenceClick: () -> Unit,
   val fiatCurrencyPreferenceString: String,
@@ -42,23 +41,21 @@ data class AppearancePreferenceFormModel(
     mainContentList = buildImmutableList {
       moneyHomeHero.apply { add(this) }
 
-      if (isThemePreferenceEnabled) {
-        FormMainContentModel.ListGroup(
-          listGroupModel = ListGroupModel(
-            header = "Display",
-            items = immutableListOf(
-              ListItemModel(
-                title = "Theme",
-                sideText = themePreferenceString,
-                sideTextTint = ListItemSideTextTint.SECONDARY,
-                trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-                onClick = onThemePreferenceClick
-              )
-            ),
-            style = ListGroupStyle.CARD_GROUP_DIVIDER
-          )
-        ).apply { add(this) }
-      }
+      FormMainContentModel.ListGroup(
+        listGroupModel = ListGroupModel(
+          header = "Display",
+          items = immutableListOf(
+            ListItemModel(
+              title = "Theme",
+              sideText = themePreferenceString,
+              sideTextTint = ListItemSideTextTint.SECONDARY,
+              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+              onClick = onThemePreferenceClick
+            )
+          ),
+          style = ListGroupStyle.CARD_GROUP_DIVIDER
+        )
+      ).apply { add(this) }
 
       FormMainContentModel.ListGroup(
         listGroupModel = ListGroupModel(

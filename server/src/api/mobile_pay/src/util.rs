@@ -1,5 +1,3 @@
-use bdk_utils::bdk::bitcoin::psbt::Psbt;
-use bdk_utils::{AttributableWallet, PsbtWithDerivation};
 use errors::ApiError;
 use thiserror::Error;
 use time::{Duration, OffsetDateTime, Time, UtcOffset};
@@ -25,23 +23,6 @@ impl From<MobilepayDatetimeError> for ApiError {
             }
         }
     }
-}
-
-pub(crate) fn get_total_outflow_for_psbt(wallet: &dyn AttributableWallet, psbt: &Psbt) -> u64 {
-    psbt.unsigned_tx
-        .output
-        .iter()
-        .enumerate()
-        .filter(|(idx, _output)| {
-            // we want to filter OUT addresses that are ours
-            // get_output_spk_and_derivation should be none, and then even if its some, is_my_psbt_address should be false
-            // so construct the case where it would be our output and negate it.
-            !psbt
-                .get_output_spk_and_derivation(*idx)
-                .is_some_and(|spk| wallet.is_my_psbt_address(&spk).is_ok_and(|x| x))
-        })
-        .map(|(_idx, output)| output.value)
-        .sum()
 }
 
 pub(crate) fn total_sats_spent_today(

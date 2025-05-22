@@ -18,6 +18,7 @@ pub mod recovery_relationship_deleted;
 pub mod recovery_relationship_invitation_accepted;
 pub mod social_challenge_response_received;
 pub mod test_notification;
+pub mod transaction_verification;
 
 pub fn format_duration(duration: Duration) -> String {
     if duration.whole_hours() > 18 {

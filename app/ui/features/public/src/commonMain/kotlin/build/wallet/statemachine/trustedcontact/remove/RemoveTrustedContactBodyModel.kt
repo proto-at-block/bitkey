@@ -10,10 +10,10 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Builds a model prompting the removal of a Trusted Contact.
+ * Builds a model prompting the removal of a Recovery Contact.
  *
- * @param trustedContactAlias The alias for the TC we're removing.
- * @param onRemove Invoked when the user confirms they want to try and  remove the trusted contact.
+ * @param trustedContactAlias The alias for the RC we're removing.
+ * @param onRemove Invoked when the user confirms they want to try and  remove the Recovery Contact.
  * @param onClosed Invoked when the user closes the sheet.
  */
 data class RemoveTrustedContactBodyModel(
@@ -30,18 +30,18 @@ data class RemoveTrustedContactBodyModel(
     ),
     header = if (isExpiredInvitation) {
       FormHeaderModel(
-        headline = "Your invitation to ${trustedContactAlias.alias} to be a " + (if (isBeneficiary) "beneficiary" else "Trusted Contact") + " has expired.",
+        headline = "Your invitation to ${trustedContactAlias.alias} to be a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " has expired.",
         alignment = FormHeaderModel.Alignment.LEADING
       )
     } else {
       FormHeaderModel(
-        headline = "Removing ${trustedContactAlias.alias} as a " + (if (isBeneficiary) "beneficiary" else "Trusted Contact") + " requires your Bitkey for approval.",
+        headline = "Removing ${trustedContactAlias.alias} as a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " requires your Bitkey for approval.",
         subline = "Security-sensitive changes require your Bitkey to keep your wallet safe.",
         alignment = FormHeaderModel.Alignment.LEADING
       )
     },
     primaryButton = ButtonModel(
-      text = if (isBeneficiary) "Remove beneficiary" else "Remove Trusted Contact",
+      text = if (isBeneficiary) "Remove beneficiary" else "Remove Recovery Contact",
       requiresBitkeyInteraction = isExpiredInvitation,
       treatment = ButtonModel.Treatment.Primary,
       size = ButtonModel.Size.Footer,

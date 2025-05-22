@@ -17,7 +17,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
   devicePlatform: DevicePlatform,
   error: AcceptInvitationCodeError,
 ): BodyModel {
-  val subject = if (isInheritance) "beneficiary" else "Trusted Contact"
+  val subject = if (isInheritance) "beneficiary" else "Recovery Contact"
   val title = "We couldn’t complete your enrollment as a $subject"
   val eventTrackerScreenId = TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
 
@@ -45,7 +45,7 @@ fun AcceptingInviteWithF8eFailureBodyModel(
                 )
               }
               CUSTOMER_IS_TRUSTED_CONTACT -> {
-                // Special case for when the user is trying to enroll as a TC for themselves.
+                // Special case for when the user is trying to enroll as a RC for themselves.
                 return ErrorFormBodyModel(
                   title = "You can't be your own $subject",
                   subline =

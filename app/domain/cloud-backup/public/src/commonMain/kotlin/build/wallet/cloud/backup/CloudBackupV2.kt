@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
 /**
  * Represents a backup for Lite or Full account. Full account data is represented by [FullAccountFields].
  *
- * Persists Trusted Contact encrypted keys but Social Recovery with an instance of this
+ * Persists Recovery Contact encrypted keys but Social Recovery with an instance of this
  * backup is still not possible since the backup doesn't contain a Recovery authentication
  * key yet - wasn't implemented at the time.
  */

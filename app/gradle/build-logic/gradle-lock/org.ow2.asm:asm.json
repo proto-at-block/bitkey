@@ -2,11 +2,11 @@
     "module-identifier": "org.ow2.asm:asm",
     "components": [
         {
-            "version": "9.7",
+            "version": "9.7.1",
             "variants": [
                 {
                     "artifacts": {
-                        "asm-9.7.jar": "adf46d5e34940bdf148ecdd26a9ee8eea94496a72034ff7141066b3eea5c4e9d"
+                        "asm-9.7.1.jar": "8cadd43ac5eb6d09de05faecca38b917a040bb9139c7edeb4cc81c740b713281"
                     }
                 }
             ],

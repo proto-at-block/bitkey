@@ -42,16 +42,15 @@ data "aws_iam_policy_document" "ops" {
     resources = ["*"]
   }
 
-  // Allow to write to user balance histogram S3 bucket
+  // Allow to write to user balance histogram S3 bucket and sanctions list S3 bucket
   statement {
     effect = "Allow"
     actions = [
       "s3:PutObject",
-      "s3:ListBucket",
     ]
     resources = [
-      "arn:aws:s3:::bitkey-fromagerie-user-balance-histogram-data-*",
-      "arn:aws:s3:::bitkey-fromagerie-user-balance-histogram-data-*/*"
+      "arn:aws:s3:::bitkey-fromagerie-user-balance-histogram-data-*/*",
+      "arn:aws:s3:::bitkey-fromagerie-sanctions-screener-*/*",
     ]
   }
 

@@ -30,9 +30,9 @@ use wsm_common::messages::api::{
     CreateSelfSovereignBackupRequest, CreateSelfSovereignBackupResponse, CreatedSigningKey,
     EvaluatePinRequest, EvaluatePinResponse, GenerateIntegrityKeyResponse,
     GeneratePartialSignaturesRequest, GeneratePartialSignaturesResponse, GetIntegritySigRequest,
-    GetIntegritySigResponse, InitiateDistributedKeygenRequest, InitiateDistributedKeygenResponse,
-    InitiateShareRefreshRequest, InitiateShareRefreshResponse, NoiseInitiateBundleRequest,
-    NoiseInitiateBundleResponse, SignPsbtRequest, SignedPsbt,
+    GetIntegritySigResponse, GrantRequest, GrantResponse, InitiateDistributedKeygenRequest,
+    InitiateDistributedKeygenResponse, InitiateShareRefreshRequest, InitiateShareRefreshResponse,
+    NoiseInitiateBundleRequest, NoiseInitiateBundleResponse, SignPsbtRequest, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
     EnclaveContinueDistributedKeygenRequest, EnclaveContinueShareRefreshRequest,
@@ -90,6 +90,7 @@ impl From<RouteState> for Router {
             .route("/initiate-secure-channel", post(initiate_secure_channel))
             .route("/evaluate-pin", post(evaluate_pin))
             .route("/initiate-share-refresh", post(initiate_distributed_keygen))
+            .route("/approve-grant", post(approve_grant))
             .with_state(state)
     }
 }
@@ -620,6 +621,20 @@ async fn evaluate_pin(
         .evaluate_pin(request.sealed_request, request.noise_session_id)
         .await
         .map_err(|e| ApiError::ServerError(format!("Failed compute PRF output: {e}")))?;
+    Ok(Json(result))
+}
+
+#[instrument(err, skip(enclave_client), fields(version = request.version, action = request.action, device_id = request.device_id))]
+async fn approve_grant(
+    State(enclave_client): State<Arc<EnclaveClient>>,
+    Json(request): Json<GrantRequest>,
+) -> Result<Json<GrantResponse>, ApiError> {
+    tracing::info!("wsm-api create_grant: {:?}", request);
+    let result = enclave_client
+        .approve_grant(request)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to create grant: {e}")))?;
+
     Ok(Json(result))
 }
 

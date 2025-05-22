@@ -24,7 +24,7 @@ export class WsmApiMonitors extends Construct {
         critical: "1",
         criticalRecovery: "0",
       },
-      priority: 3,
+      priority: "3",
       query:
           `avg(last_4h):anomalies(sum:trace.web.request.hits{env:${environment},service:wsm}.as_count(), 'agile', 3, direction='both', interval=60, alert_window='last_15m', count_default_zero='true', seasonality='weekly', timezone='utc') >= 1`,
       // W-1628 Update Datadog monitors to reference new environments when we set those up
@@ -41,7 +41,7 @@ export class WsmApiMonitors extends Construct {
       name: "[wsm]: service has a faulty deployment",
       newGroupDelay: 60,
       onMissingData: "default",
-      priority: 2,
+      priority: "2",
       query:
           `events("tags:(deployment_analysis \\"env:${environment}\\" \\"service:wsm\\")").rollup("count").by("version").last("70m") > 0`,
       tags: tags,
@@ -58,7 +58,7 @@ export class WsmApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[wsm]: service has a high average latency",
-      priority: 2,
+      priority: "2",
       tags: tags,
       recipients: highPriorityRecipients,
     });
@@ -71,7 +71,7 @@ export class WsmApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[wsm]: create_key error rate is too high",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:create_key"),
       recipients: highPriorityRecipients,
     });
@@ -84,7 +84,7 @@ export class WsmApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[wsm]: create_keybundle error rate is too high",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:create_keybundle"),
       recipients: highPriorityRecipients,
     });
@@ -97,7 +97,7 @@ export class WsmApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[wsm]: derive_key error rate is too high",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:derive_key"),
       recipients: highPriorityRecipients,
     });
@@ -110,7 +110,7 @@ export class WsmApiMonitors extends Construct {
       },
       window: "last_1h",
       name: "[wsm]: get_customer_key error rate is too high",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:get_customer_key"),
       recipients: highPriorityRecipients,
     });
@@ -123,7 +123,7 @@ export class WsmApiMonitors extends Construct {
         warning: "0.03",
       },
       window: "last_1h",
-      priority: 1,
+      priority: "1",
       tags: [`env:${environment}`, "service:wsm"],
       recipients: highPriorityRecipients,
     });
@@ -136,7 +136,7 @@ export class WsmApiMonitors extends Construct {
         warning: "0.03",
       },
       window: "last_1h",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:sign_blob"),
       recipients: highPriorityRecipients,
     });
@@ -149,7 +149,7 @@ export class WsmApiMonitors extends Construct {
         warning: "0.03",
       },
       window: "last_1h",
-      priority: 1,
+      priority: "1",
       tags: tags.concat("resource_name:sign_psbt"),
       recipients: highPriorityRecipients,
     });

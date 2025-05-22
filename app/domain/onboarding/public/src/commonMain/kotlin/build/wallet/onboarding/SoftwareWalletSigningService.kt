@@ -8,6 +8,7 @@ import com.github.michaelbull.result.Result
  * Service responsible for producing a FROST signature for a given PSBT.
  */
 interface SoftwareWalletSigningService {
+  @Suppress("ktlint:standard:no-consecutive-comments")
   /**
    * Takes in a Psbt type, and returns a base64-encoded, signed PSBT.
    */

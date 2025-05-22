@@ -99,7 +99,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     relationshipsService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
-  test("happy path - recovery contact") {
+  test("happy path - Recovery Contact") {
     stateMachine.test(props) {
       awaitBody<FormBodyModel>(TC_ENROLLMENT_ENTER_INVITE_CODE) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().fieldModel

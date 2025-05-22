@@ -12,9 +12,9 @@ import build.wallet.bitkey.keybox.Keybox
  *
  * Social Recovery roles:
  * A Full Account can have a role of Protected Customer - have other
- * [FullAccount]s or [LiteAccount]s as its Trusted Contact(s).
- * A Full Account can also have a role of Trusted Contact - be a
- * Trusted Contact for other [FullAccount]s.
+ * [FullAccount]s or [LiteAccount]s as its Recovery Contact(s).
+ * A Full Account can also have a role of Recovery Contact - be a
+ * Recovery Contact for other [FullAccount]s.
  */
 data class FullAccount(
   override val accountId: FullAccountId,

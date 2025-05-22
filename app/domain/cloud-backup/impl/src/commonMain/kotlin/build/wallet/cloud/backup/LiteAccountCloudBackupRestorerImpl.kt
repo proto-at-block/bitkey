@@ -37,7 +37,7 @@ class LiteAccountCloudBackupRestorerImpl(
         .mapError(::AccountBackupRestorationError)
         .bind()
 
-      // Store trusted contact identity key
+      // Store Recovery Contact identity key
       relationshipsKeysDao
         .saveKey(liteAccountCloudBackup.delegatedDecryptionKeypair)
         .mapError(::AccountBackupRestorationError)

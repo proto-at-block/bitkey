@@ -11,7 +11,7 @@ fun UploadDelegatedDecryptionKeyFailureBodyModel(
   onRetry: () -> Unit,
 ): BodyModel {
   return ErrorFormBodyModel(
-    title = "We couldn’t complete your enrollment as a ${if (isInheritance) "beneficiary" else "Trusted Contact"}",
+    title = "We couldn’t complete your enrollment as a ${if (isInheritance) "beneficiary" else "Recovery Contact"}",
     subline = "Please try again.",
     secondaryButton = ButtonDataModel(text = "Back", onClick = onBack),
     primaryButton = ButtonDataModel(text = "Retry", onClick = onRetry),

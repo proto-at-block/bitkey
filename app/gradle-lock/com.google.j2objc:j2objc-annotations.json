@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.8",
+            "version": "3.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "j2objc-annotations-2.8.jar": "f02a95fa1a5e95edb3ed859fd0fb7df709d121a35290eff8b74dce2ab7f4d6ed"
+                        "j2objc-annotations-3.0.0.jar": "88241573467ddca44ffd4d74aa04c2bbfd11bf7c17e0c342c94c9de7a70a7c64"
                     }
                 }
             ],

@@ -46,9 +46,9 @@ private fun SecurityActionType.icon(): Icon {
 
 private fun SecurityActionType.headline(): String {
   return when (this) {
-    SecurityActionType.EAK_BACKUP -> "Emergency Access Kit"
+    SecurityActionType.EAK_BACKUP -> "Emergency Exit Kit"
     SecurityActionType.FINGERPRINTS -> "Multiple fingerprints"
-    SecurityActionType.SOCIAL_RECOVERY -> "Trusted contacts"
+    SecurityActionType.SOCIAL_RECOVERY -> "Recovery Contacts"
     SecurityActionType.CRITICAL_ALERTS -> "Critical alerts"
     else -> error("Unsupported action type: $this")
   }
@@ -57,11 +57,11 @@ private fun SecurityActionType.headline(): String {
 private fun SecurityActionType.subline(): String {
   return when (this) {
     SecurityActionType.SOCIAL_RECOVERY -> """
-      If you lose both your Bitkey app and device at the same time, a Trusted Contact can help you get back into your wallet.
+      If you lose both your Bitkey app and device at the same time, a Recovery Contact can help you get back into your wallet.
       
       They never have access to your wallet, keys, or bitcoin—just a one-time code you generate during recovery to confirm you’re the owner.
       
-      Without a Trusted Contact, you won’t be able to recover your wallet if you lose both your app and device at the same time.
+      Without a Recovery Contact, you won’t be able to recover your wallet if you lose both your app and device at the same time.
     """.trimIndent()
     SecurityActionType.FINGERPRINTS -> """
       Scrapes or cuts can temporarily stop a fingerprint from scanning, making it harder to unlock your Bitkey.
@@ -69,9 +69,9 @@ private fun SecurityActionType.subline(): String {
       Adding multiple fingerprints is quick and can help avoid the hassle of a lockout.
     """.trimIndent()
     SecurityActionType.EAK_BACKUP -> """
-      The Emergency Access Kit is a pdf that links to a version of the Bitkey app stored on GitHub—not our servers.
+      The Emergency Exit Kit is a pdf that links to a version of the Bitkey app stored on GitHub—not our servers.
       
-      If Bitkey’s app or servers are ever blocked or go offline, you can still move your money using your Bitkey device and the key stored in your Emergency Access Kit.
+      If Bitkey’s app or servers are ever blocked or go offline, you can still move your money using your Bitkey device and the key stored in your Emergency Exit Kit.
     """.trimIndent()
     SecurityActionType.CRITICAL_ALERTS -> """
       Critical alerts are sent when someone starts a recovery or inheritance process for your wallet, or changes your security settings.

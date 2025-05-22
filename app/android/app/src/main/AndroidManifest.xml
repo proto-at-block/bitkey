@@ -24,7 +24,7 @@
       android:theme="@style/Theme.AppSplash">
 
     <!-- Allows the customer to share app files.
-         We use this allow customer share Emergency Access Kit PDF file. -->
+         We use this allow customer share Emergency Exit Kit PDF file. -->
     <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

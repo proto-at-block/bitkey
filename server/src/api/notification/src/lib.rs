@@ -10,16 +10,20 @@ use payloads::{
     inheritance_claim_period_almost_over::InheritanceClaimPeriodAlmostOverPayload,
     inheritance_claim_period_completed::InheritanceClaimPeriodCompletedPayload,
     inheritance_claim_period_initiated::InheritanceClaimPeriodInitiatedPayload,
-    payment::PendingPaymentPayload,
+    payment::ConfirmedPaymentPayload, payment::PendingPaymentPayload,
     privileged_action_canceled_delay_period::PrivilegedActionCanceledDelayPeriodPayload,
     privileged_action_completed_delay_period::PrivilegedActionCompletedDelayPeriodPayload,
     privileged_action_pending_delay_period::PrivilegedActionPendingDelayPeriodPayload,
     push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
+    recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
+    recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
     recovery_relationship_benefactor_invitation_pending::RecoveryRelationshipBenefactorInvitationPendingPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
     social_challenge_response_received::SocialChallengeResponseReceivedPayload,
+    test_notification::TestNotificationPayload,
+    transaction_verification::TransactionVerificationPayload,
 };
 use queue::sqs::QueueError;
 use serde::{Deserialize, Serialize};
@@ -30,16 +34,7 @@ use thiserror::Error;
 use types::notification::NotificationCategory;
 use ulid::DecodeError;
 
-use self::{
-    email::EmailPayload,
-    payloads::{
-        payment::ConfirmedPaymentPayload,
-        recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
-        recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
-        test_notification::TestNotificationPayload,
-    },
-    push::SNSPushPayload,
-};
+use self::{email::EmailPayload, push::SNSPushPayload};
 use entities::NotificationCompositeKey;
 use types::{account::identifiers::AccountId, notification::NotificationChannel};
 
@@ -138,6 +133,7 @@ pub enum NotificationPayloadType {
     InheritanceClaimCanceled,
     InheritanceClaimPeriodCompleted,
     RecoveryRelationshipBenefactorInvitationPending,
+    TransactionVerification,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -166,6 +162,7 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::PendingPaymentNotification => {
                 NotificationCategory::MoneyMovement
             }
+            NotificationPayloadType::TransactionVerification => NotificationCategory::MoneyMovement,
         }
     }
 }
@@ -302,6 +299,12 @@ impl NotificationPayloadType {
                 payload
                     .recovery_relationship_benefactor_invitation_pending_payload
                     .is_some()
+            }
+            NotificationPayloadType::TransactionVerification => {
+                builder.transaction_verification_payload(
+                    payload.transaction_verification_payload.clone(),
+                );
+                payload.transaction_verification_payload.is_some()
             }
         };
         if valid_payload {
@@ -502,6 +505,12 @@ impl
                         .ok_or(NotificationError::InvalidPayload(payload_type))?,
                 ))
             }
+            NotificationPayloadType::TransactionVerification => NotificationMessage::try_from((
+                composite_key,
+                payload
+                    .transaction_verification_payload
+                    .ok_or(NotificationError::InvalidPayload(payload_type))?,
+            )),
         }
     }
 }
@@ -569,4 +578,6 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub recovery_relationship_benefactor_invitation_pending_payload:
         Option<RecoveryRelationshipBenefactorInvitationPendingPayload>,
+    #[serde(default)]
+    pub transaction_verification_payload: Option<TransactionVerificationPayload>,
 }

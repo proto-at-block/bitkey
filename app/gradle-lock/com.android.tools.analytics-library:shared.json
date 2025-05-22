@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "31.5.2",
+            "version": "31.9.1",
             "variants": [
                 {
                     "artifacts": {
-                        "shared-31.5.2.jar": "324fc4983b14469a8df19fa5c2cc1bd3d1fd729554825f3912d8dfad8b8734d3"
+                        "shared-31.9.1.jar": "38d3fda1ac4cb0f8974a4868da1361a03cfab930e52e5729d99bade40382459c"
                     }
                 }
             ],

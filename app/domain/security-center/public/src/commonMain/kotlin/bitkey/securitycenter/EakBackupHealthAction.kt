@@ -1,10 +1,10 @@
 package bitkey.securitycenter
 
-import build.wallet.cloud.backup.health.EakBackupStatus
+import build.wallet.cloud.backup.health.EekBackupStatus
 import build.wallet.cloud.backup.health.isHealthy
 
 data class EakBackupHealthAction(
-  private val cloudBackupStatus: EakBackupStatus,
+  private val cloudBackupStatus: EekBackupStatus,
 ) : SecurityAction {
   override fun getRecommendations(): List<SecurityActionRecommendation> {
     return listOfNotNull(

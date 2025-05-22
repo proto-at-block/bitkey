@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:serde-form-url-jvm",
     "components": [
         {
-            "version": "1.3.7",
+            "version": "1.3.31",
             "variants": [
                 {
                     "artifacts": {
-                        "serde-form-url-jvm-1.3.7.jar": "b72401206ae33ce89c75efbbbcb8b1b2f3608fef1d82f76f458f116105f25df2"
+                        "serde-form-url-jvm-1.3.31.jar": "c4ce2a8d5aec489ed4b9b34ec3c7f3037d1dc367354f6cf038a9eff4e7fd93e7"
                     }
                 }
             ],

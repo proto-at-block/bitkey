@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:fus-statistics-gradle-plugin",
+    "components": [
+        {
+            "version": "2.1.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "fus-statistics-gradle-plugin-2.1.20-gradle85.jar": "6674f29755d326addc756a2fdcabf2bb602f00004a0ed2db669da3df4e848006"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

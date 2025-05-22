@@ -19,14 +19,13 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Content for account access options for the regular, non-EAK app variant.
+ * Content for account access options for the regular, non-EEK app variant.
  */
 data class AccountAccessMoreOptionsFormBodyModel(
   override val onBack: () -> Unit,
   val onRestoreYourWalletClick: (() -> Unit),
   val onBeTrustedContactClick: (() -> Unit),
   val onResetExistingDevice: (() -> Unit)?,
-  val isInheritanceEnabled: Boolean,
 ) : FormBodyModel(
     id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
     onBack = onBack,
@@ -47,7 +46,7 @@ data class AccountAccessMoreOptionsFormBodyModel(
                   iconSize = IconSize.Small
                 )
               ),
-              title = if (isInheritanceEnabled) "Enter invite code" else "Be a Trusted Contact",
+              title = "Enter invite code",
               onClick = onBeTrustedContactClick,
               trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
             ),

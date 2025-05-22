@@ -15,9 +15,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.TransactionType.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -33,6 +30,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitBody
 import build.wallet.statemachine.ui.awaitBodyMock
+import build.wallet.statemachine.ui.awaitUntilBody
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
@@ -70,11 +68,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   val clock = ClockFake()
   val durationFormatter = DurationFormatterFake()
   val eventTracker = EventTrackerMock(turbines::create)
-
-  val feeBumpEnabledFeatureFlag =
-    FeeBumpIsAvailableFeatureFlag(
-      featureFlagDao = FeatureFlagDaoMock()
-    )
   val bitcoinTransactionBumpabilityChecker =
     BitcoinTransactionBumpabilityCheckerFake(isBumpable = false)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
@@ -102,7 +95,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock = clock,
       durationFormatter = durationFormatter,
       eventTracker = eventTracker,
-      feeBumpEnabled = feeBumpEnabledFeatureFlag,
       bitcoinTransactionBumpabilityChecker = bitcoinTransactionBumpabilityChecker,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
@@ -487,14 +479,9 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
       transactionActivityService.transactions.value = listOf(sentProps.transaction)
 
-      awaitBody<TransactionDetailModel> {
-        // Time Details
-        with(content[2].shouldBeInstanceOf<DataList>()) {
-          items[0].expect(title = "Arrival time", sideText = "estimated-confirmation-time")
-        }
-      }
-
-      awaitBody<TransactionDetailModel> {
+      awaitUntilBody<TransactionDetailModel>(
+        matching = { it.content[2].shouldBeInstanceOf<DataList>().items[0].title == "Confirmed" }
+      ) {
         // Time Details
         with(content[2].shouldBeInstanceOf<DataList>()) {
           items[0].expect(title = "Confirmed", sideText = "confirmed-time")
@@ -505,7 +492,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   context("Speed up feature flag is on") {
     beforeTest {
-      feeBumpEnabledFeatureFlag.setFlagValue(true)
       bitcoinTransactionBumpabilityChecker.isBumpable = true
     }
 

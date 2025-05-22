@@ -440,3 +440,30 @@ module "promotion_code_table" {
 
   deletion_protection_enabled = var.enable_deletion_protection
 }
+
+module "transaction_verification_table" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table//?ref=9b66b76b2d178ca42425378deac9d9ebf95bf14e" // Tag v3.2.0
+
+  create_table = var.create_dynamodb_tables
+
+  name     = var.transaction_verification_table_name
+  hash_key = "partition_key"
+
+  attributes = [
+    { name = "partition_key", type = "S" },
+    { name = "web_auth_token", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name            = "web_auth_token_idx"
+      hash_key        = "web_auth_token"
+      projection_type = "ALL"
+    },
+  ]
+
+  point_in_time_recovery_enabled = true
+  server_side_encryption_enabled = true
+
+  deletion_protection_enabled = var.enable_deletion_protection
+}

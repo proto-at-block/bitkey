@@ -8,7 +8,7 @@ import build.wallet.di.BitkeyInject
 
 /**
  * Broadcast receiver for sharing manager. Triggered when a user selects a share action.
- * We use this to know when to advance the trusted contact invitation flow.
+ * We use this to know when to advance the Recovery Contact invitation flow.
  */
 
 @BitkeyInject(ActivityScope::class)

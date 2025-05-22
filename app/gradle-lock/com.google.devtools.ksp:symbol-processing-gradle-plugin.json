@@ -2,11 +2,11 @@
     "module-identifier": "com.google.devtools.ksp:symbol-processing-gradle-plugin",
     "components": [
         {
-            "version": "2.0.21-1.0.26",
+            "version": "2.1.20-1.0.32",
             "variants": [
                 {
                     "artifacts": {
-                        "symbol-processing-gradle-plugin-2.0.21-1.0.26.jar": "c01fa174ae428a44c77c543ab0fe6acad663f2ecaf9a89ff053f2099f43cf34e"
+                        "symbol-processing-gradle-plugin-2.1.20-1.0.32.jar": "a4664479cf27e3a30338cb3f76e0c6ee27b0c8f934965d69c590b11a0d70b0e1"
                     }
                 }
             ],

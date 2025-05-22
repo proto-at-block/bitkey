@@ -38,6 +38,8 @@ pub enum BdkUtilError {
     TransactionBroadcastError(#[from] bdk::Error),
     #[error("Transaction with one or more inputs already exists in the mempool.")]
     TransactionAlreadyInMempoolError,
+    #[error("Min relay fee not met.")]
+    MinRelayFeeNotMetError,
 }
 
 impl From<&BdkUtilError> for ApiError {
@@ -61,7 +63,8 @@ impl From<&BdkUtilError> for ApiError {
             | BdkUtilError::PsbtInconsistentDerivationPaths
             | BdkUtilError::MalformedDerivationPath
             | BdkUtilError::UnsupportedBitcoinNetwork(_)
-            | BdkUtilError::MissingWitnessUtxo => ApiError::GenericBadRequest(val.to_string()),
+            | BdkUtilError::MissingWitnessUtxo
+            | BdkUtilError::MinRelayFeeNotMetError => ApiError::GenericBadRequest(val.to_string()),
             BdkUtilError::TransactionAlreadyInMempoolError => {
                 ApiError::GenericConflict(val.to_string())
             }

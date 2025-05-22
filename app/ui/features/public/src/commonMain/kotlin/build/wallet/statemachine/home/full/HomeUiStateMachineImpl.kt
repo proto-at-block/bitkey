@@ -2,12 +2,16 @@ package build.wallet.statemachine.home.full
 
 import androidx.compose.runtime.*
 import bitkey.ui.framework.NavigatorPresenter
+import bitkey.ui.screens.recoverychannels.RecoveryChannelSettingsScreen
 import bitkey.ui.screens.securityhub.SecurityHubScreen
 import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.relationships.RelationshipId
 import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.EekBackupStatus
+import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.cloud.backup.health.MobileKeyBackupStatus.ProblemWithBackup.BackupMissing
 import build.wallet.di.ActivityScope
 import build.wallet.di.BitkeyInject
 import build.wallet.navigation.v1.NavigationScreenId
@@ -16,6 +20,8 @@ import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.router.Route
 import build.wallet.router.Router
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
+import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
@@ -35,11 +41,11 @@ import build.wallet.statemachine.settings.full.SettingsHomeUiProps
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.SettingsListState.ShowingInheritanceUiState
-import build.wallet.statemachine.status.AppFunctionalityStatusScreen
-import build.wallet.statemachine.status.HomeStatusBannerUiProps
-import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
+import build.wallet.statemachine.settings.full.notifications.Source
+import build.wallet.statemachine.status.*
 import build.wallet.statemachine.trustedcontact.*
 import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant
+import build.wallet.statemachine.trustedcontact.model.TrustedContactFeatureVariant.Direct
 import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +76,7 @@ class HomeUiStateMachineImpl(
     RecoveryRelationshipNotificationUiStateMachine,
   private val appCoroutineScope: CoroutineScope,
   private val navigatorPresenter: NavigatorPresenter,
+  private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
 ) : HomeUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -84,6 +91,10 @@ class HomeUiStateMachineImpl(
     }
 
     val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
+
+    var anchorRootScreen by remember {
+      mutableStateOf<HomeScreen>(MoneyHome(origin = Origin.Launch))
+    }
 
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
@@ -240,8 +251,23 @@ class HomeUiStateMachineImpl(
         // Observe the global status banner model
         val homeStatusBannerModel = homeStatusBannerUiStateMachine.model(
           props = HomeStatusBannerUiProps(
+            bannerContext = BannerContext.Home,
             onBannerClick = {
-              uiState = uiState.copy(presentedScreen = AppFunctionalityStatus)
+              uiState = when (it) {
+                BannerType.OfflineStatus -> uiState.copy(presentedScreen = AppFunctionalityStatus)
+                is BannerType.MissingCloudBackup -> uiState.copy(
+                  presentedScreen = CloudBackupRepair(
+                    problemWithBackup = it.problemWithBackup
+                  )
+                )
+                is BannerType.MissingEak -> uiState.copy(
+                  presentedScreen = EmergencyExitKitRepair(
+                    problemWithBackup = it.problemWithBackup
+                  )
+                )
+                BannerType.MissingCommunication -> uiState.copy(presentedScreen = RecoveryChannelSettings)
+                BannerType.MissingHardware -> uiState.copy(rootScreen = MoneyHome(origin = Origin.LostHardwareRecovery))
+              }
             }
           )
         )
@@ -254,6 +280,7 @@ class HomeUiStateMachineImpl(
               homeBottomSheetModel = null,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettings = {
+                anchorRootScreen = Settings(null)
                 uiState = uiState.copy(rootScreen = Settings(null))
               },
               origin = rootScreen.origin,
@@ -267,7 +294,11 @@ class HomeUiStateMachineImpl(
                 )
               },
               onGoToSecurityHub = {
+                anchorRootScreen = HomeScreen.SecurityHub
                 uiState = uiState.copy(rootScreen = HomeScreen.SecurityHub)
+              },
+              onDismissOrigin = {
+                uiState = uiState.copy(rootScreen = anchorRootScreen)
               }
             )
           )
@@ -275,6 +306,7 @@ class HomeUiStateMachineImpl(
           is Settings -> settingsHomeUiStateMachine.model(
             props = SettingsHomeUiProps(
               onBack = {
+                anchorRootScreen = MoneyHome(origin = Origin.Settings)
                 uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Settings))
               },
               account = props.account,
@@ -292,6 +324,7 @@ class HomeUiStateMachineImpl(
               hardwareRecoveryData = props.lostHardwareRecoveryData
             ),
             onExit = {
+              anchorRootScreen = MoneyHome(origin = Origin.Launch)
               uiState = uiState.copy(rootScreen = MoneyHome(origin = Origin.Launch))
             }
           )
@@ -323,7 +356,7 @@ class HomeUiStateMachineImpl(
             uiState = uiState.copy(presentedScreen = null)
           },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
-          variant = TrustedContactFeatureVariant.Direct(
+          variant = Direct(
             target = TrustedContactFeatureVariant.Feature.Recovery
           )
         )
@@ -340,7 +373,7 @@ class HomeUiStateMachineImpl(
           inviteCode = presentedScreen.inviteCode,
           onDone = { uiState = uiState.copy(presentedScreen = null) },
           screenPresentationStyle = ScreenPresentationStyle.Modal,
-          variant = TrustedContactFeatureVariant.Direct(
+          variant = Direct(
             target = TrustedContactFeatureVariant.Feature.Inheritance
           )
         )
@@ -401,6 +434,42 @@ class HomeUiStateMachineImpl(
           onBack = { uiState = uiState.copy(presentedScreen = null) }
         )
       )
+      is CloudBackupRepair -> repairCloudBackupStateMachine.model(
+        RepairMobileKeyBackupProps(
+          account = props.account as FullAccount,
+          mobileKeyBackupStatus = BackupMissing,
+          presentationStyle = ScreenPresentationStyle.Modal,
+          onExit = {
+            uiState = uiState.copy(presentedScreen = null)
+          },
+          onRepaired = { status ->
+            uiState = uiState.copy(presentedScreen = null)
+          }
+        )
+      )
+      is EmergencyExitKitRepair -> repairCloudBackupStateMachine.model(
+        RepairMobileKeyBackupProps(
+          account = props.account as FullAccount,
+          mobileKeyBackupStatus = BackupMissing,
+          presentationStyle = ScreenPresentationStyle.Modal,
+          onExit = {
+            uiState = uiState.copy(presentedScreen = null)
+          },
+          onRepaired = { status ->
+            uiState = uiState.copy(presentedScreen = null)
+          }
+        )
+      )
+      RecoveryChannelSettings -> navigatorPresenter.model(
+        initialScreen = RecoveryChannelSettingsScreen(
+          account = props.account as FullAccount,
+          source = Source.SecurityHub,
+          origin = null
+        ),
+        onExit = {
+          uiState = uiState.copy(presentedScreen = null)
+        }
+      )
     }
   }
 }
@@ -441,7 +510,7 @@ private sealed interface PresentedScreen {
   /** Indicates that the app functionality status screen is currently presented */
   data object AppFunctionalityStatus : PresentedScreen
 
-  /** Indicates that the add trusted contact flow is currently presented */
+  /** Indicates that the add Recovery Contact flow is currently presented */
   data class AddTrustedContact(val inviteCode: String?) : PresentedScreen
 
   /** Indicates that the become beneficiary flow is currently presented */
@@ -472,4 +541,17 @@ private sealed interface PresentedScreen {
   data class InAppBrowser(
     val url: String,
   ) : PresentedScreen
+
+  /** Indicates the cloud back up repair process is being displayed */
+  data class CloudBackupRepair(
+    val problemWithBackup: MobileKeyBackupStatus.ProblemWithBackup,
+  ) : PresentedScreen
+
+  /** Indicates that the EEK backup repair process is being displayed */
+  data class EmergencyExitKitRepair(
+    val problemWithBackup: EekBackupStatus.ProblemWithBackup,
+  ) : PresentedScreen
+
+  /** Indicates that the recovery channel settings screen is being displayed */
+  data object RecoveryChannelSettings : PresentedScreen
 }

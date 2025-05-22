@@ -30,7 +30,7 @@ data class RecoverYourMobileKeyBodyModel(
     id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
     onBack = onBack,
     toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-    header = FormHeaderModel(headline = "Recover your wallet with a new mobile key"),
+    header = FormHeaderModel(headline = "Recover your wallet with a new App Key"),
     mainContentList = immutableListOf(
       Explainer(
         immutableListOf(
@@ -88,13 +88,13 @@ data class DelayAndNotifyNewKeyReady(
     header = FormHeaderModel(
       icon = LargeIconCheckStroked,
       headline = when (factorToRecover) {
-        App -> "Confirm mobile key replacement"
+        App -> "Confirm App Key replacement"
         Hardware -> "Confirm your replacement device"
       },
       subline = buildString {
         when (factorToRecover) {
           App -> append(
-            "The security waiting period is complete and your new mobile key is ready to be created."
+            "The security waiting period is complete and your new App Key is ready to be created."
           )
           Hardware -> append(
             "The security waiting period is complete and your new Bitkey device is ready to use."

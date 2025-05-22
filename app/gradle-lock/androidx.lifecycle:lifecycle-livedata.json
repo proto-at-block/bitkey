@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-livedata",
     "components": [
         {
-            "version": "2.8.5",
+            "version": "2.8.7",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-livedata-2.8.5.aar": "034ca56d2fed11a18eb22133b58a8d3a563d1cd8b56aab4f3c8dad6b9146ddc5"
+                        "lifecycle-livedata-2.8.7.aar": "703634525a67b1c6beaaab4f980dfa0bacdf7e143d0b5d51f5ac0d9404400290"
                     }
                 }
             ],

@@ -103,7 +103,7 @@ class RemoveTrustedContactUiStateMachineImpl(
           isConnectivityError = current.error is HttpError.NetworkError,
           errorData = ErrorData(
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
-            actionDescription = "Removing trusted contact",
+            actionDescription = "Removing Recovery Contact",
             cause = current.error
           ),
           onRetry = {

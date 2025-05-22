@@ -28,11 +28,11 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 /**
- * Prompt the user to save their trusted contact with bitkey.
+ * Prompt the user to save their Recovery Contact with bitkey.
  */
 data class SaveContactBodyModel(
   /**
-   * Name of the trusted contact to be added.
+   * Name of the Recovery Contact to be added.
    */
   val trustedContactName: String,
   /**
@@ -67,8 +67,8 @@ data class SaveContactBodyModel(
     ),
     header = FormHeaderModel(
       icon = Icon.LargeIconShieldPerson,
-      headline = if (isBeneficiary) "Save beneficiary" else "Save $trustedContactName as a Trusted Contact",
-      subline = "Adding a " + (if (isBeneficiary) "beneficiary" else "Trusted Contact") + " requires you to tap your Bitkey device since it impacts the security of your wallet."
+      headline = if (isBeneficiary) "Save beneficiary" else "Save $trustedContactName as a Recovery Contact",
+      subline = "Adding a " + (if (isBeneficiary) "beneficiary" else "Recovery Contact") + " requires you to tap your Bitkey device since it impacts the security of your wallet."
     ),
     mainContentList = immutableListOfNotNull(
       FormMainContentModel.Spacer(),
@@ -123,7 +123,7 @@ data class SaveContactBodyModel(
       }
     ).takeIf { isBeneficiary } ?: emptyImmutableList(),
     primaryButton = BitkeyInteractionButtonModel(
-      text = "Save " + if (isBeneficiary) "Beneficiary" else "Trusted Contact",
+      text = "Save " + if (isBeneficiary) "Beneficiary" else "Recovery Contact",
       size = ButtonModel.Size.Footer,
       onClick = StandardClick(onSave)
     )

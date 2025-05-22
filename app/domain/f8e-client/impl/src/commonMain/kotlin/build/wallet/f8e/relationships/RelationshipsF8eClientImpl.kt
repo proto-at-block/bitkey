@@ -153,7 +153,7 @@ class RelationshipsF8eClientImpl(
         .authenticated()
         .bodyResult<EndorseTrustedContactsResponseBody> {
           put("/api/accounts/${accountId.serverId}/recovery/relationships") {
-            withDescription("Endorse trusted contacts")
+            withDescription("Endorse Recovery Contacts")
             withEnvironment(f8eEnvironment)
             withAccountId(accountId, AuthTokenScope.Global)
             setRedactedBody(EndorseTrustedContactsRequestBody(f8eEndorsements))
@@ -183,7 +183,7 @@ class RelationshipsF8eClientImpl(
         ) {
           withEnvironment(account.config.f8eEnvironment)
           withAccountId(account.accountId, AuthTokenScope.Recovery)
-          withDescription("Retrieve Trusted Contact invitation")
+          withDescription("Retrieve Recovery Contact invitation")
         }
       }
       .map { it.invitation.toIncomingInvitation(invitationCode) }
@@ -204,7 +204,7 @@ class RelationshipsF8eClientImpl(
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.relationshipId}"
         ) {
-          withDescription("Accept Trusted Contact invitation")
+          withDescription("Accept Recovery Contact invitation")
           withEnvironment(account.config.f8eEnvironment)
           withAccountId(account.accountId, AuthTokenScope.Recovery)
           setRedactedBody(

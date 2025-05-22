@@ -19,11 +19,6 @@ interface ThemePreferenceService {
   fun theme(): Flow<Theme>
 
   /**
-   * Returns whether the theme preference feature is enabled.
-   */
-  val isThemePreferenceEnabled: Boolean
-
-  /**
    * Sets the user's theme preference.
    */
   suspend fun setThemePreference(themePreference: ThemePreference): Result<Unit, Error>

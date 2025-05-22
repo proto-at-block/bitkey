@@ -130,7 +130,7 @@ class ReinviteTrustedContactScreenPresenter(
           } else {
             TC_ENROLLMENT_REINVITE_FAILED
           },
-          title = "Unable to save " + if (isBeneficiary) "beneficiary" else "trusted contact",
+          title = "Unable to save " + if (isBeneficiary) "beneficiary" else "Recovery Contact",
           isConnectivityError = current.error is HttpError.NetworkError,
           onRetry = {
             state =
@@ -141,7 +141,7 @@ class ReinviteTrustedContactScreenPresenter(
           },
           errorData = ErrorData(
             segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
-            actionDescription = "Saving Re-invited Trusted contact to F8e",
+            actionDescription = "Saving Re-invited Recovery Contact to F8e",
             cause = current.error
           ),
           onBack = {
@@ -198,9 +198,9 @@ class ReinviteTrustedContactScreenPresenter(
             """.trimIndent()
           } else {
             """
-            You’ll get a notification when your Trusted Contact accepts your invite.
+            You’ll get a notification when your Recovery Contact accepts your invite.
             
-            You can manage your Trusted Contacts in your settings.
+            You can manage your Recovery Contacts in your settings.
             """.trimIndent()
           }
         ).asModalScreen()

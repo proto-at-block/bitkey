@@ -2,16 +2,16 @@
     "module-identifier": "de.cketti.unicode:kotlin-codepoints-iossimulatorarm64",
     "components": [
         {
-            "version": "0.7.0",
+            "version": "0.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-codepoints-iossimulatorarm64-metadata.jar": "856a2a88684c5abada352aef5508358966e8b4322c2dd36a043d05a09cb24a50"
+                        "kotlin-codepoints-iossimulatorarm64-metadata.jar": "a675930c9e2bcd6a45a9c9ec82d8e684b53c8cfd54394d651dafa9262f30dd01"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-codepoints.klib": "5e966ae0357d865ad30b89b25fd27bc3f6eeee868aa66611315f35dd44347fc5"
+                        "kotlin-codepoints.klib": "19ea40767e706cb1d60bde5e31a65e46a0850d7b816be2d88ecf10426ae20f4e"
                     }
                 }
             ],

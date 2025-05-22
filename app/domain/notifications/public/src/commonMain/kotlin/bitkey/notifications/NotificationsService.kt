@@ -1,6 +1,5 @@
 package bitkey.notifications
 
-import build.wallet.bitkey.f8e.AccountId
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -11,7 +10,7 @@ interface NotificationsService {
    * Get the current state of the user's preferences for alerts that are
    * considered critical to the application.
    */
-  fun getCriticalNotificationStatus(accountId: AccountId): Flow<NotificationStatus>
+  fun getCriticalNotificationStatus(): Flow<NotificationStatus>
 
   /**
    * State of a collection of application notification channels.

@@ -29,9 +29,8 @@ class StartClaimUiStateMachineImpl(
   @Composable
   override fun model(props: StartClaimUiStateMachineProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.EducationState) }
-    val notificationPreferences = notificationsService.getCriticalNotificationStatus(
-      accountId = props.account.accountId
-    ).collectAsState(null)
+    val notificationPreferences = notificationsService.getCriticalNotificationStatus()
+      .collectAsState(null)
 
     when (uiState) {
       State.StartingClaim -> LaunchedEffect("Submit Inheritance Claim") {

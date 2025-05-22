@@ -179,7 +179,7 @@ class RelationshipsCryptoFakeTests : FunSpec({
         privateKeyEncryptionKey
       ).getOrThrow()
 
-    // Trusted Contact assists Protected Customer with recovery
+    // Recovery Contact assists Protected Customer with recovery
     val recoveryCode = PakeCode("12345678901".toByteArray().toByteString())
     val invalidRecoveryCode = PakeCode("12345678991".toByteArray().toByteString())
     val protectedCustomerRecoveryPakeKey =

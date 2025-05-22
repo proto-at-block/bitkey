@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.compose.ui:ui-geometry-uikitsimarm64",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-geometry-uikitsimarm64-1.7.3-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "ui-geometry-uikitSimArm64Main-1.8.0.klib": "3e3b4e4a2e6f4c725663a8149927e6a0472d0af934fd5450f940203903923f0b"
                     }
                 },
                 {
                     "artifacts": {
-                        "ui-geometry.klib": "add2b1e35e819305454bd65dd2624cd71ec9c3c44bd316ba9ad83db1741cce53"
+                        "ui-geometry-uikitsimarm64-1.8.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 }
             ],

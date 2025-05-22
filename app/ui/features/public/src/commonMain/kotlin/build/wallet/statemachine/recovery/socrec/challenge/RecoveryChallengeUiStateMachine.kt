@@ -11,7 +11,7 @@ import kotlinx.collections.immutable.ImmutableList
 
 /**
  * State for the Social recovery challenge operations providing the user
- * access to start a social challenge and list their trusted contacts to
+ * access to start a social challenge and list their Recovery Contacts to
  * reach out to for completing the challenge.
  */
 interface RecoveryChallengeUiStateMachine : StateMachine<RecoveryChallengeUiProps, ScreenModel>

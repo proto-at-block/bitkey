@@ -105,7 +105,7 @@ data class F8eUnreachable(val lastReachableTime: Instant?) : ConnectivityCause
 /**
  * Indicates that the app is operating without connectivity to F8e.
  *
- * This mode is used for the Emergency Access Kit, where the app may have
+ * This mode is used for the Emergency Exit Kit, where the app may have
  * an internet connection, but no valid tokens to use with F8e.
  */
 data object EmergencyAccessMode : ConnectivityCause

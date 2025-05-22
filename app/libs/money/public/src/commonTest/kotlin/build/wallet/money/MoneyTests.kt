@@ -58,13 +58,6 @@ class MoneyTests : FunSpec({
     }
   }
 
-  test("string formatting") {
-    BitcoinMoney.sats(123456).toString().shouldBe("Money(BTC,0.00123456)")
-    FiatMoney.usd(dollars = 5.0).toString().shouldBe("Money(USD,5)")
-    FiatMoney.usd(dollars = 5.2).toString().shouldBe("Money(USD,5.2)")
-    FiatMoney.zeroUsd().toString().shouldBe("Money(USD,0)")
-  }
-
   context("convenience constructors") {
     test("zero money") {
       FiatMoney.zero(EUR).shouldBe(FiatMoney(value = BigDecimal.ZERO, currency = EUR))

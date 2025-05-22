@@ -1,0 +1,43 @@
+[package]
+edition = { workspace = true }
+name = "transaction_verification"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+axum-extra = { workspace = true }
+axum-macros = { workspace = true }
+base64 = { workspace = true }
+config = { workspace = true }
+database = { workspace = true }
+http_server = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+types = { workspace = true, features = ["account", "transaction_verification"] }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+authn_authz = { workspace = true }
+bdk_utils = { workspace = true }
+errors = { workspace = true }
+exchange_rate = { workspace = true }
+experimentation = { workspace = true }
+feature_flags = { workspace = true }
+notification = { workspace = true }
+userpool = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+test-helpers = []
+
+[lints]
+workspace = true

@@ -32,7 +32,7 @@ class EducationScreenSnapshots : FunSpec({
       val items =
         immutableListOf(
           EducationItem(
-            title = "If you can’t access wallet, your Trusted Contacts er.",
+            title = "If you can’t access wallet, your Recovery Contacts can help you recover.",
             subtitle = "Tap anywhere to continue",
             primaryButton =
               ButtonModel(
@@ -50,7 +50,7 @@ class EducationScreenSnapshots : FunSpec({
             onClick = null
           ),
           EducationItem(
-            title = "If you can access wallet, your Trusted Contacts can help you recover.",
+            title = "If you can’t access wallet, your Recovery Contacts can help you recover.",
             subtitle = "Tap anywhere to continue",
             primaryButton =
               ButtonModel(
@@ -68,7 +68,7 @@ class EducationScreenSnapshots : FunSpec({
             onClick = null
           ),
           EducationItem(
-            title = "If you can’t access wallet, your Trusted Contacts can help you recover.",
+            title = "If you can’t access wallet, your Recovery Contacts can help you recover.",
             subtitle = "Don't Tap anywhere to continue",
             primaryButton =
               ButtonModel(

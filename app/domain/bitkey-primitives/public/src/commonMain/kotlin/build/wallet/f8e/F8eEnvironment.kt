@@ -21,7 +21,7 @@ sealed interface F8eEnvironment {
   /**
    * Environment that blocks all network requests.
    *
-   * This is used in the Emergency Access Kit to prevent F8e calls from being made.
+   * This is used in the Emergency Exit Kit to prevent F8e calls from being made.
    */
   data object ForceOffline : F8eEnvironment
 

@@ -27,13 +27,13 @@ pub enum ServiceError {
     InvitationExpired,
     #[error("Recovery relationship invitation code mismatch")]
     InvitationCodeMismatch,
-    #[error("Customer cannot be trusted contact")]
+    #[error("Customer cannot be Recovery Contact")]
     CustomerIsTrustedContact,
     #[error("Unauthorized recovery relationship deletion")]
     UnauthorizedRelationshipDeletion,
     #[error("Unauthorized recovery relationship update")]
     UnauthorizedRelationshipUpdate,
-    #[error("Account is already a trusted contact for the customer")]
+    #[error("Account is already a Recovery Contact for the customer")]
     AccountAlreadyTrustedContact,
     #[error("Invalid Keyproof, signature over access token required both app and hw auth key")]
     InvalidKeyProof,
@@ -43,13 +43,13 @@ pub enum ServiceError {
     Notification(#[from] notification::NotificationError),
     #[error(transparent)]
     NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
-    #[error("Account has reached the maximum number of trusted contacts for role: {0:?}")]
+    #[error("Account has reached the maximum number of Recovery Contacts for role: {0:?}")]
     MaxTrustedContactsReached(TrustedContactRole),
     #[error("Account has reached the maximum number of protected customers")]
     MaxProtectedCustomersReached,
-    #[error("Trusted contact's alias cannot be blank")]
+    #[error("Recovery Contact's alias cannot be blank")]
     BlankTrustedContactAlias,
-    #[error("Trusted contact has no roles assigned")]
+    #[error("Recovery Contact has no roles assigned")]
     MissingTrustedContactRoles,
     #[error(transparent)]
     PromotionCode(#[from] PromotionCodeError),

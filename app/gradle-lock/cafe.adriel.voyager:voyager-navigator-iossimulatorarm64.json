@@ -2,16 +2,16 @@
     "module-identifier": "cafe.adriel.voyager:voyager-navigator-iossimulatorarm64",
     "components": [
         {
-            "version": "1.1.0-alpha04",
+            "version": "1.1.0-beta03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-navigator-iossimulatorarm64-1.1.0-alpha04-metadata.jar": "9780f04f4b382c8e33f84e933e5fd8e325eea3245c979f3a336e71a8c4a6f509"
+                        "voyager-navigator-iossimulatorarm64-1.1.0-beta03-metadata.jar": "e0a6c8021dafb8b87699e705b52cc5a36eb61b6db7be39b89fb498c6e0b0fa38"
                     }
                 },
                 {
                     "artifacts": {
-                        "voyager-navigator.klib": "6e5a6959b38d55109181f1504aa248e970e013de321fcff4e06d18b7a705e852"
+                        "voyager-navigator.klib": "e58b1f8071d65a2e00f1b3faa12f6a45d7f465b8284f85542d2d24ff227381f6"
                     }
                 }
             ],

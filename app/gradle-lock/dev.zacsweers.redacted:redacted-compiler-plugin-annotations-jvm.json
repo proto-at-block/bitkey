@@ -2,11 +2,11 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-jvm",
     "components": [
         {
-            "version": "1.10.0",
+            "version": "1.13.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations-jvm-1.10.0.jar": "9042e99092d80a34a4d61b40206c6c31df2fc706786a1885a65e25480a3c0425"
+                        "redacted-compiler-plugin-annotations-jvm-1.13.0.jar": "5f7f2800436c511a46277517f23cdb0a6eaacdeb8d2639ed310aee3c91a38694"
                     }
                 }
             ],

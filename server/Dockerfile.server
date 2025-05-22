@@ -1,4 +1,7 @@
 # syntax=docker/dockerfile:1.12
+# check=skip=SecretsUsedInArgOrEnv
+# Docker overly agggressively considers any ARG with the word "key" in it to be sensitive
+# https://github.com/moby/buildkit/blob/94f3b378d96ef6e4d53da19658ed8df3e5e6bcf2/frontend/dockerfile/dockerfile2llb/convert.go#L2544
 ARG ENABLE_SCCACHE=0
 ARG SCCACHE_BUCKET
 ARG SCCACHE_REGION

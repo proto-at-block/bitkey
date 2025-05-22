@@ -36,7 +36,6 @@ data class LiteMoneyHomeBodyModel(
     buttonModel: MoneyHomeButtonsModel,
     protectedCustomers: ImmutableList<ProtectedCustomer>,
     badgedSettingsIcon: Boolean,
-    inheritanceIsEnabled: Boolean,
     onProtectedCustomerClick: (ProtectedCustomer) -> Unit,
     onBuyOwnBitkeyClick: () -> Unit,
     onAcceptInviteClick: () -> Unit,
@@ -54,7 +53,7 @@ data class LiteMoneyHomeBodyModel(
         InheritanceMoneyHomeCard(
           onIHaveABitkey = onIHaveABitkeyClick,
           onGetABitkey = onBuyOwnBitkeyClick
-        ).takeIf { inheritanceIsEnabled },
+        ),
         // Buy your Own Bitkey card
         BuyOwnBitkeyMoneyHomeCardModel(onClick = onBuyOwnBitkeyClick)
       ).toImmutableList()

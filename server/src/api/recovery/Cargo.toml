@@ -12,6 +12,7 @@ futures = { workspace = true }
 hex = { workspace = true }
 mockall = { workspace = true }
 once_cell = { workspace = true }
+privileged_action = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -104,7 +104,10 @@ class FingerprintsActionFactoryFake : FingerprintsActionFactory,
 
 class HardwareDeviceActionFactoryFake : HardwareDeviceActionFactory,
   FakeActionFactory(
-    recommendations = listOf(SecurityActionRecommendation.PAIR_HARDWARE_DEVICE, SecurityActionRecommendation.UPDATE_FIRMWARE),
+    recommendations = listOf(
+      SecurityActionRecommendation.UPDATE_FIRMWARE,
+      SecurityActionRecommendation.PAIR_HARDWARE_DEVICE
+    ),
     category = SecurityActionCategory.SECURITY,
     type = SecurityActionType.HARDWARE_DEVICE
   ) {

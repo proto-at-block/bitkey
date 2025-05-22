@@ -16,10 +16,26 @@ import build.wallet.ui.model.ComposeModel
 data class StatusBannerModel(
   val title: String,
   val subtitle: String?,
+  val style: BannerStyle,
   val onClick: (() -> Unit)?,
 ) : ComposeModel {
   @Composable
   override fun render(modifier: Modifier) {
     StatusBanner(modifier, model = this)
   }
+}
+
+/**
+ * A style for the status banner. This is used to determine the background colors
+ */
+sealed interface BannerStyle {
+  /**
+   * Warning style is mapped to warning color palette.
+   */
+  data object Warning : BannerStyle
+
+  /**
+   * Destructive style is mapped to destructive color palette.
+   */
+  data object Destructive : BannerStyle
 }

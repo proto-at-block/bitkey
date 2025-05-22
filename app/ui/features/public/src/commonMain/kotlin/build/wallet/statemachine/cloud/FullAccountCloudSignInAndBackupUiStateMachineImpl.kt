@@ -436,37 +436,37 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           }
           .bind()
 
-        // Create the emergency access kit.
+        // Create the Emergency Exit Kit.
         val emergencyAccessKitData =
           emergencyAccessKitPdfGenerator
             .generate(
               keybox = props.keybox,
               sealedCsek = sealedCsek
             )
-            .logFailure { "Error creating emergency access kit data" }
+            .logFailure { "Error creating Emergency Exit Kit data" }
             .onFailure {
               onFailure(
                 ErrorData(
                   segment = RecoverySegment.EmergencyAccess.Creation,
                   cause = it,
-                  actionDescription = "Creating emergency access kit"
+                  actionDescription = "Creating Emergency Exit Kit"
                 )
               )
             }
             .bind()
 
-        // Save the emergency access kit.
+        // Save the Emergency Exit Kit.
         emergencyAccessKitRepository
           .write(
             account = state.cloudStoreAccount,
             emergencyAccessKitData = emergencyAccessKitData
           )
-          .logFailure { "Error saving emergency access kit to cloud file store" }
+          .logFailure { "Error saving Emergency Exit Kit to cloud file store" }
           .onFailure { writeFailure ->
             val errorData = ErrorData(
               segment = RecoverySegment.EmergencyAccess.Upload,
               cause = writeFailure,
-              actionDescription = "Uploading emergency access kit to cloud"
+              actionDescription = "Uploading Emergency Exit Kit to cloud"
             )
             if (writeFailure is RectifiableCloudError) {
               onRectifiableError(

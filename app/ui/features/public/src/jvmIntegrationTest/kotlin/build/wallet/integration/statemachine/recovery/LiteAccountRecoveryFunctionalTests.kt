@@ -2,7 +2,6 @@ package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.integration.statemachine.create.beTrustedContactButton
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.statemachine.account.ChooseAccountAccessModel
@@ -11,7 +10,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilBody
-import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
@@ -26,7 +24,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
   val protectedCustomerName = "kiki"
   val trustedContactName = "lala"
 
-  test("lite account recovery via Be a Trusted Contact button") {
+  test("lite account recovery via Be a Recovery Contact button") {
 
     // Protected Customer onboards and sends out an invite
     val protectedCustomerApp = launchNewApp()
@@ -36,7 +34,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
         tcName = trustedContactName
       )
 
-    // Trusted Contact onboards by accepting Invitation
+    // Recovery Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,
@@ -49,7 +47,6 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       cloudStoreAccountRepository = trustedContactApp.cloudStoreAccountRepository,
       cloudKeyValueStore = trustedContactApp.cloudKeyValueStore
     )
-    newApp.inheritanceFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
     newApp.appUiStateMachine.test(
       props = Unit,
       turbineTimeout = 10.seconds
@@ -58,8 +55,6 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
         .clickMoreOptionsButton()
       awaitUntilBody<FormBodyModel>()
         .beTrustedContactButton.onClick.shouldNotBeNull().invoke()
-      awaitUntilBody<FormBodyModel>()
-        .clickPrimaryButton()
       awaitUntilBody<CloudSignInModelFake>(
         CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
       )
@@ -79,7 +74,7 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
         tcName = trustedContactName
       )
 
-    // Trusted Contact onboards by accepting Invitation
+    // Recovery Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
     trustedContactApp.onboardLiteAccountFromInvitation(
       inviteCode = inviteCode,

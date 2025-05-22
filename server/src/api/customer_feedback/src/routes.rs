@@ -347,6 +347,7 @@ pub struct TicketFormCondition {
 pub enum TicketFieldValue {
     String { value: String },
     Bool { value: bool },
+    MultiChoice { values: Vec<String> },
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -398,6 +399,9 @@ impl From<TicketFormEndUserConditionValuePayload> for TicketFieldValue {
                 TicketFieldValue::String { value }
             }
             TicketFormEndUserConditionValuePayload::Bool(value) => TicketFieldValue::Bool { value },
+            TicketFormEndUserConditionValuePayload::MultiChoice(values) => {
+                TicketFieldValue::MultiChoice { values }
+            }
         }
     }
 }
@@ -409,6 +413,9 @@ impl From<TicketFieldValue> for TicketFormEndUserConditionValuePayload {
                 TicketFormEndUserConditionValuePayload::String(value)
             }
             TicketFieldValue::Bool { value } => TicketFormEndUserConditionValuePayload::Bool(value),
+            TicketFieldValue::MultiChoice { values } => {
+                TicketFormEndUserConditionValuePayload::MultiChoice(values)
+            }
         }
     }
 }

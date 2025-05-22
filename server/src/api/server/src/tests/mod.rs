@@ -28,6 +28,7 @@ mod requests;
 mod scheduled_notifications_integration_tests;
 mod send_customer_notifications_integration_tests;
 mod transaction_integration_tests;
+mod transaction_verification_integration_tests;
 
 #[macro_export]
 macro_rules! tests {

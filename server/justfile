@@ -69,11 +69,11 @@ run-migrations:
 
 # Run all tests
 test: sidecars
-  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features
+  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features --no-fail-fast
 
 # Run all tests
-test-ci: sidecars
-  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features --profile ci
+test-ci: start-integration
+  RUST_MIN_STACK=4194304 {{cargo}} nextest run --all-features --profile ci --no-fail-fast
 
 # Run server tests
 test-server: sidecars

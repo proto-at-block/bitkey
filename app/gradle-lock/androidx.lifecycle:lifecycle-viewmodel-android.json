@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-android",
     "components": [
         {
-            "version": "2.8.5",
+            "version": "2.8.7",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-release.aar": "d761efb7065206e251f094d3e733af27ba901d2d1b180354c106d01bf63dae66"
+                        "lifecycle-viewmodel-release.aar": "e7e7043f66b077637563ff564a7fc6cee461d284a0f2485c050a2143abbd8920"
                     }
                 }
             ],

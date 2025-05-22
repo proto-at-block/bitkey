@@ -37,7 +37,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   val exitCalls = turbines.create<Unit>("exit calls")
   val backupFoundCalls = turbines.create<CloudBackup>("backup found calls")
   val cannotAccessCloudCalls = turbines.create<Unit>("cannot access cloud calls")
-  val importEmergencyAccessKitCalls = turbines.create<Unit>("import emergency access kit calls")
+  val importEmergencyAccessKitCalls = turbines.create<Unit>("import Emergency Exit Kit calls")
 
   val props =
     AccessCloudBackupUiProps(
@@ -144,13 +144,13 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   /*
-   The "Be a Trusted Contact" flow uses this state machine to check for cloud sign in
+   The "Be a Recovery Contact" flow uses this state machine to check for cloud sign in
    and a possible backup before continuing the invite flow.
    If sign in fails, it should not show the rest of the recovery options, but instead the generic
    cloud sign in failure screen.
    If cloud sign in succeeds should proceed as if a backup was found.
    */
-  test("cloud account sign in failed from trusted contact flow - does not show recovery options") {
+  test("cloud account sign in failed from Recovery Contact flow - does not show recovery options") {
     stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())
@@ -160,7 +160,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
     }
   }
 
-  test("cloud account signed in but cloud backup not found from trusted contact flow - proceeds as if found") {
+  test("cloud account signed in but cloud backup not found from Recovery Contact flow - proceeds as if found") {
     stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
@@ -174,7 +174,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
     }
   }
 
-  test("cloud account sign in failed - start emergency access recovery") {
+  test("cloud account sign in failed - start Emergency Exit Kit recovery") {
     stateMachine.test(props) {
       awaitBodyMock<CloudSignInUiProps> {
         onSignInFailure(Error())

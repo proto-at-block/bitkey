@@ -4,7 +4,8 @@ use http::StatusCode;
 use mobile_pay::routes::{MobilePaySetupRequest, MobilePaySetupResponse};
 use time::UtcOffset;
 use types::account::identifiers::AccountId;
-use types::account::spend_limit::{Money, SpendingLimit};
+use types::account::money::Money;
+use types::account::spend_limit::SpendingLimit;
 use types::currencies::CurrencyCode::{USD, XXX};
 use ulid::Ulid;
 
@@ -282,7 +283,8 @@ mod get_mobile_pay_tests {
     use mobile_pay::daily_spend_record::entities::DailySpendingRecord;
     use mobile_pay::routes::MobilePaySetupResponse;
     use time::{OffsetDateTime, UtcOffset};
-    use types::account::spend_limit::{Money, SpendingLimit};
+    use types::account::money::Money;
+    use types::account::spend_limit::SpendingLimit;
     use types::currencies::CurrencyCode::{EUR, USD};
     use types::exchange_rate::local_rate_provider::LOCAL_ONE_BTC_IN_FIAT;
 

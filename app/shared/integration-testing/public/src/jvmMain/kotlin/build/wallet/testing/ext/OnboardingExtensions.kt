@@ -105,7 +105,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
 }
 
 /**
- * Onboard Lite Account by accepting a Trusted Contact invitation.
+ * Onboard Lite Account by accepting a Recovery Contact invitation.
  */
 suspend fun AppTester.onboardLiteAccountFromInvitation(
   inviteCode: String,
@@ -128,7 +128,7 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
   // Set Lite Account as active in the app
   accountService.setActiveAccount(account).getOrThrow()
 
-  // Accept TC invitation from Protected Customer
+  // Accept RC invitation from Protected Customer
   val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)
   val invitation = relationshipsService
     .retrieveInvitation(account, inviteCode)

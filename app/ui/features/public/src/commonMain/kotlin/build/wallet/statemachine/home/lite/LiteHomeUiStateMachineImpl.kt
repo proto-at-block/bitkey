@@ -23,6 +23,7 @@ import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiStateMachine
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementProps.AcceptInvite
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiProps
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachine
+import build.wallet.statemachine.status.BannerContext
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
@@ -80,6 +81,7 @@ class LiteHomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine.model(
         props =
           HomeStatusBannerUiProps(
+            bannerContext = BannerContext.Home,
             onBannerClick = null
           )
       )
@@ -202,7 +204,7 @@ private enum class HomeScreen {
  * Represents a screen presented on top of either [HomeScreen]
  */
 private sealed interface PresentedScreen {
-  /** Indicates that the add trusted contact flow is currently presented */
+  /** Indicates that the add Recovery Contact flow is currently presented */
   data class AddTrustedContact(
     val acceptInvite: AcceptInvite?,
   ) : PresentedScreen
