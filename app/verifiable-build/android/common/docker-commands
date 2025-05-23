@@ -64,7 +64,7 @@ buildAabUsingDockerContainer() {
       done
     fi
 
-    find . -exec touch -t $(git log -1 --date=format:"%Y%m%d%H%M" --format="%ad") {} +
+    find . -exec touch -t "202505221555" {} +
     zip -rq -D -X -9 -A --compression-method deflate "${aab_path}.zip" *
 
     cd ..

@@ -114,6 +114,7 @@ class MoneyHomeUiStateMachineImpl(
       socRecService.justCompletedRecovery()
     }.collectAsState(initial = false)
 
+    var hasAutoShownSocialRecoveryScreen by remember { mutableStateOf(false) }
     val shouldShowUpsell = remember { mutableStateOf(false) }
 
     val scope = rememberStableCoroutineScope()
@@ -136,7 +137,8 @@ class MoneyHomeUiStateMachineImpl(
           val lostHardwareRecoveryData = props.lostHardwareRecoveryData
 
           when {
-            justCompletingSocialRecovery -> {
+            justCompletingSocialRecovery && !hasAutoShownSocialRecoveryScreen -> {
+              hasAutoShownSocialRecoveryScreen = true
               ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
             }
             lostHardwareRecoveryData is LostHardwareRecoveryInProgressData ->
