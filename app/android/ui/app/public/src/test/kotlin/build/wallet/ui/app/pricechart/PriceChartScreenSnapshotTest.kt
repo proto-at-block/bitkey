@@ -10,7 +10,6 @@ import build.wallet.ui.components.screen.Screen
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.datetime.Clock
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.Instant
 import kotlinx.datetime.plus
@@ -233,7 +232,7 @@ private fun generateChartData(pointCount: Int): ImmutableList<DataPoint> {
   return buildImmutableList {
     for (i in 0 until pointCount) {
       val y = abs(sin(i * PI / 30) * 20 + cos(i * PI / 15) * 10)
-      add(DataPoint(Clock.System.now().plus(i * (7 * 24), DateTimeUnit.HOUR).epochSeconds, y))
+      add(DataPoint(Instant.fromEpochMilliseconds(1747408766000).plus(i * (7 * 24), DateTimeUnit.HOUR).epochSeconds, y))
     }
   }
 }

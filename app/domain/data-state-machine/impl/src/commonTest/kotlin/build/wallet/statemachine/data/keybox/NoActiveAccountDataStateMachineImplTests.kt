@@ -29,7 +29,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<LostAppRecoveryProps, LostAppRecoveryData>(
         AttemptingCloudRecoveryLostAppRecoveryDataData(
           cloudBackup = CloudBackupV2WithFullAccountMock,
-          rollback = {}
+          rollback = {},
+          onRecoverAppKey = {}
         )
       ) {}
   val eventTracker = EventTrackerMock(turbines::create)

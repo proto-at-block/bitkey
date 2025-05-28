@@ -92,6 +92,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   val eventTracker = EventTrackerMock(turbines::create)
   val onExitCalls = turbines.create<Unit>("on exit calls")
+  val onRecoverAppKeyCalls = turbines.create<Unit>("on recover app key calls")
 
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val socRecPendingChallengeDao = SocRecStartedChallengeDaoFake()
@@ -126,6 +127,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   val props = FullAccountCloudBackupRestorationUiProps(
     backup = CloudBackupV2WithFullAccountMock,
+    onRecoverAppKey = { onRecoverAppKeyCalls.add(Unit) },
     onExit = { onExitCalls.add(Unit) }
   )
 

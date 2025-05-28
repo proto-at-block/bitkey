@@ -13,10 +13,11 @@ interface FullAccountCloudBackupRestorationUiStateMachine :
 /**
  * @property backup the backup object to use to restore from.
  * @property onExit handler for when the flow needs to be exited completely.
- * @property onKeyboxRestoredFromBackup handler for when cloud backup is successfully found and
- * used to restore the account.
+ * @property onRecoverAppKey handler when the app key needs to be recovered using D&N
+ * (in case if cloud backup is found but is corrupted/unusable, see W-11398).
  */
 data class FullAccountCloudBackupRestorationUiProps(
   val backup: CloudBackup,
+  val onRecoverAppKey: () -> Unit,
   val onExit: () -> Unit,
 )

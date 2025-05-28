@@ -16,8 +16,8 @@ buildLogic {
     version(
       yyyy = 2025,
       version = 10,
-      patch = 0,
-      build = 5
+      patch = 1,
+      build = 1
     )
   }
   compose {

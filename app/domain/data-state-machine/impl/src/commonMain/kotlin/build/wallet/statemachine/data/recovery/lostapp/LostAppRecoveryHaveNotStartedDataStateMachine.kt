@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.di.AppScope
 import build.wallet.di.BitkeyInject
@@ -37,7 +38,7 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
   override fun model(
     props: LostAppRecoveryHaveNotStartedProps,
   ): LostAppRecoveryHaveNotStartedData {
-    val dataState: State by remember {
+    var dataState: State by remember {
       mutableStateOf(
         if (props.cloudBackup == null) {
           InitiatingLostAppRecoveryState
@@ -52,7 +53,10 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
         is AttemptingCloudBackupRecoveryState ->
           AttemptingCloudRecoveryLostAppRecoveryDataData(
             cloudBackup = state.cloudBackup,
-            rollback = props.onRollback
+            rollback = props.onRollback,
+            onRecoverAppKey = {
+              dataState = InitiatingLostAppRecoveryState
+            }
           )
 
         is InitiatingLostAppRecoveryState ->

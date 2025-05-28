@@ -224,17 +224,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       }
 
       is RestoringFromBackupFailureUiState ->
-        ErrorFormBodyModel(
-          title = "We were unable to restore your wallet from a backup",
-          primaryButton =
-            ButtonDataModel(
-              text = "Back",
-              onClick = {
-                uiState = SocialRecoveryExplanationState
-              }
-            ),
-          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP,
-          errorData = state.errorData
+        ProblemWithCloudBackupModel(
+          onBack = {
+            uiState = SocialRecoveryExplanationState
+          },
+          onRecoverAppKey = props.onRecoverAppKey
         ).asRootScreen()
 
       is SocRecRestorationFailedState ->
